@@ -1,0 +1,19 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+  sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+  value: 1
+  source: Character
+  name: Stamina Modification
+  behavior: attribute
+  description: ""
+  attribute: recoveryvalue
+source: Character
+guid: 2359108d-cb7d-4a79-8a98-38f577168092
+id: 18bbbe00-297e-4c34-9114-408f16ca7111
+ctime: 1756198910220
+name: Recovery Value Modification
+description: ""
+mtime: 1756198910220
+implementation: 3

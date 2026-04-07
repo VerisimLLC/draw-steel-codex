@@ -1,0 +1,39 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 705aeb9f-2fda-4abe-a2e5-3dd615077eb0
+  choiceName: Devil Masculine
+  id: a01f07d8-fbea-4421-beff-ddf82225860b
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 22a73d02-bf8c-4dae-9ce2-c4c1ad4708fb
+  choiceName: Devil Gender Neutral
+  id: bc97c4e9-45de-45a9-9dd3-2441044ab873
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: c061713f-fd0c-4589-9335-deb924ab4d75
+  choiceName: Devil Feminine
+  id: 07ef68e6-63c3-4704-af39-d57116eba8cb
+id: 124bc71a-d675-463c-822c-c06b44ea6d37
+rollType: namedChoice
+name: Devil Names
+mtime: 1743454200070
+items: false
+ctime: 1743448557266

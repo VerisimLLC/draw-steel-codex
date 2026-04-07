@@ -1,0 +1,161 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: afbcf609-683f-4bd3-852a-bb63860d4ef5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 9
+    import:
+      type: mcdm
+      data: |+
+        Fire Giant Fireballer	Level 9 Minion Harrier
+        Fire Giant, Giant	EV 11 for four minions
+        <b>Stamina</b> 13	<b>Immunity</b> fire 9
+        <b>Speed</b> 7	<b>Size</b> 4 /<b> Stability</b> 5
+        <b>With Captain</b> Speed +3<b>Free Strike</b> 3
+        Might +4	Agility +2	Reason 0	Intuition +2	Presence +1
+        <b>Blazing Leap</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 burst<b>	Target</b> All enemies and objects in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 fire damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 fire damage; push 1
+        %E2%9C%B8	<b>17</b>	6 fire damage; push 2
+        <b>Effect</b> The fireball can jump 4 squares before using this ability.
+
+        <b>Searing Skin</b>
+        Whenever an enemy makes physical contact with the fireball or uses a melee ability against the fireball, they take 5 fire damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:db5c34b2-f579-4dc6-a309-f040cb4e7603: true
+      modifiers: []
+      name: Searing Skin
+      description: Whenever an enemy makes physical contact with the fireball or uses a melee ability against the fireball, they take 5 fire damage.
+      guid: db5c34b2-f579-4dc6-a309-f040cb4e7603
+      source: Trait
+    role: Minion Harrier
+    keywords:
+      Giant: true
+      Fire Giant: true
+    max_hitpoints_roll: "13"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 9
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 3
+    monster_type: Fire Giant Fireballer
+    max_hitpoints: 13
+    withCaptain: +3 bonus to speed
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    levelChoices: []
+    equipment: []
+    walkingSpeed: 7
+    traitNames: []
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 fire damage
+        - 5 fire damage; push 1
+        - 6 fire damage; push 2
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 678c43e4-88e2-4485-827f-adb638e6744e
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Blazing Leap
+      numTargets: 1
+      description: The fireball can jump 4 squares before using this ability.
+      abilityType: none
+      implementation: 3
+    monster_category: Monster
+    movementSpeeds: []
+    damage_taken: 0
+    minion: true
+    ev: 11
+    creatureSize: "4"
+  tokenType: null
+  bestiaryId: 60ece013-791c-4246-a9d4-414f4e4381fe
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222946034
+description: Fire Giant Fireballer
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590258429
+mtime: 1775201137032
+hidden: false

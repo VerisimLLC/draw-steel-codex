@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Supernatural Perks
+name: Creature Sense
+description: As a maneuver, choose a creature within 10 squares. If that creature is your level or lower, you learn the keywords in their stat block (Demon, Humanoid, Undead, and so forth).
+mtime: 1755079071675
+id: c2639bfd-81af-407a-abb7-e13cfcec7dc2
+ctime: 1730701271709

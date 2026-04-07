@@ -1,0 +1,472 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8198675f-7eee-451f-99e0-a68c7ccb8de1
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 6
+    import:
+      type: mcdm
+      data: |
+        Dorzinuuth the Base	Level 6 Leader
+        Draconian, Dragon, Humanoid	EV 32
+        <b>Stamina</b> 180	<b>Immunity</b> lightning 6
+        <b>Speed</b> 5 (flying, hover)	<b>Size</b> 1L /<b> Stability</b> 6
+        <b>Free Strike</b> 7
+        Might +4	Agility +1	Reason +1	Intuition +2	Presence +3
+        <b>Punishing Flail</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 damage; M<2 prone
+        %E2%98%85	<b>12-16</b>	16 damage; M<3 prone
+        %E2%9C%B8	<b>17</b>	19 damage; M<4 prone
+        <b>2 MaliceM<4</b> bleeding (save ends).
+
+        <b>I'll Cut A Path</b> (Maneuver) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 5 x 1 line Within 1	<b>Target</b> All enemies in the line
+        <b>Effect</b> Dorzinuuth shifts to an unoccupied square adjacent to the end of the line and then rolls power.
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12-16</b>	12 damage; M<3 prone
+        %E2%9C%B8	<b>17</b>	15 damage; M<4 prone
+
+        <b>Watch Your Six!</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> 1 Ally
+        <b>Trigger</b> An ally within distance takes damage while Dorzinuuth isn't flying.
+        <b>Effect</b> Dorzinuuth shields his ally with his wings, halving the damage.
+
+        <b>End Effect</b>
+        At the end of his turn, Dorzinuuth can take 10 damage to end one save ends effect affecting him. This damage can't be reduced in any way.
+
+        <b>Sheltering Wings</b>
+        Strikes made against Dorzinuuth have a bane while he isn't flying.
+
+        <b>Remember Your Oath</b>
+        After Dorzinuuth hears a character recite the Dragon Phalanx oath, he has a bane on all strikes made against that character.
+
+        <b>Roaring Gambit</b> (Villain Action 1)
+        <b>Keywords</b> -
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies in the burst
+        <b>Effect</b> Dorzinuuth lets loose a powerful roar. Each target must make a <b>Reason test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	frightened (save ends)
+        %E2%98%85	<b>12-16</b>	frightened (EoT)
+        %E2%9C%A6	<b>17</b>	no effect
+        <b>Effect</b> Each ally within distance has an edge on their next attack.
+
+        <b>Wings of Second Wind </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Self and 10 burst<b>	Target</b> Self and all allies
+        <b>Effect</b> Each target shifts or flies up to their speed and regains 10 Stamina.
+
+        <b>Snap, Crackle, Pop</b> (Villain Action 3)
+        <b>Keywords</b> Magic, Melee
+        <b>Distance</b> 5 burst<b>	Target</b> All allies in the burst
+        <b>Effect</b> Dorzinuuth covers all allies in an electrifying mesh. Whenever a target takes damage from a melee strike or ability, the attacker takes 6 lightning damage.
+        Retainer
+        The Nameless	Level 6 Defender Retainer
+        Draconian, Humanoid
+        <b>Stamina</b> 66	<b>Immunities</b> Corruption 6
+        <b>Speed</b> 5 (flying)	<b>Size</b> 1M/<b>Stability</b> 4
+        <b>Free Strike</b> 6
+        Might +3	Agility +2	Reason +1	Intuition +1	Presence +2
+        <b>Malice Mace</b> (Action) - 2d10 + highest characteristic %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1 	Target One creature or object
+        %E2%9C%A6 %E2%89%A411 		6 damage
+        %E2%98%85 12%E2%80%9316 	11 damage
+        %E2%9C%B8 17+ 		14 damage; push 2
+
+        <b>I'm Not a Steed, You're Equipment</b> (Action, Encounter)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1	<b>Target</b> the Nameless's mentor
+        <b>Effect</b> The Nameless's mentor enters their square and rides on their back. The Nameless or the mentor can move the mentor to an adjacent square as a free maneuver. While in the Nameless's square, the mentor moves with them, can't take their own move action, and all ability power rolls made against the mentor have a bane.
+
+        <b>Wing Block</b>
+        Ranged attacks against the Nameless suffer a bane.
+
+        Level 7 Retainer Advancement Ability
+        <b>Looming Wings</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 burst 	<b>Target</b> All enemies
+        %E2%9C%A6 %E2%89%A411 		5 corruption damage; I (weak) weakened (save ends)
+        %E2%98%85 12%E2%80%9316 	9 corruption damage; I (average) weakened (save ends)
+        %E2%9C%B8 17+ 		12 corruption damage; I (strong) weakened (save ends)
+        <b>Effect</b> If the Nameless's mentor is in the area, all ability power rolls made against them have a double bane until the start of their next turn.
+
+        Level 10 Retainer Advancement Ability
+        <b>Spew Death</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Area, Magic
+        %E2%9C%A6 %E2%89%A411 		11 corruption damage
+        %E2%98%85 12%E2%80%9316 	16 corruption damage
+        %E2%9C%B8 17+ 		21 corruption damage
+        <b>Effect</b> The Nameless must be winded to use this ability. Any living minions reduced to 0 Stamina by this ability regain all their Stamina and become corporeal undead under the Nameless's control until the end of the Nameless's next turn, after which time they are destroyed.
+        %E2%98%92 Space for Dragon Prose
+        Dragons
+        We fear dragons above all else. Not only are they an expression of annihilation-our oldest and most basic dread-but they are a symbol of everything ancient, inscrutable, and unconquerable about our world.
+        Where the Elements Meet Anguish
+        As elementals are pure expressions of the Mundane World, their shapes can become hardened and bent by intense energies permeating their world. Over time, an elemental entangled in extreme concentrations of rancor or grief may crystallize into a terrifying beast known as a dragon.
+        Dragons are both a provocateur and a consequence of people's anguish. A thorn dragon will overtake crops and forests in a fortress of bramble vines and threaten to starve the people living there, yet it was born out of decades of hunger and strife that came before them. Vanquishing a dragon may be necessary to save innocent lives, but until the underlying problems are addressed, another dragon will take their place in time.
+        Draco Vulgaris
+        Many regular dragons share a number of commonalities between them, such as powerful wings, whiplike tails, and reptilian faces adorned with horns. People categorize them more specifically based on where they're found and how those environments have shaped their forms, such as the gloom dragon's telltale mantle of fog. Some individual dragons retain a trait or two from their primordial forms, while more powerful dragons have been known to intentionally change their shapes to distinguish themselves even further.
+        Across all dragons, the dragon's breath is their most violent form of self-expression. Whether they roar to ward off threats or charge their breath with elemental energy, no good comes from a dragon opening their mouth.
+        Wyrmscale
+        Most dragons are covered in wyrmscale, a hardy plate that both absorbs and emits elemental energy. They not only protect dragons but allow them to ignite their bodies and further shape their environment. The crucible dragon, for example, lights their tail on fire to decimate structures that their breath cannot melt alone.
+        When a dragon feels threatened, their wyrmscale radiates massive amounts of energy and creates a barrier around them. This barrier buffers both incoming and outgoing force, allowing the dragon to become even more fearsome should their defenses break down.
+        A Lord of their Domain
+        It's said that a dragon's physical form includes the land they're found in. The longer a dragon spends time in a location, the more control they have over it. The land becomes barren in an omen dragon's domain as old souls become suspended in its thickened air and new life can't breach its soil.
+        This impact is more than a passive consequence of a dragon's presence; dragons use their magic to set seals upon creatures and lands that they claim as their own. To be dragonsealed is to become an extension of the dragon's might and subject to their fury.
+        Some cultures that have developed in close proximity to a dragon may give alms to the dragon as if they were a saint, and treat the dragon's seal as a blessing. There is some truth to this-few other predators are foolish enough to encroach on a dragon's territory.
+        Dragon Hoards
+        Legendary heroes protect the layperson from dragons. Foolhardy adventurers brave a dragon's lair to take their treasure.
+        Mature dragons hoard vast amounts of treasure and wealth as a hunting technique. The more valuable their trove, the more prey they lure into their clutches. Desperate kings have sent armies to their deaths for the opportunity to expand their kingdoms' wealth. Their efforts only further these dragon hoards as they continue to pile with enchanted armors and magical trinkets that can't be ignored.
+        Younger dragons still settling their domains have been known to scour ruins and old cities for treasures to start their hoard. It is not unheard of for a dragon to either repeatedly visit or settle near people who willingly give them their valuables and heirlooms.
+        Draco Nobilis
+        Regular dragons should not be confused for the elder dragons. They are known otherwise as true dragons, legendary beings that are said to devour entire worlds when they finally awaken. Even the most fearsome meteor dragon only possesses a modicum of a true dragon's power and wiles.
+        No one has recognized a true dragon for thousands of years. However, rumor has it that a true dragon sleeps at the sun's core and is responsible for bringing light to the entire Mundane World.
+
+        Thorn Dragon
+        Thorn dragons take root in the destitution of nature and are cultivated by the suffering of those who struggle against the green's cruelty. Though a region's people may have long overcome past famine, the desperation of those who came before has already nurtured their future scourge.
+        These dragons appear born of the wood, living thickets bedecked in torturous thorns. With twisting briar horns and wings shaped by tangled roots, thorn dragons embody the richness of nature they so readily constrict the life from.
+        Conquerors of the Green
+        Thorn dragons cultivate their lairs in lush farmlands or flourishing forests. They overtake these beautiful regions with massive briar thickets, choking out the existing flora until the only thing that can grow are their own brambles.
+        In forests, this ravaging drives out the local fauna smart enough to flee rather than foolishly fight against the wood's new ruler. When a thorn dragon establishes their lair over a village's farmlands, the populace either wisely flees or starves for their pride.
+        Natural Curators
+        More intelligent dragons seek all forms of riches for their hoard, but thorn dragons have no eye for manmade treasures. Instead, they amass the wealth of the wild they represent. Thorn dragons stockpile food, even food they won't eat, alongside uncut gemstones, minerals and ore, wood, oils, and spices.
+        Bestial Instincts
+        Compared to more powerful dragons, thorn dragons are closer to beasts. They are incapable of speech and act primarily on instinct to expand their territory, defend their lair, and grow their hoard.
+        Despite this, some villages manage to avoid being driven from their homes or starved within them-at the expense of being dependent on a thorn dragon's bestial ego. These villagers come to a tenuous understanding with the dragon, trading it the kinds of treasure it desires in exchange for meager foodstuffs from the dragon's hoard.
+        Territorial Bloodletters
+        Thorn dragons are highly territorial against unexpected threats to their lair. In order to defend their home, these dragons take advantage of the thicket-by dragonsealing intruders, pushing and pulling them across the briars and letting the thorns bleed them dry. When the brambles aren't enough, thorn dragons either imbue the barbs with poison or breathe the toxins directly, taking advantage of another way to slowly drain the life from their enemies.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ef32af7e-ff30-451c-962a-6c7364d29469: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of his turns, Dorzinuuth can take 10 damage to end one effect on him that can be ended by a saving throw. This damage can't be reduced in any way.
+      guid: ef32af7e-ff30-451c-962a-6c7364d29469
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0ff3776c-dc66-4131-a9f7-0559e28089c8: true
+      modifiers: []
+      name: Sheltering Wings
+      description: Strikes made against Dorzinuuth have a bane while he isn't flying.
+      guid: 0ff3776c-dc66-4131-a9f7-0559e28089c8
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:15abdb21-44bb-4775-9820-730b73bac5fc: true
+      modifiers: []
+      name: Remember Your Oath
+      description: After Dorzinuuth hears a character recite the Dragon Phalanx oath, he has a bane on all strikes made against that character.
+      guid: 15abdb21-44bb-4775-9820-730b73bac5fc
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:be0a85e6-c475-400c-96b7-a7ead7b8aa35: true
+      modifiers: []
+      name: Wing Block
+      description: Ranged attacks against the Nameless suffer a bane.
+      guid: be0a85e6-c475-400c-96b7-a7ead7b8aa35
+      source: Trait
+    role: Leader
+    keywords:
+      Dragon: true
+      Humanoid: true
+      Draconian: true
+    max_hitpoints_roll: "180"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: lightning
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Dorzinuuth the Base
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    groupid: 30f074ad-8a42-413f-a987-fb1a491e8ac7
+    damage_taken: 0
+    max_hitpoints: 180
+    resources: []
+    traitNames: []
+    ev: 32
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 345897ca-2fe5-47f3-9223-c5dff4211840
+      implementation: 3
+      numTargets: 2
+      name: Punishing Flail
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 damage; M<2 prone
+        - 16 damage; M<3 prone
+        - 19 damage; M<4 prone
+        roll: 2d10 + Might
+      description: |2-
+
+        **2 Malice**: If the target has M < 4, they are also bleeding (save ends).
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 13 damage; M<3 prone
+        - 15 damage; M<4 prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: ed97b091-ef54-4f15-b5ec-636d912c4b06
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: I'll Cut A Path
+      numTargets: 1
+      description: Dorzinuuth shifts to an unoccupied square adjacent to the end of the line and then rolls power.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 958d202d-6b5b-4077-ba9a-fa775a47d7b0
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Watch Your Six!
+      numTargets: 1
+      description: Dorzinuuth shields his ally with his wings, halving the damage.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '7b44b5da-fa07-4071-b82"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: f866acf3-ca25-4907-bcd7-30d46311a122
+      numTargets: 1
+      targetType: all
+      implementation: 0
+      name: Roaring Gambit
+      effectImplemented: false
+      description: Each ally within distance has an edge on their next attack.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bbaf41a2-7d98-434b-b517-a95435110f05
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '0125a958-678c-4241-b35"
+      implementation: 0
+      behaviors: []
+      name: 'Wings of Second Wind '
+      numTargets: 1
+      description: Each target shifts or flies up to their speed and regains 10 Stamina.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2db0a0d3-3be9-429c-ba03-f26001b53123
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '6b6965a5-77b5-4e25-982"
+      implementation: 0
+      behaviors: []
+      name: Snap, Crackle, Pop
+      numTargets: 1
+      description: Dorzinuuth covers all allies in an electrifying mesh. Whenever a target takes damage from a melee strike or ability, the attacker takes 6 lightning damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds:
+      fly: 5
+    levelChoices: []
+    minion: false
+    creatureSize: "2"
+    walkingSpeed: 5
+  tokenType: null
+  bestiaryId: ffda303b-66df-494a-b0ab-c44591e735fb
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Dorzinuuth the Base
+parentFolder: 9c6966f1-7896-4854-a485-664d5d643aee
+artist: null
+ord: 0
+ctime: 1741590333986
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,319 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 75a25656-2aef-46cb-b809-3077be4d7f12
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 38a522c2-4b13-4016-aafa-0b10b102c641
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 3
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; push 1
+        - 4 damage; push 2
+        - 5 damage; push 4
+        roll: 2d10 + 2
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; shift 1
+        - 4 damage; shift 2
+        - 5 damage; shift 4
+        roll: 2d10 + Might or Agility
+        modesSelected:
+        - 2
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 217
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      modeList:
+      - rules: You may push the target <<distance>>
+        text: Push
+      - rules: The Bloodspark Shifts <<distance>> away from the target
+        text: Shift
+      categorization: Signature Ability
+      persistence: []
+      targetType: target
+      numTargets: 1
+      implementation: 4
+      name: Explosive Mote
+      guid: c287d526-ef32-43a6-8949-837959465e4b
+      description: ""
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Orc Bloodspark	Level 1 Minion Artillery
+        Humanoid, Orc	EV 3 for four minions
+        <b>Stamina</b> 3
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Forced movement +2	<b>Free Strike</b> 2
+        Might 0	Agility +1	Reason 0	Intuition 0	Presence +2
+        <b>Explosive Mote</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage; push 1 or shift 1 away from target
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage; push 2 or shift 2 away from target
+        %E2%9C%B8	<b>17</b>	5 damage; push 4 or shift 4 away from target
+
+        <b>Bloodfire Burn</b>
+        If the bloodspark's Stamina drops to 0, they can make a free strike before dying.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+        CharacterFeature:044cd6b4-1481-4f2e-b917-51d6946b91c2: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+          CharacterFeature:044cd6b4-1481-4f2e-b917-51d6946b91c2: true
+        sourceguid: 044cd6b4-1481-4f2e-b917-51d6946b91c2
+        behavior: trigger
+        source: Trait
+        name: Bloodfire Burn
+        description: If the bloodspark is reduced to 0 Stamina drops to 0, they can make a free strike before dying.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          trigger: creaturedeath
+          strain: []
+          guid: 5e771739-1fff-4bea-9e56-cdc3b41b2a1e
+          repeatTargets: false
+          abilityType: none
+          domains:
+            CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+            CharacterFeature:044cd6b4-1481-4f2e-b917-51d6946b91c2: true
+          targetType: self
+          behaviors:
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              description: ""
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              modifiers:
+              - __typeName: CharacterModifier
+                guid: 36c4a627-6ccc-469a-b2e2-df447c7d1339
+                sourceguid: 6308df61-d57e-4378-9a85-39d5297fb782
+                behavior: attribute
+                source: Ongoing Effect
+                name: Cannot Be Removed
+                value: 1
+                description: ""
+                attribute: 7565750e-2376-4809-abc2-47eed82153d1
+              source: Ongoing Effect
+              name: Cannot Be Removed
+              guid: 6308df61-d57e-4378-9a85-39d5297fb782
+              id: 6308df61-d57e-4378-9a85-39d5297fb782
+              iconid: ui-icons/skills/1.png
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              objectTarget: false
+              abilityType: none
+              strain: []
+              guid: 7caac33b-820a-412b-b6ea-fae1c2ea0dad
+              repeatTargets: false
+              targetTextOverride: ""
+              modifiers: []
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Free Strike
+                  behavior: modifyability
+                  guid: e602aa6d-b1d3-4879-bee3-64e6c6cce0cf
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 1d44b7e1-af36-44f2-9686-58bd9fd53b2d
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              persistence: []
+              name: Invoked Ability
+              targetType: target
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            invokeOnCaster: true
+            promptText: select creature to free strike
+          name: Bloodfire Burn
+          numTargets: "1"
+          description: If the bloodspark is reduced to 0 Stamina drops to 0, they can make a free strike before dying.
+          range: 1
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 495248b8-718e-4b2f-ad4b-2b9ae593acff
+      - __typeName: CharacterModifier
+        sourceguid: 044cd6b4-1481-4f2e-b917-51d6946b91c2
+        source: Trait
+        value: 2
+        domains:
+          CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+          CharacterFeature:044cd6b4-1481-4f2e-b917-51d6946b91c2: true
+        name: Bloodfire Burn
+        guid: 179f3267-ee3c-4f23-8a76-98790f681725
+        description: If the bloodspark is reduced to 0 Stamina drops to 0, they can make a free strike before dying.
+        behavior: attribute
+        attribute: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+      source: Trait
+      description: If the bloodspark is reduced to 0 Stamina drops to 0, they can make a free strike before dying.
+      guid: 044cd6b4-1481-4f2e-b917-51d6946b91c2
+      name: Bloodfire Burn
+      implementation: 3
+    role: Minion Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    withCaptain: +2 bonus to forced movement distance
+    damage_taken: 0
+    opportunityAttack: 2
+    resources: []
+    keywords:
+      Humanoid: true
+      Orc: true
+    minionSquad: Orc Bloodspark Squad 1
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    walkingSpeed: 6
+    movementSpeeds: []
+    traitNames: []
+    creatureSize: 1M
+    initiativeGrouping: 96e348e3-1a6b-4599-a9ee-61fe71cb6b0d
+    monster_type: Orc Bloodspark
+  tokenType: null
+  bestiaryId: 01a7e1b7-7f3a-4d1a-b2f0-049ad1b452d4
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Orc Bloodspark
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590212896
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,158 @@
+__typeName: MonsterGroup
+attacks: []
+traits: []
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 4ab085f9-7a39-4e9a-bc14-823a9bc4d822
+  iconid: be434264-19d5-4af6-8a1a-541c1d2e2fc6
+  castImmediately: true
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    applyto: caster
+    ongoingEffect: 76d21112-ebb3-4818-ad73-baa43fdc919f
+    ongoingEffectCustom: false
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Burning Maw
+  numTargets: "1"
+  description: The arixx dribbles acid over their mandibles, causing the next strike they make to gain an edge and deal an extra 3 acid damage.
+  abilityType: none
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  repeatTargets: false
+  targetAllegiance: enemy
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    resistanceAttr: agl
+    roll: 2d10 + Might or Agility
+    tiers:
+    - 4 damage; vertical push 5
+    - 4 damage; vertical push 3
+    - 'The target shifts to the nearest unoccupied space outside the area. '
+    resistanceRoll: true
+    isTest: false
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    tiersSelected:
+    - 3
+    runOnController: true
+    promptText: 'The target shifts to the nearest unoccupied space outside the area. '
+    standardAbilityParams:
+      distance: "2"
+    abilityType: standard
+    standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: dd3ef34f-f1fc-4f60-858f-49483c885a8c
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "100"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 1675b825-59f5-4051-8a19-8710893ae60f
+  abilityType: none
+  implementation: 3
+  numTargets: "1"
+  targetType: cube
+  radius: "3"
+  name: Geyser
+  description: The arixx’s underground tunnels swell with pressure, causing a sudden influx of hot gas to burst from a 3-square-by-3-square area anywhere on the surface. Each enemy in the area makes an **Agility test**.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 6d932456-37bd-4483-8252-a5b1dc792e10
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 45
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 3421010f-5742-4e2b-8f5f-763e3d200752
+  abilityType: none
+  castImmediately: true
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: The arixx takes an additional main action on their turn. They can use this feature even if they are dazed.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  targetFilter: Target.Burrowing Speed < 1
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: aad616df-2352-4753-a244-79073a782d99
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  behaviors:
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: A < 1 prone
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 163c875b-20ff-4846-bdb2-3a11ed0f058a
+    ongoingEffectCustom: false
+  name: Earth Sink
+  numTargets: "1"
+  description: |-
+    The encounter map suddenly quakes, then begins to sink. Each creature on the ground who has A<1 is knocked prone. Until the end of the encounter, each creature who starts their turn on the ground and can’t burrow must spend 1 additional square of movement to leave their starting position, or 2 squares if they start their
+    turn prone or underground. A creature who starts and ends their turn in the same space on the ground and can’t burrow sinks 1 square into the ground.
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+inherits:
+  69247753-5e1a-43b2-b48e-373c637939a0: true
+name: Arixx
+mtime: 1772807039172
+id: 989b079c-c001-4b96-af1d-4f54b6f6fa58
+ctime: 1756409407609

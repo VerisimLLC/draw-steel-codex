@@ -1,0 +1,81 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: mgt
+    roll: 2d10 + Might
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 12 acid damage; dazed (EoT)
+    - 10 acid damage; weakened (EoT)
+    - 6 acid damage
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "5"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: f32ad9cb-0a4c-470a-83f7-5a7542975e68
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: line
+  numTargets: "1"
+  radius: "1"
+  name: Foul Spew
+  description: One troll acting this turn spews out a half-digested meal in a 5 × 1 line within 1 square of them. Each troll in the area regains 3 Stamina. Each enemy in the area makes a Might test.
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: 7b94cc27-57ed-49f3-82db-9820f718a298
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Emergency Meal
+  range: 1
+  description: Each troll in the encounter can make a free strike against a creature adjacent to them, and regains Stamina equal to the damage dealt.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "7"
+  strain: []
+  guid: 8fd52f71-a992-4585-9eb3-92a391cb12a4
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Bloody Banquet
+  range: 1
+  description: Each winded troll in the encounter disgorges the contents of their stomach onto the ground around them, creating a 1 burst of foul vomitus that lasts until the end of the encounter. Each non-troll who enters this area for the first time in a round or starts their turn there takes 5 acid damage. Each troll in the area has a double edge on power rolls.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762960888057
+name: Troll
+traits: []
+attacks: []
+id: 67902c1a-5307-415e-8495-52212b0c0def
+ctime: 1758524949404

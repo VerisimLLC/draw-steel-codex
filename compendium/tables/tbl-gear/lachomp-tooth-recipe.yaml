@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 740d253e-60f7-4cfb-b5d8-f53c98a8ac81
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765467955842
+ctime: 1765467955842
+name: Lachomp Tooth Recipe
+flavor: Text or lore in Caelian
+description: The project source necessary to craft Lachomp Teeth
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

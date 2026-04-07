@@ -1,0 +1,136 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: 3
+  targetFilter: target.keywords has "Goblin"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 5646898c-0c0e-4973-823e-13172eaaaba2
+    duration: endround
+    ongoingEffectCustom: 5646898c-0c0e-4973-823e-13172eaaaba2
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 161
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 9e91b6bb-e19b-422c-8497-351127d8aea6
+  abilityType: none
+  targetType: map
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+  numTargets: "1"
+  selfTarget: true
+  name: Goblin Mode
+  description: |
+    Each goblin in the encounter gains a +2 bonus to speed until the end of the round.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+- __typeName: MaliceAbility
+  resourceNumber: 5
+  targetFilter: ""
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityDamageBehavior
+    roll: target.Count Nearby Creatures(1, "enemy", "goblin")
+    separateRolls: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.356250047683716
+      s: 1.00267505645752
+      v: 0.917003154754639
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 161
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: dff28b57-de5b-456f-9814-14b84e3c4e55
+  abilityType: none
+  iconid: 7960d94e-8d18-4fa2-984d-126de8590736
+  numTargets: "1"
+  name: Tiny Stabs
+  targetType: map
+  description: |
+    Each enemy in the encounter takes 1 damage for each goblin adjacent to them.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+- __typeName: MaliceAbility
+  resourceNumber: 7
+  targetFilter: Target.Keywords has not "goblin"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    resistanceAttr: mgt
+    filterTarget: ""
+    tiers:
+    - 5 poison damage; weakened until mist disappears
+    - weakened until mist disappears
+    - No effect
+    resistanceRoll: true
+    roll: 2d10 + Might or Agility
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: b9b52786-292c-4dad-9ac0-247bbfa77662
+    filterTarget: (Cast.Tier for Target(target) < 3)
+    duration: endround
+    ongoingEffectCustom: false
+  - __typeName: ActivatedAbilityAuraBehavior
+    aura:
+      __typeName: Aura
+      difficult_terrain: true
+      source: Goblin Malice
+      guid: 4c4d1ff0-409f-4708-8625-5af15fe27ba0
+      objectid: 11fda0d0-acb8-434e-bfed-16b4e25dc35a
+      applyto: othertype
+      name: Swamp Stink
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      modifiers: []
+      implementation: 3
+    duration: endround
+    aliveafterdeath: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 161
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 2b213b4b-43cd-4c08-bc17-d047e84765f4
+  abilityType: none
+  iconid: d38cfd57-01a7-4bae-bc92-74689ddc4e92
+  numTargets: "1"
+  name: Swamp Stink
+  targetType: map
+  description: The encounter map becomes covered in a green mist that lasts until the end of the round, and which can't be dispersed by wind. All areas of the map become difficult terrain for non-goblins, and each non-goblin on the map must make a <b>Might test.</b>	
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+mtime: 1773406172078
+name: Goblin
+traits: []
+attacks: []
+id: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+ctime: 1740870385266

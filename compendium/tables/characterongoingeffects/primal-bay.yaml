@@ -1,0 +1,108 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:37167b9d-f9ca-49d3-9ea1-001f720c56a2: true
+  sourceguid: 37167b9d-f9ca-49d3-9ea1-001f720c56a2
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "2"
+    damageType: all
+    apply: Damage Reduction
+  guid: cd10d892-21f9-4440-8fb7-37dafee7c836
+  name: Primal Bay
+  description: The minotaur has damage immunity 2 and deals an additional 5 damage with their strikes until the end of their next turn. On their next turn, they have access to an additional maneuver.
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:37167b9d-f9ca-49d3-9ea1-001f720c56a2: true
+  sourceguid: 37167b9d-f9ca-49d3-9ea1-001f720c56a2
+  description: The minotaur has damage immunity 2 and deals an additional 5 damage with their strikes until the end of their next turn. On their next turn, they have access to an additional maneuver.
+  source: Ongoing Effect
+  name: Primal Bay
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 767debf3-62ad-4eeb-a0ae-dd87b61f5d5d
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      applyto: caster
+      resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      chatMessage: Minotaur Primal Fear
+    domains:
+      CharacterOngoingEffect:37167b9d-f9ca-49d3-9ea1-001f720c56a2: true
+    whenActive: combat
+    numTargets: "1"
+    trigger: beginturn
+    name: Primal Bay
+    description: On their next turn, they have access to an additional maneuver.
+    abilityType: none
+    iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+  guid: 912776d2-8321-4bbe-bb3c-98835088e186
+- __typeName: CharacterModifier
+  sourceguid: 37167b9d-f9ca-49d3-9ea1-001f720c56a2
+  modifyDescription: The minotaur deals an additional 5 damage with their strikes until the end of their next turn.
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Strike: true
+  domains:
+    CharacterOngoingEffect:37167b9d-f9ca-49d3-9ea1-001f720c56a2: true
+  attributes: []
+  guid: 068a5d66-9fe9-4fab-a1f6-c15afca9a886
+  description: The minotaur has damage immunity 2 and deals an additional 5 damage with their strikes until the end of their next turn. On their next turn, they have access to an additional maneuver.
+  name: Primal Bay
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 74e8f248-bec2-4ab5-b36f-4872c14e8727
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "5"
+      titleText: ""
+      chatMessage: Primal Bay Damage Bonus on Strikes
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 37167b9d-f9ca-49d3-9ea1-001f720c56a2
+id: 37167b9d-f9ca-49d3-9ea1-001f720c56a2
+ctime: 1765091278240
+domains:
+  CharacterOngoingEffect:37167b9d-f9ca-49d3-9ea1-001f720c56a2: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Primal Bay
+iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+description: The minotaur has damage immunity 2 and deals an additional 5 damage with their strikes until the end of their next turn. On their next turn, they have access to an additional maneuver.
+mtime: 1765288165025
+implementation: 3

@@ -1,0 +1,317 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: dfd0e60e-228d-40c4-9009-8b6af01aca45
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Iron Champion Doru	Level 10 Elite Brute
+        Humanoid, War Dog	EV 48
+        <b>Stamina</b> 260
+        <b>Speed</b> 5	<b>Size</b> 1L /<b> Stability</b> 2
+        <b>Free Strike</b> 10
+        Might +5	Agility +4	Reason +1	Intuition +4	Presence +2
+        <b>Houndaxe</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	15 damage
+        %E2%98%85	<b>12-16</b>	21 damage; Doru gains an edge on his next power roll; M<4 slide 3
+        %E2%9C%B8	<b>17</b>	25 damage; Doru gains a double edge on his next power roll; M<5 slide 5
+        <b>Effect</b> The damage can't be reduced.
+        <b>3 Malice</b> This ability targets an additional creature or object.
+
+        <b>Bloody Whirlwind</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 2 Malice
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> All creatures and objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; A<3 bleeding (save ends)
+        %E2%98%85	<b>12-16</b>	11 damage; A<4 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	15 damage; A<5 bleeding (save ends)
+        <b>Effect</b> Doru deals an additional 5 damage for each winded target in the area.
+
+        <b>Hunting Leap</b> (Maneuver)
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Ranged 5<b>	Target</b> one creature or object
+        <b>Effect</b> Doru jumps to an unoccupied square adjacent to the target, then makes a free strike against them. If the target is winded or bleeding, the distance is Ranged 10 and the free strike deals an additional 5 damage.
+
+        <b>Laugh it Off</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> An enemy makes a strike against Doru.
+        <b>Effect</b> Doru imposes a bane on the strike and gains an edge on his next power roll.
+
+        <b>Leaving Already?</b> (Free Triggered Action)
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> one enemy
+        <b>Trigger</b> An enemy triggers an opportunity attack from Doru
+        <b>Effect</b> Doru's opportunity attack deals an additional 5 damage and the target is <b>A<4</b> slowed (EoT).
+        <b>1 Malice </b>Doru shifts up to 2 squares.
+
+        <b>Iron Juggernaut</b>
+        Doru is immune to the effects of the slowed and restrained conditions. Doru may move while grabbed, and the creature grabbing him moves along with him unless they choose to let go.
+
+        <b>The Scarless</b>
+        Doru regenerates 10 Stamina at the beginning of his turn unless he was dealt fire or acid damage the previous round. Whenever he regains Stamina this way, he can spend 2 malice to end one save ends condition on himself.
+
+        <b>Champion's Loyalty Collar</b>
+        When Doru dies, he explodes, dealing 4d6 damage to each enemy within 3 spaces.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:812732e0-7e81-4345-b612-306fcd5b255f: true
+      modifiers: []
+      name: Iron Juggernaut
+      description: Doru is immune to the effects of the slowed and restrained conditions. Doru may move while grabbed, and the creature grabbing him moves along with him unless they choose to let go.
+      guid: 812732e0-7e81-4345-b612-306fcd5b255f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5f953713-b535-4953-a80f-7f901baca68c: true
+      modifiers: []
+      name: The Scarless
+      description: Doru regenerates 10 Stamina at the beginning of his turn unless he was dealt fire or acid damage the previous round. Whenever he regains Stamina this way, he can spend 2 malice to end one save ends condition on himself.
+      guid: 5f953713-b535-4953-a80f-7f901baca68c
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:605be704-9388-4455-bc5b-bec80e247316: true
+      modifiers: []
+      name: Champion's Loyalty Collar
+      description: When Doru dies, he explodes, dealing 4d6 damage to each enemy within 3 spaces.
+      guid: 605be704-9388-4455-bc5b-bec80e247316
+      source: Trait
+    role: Elite Brute
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "260"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 10
+    monster_type: Iron Champion Doru
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 4
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 260
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage
+        - 21 damage; M<4 slide 3
+        - 25 damage; M<5 slide 5
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: acd0732f-c3bc-46b9-8990-f43a632199e2
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Houndaxe
+      numTargets: 2
+      description: The damage can't be reduced.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 07d608f6-d536-4a4c-a51a-cb21131080fe
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; A<3 bleeding (save ends)
+        - 11 damage; A<4 bleeding (save ends)
+        - 15 damage; A<5 bleeding (save ends)
+        roll: 2d10 + Might
+      name: Bloody Whirlwind
+      implementation: 3
+      description: Doru deals an additional 5 damage for each winded target in the area.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: f0041406-4a8c-406a-9d1d-a7a187c26825
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Hunting Leap
+      numTargets: 1
+      description: Doru jumps to an unoccupied square adjacent to the target, then makes a free strike against them. If the target is winded or bleeding, the distance is Ranged 10 and the free strike deals an additional 5 damage.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 7fc9f79c-c3e0-407c-8fe2-5e0a5b8e5b7a
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Laugh it Off
+      numTargets: 1
+      description: Doru imposes a bane on the strike and gains an edge on his next power roll.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      guid: c00b7091-be83-42d4-a394-a61f660ab8f9
+      iconid: ui-icons/skills/1.png
+      name: Leaving Already?
+      behaviors: []
+      description: Doru's opportunity attack deals an additional 5 damage and the target is A<4 slowed (EoT).
+      abilityType: none
+      implementation: 0
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 48
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: 463d7706-a244-4247-bc16-7112ef93941e
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: Iron Champion Doru
+parentFolder: 59c9947d-a228-4d1c-8cc3-a2a4185851ab
+artist: null
+ord: 0
+ctime: 1741590245563
+mtime: 1775201137032
+hidden: false

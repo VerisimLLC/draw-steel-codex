@@ -1,0 +1,69 @@
+__typeName: Kit
+stability: 1
+armor: Medium
+health: 9
+id: 98004693-e862-48af-9428-d1c0fd6d1f11
+weapons:
+  Medium: true
+  Shield: true
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Sword and Board
+kitManeuver: false
+mtime: 1770565604961
+type: martial
+portraitid: 681f1913-df6e-44d9-a07f-543159e7c9c7
+imported: 8797cce2-b38c-4ca7-a7d1-14b831c83c03
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 4 + M or A damage; push 1
+    - 7 + M or A damage; push 2
+    - 9 + M or A damage; push 3; M < strong, prone
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: In your hands, a shield isn't just for protection.
+  sourceReference:
+    __typeName: SourceReference
+    page: 224
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  modifiers: []
+  strain: []
+  guid: a7e9ec70-8801-4a45-ae35-cb9fab287ba6
+  categorization: Signature Ability
+  numTargets: 1
+  implementation: 4
+  persistence: []
+  name: Shield Bash
+  targetType: target
+  description: ""
+  abilityType: none
+  iconid: ef6773dc-31d2-4b8a-9771-dd9ce19f9c86
+description: The Sword and Board kit doesn't just give you a shield-it makes the shield part of your offensive arsenal. With a medium weapon in one hand and a block of steel or solid oak in the other, you can protect yourself and control the battlefield.
+equipmentDescription: You wear medium armor and wield a shield and a medium weapon.
+disengage: 1

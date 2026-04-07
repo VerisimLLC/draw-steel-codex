@@ -1,0 +1,161 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c4d913a7-c9a4-4c71-880b-40878c894e28
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Nightstrike	Level 4 Minion Ambusher
+        Fey, Humanoid, Shadow Elf	EV 6 for four minions
+        <b>Stamina</b> 8
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Edge on strikes<b>Free Strike</b> 3
+        Might +1	Agility +3	Reason +0	Intuition +1	Presence +0
+        <b>Vault</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12-16</b>	5 damage
+        %E2%9C%B8	<b>17</b>	7 damage
+        <b>Effect</b> The nightstrike leaps over the target, shifting into an unoccupied square adjacent to the target opposite from their starting position.
+
+        <b>Of the Umbra</b>
+        The nightstrike ignores concealment granted by darkness. While the nightstrike is in direct sunlight, they have damage weakness 3. While the nightstrike is concealed, they have damage immunity 3.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e2ec303a-6280-43d9-b227-964cd885f769: true
+      modifiers: []
+      name: Of the Umbra
+      description: The nightstrike ignores concealment granted by darkness. While the nightstrike is in direct sunlight, they have damage weakness 3. While the nightstrike is concealed, they have damage immunity 3.
+      guid: e2ec303a-6280-43d9-b227-964cd885f769
+      source: Trait
+    role: Minion Ambusher
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    monster_type: Shadow Elf Nightstrike
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    withCaptain: Gain an edge on strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 8
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 934bb9a1-4fd8-45b8-8b37-776dd020ca98
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Vault
+      numTargets: 1
+      description: The nightstrike leaps over the target, shifting into an unoccupied square adjacent to the target opposite from their starting position.
+      abilityType: none
+      implementation: 3
+    keywords:
+      Fey: true
+      Humanoid: true
+      Shadow Elf: true
+    movementSpeeds:
+      climb: 5
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 78f655c0-a60b-43c0-91dd-5db941141778
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222946034
+description: Shadow Elf Nightstrike
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590269107
+mtime: 1775201137032
+hidden: false

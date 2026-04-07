@@ -1,0 +1,57 @@
+__typeName: ActivatedAbility
+targetFilter: Enemy	
+id: 6dbc4b19-9d9e-47c9-b895-d96d1558d271
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: targets
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: b3edb596-3b31-4ce4-961c-fa250ccaf494
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  standardAbilityParams:
+    range: "<<range>>"
+    distance: "<<distance>>"
+    count: "<<count>>"
+  promptText: Shift <<distance>>
+  autoTarget: true
+  abilityType: standard
+  standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+  targeting: prompt
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: ""
+testCases:
+- text: An ally within 3 shifts 1 square
+- text: Four allies within 6 shift 1 square
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 62f9c736-1c96-49b7-b7c9-8848953d3cad
+importMatch: "<<count>> (ally|allies) within <<range>> (shifts|shift) <<distance>> (square|squares)"
+ctime: 1711417222333
+repeatTargets: false
+targetType: target
+description: ""
+name: Ally Shift
+numTargets: "<<count>>"
+mtime: 1759805781452
+abilityType: none
+iconid: ui-icons/skills/1.png

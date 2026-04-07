@@ -1,0 +1,48 @@
+__typeName: CharacterComplication
+drawback: You have fire weakness 5.
+mtime: 1768309856348
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: bf25a9e5-39e8-491e-ad79-acb42f882e89
+      sourceguid: d92163ff-dea2-484d-8c8a-a76412cba79d
+      value: Highest Characteristic
+      source: Complication
+      name: Wodewalker Benefit
+      behavior: attribute
+      description: ""
+      attribute: recoveryvalue
+    source: Complication
+    canHavePrerequisites: true
+    guid: d92163ff-dea2-484d-8c8a-a76412cba79d
+    name: Wodewalker Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Fire Weakness 5
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: bb4cac2d-4fb4-44a8-949d-191c98fe7442
+      behavior: resistance
+      source: Complication
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: fire
+        apply: Damage Reduction
+      description: Fire Weakness 5
+      name: Wodewalker Drawback
+      guid: 7261cea3-07bb-4c28-b30b-8e3853ece36a
+    source: Complication
+    canHavePrerequisites: true
+    guid: bb4cac2d-4fb4-44a8-949d-191c98fe7442
+    name: Wodewalker Drawback
+    implementation: 3
+name: Wodewalker
+ctime: 1755518476248
+description: You were dying in the wode, collapsing while starving and wounded. When you woke, you discovered that a group of green elementalists had saved your life by infusing the regenerative bark of a tree to your body.
+id: fa329b6b-c77e-4fc2-8eea-40acde1b1184
+benefit: Your recovery value increases by an amount equal to your highest characteristic score.

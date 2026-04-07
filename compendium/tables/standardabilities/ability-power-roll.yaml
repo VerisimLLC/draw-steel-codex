@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: 7261e5a7-864e-451d-a516-fcc6432053d5
+behaviors:
+- __typeName: ActivatedAbilityPowerRollBehavior
+  tiers:
+  - 2 damage
+  - 4 damage
+  - 8 damage
+  roll: 2d6 + Might or Agility
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 5
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 1ab56d7f-f76a-47de-a909-e9f28f5b79a7
+ctime: 1709448919477
+targetType: target
+numTargets: "1"
+mtime: 1770264233269
+name: Ability Power Roll
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,45 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: b8c9d0e1-f2a3-4567-bcde-678901234567
+  description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 2 psychic damage.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: b8c9d0e1-f2a3-4567-bcde-678901234567
+    displayCondition: ability.doesdamage
+    source: Item
+    modtype: none
+    keywords:
+      Weapon: true
+    activationCondition: ability.doesdamage
+    guid: a7b8c9d0-e1f2-3456-abcd-567890123456
+    name: Terrifying I
+    description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 2 psychic damage.
+    addText: // // 2 psychic damage
+    rollType: ability_power_roll
+    behavior: power
+  source: Item
+  name: Terrifying I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: The preserved, intact amygdala of a mindkiller
+imbuePrereq: none
+projectSource: Variac
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: f113d3fe-dc26-401d-9d4e-10b8f8082b3e
+mtime: 1773922017390
+name: Terrifying I
+imbueTargetType: weapon
+description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 2 psychic damage.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 87111e1e-8445-4fd2-9057-d58199d6c189

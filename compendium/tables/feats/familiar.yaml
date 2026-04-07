@@ -1,0 +1,64 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 8bf830cf-c719-4895-91f0-9b65fe8e53f7
+      guid: fbcef92c-c139-453d-936f-2fdaa621a5d6
+      source: Feat
+      behavior: activated
+      description: ""
+      name: Summon Familiar
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        implementationDetails: "The familiar can hold small objects in their mouth or claws, but can’t perform activities that would typically require hands (opening a door, unrolling a scroll, and so forth). They can’t harm other creatures or objects. They can flank in combat, but only with you. \n\nIf your familiar is destroyed, you can restore them as a respite activity, or by spending a Recovery as a main action to bring them back into existence in an unoccupied space adjacent to you. "
+        behaviors:
+        - __typeName: ActivatedAbilitySummonBehavior
+          monsterType: affc11be-5ac7-407e-8e61-c9297d6aef5f
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.29325008392334
+            s: 0.317382097244263
+            v: 1.00589513778687
+            a: 1
+        flavor: 'A supernatural spirit who has taken the form of a specific small animal or animated object has chosen to be your familiar—or to adopt you as their familiar. '
+        categorization: Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 955f711a-2c92-4faf-9f26-c538f6617d53
+        domains: []
+        castImmediately: false
+        numTargets: "1"
+        implementation: 2
+        name: Summon Familiar
+        targetType: emptyspace
+        description: ""
+        abilityType: none
+        iconid: d2035312-afaa-4011-a88e-d812fc56cac3
+    name: Summon Familiar
+    description: ""
+    guid: 8bf830cf-c719-4895-91f0-9b65fe8e53f7
+    canHavePrerequisites: true
+    source: Feat
+tag: Supernatural Perks
+name: Familiar
+description: |-
+  A supernatural spirit who has taken the form of a specific small animal or animated object has chosen to be your familiar—or to adopt you as their familiar.
+
+  The spirit uses the familiar stat block.
+
+  The familiar can hold small objects in their mouth or claws, but can’t perform activities that would typically require hands (opening a door, unrolling a scroll, and so forth). They can’t harm other creatures or objects. They can flank in combat, but only with you.
+
+  If your familiar is destroyed, you can restore them as a respite activity, or by spending a Recovery as a main action to bring them back into existence in an unoccupied space adjacent to you.
+mtime: 1772941484981
+id: 3dd235fe-f471-4edb-a8fa-80e216988467
+ctime: 1730701285058

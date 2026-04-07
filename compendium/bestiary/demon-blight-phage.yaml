@@ -1,0 +1,208 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9f50dd12-7cd7-4c81-a42d-a21591d1f1e3
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Demon Blight Phage	Level 7 Horde Controller
+        Abyssal, Demon	EV 9
+        <b>Stamina</b> 40	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6	<b>Size</b> 3 /<b> Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +0	Agility +0	Reason +4	Intuition +2	Presence +4
+        <b>Blight Puss </b>(Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 corruption damage
+        %E2%98%85	<b>12-16</b>	10 corruption damage
+        %E2%9C%B8	<b>17</b>	11 corruption damage
+        Effect This ability leaves a puddle of Blight in the target's square (see Seeping Blight).
+
+        <b>Blight Rain </b>(Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies
+        Effect 	The blight phage floats 6 squares straight upward, spins, and sheds corruptive blight everywhere below it. The entire area is coated in blight (see Seeping Blight).
+        <b>2 Malice The blight phage launches three additional 2 cube pools of Blight onto the ground within 10 of themself.</b>
+
+        <b>Lethe</b>
+        While winded, the blight phage has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the blight phage can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:47451c6b-2e4c-4fbb-9b43-466f998ab7b5: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the blight phage has an edge on strikes, and strikes have an edge against them.
+      guid: 47451c6b-2e4c-4fbb-9b43-466f998ab7b5
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:77cae873-f47e-49aa-a60e-6d158f944965: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the blight phage can't be hidden from them.
+      guid: 77cae873-f47e-49aa-a60e-6d158f944965
+      source: Trait
+    role: Horde Controller
+    inflictedConditions: []
+    keywords:
+      Demon: true
+      Abyssal: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 3
+    monster_type: Demon Blight Phage
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 4
+        id: prs
+      rea:
+        baseValue: 4
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 40
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5920b5b6-fd7a-47dc-9c12-f386754d9916
+      implementation: 4
+      numTargets: 1
+      name: 'Blight Puss '
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 corruption damage
+        - 10 corruption damage
+        - 11 corruption damage
+        roll: 2d10 + 4
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: f3ed3197-3445-46e2-9b28-a0b941425110
+      abilityType: none
+      implementation: 0
+      numTargets: 1
+      name: 'Blight Rain '
+      targetType: all
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds: []
+    ev: 9
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 85159b4c-366f-4664-8746-0fe837e01ea4
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Demon Blight Phage
+parentFolder: d28dbebc-b729-459f-858a-44e596d131e0
+artist: null
+ord: 4
+ctime: 1741590275734
+mtime: 1775201137032
+hidden: false

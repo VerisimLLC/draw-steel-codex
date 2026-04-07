@@ -1,0 +1,47 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: b8eeec54-7cb5-4040-b867-d92e191bbadc
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:b8eeec54-7cb5-4040-b867-d92e191bbadc: true
+  name: Heedless Pursuer
+  guid: 7d7387d4-457c-4ad6-b0f6-db3b633f6a1e
+  description: You ignore difficult terrain and you can increase the distance of any jump you make by 1 square, both until the end of your turn.
+  behavior: attribute
+  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+- __typeName: CharacterModifier
+  sourceguid: b8eeec54-7cb5-4040-b867-d92e191bbadc
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:b8eeec54-7cb5-4040-b867-d92e191bbadc: true
+  name: Heedless Pursuer
+  guid: 2a6d6551-d0be-43b7-afbe-52dd5802f8b3
+  description: You ignore difficult terrain and you can increase the distance of any jump you make by 1 square, both until the end of your turn.
+  behavior: attribute
+  attribute: 11650b6f-ee8f-4ab1-9a44-b56a3d43119a
+source: Ongoing Effect
+guid: b8eeec54-7cb5-4040-b867-d92e191bbadc
+id: b8eeec54-7cb5-4040-b867-d92e191bbadc
+ctime: 1768901775318
+domains:
+  CharacterOngoingEffect:b8eeec54-7cb5-4040-b867-d92e191bbadc: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0958904102444649
+    s: 0.948051929473877
+    v: 0.905882358551025
+    a: 1
+custom: true
+name: Heedless Pursuer
+iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+description: You ignore difficult terrain and you can increase the distance of any jump you make by 1 square, both until the end of your turn.
+mtime: 1768902456300
+implementation: 3

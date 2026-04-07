@@ -1,0 +1,11 @@
+__typeName: CharacterResource
+textColor: dark
+clearOutsideOfCombat: true
+usageLimit: unbounded
+id: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+ctime: 1737441439867
+name: Surges
+largeQuantity: true
+useQuantity: true
+mtime: 1753034664045
+iconid: a068e145-df2a-4664-9993-98e4bd189a3f

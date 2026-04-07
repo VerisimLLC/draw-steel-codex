@@ -1,0 +1,229 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9d2373fe-37b8-48c2-9ae3-e3b08dd80e6e
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Dirt Mournling	Level 7 Horde Controller
+        Undead	EV 9
+        <b>Stamina</b> 64	<b>Immunity</b> corruption 7, poison 7
+        <b>Speed</b> 6 (burrow, climb)	<b>Size</b> 3 /<b> Stability</b> 3
+        <b>Free Strike</b> 3
+        Might +4	Agility +1	Reason -2	Intuition +1	Presence -3
+        <b>Mudslide</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	7 damage; M<3 grabbed
+        %E2%98%85	12%E2%80%9316	10 damage; M<4 grabbed
+        %E2%9C%B8	17	11 damage; grabbed
+        <b>Effect</b> A 3 cube area of the ground centered on the target is considered difficult terrain for enemies.
+
+        <b>Mourning Cry</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 corruption damage; I<2 frightened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	6 corruption damage; I<3 frightened (save ends)
+        %E2%9C%B8	<b>17</b>	7 corruption damage; I<4 frightened (save ends)
+        <b>Effect A target frightened by this ability is frightened of all undead until the condition ends or the mournling is destroyed.</b>
+
+        <b>Immutable Form</b>
+        The mournling's shape can't change via any external effects.
+
+        <b>Rupture</b>
+        The first time the mournling burrows out of the ground on their turn, they make a free strike against each adjacent enemy.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ece43820-8cf6-4b28-a14c-4df8168285f1: true
+      modifiers: []
+      name: Immutable Form
+      description: The mournling's shape can't change via any external effects.
+      guid: ece43820-8cf6-4b28-a14c-4df8168285f1
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f53e39f4-1adc-4ad6-9eb2-c87ef1ffa642: true
+      modifiers: []
+      name: Rupture
+      description: The first time the mournling burrows out of the ground on their turn, they make a free strike against each adjacent enemy.
+      guid: f53e39f4-1adc-4ad6-9eb2-c87ef1ffa642
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:085c64bc-f763-4376-9a10-4095fba6fbad: true
+      modifiers: []
+      name: Arise
+      description: The first time the mournling is reduced to 0 Stamina by damage that isn't fire damage or holy damage and their body isn't destroyed, they instead have 15 Stamina and fall prone.
+      guid: 085c64bc-f763-4376-9a10-4095fba6fbad
+      source: Trait
+    role: Horde Controller
+    inflictedConditions: []
+    keywords:
+      Undead: true
+    max_hitpoints_roll: "64"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 7
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 7
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 3
+    monster_type: Dirt Mournling
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -3
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 64
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; M<3 grabbed
+        - 10 damage; M<4 grabbed
+        - 11 damage; grabbed
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: cf24b364-d71c-4771-8200-f92a9f37cfca
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Mudslide
+      numTargets: 1
+      description: A 3 cube area of the ground centered on the target is considered difficult terrain for enemies.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage; I<2 frightened (save ends)
+        - 6 corruption damage; I<3 frightened (save ends)
+        - 7 corruption damage; I<4 frightened (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 7e7cf786-1742-4ec4-a9f3-84f0c494cc6d
+      abilityType: none
+      implementation: 3
+      numTargets: 1
+      name: Mourning Cry
+      targetType: all
+      description: A target frightened this way is frightened of all undead. This effect ends early if the mournling is destroyed
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    movementSpeeds:
+      burrow: 6
+      climb: 6
+    ev: 9
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 7971d9a9-0e4b-4fcd-a264-8d3ca81082d9
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969981
+description: Dirt Mournling
+parentFolder: fc9b27fb-58bf-4b65-9400-d025e2de9480
+artist: null
+ord: 2
+ctime: 1741590269403
+mtime: 1775201137032
+hidden: false

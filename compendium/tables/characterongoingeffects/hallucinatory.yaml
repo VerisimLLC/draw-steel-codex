@@ -1,0 +1,45 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 6f6f8d04-9208-4b13-a52e-41a2d4fe7bb6
+  source: Ongoing Effect
+  seq: cc07ac98-291c-4941-97ab-a7a50996feb2
+  aura:
+    __typeName: Aura
+    difficult_terrain: true
+    guid: 1cdaf430-6038-4616-bfae-5c76f837b5e1
+    objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+    applyto: enemies
+    name: Hallucinatory
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: You create an area of sensory instability in a 2 aura centered on yourself. The area is difficult terrain for your enemies until the end of the encounter.
+    modifiers: []
+    implementation: 4
+  radius: "2"
+  guid: 146bfa17-2916-4fff-b58d-bd46fb00edbf
+  description: You create an area of sensory instability in a 2 aura centered on yourself. The area is difficult terrain for your enemies until the end of the encounter.
+  behavior: aura
+  name: Hallucinatory
+source: Ongoing Effect
+iconid: e85c9973-e817-4585-927d-f4585be68179
+guid: 6f6f8d04-9208-4b13-a52e-41a2d4fe7bb6
+id: 6f6f8d04-9208-4b13-a52e-41a2d4fe7bb6
+ctime: 1774702183485
+hiddenOnToken: true
+description: You create an area of sensory instability in a 2 aura centered on yourself. The area is difficult terrain for your enemies until the end of the encounter.
+buffType: buff
+name: Hallucinatory
+statusEffect: true
+custom: true
+mtime: 1774702301169
+implementation: 4

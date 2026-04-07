@@ -1,0 +1,116 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups: []
+id: 2dc1edfe-6568-4e7c-9a08-70c55c44a03f
+ctime: 1759387566855
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |+
+      [[encounter]]
+
+    W: |+
+      [[setting:Number of Heroes]]
+
+    U: |+
+      Allow easy adjustment of the number of heroes to balance for:
+
+    S: |+
+      ## Combat
+
+    t: |+
+      [[/awardvp 1|Award Victories]]
+
+    Q: |+
+      Write the objective of your combat here. 
+
+    O: |+
+      ## Objectives
+
+    P: |
+      See Encounter Objectives in [pdf:Draw Steel Monsters:15]
+    M: |+
+      |Medium
+
+    n: |+
+      [End Combat] once the battle is over.
+
+    k: |+
+      ## Aftermath and Rewards
+
+    K: |
+      |Spot the Enemy: Intuition Test (Alertness, Survival)
+    I: |+
+      An example test you might include to determine who wins initiative:
+
+    w: If the heroes search their enemy's bodies they also find a [item:Healing Potion].
+    G: |+
+      Write an overview of the leadup to the battle, including conditions under which combat begins. Who wins initiative under which conditions?
+
+    h: |+
+      Describe the tactics used by the monsters in the battle here.
+
+    e: |+
+      ## Tactics
+
+    E: |+
+      ## Leadup
+
+    c: |+
+      [[//link "Draw Steel!"|Draw Steel!]]
+
+    C: |+
+      # Combat
+
+    a: |
+      When you are ready,
+    q: |+
+      The heroes gain 1 VP if they win the battle.
+
+parentFolder: templates
+updateid: 2e47dd66-c9a8-4fc5-a470-3fffca257bc8
+mtime: 1765839576220
+content: |-
+  # Combat
+
+  ## Leadup
+
+  Write an overview of the leadup to the battle, including conditions under which combat begins. Who wins initiative under which conditions?
+
+  An example test you might include to determine who wins initiative:
+
+  |Spot the Enemy: Intuition Test (Alertness, Survival)
+  |Medium
+
+  ## Objectives
+
+  The heroes must defeat all the goblins to win this encounter. They lose if at least four goblins breach the wall.
+
+  ## Combat
+
+  Allow easy adjustment of the number of heroes to balance for:
+
+  [[setting:Number of Heroes]]
+
+  [[encounter]]
+
+  When you are ready, [Draw Steel!]
+
+  ## Tactics
+
+  Describe the tactics used by the monsters in the battle here.
+
+  ## Aftermath and Rewards
+
+  [End Combat] once the battle is over.
+
+  The heroes gain 1 VP if they win the battle.
+
+  [[/awardvp 1|Award Victories]]
+
+  If the heroes search their enemy's bodies they also find a [Healing Potion].
+description: Combat Encounter

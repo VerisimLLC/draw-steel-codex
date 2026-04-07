@@ -1,0 +1,172 @@
+__typeName: CharacterComplication
+drawback: You take a bane on any test made to know about anything related to the world where you crash landed.
+mtime: 1765803013211
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You have a power pack that you can activate or deactivate as a maneuver. When you activate the power pack, choose an energy type from cold, fire, lightning, or sonic. Until you deactivate the power pack, your damage-dealing abilities deal that damage type.
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Complication
+      behavior: proficiency
+      description: You have a power pack that you can activate or deactivate as a maneuver. When you activate the power pack, choose an energy type from cold, fire, lightning, or sonic. Until you deactivate the power pack, your damage-dealing abilities deal that damage type.
+      equate: false
+      name: Crash Landed - Benefit
+      sourceguid: 49d75f58-22a4-4b05-9828-3a31736c9ecc
+      proficiency: proficient
+      guid: 25d76032-2e25-4ff9-8728-7324b33054e3
+      skills:
+        04c5099c-526b-4ebd-a2cc-6e59ff4e17ad: true
+    - __typeName: CharacterModifier
+      sourceguid: 49d75f58-22a4-4b05-9828-3a31736c9ecc
+      guid: 55444c3f-48be-4e9e-8c33-c634bfed6fb8
+      source: Complication
+      behavior: activated
+      description: You have a power pack that you can activate or deactivate as a maneuver. When you activate the power pack, choose an energy type from cold, fire, lightning, or sonic. Until you deactivate the power pack, your damage-dealing abilities deal that damage type.
+      name: Crash Landed - Benefit
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 5135d211-9fec-4748-94ed-d93388bd91f1
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: ff79cd03-b627-4ac4-b884-2a4c3d83876f
+          mode: effect
+          guid: 7448bd76-4855-4a08-9991-f3299e3d89bb
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: e2b6b7b5-bcb0-46d6-b894-38363619c122
+          mode: effect
+          guid: 3c1e54c8-d3d6-4cde-aa63-0e48947d0b9e
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 784f8f13-1a67-44f0-adf3-97a32b656911
+          mode: effect
+          guid: bdc56b01-09b7-4ffe-b342-ba62cf1a30e4
+          conditions: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0
+            s: 0.790038347244263
+            v: 0.848229587078094
+            a: 1
+        categorization: Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: f5ae54ce-7182-4032-aeac-a38398cabd49
+        targetType: self
+        domains: []
+        numTargets: "1"
+        castImmediately: true
+        name: Power Pack - Deactivate
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        description: 'Deactivate the power pack and remove the applied damage type. '
+        abilityType: none
+        iconid: 53777917-af89-413b-9f1d-7202a8416cce
+    - __typeName: CharacterModifier
+      sourceguid: 49d75f58-22a4-4b05-9828-3a31736c9ecc
+      guid: aadab096-7c1e-4e1d-aa75-a894373c4ee4
+      source: Complication
+      behavior: activated
+      description: You have a power pack that you can activate or deactivate as a maneuver. When you activate the power pack, choose an energy type from cold, fire, lightning, or sonic. Until you deactivate the power pack, your damage-dealing abilities deal that damage type.
+      name: Crash Landed - Benefit
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 5135d211-9fec-4748-94ed-d93388bd91f1
+          modesSelected:
+          - 1
+          ongoingEffectCustom: false
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: ff79cd03-b627-4ac4-b884-2a4c3d83876f
+          modesSelected:
+          - 2
+          ongoingEffectCustom: false
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: e2b6b7b5-bcb0-46d6-b894-38363619c122
+          modesSelected:
+          - 3
+          ongoingEffectCustom: false
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 784f8f13-1a67-44f0-adf3-97a32b656911
+          modesSelected:
+          - 4
+          ongoingEffectCustom: false
+        multipleModes: variations
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.35325014591217
+            s: 0.672851324081421
+            v: 0.878193497657776
+            a: 1
+        flavor: When you activate the power pack, choose an energy type from cold, fire, lightning, or sonic. Until you deactivate the power pack, your damage-dealing abilities deal that damage type.
+        categorization: Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        modeList:
+        - rules: Until you deactivate the power pack, your damage-dealing abilities deal cold damage.
+          text: Cold
+        - rules: Until you deactivate the power pack, your damage-dealing abilities deal fire damage.
+          text: Fire
+        - rules: Until you deactivate the power pack, your damage-dealing abilities deal lightning damage.
+          text: Lightning
+        - rules: Until you deactivate the power pack, your damage-dealing abilities deal sonic damage.
+          text: Sonic
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        targetType: self
+        castImmediately: false
+        numTargets: "1"
+        domains: []
+        name: Power Pack - Activate
+        guid: 067e8d6d-034b-4292-9dd4-d526d8a067e6
+        description: ""
+        abilityType: none
+        iconid: 53777917-af89-413b-9f1d-7202a8416cce
+    source: Complication
+    canHavePrerequisites: true
+    guid: 49d75f58-22a4-4b05-9828-3a31736c9ecc
+    name: Crash Landed - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: You take a bane on any test made to know about anything related to the world where you crash landed.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 346fb21d-e637-4475-b807-54cf8c3a6041
+      source: Feat
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: Crash Landed - Drawback
+      guid: 7f59dae0-6ceb-4cb4-a47d-d74c1ff602bc
+      description: You take a bane on any test made to know about anything related to the world where you crash landed.
+      modtype: bane
+      rollType: test_power_roll
+    source: Feat
+    canHavePrerequisites: true
+    guid: 346fb21d-e637-4475-b807-54cf8c3a6041
+    name: Crash Landed - Drawback
+    implementation: 3
+name: Crash Landed
+ctime: 1755513424854
+description: You used to flit around the stars in your own ship. But an ugly run-in with a pirate (or a pirate hunter) has left you marooned on this backwater world. You’re prepared to carve out a life here—at least until you can hitch a ride somewhere else.
+id: 6079b4e5-95ca-4fec-8bb6-2338231ee2a8
+benefit: You have the Timescape skill (from the lore skill group). Additionally, you have a power pack that you can activate or deactivate as a maneuver. When you activate the power pack, choose an energy type from cold, fire, lightning, or sonic. Until you deactivate the power pack, your damage-dealing abilities deal that damage type.

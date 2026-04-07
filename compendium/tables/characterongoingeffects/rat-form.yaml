@@ -1,0 +1,95 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  source: Transformation
+  deletable: false
+  banequipment: true
+  banspells: true
+  domains:
+    CharacterOngoingEffect:3cb60610-25f0-4108-9398-e524320c062d: true
+  behavior: transform
+  attributes:
+    hitpoints: true
+    dex: true
+    mgt: true
+    con: true
+    darkvision: true
+    str: true
+  name: Transformation
+  overrideMovement: true
+  description: You are transformed into a different creature
+  gainCreatureVisuals: true
+  guid: 3796199b-2a10-4bc3-960c-83652718e451
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:3cb60610-25f0-4108-9398-e524320c062d: true
+  sourceguid: 3cb60610-25f0-4108-9398-e524320c062d
+  description: As a rat, you have speed 5 and can automatically climb at full speed while moving, your size is 1T, and you can see in the dark. You can speak and keep your skills while in rat form, but your Might is -5 and you lose all your regular abilities, features, and benefits. You can revert to your natural form as a maneuver, and do so automatically if you take any damage.
+  source: Ongoing Effect
+  name: Transformation
+  behavior: activated
+  guid: 41e737ee-deac-4cfc-89a9-a63a83ef14b3
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 3cb60610-25f0-4108-9398-e524320c062d
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: ""
+    categorization: Ability
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: b45bcced-1e77-47ee-bdf8-f01f43e7e820
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    persistence: []
+    castImmediately: true
+    domains:
+      CharacterOngoingEffect:3cb60610-25f0-4108-9398-e524320c062d: true
+    implementation: 4
+    name: Revert to Natural Form
+    targetType: self
+    description: |-
+      You can revert to your natural form as a maneuver, and do so automatically
+      if you take any damage.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: 3cb60610-25f0-4108-9398-e524320c062d
+  source: Ongoing Effect
+  guid: d691c0fd-5ee2-4bfa-949e-4a816f7a1498
+  domains:
+    CharacterOngoingEffect:3cb60610-25f0-4108-9398-e524320c062d: true
+  abilityFilter: ability.name = "Stand Up" or ability.name = "hide" or ability.name = "claw dirt" or Ability.name = "search for hidden creatures" or ability.name = "revert to natural form" or ability.name = "catch breath"
+  name: Rat Form
+  description: As a rat, you have speed 5 and can automatically climb at full speed while moving, your size is 1T, and you can see in the dark. You can speak and keep your skills while in rat form, but your Might is -5 and you lose all your regular abilities, features, and benefits. You can revert to your natural form as a maneuver, and do so automatically if you take any damage.
+  explanation: You cannot use this ability while in Rat Form.
+  behavior: suppressabilities
+source: Ongoing Effect
+transformation: true
+guid: 3cb60610-25f0-4108-9398-e524320c062d
+id: 3cb60610-25f0-4108-9398-e524320c062d
+ctime: 1774446227177
+domains:
+  CharacterOngoingEffect:3cb60610-25f0-4108-9398-e524320c062d: true
+endTrigger: losehitpoints
+buffType: neutral
+name: Rat Form
+description: As a rat, you have speed 5 and can automatically climb at full speed while moving, your size is 1T, and you can see in the dark. You can speak and keep your skills while in rat form, but your Might is -5 and you lose all your regular abilities, features, and benefits. You can revert to your natural form as a maneuver, and do so automatically if you take any damage.
+custom: true
+mtime: 1774568780224
+iconid: ui-icons/skills/1.png

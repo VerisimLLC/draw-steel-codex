@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: set
+guid: 22ab1438-1980-4a6b-a39f-fe61b8f3a7fb
+id: 22ab1438-1980-4a6b-a39f-fe61b8f3a7fb
+ctime: 1757727162421
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: ""
+sustainFormula: Distance(ConditionCaster("mind spike loe"), self) > 10
+mtime: 1757727162421
+custom: true
+name: Mind Spike LoE
+iconid: ui-icons/skills/1.png

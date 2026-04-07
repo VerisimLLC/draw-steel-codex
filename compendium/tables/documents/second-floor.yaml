@@ -1,0 +1,187 @@
+__typeName: MarkdownDocument
+annotations:
+  Party:Currentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Current player:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:currentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Current layer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:actedplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Acted Players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Actedplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Current Player:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:urrentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  image:imageone:
+    __typeName: RichImage
+    uiscale: 0.500000305175781
+    image: "-MDiuJMHgUipszf0nOb5"
+  Party:availableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Availableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  image:montageimage:
+    __typeName: RichImage
+  Party:vailableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  "image:":
+    __typeName: RichImage
+  Party:Available players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Available Players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state:
+      54ff6135-4ae2-49ee-af27-1b23c8433635: highlight
+    tokensRemoved:
+      54ff6135-4ae2-49ee-af27-1b23c8433635: true
+    tokensAdded: []
+  Party:Acted players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+id: a90ef58e-613d-4a29-93c7-d5b5209c9f2f
+ctime: 1760771123063
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |+
+      ## Gathering Information
+
+    w: "> * One of the human captives is [Forbin], a leather merchant who was delivering a shipment to [Harim] (See Broadhurst, [B12. Cobbler]))"
+    V: |+
+      |{#The heroes calm the captives before the ogres are alerted.}
+
+    S: |
+      |{#The heroes calm the captives before the ogres are alerted, but the noise does draw some suspicion from the ogres. Tests made to sneak up on the ogres take a bane.} 
+    t: |+
+      > * The captives who were taken to the floor above the ogres’ home haven’t come back down. It’s been several days, so they didn’t survive that trip.
+
+    q: |+
+      > * Several captives have been taken upstairs, which is where the ogres and the mohlers live and sleep when not working. The captives can describe the area (see Third Floor).
+
+    O: |
+      |Stop the Panic: Presence Test
+    M: |2+
+       When the heroes appear, several people stand and run toward them begging for help in panicked whispers that get louder and louder. To stop the panicking from turning loud enough to draw the attention of the ogres upstairs, the heroes must make a moderate Presence test.
+
+
+    n: |+
+      > * Bassa the dwarf is the orc’s most prized captive. She leads the captives in doing masonry work and was traveling with the dwarf merchants staying at the Feather Bed Inn (see B1. Feather Bed Inn), as were the rest of the dwarves here. She’s with a group of captives upstairs working.
+
+    K: |+
+      ## Panic
+
+    I: |+
+      > * “Your arrival causes a few people to sit up and move toward you quickly. ‘Quiet,’ says a nearby dwarf futilely trying to calm the crowd, ‘They can hear everything if we’re not quiet!’”
+
+    G: |
+      > * “The room contains a dozen people—eight humans and four dwarves. Some huddle together fearfully and some lie despondently on bedrolls in the center of the room.”
+    h: |+
+      > * The two ogres keep some mohlers as pets. They sometimes take the mohlers outside, coming back later with stones to be used for building.
+
+    e: |+
+      > * The captives are mostly travelers, farmers, or laborers from the area. They were captured by a pair of ogres led by an orc. They’ve been forced to rebuild the third floor of the tower.
+
+    E: |
+      > * “As before, a set of curving stairs leads up along the outer wall, going through the ceiling above the floor.”
+    C: |+
+      # Second Floor
+
+    k: |+
+      > * The orc uses magic. They don’t see him often, but he carries a pendant that opens the door in the ground floor that allows the ogres to leave. The orc also claims the pendant connects his life force to the tower.
+
+    Q: |
+      |{#The panic leads to outright shouting, causing the ogres and their pet mohlers on the third floor to come down and investigate.}
+    b: |+
+      When the heroes get the chance to ask questions of the captives, they can learn the following:
+
+parentFolder: 7cb5c634-6ed3-43bd-970d-7877c47b4772
+updateid: 2de41b5d-ed10-4b79-a1ad-f5c48a9188f5
+description: Second Floor
+content: |-
+  # Second Floor
+
+  > * “As before, a set of curving stairs leads up along the outer wall, going through the ceiling above the floor.”
+  > * “The room contains a dozen people—eight humans and four dwarves. Some huddle together fearfully and some lie despondently on bedrolls in the center of the room.”
+  > * “Your arrival causes a few people to sit up and move toward you quickly. ‘Quiet,’ says a nearby dwarf futilely trying to calm the crowd, ‘They can hear everything if we’re not quiet!’”
+
+  ## Panic
+
+   When the heroes appear, several people stand and run toward them begging for help in panicked whispers that get louder and louder. To stop the panicking from turning loud enough to draw the attention of the ogres upstairs, the heroes must make a moderate Presence test.
+
+
+  |Stop the Panic: Presence Test
+  |The panic leads to outright shouting, causing the ogres and their pet mohlers on the third floor to come down and investigate.
+  |The heroes calm the captives before the ogres are alerted, but the noise does draw some suspicion from the ogres. Tests made to sneak up on the ogres take a bane. 
+  |The heroes calm the captives before the ogres are alerted, but the noise does draw some suspicion from the ogres. Tests made to sneak up on the ogres take a bane. 
+
+  ## Gathering Information
+
+  When the heroes get the chance to ask questions of the captives, they can learn the following:
+
+  > * The captives are mostly travelers, farmers, or laborers from the area. They were captured by a pair of ogres led by an orc. They’ve been forced to rebuild the third floor of the tower.
+
+  > * The two ogres keep some mohlers as pets. They sometimes take the mohlers outside, coming back later with stones to be used for building.
+
+  > * The orc uses magic. They don’t see him often, but he carries a pendant that opens the door in the ground floor that allows the ogres to leave. The orc also claims the pendant connects his life force to the tower.
+
+  > * Bassa the dwarf is the orc’s most prized captive. She leads the captives in doing masonry work and was traveling with the dwarf merchants staying at the Feather Bed Inn (see B1. Feather Bed Inn), as were the rest of the dwarves here. She’s with a group of captives upstairs working.
+
+  > * Several captives have been taken upstairs, which is where the ogres and the mohlers live and sleep when not working. The captives can describe the area (see Third Floor).
+
+  > * The captives who were taken to the floor above the ogres’ home haven’t come back down. It’s been several days, so they didn’t survive that trip.
+
+  > * One of the human captives is [Forbin], a leather merchant who was delivering a shipment to [Harim] (See Broadhurst, [B12. Cobbler]))
+mtime: 1765833024471

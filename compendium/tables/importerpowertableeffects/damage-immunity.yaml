@@ -1,0 +1,33 @@
+__typeName: ActivatedAbility
+id: b7cf226f-7215-4b20-8954-96cfbaab40e4
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  applyto: caster
+  durationUntilEndOfTurn: true
+  duration: 1
+  ongoingEffectCustom: 48cb6d1e-23c0-4165-924f-fd1337b36670
+  ongoingEffect: 48cb6d1e-23c0-4165-924f-fd1337b36670
+  stacks: "<<amount>>"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+testCases:
+- text: you gain damage immunity 1 until the end of your next turn
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: c15d828d-0163-4443-a6d7-cca676ae59a9
+importMatch: you gain damage immunity <<amount>> until the end of your next turn
+ctime: 1711335267110
+targetType: self
+repeatTargets: false
+description: ""
+name: Damage Immunity
+numTargets: "1"
+mtime: 1773922741343
+abilityType: none
+iconid: ui-icons/skills/1.png

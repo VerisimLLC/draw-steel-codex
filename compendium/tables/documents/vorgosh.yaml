@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Vorgosh
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 28532224-3882-4c9d-8c8e-e4725ba70ca3
+annotations:
+  image:
+    __typeName: RichImage
+id: 7fe5e556-7bf3-425d-b4d2-3e44d864a6bd
+mtime: 1763449882954
+content: |-
+  # Vorgosh
+
+  [[image]]
+
+  *A bugbear who was performing a profane ritual in the Delian Tomb's First Level.*
+  {
+  Secret: See [D4. Stair Down] in [Delian Tomb - Level 1].
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1763391437965

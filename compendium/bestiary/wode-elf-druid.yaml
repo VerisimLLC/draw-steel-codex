@@ -1,0 +1,370 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: e27d3fcd-19e8-4941-af23-ce8dffa7b833
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.5903172
+    frameSaturation: 0.6470588
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 6fdf59b6-1337-4817-82e6-62f57999d969
+  properties:
+    __typeName: monster
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    ev: 8
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Druid	Level 2 Platoon Controller
+        Fey, Humanoid, Wode Elf	EV 8
+        <b>Stamina</b> 30
+        <b>Speed </b>7	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>Free Strike</b> 3
+        Might 0	Agility +1	Reason 0	Intuition 0	Presence +2
+        <b>Entangling Vines</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> 3 cube within 10 	<b>Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; pull 1
+        %E2%98%85	<b>12%E2%80%9316</b>	8 damage; pull 3; M<1 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	10 damage; pull 5; M<2 slowed (save ends)
+        <b>Effect</b> A creature slowed by this ability can't search for hidden creatures until the condition ends.
+        <b>3 Malice</b> The area of the cube and the potency of the effect both increase by 1.
+
+        <b>The Wode Protects Us</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self and Ranged 5	<b>Target</b> Self and 3 allies
+        <b>Effect</b> Each target teleports to a square within 10 that has cover or concealment from all enemies.
+
+        <b>Masking Glamor</b>
+        The druid immediately hides at the end of their turn while in cover or concealment, even if they are observed.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:65fd2c3e-9cb4-47d2-86dc-e26056b24e14: true
+        CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+        CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+        CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 65fd2c3e-9cb4-47d2-86dc-e26056b24e14
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1)) and Self.Ignore Cover <= 0 '
+        guid: e01420cb-9434-42b5-90e2-c4090ad2f9ef
+        name: Masking Glamor
+        domains:
+          CharacterFeature:65fd2c3e-9cb4-47d2-86dc-e26056b24e14: true
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        description: Abilities targeting the druid that would take a bane from cover have a double bane instead.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 65fd2c3e-9cb4-47d2-86dc-e26056b24e14
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Target.Conditions has "concealment"
+        domains:
+          CharacterFeature:65fd2c3e-9cb4-47d2-86dc-e26056b24e14: true
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the druid that would take a bane from concealment have a double bane instead.
+        behavior: power
+        guid: deb52d52-7fa9-4c6e-a7ef-6df3e2c13c7c
+      source: Trait
+      description: Abilities targeting the druid that would take a bane from cover or concealment have a double bane instead.
+      guid: 65fd2c3e-9cb4-47d2-86dc-e26056b24e14
+      name: Masking Glamor
+      implementation: 3
+    role: Platoon Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    initiativeGrouping: 0ac80968-8976-4796-8fc3-c8f9fb06a849
+    keywords:
+      Fey: true
+      Humanoid: true
+      Wode Elf: true
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 7
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-7
+        used: 1
+    availableTriggers: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      implementationDetails: Gold
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; pull 1
+        - 8 damage; pull 3; M<1 slowed (save ends)
+        - 10 damage; pull 5; M<2 slowed (save ends)
+        roll: 2d10 + 2
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; pull 1
+        - 8 damage; pull 3; M<1 slowed (save ends)
+        - 10 damage; pull 5; M<2 slowed (save ends)
+        roll: 2d10 + 2
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 68f455f5-135f-495c-822d-40d809d2b15f
+        riderid: 4e8ac4a8-fb9f-4edd-a8ae-f5c73bcbf559
+        tiersSelected:
+        - 2
+        - 3
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      guid: 9f7cc37c-44fe-40b3-90b7-416b527fc6d9
+      persistence: []
+      modifiers: []
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      strain: []
+      modeList:
+      - text: No Malice
+      - rules: The size of the cube and the potency both increase by 1.
+        text: 3 Malice
+        condition: Heroic Resources Available to Spend >= 3
+      targetAllegiance: enemy
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 138
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: cube
+      radius: 4 when Mode = 2 else 3
+      name: Entangling Vines
+      description: A creature slowed by this ability can't search for hidden creatures until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: false
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+      implementationDetails: ""
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 52874996-7f63-40bf-bb59-ef563f2bc06f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Each target can teleport up to 10 squares to a space that has cover or concealment.
+        abilityType: standard
+        standardAbilityParams:
+          range: "10"
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 9ca42987-ceb1-48d3-a815-eca71c59589c
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: The chirugeon can teleport up to 10 squares to a space that has cover or concealment.
+        invokeOnCaster: true
+        standardAbilityParams:
+          range: "10"
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+        abilityType: standard
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: d72b2778-36dc-4459-bd84-31dba9afba6d
+      targetAllegiance: ally
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 3
+      sourceReference:
+        __typeName: SourceReference
+        page: 138
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      name: The Wode Protects Us
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      description: Each target can teleport up to 10 squares to a space that has cover or concealment.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    monster_type: Wode Elf Druid
+    movementSpeeds:
+      climb: 7
+    creatureSize: 1M
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        08122070-e68f-425e-b7cf-58aab843e41a:
+          refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-3
+          note: Entangling Vines
+          userid: steam-76561198767161997
+          set: 0/1
+        a60e5e26-813a-408d-a0dd-0234b14bb9af:
+          refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-7
+          note: Entangling Vines
+          userid: steam-76561198767161997
+          set: 0/1
+    equipmentMeta:
+      offhand0: []
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 57c5e62e-988f-42a7-a4f1-c29a7db1480c-464
+  tokenType: null
+  bestiaryId: 19cc59ee-4766-4f4f-ac92-c763d6b33cdb
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Wode Elf Druid
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590224166
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,33 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: min
+  sourceguid: 54c875f1-d632-4485-b916-bc897e6d5c81
+  source: Ongoing Effect
+  value: "4	"
+  domains:
+    CharacterOngoingEffect:54c875f1-d632-4485-b916-bc897e6d5c81: true
+  name: Remember Your Oath
+  guid: 516d6159-f5d6-4611-b090-879ca9ca1a0b
+  description: |
+    You succeed on saving throws when you roll a 4 or higher until the start of your next turn: 
+  behavior: attribute
+  attribute: 006e37a7-bd0d-4602-8a76-05e1ef6c56d3
+source: Ongoing Effect
+guid: 54c875f1-d632-4485-b916-bc897e6d5c81
+id: 54c875f1-d632-4485-b916-bc897e6d5c81
+ctime: 1743437644929
+domains:
+  CharacterOngoingEffect:54c875f1-d632-4485-b916-bc897e6d5c81: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Remember Your Oath
+custom: true
+description: |
+  You succeed on saving throws when you roll a 4 or higher until the start of your next turn: 
+mtime: 1743438277950
+iconid: 114facd6-e696-4cda-aed7-2a1cffd2f410

@@ -1,0 +1,11 @@
+__typeName: DamageType
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Psychic
+ctime: 1699861837018
+mtime: 1699861840603
+id: bbf31b90-9729-425b-b1c8-ded83455311e
+iconid: 827262ec-3ba1-4096-b723-4196da4c8aed

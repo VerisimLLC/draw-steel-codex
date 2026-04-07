@@ -1,0 +1,199 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cbf4ce4c-941b-4d4c-98fb-ad96a8f6290f
+    offtokenPortraitId: e6b5ada1-cea5-4536-89b9-5b4774a2ef8a
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3940659
+    portraitOffset:
+      x: 0.02363229
+      y: 0.2530419
+    frameHueShift: 0
+    frameSaturation: 0.51
+    frameBrightness: 0.41
+    popoutScale: 0.99
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d818f0eb-1419-4c53-8036-4f45e0f1f391
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 3
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: Human Archer
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetTextOverride: One creature or object per minion
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 182
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 4c192990-dfcd-44d6-aa09-cca100ab9ca7
+      categorization: Signature Ability
+      persistence: []
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + Agility
+      name: Crossbow
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Archer	Level 1 Minion Artillery
+        Human, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 3	<b>Immunity</b> Corruption 1, Psychic 1
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Ranged distance +5	<b>Free Strike</b> 2
+        Might +0	Agility +2	Reason +0	Intuition +0	Presence +0
+        <b>Crossbow</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage
+
+        <b>Supernatural Insight</b>
+        The archer ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:492c8698-36a2-44c2-844c-ea1438680413: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:492c8698-36a2-44c2-844c-ea1438680413: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The archer ignores concealment if it's granted by a supernatural effect.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The archer ignores concealment if it's granted by a supernatural effect.
+      guid: 492c8698-36a2-44c2-844c-ea1438680413
+      name: Supernatural Insight
+      implementation: 3
+    role: Minion Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: psychic
+      apply: Damage Reduction
+    withCaptain: +5 bonus to ranged distance
+    opportunityAttack: 2
+    damage_taken: 0
+    keywords:
+      Humanoid: true
+      Human: true
+    resources: []
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    minionSquad: Human Archer Squad 1
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: fc52412a-0139-410f-a05b-eb7d4263a312
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: d9255add-5423-4f42-97ea-9b29ce23987a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Human Archer
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590316203
+mtime: 1775201137032
+hidden: false

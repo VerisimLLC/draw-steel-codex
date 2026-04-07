@@ -1,0 +1,65 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 3d7feac7-35f6-4f4b-8e5f-b5d81969b094
+  source: Ongoing Effect
+  modtype: edge
+  keywords:
+    Water: true
+  activationCondition: true
+  activationAfterRoll: false
+  rollType: ability_power_roll
+  guid: 147b3e76-cbad-41ff-8acf-5d83346f147f
+  description: While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+  behavior: power
+  name: Elemental Attunement - Water
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 6c60e973-1d10-4e3e-8709-c7e1ff5326a7
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: a816b4ea-1741-462e-ad99-c73dfcce46e4
+    persistence: []
+    conditionFormula: Used Ability.Keywords has "air" or Used Ability.Keywords has "earth" or Used Ability.Keywords has "fire" or Used Ability.Keywords has "green" or Used Ability.Keywords has "rot" or Used Ability.Keywords has "void"
+    targetType: self
+    castImmediately: true
+    trigger: useability
+    name: Purge Elemental Attunement - Water
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 755e0534-adf3-4245-96eb-73043eb01cbc
+  name: New Ongoing Effect
+  sourceguid: 00c339a7-3881-4895-88e2-f99c49dfb7d2
+source: Ongoing Effect
+guid: 3d7feac7-35f6-4f4b-8e5f-b5d81969b094
+id: 6c60e973-1d10-4e3e-8709-c7e1ff5326a7
+ctime: 1774355490240
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+buffType: buff
+name: Elemental Attunement - Water
+custom: true
+description: While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+mtime: 1774355611639
+iconid: ui-icons/skills/1.png

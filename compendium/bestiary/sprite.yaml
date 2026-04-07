@@ -1,0 +1,143 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bab069a0-a914-4478-9562-083f3b436210: true
+      modifiers: []
+      name: Keywords
+      description: Fey, Humanoid
+      guid: bab069a0-a914-4478-9562-083f3b436210
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fba28e35-9f24-451f-9ddf-5763a413d229: true
+      modifiers: []
+      name: Minion
+      description: The sprite's Stamina drops to 0 when they're targeted with an attack that deals damage.
+      guid: fba28e35-9f24-451f-9ddf-5763a413d229
+      source: Trait
+    role: Minion
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    reach: 5
+    skillRatings: []
+    weight: 1
+    monster_type: Sprite
+    levelChoices: []
+    walkingSpeed: 5
+    resources: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      end:
+        __typeName: CharacterAttribute
+        id: end
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      rsn:
+        baseValue: -4
+        id: rsn
+      prs:
+        baseValue: -3
+        id: prs
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      abilityType: none
+      guid: bcbe902f-363e-491b-986c-faa509c0210a
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      categorization: Signature Ability
+      behaviors:
+      - __typeName: ActivatedAbilityAttackBehavior
+        damageType: normal
+        roll: 2 damage; weakened [1 per minion in attack] vs INU
+      iconid: ui-icons/skills/1.png
+      name: Fairydust Sword
+      targetType: target
+      description: ""
+      range: 5
+      implementation: 2
+    max_hitpoints: 4
+    movementSpeeds:
+      fly: 5
+    fmr: 0
+    opportunityAttack: "1"
+    damage_taken: 0
+    creatureSize: Medium
+  tokenType: null
+  bestiaryId: 19f798a3-ef0b-4295-98f8-fd58da76b909
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: 2
+  createdTimestamp: 1711734129718
+description: Sprite
+parentFolder: 79a93387-4cb0-465f-9085-31c8eec6e3f7
+artist: null
+ord: 10
+ctime: 1741590224431
+mtime: 1775201137032
+hidden: false

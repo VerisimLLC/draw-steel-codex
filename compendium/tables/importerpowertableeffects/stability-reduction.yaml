@@ -1,0 +1,34 @@
+__typeName: ActivatedAbility
+id: 827a57e9-df33-4ebb-8590-5631d7804874
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  durationUntilEndOfTurn: true
+  duration: end_of_next_turn
+  ongoingEffectCustom: 916d1682-18a4-4a01-b2b5-0f4a39a84b65
+  ongoingEffect: 916d1682-18a4-4a01-b2b5-0f4a39a84b65
+  stacks: "<<amount>>"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: stability reduced by 1 (EoT)
+- text: stability reduced by 2 (EoT)
+- text: stability reduced by 3 (EoT)
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: fa48204c-3eaf-4370-b207-4aa2ef27179d
+importMatch: stability reduced by <<amount>> \(EoT\)
+ctime: 1731825136491
+targetType: self
+repeatTargets: false
+description: ""
+name: Stability, Reduction
+numTargets: "1"
+mtime: 1772545056050
+abilityType: none
+iconid: ui-icons/skills/1.png

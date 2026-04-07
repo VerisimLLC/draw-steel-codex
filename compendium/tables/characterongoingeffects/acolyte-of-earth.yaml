@@ -1,0 +1,37 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: be257ebc-5dc6-42df-8340-b16036578e84
+  source: Ongoing Effect
+  value: Stacks
+  domains:
+    CharacterOngoingEffect:be257ebc-5dc6-42df-8340-b16036578e84: true
+  name: Acolyte of Earth
+  guid: 14dda8bb-1052-4ad4-9d52-662ae0e53d46
+  description: Whenever you use an ability that has the Earth and Magic keywords, your stability increases by 1 until the start of your next turn.
+  behavior: attribute
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0920001268386841
+    s: 0.84570324420929
+    v: 0.963363945484161
+    a: 1
+stackable: true
+id: be257ebc-5dc6-42df-8340-b16036578e84
+ctime: 1749701020261
+domains:
+  CharacterOngoingEffect:be257ebc-5dc6-42df-8340-b16036578e84: true
+implementation: 3
+custom: true
+name: Acolyte of Earth
+guid: be257ebc-5dc6-42df-8340-b16036578e84
+description: Whenever you use an ability that has the Earth and Magic keywords, your stability increases by 1 until the start of your next turn.
+mtime: 1749701020261
+iconid: 20c26bc2-3c3b-498c-af59-f29874538b13

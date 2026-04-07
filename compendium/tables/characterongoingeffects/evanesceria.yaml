@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 95f8f8fa-564a-48f3-9760-9802f4e2fa7f
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:95f8f8fa-564a-48f3-9760-9802f4e2fa7f: true
+  name: Evanesceria
+  guid: ae76d2b1-437d-4032-bcfa-6d47d0c1e863
+  description: You disappear. You can reappear in the space you left or the nearest unoccupied space of your choice when you take your turn
+  behavior: attribute
+  attribute: e8a97ea6-d2e2-4d59-a1d3-11124a104147
+source: Ongoing Effect
+guid: 95f8f8fa-564a-48f3-9760-9802f4e2fa7f
+id: 95f8f8fa-564a-48f3-9760-9802f4e2fa7f
+ctime: 1768394102197
+domains:
+  CharacterOngoingEffect:95f8f8fa-564a-48f3-9760-9802f4e2fa7f: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.09375
+    v: 0.615330755710602
+    a: 1
+custom: true
+name: Evanesceria
+description: You disappear. You can reappear in the space you left or the nearest unoccupied space of your choice when you take your turn
+mtime: 1775024501879
+emoji: 8e4ef70c-5757-4f45-82b6-90899ed5c24c
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

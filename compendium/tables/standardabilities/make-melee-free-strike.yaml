@@ -1,0 +1,66 @@
+__typeName: ActivatedAbility
+id: 9b123334-6d7c-4848-8b17-db3255c4012c
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  guid: 71b2e187-bfa4-41bc-b516-2364aa52e09b
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    cannotModifyAction: true
+    filterAbility: Ability.Usable as Free Strike
+    guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+    keywords:
+      Melee: true
+    source: ""
+    attributes: []
+    replaceBehaviors: before
+    name: Modify Attack
+    mustPayResourceCost: true
+    description: ""
+    behavior: modifyability
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors:
+      - __typeName: ActivatedAbilityCustomTriggerBehavior
+        applyto: caster
+        guid: 15bd7b39-a76d-48ac-9f4e-be19fe77eab1
+        value: ""
+        triggerName: makemeleefreestrike
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 97e0c343-4dfa-46f9-ac51-e3f0ff7a36ee
+ctime: 1763092478205
+targetType: self
+numTargets: "1"
+mtime: 1771254545340
+name: Make Melee Free Strike
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

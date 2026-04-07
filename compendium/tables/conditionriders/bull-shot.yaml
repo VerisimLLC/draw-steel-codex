@@ -1,0 +1,28 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  conditionid: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  sourceguid: f1c8e7cc-cf1d-417a-84ef-997bde94b5b4
+  description: While grabbed this way, you are also bleeding
+  source: Ongoing Effect
+  behavior: bestowcondition
+  guid: dc96607d-8949-4eb5-a847-852589bb7abf
+  explanation: While grabbed this way, you are also bleeding
+  name: Bull Shot
+source: Ongoing Effect
+guid: f1c8e7cc-cf1d-417a-84ef-997bde94b5b4
+id: f1c8e7cc-cf1d-417a-84ef-997bde94b5b4
+ctime: 1774789228042
+condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+display:
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: Bull Shot
+description: While grabbed this way, you are also bleeding
+mtime: 1774789575762
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65

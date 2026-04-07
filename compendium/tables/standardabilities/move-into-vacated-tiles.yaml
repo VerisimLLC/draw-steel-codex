@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+id: 55bebbf8-d563-40a7-a432-cf6d45b4884f
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "100"
+targetType: emptyspace
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: If you force move an enemy you can use this ability to move into the tiles they vacate.
+description: ""
+ctime: 1746695548703
+numTargets: "1"
+targeting: vacated
+guid: 960757c5-2c6d-42f4-9515-ba56aa83e179
+name: Move Into Vacated Tiles
+repeatTargets: false
+mtime: 1754031061122
+abilityType: none
+iconid: ui-icons/skills/1.png

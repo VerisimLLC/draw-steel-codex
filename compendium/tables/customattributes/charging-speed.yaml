@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: Walking Speed
+category: Movement
+name: Charging Speed
+documentation: This is what the Charge maneuver uses to determine a creature's speed when charging. Normally this will just be walking speed, but it can be adjusted by features.
+mtime: 1758841307391
+id: 6707d8ac-4323-47bc-9593-e36fd1ac146e
+ctime: 1758841307391

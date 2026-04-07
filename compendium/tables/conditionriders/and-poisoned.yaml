@@ -1,0 +1,55 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: cc764a53-6036-4972-8732-441e99038324
+    repeatTargets: false
+    abilityType: none
+    trigger: beginturn
+    targetType: self
+    numTargets: "1"
+    name: and Poisoned
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Weakened and Poisoned
+      roll: "2"
+      damageType: poison
+      chatMessage: Weakened and Poisoned
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You take 2 poison damage at the start of each of your turns.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: bb9ab555-6fe8-4105-9a6b-6a2655df1881
+  name: and Poisoned
+  sourceguid: c6547942-2294-438c-817a-8dde1188162d
+source: Ongoing Effect
+guid: c6547942-2294-438c-817a-8dde1188162d
+id: c6547942-2294-438c-817a-8dde1188162d
+ctime: 1754541419063
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+name: and Poisoned
+description: You take 2 poison damage at the start of each of your turns.
+mtime: 1754541555855
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+implementation: 3

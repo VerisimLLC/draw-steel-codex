@@ -1,0 +1,36 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+id: ca47577f-755e-4aab-adf3-80a27a7d240d
+ctime: 1769096286463
+textStorage:
+  __typeName: TextStorage
+  sections:
+    G: |+
+      # Skewra
+
+    M: |+
+      [[image]]
+
+    s: |-
+      Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+      }
+    S: |
+      *Forsaken wraith sentry.*
+      {
+    l: |
+      *Use this area to make notes for yourself about the NPC. Suggested information would be:
+    Y: |
+      Secret: [The Sentry] in [Fort Forsaken]. Drunkenly asleep when the heroes come to shore.
+      }
+
+      {
+    e: |+
+      Director Notes: 
+
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 0ab658ee-6756-421a-99e6-bce0f41baffa
+mtime: 1771355873703
+content: ""
+description: Skewra

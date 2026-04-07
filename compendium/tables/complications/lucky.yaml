@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: Whenever you obtain a tier 1 outcome on a test and don’t spend a hero token to reroll, you take a bane on the next test you make.
+mtime: 1755603908306
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Lucky
+ctime: 1755515914389
+description: You’ve always had a lucky streak. When you leave things in the hands of fate, you succeed more than you fail. But luck is fickle—and when you don’t trust it, it deserts you.
+id: 3a60bf9d-db9f-46d0-bdb0-afabddba0fd4
+benefit: When you spend a hero token to succeed on a saving throw or to reroll a test, roll a d10. On a 6 or higher, you gain the benefit but don’t spend the hero token.

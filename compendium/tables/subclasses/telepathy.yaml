@@ -1,0 +1,1184 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1741132949317
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: fec63855-de9b-4373-bb6a-2e422969938e
+        description: During a respite, you can choose a number of creatures up to your Reason score who you have communicated with using your Telepathic Speech feature, creating a telepathic link among all of you. Whenever a linked creature spends one or more Recoveries, each other linked creature can spend a Recovery.
+        source: Telepathy Class Feature
+        name: Mindlink
+        behavior: activated
+        guid: 94fbf518-23ed-4c4c-a9de-fac56fe79bf6
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 198
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "10"
+          numTargets: Reason
+          modifiers: []
+          categorization: Ability
+          strain: []
+          guid: 51e0c901-4720-48c4-a5e4-6dd362394657
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster_and_targets
+            ongoingEffect: 29be7283-3bd2-4d16-91a5-637967d59825
+            duration: until_rest
+            ongoingEffectCustom: 29be7283-3bd2-4d16-91a5-637967d59825
+          iconid: ui-icons/skills/1.png
+          domains:
+            class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          actionResourceId: 5758da29-8660-47d3-805b-7c6038f476a1
+          persistence: []
+          name: Mindlink
+          selfTarget: true
+          description: During a respite, you can choose a number of creatures up to your Reason score who you have communicated with using your Telepathic Speech feature, creating a telepathic link among all of you. Whenever a linked creature spends one or more Recoveries, each other linked creature can spend a Recovery.
+          abilityType: none
+          implementation: 3
+      source: Telepathy Class Feature
+      guid: fec63855-de9b-4373-bb6a-2e422969938e
+      domains:
+        class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      description: During a respite, you can choose a number of creatures up to your Reason score who you have communicated with using your Telepathic Speech feature, creating a telepathic link among all of you. Whenever a linked creature spends one or more Recoveries, each other linked creature can spend a Recovery.
+      name: Mindlink
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Telepathy Class Feature
+      guid: 35b418f4-0787-4e5b-a99a-5bf865d2b1d0
+      domains:
+        class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      description: The range of your Telepathic Speech feature increases to anywhere on the same world.
+      name: Universal Connection
+      implementation: 1
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Telepathy Class Feature
+      guid: 71519b4c-0fa1-4c80-a6c7-05932eab9c0f
+      domains:
+        class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      description: Whenever you obtain a success on a test using a skill from the interpersonal skill group while interacting with an NPC, you can ask them a question using your Telepathic Speech feature. The NPC must answer the question truthfully to the best of their ability.
+      name: Compulsion
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: aceb3372-fe77-45a3-a3be-570bcb188dc3
+        modifyDescription: ""
+        source: Telepathy Class Feature
+        filterAbility: Ability.Keywords has "Ranged" and Ability.Keywords has "Psionic"
+        behavior: modifyability
+        keywords: []
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        name: Remote Amplification
+        attributes:
+        - operation: Add
+          value: "5"
+          id: range
+        description: The distance of your ranged psionic abilities increases by 5. Additionally, the range of your Telepathic Speech feature increases to 1 mile.
+        guid: 8f9760af-0855-4f5a-b379-71b33b7e76cf
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 67bdac2c-3e13-46b7-9cd0-dfdc66911624
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors: []
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Telepathy Class Feature
+      guid: aceb3372-fe77-45a3-a3be-570bcb188dc3
+      domains:
+        class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      description: The distance of your ranged psionic abilities increases by 5. Additionally, the range of your Telepathic Speech feature increases to 1 mile.
+      name: Remote Amplification
+      implementation: 3
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 8d7ac684-448e-4a52-940e-462825b4dfdc
+          description: ""
+          source: Telepathy Class Feature
+          name: Synaptic Conditioning
+          behavior: activated
+          guid: e4286108-8994-4037-8e61-ab3cef97875c
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Telepathy: true
+              Melee: true
+              Psionic: true
+            implementationDetails: ""
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "10 psychic damage; #the target takes a bane on ability rolls made to harm you or your allies (save ends)"
+              - "14 psychic damage; #the target has a double bane on ability rolls made to harm you or your allies (save ends)"
+              - "20 psychic damage; #the target considers you and your allies to be their allies when using abilities and features (save ends)"
+              roll: 2d10 + Reason
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 1
+              ongoingEffect: 4e58600f-249e-42c3-aa04-9641756a0661
+              duration: save_ends
+              ongoingEffectCustom: 4e58600f-249e-42c3-aa04-9641756a0661
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 2
+              ongoingEffect: e767dfb9-bb64-4402-8565-5ee48f7bfa8d
+              duration: save_ends
+              ongoingEffectCustom: e767dfb9-bb64-4402-8565-5ee48f7bfa8d
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: b4246346-754c-4c43-9485-6c8fa4d7a21a
+              duration: save_ends
+              ongoingEffectCustom: b4246346-754c-4c43-9485-6c8fa4d7a21a
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: aeb7a0a0-3185-478a-81d1-a35861a71b08
+              ongoingEffectCustom: aeb7a0a0-3185-478a-81d1-a35861a71b08
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: It’s a subtle mindset shift. It’s not that they’re your enemy—you just don’t like them!
+            categorization: Heroic Ability
+            range: "2"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain:
+              enabled: true
+            guid: 4d23a9a1-da2c-47b0-a3f6-85d9a37ba77a
+            numTargets: "1"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            targetType: target
+            sourceReference:
+              __typeName: SourceReference
+              page: 197
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Synaptic Conditioning
+            implementation: 3
+            description: "**Strained:** While the target is under this effect, you no longer consider your enemies to be your enemies when using your abilities and features."
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Telepathy Class Feature
+        guid: 8d7ac684-448e-4a52-940e-462825b4dfdc
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+        description: ""
+        name: Synaptic Conditioning
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: aeb13f31-829f-43c9-863c-bbc933e2a841
+          description: ""
+          source: Telepathy Class Feature
+          name: Synaptic Dissipation
+          behavior: activated
+          guid: 0650ac78-c8d1-46cb-a8b3-430a305bb2d3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Special
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Telepathy: true
+              Strike: true
+              Psionic: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "#Two creatures"
+              - "#Three creatures"
+              - "#Five creatures"
+              roll: 2d10 + Reason
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                objectTarget: false
+                abilityType: none
+                strain: []
+                guid: 95b792d9-28ba-4cc7-a98f-bb3b1205527a
+                repeatTargets: false
+                modifiers: []
+                numTargets: 5 when "<<tierresult>>" = 3 else "<<tierresult>>" + 1
+                targetType: target
+                categorization: Hidden
+                name: Invoked Ability
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: b6fee1e1-98dd-41d4-a9f7-1b89c4ffc045
+                  durationUntilEndOfTurn: false
+                  duration: 1
+                  ongoingEffectCustom: b6fee1e1-98dd-41d4-a9f7-1b89c4ffc045
+                description: ""
+                range: "10"
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                tierresult: "<<cast.tier>>"
+              promptText: Select Targets
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You manipulate your enemies’ minds and make them wonder if you were ever really there in the first place.
+            categorization: Heroic Ability
+            range: "10"
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            castImmediately: true
+            numTargets: "1"
+            modifiers: []
+            rangeTextOverride: "10"
+            strain:
+              enabled: true
+            guid: 578d9db6-8b3b-4af4-8222-3d83f9798706
+            persistence: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 197
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            targetType: self
+            implementation: 3
+            name: Synaptic Dissipation
+            preDescription: You target a number of creatures with this ability determined by the outcome of your power roll. You and your allies are invisible to each target until the start of your next turn.
+            description: "**Strained:** The effect ends early if you take damage from an enemy’s ability."
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Telepathy Class Feature
+        guid: aeb13f31-829f-43c9-863c-bbc933e2a841
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+        description: ""
+        name: Synaptic Dissipation
+        implementation: 3
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      guid: 5fadae4f-4425-4db1-b8e1-be658953e8ff
+      description: Choose one of the following abilities
+      name: 6th-Level Telepathy Abilities
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      guid: 23296b71-9a08-43cb-9b94-b2c665997478
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 23296b71-9a08-43cb-9b94-b2c665997478
+        source: Telepathy Class Feature
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: 933a4428-906d-40eb-9d8e-cf9b8272ec69
+        rollType: test_power_roll
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        description: You gain an edge on tests made to stop combat and start a negotiation. Additionally, if you are present during a negotiation, any NPC who has a hostile or suspicious starting attitude has their patience increased by 1 (to a maximum of 5).
+        behavior: power
+        name: Ease the Mind
+      name: Ease the Mind
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      description: You gain an edge on tests made to stop combat and start a negotiation. Additionally, if you are present during a negotiation, any NPC who has a hostile or suspicious starting attitude has their patience increased by 1 (to a maximum of 5).
+      source: Telepathy Class Feature
+      implementation: 2
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 5d7fb01c-4f75-468d-a71c-63035093474a
+          description: ""
+          source: Telepathy Class Feature
+          name: Overwhelm
+          behavior: activated
+          guid: 25a99398-7b24-43e8-a552-50262a042b60
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Telepathy: true
+              Strike: true
+              Psionic: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + R psychic damage; I < weak, slowed (save ends) 
+              - 10 + R psychic damage; I < average, weakened (save ends)
+              - 14 + R psychic damage; I < strong, dazed (save ends)
+              roll: 2d10 + Reason
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              duration: end_of_next_turn
+              strainSelection: strained
+              ongoingEffect: f09942ea-29f3-4ae1-9764-73d0a52ee772
+              ongoingEffectCustom: f09942ea-29f3-4ae1-9764-73d0a52ee772
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You overload their senses, turning all their subconscious thoughts into conscious ones.
+            categorization: Heroic Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain:
+              enabled: true
+            guid: c33084fa-7d66-4029-8196-b82210c1d2a9
+            numTargets: "1"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            targetType: target
+            sourceReference:
+              __typeName: SourceReference
+              page: 207
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            name: Overwhelm
+            implementation: 3
+            description: "**Strained:** You start crying. You can’t take triggered actions or take free strikes until the end of the target’s next turn."
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Telepathy Class Feature
+        guid: 5d7fb01c-4f75-468d-a71c-63035093474a
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+        description: ""
+        name: Overwhelm
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 28e995c0-f8c7-41ba-8bcb-1c6286b8fd15
+          description: ""
+          source: Telepathy Class Feature
+          name: Synaptic Override
+          behavior: activated
+          guid: cd689ec6-972f-494d-9c62-1391ee4f4bbc
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: false
+            targetTextOverride: 1 enemy
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Telepathy: true
+              Psionic: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - The target makes a free strike against one enemy of your choice. 
+              - The target shifts up to their speed and uses their signature ability against any enemies of your choice.
+              - The target moves up to their speed and uses their signature ability against any enemies of your choice.
+              roll: 2d10 + Reason
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 1
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: d6cc5728-d918-4314-92a9-f000912bca8d
+                repeatTargets: false
+                abilityType: none
+                categorization: Hidden
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    cannotModifyAction: true
+                    filterAbility: Ability.Free Strike
+                    behavior: modifyability
+                    guid: 658083f4-03a5-4944-870b-bd94dbca018c
+                    attributes: []
+                    source: ""
+                    description: ""
+                    name: Modify Attack
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      guid: 0e3ab2b8-e2f6-4f9d-ae2a-aa324e9c7671
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors: []
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                numTargets: "1"
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              autoTarget: true
+              promptText: The target makes a free strike against one enemy of your choice.
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 2
+              targeting: prompt
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: e67221b9-6f36-4d66-a4d3-9d0f9b1e6a85
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityType: none
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  standardAbilityParams:
+                    distance: "<<movement speed>>"
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 8bf18314-84a3-497f-aadd-71dde5c90698
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+                  abilityType: standard
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: e132db68-d48f-4a59-81c8-8702925e87a3
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  runOnController: false
+                  standardAbility: 7b19698f-5fe2-4eea-9ef8-7621a7974073
+                  abilityType: standard
+                targetType: self
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptText: The target shifts up to their speed and uses their signature ability against any enemies of your choice.
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 3
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: e67221b9-6f36-4d66-a4d3-9d0f9b1e6a85
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityType: none
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  standardAbilityParams:
+                    distance: "<<movement speed>>"
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 8bf18314-84a3-497f-aadd-71dde5c90698
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+                  abilityType: standard
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: e132db68-d48f-4a59-81c8-8702925e87a3
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  runOnController: false
+                  standardAbility: 7b19698f-5fe2-4eea-9ef8-7621a7974073
+                  abilityType: standard
+                targetType: self
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptText: The target moves up to their speed and uses their signature ability against any enemies of your choice.
+              guid: 70ceede2-af5d-48ae-91f4-c43cda372080
+              targeting: prompt
+            - __typeName: ActivatedAbilityDamageBehavior
+              applyto: caster
+              roll: 1d6
+              strainSelection: strained
+              titleText: "Strained: Synaptic Override"
+              chatMessage: "Strained: Synaptic Override"
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              applyto: caster
+              rule: weakened (eot)
+              strainSelection: strained
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'You gain control over an enemy’s nervous system. How pleasant for them. '
+            categorization: Heroic Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain:
+              enabled: true
+            guid: 844f63c3-316f-4717-b2c4-5160cb2c4766
+            sourceReference:
+              __typeName: SourceReference
+              page: 208
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            numTargets: "1"
+            domains:
+              class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            targetType: target
+            implementation: 3
+            name: Synaptic Override
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: "You control the target’s movement. The target can’t be moved in a way that would harm them (such as over a cliff), leave them dying, or result in them suffering a condition or other negative effect. However, you can move them to provoke opportunity attacks. \n\n**Strained:** You take 1d6 damage and are weakened until the end of your turn.  "
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Telepathy Class Feature
+        guid: 28e995c0-f8c7-41ba-8bcb-1c6286b8fd15
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+        description: ""
+        name: Synaptic Override
+        implementation: 3
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      guid: 322e4f24-a666-4ba5-b279-4717fdfd94cd
+      description: Choose one of the following abilities
+      name: 2nd-Level Telepathy Ability
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      guid: d03597e2-e0cd-4d07-9780-9c799ba4a7d8
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: 65004817-6844-4e48-b506-449693027709
+        description: You gain the following ability.
+        source: Telepathy Class Feature
+        name: Remote Assistance
+        behavior: activated
+        guid: fbcb59d6-475e-41c3-8287-6fd9fd8f6d7b
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          targetFilter: Enemy
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Psionic: true
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            durationUntilEndOfTurn: false
+            duration: 1
+            ongoingEffectCustom: false
+            ongoingEffect: 1e585796-8497-405b-b5c0-a1e65ffb0701
+            modesSelected: []
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            modesSelected:
+            - 2
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: "1 Clarity spent: choose +1 target"
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1.04424874441964
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.875121593475342
+              s: 0.519307374954224
+              v: 1.0001802444458
+              a: 1
+          flavor: An ally gains the benefit of your intellect.
+          categorization: Heroic Ability
+          range: "10"
+          persistence: []
+          modifiers: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          strain: []
+          guid: c79229fc-3ab8-4a83-ad65-731835369548
+          modeList:
+          - text: 1 target
+          - text: "1 clarity: 2 targets"
+            condition: Resources.Heroic Resource >= 1
+          numTargets: mode
+          domains:
+            class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          targetType: target
+          sourceReference:
+            __typeName: SourceReference
+            page: 204
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          name: Remote Assistance
+          implementation: 3
+          description: |-
+            The next ability roll an ally makes against the target before the start of your next turn gains an edge.
+
+            **Spend 1 Clarity:** You target one additional creature or object
+          abilityType: none
+          iconid: 2c2b1cb9-6ba0-46f7-b133-07a5d8e8d87e
+      name: Remote Assistance
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      description: You gain the following ability.
+      source: Telepathy Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      guid: 0e696415-db28-4d9b-98b9-eb5d7ffc7805
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: f79f318f-d866-4745-b747-5cf387a2f29f
+        description: ""
+        source: Telepathy Class Feature
+        name: Feedback Loop
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          triggerPrompt: The target takes psychic damage equal to half the triggering damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "50"
+          strain: []
+          guid: de37060c-1467-4aec-b15c-9a52eaacc127
+          abilityType: none
+          trigger: losehitpoints
+          domains:
+            class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          conditionFormula: (Has attacker) and attacker.Distance(self) <= 10
+          persistence: []
+          name: Feedback Loop
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: psychic
+            roll: damage/2
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: d4745b7c-38d2-4136-9028-d71b9a403500
+      - __typeName: CharacterModifier
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: f79f318f-d866-4745-b747-5cf387a2f29f
+        behavior: triggerdisplay
+        source: Telepathy Class Feature
+        name: Feedback Loop
+        description: ""
+        guid: f332da2e-89a1-47b1-b70f-e7e0fbdb2051
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The target takes psychic damage equal to half the triggering damage.
+          name: Feedback Loop
+          flavor: Creating a brief psychic link between a foe and their target gives that foe a taste of their own medicine.
+          guid: 0bdea782-5058-4d00-b95e-72059362d170
+          trigger: The target deals damage to an ally.
+          keywords:
+            Ranged: true
+            Psionic: true
+      name: Feedback Loop
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      description: ""
+      source: Telepathy Class Feature
+      implementation: 3
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th-Level Telepathy Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: fd25c945-5f0a-416e-b71e-be4af86bc0e7
+          description: You fire a telepathic bolt empowered by every consciousness within reach directly into your foe’s mind
+          source: Telepathy Class Feature
+          name: Resonant Mind Spike
+          behavior: activated
+          guid: 9e2cc70f-edb4-476d-8ffc-f020c52076a2
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: One creature
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Telepathy: true
+              Strike: true
+              Psionic: true
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              applyto: caster
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 8fd15ea1-5425-4498-933d-0436d5ef4efe
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  guid: ebce2907-1e08-4d9b-b349-434e7eb282ac
+                  sourceguid: 8fd15ea1-5425-4498-933d-0436d5ef4efe
+                  value: 1
+                  source: Ongoing Effect
+                  name: Ignore Cover and Concealement
+                  behavior: attribute
+                  description: ""
+                  attribute: 16228928-9f29-4510-a703-65344f2356ef
+                - __typeName: CharacterModifier
+                  guid: 355f61dd-c482-4066-a94d-f93ccbabc911
+                  sourceguid: 8fd15ea1-5425-4498-933d-0436d5ef4efe
+                  value: 1
+                  source: Ongoing Effect
+                  name: Ignore Cover and Concealement
+                  behavior: attribute
+                  description: ""
+                  attribute: 33b6a265-6b89-4def-b86d-507d86061fe8
+                - __typeName: CharacterModifier
+                  operation: set
+                  sourceguid: 8fd15ea1-5425-4498-933d-0436d5ef4efe
+                  source: Ongoing Effect
+                  value: 17
+                  name: Ignore Cover and Concealement
+                  guid: a1218782-f28b-4cfa-a515-3ee62ca38b0c
+                  description: ""
+                  behavior: attribute
+                  attribute: f383ffc8-817d-4965-ae92-2e839f27e063
+                source: Ongoing Effect
+                name: Ignore Cover and Concealement
+                description: ""
+                id: 8fd15ea1-5425-4498-933d-0436d5ef4efe
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 15 + R psychic damage
+              - 24 + R psychic damage
+              - 28 + R psychic damage
+              roll: 2d10 + Reason
+            - __typeName: ActivatedAbilityDamageBehavior
+              applyto: caster
+              roll: Cast.Damage Dealt * 0.5
+              strainSelection: strained
+              cannotBeReduced: true
+              chatMessage: Resonant Mind Spike Strained Damage
+            display:
+              brightness: 1
+              saturation: 0
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You fire a telepathic bolt empowered by every consciousness within reach directly into your foe’s mind
+            categorization: Heroic Ability
+            range: "10"
+            abilityType: none
+            targetType: target
+            persistence: []
+            modifiers: []
+            rangeTextOverride: ""
+            strain:
+              enabled: true
+            guid: 87291d51-956b-4064-a574-23cb2d564c4b
+            numTargets: "1"
+            sourceReference:
+              __typeName: SourceReference
+              page: 200
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            preDescription: ""
+            implementation: 4
+            name: Resonant Mind Spike
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: |-
+              This ability ignores cover and concealment.
+              **Strained:** The ability roll scores a critical hit on a natural 17 or higher. You take half the damage the target takes, and you can’t reduce this damage in any way.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 0eac5a41-6f48-48a3-aa55-9adf199d0e90
+        source: Telepathy Class Feature
+        guid: fd25c945-5f0a-416e-b71e-be4af86bc0e7
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+        description: You fire a telepathic bolt empowered by every consciousness within reach directly into your foe’s mind
+        name: Resonant Mind Spike
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: f2b1c513-f0f3-4710-b8a5-c31d5627d030
+          description: You project a terrifying image into the brains of your foes, and their fear psionically invigorates your allies
+          source: Telepathy Class Feature
+          name: Synaptic Terror
+          behavior: activated
+          guid: 4c000ee7-b6d5-45af-a3fa-5a443b5a39c8
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            targetTextOverride: Each ally and enemy in the area
+            repeatTargets: false
+            rangeTextOverride: ""
+            implementationDetails: The Codex does not prevent you from using this ability, even if it would cause you to have negative clarity.
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster_and_targets
+              filterTarget: Friends(Caster, Target)
+              duration: 1
+              ongoingEffectCustom: 23a94202-d5fe-464a-b9b9-b98611a17f59
+              ongoingEffect: 23a94202-d5fe-464a-b9b9-b98611a17f59
+              durationUntilEndOfTurn: false
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - R < Weak, frightened (save ends)
+              - R < Average, frightened (save ends)
+              - R < Strong, frightened (save ends)
+              filterTarget: not Friends(Caster, Target)
+              roll: 2d10 + Reason
+            display:
+              brightness: 1
+              saturation: 0
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You and each target ally can’t obtain lower than a tier 2 outcome on power rolls until the start of your next turn. Each target enemy is affected by the ability’s power roll.
+            categorization: Heroic Ability
+            range: "3"
+            abilityType: none
+            persistence: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            keywords:
+              Telepathy: true
+              Area: true
+              Psionic: true
+            strain: []
+            guid: f7dd880c-5d7a-4f7f-90fa-db0fcced26a9
+            numTargets: "1"
+            sourceReference:
+              __typeName: SourceReference
+              page: 200
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            implementation: 3
+            preDescription: You and each target ally can’t obtain lower than a tier 2 outcome on power rolls until the start of your next turn. Each target enemy is affected by the ability’s power roll.
+            name: Synaptic Terror
+            targetType: all
+            description: "**Strained:** You can’t use this ability if doing so would cause you to have negative clarity"
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 5ee6f209-810c-47a0-b2be-53a2f83137b8
+        source: Telepathy Class Feature
+        guid: f2b1c513-f0f3-4710-b8a5-c31d5627d030
+        domains:
+          class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+        description: You project a terrifying image into the brains of your foes, and their fear psionically invigorates your allies
+        name: Synaptic Terror
+        implementation: 3
+      classid: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+      guid: 267d06fb-1607-48b3-8b46-7b2ae96bcec6
+      source: Telepathy Class Feature
+      description: Choose one of the following abilities
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:19c04f9f-5d72-4f12-afd3-b572d4671cfc: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+details: "**Telepathy** abilities allow you to communicate with, read, and influence the minds of other creatures."
+name: Telepathy
+mtime: 1774802669636
+id: 19c04f9f-5d72-4f12-afd3-b572d4671cfc
+primaryClassId: 58b82a67-8b93-468b-99c5-2ac452033071

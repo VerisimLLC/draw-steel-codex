@@ -1,0 +1,1115 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1728662019208
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 4a2be73e-1d44-4113-b58b-211b937dda3c
+        description: |-
+          You warp gravity around your heavenly body and can pull even the sturdiest titans toward your core. At the end of each of your turns, you target one creature or object within distance of your Hurl Element ability and vertical pull that target up to 5 squares. If their stability reduces this forced movement, they are pulled a minimum of 2 squares. This forced movement ignores stability for your allies. 
+
+          Additionally, your Mantle of Essence improves. While in the area of the aura, enemies and objects have their stability reduced by an amount equal to your level.
+        source: Void Class Feature
+        name: Black Hole Star
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Target one creature or object within distance of your Hurl Element ability and vertical pull that target up to 5 squares. If their stability reduces this forced movement, they are pulled a minimum of 2 squares. This forced movement ignores stability for your allies.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 03087f6f-bcc9-44aa-8baf-6eca1d1574e3
+          name: Black Hole Star
+          castImmediately: true
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              objectTarget: true
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: fc0c8f75-5b38-4206-957a-49abe8831744
+              repeatTargets: false
+              abilityType: none
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                filterTarget: (not friends(caster, target)) and (Stability < 4)
+                rule: vertical pull 5
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                filterTarget: (not friends(caster, target)) and (Stability > 3)
+                rule: vertical pull 2, ignoring stability
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                filterTarget: friends(caster, target)
+                rule: vertical pull 5, ignoring stability
+              targetType: target
+              modifiers: []
+              name: Black Hole Star
+              persistence: []
+              description: ""
+              range: "10"
+              iconid: ui-icons/skills/1.png
+            promptText: Target one creature or object within distance of your Hurl Element ability and vertical pull that target up to 5 squares
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          trigger: endturn
+          numTargets: "1"
+          description: You warp gravity around your heavenly body and can pull even the sturdiest titans toward your core. At the end of each of your turns, you target one creature or object within distance of your Hurl Element ability and vertical pull that target up to 5 squares. If their stability reduces this forced movement, they are pulled a minimum of 2 squares. This forced movement ignores stability for your allies.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 2a7520fb-b459-4471-9adf-d3f94b096abb
+      - __typeName: CharacterModifier
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 4a2be73e-1d44-4113-b58b-211b937dda3c
+        behavior: triggerdisplay
+        source: Void Class Feature
+        name: Black Hole Star
+        description: |-
+          You warp gravity around your heavenly body and can pull even the sturdiest titans toward your core. At the end of each of your turns, you target one creature or object within distance of your Hurl Element ability and vertical pull that target up to 5 squares. If their stability reduces this forced movement, they are pulled a minimum of 2 squares. This forced movement ignores stability for your allies. 
+
+          Additionally, your Mantle of Essence improves. While in the area of the aura, enemies and objects have their stability reduced by an amount equal to your level.
+        guid: 03f80077-1894-4197-acb6-080b35790c0f
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: passive
+          name: Black Hole Star
+          effect: 'You warp gravity around your heavenly body and can pull even the sturdiest titans toward your core. At the end of each of your turns, you target one creature or object within distance of your Hurl Element ability and vertical pull that target up to 5 squares. If their stability reduces this forced movement, they are pulled a minimum of 2 squares. This forced movement ignores stability for your allies. '
+          guid: 46dccc64-d142-4431-9e9f-f1638bd1de82
+          trigger: End of turn
+          keywords: []
+      source: Void Class Feature
+      guid: 4a2be73e-1d44-4113-b58b-211b937dda3c
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: |-
+        You warp gravity around your heavenly body and can pull even the sturdiest titans toward your core. At the end of each of your turns, you target one creature or object within distance of your Hurl Element ability and vertical pull that target up to 5 squares. If their stability reduces this forced movement, they are pulled a minimum of 2 squares. This forced movement ignores stability for your allies. 
+
+        Additionally, your Mantle of Essence improves. While in the area of the aura, enemies and objects have their stability reduced by an amount equal to your level.
+      name: Black Hole Star
+      implementation: 3
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: bcb525d8-6fed-4f04-b1ec-2d2e57a7fb69
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: bcb525d8-6fed-4f04-b1ec-2d2e57a7fb69
+        source: Void Class Feature
+        value: 30
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: A Beyonding of Vision
+        guid: d78dea2d-39d8-4666-afbc-afeebd5f8a65
+        description: |-
+          You instantly recognize illusions for what they are, you can see invisible creatures, and supernatural effects can’t conceal creatures and objects from you. You always know if an area or object you observe is magical or affected by magic, and the specifics of what that magic can do.
+
+          You also gain the ability <i>Shared Void Sense</i>.
+        behavior: attribute
+        attribute: 4b82a728-9231-4cbb-a3a0-25e68d919c8f
+      name: A Beyonding of Vision
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: |-
+        You instantly recognize illusions for what they are, you can see invisible creatures, and supernatural effects can’t conceal creatures and objects from you. You always know if an area or object you observe is magical or affected by magic, and the specifics of what that magic can do.
+
+        You also gain the ability <i>Shared Void Sense</i>.
+      source: Void Class Feature
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 4a14a79e-a215-44b1-ba28-14587e87e38e
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 814c94c0-49c8-496e-8dc7-45356a1e3b34
+        description: ""
+        source: Void Class Feature
+        name: Shared Void Sense
+        behavior: activated
+        guid: b7fb8fd9-31e1-40c3-9b83-7445a285e6f7
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetTextOverride: Special
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Magic: true
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: c520f2d2-6cbe-4195-a122-31901acd5751
+            durationUntilEndOfTurn: true
+            duration: 1
+            ongoingEffectCustom: c520f2d2-6cbe-4195-a122-31901acd5751
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You share your special senses with others.
+          categorization: Signature Ability
+          range: "10"
+          resourceCost: none
+          guid: c4315482-8195-4792-9c73-4abf3b150cef
+          persistence: []
+          modifiers: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          strain: []
+          maxChannel: "10"
+          sourceReference:
+            __typeName: SourceReference
+            page: 130
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          numTargets: Victories
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          implementation: 2
+          description: For each Victory you have, you can target one creature. Each target gains the benefit of your A Beyonding of Vision feature until the end of your next turn, but doesn’t gain the use of the Shared Void Sense ability.
+          name: Shared Void Sense
+          targetType: target
+          channeledResource: none
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      name: Shared Void Sense
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: ""
+      source: Void Class Feature
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 3b7c8a9b-3e05-4d4f-b273-cd6e8d8f3e2e
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ccc6a6f8-dd8f-4569-9079-9a4ef3719d14
+        modifyDescription: ""
+        source: Void Class Feature
+        filterAbility: Ability.Keywords has "magic" and Ability.Keywords has "Ranged"
+        behavior: modifyability
+        keywords:
+          Void: true
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: Acolyte of the Mystery
+        attributes:
+        - operation: Add
+          value: "2"
+          id: range
+        description: You use your immersion in the mystery of void magic to expand the reach of that magic better than other mages. The distance of all your abilities that have the Magic, Ranged, and Void keywords increases by 2 squares.
+        guid: 73b688dc-ee39-4099-a8d8-7a231810d519
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: e0ca3045-3cfe-4a66-b1b8-57c5523263cd
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors: []
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      name: Acolyte of the Mystery
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: You use your immersion in the mystery of void magic to expand the reach of that magic better than other mages. The distance of all your abilities that have the Magic, Ranged, and Void keywords increases by 2 squares.
+      source: Void Class Feature
+      implementation: 3
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 22d7ecbf-e0f9-41d2-8be0-af6ce67d6cfa
+        description: |-
+          Solidity is merely a suggestion to you. Mundane barriers that are 1 square thick or less do not block your senses or line of effect. You can only sense or have line of effect past one such barrier at a time. 
+          Additionally, whenever you use a void ability, you or one ally within distance of the ability can teleport a number of squares equal to your Reason score.
+        source: Void Class Feature
+        name: Pierce the Veil of Substance
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: You or one ally within distance of the ability can teleport a number of squares equal to your Reason score.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: 084df0c0-d4c5-44f2-b073-a78cd6eb6578
+          conditionFormula: Used Ability.keywords has "Void"
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          trigger: useability
+          numTargets: "1"
+          name: Pierce the Veil of Substance
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              targetAllegiance: ally
+              targetType: target
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: "3"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 8ec00c16-f229-451e-aa17-e69b00fedbc7
+              numTargets: "1"
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                runOnController: true
+                standardAbilityParams:
+                  range: "<<caster.Reason>>"
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: ec2d851d-8808-43c5-8b3d-a102bba836d7
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+              selfTarget: true
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: You or an ally can teleport up to your Reason score
+          description: whenever you use a void ability, you or one ally within distance of the ability can teleport a number of squares equal to your Reason score.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 7335c287-d1e9-4b05-8957-6dcf2e5459ce
+      source: Void Class Feature
+      guid: 22d7ecbf-e0f9-41d2-8be0-af6ce67d6cfa
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: |-
+        Solidity is merely a suggestion to you. Mundane barriers that are 1 square thick or less do not block your senses or line of effect. You can only sense or have line of effect past one such barrier at a time. 
+        Additionally, whenever you use a void ability, you or one ally within distance of the ability can teleport a number of squares equal to your Reason score.
+      name: Pierce the Veil of Substance
+      implementation: 2
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 1b3de591-e953-42fa-a947-61fda9301af5
+        description: |-
+          Your Mantle of Essence feature no longer requires essence. 
+
+          Additionally, your Mantle of Essence now radiates magic that creates a calming air. Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation. While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, the bonus to patience increases to 2 and tests that use the Handle Animals skill have a double edge.
+        source: Void Class Feature
+        name: Veiling Bed
+        behavior: activated
+        guid: 95e66a11-3391-45c2-866f-869a4657a96c
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 38cca8bc-b6dc-4a2e-b356-123f897d3986
+            duration: eoe_or_dying
+            ongoingEffectCustom: 38cca8bc-b6dc-4a2e-b356-123f897d3986
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 122
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 89f42d19-4583-444b-b165-46022ff79bc5
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          name: Veiling Bed
+          targetType: self
+          description: |-
+            While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).
+
+            The area provides concealment for you and your allies
+          abilityType: none
+          implementation: 3
+      source: Void Class Feature
+      guid: f13a81a4-039b-4585-ae9c-92b4f2395c08
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: |-
+        Your Mantle of Essence feature no longer requires essence. 
+
+        Additionally, your Mantle of Essence now radiates magic that creates a calming air. Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation. While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, the bonus to patience increases to 2 and tests that use the Handle Animals skill have a double edge.
+      name: Veiling Bed
+      implementation: 3
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1b3de591-e953-42fa-a947-61fda9301af5
+        source: Void Class Feature
+        behavior: activated
+        filterCondition: Heroic Resources Available to Spend >=3
+        name: Veiling Bed
+        guid: 95e66a11-3391-45c2-866f-869a4657a96c
+        description: |-
+          While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).
+
+          The area provides concealment for you and your allies.
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 38cca8bc-b6dc-4a2e-b356-123f897d3986
+            duration: eoe_or_dying
+            ongoingEffectCustom: 38cca8bc-b6dc-4a2e-b356-123f897d3986
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 122
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 89f42d19-4583-444b-b165-46022ff79bc5
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          name: Veiling Bed
+          targetType: self
+          description: |-
+            While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).
+
+            The area provides concealment for you and your allies
+          abilityType: none
+          implementation: 3
+      source: Void Class Feature
+      guid: f431ff2b-3fec-4080-8713-d833d91532ad
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: |-
+        While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).
+
+        The area provides concealment for you and your allies.
+      name: Veiling Bed
+      implementation: 3
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 2221ec0f-2de0-4dfa-995f-29605aaca495
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 2221ec0f-2de0-4dfa-995f-29605aaca495
+        description: ""
+        source: Void Class Feature
+        name: There is No Space Between
+        behavior: activated
+        guid: a0770b29-e5e6-4e0d-8220-b8baf7bba580
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetTextOverride: Special
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Magic: true
+          targetType: self
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You open connected portals across the battlefield.
+          sourceReference:
+            __typeName: SourceReference
+            page: 120
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "10"
+          categorization: Heroic Ability
+          persistence: []
+          modifiers: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          strain: []
+          modeList:
+          - text: Place 2 Portals
+            condition: ""
+          - rules: Used after first casting ability
+            text: Place 1 Portal
+          castImmediately: false
+          numTargets: "1"
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          implementation: 2
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: a619a269-0a65-41c6-90b6-c4234fb5b687
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 1
+            - 2
+            promptText: Place First Portal
+            abilityType: named
+            namedAbility: void portal
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: a619a269-0a65-41c6-90b6-c4234fb5b687
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 1
+            promptText: Place Second Portal
+            guid: a56ca73f-dff3-4982-9c79-309e852de3e4
+            abilityType: named
+            namedAbility: void portal
+          name: There Is No Space Between
+          guid: 274f2e1c-c058-4b67-b5df-2df0f756d788
+          description: "You open two size 1 portals in unoccupied spaces in range, which last until you move beyond distance from any portal, end the effect as a maneuver, or are dying. Each portal must be placed at a height of no more than 1 square above the ground. When you or any ally touch a portal, that creature can choose to be instantly teleported to an unoccupied space of their choice within 1 square of the other portal. If an enemy is force moved into a portal, their forced movement ends and they emerge from the other portal in an unoccupied space chosen by the creature who force moved them. \n\nAt the start of each of your turns while the portals are active, you can open a new portal connected to the others. If three or more portals are present, you and your allies choose which portal you emerge from when you enter a portal, and a creature who force moves an enemy into a portal chooses that enemy’s destination portal. "
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 2221ec0f-2de0-4dfa-995f-29605aaca495
+        description: ""
+        source: Void Class Feature
+        name: There is No Space Between
+        behavior: activated
+        guid: b00f4f32-dff9-4b03-b6ff-ad0832021f25
+        activatedAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          targetType: emptyspace
+          strain: []
+          guid: 8840002c-3c5a-4dac-b5e1-5ae3876eafd5
+          repeatTargets: false
+          abilityType: none
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            applyto: caster
+            aura:
+              __typeName: Aura
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              modifiers: []
+              source: Void Portal
+              triggers: []
+              guid: d075beeb-1a09-43f5-8c32-f322e35b71ea
+              name: Void Portal
+              objectid: a2cd68cb-59d9-401b-9df2-9dc50b4a1d16
+            duration: eoe
+          persistence: []
+          name: Void Portal
+          categorization: Hidden
+          description: ""
+          range: "10"
+          iconid: ui-icons/skills/1.png
+      name: There is No Space Between
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: ""
+      source: Void Class Feature
+      implementation: 2
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 46b0c944-77d6-488f-94d6-053d99bd8279
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e5309645-7bc1-4d22-a4f3-02ca1fccbacd
+        source: Void Class Feature
+        guid: 8e1b639f-dbf5-42ff-9158-c05546c9faac
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: Subtle Relocation
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 6914cf03-0580-4584-9ca9-8fabd20b17e3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 1
+            promptText: Teleport the creature
+            standardAbilityParams:
+              range: Invoker.Reason
+            abilityType: standard
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 6914cf03-0580-4584-9ca9-8fabd20b17e3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 2
+            promptText: Teleport the creature
+            standardAbilityParams:
+              range: Invoker.Reason*2
+            guid: 23b2f81b-4a1d-4943-8664-7ff1bcc3c8c3
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+            abilityType: standard
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            modesSelected:
+            - 2
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          triggerPrompt: Teleport the target squares equal to your Reason.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          trigger: beginturn
+          range: "10"
+          abilityType: none
+          multipleModes: true
+          persistence: []
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          guid: adbaea33-f4ed-4c77-8ebf-51e864b5395a
+          hasManualVersion: true
+          numTargets: "1"
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          modeList:
+          - text: Activate
+          - text: 1 Essence
+            rules: Teleport twice your reason score instead.
+            condition: Resources.Heroic Resource > 0
+          name: A Subtle Relocation
+          targetType: subject
+          description: |-
+            Trigger: The target starts their turn, moves, or is force moved. 
+
+            Effect: You teleport the target up to a number of squares equal to your Reason score. If the target moves to trigger this ability, you can teleport them at any point during the move.
+          subject: selfandallies
+          iconid: ui-icons/skills/1.png
+        description: ""
+        behavior: trigger
+        filterCondition: 0 {disable this since it's so frequent -- should we ever turn it on?}
+      - __typeName: CharacterModifier
+        sourceguid: e5309645-7bc1-4d22-a4f3-02ca1fccbacd
+        source: Void Class Feature
+        guid: 589bebc2-8899-479a-a8b0-a7ec372bea5b
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: Subtle Relocation
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: Teleport the target squares equal to your Reason.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          trigger: finishmove
+          abilityType: none
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          guid: adbaea33-f4ed-4c77-8ebf-51e864b5395a
+          multipleModes: true
+          persistence: []
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          numTargets: "1"
+          modeList:
+          - text: Activate
+          - text: 1 Essence
+            rules: Teleport twice your reason score instead.
+            condition: Resources.Heroic Resource > 0
+          name: A Subtle Relocation
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 6914cf03-0580-4584-9ca9-8fabd20b17e3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 1
+            promptText: Teleport the creature
+            standardAbilityParams:
+              range: Invoker.Reason
+            abilityType: standard
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 6914cf03-0580-4584-9ca9-8fabd20b17e3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 2
+            promptText: Teleport the creature
+            standardAbilityParams:
+              range: Invoker.Reason*2
+            guid: 23b2f81b-4a1d-4943-8664-7ff1bcc3c8c3
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+            abilityType: standard
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            modesSelected:
+            - 2
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          description: ""
+          subject: selfandallies
+          iconid: ui-icons/skills/1.png
+        description: ""
+        behavior: trigger
+        filterCondition: 0 {disable this since it's so frequent -- should we ever turn it on?}
+      - __typeName: CharacterModifier
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: e5309645-7bc1-4d22-a4f3-02ca1fccbacd
+        description: ""
+        source: Void Class Feature
+        name: Subtle Relocation
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          trigger: forcemove
+          targetType: subject
+          triggerPrompt: Teleport the target squares equal to your Reason.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          abilityType: none
+          range: 1
+          multipleModes: true
+          hasManualVersion: true
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          modeList:
+          - text: Activate
+          - text: 1 Essence
+            rules: Teleport twice your reason score instead.
+            condition: Resources.Heroic Resource > 0
+          numTargets: "1"
+          persistence: []
+          domains:
+            class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          guid: adbaea33-f4ed-4c77-8ebf-51e864b5395a
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 6914cf03-0580-4584-9ca9-8fabd20b17e3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 1
+            promptText: Teleport the creature
+            standardAbilityParams:
+              range: Invoker.Reason
+            abilityType: standard
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 6914cf03-0580-4584-9ca9-8fabd20b17e3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 2
+            promptText: Teleport the creature
+            standardAbilityParams:
+              range: Invoker.Reason*2
+            guid: 23b2f81b-4a1d-4943-8664-7ff1bcc3c8c3
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+            abilityType: standard
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            modesSelected:
+            - 2
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          name: A Subtle Relocation
+          selfTarget: true
+          description: ""
+          subject: selfandallies
+          iconid: ui-icons/skills/1.png
+        guid: 6722a948-6445-455b-ab6c-11d34ec3b230
+      - __typeName: CharacterModifier
+        domains:
+          class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: e5309645-7bc1-4d22-a4f3-02ca1fccbacd
+        behavior: triggerdisplay
+        source: Void Class Feature
+        name: Subtle Relocation
+        description: ""
+        guid: 9abca1ac-ccf4-41b6-836f-4e4c4fc6db77
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or one ally
+          effect: |
+            You teleport the target up to a number of squares equal to your Reason score. If the target moves to trigger this ability, you can teleport them at any point during the 
+            move.
+            **Spend 1 Essence:** You teleport the target up to a number of squares equal to twice your Reason score instead.
+          trigger: The target starts their turn, moves, or is force moved.
+          flavor: You call on the void to swallow and spit out an ally.
+          guid: 13ffaa6b-ce78-4ca7-a166-87b81f2b848a
+          name: A Subtle Relocation
+          keywords: []
+      name: Subtle Relocation
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: ""
+      source: Void Class Feature
+      implementation: 2
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: ae5a5b5e-d991-4863-b025-588f286cfaaf
+      modifiers: []
+      name: Distance Is Only Memory
+      classid: fa3598cf-51ec-454e-9509-3692fcb41824
+      description: 'Each time you finish a respite, you can open a two-way portal that leads to any place you have previously been. You and your allies can pass through the portal, which remains open for 1 hour or until you dismiss it as a main action. '
+      source: Void Class Feature
+      implementation: 4
+    domains:
+      class:fa3598cf-51ec-454e-9509-3692fcb41824: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+details: "<B>Void</B> is the element of the unknown. Void abilities warp space and reality, allowing you to teleport, create illusions, and make things incorporeal."
+name: Void
+mtime: 1774713441844
+id: fa3598cf-51ec-454e-9509-3692fcb41824
+primaryClassId: c1e1c512-6092-423f-85b2-324547f7f390

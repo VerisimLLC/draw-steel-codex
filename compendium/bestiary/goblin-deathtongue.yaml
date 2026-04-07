@@ -1,0 +1,304 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1b6be50a-4314-4ecf-97f4-3784421248c3
+    offtokenPortraitId: 2775c45b-26c8-478f-b99c-eb4c9d35e957
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2880263
+    portraitOffset:
+      x: -0.1646988
+      y: -0.1549685
+    frameHueShift: 0.26
+    frameSaturation: 0.6
+    frameBrightness: 0.2
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f5539c81-d1f1-4d04-99c5-906fbdee097a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+        baseValue: 2
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+        baseValue: 1
+      rea:
+        id: rea
+        baseValue: 0
+      inu:
+        id: inu
+        baseValue: 2
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+        baseValue: -1
+    attackNames:
+    - Light Melee
+    monster_category: Monster
+    levelChoices: []
+    pr: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 corruption damage; I<0 weakened (save ends)
+        - 5 corruption damage; I<1 weakened (save ends)
+        - 7 corruption damage; I<2 weakened (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: f7b613f8-3325-429d-bd1f-ad1d529a52c1
+      persistence: []
+      targetType: target
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      iconid: ui-icons/skills/1.png
+      name: Gaze of Surlach
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 95
+      description: ""
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 95
+      range: 10
+      persistence: []
+      modifiers: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - I<0 prone
+        - I<1 prone can't stand (EoT)
+        - prone I<2 and can't stand (save ends)
+        roll: 2d10 + 2
+      strain: []
+      guid: f2b9e18b-15bb-469a-80ff-7c94a5417e33
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      categorization: Heroic Ability
+      description: ""
+      iconid: ui-icons/skills/1.png
+      name: Dizzying Hex
+      numTargets: 1 + Charges
+      channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      resourceCost: none
+      implementation: 3
+    minion: false
+    stability: 0
+    import:
+      override: true
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+        CharacterFeature:b7ed2cb6-d00f-4a32-84a5-26db0be17052: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        domains:
+          CharacterFeature:b7ed2cb6-d00f-4a32-84a5-26db0be17052: true
+        name: Cunning
+        behavior: attribute
+        description: The deathtongue doesn’t provoke opportunity attacks by moving. Whenever the deathtongue is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the deathtongue can use a triggered action to make an opportunity attack against the enemy.
+        value: 1
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+          CharacterFeature:b7ed2cb6-d00f-4a32-84a5-26db0be17052: true
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          mandatory: false
+          range: 1
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 415e5fe2-a956-4f74-a0ac-619d0cba684c
+              repeatTargets: false
+              behaviors: []
+              targetType: self
+              range: 1
+              display:
+                brightness: 1
+                bgcolor: "#ffffffff"
+                hueshift: 0
+                saturation: 1
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+            abilityType: standard
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: bbaa0031-bfe4-4a85-a9a5-6de2f8bdf92f
+          name: Cunning
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          conditionFormula: 0 {Should this always be manual?}
+          numTargets: "1"
+          domains:
+            CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+            CharacterFeature:b7ed2cb6-d00f-4a32-84a5-26db0be17052: true
+          trigger: finishmove
+          abilityType: none
+          description: The deathtongue doesn’t provoke opportunity attacks by moving. Whenever the deathtongue is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the deathtongue can use a triggered action to make an opportunity attack against the enemy.
+          subject: self
+          iconid: ui-icons/skills/1.png
+        behavior: trigger
+        source: Trait
+        name: Cunning
+        guid: 24eaa045-059a-4a39-8482-d2c22e47175e
+        sourceguid: e89248a7-dfeb-4824-96c0-b3e10bb9baf9
+        description: The deathtongue doesn’t provoke opportunity attacks by moving. Whenever the deathtongue is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the deathtongue can use a triggered action to make an opportunity attack against the enemy.
+      source: Trait
+      description: The deathtongue doesn’t provoke opportunity attacks by moving. Whenever the deathtongue is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the deathtongue can use a triggered action to make an opportunity attack against the enemy.
+      guid: b7ed2cb6-d00f-4a32-84a5-26db0be17052
+      name: Cunning
+      implementation: 2
+    role: Horde Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - title: Monster Notes
+      text: ""
+    traitNames: []
+    availableTriggers: []
+    opportunityAttack: 4
+    damage_taken: 0
+    resistances:
+    - __typeName: ResistanceEntry
+      apply: Damage Reduction
+      damageType: corruption
+      dr: 2
+    walkingSpeed: 5
+    monster_type: Goblin Deathtongue
+    creatureSize: 1S
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    keywords:
+      Humanoid: true
+      Goblin: true
+    movementSpeeds:
+      climb: 5
+    fmr: 0
+    resources: []
+    initiativeGrouping: 03abdad9-b9b2-4098-b1fd-f5cd84175365
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+  tokenType: null
+  bestiaryId: 10927d4a-3bd0-43e3-b994-9a11ed2fad53
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1715748088616
+description: null
+parentFolder: 116486c1-2208-4bb6-a244-b13ffe9d7ead
+artist: null
+ord: 2
+ctime: 1763582333813
+mtime: 1763628813657
+hidden: false

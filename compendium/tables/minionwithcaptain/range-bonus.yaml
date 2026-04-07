@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+testCases:
+- text: Ranged distance +4
+modifiers:
+- __typeName: CharacterModifier
+  guid: f604cb8d-af6c-491f-a035-be8c9924fa05
+  sourceguid: 51d16c28-49a3-42d4-a821-0c0f28f824c8
+  value: "<<bonus>>"
+  source: Monster
+  name: Range Bonus
+  behavior: attribute
+  description: ""
+  attribute: 90d8d88a-97ae-41a5-925f-e8e474f13c48
+source: Monster
+guid: 51d16c28-49a3-42d4-a821-0c0f28f824c8
+importMatch: Ranged distance \+<<bonus>>
+ctime: 1738391318097
+name: Range Bonus
+id: f36d9c04-8862-4866-8a37-9f28300ae159
+description: ""
+mtime: 1738391318097
+implementation: 3

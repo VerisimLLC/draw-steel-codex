@@ -1,0 +1,240 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a0917c4a-202b-4416-924c-e776805c78e3: true
+  sourceguid: a0917c4a-202b-4416-924c-e776805c78e3
+  description: Each time the target of Epic uses an ability, you can make a free strike against them after the ability is resolved.
+  source: Ongoing Effect
+  name: Epic - Ally
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: "The target of 'Epic' just used an ability. Make a free strike against them. "
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    abilityType: none
+    numTargets: "1"
+    modifiers: []
+    subjectRange: "10"
+    strain: []
+    guid: d6e3415f-3d52-4379-b926-1d6390700d91
+    trigger: useability
+    castImmediately: true
+    domains:
+      CharacterOngoingEffect:a0917c4a-202b-4416-924c-e776805c78e3: true
+    persistence: []
+    conditionFormula: (Subject.Ongoing Effects has "Bane on Ability Rolls") or (Subject.Ongoing Effects has "Double Bane on Ability Rolls") or (Subject.Ongoing Effects has "Double Bane On All Power Rolls")
+    name: Epic - Ally
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      targetingFormula: (Target.Ongoing Effects has "Bane on Ability Rolls") or (Target.Ongoing Effects has "Double Bane on Ability Rolls") or (Target.Ongoing Effects has "Double Bane On All Power Rolls")
+      inheritRange: false
+      abilityType: standard
+      promptText: ""
+      customAbility:
+        __typeName: ActivatedAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        persistence: []
+        objectTarget: false
+        targetFilter: (Ongoing Effects has "Bane on Ability Rolls") or (Ongoing Effects has "Double Bane on Ability Rolls") or (Ongoing Effects has "Double Bane On All Power Rolls")
+        strain: []
+        guid: a2bb8127-a2b8-4468-a9f8-49db8deca4e1
+        repeatTargets: false
+        abilityType: none
+        modifiers: []
+        targetType: target
+        behaviors:
+        - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+          modifier:
+            __typeName: CharacterModifier
+            attributes: []
+            behavior: modifyability
+            cannotModifyAction: true
+            name: Modify Attack
+            source: ""
+            description: ""
+            guid: c07840c8-6dea-4004-bd1d-4eb9f6522710
+            ability:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 5ed32c45-08bc-4d82-b693-91c027eeb7cb
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityModification: true
+              behaviors: []
+              abilityType: none
+              name: New Ability
+              targetType: self
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+        name: Invoked Ability
+        numTargets: "1"
+        description: ""
+        range: "10"
+        iconid: ui-icons/skills/1.png
+      runOnController: true
+      standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+      targeting: formula
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  guid: f69675e8-f223-4b6a-817a-cfad3412f7ce
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a0917c4a-202b-4416-924c-e776805c78e3: true
+  sourceguid: a0917c4a-202b-4416-924c-e776805c78e3
+  description: Each time the target of Epic uses an ability, you can make a free strike against them after the ability is resolved.
+  source: Ongoing Effect
+  name: Epic - Ally
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: true
+    range: 1
+    guid: 1bc6cea4-f60b-479a-a7fb-56e90f54a146
+    abilityType: none
+    numTargets: "1"
+    modifiers: []
+    subjectRange: "10"
+    strain: []
+    whenActive: combat
+    trigger: custom
+    castImmediately: true
+    conditionFormula: Trigger Name = "madesaveDouble Bane on Ability Rolls" and (Trigger Value >= Save Ends)
+    persistence: []
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: a0917c4a-202b-4416-924c-e776805c78e3
+      mode: effect
+      conditions: []
+    name: Epic - Ally
+    domains:
+      CharacterOngoingEffect:a0917c4a-202b-4416-924c-e776805c78e3: true
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  guid: 7c6ee8f9-ebf9-4011-8ae7-3072c43817e5
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a0917c4a-202b-4416-924c-e776805c78e3: true
+  sourceguid: a0917c4a-202b-4416-924c-e776805c78e3
+  description: Each time the target of Epic uses an ability, you can make a free strike against them after the ability is resolved.
+  source: Ongoing Effect
+  name: Epic - Ally
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: a0917c4a-202b-4416-924c-e776805c78e3
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 0f2bc710-195c-4129-8bb6-34e7fbb41abd
+    trigger: custom
+    castImmediately: true
+    conditionFormula: Trigger Name = "madesaveBane on Ability Rolls" and (Trigger Value >= Save Ends)
+    domains:
+      CharacterOngoingEffect:a0917c4a-202b-4416-924c-e776805c78e3: true
+    numTargets: "1"
+    name: Epic - Ally
+    whenActive: combat
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  guid: ab1b1fb4-8ce4-4ab1-8c50-891866e05700
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a0917c4a-202b-4416-924c-e776805c78e3: true
+  sourceguid: a0917c4a-202b-4416-924c-e776805c78e3
+  description: Each time the target of Epic uses an ability, you can make a free strike against them after the ability is resolved.
+  source: Ongoing Effect
+  name: Epic - Ally
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: a0917c4a-202b-4416-924c-e776805c78e3
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 78b75eb4-26e4-465f-9f80-e9509d704203
+    trigger: custom
+    castImmediately: true
+    conditionFormula: Trigger Name = "madesaveDouble Bane On All Power Rolls" and (Trigger Value >= Save Ends)
+    domains:
+      CharacterOngoingEffect:a0917c4a-202b-4416-924c-e776805c78e3: true
+    numTargets: "1"
+    name: Epic - Ally
+    whenActive: combat
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  guid: 9b57a97a-e4ba-4ada-8afa-2d2cdaf193d6
+source: Ongoing Effect
+id: a0917c4a-202b-4416-924c-e776805c78e3
+guid: a0917c4a-202b-4416-924c-e776805c78e3
+hiddenOnToken: true
+ctime: 1773116370214
+domains:
+  CharacterOngoingEffect:a0917c4a-202b-4416-924c-e776805c78e3: true
+description: Each time the target of Epic uses an ability, you can make a free strike against them after the ability is resolved.
+custom: true
+name: Epic - Ally
+statusEffect: true
+mtime: 1773126489553
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+iconid: ui-icons/skills/1.png

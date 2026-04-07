@@ -1,0 +1,47 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 1db37f82-2159-4a79-8b7a-975ba23b5c0d
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:1db37f82-2159-4a79-8b7a-975ba23b5c0d: true
+  name: Shift Disabled
+  guid: 3c94b1a1-91d6-45fa-ab78-5ff3b8ece630
+  description: Unable to shift
+  behavior: attribute
+  attribute: 42d3d3ec-da00-4338-a97a-fa5ea9d62472
+- __typeName: CharacterModifier
+  text: You are unable to shift.
+  sourceguid: 1db37f82-2159-4a79-8b7a-975ba23b5c0d
+  source: Ongoing Effect
+  behavior: movementtext
+  domains:
+    CharacterOngoingEffect:1db37f82-2159-4a79-8b7a-975ba23b5c0d: true
+  name: Shift Disabled
+  movementType: shift
+  description: Unable to shift
+  guid: 9e7a617b-b97b-482c-ad07-61053292df06
+  color: red
+source: Ongoing Effect
+guid: 1db37f82-2159-4a79-8b7a-975ba23b5c0d
+id: 1db37f82-2159-4a79-8b7a-975ba23b5c0d
+ctime: 1741410061686
+domains:
+  CharacterOngoingEffect:1db37f82-2159-4a79-8b7a-975ba23b5c0d: true
+name: Shift Disabled
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.0020809173584
+    v: 1.00238573551178
+    a: 1
+mtime: 1751486126601
+description: Unable to shift
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd

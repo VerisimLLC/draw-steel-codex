@@ -1,0 +1,96 @@
+__typeName: Title
+effect: "You know the Khelt language. Additionally, choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You know the Khelt language.
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: language
+      source: Feat
+      behavior: proficiency
+      description: You know the Khelt language.
+      equate: false
+      name: Language
+      sourceguid: 4ec15fdc-8dde-4f48-a53b-59a04770c881
+      proficiency: proficient
+      guid: 66b59caa-0e85-4511-a1ad-7854a33038e6
+      skills:
+        36cfd691-17e8-4931-85ef-93db7e2741f5: true
+    source: Feat
+    canHavePrerequisites: true
+    guid: 4ec15fdc-8dde-4f48-a53b-59a04770c881
+    name: Language
+    implementation: 4
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: "Fey Friend Benefit:"
+    numChoices: 1
+    guid: 9be58315-aed8-4d88-af09-2fb99b4bd4fb
+    description: Choose one of the following benefits
+    options:
+    - __typeName: CharacterSkillChoice
+      categories:
+        interpersonal: true
+      name: Gift of Charm
+      guid: 64207746-cd67-4e7c-847f-8192fae175a9
+      description: You have a skill of your choice from the interpersonal skill group.
+      source: Feat
+    - __typeName: CharacterFeature
+      description: When resisting potencies, your Intuition score is considered to be 1 higher than usual.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: d7e2d8bb-b5ff-4a21-a6f1-7afb38036e32
+        sourceguid: 87ca8ab2-42ea-44f5-8a06-fcc2d7f8f628
+        value: 1
+        source: Feat
+        name: Gift of Foresight
+        behavior: attribute
+        description: When resisting potencies, your Intuition score is considered to be 1 higher than usual.
+        attribute: 1422a518-b444-4ac5-b200-2f0b33aca87b
+      source: Feat
+      canHavePrerequisites: true
+      guid: 87ca8ab2-42ea-44f5-8a06-fcc2d7f8f628
+      name: Gift of Foresight
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: You gain an edge on tests you make that use any skill from the lore skill group
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: dcd4e662-8bc5-472d-8545-dc41d63df807
+        source: Title
+        modtype: edge
+        keywords: []
+        activationCondition: true
+        behavior: power
+        activationAfterRoll: false
+        name: Gift of Knowledge
+        guid: 71858b44-311a-408d-bb87-2ba7e2780843
+        description: You gain an edge on tests you make that use any skill from the lore skill group.
+        rollType: test_power_roll
+        skills:
+        - 80526c1a-3cfd-40dc-9065-eb840df8601d
+        - 61709a09-1a95-4726-b722-c40639cae405
+        - 0df23459-ab2f-4659-8a2d-ae5820dc889f
+        - 57101165-410a-4734-98ee-d4e5b656d3df
+        - bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+        - f15f5445-666a-4ea9-bdf3-fbed284bae85
+        - 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+        - afd26a9a-22e2-4341-b171-f7e3182c8744
+        - f014760c-c987-4436-81ba-5e6acfdf6905
+        - 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+        - 1c837bdc-17cc-4c7a-9814-f2f8b92cf55a
+        - 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+      source: Title
+      canHavePrerequisites: true
+      guid: dcd4e662-8bc5-472d-8545-dc41d63df807
+      name: Gift of Knowledge
+      implementation: 4
+id: 2c717ddb-a9b9-4bbf-b994-a7b11b010202
+ctime: 1762351496763
+name: Fey Friend
+description: Do you enjoy the vintage? Yes, you can understand my tongue now. One does not drink at my table and leave unchanged.
+mtime: 1775091072571
+echelon: "2"
+prerequisite: You eat and drink with an elf monarch or archfey.

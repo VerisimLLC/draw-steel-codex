@@ -1,0 +1,159 @@
+__typeName: Title
+effect: "A characteristic of your choice increases by 1 (to a maximum of 6). Additionally, choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Characteristic Increase
+    numChoices: 1
+    description: A characteristic of your choice increases by 1 (to a maximum of 6).
+    guid: fb752660-09e8-4b46-a72e-4fde425ab097
+    options:
+    - __typeName: CharacterFeature
+      description: ""
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f79c709-5218-46bd-8e1c-31b0eb4082a9
+        sourceguid: 7bba3d31-736d-4687-8981-e932c4d17d32
+        behavior: attribute
+        source: Feat
+        name: Might Increase
+        description: ""
+        value: 1
+        attribute: mgt
+      source: Feat
+      name: Might Increase
+      guid: 7bba3d31-736d-4687-8981-e932c4d17d32
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 90502156-3c70-4c6d-848a-df7e598a8e8a
+        filter: Might < 6
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: 1 is added to your Agility
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f79c709-5218-46bd-8e1c-31b0eb4082a9
+        sourceguid: 7bba3d31-736d-4687-8981-e932c4d17d32
+        behavior: attribute
+        source: Feat
+        name: Agility Increase
+        description: 1 is added to your Agility
+        value: 1
+        attribute: agl
+      source: Feat
+      name: Agility Increase
+      guid: e95e2139-958b-4448-8b8a-a8358a531324
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 36a98d0e-8fd8-4670-b385-2b692b86f98a
+        filter: Agility < 6
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: 1 is added to your Reason
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f79c709-5218-46bd-8e1c-31b0eb4082a9
+        sourceguid: 7bba3d31-736d-4687-8981-e932c4d17d32
+        behavior: attribute
+        source: Feat
+        name: Reason Increase
+        description: 1 is added to your Reason
+        value: 1
+        attribute: rea
+      source: Feat
+      name: Reason Increase
+      guid: c7898ee9-755a-49d6-9b88-35c1e1aa4d4b
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: ba7273e5-01dc-4792-aa78-e6f3cfc531a2
+        filter: Reason < 6
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: 1 is added to your Intuition
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f79c709-5218-46bd-8e1c-31b0eb4082a9
+        sourceguid: 7bba3d31-736d-4687-8981-e932c4d17d32
+        behavior: attribute
+        source: Feat
+        name: Intuition Increase
+        description: 1 is added to your Intuition
+        value: 1
+        attribute: inu
+      source: Feat
+      name: Intuition Increase
+      guid: e9ebfb82-90f8-49d9-b347-58db55739d71
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: ba1fd6ac-e78f-43d0-9eb2-9e952edc18f1
+        filter: Intuition < 6
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: 1 is added to your Presence
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f79c709-5218-46bd-8e1c-31b0eb4082a9
+        sourceguid: 7bba3d31-736d-4687-8981-e932c4d17d32
+        behavior: attribute
+        source: Feat
+        name: Presence Increase
+        description: 1 is added to your Presence
+        value: 1
+        attribute: prs
+      source: Feat
+      name: Presence Increase
+      guid: 130b77fb-9851-4c3b-9886-282d13a0c315
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 2999cda0-fd07-4566-b744-804d3dc9cb8a
+        filter: Presence < 6
+      implementation: 4
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Forsaken Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 36409483-f811-4439-ba3a-95e48f0a96f6
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Brief Reunion
+      description: While you’re winded, you can use a maneuver to summon the artifact to your hand. It disappears at the end of your next turn. Once you use this benefit, you can’t use it again until you earn 1 or more Victories.
+      guid: accf8d88-7f48-4397-9962-496b4d96cdb8
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Perfect Protection
+      description: The Director chooses a damage type that is dealt by or thematically related to the artifact—for instance, holy for the Blade of a Thousand Years, psychic for the Encepter, or corruption for the Mortal Coil. You have immunity all to the chosen damage type.
+      guid: 8d5d339c-b0f4-4f58-89d1-d91cdaade552
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Poor Compensation
+      description: Instead of disappearing or otherwise departing, the artifact turns into a trinket or leveled treasure of the Director’s choice that has the same approximate shape as the lost item—for instance, any magic sword for the Blade of a Thousand Years, any implement for the Encepter, or a Thief of Joy or any other torque for the Mortal Coil.
+      guid: 344ba39c-92f9-4628-b5fe-ea7455315bd6
+      canHavePrerequisites: true
+      source: Feat
+id: 938cb4d9-2d78-4377-8db9-3134cddb2250
+ctime: 1762352277632
+name: Forsaken
+description: The quest is done, the enemy is defeated, and the Blade of a Thousand Years has passed from our hands. What do we do with the rest of our lives?
+mtime: 1775218103415
+echelon: "4"
+prerequisite: |-
+  Your party loses, destroys, or otherwise parts with
+  an artifact.

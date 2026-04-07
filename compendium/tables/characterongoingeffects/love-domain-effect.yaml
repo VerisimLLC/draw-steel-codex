@@ -1,0 +1,68 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 58b81f61-e65a-407c-adbc-81a4a49c3684
+  source: Ongoing Effect
+  modtype: edge
+  keywords: []
+  activationCondition: true
+  rollType: ability_power_roll
+  name: Love Domain Effect
+  resourceRefreshType: encounter
+  description: |
+    You gain 5 temporary Stamina, and gain an edge on the next power roll you make before the end of this encounter.
+  guid: 85b3384a-0348-473e-a4ab-dc0f4c34c8b6
+  behavior: power
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 432d7b67-81db-414b-9431-8634664b0ceb
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 58b81f61-e65a-407c-adbc-81a4a49c3684
+      mode: effect
+      conditions: []
+    name: Love Domain Effect
+    trigger: endcombat
+    description: This ends the Love Domain effect at the end of the encounter.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: |
+    You gain 5 temporary Stamina, and gain an edge on the next power roll you make before the end of this encounter.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 9fde7b28-1b38-4d02-92a4-62da0834c2da
+  name: Love Domain Effect
+  sourceguid: 58b81f61-e65a-407c-adbc-81a4a49c3684
+source: Ongoing Effect
+guid: 58b81f61-e65a-407c-adbc-81a4a49c3684
+id: 58b81f61-e65a-407c-adbc-81a4a49c3684
+ctime: 1728054677760
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.309803903102875
+    v: 1
+    a: 1
+custom: true
+name: Love Domain Effect
+iconid: d5823e04-8235-4206-b716-ee130526b08c
+description: |
+  You gain 5 temporary Stamina, and gain an edge on the next power roll you make before the end of this encounter.
+mtime: 1747124077803
+implementation: 3

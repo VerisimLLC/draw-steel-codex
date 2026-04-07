@@ -1,0 +1,61 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:cffd8e81-55ff-4633-97d8-45b8dc75a01e: true
+  sourceguid: cffd8e81-55ff-4633-97d8-45b8dc75a01e
+  description: "A creature afflicted with lycanthropy gains 2 rage at the end of each of their turns whenever they’re in combat. Their rage doesn’t disappear after finishing a respite, and they must complete the Find a Cure downtime project in Draw Steel: Heroes to end this effect."
+  source: Ongoing Effect
+  name: Lycanthropy
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: endturn
+    strain: []
+    guid: 30351764-f2d5-445a-8b40-256980113fec
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:cffd8e81-55ff-4633-97d8-45b8dc75a01e: true
+    targetType: self
+    persistence: []
+    name: Lycanthropy
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: bf68d026-4fd0-4280-9dba-5756f2e45b51
+      stacks: "2"
+      ongoingEffectCustom: false
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: b3d049a2-1ae1-4d4c-b2bf-d5dea08a165f
+source: Ongoing Effect
+guid: cffd8e81-55ff-4633-97d8-45b8dc75a01e
+id: cffd8e81-55ff-4633-97d8-45b8dc75a01e
+ctime: 1760339571014
+domains:
+  CharacterOngoingEffect:cffd8e81-55ff-4633-97d8-45b8dc75a01e: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.247500002384186
+    s: 0.50390625
+    v: 0.827117919921875
+    a: 1
+custom: true
+name: Lycanthropy
+iconid: 7f874f68-7e15-48d3-ac5a-986486e7324d
+description: "A creature afflicted with lycanthropy gains 2 rage at the end of each of their turns whenever they’re in combat. Their rage doesn’t disappear after finishing a respite, and they must complete the Find a Cure downtime project in Draw Steel: Heroes to end this effect."
+mtime: 1760355357281
+implementation: 3

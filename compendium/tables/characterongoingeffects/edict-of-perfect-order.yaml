@@ -1,0 +1,59 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: Presence*3 + 2d6
+      filterTarget: ConditionCaster("judged") = caster
+      damageType: holy
+      titleText: Edict of Perfect Order Damage
+    - __typeName: ActivatedAbilityDamageBehavior
+      filterTarget: not ConditionCaster("judged") = caster
+      damageType: holy
+      roll: Presence*3
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    guid: 5bdec0e3-1b77-4968-85bf-41155bc81bec
+    persistence: []
+    modifiers: []
+    subjectRange: "2"
+    strain: []
+    whenActive: always
+    abilityType: none
+    trigger: useability
+    conditionFormula: Used Ability.MaliceCost > 0
+    hasManualVersion: true
+    numTargets: "1"
+    name: Edict of Perfect Order
+    targetType: subject
+    description: Until the end of the encounter or until you are dying, whenever a target uses an ability that costs Malice, they take holy damage equal to three times your Presence score. A target judged by you takes an extra 2d6 holy damage.
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  description: Until the end of the encounter or until you are dying, whenever a target uses an ability that costs Malice, they take holy damage equal to three times your Presence score. A target judged by you takes an extra 2d6 holy damage.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 9dd9f719-4188-4daa-a2c2-598975c16a62
+  name: Edict of Perfect Order
+  sourceguid: adb238ff-9b4b-4b21-814d-edea5f6f1eb4
+source: Ongoing Effect
+guid: adb238ff-9b4b-4b21-814d-edea5f6f1eb4
+id: adb238ff-9b4b-4b21-814d-edea5f6f1eb4
+ctime: 1751134824697
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Edict of Perfect Order
+description: Until the end of the encounter or until you are dying, whenever a target uses an ability that costs Malice, they take holy damage equal to three times your Presence score. A target judged by you takes an extra 2d6 holy damage.
+custom: true
+mtime: 1756952382952
+iconid: ui-icons/skills/1.png

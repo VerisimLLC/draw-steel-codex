@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 52d75032-fa61-4671-8bad-42215bf5822b
+id: 52d75032-fa61-4671-8bad-42215bf5822b
+ctime: 1749492004346
+domains:
+  CharacterOngoingEffect:52d75032-fa61-4671-8bad-42215bf5822b: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Gravitic Disruption Target
+statusEffect: true
+description: ""
+mtime: 1750395828602
+iconid: ui-icons/skills/1.png

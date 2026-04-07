@@ -1,0 +1,1788 @@
+13cdd3d2-4caa-46a4-bf55-3a048acde804:
+  __typeName: ActivatedAbility
+  id: 13cdd3d2-4caa-46a4-bf55-3a048acde804
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: b04cd4f8-d8c0-41dd-9906-ef8a50612cfa
+    stacks: "2"
+    duration: save_ends
+    ongoingEffectCustom: b04cd4f8-d8c0-41dd-9906-ef8a50612cfa
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 37091e7a-81b4-499a-ac60-7f8fc5730c69
+  testCases:
+  - text: the target goes out of phase
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: A target who goes out of phase is slowed, has their stability reduced by 2, and can’t achieve results higher than tier 2 on ability power rolls.
+  importMatch: "<<monster>> goes out of phase"
+  ctime: 1749493260765
+  repeatTargets: false
+  numTargets: "1"
+  mtime: 1772545062604
+  name: Target goes out of phase
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+3363708f-d04f-4821-a1b6-04668a167a43:
+  __typeName: ActivatedAbility
+  targetFilter: ""
+  id: 3363708f-d04f-4821-a1b6-04668a167a43
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    inheritRange: true
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 89de0e15-8ac9-49fc-8e5c-e1a41147ed3d
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: targets
+        targeting: self
+        standardAbility: 62d8c42b-c4af-4941-aa73-658bdbe80c9d
+        runOnController: true
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 500ace0e-b3f2-4266-9ef7-541588683e98
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 5
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      range: 5
+      name: Invoked Ability
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Choose Hero to Make a Save
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "5"
+  repeatTargets: false
+  testCases:
+  - text: a hero within range can make a save
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: bd6ed3a5-75d5-4c8a-a746-2d96c414bd74
+  importMatch: a hero within range can make a save
+  ctime: 1711322542865
+  persistence: []
+  mtime: 1768251102072
+  selfTarget: false
+  name: Hermit
+  targetType: target
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+f3c4d46e-6b69-441e-90ee-5bf24634fbac:
+  __typeName: ActivatedAbility
+  id: f3c4d46e-6b69-441e-90ee-5bf24634fbac
+  behaviors:
+  - __typeName: ActivatedAbilityModifyCastBehavior
+    applyto: caster
+    name: Assisted Attack +1
+    description: The inspiring leadership gives you a +1 in this assisted attack.
+    value: "1"
+    paramid: ability_boon
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      targetFilter: not enemy
+      guid: 5d613fd3-a07a-4fed-a287-ec1c2118660f
+      repeatTargets: false
+      targetType: target
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        promptText: Make an Opportunity Attack
+        standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: cf018c0a-184a-45fe-b749-0d63f39e18a0
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 5
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      range: 5*<<range>>
+      name: Invoked Ability
+      display:
+        saturation: 1
+        brightness: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Choose an ally to join your attack
+  display:
+    saturation: 1
+    brightness: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  targetType: self
+  testCases:
+  - text: an ally within 5 can make an opportunity attack with a +1 against the target as a free triggered action.
+  numTargets: "1"
+  modifiers: []
+  _fork: H4sIAAAAAAAACs1W3W/bNhD/VwjtrZtSydZnUBTIgg3YQ9YXPxYITtRR5kKRAkm5NYr+7ztKcuI2dt2uRbE8BOQd7/S73335Q3R/7/cD/g09RtfRDfdyBx7bm0Yq6ffRbywiUdClZZpmq6JcZ1WekbgbZUsWnOfpqkiKuKw4xJloirgWoo7zPAGoeJ6vagxepsdizbM2KzAumqKOsyzFuE4Q47wRq6xYkzXw8LjBLeyksS66/hCl4d8XUd6ZVor9LTj/+2IYnMAwqL03ASNpcJLpxYFzkkQtu/Ee+AP7NQ3KFh23cvDSaHqz2SKT2g3SSt0xhdCidVs5sE7u0LG9GRmQIb1hfisdg4NPmHxeBY8DWOinyGFGet8Yck6aHagxIJk+fK9G2ECjSODtiB9JtLoY9F96Zx5wuRzHPVjTD36D7z1Z3W6NcchAM1Bqz7xh/xhCTOjtAvQcVXx03vSHOriEJlhYHBD8BmyHnjInQDl8KpS8LdK1aNcxJGUoFGxjWFVljDzlqzStiiIRwUsfkilxzv0RM5O7j99eHGd5WlKyIVMycx50C7YNmsP5MfgoEVVdNoLA86Il8BWdmhWPG1FmdYFJWa7LZ9zfwcPE/JthMNaPmlwtBTexNeo3+tZob41SRPmU+h/J+1Lrc/xU6k8GnzB4iuKLOWilGxRM8Bz40cLcNGlwbmW39RqdW+4dN4oYv45+EctfwLAdkbpJEE/J6Q6Q3OipcEYZh7N76R6kUu5lejXoLjqaQCJJK55AnFYZFVYuMG4oK3HSFmuxrjGtIJl6f+wfOYpONHyQ+OnBoSRQTVAt6I7u+bOa0Ubjmf79suiRx/l7f0oVmi449Aw19lOW/hccny+ib6ZzvhwRGuUvXr2azq9fP2/I7yf3JxB4GvKZhpR9mAN34Pk2bIRlJL+TtD40e2SCcdL0y+gwR6NjHtfTe9o8b9/S7oEOaEV5WkDIZnppDZFSWCQBxdihDRuJh8ivTudooDYPi0tzPNftjrZF0EZ3VCLLeugPvwryukryKk2SpAgZR+dpEePTcPbzMPws3Pwrw/xPQX5lfVyufuctffscLUtvPB/vM/g/2g5PN8qlKXNx/H4e4L8wHpEMxgkAAA==
+  strain: []
+  guid: cc512606-78ca-4fb6-9ff9-550aa8c5529e
+  importMatch: an ally within <<range>> can make an opportunity attack with a \+1 against the target as a free triggered action.
+  ctime: 1773659104179
+  source: Monster
+  repeatTargets: false
+  persistence: []
+  name: Opportunity Attack with Edge
+  description: ""
+  mtime: 1773659104179
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+15b60481-fddc-4039-8893-952d50963b7c:
+  __typeName: ActivatedAbility
+  id: 15b60481-fddc-4039-8893-952d50963b7c
+  behaviors: []
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: a646e0d0-3892-49a9-b981-e068ba32f170
+  ctime: 1728911626053
+  targetType: self
+  numTargets: "1"
+  mtime: 1759805815297
+  name: ""
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+34251e8f-331f-4ccf-9e30-754c9265143e:
+  __typeName: ActivatedAbility
+  id: 34251e8f-331f-4ccf-9e30-754c9265143e
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 192aac29-a6af-46b0-8aca-c5ea0307a064
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    targeting: formula
+    abilityType: standard
+    standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: db37d983-0ce5-40b7-9a2d-9be8c3c82524
+  ctime: 1749995080746
+  targetType: self
+  numTargets: "1"
+  mtime: 1773922538842
+  name: New Ability
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+b7cf226f-7215-4b20-8954-96cfbaab40e4:
+  __typeName: ActivatedAbility
+  id: b7cf226f-7215-4b20-8954-96cfbaab40e4
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    applyto: caster
+    durationUntilEndOfTurn: true
+    duration: 1
+    ongoingEffectCustom: 48cb6d1e-23c0-4165-924f-fd1337b36670
+    ongoingEffect: 48cb6d1e-23c0-4165-924f-fd1337b36670
+    stacks: "<<amount>>"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  testCases:
+  - text: you gain damage immunity 1 until the end of your next turn
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: c15d828d-0163-4443-a6d7-cca676ae59a9
+  importMatch: you gain damage immunity <<amount>> until the end of your next turn
+  ctime: 1711335267110
+  targetType: self
+  repeatTargets: false
+  description: ""
+  name: Damage Immunity
+  numTargets: "1"
+  mtime: 1773922741343
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+555af318-7295-4f87-821a-3e6b7cd5da67:
+  __typeName: ActivatedAbility
+  id: 555af318-7295-4f87-821a-3e6b7cd5da67
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: f905e96c-6b89-4d88-9688-71fabc39c9c2
+    duration: save_ends
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: the target is illuminated (save ends)
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 87112af3-0f94-4938-b295-8eb14489b558
+  importMatch: the target is illuminated \(save ends\)
+  ctime: 1754549596911
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Illuminated (save ends)
+  targetType: self
+  mtime: 1765297923016
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+1e7518ab-a397-46f4-bd03-34a5895855dd:
+  __typeName: ActivatedAbility
+  id: 1e7518ab-a397-46f4-bd03-34a5895855dd
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 402241f6-ce1d-4b30-8d57-52e66c2b11e8
+    stacks: "1"
+    duration: save_ends
+    ongoingEffectCustom: 6051dc66-321c-4037-8572-3c67f9a32188
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 1.0084376335144
+      v: 1.00962698459625
+      a: 1
+  categorization: Hidden
+  range: 1
+  guid: 149b202c-35eb-47fb-8f95-843666649f3e
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: A shapechanged creature is slowed and has fire weakness 10 as their limbs stretch and their skin becomes paper thin.
+  importMatch: the target is shapechanged \(save ends\)
+  ctime: 1758305912939
+  targetType: self
+  persistence: []
+  description: ""
+  name: Shapechanged
+  repeatTargets: false
+  mtime: 1770658430483
+  abilityType: none
+  iconid: b9e47bcb-e55c-453a-a874-54aada00f152
+382f33da-d9a0-4eae-a17a-a745381f987c:
+  __typeName: ActivatedAbility
+  id: 382f33da-d9a0-4eae-a17a-a745381f987c
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 61ced55f-0a64-4c52-889f-441d2d7ac199
+    stacks: "<<number>>"
+    duration: save_ends
+    ongoingEffectCustom: 61ced55f-0a64-4c52-889f-441d2d7ac199
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  repeatTargets: false
+  testCases:
+  - text: the target has acid weakness 7 (save ends)
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 91fd0d0a-6639-4c03-aa91-065d0da8cffc
+  importMatch: the target has acid weakness <<number>> \(save ends\)
+  ctime: 1758308644727
+  description: ""
+  implementation: 3
+  targetType: self
+  name: Weakness - Acid
+  numTargets: "1"
+  mtime: 1759800604420
+  abilityType: none
+  iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d
+0eedd0ba-fa66-46b8-89d7-4b177146e6a8:
+  __typeName: ActivatedAbility
+  id: 0eedd0ba-fa66-46b8-89d7-4b177146e6a8
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: a5feff79-ba94-487f-be63-0db2898d05a2
+    stacks: "<<amount>>"
+    duration: save_ends
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: the target has damage weakness 5 (save ends)
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: dad2429a-117f-4038-a80a-5d437c1ed044
+  importMatch: the target has damage weakness <<amount>> \(save ends\)
+  ctime: 1749564993187
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Weakness - Damage
+  targetType: self
+  mtime: 1766116574447
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+f074b455-5115-4a5d-a956-85be156be137:
+  __typeName: ActivatedAbility
+  id: f074b455-5115-4a5d-a956-85be156be137
+  behaviors: []
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: you and each ally adjacent to you gain 10 temporary Stamina
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 7d60b704-ee94-4852-abc4-485022f5d74a
+  importMatch: you and each ally adjacent to you gain <<amount>> temporary Stamina
+  ctime: 1751137506241
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Proximity Gains Temporary Stamina
+  targetType: self
+  mtime: 1765298034301
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+1707d477-ea33-4faf-a2bf-be9ec064c047:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  id: 1707d477-ea33-4faf-a2bf-be9ec064c047
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: bf68d026-4fd0-4280-9dba-5756f2e45b51
+    filterTarget: not Subclasses has "Stormwight"
+    stacks: "<<amount>>"
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  invokeSurroundingAbility: false
+  categorization: Hidden
+  range: 1
+  description: ""
+  testCases:
+  - text: the target gains 2 rage
+  - text: the target gains 8 rage
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 34326cca-72ff-471a-906f-9f59bb05fb0a
+  importMatch: the target gains <<amount>> rage
+  ctime: 1760186577529
+  importMatchType: rules
+  numTargets: "1"
+  targetType: target
+  name: Inflict Rage
+  repeatTargets: false
+  mtime: 1772545071281
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+bc5268d3-3a65-499c-aad7-595df3a6eac1:
+  __typeName: ActivatedAbility
+  id: bc5268d3-3a65-499c-aad7-595df3a6eac1
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 5ae27943-389a-4914-9dce-62ab2f989152
+  importMatch: An ally within <<range>> can spend a recovery
+  ctime: 1711419701225
+  numTargets: "1"
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      targetFilter: not enemy
+      guid: 83fe7098-d374-4558-aaff-9e4a0fb08dbf
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors:
+      - __typeName: ActivatedAbilityHealBehavior
+        roll: Target.Maximum Hitpoints / 3
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+        mode: expend
+      abilityType: none
+      name: Invoked Ability
+      targetType: target
+      description: ""
+      range: 5*<<range>>
+      iconid: ui-icons/skills/1.png
+    promptText: Choose ally to spend a recovery
+  mtime: 1766310980611
+  name: Ally Recovery
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+06d7da3c-0d31-493b-b93e-5dbb4f301f8a:
+  __typeName: ActivatedAbility
+  id: 06d7da3c-0d31-493b-b93e-5dbb4f301f8a
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: f6f46a8b-e889-4d79-95f0-19034c07e43f
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors:
+      - __typeName: ActivatedAbilityHealBehavior
+        roll: target.Maximum Hitpoints/3
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+        mode: expend
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: a9ef06ef-c643-4316-a177-b9f45291461e
+        ongoingEffectCustom: false
+      range: 5*<<range>>
+      name: Invoked Ability
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Choose ally to spend a recovery and gain +1
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  testCases:
+  - text: an ally within 5 can spend a Recovery and has a +1 on the next attack they make this encounter.
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 62bde5c9-4cd3-409c-b816-a6fac0d0e22a
+  importMatch: an ally within <<range>> can spend a Recovery and has a \+1 on the next attack they make this encounter
+  ctime: 1711422885875
+  targetType: self
+  repeatTargets: false
+  description: ""
+  name: Ally Recovery and Edge
+  numTargets: "1"
+  mtime: 1759800709204
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+6a693f34-0932-468b-b09f-2be488b82337:
+  __typeName: ActivatedAbility
+  id: 6a693f34-0932-468b-b09f-2be488b82337
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+    quantity: "<<amount>>"
+    chatMessage: Director Gains Malice
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: The Director gains 1d3 Malice
+  - text: The Director gains 1 Malice
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6ce2f843-a101-43c9-a008-76fad2568c35
+  importMatch: The Director gains <<amount>> Malice
+  ctime: 1753669720785
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Director Gains Malice
+  targetType: self
+  mtime: 1773922773178
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+10030ffd-d334-416d-b3b5-98dd148b88ee:
+  __typeName: ActivatedAbility
+  id: 10030ffd-d334-416d-b3b5-98dd148b88ee
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    durationUntilEndOfTurn: false
+    duration: save_ends
+    ongoingEffectCustom: false
+    ongoingEffect: c7e6ec1c-5d74-4248-957d-e6a4eddcfaac
+    guid: 2c7e2db5-55b1-448a-91e0-d19c42048ff6
+    stacks: "<<number>>"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  repeatTargets: false
+  testCases:
+  - text: the target has fire weakness 7 (save ends)
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 91fd0d0a-6639-4c03-aa91-065d0da8cffc
+  importMatch: the target has fire weakness <<number>> \(save ends\)
+  ctime: 1744958242484
+  description: ""
+  implementation: 3
+  targetType: self
+  name: Weakness - Fire
+  numTargets: "1"
+  mtime: 1758977976093
+  abilityType: none
+  iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d
+09f81fe8-8aec-4493-b111-53553dfbba68:
+  __typeName: ActivatedAbility
+  id: 09f81fe8-8aec-4493-b111-53553dfbba68
+  behaviors:
+  - __typeName: ActivatedAbilityDamageBehavior
+    damageType: lightning
+    roll: "<<amount>> + Level"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: Lightning damage equal to 5 + your level
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 38c53e22-9c71-4262-b406-2332eb701bc6
+  importMatch: Lightning damage equal to <<amount>> + your level
+  ctime: 1764019203841
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Lightning damage equal to your level
+  targetType: self
+  mtime: 1772545074275
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+201b6b6f-dfe7-4819-9b6a-aa485862ca42:
+  __typeName: ActivatedAbility
+  id: 201b6b6f-dfe7-4819-9b6a-aa485862ca42
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 13784898-a0c4-480c-99c2-05d6dd215626
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    autoTarget: false
+    abilityType: standard
+    standardAbilityParams:
+      range: "<<distance>>"
+    standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: You teleport the target up to 4 squares
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: fd9c0e53-c7a0-4da1-b77f-2f0cc9acf0e0
+  importMatch: You teleport the target up to <<distance>> squares
+  ctime: 1766845985101
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Teleport Target
+  targetType: self
+  mtime: 1773926464368
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+6a84a6e5-20db-48b8-928b-06c3b9babe32:
+  __typeName: ActivatedAbility
+  id: 6a84a6e5-20db-48b8-928b-06c3b9babe32
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: fff07343-f44a-42cf-bb95-dbec6413f352
+    stacks: "<<number>>"
+    duration: save_ends
+    ongoingEffectCustom: fff07343-f44a-42cf-bb95-dbec6413f352
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  repeatTargets: false
+  testCases:
+  - text: the target has corruption weakness 7 (save ends)
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 91fd0d0a-6639-4c03-aa91-065d0da8cffc
+  importMatch: the target has corruption weakness <<number>> \(save ends\)
+  ctime: 1758308954933
+  description: ""
+  implementation: 3
+  targetType: self
+  name: Weakness - Corruption
+  numTargets: "1"
+  mtime: 1758977978143
+  abilityType: none
+  iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d
+66969ec7-2173-4256-bde0-eacd4f9c2f9f:
+  __typeName: ActivatedAbility
+  id: 66969ec7-2173-4256-bde0-eacd4f9c2f9f
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  description: ""
+  testCases:
+  - text: you gain one surge
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 3e88da4d-0636-479a-a5e2-5dd551556675
+  importMatch: You gain?s? <<amount>> surge?s?
+  ctime: 1773922792577
+  castImmediately: true
+  repeatTargets: false
+  numTargets: "1"
+  name: You Gain Surges
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+    quantity: "<<amount>>"
+    chatMessage: Gain Surge
+  mtime: 1773922792577
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+11c8c638-36ff-4f27-a492-17d8b73dffbf:
+  __typeName: ActivatedAbility
+  id: 11c8c638-36ff-4f27-a492-17d8b73dffbf
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 43d0bce9-9f35-473c-be69-3d6f44de5709
+    stacks: "<<surges>>"
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  testCases:
+  - text: "the next attack against the target has a :surge:"
+  - text: "the next attack against the target has :surge:"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 01b94f51-f6ff-43ad-814d-d6f4fe687526
+  importMatch: the next attack against the target has ?a? <<surges>>
+  ctime: 1730100511011
+  targetType: self
+  repeatTargets: false
+  description: ""
+  name: Next Attack Against Has Surge
+  numTargets: "1"
+  mtime: 1772545102617
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+827a57e9-df33-4ebb-8590-5631d7804874:
+  __typeName: ActivatedAbility
+  id: 827a57e9-df33-4ebb-8590-5631d7804874
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    durationUntilEndOfTurn: true
+    duration: end_of_next_turn
+    ongoingEffectCustom: 916d1682-18a4-4a01-b2b5-0f4a39a84b65
+    ongoingEffect: 916d1682-18a4-4a01-b2b5-0f4a39a84b65
+    stacks: "<<amount>>"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  testCases:
+  - text: stability reduced by 1 (EoT)
+  - text: stability reduced by 2 (EoT)
+  - text: stability reduced by 3 (EoT)
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: fa48204c-3eaf-4370-b207-4aa2ef27179d
+  importMatch: stability reduced by <<amount>> \(EoT\)
+  ctime: 1731825136491
+  targetType: self
+  repeatTargets: false
+  description: ""
+  name: Stability, Reduction
+  numTargets: "1"
+  mtime: 1772545056050
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+ed5a22fe-9345-497d-92c7-c2ee457ba5bb:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  id: ed5a22fe-9345-497d-92c7-c2ee457ba5bb
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: f8886f51-a409-4594-9e96-140ceb601213
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: This applies the foesense effect to the creature.
+  importMatch: Foesense
+  ctime: 1759182399666
+  persistence: []
+  description: ""
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 0aa5cbf1-3c4d-499c-a76a-918aa10e4c2b
+    durationUntilEndOfTurn: true
+    duration: 1
+    ongoingEffectCustom: false
+  name: Foesense
+  repeatTargets: false
+  mtime: 1769069324052
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+b818f5df-eb30-40e7-8547-469711cd705a:
+  __typeName: ActivatedAbility
+  targetFilter: ""
+  id: b818f5df-eb30-40e7-8547-469711cd705a
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Signature Ability
+  range: 1
+  testCases:
+  - text: ""
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 08a82533-8747-4e66-92be-9b509f71f72d
+  importMatch: "<<monster>> has an edge on this ability while adjacent to an ally"
+  ctime: 1728911603171
+  repeatTargets: false
+  persistence: []
+  description: ""
+  name: Edge on Ability Next to Ally
+  behaviors:
+  - __typeName: ActivatedAbilityModifyPowerRollBehavior
+    guid: 231da77a-151d-42fe-96ed-928d1de84613
+    modifier:
+      __typeName: CharacterModifier
+      sourceguid: 231da77a-151d-42fe-96ed-928d1de84613
+      modtype: edge
+      keywords: []
+      activationCondition: Count Nearby Friends(1) > 0	
+      guid: b29488dc-72b4-474e-9f76-426fa155af6e
+      rollType: enemy_ability_power_roll
+      domains: []
+      description: ""
+      name: Power Roll Modifier
+      behavior: power
+  mtime: 1769069321982
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+f1cf1186-c643-428f-8aec-355bc4d833f3:
+  __typeName: ActivatedAbility
+  id: f1cf1186-c643-428f-8aec-355bc4d833f3
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      targetFilter: not enemy
+      guid: 3422f086-1503-4540-9962-df86dc1ba30e
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        promptText: You have been led to make an Oppportunity Attack
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: c9f2ca5d-a18d-4b56-bdcd-0abbe2e4a808
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 5
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+      abilityType: none
+      name: Invoked Ability
+      targetType: target
+      description: ""
+      range: 5*<<range>>
+      iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  testCases:
+  - text: an ally within 5 can make an opportunity attack against the target as a free triggered action.
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: e4792149-833e-4853-96c9-1b10751e389f
+  importMatch: an ally within <<range>> can make an opportunity attack against the target as a free triggered action.
+  ctime: 1711425547550
+  targetType: self
+  repeatTargets: false
+  description: ""
+  name: Opportunity Attack on Target
+  numTargets: "1"
+  mtime: 1759805797297
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+ad3610ad-7692-488a-8d4d-761df6e72f3c:
+  __typeName: ActivatedAbility
+  id: ad3610ad-7692-488a-8d4d-761df6e72f3c
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 93ec59a0-edd9-4e23-a4f7-7ab934f3703d
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      behaviors: []
+      categorization: Basic Attack
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Basic Attack
+  range: 1
+  description: ""
+  actionResourceId: none
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 4b704bec-143e-4b6e-8ba5-f07b249ab58f
+  importMatch: ally adjacent to target can make a free strike against them	
+  ctime: 1740526570060
+  numTargets: "1"
+  persistence: []
+  targetType: target
+  name: Free Strike
+  repeatTargets: false
+  mtime: 1770658387284
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+d9c67b7a-7f9b-4c37-a874-e05362d548a1:
+  __typeName: ActivatedAbility
+  id: d9c67b7a-7f9b-4c37-a874-e05362d548a1
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: c7727b08-d3e2-4065-85cd-6e85ee5c867d
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  testCases:
+  - text: the next attack against the target has a +2
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 32078c40-42ec-46d9-9023-3b8b9b2a4a53
+  importMatch: the next attack against the target has a \+2
+  ctime: 1711343112421
+  targetType: self
+  repeatTargets: false
+  description: ""
+  name: Priest tier 3
+  numTargets: "1"
+  mtime: 1770658393409
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+d20192db-ff0f-4acb-887b-201c89695a42:
+  __typeName: ActivatedAbility
+  id: d20192db-ff0f-4acb-887b-201c89695a42
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: a4448cf3-c752-44ab-863e-63595a05b82b
+    duration: end_of_next_turn
+    ongoingEffectCustom: a4448cf3-c752-44ab-863e-63595a05b82b
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  testCases:
+  - text: If the target deals damage to another creature, the target of this ability takes another 1d10 lightning damage (save ends).
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: f14e92e8-2d99-4f5b-a9cf-11abd83dccfb
+  importMatch: If the target deals damage to another creature, the target of this ability takes another 1d10 lightning damage \(save ends\).	
+  ctime: 1732092249513
+  targetType: self
+  repeatTargets: false
+  description: ""
+  name: Target Takes Damage on their next Attack
+  numTargets: "1"
+  mtime: 1772545059113
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+fa56c693-68f8-4537-8550-3b53aa77f2d2:
+  __typeName: ActivatedAbility
+  id: fa56c693-68f8-4537-8550-3b53aa77f2d2
+  behaviors:
+  - __typeName: ActivatedAbilityModifyPowerRollBehavior
+    guid: cfb9fb89-ff7f-4345-a02d-91dc286989fe
+    modifier:
+      __typeName: CharacterModifier
+      sourceguid: cfb9fb89-ff7f-4345-a02d-91dc286989fe
+      behavior: power
+      modtype: none
+      adjustments: []
+      keywords: []
+      replaceText: vertical slide
+      domains: []
+      activationCondition: false
+      name: Power Roll Modifier
+      rollType: ability_power_roll
+      description: ""
+      guid: ba2a231b-5eef-48f9-8fae-5fa076c47083
+      replacePattern: slide
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 9f56bf8f-d1c8-4ab1-b34a-7352630792ad
+  testCases:
+  - text: the forced movement is vertical
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Change slide to vertical slide
+  importMatch: the forced movement is vertical
+  ctime: 1770264385473
+  repeatTargets: false
+  numTargets: "1"
+  mtime: 1770264385473
+  name: Vertical Forced Movement
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+ca5244b0-e38e-436c-a51b-9b4b7234bae2:
+  __typeName: ActivatedAbility
+  id: ca5244b0-e38e-436c-a51b-9b4b7234bae2
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 1e585796-8497-405b-b5c0-a1e65ffb0701
+    stacks: "1"
+    ongoingEffectCustom: 670039ad-0248-4931-8be6-2e08de2deab9
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  testCases:
+  - text: the next attack against the target has a +1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 7915999b-5555-4fb2-b566-64ea9650e65c
+  importMatch: the next attack against the target has a \+1
+  ctime: 1711337590443
+  targetType: self
+  repeatTargets: false
+  description: ""
+  name: Priest
+  numTargets: "1"
+  mtime: 1770658399895
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7f68fcb6-6b95-491b-89ed-01872ec802e8:
+  __typeName: ActivatedAbility
+  id: 7f68fcb6-6b95-491b-89ed-01872ec802e8
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: d9703a62-564a-42ee-8317-8886a473a6f8
+    ongoingEffectCustom: d9703a62-564a-42ee-8317-8886a473a6f8
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: the target takes a bane on their next attack
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 9e71271a-affd-4021-adb2-bbb7fcfe0ae5
+  importMatch: "<<monster>> takes a bane on their next attack"
+  ctime: 1749858409580
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Bane on next attack
+  targetType: self
+  mtime: 1770658300274
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+c7c86345-89b7-49c6-b56e-a75a0084cb09:
+  __typeName: ActivatedAbility
+  id: c7c86345-89b7-49c6-b56e-a75a0084cb09
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    namedAbility: Conduit Domain Effect
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 5ad6d48d-7cd9-4b25-b2ff-6b1a8026b373
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Choose a Domain Effect
+    abilityType: standard
+    runOnController: false
+    standardAbility: fe1648f3-9dac-4a52-9383-77648aca2f87
+    targeting: prompt
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: choose and use a domain effect
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 228387f3-5252-45e6-ac0e-9d2889e84510
+  importMatch: choose and use a domain effect
+  ctime: 1728017348504
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Conduit Prayer Domain Effect
+  targetType: self
+  mtime: 1769069316457
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+0358d7ca-c815-4b40-9d33-e5986cd32e19:
+  __typeName: ActivatedAbility
+  id: 0358d7ca-c815-4b40-9d33-e5986cd32e19
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: f0b84c94-74a3-4d46-a891-32a8394d170f
+    ongoingEffectCustom: f0b84c94-74a3-4d46-a891-32a8394d170f
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: the target has a double bane on their next power roll
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 9e71271a-affd-4021-adb2-bbb7fcfe0ae5
+  importMatch: "<<monster>> has a double bane on their next power roll"
+  ctime: 1763255889522
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Double Bane on next power roll
+  targetType: self
+  mtime: 1768251319159
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+981d3c91-b23b-42fd-a02d-66ca57b83a61:
+  __typeName: ActivatedAbility
+  id: 981d3c91-b23b-42fd-a02d-66ca57b83a61
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 13784898-a0c4-480c-99c2-05d6dd215626
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    autoTarget: false
+    abilityType: standard
+    standardAbilityParams:
+      range: "<<distance>>"
+    standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: Teleport the target 4
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: fd9c0e53-c7a0-4da1-b77f-2f0cc9acf0e0
+  importMatch: Teleport the target <<distance>>
+  ctime: 1759094120971
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Teleport Target
+  targetType: self
+  mtime: 1773926401932
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+3179dda3-d29b-4779-b796-17b28e9381a4:
+  __typeName: ActivatedAbility
+  id: 3179dda3-d29b-4779-b796-17b28e9381a4
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: db4a514a-7380-47d7-a842-e5f09309d372
+    ongoingEffectCustom: d9703a62-564a-42ee-8317-8886a473a6f8
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: the target takes a bane on their next power roll
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 9e71271a-affd-4021-adb2-bbb7fcfe0ae5
+  importMatch: "<<monster>> takes a bane on their next power roll"
+  ctime: 1758982300103
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Bane on next power roll
+  targetType: self
+  mtime: 1774013704331
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+d11b5822-4dd0-48c6-ae96-c417e000db0d:
+  __typeName: ActivatedAbility
+  id: d11b5822-4dd0-48c6-ae96-c417e000db0d
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: ""
+  categorization: Hidden
+  range: "<<distance>>"
+  description: ""
+  testCases:
+  - text: This ability deals an additional 3 damage if the target is within 2 squares of the sweeper.
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6edb6759-75ca-4759-9550-8dc2bc3fbb56
+  importMatch: This ability deals an additional <<num>> damage if the target is within <<distance>> squares of the <<monster>>.
+  ctime: 1747618698859
+  repeatTargets: false
+  numTargets: "1"
+  implementation: 3
+  name: Additional Damage when target near caster
+  behaviors:
+  - __typeName: ActivatedAbilityDamageBehavior
+    roll: "<<num>>"
+  mtime: 1774013690691
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+5f6357c3-9a60-4800-9e00-34884ea0b52e:
+  __typeName: ActivatedAbility
+  id: 5f6357c3-9a60-4800-9e00-34884ea0b52e
+  behaviors:
+  - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+    stamina: "<<amount>>"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: The target gains 5 temporary Stamina
+  - text: You gain 20 temporary stamina
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 167ff63d-2e00-414e-b5a1-a3f16ddeb786
+  importMatch: (The target|You) gain?s? <<amount>> temporary [Ss]tamina
+  ctime: 1749803365785
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Target Gains Temporary Stamina
+  targetType: self
+  mtime: 1772545714945
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+a0ff50db-b41e-4ce1-9f42-73fb41ea1e11:
+  __typeName: ActivatedAbility
+  id: a0ff50db-b41e-4ce1-9f42-73fb41ea1e11
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 7493dde5-a91b-473c-9b3e-8784f791b667
+    stacks: "<<surges>>"
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  testCases:
+  - text: "The target's next attack has :surge:"
+  - text: "The target's next attack has :surge: :surge:"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: f5754355-60e7-4224-9d4a-1e2d4922a131
+  importMatch: The target's next attack has ?a? <<surges>>
+  ctime: 1731055015655
+  targetType: self
+  repeatTargets: false
+  description: ""
+  name: Next Attack Has Surge
+  numTargets: "1"
+  mtime: 1773922214778
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+61ec1345-7105-46fc-b18e-89cf671080a0:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  id: 61ec1345-7105-46fc-b18e-89cf671080a0
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 6cf8217e-e1fb-4c70-9991-6d95b5c78b0e
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    autoTarget: false
+    standardAbilityParams:
+      range: "<<RoutineDistance>>"
+      numtargets: "<<amount>>"
+    standardAbility: ae1149c4-a8d0-4ed2-84c3-a1483ad5ab74
+    abilityType: standard
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: RoutineDistance
+  selfTarget: false
+  testCases:
+  - text: Gain 1 Heroic Resource, which you can keep or give to an ally within distance of your active performance
+  - text: Gain 2 Heroic Resources, which you can keep or distribute to allies within distance of your active performance
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: f971069e-aa48-4ef8-bf8c-479e4fc7fa99
+  importMatch: Gain <<amount>> Heroic Resources?, which you can keep or (give|distribute) to (an ally|allies) within distance of your active performance
+  ctime: 1753669915530
+  targetType: self
+  numTargets: "<<amount>>"
+  repeatTargets: true
+  name: Troubadour Resource Gain
+  description: ""
+  mtime: 1775005884107
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+6dbc4b19-9d9e-47c9-b895-d96d1558d271:
+  __typeName: ActivatedAbility
+  targetFilter: Enemy	
+  id: 6dbc4b19-9d9e-47c9-b895-d96d1558d271
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: b3edb596-3b31-4ce4-961c-fa250ccaf494
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    standardAbilityParams:
+      range: "<<range>>"
+      distance: "<<distance>>"
+      count: "<<count>>"
+    promptText: Shift <<distance>>
+    autoTarget: true
+    abilityType: standard
+    standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+    targeting: prompt
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: ""
+  testCases:
+  - text: An ally within 3 shifts 1 square
+  - text: Four allies within 6 shift 1 square
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 62f9c736-1c96-49b7-b7c9-8848953d3cad
+  importMatch: "<<count>> (ally|allies) within <<range>> (shifts|shift) <<distance>> (square|squares)"
+  ctime: 1711417222333
+  repeatTargets: false
+  targetType: target
+  description: ""
+  name: Ally Shift
+  numTargets: "<<count>>"
+  mtime: 1759805781452
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+e3dd7313-0f31-44c6-89d1-3d68865afb55:
+  __typeName: ActivatedAbility
+  id: e3dd7313-0f31-44c6-89d1-3d68865afb55
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    autoTarget: true
+    targeting: prompt
+    standardAbilityParams:
+      range: "<<squares>>"
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 221fa5cb-3e34-4ece-a3c6-1b580c932537
+      repeatTargets: false
+      targetFilter: not enemy
+      abilityType: none
+      targetType: all
+      numTargets: "1"
+      name: Invoked Ability
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: Frightened (save ends)
+      description: ""
+      range: "<<range>>"
+      iconid: ui-icons/skills/1.png
+  - __typeName: ActivatedAbilityConditionSourceBehavior
+    applyto: caster
+    condid: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 46bb3643-817e-4813-b049-edd936deee9b
+  testCases:
+  - text: each enemy within 2 squares of them is frightened of you (save ends)
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: ""
+  importMatch: each enemy within <<squares>> squares of them is frightened of you \(save ends\)
+  ctime: 1748494664651
+  repeatTargets: false
+  numTargets: "1"
+  mtime: 1759805795776
+  name: Proximity Enemies Frightened
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+1ed2c92f-1173-408c-8490-0daee37c0cdc:
+  __typeName: ActivatedAbility
+  id: 1ed2c92f-1173-408c-8490-0daee37c0cdc
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: bc169a75-6bbd-4c54-b9f0-35ba4daf21ed
+    duration: 0
+    ongoingEffectCustom: bc169a75-6bbd-4c54-b9f0-35ba4daf21ed
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 28badbd4-0680-42d2-9ada-111dd342741a
+  testCases:
+  - text: the target is flung through time
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: A target who is flung through time is removed from theencounter map until the end of their next turn, reappearing in theiroriginal space or the nearest unoccupied space.
+  importMatch: "<<monster>> is flung through time"
+  ctime: 1757727459474
+  repeatTargets: false
+  numTargets: "1"
+  mtime: 1773926389348
+  name: Target is flung through time
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+aa0dd410-76e4-4c9c-b973-1a4890b36681:
+  __typeName: ActivatedAbility
+  id: aa0dd410-76e4-4c9c-b973-1a4890b36681
+  behaviors:
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: Frightened (Save Ends)
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 191adfb8-d41a-47bb-a1b8-0639bb5f0160
+  testCases:
+  - text: the target is frightened of an ally of your choice within range (save ends)
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Note that this requires an invocation to select the ally to make them frightened.
+  importMatch: the target is frightened of an ally of your choice within range \(save ends\)
+  ctime: 1745475941381
+  repeatTargets: false
+  numTargets: "1"
+  mtime: 1759792926585
+  name: Frightened of Ally
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+afb23355-70e5-43b3-b66d-19631b763aa0:
+  __typeName: ActivatedAbility
+  id: afb23355-70e5-43b3-b66d-19631b763aa0
+  behaviors:
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: vertical slide <<number>>
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: slide 2; the slide is vertical
+  - text: slide 3, the slide is vertical
+  - text: slide 4  the slide is vertical
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 937cc0c0-ff47-4718-98e0-183afcb8c0d9
+  importMatch: slide <<number>>[;,]? +the slide is vertical
+  ctime: 1755295458603
+  description: ""
+  repeatTargets: false
+  numTargets: "1"
+  name: Slide Conditional Vertical
+  targetType: self
+  mtime: 1765298039455
+  abilityType: none
+  iconid: ui-icons/skills/1.png

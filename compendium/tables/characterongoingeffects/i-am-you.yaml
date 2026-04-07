@@ -1,0 +1,104 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+  source: Ongoing Effect
+  value: ConditionCaster("I Am You").Walking Speed
+  filterCondition: ConditionCaster("I Am You").Walking Speed > Self.Walking Speed
+  guid: c5066f1f-031f-41cd-9bb3-86da026c9933
+  name: I Am You
+  domains:
+    CharacterOngoingEffect:f54bdc8b-7aac-4180-865b-7ca5c3a4ce51: true
+  description: Until the end of the encounter, you gain the target’s damage immunities and speed (if they are better than yours), and can use any types of movement they can use. You can also use the target’s signature ability, using their bonus for the power roll.
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+  source: Ongoing Effect
+  value: 1
+  filterCondition: ConditionCaster("I Am You").Climbing Speed > 0
+  guid: a1dd4a67-cc36-4f25-b351-c1a62b2a8dea
+  name: I Am You
+  domains:
+    CharacterOngoingEffect:f54bdc8b-7aac-4180-865b-7ca5c3a4ce51: true
+  description: Until the end of the encounter, you gain the target’s damage immunities and speed (if they are better than yours), and can use any types of movement they can use. You can also use the target’s signature ability, using their bonus for the power roll.
+  behavior: attribute
+  attribute: climb
+- __typeName: CharacterModifier
+  sourceguid: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+  source: Ongoing Effect
+  value: 1
+  filterCondition: ConditionCaster("I Am You").Flying Speed > 0
+  guid: 5ea8701e-08fe-48f5-8fdf-ad9d84816738
+  name: I Am You
+  domains:
+    CharacterOngoingEffect:f54bdc8b-7aac-4180-865b-7ca5c3a4ce51: true
+  description: Until the end of the encounter, you gain the target’s damage immunities and speed (if they are better than yours), and can use any types of movement they can use. You can also use the target’s signature ability, using their bonus for the power roll.
+  behavior: attribute
+  attribute: fly
+- __typeName: CharacterModifier
+  sourceguid: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+  source: Ongoing Effect
+  value: 1
+  filterCondition: ConditionCaster("I Am You").Teleporting Speed > 0
+  guid: a174cd42-e0e4-4ab1-9596-46abad37544e
+  name: I Am You
+  domains:
+    CharacterOngoingEffect:f54bdc8b-7aac-4180-865b-7ca5c3a4ce51: true
+  description: Until the end of the encounter, you gain the target’s damage immunities and speed (if they are better than yours), and can use any types of movement they can use. You can also use the target’s signature ability, using their bonus for the power roll.
+  behavior: attribute
+  attribute: teleport
+- __typeName: CharacterModifier
+  sourceguid: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+  source: Ongoing Effect
+  value: 1
+  filterCondition: ConditionCaster("I Am You").Swimming Speed > 0
+  guid: 8838b046-82a3-4cf5-be31-83585926ee37
+  name: I Am You
+  domains:
+    CharacterOngoingEffect:f54bdc8b-7aac-4180-865b-7ca5c3a4ce51: true
+  description: Until the end of the encounter, you gain the target’s damage immunities and speed (if they are better than yours), and can use any types of movement they can use. You can also use the target’s signature ability, using their bonus for the power roll.
+  behavior: attribute
+  attribute: swim
+- __typeName: CharacterModifier
+  sourceguid: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+  source: Ongoing Effect
+  value: 1
+  filterCondition: ConditionCaster("I Am You").Burrowing Speed > 0
+  guid: f881eedb-a701-4874-b928-78afceff0f51
+  name: I Am You
+  domains:
+    CharacterOngoingEffect:f54bdc8b-7aac-4180-865b-7ca5c3a4ce51: true
+  description: Until the end of the encounter, you gain the target’s damage immunities and speed (if they are better than yours), and can use any types of movement they can use. You can also use the target’s signature ability, using their bonus for the power roll.
+  behavior: attribute
+  attribute: burrow
+- __typeName: CharacterModifier
+  inheritResistances: true
+  source: Ongoing Effect
+  behavior: transform
+  domains:
+    CharacterOngoingEffect:f54bdc8b-7aac-4180-865b-7ca5c3a4ce51: true
+  guid: 0c3c5bab-c361-43ff-bc62-6ef1941d5ae7
+  attributes: []
+  gainCreatureVisuals: false
+  description: Until the end of the encounter, you gain the target’s damage immunities and speed (if they are better than yours), and can use any types of movement they can use. You can also use the target’s signature ability, using their bonus for the power roll.
+  name: I Am You
+  sourceguid: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+source: Ongoing Effect
+guid: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+id: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+ctime: 1772111361330
+domains:
+  CharacterOngoingEffect:f54bdc8b-7aac-4180-865b-7ca5c3a4ce51: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: I Am You
+custom: true
+description: Until the end of the encounter, you gain the target’s damage immunities and speed (if they are better than yours), and can use any types of movement they can use. You can also use the target’s signature ability, using their bonus for the power roll.
+mtime: 1773819807308
+iconid: ui-icons/skills/1.png

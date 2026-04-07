@@ -1,0 +1,68 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.349500179290771
+    s: 0.564452886581421
+    v: 1.00193929672241
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  rollType: enemy_ability_power_roll
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  domains:
+    CharacterOngoingEffect:700104ad-3f78-4c36-9437-54a888acb3e9: true
+  keywords:
+    Attack: true
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: c0fb9cfb-9e50-4af6-8f72-4196fb3adad4
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: b9383a95-9642-4be4-9212-5e203e018010
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  activationCondition: true
+  name: Bane on Next Power Roll Attacking This Creature
+  resourceRefreshType: none
+  description: Strikes against this creature have a bane
+  modtype: bane
+  behavior: power
+source: Ongoing Effect
+endTrigger: attacked
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+id: b9383a95-9642-4be4-9212-5e203e018010
+ctime: 1758980948467
+domains:
+  CharacterOngoingEffect:700104ad-3f78-4c36-9437-54a888acb3e9: true
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+categorization: common
+name: Bane on Next Power Roll Attacking This Creature
+statusEffect: true
+description: Strikes against this creature have a bane
+mtime: 1759285065071
+implementation: 3

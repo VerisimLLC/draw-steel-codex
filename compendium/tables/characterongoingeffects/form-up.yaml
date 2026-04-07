@@ -1,0 +1,49 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: babf9fa6-f66f-46b2-9c83-3101ab988c73
+  source: Ongoing Effect
+  seq: a09cb0c8-e68d-4ca8-94b7-c7611ec1f7ec
+  aura:
+    __typeName: Aura
+    applyto: friends
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 8e42516a-d822-4b43-999a-955c7c040917
+      behavior: resistance
+      source: Aura
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "2"
+        damageType: all
+        apply: Damage Reduction
+      description: ""
+      name: Form Up!
+      guid: 8193b8af-97e7-480e-b89b-897840c0dea2
+    name: Form Up!
+    guid: 8e42516a-d822-4b43-999a-955c7c040917
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+  radius: "1"
+  guid: 3ca06228-6300-447b-8e5c-3e68dd116e57
+  description: ""
+  behavior: aura
+  name: Form Up!
+source: Ongoing Effect
+guid: babf9fa6-f66f-46b2-9c83-3101ab988c73
+id: babf9fa6-f66f-46b2-9c83-3101ab988c73
+ctime: 1763954073000
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Form Up!
+description: ""
+custom: true
+mtime: 1763954073000
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,208 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1490163e-1050-4903-942f-b4daf93d4925
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Haunt	Level 7 Horde Controller
+        Undead	EV 9
+        <b>Stamina</b> 40	<b>Immunity</b> corruption 7, poison 7
+        <b>Speed</b> 6 (fly, hover)	<b>Size</b> 2 /<b> Stability</b> 1
+        <b>Free Strike</b> 3
+        Might -2	Agility +4	Reason -1	Intuition +0	Presence +0
+        <b>Lash Out</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	7 damage; slide 2
+        %E2%98%85	12%E2%80%9316	10 damage; slide 3
+        %E2%9C%B8	17	11 damage; slide 5
+        <b>Effect</b> If the target is shifted into another creature's space, that creature takes an additional 4 damage and slides 2.
+
+        <b>Crushing Despair</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	%E2%89%A411	3 damage; I<2 prone
+        %E2%98%85	12%E2%80%9316	6 damage; I<3 prone
+        %E2%9C%B8	17	7 damage; I<4 prone
+        <b>Effect</b> A target knocked prone by this ability can't stand up on their own while a haunt is within 20 squares of them.
+
+        <b>Invisible Horror</b>
+        The haunt can move through other creatures and objects at normal speed and is unaffected by difficult terrain. The haunt is invisible during their move action. The haunt doesn't take damage from being force moved into objects.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c67b6ed0-dc8e-432d-b0a7-0a680ae2c5ac: true
+      modifiers: []
+      name: Invisible Horror
+      description: The haunt can move through other creatures and objects at normal speed and is unaffected by difficult terrain. The haunt is invisible during their move action. The haunt doesn't take damage from being force moved into objects.
+      guid: c67b6ed0-dc8e-432d-b0a7-0a680ae2c5ac
+      source: Trait
+    role: Horde Controller
+    inflictedConditions: []
+    keywords:
+      Undead: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 7
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 7
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 3
+    monster_type: Haunt
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: -2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 40
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; slide 2
+        - 10 damage; slide 3
+        - 11 damage; slide 5
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 48530001-840f-4336-8e26-493aa2b6164e
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Lash Out
+      numTargets: 1
+      description: If the target is shifted into another creature's space, that creature takes an additional 4 damage and slides 2.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bb147f22-0960-476f-b433-1790e3e71123
+      abilityType: none
+      numTargets: 1
+      implementation: 3
+      name: Crushing Despair
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; I<2 prone
+        - 6 damage; I<3 prone
+        - 7 damage; I<4 prone
+        roll: 2d10 + Agility
+      description: A target knocked prone by this ability can't stand up on their own while a haunt is within 20 squares of them.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    movementSpeeds:
+      fly: 6
+    ev: 9
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 1d2e1061-edf4-4774-b527-4007cfcadee0
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969981
+description: Haunt
+parentFolder: fc9b27fb-58bf-4b65-9400-d025e2de9480
+artist: null
+ord: 4
+ctime: 1741590226595
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,104 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: ba3cbaf2-58ba-4d1a-b27d-9ce73dedb0e5
+  description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 4 damage. This replaces the benefit of Vengeance I.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 58fae344-9710-4617-a7a6-af463267676a
+      repeatTargets: false
+      abilityType: none
+      trigger: losehitpoints
+      targetType: attacker
+      numTargets: "1"
+      name: Vengeance I
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: targets
+        targeting: formula
+        targetingFormula: Target.id = Self.id
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 80f2b42c-8c32-470b-a947-b7dfe0e50148
+          repeatTargets: false
+          abilityType: none
+          categorization: Hidden
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            durationUntilEndOfTurn: true
+            duration: end_of_next_turn
+            ongoingEffectCustom: 4de0e2b7-a460-4af9-b32a-e990edb90d12
+            ongoingEffect: 4de0e2b7-a460-4af9-b32a-e990edb90d12
+            guid: 1713983d-959c-43a3-96cc-a5117056617b
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 2 damage.
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 4 damage. This replaces the benefit of Vengeance I.
+    source: Vengeance II Imbuement
+    behavior: trigger
+    guid: 5304027e-9932-4632-8f92-140b35010978
+    name: Vengeance II
+    sourceguid: ba3cbaf2-58ba-4d1a-b27d-9ce73dedb0e5
+  - __typeName: CharacterModifier
+    sourceguid: ba3cbaf2-58ba-4d1a-b27d-9ce73dedb0e5
+    displayCondition: ability.doesdamage and ConditionCaster("Vengeance").id = Target.id
+    source: Vengeance II Imbuement
+    modtype: none
+    keywords: []
+    activationCondition: "1"
+    behavior: power
+    activationAfterRoll: false
+    name: Vengeance II
+    description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 4 damage. This replaces the benefit of Vengeance I.
+    damageModifier: "4"
+    rollType: ability_power_roll
+    guid: ceabbccb-bebb-42b7-b644-7a0ecdf9f539
+  source: Vengeance II Imbuement
+  name: Vengeance II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 23380f89-c58f-48a2-905a-ec670990d0b7
+imbuePrereq: 17ad0103-6723-4bf2-800d-fa57981ea196
+projectSource: Kalliak
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1774584754573
+type: Gear
+ctime: 1770699205313
+projectGoal: "150"
+itemPrerequisite: The remains of a sworn foe of the creature imbuing the item
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Vengeance II
+imbueTargetType: weapon
+description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 4 damage. This replaces the benefit of Vengeance I.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

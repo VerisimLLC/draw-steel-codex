@@ -1,0 +1,27 @@
+__typeName: equipment
+itemPrerequisite: A ruby purloined from a vampire
+keywords:
+  Potion: true
+  Psionic: true
+projectSource: Texts or lore in Proto-Ctholl
+flavor: A brittle glass tube has a ruby set atop it, attached by a hinge.
+weight: 1
+category: Gear
+specialDescription: ""
+id: 42fa7106-81f9-4513-a31b-89539de543ef
+ctime: 1759148339651
+type: Gear
+projectGoal: "45"
+mtime: 1759400075236
+name: Blood Essence Vial
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+description: |-
+  When you damage an adjacent creature who has blood, you can capture the target’s life essence in this vial (no action required). Record the damage you dealt. 
+
+  You can capture life essence in the vial only once. As a maneuver, you drink the contents of the vial to regain Stamina equal to half the damage dealt. 
+
+  If you spend 1 Heroic Resource while you drink, you regain Stamina equal to the damage dealt. Once you drink from the vial, it crumbles to dust.
+projectRollCharacteristic:
+  rea: true
+  agl: true
+iconid: fde7f248-6f5f-46c3-8afb-501885bafc38

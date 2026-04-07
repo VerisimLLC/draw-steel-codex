@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: b7526f9f-aa4c-47f5-a10a-bc15f5caff34
+  source: Ongoing Effect
+  modtype: edge
+  keywords: []
+  activationCondition: Caster.Type is "High Elf"
+  guid: e51d52d4-34ec-497a-b397-90c4c8a69a48
+  rollType: enemy_ability_power_roll
+  domains:
+    CharacterOngoingEffect:b7526f9f-aa4c-47f5-a10a-bc15f5caff34: true
+  description: High Elf adversaries gain an edge against this target
+  behavior: power
+  name: Lightning Rod
+source: Ongoing Effect
+guid: b7526f9f-aa4c-47f5-a10a-bc15f5caff34
+id: b7526f9f-aa4c-47f5-a10a-bc15f5caff34
+ctime: 1770231214000
+domains:
+  CharacterOngoingEffect:b7526f9f-aa4c-47f5-a10a-bc15f5caff34: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Lightning Rod
+custom: true
+description: High Elf adversaries gain an edge against this target
+mtime: 1770231214000
+iconid: 00a89db6-da4a-47fc-98aa-303a1e6b5226

@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: b1fac595-258d-46d6-b1d2-0f2bd7c09e78
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1763106816208
+ctime: 1761787144977
+name: Broken Contract
+flavor: One broken contract
+description: ""
+weight: 1
+iconid: 85da383f-b4ea-4b49-981c-0c0ec9a1606f

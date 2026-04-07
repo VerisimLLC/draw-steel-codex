@@ -1,0 +1,97 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5b6516a4-a0a8-495f-af9f-057441e47b17
+  source: Ongoing Effect
+  seq: 88a07e10-6343-42dd-87e5-d712987f50ef
+  aura:
+    __typeName: Aura
+    applyto: friends
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          invokeOnCaster: false
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 5a484efa-16fc-4a41-adc5-303e2c35fe81
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+          standardAbilityParams:
+            numrecoveries: "1"
+          abilityType: standard
+          applyto: targets
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        whenActive: combat
+        guid: 473d679a-d768-4a3c-8668-13f764c11bed
+        subject: self
+        numTargets: "1"
+        targetType: self
+        trigger: beginturn
+        name: Wellspring of Grace
+        description: 'Whenever a target starts their turn in the aura, they can spend a Recovery. '
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: 8ff52742-e819-4f75-98f2-a45b9f3fc900
+      name: Wellspring of Grace
+      sourceguid: c084ff71-b031-42e7-9066-3a3be5af8c2a
+    name: Wellspring of Grace
+    guid: aa02c55f-81e9-4340-b104-186f3d5e5666
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  domains:
+    CharacterOngoingEffect:5b6516a4-a0a8-495f-af9f-057441e47b17: true
+  radius: "3"
+  guid: d9d0c32e-84ff-4895-bd68-7c56dd0b4005
+  description: ""
+  behavior: aura
+  name: Wellspring of Grace
+source: Ongoing Effect
+guid: 5b6516a4-a0a8-495f-af9f-057441e47b17
+id: 5b6516a4-a0a8-495f-af9f-057441e47b17
+ctime: 1755229397829
+domains:
+  CharacterOngoingEffect:5b6516a4-a0a8-495f-af9f-057441e47b17: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Wellspring of Grace
+custom: true
+description: ""
+mtime: 1767450583145
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,40 @@
+__typeName: CharacterResource
+usageLimit: none
+id: 5e551b7d-17fb-4099-a303-bafb3c146f98
+ctime: 1755928531227
+grouping: Actions
+display:
+  expended:
+    brightness: 0.5
+    saturation: 0.5
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.517999887466431
+      s: 0.87890613079071
+      v: 1.00306558609009
+      a: 1
+  highlight:
+    brightness: 1.5
+    saturation: 1
+    hueshift: 1
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.517999887466431
+      s: 0.87890613079071
+      v: 1.00306558609009
+      a: 1
+  normal:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.517999887466431
+      s: 0.87890613079071
+      v: 1.00306558609009
+      a: 1
+isreaction: true
+mtime: 1755928570538
+name: Free Triggered Action
+iconid: 9d289048-9cae-4725-8039-97319521dac1

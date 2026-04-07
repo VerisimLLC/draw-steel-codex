@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: ab8871cb-4d11-4612-afbc-ddeb2ced1c27
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765471079660
+ctime: 1765471079660
+name: Molten Constrictor Recipe
+flavor: Text or lore in Caelian
+description: The project source necessary to craft Molten Constrictor
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

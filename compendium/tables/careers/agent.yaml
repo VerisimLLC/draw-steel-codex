@@ -1,0 +1,65 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 4d077e74-38e5-4e0b-b98a-3cd7ebe73bb1
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Agent Career Feature
+      behavior: proficiency
+      description: You gain the Sneak skill.
+      equate: false
+      name: Sneak
+      sourceguid: 692ce4cb-a654-4099-adc1-24cd73c9d915
+      proficiency: proficient
+      guid: 991d94f8-8a7e-4cfc-b1d6-483a61e1bb3c
+      skills:
+        ae13b5cf-718a-42a4-ab5e-18d46b289ac6: true
+        a635556e-37aa-4799-ae2c-3df22fff3688: true
+    name: Sneak
+    description: You gain the Sneak skill.
+    guid: 692ce4cb-a654-4099-adc1-24cd73c9d915
+    source: Agent Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+    source: Agent Career Feature
+    description: "Choose one skill from the intrigue skill group (Quick Build: Disguise)"
+    guid: e89cc971-8f87-4fea-bf9c-d17be4aa2405
+    name: Agent Intrigue Skill
+    individualSkills: []
+  - __typeName: CharacterSkillChoice
+    categories:
+      interpersonal: true
+    source: Agent Career Feature
+    numChoices: 1
+    description: "Choose one skill from the interpersonal skill group (Quick Build: Lie)"
+    name: Agent Interpersonal Skill
+    guid: d760383a-866b-435a-a48c-a9abd987b742
+  - __typeName: CharacterLanguageChoice
+    name: Agent Languages
+    numChoices: 2
+    description: Choose two languages
+    source: Agent Career Feature
+    guid: ac4e73c1-f350-49cc-aeca-b8ef435c2f9c
+  - __typeName: CharacterFeatChoice
+    guid: 97a5995d-b522-47e5-97c4-b35fc144cb1c
+    description: Choose one perk from the intrigue perk type
+    tag: intrigue perk
+    name: Agent Perk
+name: Agent
+mtime: 1757094889906
+description: |-
+  You worked as a spy for a government or organization. In defining your career, think about the following questions:
+  Who did you work for?
+  Who did you spy on?
+  Who shouldn’t know your true identity and allegiance but does?
+  Who did you have to burn or leave behind to get a job done?
+id: 3e30d9cc-9548-40dd-831d-2b68eb50895b
+ctime: 1730270133412

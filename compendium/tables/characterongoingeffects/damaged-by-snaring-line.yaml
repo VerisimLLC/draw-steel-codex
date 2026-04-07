@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 3d2fc485-b87c-47e8-9cbc-429706c02122
+id: 3d2fc485-b87c-47e8-9cbc-429706c02122
+ctime: 1761782218878
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Damaged by Snaring Line
+statusEffect: false
+mtime: 1772552583685
+description: Creature has been damaged by Snaring Line this round.
+iconid: ui-icons/skills/1.png

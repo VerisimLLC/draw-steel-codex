@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 67d94e8e-8e37-4c27-9358-4f66867bcfc6
+id: 67d94e8e-8e37-4c27-9358-4f66867bcfc6
+ctime: 1764018694493
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Thunder Mother
+description: You cannot be targeted again with Thunder Mother
+custom: true
+mtime: 1764018699408
+iconid: ui-icons/skills/1.png

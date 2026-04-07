@@ -1,0 +1,53 @@
+__typeName: equipment
+itemPrerequisite: One vial of pure bovine essence
+keywords:
+  Potion: true
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: Tiny chips of white bone float within this dark potion, which carries the scent of beef broth.
+weight: 1
+echelon: 2
+specialDescription: ""
+type: Gear
+category: Gear
+id: 3572284f-d8d7-4161-a6a4-8b14f9c7f19b
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: "90"
+mtime: 1774789463770
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 8c15103c-dbdd-466e-bcbe-899e92fa2061
+    duration: eoe
+    ongoingEffectCustom: 8c15103c-dbdd-466e-bcbe-899e92fa2061
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Ability
+  range: 5
+  consumables:
+    3572284f-d8d7-4161-a6a4-8b14f9c7f19b: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: e84e938c-bff7-4632-a2a1-2ce09168139e
+  targetType: self
+  castImmediately: true
+  numTargets: "1"
+  description: When you drink this potion as a maneuver, you sprout 3-foot sharpened horns from your forehead. Whenever you use the Charge main action, the target of your strike is gored upon your horns and grabbed. While grabbed this way, the creature is bleeding. You can also grab another creature with your limbs. The horns harmlessly fall off your head at the end of the encounter.
+  name: Bull Shot
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  attributeOverride: no_attribute
+  abilityType: none
+  iconid: f55310a5-7c60-440b-9f42-8b11ae89f12d
+name: Bull Shot
+ctime: 1774789019413
+description: When you drink this potion as a maneuver, you sprout 3-foot sharpened horns from your forehead. Whenever you use the Charge main action, the target of your strike is gored upon your horns and grabbed. While grabbed this way, the creature is bleeding. You can also grab another creature with your limbs. The horns harmlessly fall off your head at the end of the encounter.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: f55310a5-7c60-440b-9f42-8b11ae89f12d

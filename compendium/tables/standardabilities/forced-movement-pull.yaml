@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+targetFilter: "1"
+id: 3ecc4aca-2df1-42d0-b535-8a943fa5f0e9
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+repeatTargets: false
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+targetType: anyspace
+ctime: 1742972340920
+persistence: []
+targeting: straightline
+description: ""
+name: "Forced Movement: Pull"
+forcedMovement: pull
+mtime: 1771782919920
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,58 @@
+__typeName: equipment
+features: []
+itemPrerequisite: Fifty snapdragon seeds
+keywords:
+  Magic: true
+projectSource: Texts or lore in Yllyric
+flavor: This delicate orange blossom has a sickly-sweet smell.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+id: d71a0de3-99de-4a96-b3f3-0a65a21ff9db
+implementation: 3
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: 45 (yields 1d6 + 1 snapdragons)
+ctime: 1758395890100
+description: |-
+  As a maneuver, you sniff a magic snapdragon blossom, causing it to whither and making your movements more forceful and explosive. The next
+  damage-dealing ability you use deals an extra 5 damage and gains a +2 bonus to the distance of any forced movement it imposes. If the ability does not impose forced movement, you can push each creature targeted by the ability up to 2 squares.
+name: Snapdragon
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: c591ce94-e0b3-47f4-9a62-5c0dad604f0b
+    guid: 195066fa-3679-4627-b141-9936d0365f4a
+    ongoingEffectCustom: c591ce94-e0b3-47f4-9a62-5c0dad604f0b
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: ""
+  categorization: Ability
+  preDescription: As a maneuver, you sniff a magic snapdragon blossom, causing it to whither and making your movements more forceful and explosive. The next damage-dealing ability you use deals an extra 5 damage and gains a +2 bonus to the distance of any forced movement it imposes. If the ability does not impose forced movement, you can push each creature targeted by the ability up to 2 squares.
+  consumables:
+    d71a0de3-99de-4a96-b3f3-0a65a21ff9db: 1
+  numTargets: "1"
+  modifiers: []
+  persistence: []
+  strain: []
+  guid: 6f6776bf-69d8-412c-a15f-b076d050fb35
+  range: 5
+  implementation: 3
+  castImmediately: true
+  attributeOverride: no_attribute
+  targetType: self
+  name: Snapdragon
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  description: ""
+  abilityType: none
+  iconid: 876fda7f-fa4f-46f8-9c55-8d9a13ec611c
+mtime: 1763594373531
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 876fda7f-fa4f-46f8-9c55-8d9a13ec611c

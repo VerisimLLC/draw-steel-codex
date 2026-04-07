@@ -1,0 +1,247 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 4d431968-dc4d-4771-9a77-ffcaf11923c4
+    offtokenPortraitId: b15605e7-1048-4c79-b6cf-ea37c62b797c
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2880263
+    portraitOffset:
+      x: 0.08756233
+      y: 0.01096079
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f26e3037-b63b-477a-9c97-e7ae35ee65d3
+  properties:
+    __typeName: monster
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    keywords:
+      Goblin: true
+      Humanoid: true
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    attackNames:
+    - Light Melee
+    monster_category: Monster
+    levelChoices: []
+    pr: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 163
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 15
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: f7b613f8-3325-429d-bd1f-ad1d529a52c1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage; I<0 weakened (save ends)
+        - 4 corruption damage; I<1 weakened (save ends)
+        - 5 corruption damage; I<2 weakened (save ends)
+        roll: 2d10 + Intuition
+      implementation: 4
+      persistence: []
+      categorization: Signature Ability
+      name: Eye of Surlach
+      numTargets: 1
+      description: ""
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 163
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: f2b9e18b-15bb-469a-80ff-7c94a5417e33
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      implementation: 4
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - I<0 prone
+        - I<1 prone and can't stand (EoT)
+        - prone, I<2 can't stand (Save Ends)
+        roll: 2d10 + Intuition
+      name: Dizzying Hex
+      categorization: Heroic Ability
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Goblin Cursespitter	Level 1 Horde Hexer
+        Goblin, Humanoid	EV 3
+        <b>Stamina</b> 10
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1S / <b>Stability</b> 0
+        	<b>Free Strike</b> 1
+        Might -2	Agility +1	Reason +0	Intuition +2	Presence +0
+        <b>Eye of Surlach</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 15	<b>Target</b> One creature
+        %E2%9C%A6	%E2%89%A411	3 corruption damage; I<0 weakened (save ends)
+        %E2%98%85	12%E2%80%9316	4 corruption damage; I<1 weakened (save ends)
+        %E2%9C%B8	17+	5 corruption damage; I<2 weakened (save ends)
+
+        <b>Dizzying Hex</b> (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 1 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature
+        %E2%9C%A6	%E2%89%A411	I<0 prone
+        %E2%98%85	12%E2%80%9316	I<1 prone can't stand (EoT)
+        %E2%9C%B8	17+	prone I<2 and can't stand (save ends)
+
+        <b>Crafty</b>
+        The cursespitter doesn't provoke opportunity attacks by moving.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cba158f9-16fb-4228-83c0-b58d211302d0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        behavior: attribute
+        source: Trait
+        name: Crafty
+        value: 1
+        description: The cursespitter doesn't provoke opportunity attacks by moving.
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Crafty: you do not provoke opportunity attacks while moving."
+        sourceguid: eae4d953-c53f-41d8-aae3-cc9de122b1f8
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        description: The cursespitter doesn't provoke opportunity attacks by moving.
+        guid: ded04af6-44e5-4c7a-b98e-feabed3f3680
+        color: green
+      source: Trait
+      description: The cursespitter doesn't provoke opportunity attacks by moving.
+      guid: cba158f9-16fb-4228-83c0-b58d211302d0
+      name: Crafty
+      implementation: 3
+    role: Horde Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: f1d5c9d7-0eb8-4afa-8218-f6fba6e2f2ec
+    damage_taken: 0
+    opportunityAttack: 1
+    walkingSpeed: 5
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    ev: 3
+    savingThrowRatings: []
+    resources: []
+    movementSpeeds:
+      climb: 5
+    fmr: 0
+    traitNames: []
+    creatureSize: 1S
+    monster_type: Goblin Cursespitter
+  tokenType: null
+  bestiaryId: 76de605d-434b-4210-905f-5c47caf159cf
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1715748088616
+description: Goblin Cursespitter
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590267792
+mtime: 1775201137032
+hidden: false

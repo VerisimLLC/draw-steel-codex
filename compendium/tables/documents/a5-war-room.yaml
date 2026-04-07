@@ -1,0 +1,1087 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:A5 %:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A5 %
+  encounter:A5 2 Respites:
+    __typeName: RichEncounter
+    identifier: A5 2 Respites
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "66,20,1"
+        monsters:
+          85809da7-eae3-4365-b388-f1f678e91ab3: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "65,15,1"
+        - __usertype: LuaLoc
+          loc: "64,16,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "63,20,1"
+        - __usertype: LuaLoc
+          loc: "62,18,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "59,13,1"
+        - __usertype: LuaLoc
+          loc: "72,22,1"
+        monsters:
+          1e16b64f-44bc-450a-b2bd-2dfb8958f9c1: 2
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "75,12,1"
+        - __usertype: LuaLoc
+          loc: "73,13,1"
+        - __usertype: LuaLoc
+          loc: "74,15,1"
+        - __usertype: LuaLoc
+          loc: "75,17,1"
+        - __usertype: LuaLoc
+          loc: "76,15,1"
+        - __usertype: LuaLoc
+          loc: "73,11,1"
+        - __usertype: LuaLoc
+          loc: "74,18,1"
+        - __usertype: LuaLoc
+          loc: "75,19,1"
+        - __usertype: LuaLoc
+          loc: "75,14,1"
+        monsters:
+          bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83: 8
+          10927d4a-3bd0-43e3-b994-9a11ed2fad53: 1
+      name: A5 2 Respites
+  encounter:A5 %=:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A5 %=
+  encounter:A5 5:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A5 5
+  encounter:A5 1 Respite:
+    __typeName: RichEncounter
+    identifier: A5 1 Respite
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "66,20,1"
+        monsters:
+          85809da7-eae3-4365-b388-f1f678e91ab3: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "64,16,1"
+        - __usertype: LuaLoc
+          loc: "65,15,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "62,18,1"
+        - __usertype: LuaLoc
+          loc: "63,20,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "72,22,1"
+        - __usertype: LuaLoc
+          loc: "59,13,1"
+        monsters:
+          1fbc1702-f1c0-4710-aa4b-d26d325c0366: 2
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Smart Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "73,13,1"
+        - __usertype: LuaLoc
+          loc: "74,15,1"
+        - __usertype: LuaLoc
+          loc: "76,15,1"
+        - __usertype: LuaLoc
+          loc: "75,17,1"
+        - __usertype: LuaLoc
+          loc: "74,18,1"
+        - __usertype: LuaLoc
+          loc: "73,11,1"
+        - __usertype: LuaLoc
+          loc: "75,19,1"
+        - __usertype: LuaLoc
+          loc: "75,14,1"
+        - __usertype: LuaLoc
+          loc: "75,12,1"
+        monsters:
+          bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83: 8
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      name: A5 1 Respite
+  encounter:A5 3:
+    __typeName: RichEncounter
+    identifier: A5 3
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Cunning Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Sneaky Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        - __usertype: LuaLoc
+          loc: "67,22,1"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 2
+      name: A5 3 Heroes
+  encounter:A3 1 or 2 Respites Spindlegoth 4:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 1 or 2 Respites Spindlegoth 4
+  encounter:A5 05+:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A5 05+
+  encounter:A5 0 3:
+    __typeName: RichEncounter
+    identifier: A5 0 3
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Thoughtful Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Sneaky Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Gaunt Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 2
+      name: A5 0 Resp 3 Heroes
+  encounter:A2 1 Respite:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A2 1 Respite
+  encounter:A2 2 Respites:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A2 2 Respites
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  encounter:reinforcements:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83: 2
+      name: Reinforcements
+    identifier: reinforcements
+  encounter:A5 5+-1:
+    __typeName: RichEncounter
+    identifier: A5 5+
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "69,16,1"
+        - __usertype: LuaLoc
+          loc: "67,15,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 2
+      - appearances:
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        - __usertype: LuaLoc
+          loc: "67,22,1"
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        monsters:
+          10927d4a-3bd0-43e3-b994-9a11ed2fad53: 3
+      name: A5 2 Resp 5+ Heroes
+  'encounter:A5 ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'A5 '
+  encounter:A5 4-1:
+    __typeName: RichEncounter
+    identifier: A5 4
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "67,15,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        monsters:
+          10927d4a-3bd0-43e3-b994-9a11ed2fad53: 2
+      name: A5 2 Resp 4 Heroes
+  encounter:A5 5+:
+    __typeName: RichEncounter
+    identifier: A5 5+
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "67,15,1"
+        - __usertype: LuaLoc
+          loc: "69,16,1"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      - appearances:
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cowardly Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Chirpy Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 2
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Foolish Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Surprised Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Goofy Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        - __usertype: LuaLoc
+          loc: "67,22,1"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 3
+      name: A5 5+ Heroes
+  'encounter:A5 5+ ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'A5 5+ '
+  encounter:A2 0 Respites:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A2 0 Respites
+  encounter:A5 1 4:
+    __typeName: RichEncounter
+    identifier: A5 1 4
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "67,15,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 2
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Wretched Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Annoyed Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 2
+      name: A5 1 Resp 4 Heroes
+  encounter:A5 3-1:
+    __typeName: RichEncounter
+    identifier: A5 3
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        monsters:
+          10927d4a-3bd0-43e3-b994-9a11ed2fad53: 2
+      name: A5 2 Resp 3 Heroes
+  encounter:re:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: re
+  encounter:A5 1 5+:
+    __typeName: RichEncounter
+    identifier: A5 1 5+
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "67,15,1"
+        - __usertype: LuaLoc
+          loc: "69,16,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 2
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Tired Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Goofy Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Lanky Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        - __usertype: LuaLoc
+          loc: "67,22,1"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 3
+      name: A5 1 Resp 5+ Heroes
+  encounter:A5 0 5+:
+    __typeName: RichEncounter
+    identifier: A5 0 5+
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "67,15,1"
+        - __usertype: LuaLoc
+          loc: "69,16,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      - appearances:
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cruel Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 2
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Startled Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Alert Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Anxious Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        - __usertype: LuaLoc
+          loc: "67,22,1"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 3
+      name: A5 0 Resp 5+ Heroes
+  'encounter:A5 4  ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'A5 4  '
+  encounter:A5 4 1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A5 4 1
+  encounter:A5:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A5
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: ""
+  encounter:A2 Heroes's Cup:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A2 Heroes's Cup
+  encounter:rein:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: rein
+  encounter:A5 Heroes's Cup:
+    __typeName: RichEncounter
+    identifier: A5 Heroes's Cup
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "66,20,1"
+        monsters:
+          5d7331fb-2d45-4a80-8eee-57036a625d1a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "64,16,1"
+        - __usertype: LuaLoc
+          loc: "65,15,1"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      - appearances:
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Dizzy Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Sneaky Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "62,18,1"
+        - __usertype: LuaLoc
+          loc: "63,20,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "72,22,1"
+        - __usertype: LuaLoc
+          loc: "59,13,1"
+        monsters:
+          1fbc1702-f1c0-4710-aa4b-d26d325c0366: 2
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "73,13,1"
+        - __usertype: LuaLoc
+          loc: "76,15,1"
+        - __usertype: LuaLoc
+          loc: "74,15,1"
+        - __usertype: LuaLoc
+          loc: "75,17,1"
+        - __usertype: LuaLoc
+          loc: "74,18,1"
+        - __usertype: LuaLoc
+          loc: "73,11,1"
+        - __usertype: LuaLoc
+          loc: "75,19,1"
+        - __usertype: LuaLoc
+          loc: "75,14,1"
+        - __usertype: LuaLoc
+          loc: "75,12,1"
+        monsters:
+          bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83: 8
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      name: A5 Heroes' Cup
+  encounter:A5 4:
+    __typeName: RichEncounter
+    identifier: A5 4
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "67,15,1"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+      - appearances:
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cranky Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Thoughtful Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 2
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Conniving Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Thoughtful Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 2
+      name: A5 4 Heroes
+  encounter:A:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A
+  encounter:A5 0 Respites:
+    __typeName: RichEncounter
+    identifier: A5 0 Respites
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "66,20,1"
+        monsters:
+          85809da7-eae3-4365-b388-f1f678e91ab3: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "65,15,1"
+        - __usertype: LuaLoc
+          loc: "64,16,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      - appearances:
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Savage Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Alert Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "63,20,1"
+        - __usertype: LuaLoc
+          loc: "62,18,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "59,13,1"
+        - __usertype: LuaLoc
+          loc: "72,22,1"
+        monsters:
+          1fbc1702-f1c0-4710-aa4b-d26d325c0366: 2
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "74,15,1"
+        - __usertype: LuaLoc
+          loc: "73,13,1"
+        - __usertype: LuaLoc
+          loc: "76,15,1"
+        - __usertype: LuaLoc
+          loc: "74,18,1"
+        - __usertype: LuaLoc
+          loc: "75,17,1"
+        - __usertype: LuaLoc
+          loc: "73,11,1"
+        - __usertype: LuaLoc
+          loc: "75,19,1"
+        - __usertype: LuaLoc
+          loc: "75,14,1"
+        - __usertype: LuaLoc
+          loc: "75,12,1"
+        monsters:
+          bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83: 8
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      name: A5 0 Respites
+  encounter:A5 4 2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A5 4 2
+  encounter:A5 0 4:
+    __typeName: RichEncounter
+    identifier: A5 0 4
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "67,15,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 1
+      - appearances:
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Irritable Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Enraged Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "70,20,1"
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 2
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Lonely Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Delighted Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 2
+      name: A5 0 Resp 4 Heroes
+  encounter:A5 5+ 1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A5 5+ 1
+  encounter:A3 1 or 2 Respites Spindlegoth 5 or 6:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 1 or 2 Respites Spindlegoth 5 or 6
+  encounter:A3 1 or 2 Respites Spindlegoth 3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 1 or 2 Respites Spindlegoth 3
+  'encounter:A5 4 ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'A5 4 '
+  encounter:reinfor:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: reinfor
+  encounter:A5 03:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A5 03
+  encounter:A4 3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A4 3
+  encounter:A5 1 3:
+    __typeName: RichEncounter
+    identifier: A5 1 3
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "71,18,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Cruel Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Devious Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "62,16,1"
+        - __usertype: LuaLoc
+          loc: "71,16,1"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 2
+      name: A5 1 Resp 3 Heroes
+id: 2927b877-448a-4852-9a96-ed9c08f2bbbc
+ctime: 1761037055395
+textStorage:
+  __typeName: TextStorage
+  sections:
+    jf: |
+      ???
+    jb: |
+      [[encounter:A5 1 4]]
+    y: |+
+      When she's winded, Queen Bargnot attempts to dive between the loot sacks and flee down the chute into [A6. Spider Nest], and the goblins prioritize her escape. However, if the goblins are outnumbered two to one by the time she's winded, they flee and leave her on her own.
+
+
+    w: |+
+      ## Tactics
+
+    x: |
+      The warriors and assassins do everything in their power to stand between the heroes and their queen. The cursespitters and the stinkers take to the walls and ceiling, pinning the heroes from a safe distance. Queen Bargnot focuses on calling more goblin runners into the room until the heroes are completely overrun.
+    u: |+
+      |8| (**Reinforcements**) Two [goblin runner]s (minion squad)|
+
+    v: |
+      **Encounter Adjustments**
+    s: |
+      |6| Three [goblin cursespitter]s|
+    t: |
+      |7| Two [goblin stinker]s|
+    q: |
+      |4| Two [goblin assassin]s|
+    r: |
+      |5| Two [goblin assassin]s|
+    jQ: |
+      [[encounter:A5 0 4]]
+    p: |
+      |3| Two [goblin warrior]s|
+    m: |
+      |**Group** |**Creatures**|
+    n: |
+      |1| One [goblin monarch] (Queen Bargnot)|
+    vF: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    l: |
+      **A5 Groups**
+    jF: |
+      ???
+    h: |
+      [[encounter:A5 Heroes's Cup]]
+    e: |+
+      The heroes battle [Queen Bargnot] and her advisors in the war room of [Castle Andreas].
+
+    f: |+
+      [[setting:Number of Heroes]]
+
+    jB: |
+      [[encounter:A5 5+]]
+    a: |+
+      In truth, the Jagged Edge’s numbers are severely weakened thanks to the heroes’ efforts. If the heroes are willing to negotiate, [Queen Bargnot] stares each of them down quietly for a long time. Wait a beat before calling for a hero to make a hard Presence test. They have a double edge on the test if they call Queen Bargnot on her bluff. On a success, she calls the other goblins to stay their weapons and negotiations begin (see [Coming to Terms]). Otherwise, combat begins.
+
+    jk: |
+      [[encounter:A5 5+]]
+    yQ: |
+      The encounter ends when Queen Bargnot is defeated or if she flees and the remaining goblins are outnumbered two to one and then flee. The heroes earn 1 Victory each or 2 Victories each if Queen Bargnot is finally defeated here.
+    vY: |+
+      * For three heroes, remove two goblin warriors, one goblin assassin, and one goblin cursespitter.
+
+
+
+    jg: |
+      **2 Respites**
+    jo: |
+      ???query numheroes = 4
+    Y: |+
+      The queen provides the heroes with one last chance to surrender, telling them in Caelian, “*The Jagged Edge have you outnumbered, you know. But your blood doesn’t need to touch these floors. Die a quiet death tomorrow instead of here and now by my hand!*”
+
+    W: |+
+      Four **goblin warriors**, four **goblin assassins**, two **goblin stinkers**, three **goblin cursespitters**, and [Queen Bargnot] the **goblin monarch** cut their arguing short at the heroes’ arrival.
+
+    jL: |
+      [[encounter:A5 0 Respites]]
+    U: |+
+      Heroes who climb into the area through the grate in [A3. Old Armory] appear underneath the stone steps and aren’t immediately noticed by the goblins at the table.
+
+    S: |+
+      ## Queen’s Court
+
+    Q: |+
+      {**Secret:** A climbable chute concealed by the loot sacks leads all the way down into [A6. Spider Nest].}
+
+
+    vt: |+
+      [[encounter:reinforcements]]
+
+    O: |+
+      > * “Queen Bargnot is not happy.”
+
+    M: |
+      > * “Sullied maps, ink bottles, and daggers cover the stone table. Angry goblins pace and yell at each other across the table.”
+    jT: |
+      [[encounter:A5 0 3]]
+    K: |
+      > * “Stone steps along the left wall lead to a bolted trap door out to the roof of the keep.”
+    jX: |
+      ???query numheroes > 4
+    G: |
+      > * “Two large lanterns illuminate each brick of the octangular chamber.”
+    jE: |
+      [[encounter:A5 4]]
+    E: |+
+      # A5. War Room
+
+    C: |+
+      [[/screenshake 5 | Shake the Screen]]
+
+    iA: |
+      ???query numheroes > 4
+    kw: |
+      [[encounter:A5 3]]
+    jh: |
+      [[encounter:A5 2 Respites]]
+    jd: |
+      ???query numheroes < 4
+    jK: |
+      **0 Respites**
+    jO: |
+      ???
+    jS: |
+      ???query numheroes < 4
+    yi: |+
+      ## Loot
+
+    yH: |+
+      ## Ending the Encounter
+
+    jW: |
+      [[encounter:A5 1 Respite]]
+    jH: |
+      [[encounter:A5 3]]
+    vL: |
+      * For six heroes, add eight goblin runners and one goblin cursespitter.
+    jD: |
+      ???query numheroes = 4
+    jP: |
+      ???query numheroes = 4
+    je: |
+      [[encounter:A5 1 3]]
+    ji: |
+      ???query numheroes > 4
+    jc: |
+      ???
+    ja: |
+      ???query numheroes = 4
+    ky: |+
+      ???
+
+    jI: |+
+      ???
+
+
+    jm: |
+      ???
+    yr: |+
+      If Queen Bargnot has the [item:Cup of Iulius], she carries it. She wears [item:Shrouded Memory] armor.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    js: |
+      ???
+    vm: |+
+      At the end of **each round** of combat that Queen Bargnot is still fighting the heroes, two **goblin runners** enter the room.
+
+    jJ: |+
+      ### If Queen Bargnot Has the Cup of Iulius
+
+    o: |
+      |2| Two [goblin warrior]s|
+    jM: |
+      ???query numheroes > 4
+    jN: |
+      [[encounter:A5 0 5+]]
+    d: |
+      # Encounter A5
+    jU: |+
+      ???
+
+    jR: |
+      ???
+    eZ: |+
+      [[/activateobjects a5_start.AreaTemplate activate|Show Hero Start Area]][[/activateobjects a5_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    fZ: |2
+
+    jV: |
+      **1 Respite**
+    g: |
+      ### The Heroes Have The Cup of Iulius
+    I: |
+      > * “Sacks of coin, stolen food, and iron jewelry lie against the back wall. If the goblin lookout is alive, a goblin sits on the sacks and sups on a bread loaf while cradling a bugle in the nook of his arm.”
+    vR: |
+      * For four heroes, remove one goblin warrior and one goblin cursespitter.
+    jq: |
+      [[encounter:A5 4]]
+    jY: |
+      [[encounter:A5 1 5+]]
+    yZ: |+
+      [[//awardvp 1|Award Heroes 1 Victory]] or [[//awardvp 2|Award Heroes 2 Victories]]
+
+
+    jG: |
+      ???query numheroes < 4
+    vf: |+
+      ## Round 2+: Reinforcements
+
+    ju: |
+      ???query numheroes < 4
+    jC: |
+      ???
+    jZ: |
+      ???
+parentFolder: 3f6f50d2-bd00-4fb5-a3ba-b6089e65ec79
+updateid: d9b26e4d-3175-44fe-8950-970c660a5274
+description: A5. War Room
+content: |-
+  # Room 1
+
+  [[/screenshake 5 | Shake the Screen]]
+mtime: 1766077867114

@@ -1,0 +1,114 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+    halign: center
+    image: b1f2ec63-6201-4c4e-88cd-79b35bac5217
+  scene-1:
+    __typeName: RichScene
+    identifier: false
+    image: 64084190-baa9-46a7-8e39-8469be34a5ee
+  scene:
+    __typeName: RichScene
+    identifier: false
+    image: b1f2ec63-6201-4c4e-88cd-79b35bac5217
+  image-1:
+    __typeName: RichImage
+    identifier: false
+    image: 64084190-baa9-46a7-8e39-8469be34a5ee
+id: 16c0b527-50bd-43f8-985b-aa230c262d82
+ctime: 1762376276220
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      ## Finding the Entrance
+    w: "If the heroes can’t figure the passphrase in this way, they have one last method of entering the tower: making their own door. The tower’s walls are 1 square thick, and each square section has 20 Stamina and is immune to poison and psychic damage. Whenever a creature damages a section of the tower, they take 1d6 psychic damage.\v}"
+    U: |
+      > * “Abandoned wagons, still in workable condition, are pushed off to the east side of the tower.”
+    S: |
+      > * “A 200-foot-high tower of seamless black stone juts from the ground before you.”
+    t: |+
+      ## Breaking In
+
+    q: |+
+      The passphrase is, “Open the planes to my vision.”
+
+    O: |
+      ## The Tower Clearing
+    M: |+
+      The heroes can learn the tower’s location by following leads given to them by [Harim] (see [B12. Cobbler]) or through interacting with the dwarf merchants staying at the Feather Bed Inn (see [B1. Feather Bed Inn]).
+
+    n: |+
+      |{#The hero learns the correct passphrase, and the door appears when it is spoken or signed by the hero.}
+
+    k: |
+      |{#The hero learns the correct passphrase, but gets the intonation of the phrase wrong or signs part of the phrase incorrectly. The door appears, but the provider of the passphrase loses 1 Recovery as the tower saps some of the hero’s vitality.}
+    c: |2+
+
+
+
+    I: |+
+      [Vurkor], an orc elementalist, came to [Broadhurst] looking for a rumored tower that once belonged to a powerful magician. Finding the tower empty and in ruins, Vurkor and his two ogre servants captured travelers along the road and forced them to rebuild the wondrous tower. Other travelers avoid this fate if they offer Vurkor magic treasures, which he uses to restore the tower’s defenses.
+
+    W: |+
+      > * “Obvious foot traffic goes up to the base of the structure in various places, but no sign of an entryway is evident.”
+
+    G: |
+      :<>[[scene]]
+
+
+      {
+    h: |
+      |{#The hero fails to learn the correct passphrase.}
+    e: |
+      |Summon the Door: Reason or Intuition Tests
+    K: |+
+      The heroes can infiltrate the tower and deal with [Vurkor], the ogres, and some of the more malignant magic that permeates the weathered stones of the tower.
+
+    C: |+
+      # Mage Tower
+
+    Q: |2
+       The heroes arrive at the location of the tower, finding no means of entrance.
+    a: |2
+       The hero with the highest Reason score knows that this style of magic tower often has a password or passphrase that reveals a hidden door. The heroes can make either a Reason or an Intuition test to learn the passphrase that summons the door. A hero attempting to absorb the magical vibrations of the tower and envision the passphrase must make a moderate Reason test. A hero attempting to notice that a phrase has been faintly scratched into the stone at a height of 12 feet in High Kuric must make a moderate Intuition test. Both tests have the same outcomes.
+    E: |
+      :<>[[scene]]
+parentFolder: 7cb5c634-6ed3-43bd-970d-7877c47b4772
+updateid: 78509598-c01c-4d70-bad1-adc132792960
+description: MT Start Here
+content: |-
+  # Mage Tower
+
+  [[image]]
+  [[image]]
+  {
+  [Vurkor], an orc elementalist, came to [Broadhurst] looking for a rumored tower that once belonged to a powerful magician. Finding the tower empty and in ruins, Vurkor and his two ogre servants captured travelers along the road and forced them to rebuild the wondrous tower. Other travelers avoid this fate if they offer Vurkor magic treasures, which he uses to restore the tower’s defenses.
+
+  The heroes can infiltrate the tower and deal with [Vurkor], the ogres, and some of the more malignant magic that permeates the weathered stones of the tower.
+
+  The heroes can learn the tower’s location by following leads given to them by [Harim] (see [B12. Cobbler]) or through interacting with the dwarf merchants staying at the Feather Bed Inn (see [B1. Feather Bed Inn]).
+
+  ## The Tower Clearing
+   The heroes arrive at the location of the tower, finding no means of entrance.
+  > * “A 200-foot-high tower of seamless black stone juts from the ground before you.”
+  > * “Abandoned wagons, still in workable condition, are pushed off to the east side of the tower.”
+  > * “Obvious foot traffic goes up to the base of the structure in various places, but no sign of an entryway is evident.”
+
+  ## Finding the Entrance
+   The hero with the highest Reason score knows that this style of magic tower often has a password or passphrase that reveals a hidden door. The heroes can make either a Reason or an Intuition test to learn the passphrase that summons the door. A hero attempting to absorb the magical vibrations of the tower and envision the passphrase must make a moderate Reason test. A hero attempting to notice that a phrase has been faintly scratched into the stone at a height of 12 feet in High Kuric must make a moderate Intuition test. Both tests have the same outcomes.
+
+
+
+  |Summon the Door: Reason or Intuition Tests
+  |The hero fails to learn the correct passphrase.
+  |The hero learns the correct passphrase, but gets the intonation of the phrase wrong or signs part of the phrase incorrectly. The door appears, but the provider of the passphrase loses 1 Recovery as the tower saps some of the hero’s vitality.
+  |The hero learns the correct passphrase, and the door appears when it is spoken or signed by the hero.
+
+  The passphrase is, “Open the planes to my vision.”
+
+  ## Breaking In
+
+  If the heroes can’t figure the passphrase in this way, they have one last method of entering the tower: making their own door. The tower’s walls are 1 square thick, and each square section has 20 Stamina and is immune to poison and psychic damage. Whenever a creature damages a section of the tower, they take 1d6 psychic damage.}
+mtime: 1765832590333

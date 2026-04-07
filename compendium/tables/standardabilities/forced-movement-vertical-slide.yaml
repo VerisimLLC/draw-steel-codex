@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+targetFilter: "1"
+id: 82863cf6-ec8f-4035-952b-60c319a12b75
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+repeatTargets: false
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+targetType: anyspace
+ctime: 1747109697012
+persistence: []
+targeting: straightline
+description: ""
+name: "Forced Movement: Vertical Slide"
+forcedMovement: vertical_slide
+mtime: 1770264150149
+abilityType: none
+iconid: ui-icons/skills/1.png

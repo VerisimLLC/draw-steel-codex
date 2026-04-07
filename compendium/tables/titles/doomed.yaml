@@ -1,0 +1,53 @@
+__typeName: Title
+effect: You aren’t destined for a meaningful death, but you still might achieve one. When you’re reduced to 0 Stamina but remain conscious, you can become doomed. If you do, you can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+prerequisite: |-
+  You aren’t a hakaan but have witnessed the death
+  of a hakaan.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: You can become doomed. If you do, you can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 2a93378b-cf94-44c6-b494-9458c31f7ca8
+        numTargets: "1"
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 72c61a8d-23e2-4573-b505-19c2a2ba356b
+          ongoingEffectCustom: 72c61a8d-23e2-4573-b505-19c2a2ba356b
+        trigger: dying
+        name: Doomed
+        description: You can become doomed. If you do, you can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: You aren’t destined for a meaningful death, but you still might achieve one. When you’re reduced to 0 Stamina but remain conscious, you can become doomed. If you do, you can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+      source: Feat
+      behavior: trigger
+      guid: c44ede18-2877-4a5f-bd8a-0bb2fbd07f15
+      name: Doomed
+      sourceguid: d45bfe5f-76f5-41fb-9ce7-56528029a933
+    name: Doomed
+    description: You aren’t destined for a meaningful death, but you still might achieve one. When you’re reduced to 0 Stamina but remain conscious, you can become doomed. If you do, you can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+    guid: d45bfe5f-76f5-41fb-9ce7-56528029a933
+    canHavePrerequisites: true
+    source: Feat
+name: Doomed
+mtime: 1769646574921
+description: I don’t know what it meant, but when I watched her die, I saw a vision. I watched her die and saw my own death. Am I losing my mind?
+id: 9b669ef7-8955-4e68-b8d2-a4d64035ccb2
+ctime: 1762349506605

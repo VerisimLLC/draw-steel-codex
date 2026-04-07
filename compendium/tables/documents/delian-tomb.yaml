@@ -1,0 +1,68 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 09ffc404-e346-4b93-9bb7-4ede9f07bf14
+ctime: 1761388968086
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |+
+      See [Queen Bargnot's Plot].
+
+    n: |+
+      The [item:Delian Knight Commander's ring] is needed to unseal the third level (see [Tomb Third Level]). The ring is held by the [Gilded Hand] (see [B1. Feather Bed Inn]).
+
+    f: |+
+      This part uses the [Delian Tomb - Level 2] map
+
+    L: |+
+      # Part 2
+
+    b: |+
+      If the heroes talk to [Orson] (see [B9. Charcoal Burner]), they learn the amulet was taken during an arixx attack and could be recovered in the creature’s nest (see [Arixx Nest]).
+
+    j: |
+      ## Third Level
+    X: |
+      The heroes can uncover information in [Abbott Loric]’s library (see [B3. Church of Saint Gryffyn]) that says the [item:Amulet of the Delian Order] is needed to unseal the second level of the tomb (see [Tomb Second Level]).
+    H: |+
+      *Heroes who have the History skill can tell that the tomb was built long ago during the Caelian Empire, a dead civilization that stretched across the land that is now Dalrath, and that Delius is a proper name, likely the name of someone interred in the crypt.*
+
+
+    t: |+
+      ## Region Map
+
+    v: "[[/activateobject delian_tomb_region activate|Hide Delian Tomb]] [[/activateobject delian_tomb_region deactivate|Show Delian Tomb]]"
+    s: |2
+
+    T: |
+      ## Second Level
+    D: |+
+      # Delian Tomb
+
+    r: |+
+      This part uses the [Delian Tomb - Level 3] map
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: c509dca1-58d5-440e-b4b8-a403212b7395
+description: Delian Tomb
+content: |
+  # Delian Tomb
+
+  *Heroes who have the History skill can tell that the tomb was built long ago during the Caelian Empire, a dead civilization that stretched across the land that is now Dalrath, and that Delius is a proper name, likely the name of someone interred in the crypt.*
+
+
+  # Part 2
+
+  See [Queen Bargnot's Plot].
+
+  ## Second Level
+  The heroes can uncover information in [Abbott Loric]’s library (see [B3. Church of Saint Gryffyn]) that says the [Amulet of the Delian Order] is needed to unseal the second level of the tomb (see [Tomb Second Level]).
+  If the heroes talk to [Orson] (see [B9. Charcoal Burner]), they learn the amulet was taken during an arixx attack and could be recovered in the creature’s nest (see [Arixx Nest]).
+
+  This part uses the [Delian Tomb - Level 2] map
+
+  ## Third Level
+  The [Delian Knight Commander’s ring] is needed to unseal the third level (see [Tomb Third Level]). The ring is held by the [Gilded Hand] (see [B1. Feather Bed Inn]).
+
+  This part uses the [Delian Tomb - Level 3] map
+mtime: 1764326605663

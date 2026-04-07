@@ -1,0 +1,213 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: be649ee5-6060-4702-9d5d-fc2b94342274
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Smokebinder	Level 5 Platoon Ambusher
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 14
+        <b>Stamina</b> 70	<b>Immunity</b> fire 5
+        <b>Speed</b> 7 (fly, hover)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +1	Agility +3	Reason +2	Intuition +1	Presence 0
+        <b>Choking Bolt</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 fire damage
+        %E2%98%85	<b>12%E2%80%9316</b>	14 fire damage
+        %E2%9C%B8	<b>17</b>	17 fire damage; R<3 slowed (save ends)
+        <b>Effect</b> If the smokebinder had an edge on the power roll, the target cannot communicate with anyone until the end of their next turn.
+
+        <b>Smoke Bomb</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 3 Burst	<b>Target</b> All enemies in the burst
+        <b>Effect</b> Each target makes a <b>Might test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	11 damage; target has a double bane on their next power roll
+        %E2%98%85	<b>12%E2%80%9316</b>	9 damage; target has a bane on their next power roll
+        %E2%9C%A6	<b>17</b>	5 damage
+
+        <b>Essence of Smoke</b>
+        The smokebinder can move through other creatures and objects at normal speed. The smokebinder automatically hides at the end of their turn if they didn't take any damage since their last turn.
+
+        <b>Infernal Ichor</b>
+        If the smokebinder's Stamina drops to 0, they spray burning blood. Each creature within 1 of the smokebinder takes 3 fire damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b8de9cf1-8eb5-438b-8647-cf05230db499: true
+      modifiers: []
+      name: Essence of Smoke
+      description: The smokebinder can move through other creatures and objects at normal speed. The smokebinder automatically hides at the end of their turn if they didn't take any damage since their last turn.
+      guid: b8de9cf1-8eb5-438b-8647-cf05230db499
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:eb17a185-10ba-4f7c-81db-1b5ea3bb5455: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the smokebinder's Stamina drops to 0, they spray burning blood. Each creature within 1 of the smokebinder takes 3 fire damage.
+      guid: eb17a185-10ba-4f7c-81db-1b5ea3bb5455
+      source: Trait
+    role: Platoon Ambusher
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Hobgoblin Smokebinder
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 fire damage
+        - 14 fire damage
+        - 17 fire damage; R<3 slowed (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 7aed0b9a-3aa5-4f97-b205-e51fff922cae
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Choking Bolt
+      numTargets: 1
+      description: If the smokebinder had an edge on the power roll, the target cannot communicate with anyone until the end of their next turn.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 4983789d-f535-45d1-a5c6-3f79c1f3ee8c
+      abilityType: none
+      numTargets: 1
+      implementation: 0
+      name: Smoke Bomb
+      behaviors: []
+      description: Each target makes a Might test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds:
+      fly: 7
+    ev: 14
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: edee82da-f6e5-4baa-bdb2-34e7add731e5
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin Smokebinder
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590325852
+mtime: 1775201137032
+hidden: false

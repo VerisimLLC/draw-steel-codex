@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: one
+guid: bc169a75-6bbd-4c54-b9f0-35ba4daf21ed
+id: bc169a75-6bbd-4c54-b9f0-35ba4daf21ed
+ctime: 1757727439675
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Flung through Time
+description: ""
+custom: true
+mtime: 1757727439675
+iconid: ui-icons/skills/1.png

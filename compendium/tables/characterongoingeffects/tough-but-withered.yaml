@@ -1,0 +1,24 @@
+__typeName: CharacterOngoingEffect
+modifiers: []
+source: Ongoing Effect
+guid: 7e9991e4-1c55-4a55-8fd0-93bdc463c7b0
+id: 7e9991e4-1c55-4a55-8fd0-93bdc463c7b0
+ctime: 1711265739730
+domains:
+  CharacterOngoingEffect:7e9991e4-1c55-4a55-8fd0-93bdc463c7b0: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+custom: true
+condition: c95a5d2d-6069-4434-b5d4-29796ec90f51
+name: Tough But Withered
+description: When you take fire damage, your dry skin lights up, and you gain the on fire 5 condition.
+mtime: 1711607034540
+iconid: 3617c071-3c3d-4348-bcaf-f90a35e4ff62

@@ -1,0 +1,56 @@
+__typeName: ActivatedAbility
+id: 7891188c-3bba-4649-b533-4c73127d0add
+behaviors:
+- __typeName: ActivatedAbilityApplyAbilityDurationEffect
+  instant: false
+  momentaryEffect:
+    __typeName: CharacterOngoingEffect
+    modifiers:
+    - __typeName: CharacterModifier
+      operation: set
+      sourceguid: e74c1f88-6430-4e93-a9cd-28c607919709
+      source: Ongoing Effect
+      value: "<<targetid>>"
+      name: Compelled Movement
+      guid: 412285f2-5630-4562-9899-15aeb4376480
+      description: ""
+      behavior: attribute
+      attribute: 3b730c1c-2818-4876-b6d1-949969e04572
+    source: Ongoing Effect
+    guid: e74c1f88-6430-4e93-a9cd-28c607919709
+    id: e74c1f88-6430-4e93-a9cd-28c607919709
+    name: Compelled Movement
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: ""
+    implementation: 3
+    iconid: ui-icons/skills/1.png
+  name: Ability Duration Effect
+  lingerTime: 3
+  applyto: caster
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: da4e22fd-6861-4d19-95f8-395a71493df8
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: Use this to compel movement adjacent to creature with a specific ID.
+repeatTargets: false
+ctime: 1760750465217
+castImmediately: true
+persistence: []
+description: ""
+name: Compel Movement Adjacent
+targetType: self
+mtime: 1772970568700
+abilityType: none
+iconid: ui-icons/skills/1.png

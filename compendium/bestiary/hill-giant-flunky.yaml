@@ -1,0 +1,163 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 52ad0a23-10c9-4a6d-b78d-38dd69b9d03e
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Hill Giant Flunky	Level 7 Brute Minion
+        Giant, Hill Giant	EV 14
+        <b>Stamina</b> 15	<b>Immunity</b> damage 3
+        <b>Speed</b> 6 (climb)	<b>Size</b> 4 /<b> Stability</b> 5
+        <b>With Captain</b> Strike damage +4<b>Free Strike</b> 5
+        Might +4	Agility -1	Reason -1	Intuition -1	Presence -1
+        <b>Swing</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	8 damage
+        %E2%9C%B8	<b>17</b>	11 damage; grabbed
+        <b>Effect</b> The flunky can swing a grabbed creature or object as a part of this ability, dealing an additional 5 damage and releasing them prone adjacent to the target.
+
+        <b>Distracted</b>
+        Whenever the flunky targets a creature or object with an ability, the Director provides any enemy within range of the ability an opportunity to use a free triggered action to distract the flunky. The flunky targets that enemy instead.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c4831a13-6312-4c0e-b8dd-48cfc04ee109: true
+      modifiers: []
+      name: Distracted
+      description: Whenever the flunky targets a creature or object with an ability, the Director provides any enemy within range of the ability an opportunity to use a free triggered action to distract the flunky. The flunky targets that enemy instead.
+      guid: c4831a13-6312-4c0e-b8dd-48cfc04ee109
+      source: Trait
+    role: Brute Minion
+    keywords:
+      Giant: true
+      Hill: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: all
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Hill Giant Flunky
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    damage_taken: 0
+    max_hitpoints: 15
+    resources: []
+    traitNames:
+    - With Captain Strike damage +4
+    ev: 14
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 8 damage
+        - 11 damage; grabbed
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b2c684f4-d0db-4f9d-9f0a-b35a6ed18b2f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Swing
+      numTargets: 1
+      description: The flunky can swing a grabbed creature or object as a part of this ability, dealing an additional 5 damage and releasing them prone adjacent to the target.
+      abilityType: none
+      implementation: 3
+    monster_category: Monster
+    movementSpeeds:
+      climb: 6
+    levelChoices: []
+    minion: true
+    creatureSize: "4"
+    walkingSpeed: 6
+  tokenType: null
+  bestiaryId: 15a7ecc0-8aac-4877-8724-bed6d093d522
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hill Giant Flunky
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590221689
+mtime: 1775201137032
+hidden: false

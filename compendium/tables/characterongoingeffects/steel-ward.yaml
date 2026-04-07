@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 32283828-d434-4d99-8890-74244927924a
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: stacks
+    damageType: all
+    apply: Damage Reduction
+  description: 'Your ward reacts to danger, protecting your body from future harm. Whenever you take damage, the damage resolves and you then gain damage immunity equal to your Reason score until the end of your next turn. '
+  name: Steel Ward
+  guid: 66322537-6ad6-4de1-b7b3-d834d2f9bd59
+source: Ongoing Effect
+guid: 32283828-d434-4d99-8890-74244927924a
+id: 32283828-d434-4d99-8890-74244927924a
+ctime: 1743411883938
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Steel Ward
+description: 'Your ward reacts to danger, protecting your body from future harm. Whenever you take damage, the damage resolves and you then gain damage immunity equal to your Reason score until the end of your next turn. '
+custom: true
+mtime: 1749180539122
+iconid: ui-icons/skills/1.png

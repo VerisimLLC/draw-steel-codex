@@ -1,0 +1,69 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 62198121-58ce-4510-be4f-5b89639e0d17
+  source: Ongoing Effect
+  behavior: trigger
+  domains:
+    CharacterOngoingEffect:ed520399-81ab-433e-9463-926c7ca9291b: true
+    CharacterOngoingEffect:042b7151-4e61-47c6-af6c-d3803cd20048: true
+  name: Bone Shards
+  resourceRefreshType: turn
+  description: 2 Damage the first time they willingly move on their turn
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    usageLimitOptions:
+      resourceRefreshType: turn
+      charges: "1"
+      resourceid: 7289b328-cf33-435d-b4c8-27b18ed9607e
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: e3c1cb47-63af-42ea-bfca-73fd6c0d61d5
+    numTargets: "1"
+    conditionFormula: (not Path.forced) and Subject.Your Turn
+    domains:
+      CharacterOngoingEffect:ed520399-81ab-433e-9463-926c7ca9291b: true
+      CharacterOngoingEffect:042b7151-4e61-47c6-af6c-d3803cd20048: true
+    castImmediately: true
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "2"
+      chatMessage: Bone Shards
+    trigger: move
+    name: 2 Damage when moving
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 7289b328-cf33-435d-b4c8-27b18ed9607e
+source: Ongoing Effect
+guid: 62198121-58ce-4510-be4f-5b89639e0d17
+id: ed520399-81ab-433e-9463-926c7ca9291b
+ctime: 1757249458387
+domains:
+  CharacterOngoingEffect:ed520399-81ab-433e-9463-926c7ca9291b: true
+  CharacterOngoingEffect:042b7151-4e61-47c6-af6c-d3803cd20048: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.593207955360413
+    v: 0.987023115158081
+    a: 1
+endTrigger: custom
+mtime: 1767203832316
+description: 2 Damage the first time they willingly move on their turn
+name: Bone Shards
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd

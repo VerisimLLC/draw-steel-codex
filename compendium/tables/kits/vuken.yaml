@@ -1,0 +1,687 @@
+__typeName: Kit
+disengage: 1
+health: 9
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+id: 950de691-9884-4de6-afec-513645450cf5
+ctime: 1727319403732
+type: stormwight
+portraitid: "-MSvwZE3agl7z6ag0cn1"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 861645b1-cbf0-4b7c-b3fe-229339c7eaa8
+      modifyDescription: Whenever you use the Knockback maneuver, you can then use the Aid Attack maneuver as a free triggered action.
+      source: Vuken Kit Feature
+      filterAbility: Ability.name is Knockback
+      behavior: modifyability
+      attributes: []
+      guid: 3b6d63f4-3c8d-4936-9ef9-9f7f574432c9
+      description: Whenever you use the Knockback maneuver, you can then use the Aid Attack maneuver as a free triggered action.
+      name: Aspect Benefits
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 7a6c9d91-20ec-41d6-9be6-2ff732c27856
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          invokeOnCaster: true
+          customAbility:
+            __typeName: ActivatedAbility
+            repeatTargets: false
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            categorization: Hidden
+            range: 1
+            actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+            modifiers: []
+            strain: []
+            guid: 5734c3fe-d83b-4f87-a289-f068f473fd00
+            persistence: []
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+              modifier:
+                __typeName: CharacterModifier
+                cannotModifyAction: true
+                filterAbility: Ability.name is Aid Attack
+                behavior: modifyability
+                guid: 88641d02-c26d-4a1d-a9ae-25b6eb9546e8
+                attributes: []
+                source: ""
+                description: ""
+                name: Modify Attack
+                ability:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 05cd86b8-f773-4f7b-a359-b6e6fd4be9bd
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  abilityModification: true
+                  behaviors: []
+                  abilityType: none
+                  name: New Ability
+                  targetType: self
+                  description: ""
+                  range: 1
+                  iconid: ui-icons/skills/1.png
+            name: Invoked Ability
+            sourceReference:
+              __typeName: SourceReference
+              page: 160
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: custom
+          applyto: caster
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+    name: Aspect Benefits
+    description: Whenever you use the Knockback maneuver, you can then use the Aid Attack maneuver as a free triggered action.
+    guid: 861645b1-cbf0-4b7c-b3fe-229339c7eaa8
+    source: Vuken Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      guid: 1c83fce7-c4c5-4b56-b9c5-d00393eb0eb9
+      source: Vuken Kit Feature
+      behavior: activated
+      description: |-
+        **Animal Form: Wolf**
+        While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+        **Hybrid Form: Wolf**
+        While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      name: Wolf Form
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+          mode: effect
+          guid: a650f0fd-3a40-44a1-af50-90c7e7aaebea
+          conditions: []
+        - __typeName: ActivatedAbilityDisguiseBehavior
+          monsterType: a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54
+          mode: bestiary
+          appearanceName: Vuken Form
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          ongoingEffect: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+          ongoingEffectCustom: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 78d5d3cc-ecaf-4786-b109-556e89c998b1
+        targetType: self
+        castImmediately: true
+        domains: []
+        numTargets: "1"
+        sourceReference:
+          __typeName: SourceReference
+          page: 143
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        name: "Animal Form: Vuken"
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        description: |-
+          **Wolf:** While you are in your wolf form, your size is 1L, you have a +2 bonus to
+          speed, and you ignore difficult terrain.
+        abilityType: none
+        iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+    - __typeName: CharacterModifier
+      sourceguid: f6d87e3e-ebdd-46d1-8f51-e0b3b271a3d6
+      guid: ce531483-06d1-4d1b-ae5f-25ad35155c2d
+      source: Vuken Kit Feature
+      behavior: activated
+      description: |-
+        **Animal Form: Wolf**
+        While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+        **Hybrid Form: Wolf**
+        While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      name: Wolf Form
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+          mode: effect
+          guid: ea77428d-af05-487d-8812-941019c007ed
+          conditions: []
+        - __typeName: ActivatedAbilityDisguiseBehavior
+          monsterType: a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54
+          mode: bestiary
+          appearanceName: Hybrid Vuken Form
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          ongoingEffect: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+          ongoingEffectCustom: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+        - __typeName: ActivatedAbilityLimitBehavior
+          keyOverride: enter_hybrid_form
+          key: 981c8d97-6862-4828-bae5-653e8ccf7afa
+          refresh: encounter
+        - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+          stamina: "10"
+          filterTarget: Level >= 4
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          page: 143
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        modifiers: []
+        domains: []
+        strain: []
+        guid: 0a2369f2-b9c6-4093-9894-4825673551af
+        numTargets: "1"
+        iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+        castImmediately: true
+        targetType: self
+        categorization: Hidden
+        name: "Hybrid Form: Vuken"
+        persistence: []
+        description: "**Wolf:** While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina."
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      filterCondition: Ongoing Effect has "Vuken Form" or Ongoing Effects has "Hybrid Vuken Form"
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      description: |-
+        **Animal Form: Wolf**
+        While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+        **Hybrid Form: Wolf**
+        While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      source: Vuken Kit Feature
+      name: Bear Form
+      behavior: activated
+      guid: aadda5e8-22e7-4f49-976b-d3af456a69f2
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        targetType: self
+        multipleModes: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          page: 143
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        domains: []
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: 820333ae-fce7-445e-87d1-4e44231b3f8a
+        persistence: []
+        iconid: ui-icons/skills/1.png
+        castImmediately: true
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+          mode: effect
+          guid: 3855efb0-5d1b-4d0c-a916-c71fbbb26751
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+          mode: effect
+          guid: cefa1e81-4540-4ec4-b419-1539447eea8d
+          conditions: []
+        modeList:
+        - text: Do Not Change Form
+        - text: Wolf Form
+        - text: Hybrid Wolf Form
+        name: True Form
+        categorization: Hidden
+        description: ""
+        resourceCost: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      description: |-
+        **Animal Form: Wolf**
+        While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+        **Hybrid Form: Wolf**
+        While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      sourceguid: f6d87e3e-ebdd-46d1-8f51-e0b3b271a3d6
+      behavior: alternateappearance
+      name: Wolf Form
+      source: Vuken Kit Feature
+      guid: 46ae4eef-3dc2-4a09-b9c0-2620c56879a2
+      monsterDefault: a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54
+      appearance: Vuken Form
+    - __typeName: CharacterModifier
+      description: |-
+        **Animal Form: Wolf**
+        While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+        **Hybrid Form: Wolf**
+        While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      sourceguid: f6d87e3e-ebdd-46d1-8f51-e0b3b271a3d6
+      behavior: alternateappearance
+      name: Wolf Form
+      source: Vuken Kit Feature
+      guid: 3e55a127-496d-4012-8b3d-7cecb1ac50aa
+      monsterDefault: a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54
+      appearance: Hybrid Vuken Form
+    name: Wolf Form
+    description: |-
+      **Animal Form: Wolf**
+      While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+      **Hybrid Form: Wolf**
+      While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+    guid: f6d87e3e-ebdd-46d1-8f51-e0b3b271a3d6
+    source: Vuken Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+      modifyDescription: As a Vuken with 2 or more Ferocity you target an additional target with this ability.
+      source: Vuken Kit Feature
+      filterAbility: Heroic Resources This Turn >= 2 and ability.name = "Knockback"
+      behavior: modifyability
+      attributes:
+      - operation: Add
+        value: "1"
+        id: numtargets
+      guid: 0c36edbe-1490-4c60-9ccc-5bf17f98a715
+      description: ""
+      name: Vuken Growing Ferocity
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: fab577a9-98ca-4924-945a-620e8f7d922a
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+    - __typeName: CharacterModifier
+      sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+      source: Vuken Kit Feature
+      behavior: trigger
+      filterCondition: Heroic Resources This Turn >= 4
+      name: Vuken Growing Ferocity
+      resourceRefreshType: turn
+      description: ""
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityLimitBehavior
+          keyOverride: push_or_knock_down
+          key: 5fe7eaac-646b-49ba-9a2f-a92ba74f011d
+          applyto: caster
+          refresh: turn
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          chatMessage: "Growing Ferocity: Push or Knock Prone"
+          quantity: 2 when level >= 4 and Heroic Resources This Turn >= 8 else 1
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        usageLimitOptions:
+          resourceRefreshType: turn
+          charges: "1"
+          resourceid: 6338713d-4917-4f29-b82d-fa7a6b2e920e
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 9f681452-bbab-4ea9-b7fc-3794cca8dffe
+        persistence: []
+        conditionFormula: attacker = self and type = "push"
+        subject: other
+        targetType: self
+        trigger: forcemove
+        name: Vuken Growing Rage
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      guid: 6338713d-4917-4f29-b82d-fa7a6b2e920e
+    - __typeName: CharacterModifier
+      sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+      source: Vuken Kit Feature
+      behavior: trigger
+      filterCondition: Heroic Resources This Turn >= 4
+      name: Vuken Growing Ferocity
+      resourceRefreshType: turn
+      description: ""
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityLimitBehavior
+          keyOverride: push_or_knock_down
+          refresh: turn
+          guid: 5b109c5d-7a29-402e-b98b-8a2dc3ed7e33
+          key: 5fe7eaac-646b-49ba-9a2f-a92ba74f011d
+          applyto: caster
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          guid: 227f8cc3-01e1-4765-a179-d77bb6679618
+          quantity: 2 when level >= 4 and Heroic Resources This Turn >= 8 else 1
+          chatMessage: "Growing Ferocity: Push or Knock Prone"
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        usageLimitOptions:
+          resourceRefreshType: turn
+          charges: "1"
+          resourceid: acc9842a-9c86-4b0f-b08f-594417439c52
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 9874a9b4-d57a-4d01-b045-930bc88a65a2
+        persistence: []
+        conditionFormula: Condition = "Prone" and HasAttacker and Attacker = self
+        subject: other
+        targetType: self
+        trigger: inflictcondition
+        name: Vuken Growing Rage
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      guid: acc9842a-9c86-4b0f-b08f-594417439c52
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Vuken Kit Feature
+      behavior: power
+      keywords: []
+      activationCondition: false
+      modtype: edge
+      filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+      name: Vuken Growing Ferocity
+      rollType: test_power_roll
+      description: When you have 6 or more Ferocity, you gain an edge on Agility tests and the Knockback maneuver.
+      guid: ac4bbc83-0444-4143-a61d-99af626842bf
+      attribute: agl
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      displayCondition: ability.name = "Knockback"
+      source: Vuken Kit Feature
+      modtype: edge
+      keywords: []
+      activationCondition: "1"
+      filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+      name: Vuken Growing Ferocity
+      rollType: ability_power_roll
+      description: When you have 6 or more Ferocity, you gain an edge on Agility tests and the Knockback maneuver.
+      guid: 0c3f811d-accb-4ea6-85d9-b316fbf9e22e
+      behavior: power
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Vuken Kit Feature
+      behavior: power
+      keywords: []
+      activationCondition: false
+      modtype: double_edge
+      filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+      name: Vuken Growing Ferocity
+      rollType: test_power_roll
+      description: When you have 10 or more Ferocity, you gain a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      guid: d29c079e-3f20-4591-b55b-ab4ef44af200
+      attribute: agl
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      displayCondition: ability.name = "Knockback"
+      source: Vuken Kit Feature
+      modtype: double_edge
+      keywords: []
+      activationCondition: "1"
+      filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+      guid: 8229432a-12b2-4e7f-b512-02c7407e5135
+      name: Vuken Growing Ferocity
+      rollType: ability_power_roll
+      description: When you have 10 or more Ferocity, you gain a double edge on Agility tests and the Knockback maneuver.
+      behavior: power
+      attribute: all
+    - __typeName: CharacterModifier
+      filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      description: ""
+      source: Vuken Kit Feature
+      name: Vuken Growing Ferocity
+      behavior: trigger
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: ae447302-faac-4610-8843-40262637abd5
+        repeatTargets: false
+        trigger: useability
+        conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+        targetType: self
+        persistence: []
+        name: Vuken Growing Ferocity
+        behaviors:
+        - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+          stamina: "10"
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      guid: 48003312-81e1-4281-9f40-967dee35c0ea
+    - __typeName: CharacterModifier
+      sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+      source: Vuken Kit Feature
+      modtype: none
+      adjustments:
+      - type: push
+        value: Agility
+      - type: pull
+        value: Agility
+      - type: slide
+        value: Agility
+      keywords: []
+      activationCondition: false
+      behavior: power
+      name: Vuken Growing Ferocity
+      filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      description: |-
+        When you have 12 or more Ferocity, whenever you
+        make a power roll that imposes forced movement 
+        on a target, the forced movement distance gains a 
+        bonus equal to your Agility score.
+      rollType: ability_power_roll
+      guid: 2d601174-0912-482e-8c11-98038eedad95
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      progression:
+      - level: 0
+        description: Knockback targets an additional creature.
+        resources: 2
+        tooltip: Whenever you use the Knockback maneuver, you can target one additional creature.
+      - level: 0
+        description: When you push or knock a creature prone, you gain 1 surge (1/turn).
+        resources: 4
+        tooltip: The first time on a turn that you push a creature or knock a creature prone, you gain 1 surge.
+      - level: 0
+        description: Edge on Agility tests and Knockback.
+        resources: 6
+        tooltip: You gain an edge on Agility tests and the Knockback maneuver.
+      - level: 4
+        description: When you push or knock a creature prone, you gain 2 surges (1/turn).
+        resources: 8
+        tooltip: The first time on a turn that you push a creature or knock a creature prone, you gain 2 surges.
+      - level: 7
+        description: Edge on Agility tests and Knockback.
+        resources: 10
+        tooltip: You have a double edge on Agility tests and the Knockback maneuver.
+      - level: 10
+        description: When you use a heroic ability gain 10 temporary Stamina. Forced movement from power rolls +{Agility}.
+        resources: 12
+        tooltip: Whenever you use a heroic ability, you gain 10 temporary Stamina. Additionally, whenever you make a power roll that imposes forced movement  on a target, the forced movement distance gains a bonus equal to your Agility score.
+      source: Vuken Kit Feature
+      description: ""
+      guid: 5b5b0c51-0000-482e-ba45-e345d1625475
+      behavior: growingresources
+      name: Vuken Growing Ferocity
+    name: Vuken Growing Ferocity
+    description: ""
+    guid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+    source: Vuken Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Your primordial damage type is lightning.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: cf7ca5c1-d78d-41cd-b504-08536e8232dc
+      displayCondition: Ability.name is Visceral Roar or Ability.name is Deluge	
+      source: Vuken Kit Feature
+      guid: 0e218d57-d3a0-41a0-9caf-685f4006a944
+      keywords: []
+      activationCondition: "1"
+      damageTypeMappings:
+        untyped: lightning
+      rollType: ability_power_roll
+      modtype: none
+      description: Your primordial damage type is lightning.
+      behavior: power
+      name: "Primordial Storm: Lightning Storm"
+    source: Vuken Kit Feature
+    canHavePrerequisites: true
+    guid: d98871c6-bd99-4d3b-aede-edfa7bf32be8
+    name: "Primordial Storm: Lightning Storm"
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+      source: Vuken Kit Feature
+      behavior: resistance
+      filterCondition: Level >= 7
+      name: Elemental Form
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: Might*2 when Level < 10 else Might*3
+        damageType: lightning
+        apply: Damage Reduction
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      guid: 9817a60d-103f-4788-89f9-e451d78ff4da
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+    source: Vuken Kit Feature
+    guid: a13a8f96-6b5a-40dd-825e-a960b1b7e791
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+    canHavePrerequisites: true
+    classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+    description: |-
+      You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+      Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+    name: Elemental Form
+    implementation: 4
+name: Vuken
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Strike: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - '4 + M damage; A < weak, prone '
+    - 7 + M damage;  A < average, prone
+    - 9 + M damage; A < strong, prone
+    roll: 2d10 + Might
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: A wild assault forces your foe onto their back.
+  sourceReference:
+    __typeName: SourceReference
+    page: 145
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 29a4335d-881d-4569-8941-42693e36e049
+  categorization: Signature Ability
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  targetType: target
+  implementation: 4
+  name: Unbalancing Attack
+  numTargets: "1"
+  description: ""
+  abilityType: none
+  iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd
+mtime: 1773366636146
+description: With this stormwight kit, you channel your primordial ferocity into the form of a wolf, becoming a fleet-footed hunter. Vuken are tied to forests and open steppes, and this aspect is associated with the thunderstorm.
+speed: 2

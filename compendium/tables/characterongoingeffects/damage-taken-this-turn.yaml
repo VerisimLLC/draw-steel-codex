@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 8e2dc9f2-f9d6-4f43-ae0b-5a3ed6a30b86
+id: 8e2dc9f2-f9d6-4f43-ae0b-5a3ed6a30b86
+ctime: 1771245116823
+domains:
+  CharacterOngoingEffect:8e2dc9f2-f9d6-4f43-ae0b-5a3ed6a30b86: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Damage Taken This Turn
+statusEffect: false
+description: ""
+mtime: 1771247484614
+iconid: ui-icons/skills/1.png

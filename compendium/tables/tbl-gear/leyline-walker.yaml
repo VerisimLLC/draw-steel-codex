@@ -1,0 +1,20 @@
+__typeName: equipment
+id: 6da98719-1323-4e70-a786-dbd87047e7c2
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: Once per turn as a move action, you can spend any amount of your movement to instead teleport that distance.
+itemPrerequisite: A cutting from an ethereal tree that manifests in the mundane world only once a year
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Yllyric
+imbuePrereq: none
+name: Leyline Walker
+imbueTargetType: armor
+mtime: 1770779645670
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+imbueLevel: 9

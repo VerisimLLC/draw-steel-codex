@@ -1,0 +1,81 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: 086ded78-4592-447c-bcd5-135d7530f115
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Simmering Anger
+  range: 1
+  description: One wyvern in the encounter can make a free strike against each enemy adjacent to them.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: 6c7b1bc8-763e-4882-af8d-799e83ce6dbd
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Boiling Fury
+  range: 1
+  description: Until the end of the round, each wyvern in the encounter has a double edge on strikes and can use their signature ability instead of a free strike when making opportunity attacks.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  targetFilter: Enemy
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: f00185a2-daf0-4dd3-afea-3b14bd9ded37
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: inu
+    roll: 2d10 + Intuition
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - The target is taunted by the nearest creature or object (save ends). While the target is taunted this way, power rolls against them have a double edge.
+    - The target is taunted by the nearest creature or object (save ends).
+    - No effect.
+  name: Overflowing Rage
+  numTargets: "1"
+  description: Every wyvern’s anger fills the encounter map with a thick miasma of hatred. Each enemy in the encounter makes an Intuition test.
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762962327121
+name: Wyvern
+traits: []
+attacks: []
+id: ab7a9ca9-83a4-43ca-b9b1-43b420932892
+ctime: 1758525036404

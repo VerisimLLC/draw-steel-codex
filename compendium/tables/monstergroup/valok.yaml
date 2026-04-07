@@ -1,0 +1,71 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: bcb378fc-f1ff-46a7-b8c0-849188f1cb27
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Repeater
+  range: 1
+  description: One valok acting this turn takes an additional main action.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: ec4697aa-0e84-4471-8780-f357aca767ff
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: I Was Not Commanded to Wait
+  range: 1
+  description: At the end of each turn until the end of the round, one valok can either shift up to 2 squares or make a free strike.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "7"
+  strain: []
+  guid: d22c380b-20d9-424d-beae-18479f294b19
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Rapid Logic Overdrive
+  range: 1
+  description: Each valok in the encounter can end one effect on them that can be ended by a saving throw, and can move up to their speed (making use of the bonus below). Additionally, until the end of the encounter, all valok deal an extra 5 damage on strikes and gain a +5 bonus to speed. This feature can be activated multiples times, stacking the effects.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+mtime: 1762961494286
+name: Valok
+traits: []
+attacks: []
+id: 4be02076-a110-4dc3-85d3-144d9391430e
+ctime: 1758524999543

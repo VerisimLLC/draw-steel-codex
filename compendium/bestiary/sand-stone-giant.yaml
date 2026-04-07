@@ -1,0 +1,175 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 017c37e9-0680-4baa-8e00-45f2d19d5db5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 10
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Sand Stone Giant	Level 8 Minion Controller
+        Giant, Stone Giant	EV 10 for four minions
+        <b>Stamina</b> 14
+        <b>Speed</b> 7 (burrow)	<b>Size</b> 4 /<b> Stability</b> 10
+        <b>With Captain</b> Stamina +6<b>Free Strike</b> 3
+        Might +4	Agility +2	Reason 0	Intuition +3	Presence 0
+        <b>Buried in Sand</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike
+        <b>Distance</b> Melee 3<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage; slide 2
+        %E2%98%85	<b>12%E2%80%9316</b>	6 damage; slide 3; A>3 restrained (save ends)
+        %E2%9C%B8	<b>17</b>	8 damage; slide 4; A>4 restrained (save ends)
+
+        <b>Stone Steps</b>
+        The sand stone giant ignores difficult terrain.
+
+        <b>Stonebreaker Flesh</b>
+        Whenever an enemy gets a tier 1 result on a melee strike against the sand stone giant, they have a bane on all subsequent uses of that ability until the end of the encounter.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7b4e608c-9e9b-443b-a423-db7e26a57476: true
+      modifiers: []
+      name: Stone Steps
+      description: The sand stone giant ignores difficult terrain.
+      guid: 7b4e608c-9e9b-443b-a423-db7e26a57476
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6c89fc07-b7d4-45b7-b160-4c9587aa5225: true
+      modifiers: []
+      name: Stonebreaker Flesh
+      description: Whenever an enemy gets a tier 1 result on a melee strike against the sand stone giant, they have a bane on all subsequent uses of that ability until the end of the encounter.
+      guid: 6c89fc07-b7d4-45b7-b160-4c9587aa5225
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:df4c30c3-42c1-4958-ab1d-fe6f01744ba8: true
+      modifiers: []
+      name: Stone Swim
+      description: The sand stone giant can burrow through stone, but can't drag other creatures underground when they do so.
+      guid: df4c30c3-42c1-4958-ab1d-fe6f01744ba8
+      source: Trait
+    role: Minion Controller
+    keywords:
+      Stone Giant: true
+      Giant: true
+    max_hitpoints_roll: "14"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: Sand Stone Giant
+    max_hitpoints: 14
+    withCaptain: +6 bonus to Stamina
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    levelChoices: []
+    equipment: []
+    walkingSpeed: 7
+    traitNames: []
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Magic: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a93bed75-9438-4c8b-8ed5-16947eb7dc6e
+      implementation: 4
+      numTargets: 1
+      name: Buried in Sand
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; slide 2
+        - 6 damage; A<3 restrained (save ends); slide 3
+        - 8 damage; A<4 restrained (save ends); slide 4
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds:
+      burrow: 7
+    damage_taken: 0
+    minion: true
+    ev: 10
+    creatureSize: "4"
+  tokenType: null
+  bestiaryId: 166bf2de-bfa9-4487-9c2a-74dfd61d06a0
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Sand Stone Giant
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590222942
+mtime: 1775201137032
+hidden: false

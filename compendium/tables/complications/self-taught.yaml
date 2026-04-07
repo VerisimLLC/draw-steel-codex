@@ -1,0 +1,71 @@
+__typeName: CharacterComplication
+drawback: At the start of each of your turns during combat, you can forgo gaining your Heroic Resource until the start of your next turn. If you do, your strikes gain a damage bonus equal to your highest characteristic score until the start of your next turn.
+mtime: 1772146331343
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: At the start of each of your turns during combat, you can forgo gaining your Heroic Resource until the start of your next turn. If you do, your strikes gain a damage bonus equal to your highest characteristic score until the start of your next turn.
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: Forgo heroic resource gain at start of turn and gain a damage bonus equal to your highest characteristic until the end of your turn.
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 9019b8e8-453e-4e86-b1db-3401ef56e032
+        castImmediately: true
+        numTargets: "1"
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: f072c602-407d-42b9-839a-fb0d855e7404
+          filterTarget: ""
+          duration: 0
+          ongoingEffectCustom: f072c602-407d-42b9-839a-fb0d855e7404
+        - __typeName: ActivatedAbilityScriptBehavior
+          guid: 0987866f-e714-4103-8d2b-65ff42b9583e
+          filterTarget: ""
+          code: EventUtils.FireGlobalEvent("prestartturn", result)
+          name: PreTurnStart
+        trigger: prestartturn
+        name: Self-Taught
+        description: At the start of each of your turns during combat, you can forgo gaining your Heroic Resource until the start of your next turn. If you do, your strikes gain a damage bonus equal to your highest characteristic score until the start of your next turn.
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: At the start of each of your turns during combat, you can forgo gaining your Heroic Resource until the start of your next turn. If you do, your strikes gain a damage bonus equal to your highest characteristic score until the start of your next turn.
+      source: Feat
+      behavior: trigger
+      guid: bbaa4483-1be0-4bea-8d67-e385476f9e29
+      name: Self-Taught
+      sourceguid: 0dc8d972-ea63-45de-9a6b-4fe688325a0f
+    - __typeName: CharacterModifier
+      sourceguid: 0dc8d972-ea63-45de-9a6b-4fe688325a0f
+      guid: 1977fbb1-1fbb-4440-9ea2-8c14e3296a38
+      source: Feat
+      behavior: triggerdisplay
+      description: At the start of each of your turns during combat, you can forgo gaining your Heroic Resource until the start of your next turn. If you do, your strikes gain a damage bonus equal to your highest characteristic score until the start of your next turn.
+      name: Self-Taught
+      ability:
+        __typeName: TriggeredAbilityDisplay
+        guid: 786d8094-1cf5-4460-b7f3-c472f7a3c557
+        keywords: []
+    source: Feat
+    canHavePrerequisites: true
+    guid: 0dc8d972-ea63-45de-9a6b-4fe688325a0f
+    name: Self-Taught
+    implementation: 3
+name: Self-Taught
+ctime: 1755516930892
+description: While your peers were learning their trades in fancy schools, you honed your capabilities on the mean streets with nothing but your own instinct as a guide. What you lost in polish and tactical acumen, you now make up for in raw power.
+id: 98ea8988-0c8b-4e35-b517-ad47699b5f9d
+benefit: At the start of each of your turns during combat, you can forgo gaining your Heroic Resource until the start of your next turn. If you do, your strikes gain a damage bonus equal to your highest characteristic score until the start of your next turn.

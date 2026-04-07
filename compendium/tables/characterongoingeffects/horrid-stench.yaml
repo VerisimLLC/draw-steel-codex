@@ -1,0 +1,23 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+stackable: false
+id: 28831ef5-1f5f-4d11-9dcc-3b331f915347
+ctime: 1760529696447
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.206325829029083
+    s: 0.734649538993835
+    v: 0.496948152780533
+    a: 1
+guid: 28831ef5-1f5f-4d11-9dcc-3b331f915347
+name: Horrid Stench
+custom: true
+description: Any enemy who has three or more pitlings within 2 squares of them can’t regain Stamina.
+mtime: 1760529696447
+iconid: a3e35db5-3c79-491b-93f5-fe7678665e9d

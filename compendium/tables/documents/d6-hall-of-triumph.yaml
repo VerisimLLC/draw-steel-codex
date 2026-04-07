@@ -1,0 +1,129 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.749996032714844
+    identifier: false
+    halign: left
+    image: 77eba04e-24bb-4c08-81a5-83082efe2701
+id: 6e4880fc-2453-41cf-9b59-d464ee4d9181
+ctime: 1761691472213
+textStorage:
+  __typeName: TextStorage
+  sections:
+    x: |
+      Inside the secret compartment are two [item:Healing Potion]s and the left half of the Delian Shield, a half circle emblazoned with a sword.
+    u: |+
+      See [Encounter D6]
+
+    v: |
+      ## Loot
+    s: |
+      **3–4 Mistakes:** Four **specters** and eight **shades** arise with the **ghost**.
+    t: |
+      **5+ Mistakes:** Six **specters** and eight **shades** arise with the **ghost**.
+    q: |
+      If the heroes incorrectly equip the knights and try to open the plaque, a ghost arises in the room, with additional reinforcements depending on how many mistakes were made in the puzzle (these are not cumulative):
+    r: |
+      **1–2 Mistakes:** Four **specters** arise with the **ghost**.
+    o: |+
+      If it is turned and the knights are equipped incorrectly, a sinister laugh echoes through the tomb, and a voice speaks: “With the past forgot, Parthus the Bleak rises to fight once more!”
+
+
+    p: |+
+      ## Ghostly Encounter
+
+    m: |
+      The handle on the door of the plaque does not turn unless all the knights are equipped. If it is turned and all knights are equipped correctly, the plaque opens, revealing a compartment (see Loot). The heroes earn 1 Victory each.
+    n: |
+      [[/awardvp 1; objectcommand D6_door.Door opendoor; |Open The Compartment and Award Heroes 1 Victory]]
+    k: |
+      |Third	|Aeolias	|Spear	|Falcon Helm|
+    l: |+
+      |Fourth	|Septimus	|Axe	|Plumed Helm|
+
+    i: |
+      |First	|Cornelia	|Glaive	|Cowl|
+    j: |
+      |Second	|Portia	|Sword	|Lion Helm|
+    g: |
+      **Knight Configuration**
+    h: |
+      |Position	|Knight	|Weapon	|Headpiece|
+    e: "|{#As Tier 1, but the player can ask three questions.}\n \n\n"
+    f: |+
+      The correct configuration of the knights is as follows:
+
+    c: |
+      |{#The player can ask you the name, weapon, or headpiece of a single knight, which you answer honestly and their hero recalls.}
+    d: |
+      |{#As Tier 1, but the player can ask two questions.}
+    a: |
+      A hero can make an easy Reason test to try and recall additional details about this battle.
+    b: |
+      |Recall Battle Lore: Reason Test
+    F: |+
+      ## Puzzle of Triumph
+
+    Y: |
+      > * “The knight wielding a sword is also wearing a lion helm.
+    Z: |+
+      > * “The knight wielding a spear stood in front of the one with a plumed helm, but behind Cornelia.”
+
+    W: |
+      > * “Cornelia is wearing the cowl.
+    X: |
+      > * “Septimus was either second or last in the formation.
+    U: |
+      > * “Septimus is not wearing the lion helm.
+    V: |
+      > * “Aeolias stands in front of the knight wearing a plumed helm, but behind the knight with a sword.
+    S: |
+      > * “Should the past be forgot, so shall Parthus the Bleak rise once more.
+    T: |
+      > * “Four knights battled that day: Portia, the knight with an axe, the knight in a Falcon Helm, and the knight who stands first in the formation.
+    Q: |+
+      [Hall of Triumph] Handout in Handouts. If the players' characters are next to the compartment they can click on it to view the inscription as well:
+
+    R: |
+      > * “Remember well the tale of the knights noble, who in valiance slew Parthus the Bleak. Open not this door until they are properly equipped.
+    O: |+
+      * Plumed Helm
+
+    P: 'The plaque reads as follows, in Caelian and is available as the '
+    M: |
+      * Falcon Helm
+    N: |
+      * Lion Helm
+    K: |
+      * Sword
+    L: |
+      * Cowl
+    I: |
+      * Glaive
+    J: |
+      * Spear
+    G: |+
+      The four knights are Delian knights depicted in battle. The weapon rack contains the following items:
+
+    lZ: "[[image]]\n \n"
+    E: |+
+      > * “On the east end of the room is a large brass plaque with a handle and an inscription.”
+
+
+    nZ: |+
+      [[/objectcommand D6_door.Door closedoor; |Close The Compartment]]
+
+    C: |
+      > * “The corridor widens into a chamber dominated at its north side by a diorama of granite statues. Four knights stand, facing westward in single file, in battle stances. Though armored, they have nothing in their hands.”
+    D: |
+      > * “Against the south side of the chamber stands a rack of equipment.”
+    H: |
+      * Axe
+    B: |
+      # D6. Hall of Triumph
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: df8df780-7098-456d-a9f4-2438b593b85d
+mtime: 1764254619223
+content: "# D6. Hall of Triumph\n> * “The corridor widens into a chamber dominated at its north side by a diorama of granite statues. Four knights stand, facing westward in single file, in battle stances. Though armored, they have nothing in their hands.”\n> * “Against the south side of the chamber stands a rack of equipment.”\n> * “On the east end of the room is a large brass plaque with a handle and an inscription.”\n\n\n## Puzzle of Triumph\n\nThe four knights are Delian knights depicted in battle. The weapon rack contains the following items:\n\n* Axe\n* Glaive\n* Spear\n* Sword\n* Cowl\n* Falcon Helm\n* Lion Helm\n* Plumed Helm\n\nThe plaque reads as follows, in Caelian and is available as the\nHall of Triumph Handout in Handouts:\n> * “Remember well the tale of the knights noble, who in valiance slew Parthus the Bleak. Open not this door until they are properly equipped.\n> * “Should the past be forgot, so shall Parthus the Bleak rise once more.\n> * “Four knights battled that day: Portia, the knight with an axe, the knight in a Falcon Helm, and the knight who stands first in the formation.\n> * “Septimus is not wearing the lion helm.\n> * “Aeolias stands in front of the knight wearing a plumed helm, but behind the knight with a sword.\n> * “Cornelia is wearing the cowl.\n> * “Septimus was either second or last in the formation.\n> * “The knight wielding a sword is also wearing a lion helm.\n> * “The knight wielding a spear stood in front of the one with a plumed helm, but behind Cornelia.”\n\nA hero can make an easy Reason test to try and recall additional details about this battle.\n|Recall Battle Lore: Reason Test\n|{#The player can ask you the name, weapon, or headpiece of a single knight, which you answer honestly and their hero recalls.}\n|{#As Tier 1, but the player can ask two questions.}\n|{#As Tier 1, but the player can ask three questions.}\n \n\nThe correct configuration of the knights is as follows:\n\n**Knight Configuration**\n|Position	|Knight	|Weapon	|Headpiece|\n|First	|Cornelia	|Glaive	|Cowl|\n|Second	|Portia	|Sword	|Lion Helm|\n|Third	|Aeolias	|Spear	|Falcon Helm|\n|Fourth	|Septimus	|Axe	|Plumed Helm|\n\n\nThe handle on the door of the plaque does not turn unless all the knights are equipped. If it is turned and all knights are equipped correctly, the plaque opens, revealing a compartment (see Loot). The heroes earn 1 Victory each.\n[[/awardvp 1; objectcommand D6_door.Door opendoor; |Open The Compartment and Award Heroes 1 Victory]]\n\nIf it is turned and the knights are equipped incorrectly, a sinister laugh echoes through the tomb, and a voice speaks: “With the past forgot, Parthus the Bleak rises to fight once more!”\n\n\n## Ghostly Encounter\n\nIf the heroes incorrectly equip the knights and try to open the plaque, a ghost arises in the room, with additional reinforcements depending on how many mistakes were made in the puzzle (these are not cumulative):\n**1–2 Mistakes:** Four **specters** arise with the **ghost**.\n**3–4 Mistakes:** Four **specters** and eight **shades** arise with the **ghost**.\n**5+ Mistakes:** Six **specters** and eight **shades** arise with the **ghost**.\nSee [Encounter D6]\n\n## Loot\nInside the secret compartment are two [Healing Potions] (see Treasures in Handouts) and the left half of the Delian Shield, a half circle emblazoned with a sword.\n"
+description: D6. Hall of Triumph

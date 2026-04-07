@@ -1,0 +1,96 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 84ac2c01-68d5-47ca-b909-cc05ae2e98fe
+ctime: 1761396434506
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      |[ ]|9|||
+    W: |
+      |[ ]|8|||
+    q: |+
+      [Another Meeting With the Hand] has various events depending on the heroes actions & rolls.
+
+    U: |
+      |[ ]|7|[Wraith Raid]||
+    G: |2
+
+    S: |
+      |[ ]|6|||
+    t: |+
+      [Attack on Broadhurst] happens if the Jagged Edge or the heroes recover the Cup of Iulius, the heroes finish **three** respites, and don’t go to Castle Andreas.
+
+    Q: |
+      |[ ]|5|[Tavern Brawl]||
+    e: |
+      |[ ]|12|||
+    O: |
+      |[ ]|4|||
+    I: |
+      |[X]|-|Part 1|Make notes for yourself here|
+    M: |
+      |[ ]|3|||
+    n: |+
+      [Gilded Showdown] happens **one** respite after successfully stealing the ring (see [Grabbing the Ring])
+
+    k: |
+      Special:
+    L: |
+      |[ ]|2|||
+    i: |+
+      |[ ]|14|||
+
+
+    c: |
+      |[ ]|11|||
+    g: |
+      |[ ]|13|||
+    H: |
+      |Completed|Respite|Event|Notes|
+    E: |+
+      While the heroes go about their business in this part of the adventure, the villains don’t halt their plans. Track the number of respites the heroes finish to mark the passage of time and determine how far along their plans advance. Add more rows to the table if needed. 
+
+    F: |
+      Check [Events] to see the other ways these events could be triggered.
+    C: |+
+      # Respite Tracker
+
+    w: 'Depending on how many respites pass after [Queen Bargnot] recieves the cup, the encounters in [Part 3 The Jagged Edge] change. '
+    a: |
+      |[ ]|10|[Full Moon]||
+    K: |
+      |[ ]|1|||
+parentFolder: e6b4a7b2-2da3-43ab-8d33-d322af63ffc5
+updateid: 00807942-3759-434e-b182-9ad81c4cba3c
+description: Respite Tracker
+content: |-
+  # Respite Tracker
+
+  While the heroes go about their business in this part of the adventure, the villains don’t halt their plans. Track the number of respites the heroes finish to mark the passage of time and determine how far along their plans advance. Add more rows to the table if needed. 
+
+  Check [Events] to see the other ways these events could be triggered.
+
+  |Respite|Event|Completed|Notes|
+  |-|Part 1|X|Make notes for yourself here|
+  |1||||
+  |2||||
+  |3||||
+  |4||||
+  |5|[Tavern Brawl]|||
+  |6||||
+  |7|[Wraith Raid]|||
+  |8||||
+  |9||||
+  |10|[Full Moon]|||
+  |11||||
+  |12||||
+
+
+  Special:
+  [Gilded Showdown] happens **one** respite after successfully stealing the ring (see [Grabbing the Ring])
+
+  [Another Meeting With the Hand] has various events depending on the heroes actions & rolls.
+
+  [Attack on Broadhurst] happens if the Jagged Edge or the heroes recover the Cup of Iulius, the heroes finish **three** respites, and don’t go to Castle Andreas.
+mtime: 1764022170221

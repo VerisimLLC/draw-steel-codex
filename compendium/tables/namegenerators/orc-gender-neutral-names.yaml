@@ -1,0 +1,49 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 2aefd5de-eff7-47ba-90a0-d6ef9d410caf
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dorokor
+- __typeName: RollTableRow
+  id: 1554d49f-9f79-404b-a9f4-204a8bd9febc
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gorovik
+- __typeName: RollTableRow
+  id: 53662743-c65e-47af-a303-917d0559d931
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Khettovek
+- __typeName: RollTableRow
+  id: 7b1fa58e-1a82-47bd-a987-ed01a9f5d58f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Meadior
+- __typeName: RollTableRow
+  id: 8a97ffe9-b5bd-4efc-859e-fd04eacbff89
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Orosk
+id: b65edd8f-0419-43d7-a6df-a2f01b85beb9
+name: Orc Gender Neutral Names
+subtable: true
+mtime: 1743455467972
+items: false
+ctime: 1743445830273

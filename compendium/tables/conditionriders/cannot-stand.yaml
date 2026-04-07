@@ -1,0 +1,33 @@
+__typeName: ConditionRider
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 08302814-dac1-4334-95df-3b2b6db6c5a3
+  sourceguid: 760cf637-4f7c-42e5-9153-835111c9d87c
+  value: 1
+  source: Ongoing Effect
+  name: Cannot Stand
+  behavior: attribute
+  description: This creature cannot stand up.
+  attribute: 207ef4f5-948b-44b1-b3c8-feae6b14e5ce
+source: Ongoing Effect
+guid: 760cf637-4f7c-42e5-9153-835111c9d87c
+id: 760cf637-4f7c-42e5-9153-835111c9d87c
+ctime: 1742700631107
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00208115577698
+    v: 1.00238573551178
+    a: 1
+removeThisInsteadOfCondition: true
+showAsMenuOption: true
+name: Cannot Stand
+condition: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+description: This creature cannot stand up.
+mtime: 1753047884177
+iconid: 4ed2da23-daf5-416c-bbc2-4e826483a00a

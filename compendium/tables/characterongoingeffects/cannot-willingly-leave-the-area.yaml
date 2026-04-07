@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 013b20de-9be9-4d61-a49b-e75af2e5d19d
+id: 013b20de-9be9-4d61-a49b-e75af2e5d19d
+ctime: 1772975047466
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Cannot willingly leave the area
+description: ""
+custom: true
+mtime: 1772975047466
+iconid: ui-icons/skills/1.png

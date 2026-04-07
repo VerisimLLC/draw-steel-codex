@@ -1,0 +1,329 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Specialist Lore
+    numChoices: 1
+    guid: 25be0e40-7825-4a05-b07b-39ad69753af5
+    description: Select one skill from the lore group
+    options:
+    - __typeName: CharacterFeature
+      guid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: false
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - 80526c1a-3cfd-40dc-9065-eb840df8601d
+      source: Feat
+      name: Criminal Underworld
+      description: Knowing about criminal organizations, their crimes, their relationships, and their leaders
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: 80526c1a-3cfd-40dc-9065-eb840df8601d
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 45e4c0fc-4c5e-4d29-b5a5-a1f3c9995923
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: false
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - 61709a09-1a95-4726-b722-c40639cae405
+      source: Feat
+      name: Culture
+      description: Knowing about a culture’s customs, folktales, and taboos
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: 61709a09-1a95-4726-b722-c40639cae405
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 241cf180-9a43-46f8-b8c8-3a7dc4a5db5b
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: false
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - 0df23459-ab2f-4659-8a2d-ae5820dc889f
+      source: Feat
+      name: History
+      description: Knowing about significant past events
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: 0df23459-ab2f-4659-8a2d-ae5820dc889f
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 6bab84a2-b1f7-4666-b914-ab3c767c2e85
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: false
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - 57101165-410a-4734-98ee-d4e5b656d3df
+      source: Feat
+      name: Magic
+      description: Knowing about magical places, spells, rituals, items, and phenomena
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: 57101165-410a-4734-98ee-d4e5b656d3df
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: d79cece8-5590-45ae-af67-b78d6b3f3233
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: false
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+      source: Feat
+      name: Monsters
+      description: Knowing monster ecology, strengths, and weaknesses
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 91f82c5e-c2ab-4e97-9230-528b0833d99e
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: false
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - f15f5445-666a-4ea9-bdf3-fbed284bae85
+      source: Feat
+      name: Nature
+      description: Knowing about natural flora, fauna, and weather
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: f15f5445-666a-4ea9-bdf3-fbed284bae85
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: acfcbb83-9e3a-427c-bec6-04acf61561c2
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: true
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+      source: Feat
+      name: Psionics
+      description: Knowing about psionic places, spells, rituals, items, and phenomena
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 7380b5c4-7094-46f6-b52c-61055d67c8e4
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: true
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - afd26a9a-22e2-4341-b171-f7e3182c8744
+      source: Feat
+      name: Religion
+      description: Knowing about religious mythology, practices, and rituals
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: afd26a9a-22e2-4341-b171-f7e3182c8744
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 13d5622a-eb81-4299-9298-b76f4a7d8aff
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: true
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - f014760c-c987-4436-81ba-5e6acfdf6905
+      source: Feat
+      name: Rumors
+      description: Knowing gossip, legends, and uncertain truths
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: f014760c-c987-4436-81ba-5e6acfdf6905
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 1889a3e1-edd1-456f-8a98-9deb60448d92
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: true
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+      source: Feat
+      name: Society
+      description: Knowing noble etiquette and the leadership and power dynamics of noble families
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 8112ff43-fdd0-4122-92d7-dd4c33102308
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: true
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - 1c837bdc-17cc-4c7a-9814-f2f8b92cf55a
+      source: Feat
+      name: Strategy
+      description: Knowing about battle tactics and logistics
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: 1c837bdc-17cc-4c7a-9814-f2f8b92cf55a
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 605374a1-b955-42a2-83d7-62619522b9f7
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        source: Feat
+        modtype: double_edge
+        keywords: []
+        activationCondition: true
+        guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+        name: Specialist
+        behavior: power
+        description: You always have a double edge on tests made to recall lore using this skill.
+        rollType: test_power_roll
+        skills:
+        - 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+      source: Feat
+      name: Timescape
+      description: Knowing about the many worlds of the timescape
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+        skill: 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+      implementation: 3
+tag: Lore Perks
+name: Specialist
+description: You are a leading expert on a particular subject. Choose one skill you have from the lore skill group. You always have a double edge on tests made to recall lore using this skill. Additionally, your specialist knowledge grants you notoriety in fields related to the chosen skill. You treat your Renown as 1 higher when negotiating with an NPC who knows your reputation, or 2 higher if they have the same skill you chose for this perk.
+mtime: 1772154031588
+id: 69890029-0f6e-4783-8c76-f96cfd36b756
+ctime: 1754890007544

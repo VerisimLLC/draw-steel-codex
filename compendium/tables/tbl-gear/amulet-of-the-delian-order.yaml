@@ -1,0 +1,79 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 7efcad0d-b54f-4ef3-9129-b956cc28ec5a
+  modifiers:
+  - __typeName: CharacterModifier
+    behavior: attribute
+    sourceguid: 7efcad0d-b54f-4ef3-9129-b956cc28ec5a
+    name: Amulet of the Delian Order
+    source: Item
+    description: ""
+    value: 1
+    guid: f8d72731-7e08-45ea-a03b-3ae25305823b
+    attribute: 34e099f4-afe1-4b99-abd0-8784cac7f857
+  name: Amulet of the Delian Order
+  description: ""
+  addText: Add Magical Property
+  itemAttached: true
+  source: Item
+- __typeName: CharacterFeature
+  guid: 66ccd999-c61f-4cf4-a563-71dfb1e29f9b
+  name: Amulet of the Delian Order
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 66ccd999-c61f-4cf4-a563-71dfb1e29f9b
+    behavior: activated
+    source: Item
+    name: Amulet of the Delian Order
+    description: While wearing the amulet, you can dispel the ward on the first level of the Delian Tomb as a main action while you are adjacent to it.
+    guid: fbda45e5-cf3c-4eaf-a4fe-86271d266fd0
+    activatedAbility:
+      __typeName: ActivatedAbility
+      abilityType: none
+      persistence: []
+      modifiers: []
+      name: Amulet of the Delian Order
+      strain: []
+      guid: 6844bad1-5e38-4b44-888a-6aa83fac753e
+      repeatTargets: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      domains: []
+      targetType: self
+      numTargets: "1"
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      behaviors: []
+      description: "While wearing the amulet, you can dispel the ward on the first level of the Delian Tomb as a main action while you are adjacent to it.\v{This ability is informational}"
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Item
+  addText: Add Magical Property
+  description: While wearing the amulet, you can dispel the ward on the first level of the Delian Tomb as a main action while you are adjacent to it.
+  itemAttached: true
+  implementation: 2
+itemPrerequisite: A ray of sunlight captured in a crystal jar
+keywords:
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: This large brass amulet is shaped to look like a shining sun.
+weight: 1
+category: Gear
+specialDescription: ""
+hiddenFromPlayers: false
+id: c2367bde-6893-46ac-ac01-e9d6fd28b4d8
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+projectGoal: "150"
+type: Gear
+ctime: 1760182842390
+name: Amulet of the Delian Order
+mtime: 1763393496304
+description: While you wear this amulet, you gain a +1 bonus to saving throws. Additionally, while wearing the amulet, you can dispel the ward on the first level of the Delian Tomb as a main action while you are adjacent to it.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 099cfab0-a06d-4510-8237-0d545bbb9b00

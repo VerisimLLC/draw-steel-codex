@@ -1,0 +1,191 @@
+__typeName: MarkdownDocument
+annotations:
+  "encounter: D":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: D7":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-19,-3,1"
+        invisibleToPlayers:
+        - false
+        monsters:
+          8184dec3-6996-40fa-ac2e-963fcc88112e: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-21,-1,1"
+        - __usertype: LuaLoc
+          loc: "-20,-2,1"
+        - __usertype: LuaLoc
+          loc: "-20,-1,1"
+        - __usertype: LuaLoc
+          loc: "-21,0,1"
+        - __usertype: LuaLoc
+          loc: "-19,-1,1"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          1f720515-3604-4c45-b58f-9ae58328669d: 4
+          eb1dd295-16cf-4e44-9e1b-622c0c029297: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-16,-1,1"
+        - __usertype: LuaLoc
+          loc: "-14,-1,1"
+        - __usertype: LuaLoc
+          loc: "-15,-1,1"
+        - __usertype: LuaLoc
+          loc: "-13,-1,1"
+        - __usertype: LuaLoc
+          loc: "-14,-2,1"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          1f720515-3604-4c45-b58f-9ae58328669d: 4
+          eb1dd295-16cf-4e44-9e1b-622c0c029297: 1
+      - appearances:
+        - false
+        - false
+        monsters:
+          602ac1db-482d-47f1-998a-59e6da0c0128: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-14,0,1"
+        - __usertype: LuaLoc
+          loc: "-13,0,1"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 4
+      - appearances:
+        - false
+        - false
+        monsters:
+          602ac1db-482d-47f1-998a-59e6da0c0128: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-20,0,1"
+        - __usertype: LuaLoc
+          loc: "-22,-1,1"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 5
+      - appearances:
+        - false
+        - false
+        monsters:
+          602ac1db-482d-47f1-998a-59e6da0c0128: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-16,0,1"
+        - __usertype: LuaLoc
+          loc: "-15,0,1"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 6
+      name: Encounter D7
+id: 4d6a54ab-e60a-4986-adcd-439cebfee762
+ctime: 1761691611859
+textStorage:
+  __typeName: TextStorage
+  sections:
+    EF: |+
+      [[/activateobjects d7_wall activate|Show North Walls]][[/activateobjects d7_wall deactivate|Hide North Walls]] 
+
+    Y: |
+      **Encounter Adjustments**
+    W: "|5|Two [skeleton]s|\n \n"
+    U: |
+      |4|Two [skeleton]s|
+    S: |
+      |3|One [soulwight] (captain),Four [decrepit skeleton]s (minion squad)|
+    t: |
+      If the wallmaster and both soulwights are defeated, the remaining creatures crumble. Alternatively, if all heroes exit this room, the monsters don't pursue them. Leaving the room with the right half of the Delian Shield earns the heroes 1 Victory each.
+    Q: |
+      |2|One [soulwight] (captain), Four [decrepit skeleton]s (minion squad)|
+    w: |
+      [[/awardvp 1|Award Heroes 1 Victory]]
+    O: |
+      |1|One [wallmaster]|
+    q: |+
+      ## Ending the Encounter
+
+    M: |
+      |Group|Creatures|
+    FZ: |+
+      [[/activateobjects E7_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    K: |
+      **D7 Groups**
+    n: |+
+      If the heroes approach the altar, the wallmaster opens the walls and ambushes the party. The skeletons pepper the heroes with arrows to bait them to enter the niches, where the wallmaster can trap them away from the rest of the party. Meanwhile, the two soulwights move to guard the door out. If it looks like the heroes are going to make a break for it with the shield half, the wallmaster tries to block the exit as quickly as possible.
+
+
+    I: |+
+      [[encounter: D7]]
+
+    k: |+
+      ## Tactics
+
+    G: |+
+      [[setting:numheroes]]
+
+    h: |+
+      * For three heroes, remove all four skeletons.
+
+
+    E: |+
+      The heroes battle ruinborn and undead in the Hall of Regret.
+
+    e: |
+      * For four heroes, remove two skeletons.
+    C: |+
+      # Encounter D7
+
+    c: |
+      * For six heroes, add two skeletons.
+    a: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    EM: "[[/activateobjects E7_start.AreaTemplate activate|Show Hero Start Area]] "
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: 65582dcc-41fd-4128-b1a7-34253d72ddd5
+mtime: 1769092758670
+content: "# Encounter D7\n\nThe heroes battle ruinborn and undead in the Hall of Regret.\n\n[[setting:numheroes]]\n\n[[encounter: D7]]\n\n**D7 Groups**\n|Group	|Creatures|\n|1|One wallmaster|\n|2|One soulwight (captain), Four decrepit skeletons (minion squad)|\n|3|One soulwight (captain),Four decrepit skeletons (minion squad)|\n|4|Two skeletons|\n|5|Two skeletons|\n \n**Encounter Adjustments**\nIf this encounter has more or fewer than five heroes, make the following adjustments:\n* For six heroes, add two skeletons.\n* For four heroes, remove two skeletons.\n* For three heroes, remove all four skeletons.\n\n\n## Tactics\n\nIf the heroes approach the altar, the wallmaster opens the walls and ambushes the party. The skeletons pepper the heroes with arrows to bait them to enter the niches, where the wallmaster can trap them away from the rest of the party. Meanwhile, the two soulwights move to guard the door out. If it looks like the heroes are going to make a break for it with the shield half, the wallmaster tries to block the exit as quickly as possible.\n\n\n## Ending the Encounter\n\nIf the wallmaster and both soulwights are defeated, the remaining creatures crumble. Alternatively, if all heroes exit this room, the monsters don't pursue them. Leaving the room with the right half of the Delian Shield earns the heroes 1 Victory each.\n[[/awardvp 1|Award Heroes 1 Victory]]\n"
+description: Encounter D7

@@ -1,0 +1,575 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1213eb49-5f6e-411c-a99a-4b7c71a2cf4e
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    creatureSize: 1M
+    levelChoices: []
+    deathSavingThrowFailures: 0
+    damageEntries:
+      518e0be7-ec69-46c2-82ac-c6c831a46008:
+        id: 518e0be7-ec69-46c2-82ac-c6c831a46008
+        heal: 15
+      6a57cbe6-e836-4149-a252-6906e0b28a44:
+        damage: 15
+        id: 6a57cbe6-e836-4149-a252-6906e0b28a44
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        478e21a8-1b32-4484-a439-7f1b90f4a894:
+          disposition: bad
+          note: 15 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        c6dc56fe-9b45-4f59-ae93-4d6a5e6ee742:
+          disposition: bad
+          note: 15 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        dba830c2-f52b-4c96-a05d-ee0924c59c76:
+          disposition: good
+          note: 15 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        4bdee185-f76b-47ad-986b-bc9ebb896ba2:
+          disposition: bad
+          note: 15 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        8d7411a4-faa0-4fc8-88e9-0229f1308b80:
+          disposition: bad
+          note: 15 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        c6ece243-dba7-4ed1-9a96-2f13634390fc:
+          disposition: good
+          note: 15 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        bfce5d67-f1db-49f5-9144-6b4a9ed5d869:
+          disposition: good
+          note: 15 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        893b3a5b-349e-4183-98ac-c3497a082c9d:
+          disposition: good
+          note: 15 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Gnoll Abyssal Archer	Level 2 Horde Artillery
+        Abyssal, Gnoll	EV 4
+        <b>Stamina</b> 15
+        <b>Speed </b>5	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 3
+        Might 0	Agility +2	Reason +1	Intuition 0	Presence -1
+        <b>Dark Longbow</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10	<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 corruption damage
+        %E2%98%85	<b>12%E2%80%9316</b>	6 corruption damage
+        %E2%9C%B8	<b>17</b>	8 corruption damage; M<2 slowed (save ends)
+        <b>Effect</b> This ability has an edge against creatures not at full Stamina.
+
+        <b>Cackletongue</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self and 2 burst	<b>Target</b> Self and all allies
+        <b>Effect</b> Each target has an edge on their next strike before the end of their next turn. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+
+        <b>Death Frenzy</b>
+        Whenever a non-minion ally within 5 is reduced to 0 Stamina, the abyssal archer moves up to their speed and makes a free strike.
+
+        <b>Bloodscent</b>
+        The abyssal archer can target creatures not at full Stamina with abilities, even if they don't have line of effect.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8ad8169f-2532-4e16-a3b3-c1ce4cf17a50: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:8ad8169f-2532-4e16-a3b3-c1ce4cf17a50: true
+        sourceguid: 8ad8169f-2532-4e16-a3b3-c1ce4cf17a50
+        behavior: trigger
+        source: Trait
+        name: Distant Death Frenzy
+        description: Whenever a non-minion ally within 5 squares of the abyssal archer is reduced to 0 Stamina, the abyssal archer can make a ranged free strike.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Make a ranged free strike
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "5"
+          strain: []
+          guid: 3bfd3ba3-0dc8-43c3-8c21-9f3c01a9fec7
+          persistence: []
+          castImmediately: true
+          abilityType: none
+          trigger: zerohitpoints
+          name: Distant Death Frenzy
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            runOnController: true
+            promptText: Make a ranged free strike
+            standardAbility: 0ca5fc04-6068-4f47-b5c6-936d3a595f24
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 77979ab1-71ba-48ce-8f9c-7a1df3f93413
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 446b61a4-722c-437d-8b36-c54a085eaa77
+      source: Trait
+      description: Whenever a non-minion ally within 5 squares of the abyssal archer is reduced to 0 Stamina, the abyssal archer can make a ranged free strike.
+      guid: 8ad8169f-2532-4e16-a3b3-c1ce4cf17a50
+      name: Distant Death Frenzy
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:490a29f6-0096-4118-9d4b-72223a122910: true
+      modifiers: []
+      name: Bloodscent
+      description: The abyssal archer doesn't need line of effect to use their abilities against any creature who isn't at full Stamina, as long as a size 1 opening exists between the archer and the target.
+      guid: 490a29f6-0096-4118-9d4b-72223a122910
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+        sourceguid: 1973bc9c-2c26-497e-be94-a73fba966ef2
+        behavior: trigger
+        source: Character Feature
+        name: Cackletongue Trigger
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Use Archer's Cackletongue at no cost
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 86ea5a17-9ca4-45e5-bbbe-b019b4b2e046
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 36940624-3907-4780-877e-8366bb26e624
+              repeatTargets: false
+              abilityType: none
+              persistence: []
+              targetType: self
+              categorization: Hidden
+              name: Use Cackletongue
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Name = "Archer's Cackletongue"
+                  behavior: modifyability
+                  guid: d5f4351b-d59b-464f-8081-999dd3ba0737
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 2fd2c65b-c931-4b2b-9b19-e0740bd797d7
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            namedAbility: Archer's Cackletongue
+            abilityType: custom
+            runOnController: true
+          trigger: custom
+          name: Cackletongue
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 13a98295-b140-42e5-839e-edeafb8748bc
+      name: Cackletongue Trigger
+      description: ""
+      guid: 1973bc9c-2c26-497e-be94-a73fba966ef2
+      source: Character Feature
+    role: Horde Artillery
+    opportunityAttack: 3
+    equipment: []
+    titles: []
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+    ongoingEffects: []
+    skillRatings: []
+    resistances: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 15
+    initiativeGrouping: 0cd1514a-9ef9-4ad9-b994-21c0d5ac0b84
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        c1cd2360-a94c-4758-9733-0441244a163c:
+          note: Dark Longbow
+          abilityid: 7301d6e8-0f77-438f-a7c5-41cc0e49ef0b
+          refreshid: 89d242f1-5ebf-416c-ba89-fc429adc5a7c
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        a7fe2bf1-cffd-4624-8095-54183c72376e:
+          note: Ranged Free Strike
+          abilityid: 8c0c9118-1554-4b79-9bf6-64352c89f71a
+          refreshid: c9f8cff8-d4a6-4455-9d68-9e9f075f5a3b
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        c311aeec-f943-484f-a1f1-6a5ad4e94c23:
+          set: 1/1
+          note: Ranged Free Strike
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 8c0c9118-1554-4b79-9bf6-64352c89f71a
+        e2d9ef92-21c3-40e6-8547-c62cfe900584:
+          note: Ranged Free Strike
+          abilityid: 8c0c9118-1554-4b79-9bf6-64352c89f71a
+          refreshid: 1ef83bf2-c71b-4fde-ac63-8b323b9f947f
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: 3c08a839-a364-456a-a1d1-5b13f3e1c263-252
+    availableTriggers:
+      2505ccc5-576f-4822-9e4d-4b1cec358d85:
+        __typeName: ActiveTrigger
+        text: Distant Death Frenzy
+        rules: Make a ranged free strike
+        clearOnDismiss: true
+        id: 2505ccc5-576f-4822-9e4d-4b1cec358d85
+        targets: []
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    damage_taken: 0
+    ev: 4
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+        used: 1
+    walkingSpeed: 5
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 corruption damage
+        - 6 corruption damage
+        - 8 corruption damage; M<2 slowed (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 27986183-62c3-42f9-981e-6f6a37d4a0a3
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 27986183-62c3-42f9-981e-6f6a37d4a0a3
+          modtype: edge
+          keywords: []
+          activationCondition: target.Stamina < target.Maximum Stamina
+          guid: e81fca58-f4b1-4ff9-8239-5dfe37fefabb
+          rollType: ability_power_roll
+          domains: []
+          description: Target not at full stamina
+          name: Target not at full stamina
+          behavior: power
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 7301d6e8-0f77-438f-a7c5-41cc0e49ef0b
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 155
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      targetType: target
+      implementation: 4
+      name: Dark Longbow
+      persistence: []
+      description: This ability gains an edge against any target not at full Stamina.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        duration: endround
+        ongoingEffectCustom: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: a9ef06ef-c643-4316-a177-b9f45291461e
+        duration: end_of_next_turn
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityCustomTriggerBehavior
+        filterTarget: not Ongoing Effects has "Used Cackletongue"
+        value: ""
+        triggerName: Cackletongue
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: true
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: b20efafe-55f6-4ebb-963d-d25cbb85ad23
+      numTargets: 1
+      selfTarget: true
+      sourceReference:
+        __typeName: SourceReference
+        page: 155
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      targetType: all
+      implementation: 3
+      name: Archer's Cackletongue
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: Each target has an edge on their next strike before the end of their next turn. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    equipmentMeta:
+      offhand0: []
+    movementSpeeds: []
+    abilityUses:
+      CackletongueLimit:
+        refreshid: d0fc66df-541d-4569-85f7-c2ee9cefccbc-1
+      Cackletongue Limit:
+        refreshid: d0fc66df-541d-4569-85f7-c2ee9cefccbc-1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        07ae0335-b922-4ab1-be9e-e696fdc2deae:
+          set: 1/1
+          note: Archer's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: b20efafe-55f6-4ebb-963d-d25cbb85ad23
+        c8577189-abbe-442d-9148-4c3fba95b891:
+          set: 1/1
+          note: Archer's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: b20efafe-55f6-4ebb-963d-d25cbb85ad23
+        bdb176ea-fd9f-4826-af63-ed17c9876be6:
+          note: Archer's Cackletongue
+          abilityid: b20efafe-55f6-4ebb-963d-d25cbb85ad23
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        48e9b75d-28c3-4c4b-b8fc-62ddcb19aff1:
+          set: 1/1
+          note: Archer's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: b20efafe-55f6-4ebb-963d-d25cbb85ad23
+        1ea38488-1e52-4c78-ba31-7ae76ff07708:
+          set: 1/1
+          note: Archer's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: b20efafe-55f6-4ebb-963d-d25cbb85ad23
+        631e00c2-9430-43cd-b279-3df5ed8e1e6a:
+          set: 1/1
+          note: Archer's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: b20efafe-55f6-4ebb-963d-d25cbb85ad23
+        0783bcb7-aa3a-48db-8bfa-04b3fbb7f197:
+          note: Archer's Cackletongue
+          abilityid: b20efafe-55f6-4ebb-963d-d25cbb85ad23
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        8a7dd266-5654-42e3-8e19-47d38c7e5b36:
+          set: 1/1
+          note: Archer's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: b20efafe-55f6-4ebb-963d-d25cbb85ad23
+    monster_type: Gnoll Abyssal Archer
+    monster_category: Gnoll
+  tokenType: null
+  bestiaryId: 98eb8958-711b-4d95-a5eb-392706e409b2
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Gnoll Abyssal Archer
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1741590285411
+mtime: 1775201137032
+hidden: false

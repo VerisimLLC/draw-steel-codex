@@ -1,0 +1,121 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: f998c08d-d6e7-4bd1-8ef6-c4e831b908ce
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  description: Lord Syuul projects a psionic screen over his body, preventing other creatures from treating him as an enemy until the end of his next turn.
+  numTargets: "1"
+  name: Guise
+  behaviors: []
+  channeledResource: none
+  abilityType: none
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  targetType: all
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "2"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: d8bc1557-f5f7-40f4-a683-5d939681b5a2
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  description: Lord Syuul psionically plunders the minds of each creature within 2 squares of him. Each such creature makes a Reason test.
+  numTargets: "1"
+  name: Do It for Me
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: rea
+    roll: 2d10 + Reason
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 13 psychic damage; the target uses a signature ability against a creature of Lord Syuul’s choice
+    - 10 psychic damage; the target makes a free strike against a creature of Lord Syuul’s choice
+    - No effect.
+  channeledResource: none
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: ea29b9b2-9201-41bc-a8ba-222cf77a676c
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 4296fd19-804a-40d9-b5dd-f0f6d1043479
+  castImmediately: true
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: Lord Syuul takes an additional main action on his turn. He can use this feature even if he is dazed.
+  abilityType: none
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: a60e5ff1-2d4f-47f5-842b-0a584b017eb8
+  repeatTargets: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  abilityType: none
+  behaviors: []
+  targetType: self
+  name: Overpower
+  numTargets: "1"
+  description: |-
+    Lord Syuul sends out a psionic burst to completely overpower his greatest threats. He makes a Reason test (2d10 + 4).
+    <= 11 | Lord Syuul has damage weakness 5.
+    12-16 | Lord Syuul has damage immunity 2.
+    17+ | Lord Syuul has damage immunity 5.
+    Once per round as a maneuver, Lord Syuul can repeat this test, replacing the previous Overpower effect.
+
+    Whenever an Overpower effect is active, any hero who has one or
+    more psionic abilities can use a maneuver to push back by making
+    a Reason test, replacing the previous Overpower effect.
+    <=11 | Lord Syuul has damage immunity 5.
+    12-16 | Lord Syuul has damage immunity 2.
+    17+ | Lord Syuul has damage weakness 5.
+
+    The Overpower effect lasts until the end of the encounter.
+  range: 1
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762962084856
+name: Lord Syuul
+traits: []
+attacks: []
+id: d82de491-8108-4ca7-af80-b83e1286ceba
+ctime: 1758525028062

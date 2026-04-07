@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+resourceNumber: 3
+id: 3ac4d3a9-76c3-47f9-91b9-247f01d5dc3c
+behaviors: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+abilityType: none
+testCases: []
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 6d874b0a-6750-4554-92f4-b857ed34fb0a
+importMatch: The <<monster>> deals an additional <<dmg>> damage to each creature they have grabbed and regains Stamina equal to the damage dealt.
+ctime: 1747697101699
+repeatTargets: false
+description: ""
+numTargets: "1"
+name: Addtional Damage to Grabbed targets and caster regains stamina
+targetType: target
+mtime: 1755295411415
+resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+iconid: ui-icons/skills/1.png

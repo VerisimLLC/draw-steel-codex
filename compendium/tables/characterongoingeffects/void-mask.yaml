@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+modifiers: []
+source: Ongoing Effect
+guid: a87be090-cf61-437b-965e-b1b5fe998d71
+id: a87be090-cf61-437b-965e-b1b5fe998d71
+ctime: 1709620156693
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: You can spend 10 minutes covering your body in an illusion that makes you appear like another humanoid creature of your size and weight who you have verbally interacted with. This illusion covers your entire body, including your clothes, and changes your voice to sound like the creature. However, a creature who physically interacts with you immediately sees through the illusion
+name: Void Mask
+iconid: a1f8b8ab-a695-4b99-af22-02986221aec6
+custom: true
+mtime: 1709620156693
+implementation: 4

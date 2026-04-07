@@ -1,0 +1,48 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: e9be0e77-3713-4e3a-87c0-014bbb06c2da
+  description: Your movement doesn't provoke opportunity attacks, and you can move through the space of any enemy as if they were an ally. You can't end your turn in an enemy's space.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 92e75d9f-bf9c-41f1-8e97-f62852a313e5
+    sourceguid: e9be0e77-3713-4e3a-87c0-014bbb06c2da
+    value: 1
+    source: Item
+    name: Phasing III
+    behavior: attribute
+    description: Your movement doesn't provoke opportunity attacks, and you can move through the space of any enemy as if they were an ally. You can't end your turn in an enemy's space.
+    attribute: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+  - __typeName: CharacterModifier
+    guid: 9059ed57-7793-48ff-be38-c8282f3e2175
+    sourceguid: e9be0e77-3713-4e3a-87c0-014bbb06c2da
+    value: 1
+    source: Item
+    name: Phasing III
+    behavior: attribute
+    description: Your movement doesn't provoke opportunity attacks, and you can move through the space of any enemy as if they were an ally. You can't end your turn in an enemy's space.
+    attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+  source: Item
+  name: Phasing III
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 136aba2f-cbe8-4794-aff6-0b56a97f0a08
+imbuePrereq: 55d9adf8-2535-49b3-b9a5-c197e7f7a19c
+projectSource: Szetch
+imbueLevel: 9
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: Perfectly clear glass from a house that disappeared into the Ethereal Plane
+mtime: 1774485053792
+name: Phasing III
+imbueTargetType: armor
+description: Your movement doesn't provoke opportunity attacks, and you can move through the space of any enemy as if they were an ally. You can't end your turn in an enemy's space.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 3

@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 21827a29-9af8-46ac-86a0-fc74841584a8
+  source: Ongoing Effect
+  behavior: power
+  keywords:
+    Strike: true
+  activationCondition: true
+  name: Edge on Next Strike
+  guid: b7ad6c32-99f9-453b-84db-e716c6c173d6
+  description: You gain an edge on your next strike.
+  modtype: edge
+  rollType: ability_power_roll
+source: Ongoing Effect
+sustainFormula: not Ability.Keywords has "strike"
+guid: 21827a29-9af8-46ac-86a0-fc74841584a8
+id: 21827a29-9af8-46ac-86a0-fc74841584a8
+ctime: 1762621874286
+description: You gain an edge on your next strike.
+iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+custom: true
+endTrigger: attack
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1762622735374
+name: Edge on Next Strike
+implementation: 2

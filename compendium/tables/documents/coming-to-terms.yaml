@@ -1,0 +1,159 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+    identifier: false
+id: b1f69b65-7328-4609-be25-bef6a4de19a4
+ctime: 1763578620521
+textStorage:
+  __typeName: TextStorage
+  sections:
+    y: |+
+      |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+
+
+
+
+    w: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+    x: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls.
+    u: |+
+      If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+    v: |
+      |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+    s: |
+      |Patience decreases by 1
+    t: |
+      |Interest increases by 1, Patience decreases by 1
+    q: |
+      |No Motivation or Pitfall: Reason, Intuition, or Presence
+    r: |
+      |Interest decreases by 1, Patience decreases by 1
+    o: |
+      |Interest increases by 1, Patience decreases by 1
+    p: |+
+      |Interest increases by 1, Patience does not change.
+
+    m: |
+      |Appeal to Motivation: Reason, Intuition, or Presence
+    n: |
+      |Patience decreases by 1
+    k: |
+      **Pitfall Used: Automatic failure:
+    l: |2+
+       Both Interest and Patience decrease by 1.**
+
+    i: |+
+      |Interest 0 | No, and… |Queen Bargnot and her court attack the heroes.|
+
+
+    j: |
+      If the negotiation ends with Queen Bargnot’s interest at 4 or 5, the heroes earn 1 Victory each.
+    g: |
+      |Interest 2 | No, but… |Queen Bargnot refuses to leave [Castle Andreas] or hand over the [item:Cup of Iulius] if she has it, but she is willing to not attack or harass the people of Broadhurst if the heroes leave right now. She stays true to her promise, provided the Jagged Edge remains left alone. There’s no telling what her successor will do when she dies.|
+    h: |
+      |Interest 1 | No. |Queen Bargnot refuses to make a deal with the heroes and tells them to leave immediately—and promises they’ll die the next time she sees them.|
+    e: |
+      |Interest 4 | Yes.|Queen Bargnot agrees to leave Dalrath with the Jagged Edge and whatever she currently has in her possession or has been promised by the heroes—including the [item:Cup of Iulius].|
+    f: |
+      |Interest 3 | Yes, but… |Queen Bargnot agrees to leave Dalrath with the Jagged Edge but only if the heroes give her the [item:Cup of Iulius]. If she’s already in possession of the cup, she demands another prize from them in the form of a permanent treasure that is armor, an implement, or a weapon.|
+    c: |+
+      **Negotiation outcomes**
+
+
+    d: |
+      |Interest 5 |Yes, and... |Queen Bargnot agrees to leave Dalrath with the Jagged Edge and live a peaceful life. If she has the [item:Cup of Iulius], she hands it  over to the heroes, claiming holding onto the item isn’t worth being pursued by power-hungry generals and treasure-seekers. If she doesn’t have the cup, she instead gives the heroes her [item:Shrouded Memory] armor, saying she won’t  need it anymore.|
+    a: |
+      {**Justice**}
+    b: |
+      {The queen’s volition prevents her from accepting any idea of justice other than her own. She won’t be imprisoned and won’t allow another goblin to suffer the same fate. Arguing that she and her bandits should face consequences for their actions invokes this pitfall.}
+
+
+      {
+    Y: |
+      {**Higher Authority**}
+    Z: |+
+      {Serving another ruler leaves Queen Bargnot and the bandits in no better position than they were. If the heroes suggest she serve a king, the heroes invoke this pitfall and Queen Bargnot spits on the ground.}
+
+    W: |+
+      {Queen Bargnot would love to keep the Cup of Iulius. Securing any land or rule for the Jagged Edge would mean her bandits gained more than they started with. It also looks good while negotiating in front of a crowd of her people. Arguments that promise her the cup or power appeal to this motivation.}
+
+    X: |
+      & Pitfalls 
+    U: |+
+      {Queen Bargnot is an old, tired woman. If there’s a way that she can escape any consequences for herself, she’s willing to take it. Such promises appeal to this motivation.}
+
+    V: |
+      {**Power**}
+    S: |
+      Motivations
+    T: |
+      {**Freedom**}
+    Q: |
+      All Motivations & Pitfalls:
+    R: |+
+      *Benevolence, Discovery, Freedom, Greed, Higher Authority, Justice, Legacy, Peace, Power, Protection, Revelry, Vengeance*
+
+
+    O: |+
+      PATIENCE:  [[##---]]
+
+    P: |+
+      [[image]]
+
+    M: |+
+      Native Language: Szetch
+      }
+
+    N: |
+      INTEREST:  [[##---]] 
+    K: |
+      ##  Negotiation Stats 
+
+      {
+    L: |
+      Impression: 3
+    I: |+
+      {Queen Bargnot is suspicious of the heroes. They’ve been chasing her and causing problems for the bandits this entire time. However, this is also an opportunity for her to finally stop fighting and live the rest of her life.
+
+    J: |+
+      If the heroes have the [item:Cup of Iulius], her patience increases by 1.}
+
+
+    G: |+
+      # Negotiation: Queen Bargnot
+
+    H: |+
+      *(see Negotiation on page 283 in [pdf:Draw Steel Heroes:283])*
+
+    E: |
+      Queen Bargnot wants to look good in the eyes of her people but won’t commit to anything at her expense. She rallies and raises the commotion of the goblins around her while she speaks to the heroes, showing a tremendous amount of presence not normally seen in battle.
+    F: |+
+      The queen communicates her true emotions with her eyes, expressing fear when confronted with the future and determination whenever she speaks about her people. The only way to tell if she’s lying during negotiations is if she makes a statement while expressing zero emotion in her gaze.
+
+
+    C: |+
+      The heroes can negotiate with Queen Bargnot if they come to Castle Andreas and ask her to stand down her attack on Broadhurst. The Jagged Edge bandits provide opportunities to put down weapons in A1. Courtyard Barricade and A5. War Room, where the queen comes to meet the heroes in front of her goblins.
+
+
+    D: |+
+      ## Roleplaying Queen Bargnot
+
+    B: |+
+      # Coming to Terms
+
+    jZ: |+
+      [[/awardvp 1|Award Heroes 1 Victory]]
+
+
+
+      }
+
+
+parentFolder: 67c70371-8ca6-4d14-bef4-13eaf5753bc6
+updateid: 2af89540-cacd-419a-9eac-808789867df3
+description: Coming to Terms
+content: ""
+mtime: 1766081296058

@@ -1,0 +1,49 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: Whenever you use a magic or psionic ability to push or pull a creature, you can move that creature an additional 2 squares.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: e3f4a5b6-c7d8-9012-efab-123456789efa
+    source: Forceful I Imbuement
+    behavior: power
+    adjustments:
+    - type: push
+      value: "2"
+    - type: pull
+      value: "2"
+    keywords:
+      Magic: true
+      Psionic: true
+    activationCondition: true
+    activationAfterRoll: false
+    name: Forceful I
+    rollType: ability_power_roll
+    description: Whenever you use a magic or psionic ability to push or pull a creature, you can move that creature an additional 2 squares.
+    modtype: none
+    guid: 9bfe9dae-d616-47f3-b67b-257e842e6c21
+  source: Forceful I Imbuement
+  name: Forceful I
+  addText: Add Magical Property
+  itemAttached: true
+  guid: e3f4a5b6-c7d8-9012-efab-123456789efa
+itemPrerequisite: A lead slingstone that killed a giant
+imbuePrereq: none
+projectSource: High Kuric
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: dd177ebb-98e9-49f7-bb20-3388768876c3
+mtime: 1774013526965
+name: Forceful I
+imbueTargetType: implement
+description: Whenever you use a magic or psionic ability to push or pull a creature, you can move that creature an additional 2 squares.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 06ab5bcd-c7dd-4d7b-a4b9-6f31e43c418f

@@ -1,0 +1,1636 @@
+5c54050a-de9c-410f-94a7-f31b8f57daf3:
+  __typeName: CharacterCondition
+  display:
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  maxInstancesFormula: Maximum Marks
+  showInMenus: false
+  iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+  guid: a1186564-11c8-438b-ace0-3acbf87fd6ab
+  id: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+  ctime: 1727163986088
+  domains:
+    CharacterCondition:5c54050a-de9c-410f-94a7-f31b8f57daf3: true
+  powertable: false
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: a1186564-11c8-438b-ace0-3acbf87fd6ab
+    source: Condition
+    guid: 5e55f6c9-e8c6-4e01-bc4e-326ca72616a9
+    keywords: []
+    activationCondition: true
+    domains:
+      CharacterCondition:5c54050a-de9c-410f-94a7-f31b8f57daf3: true
+    rollType: enemy_ability_power_roll
+    name: Mark
+    modtype: edge
+    description: This power roll gains an edge.
+    damageModifier: ""
+    behavior: power
+  name: Mark
+  mtime: 1771183947326
+  description: This creature has been marked.
+  trackCaster: true
+  implementation: 3
+609c216d-482d-41ea-9014-1e16a7f2f306:
+  __typeName: CharacterCondition
+  guid: 13c6155f-af89-46f5-8d27-98408e52342d
+  id: 609c216d-482d-41ea-9014-1e16a7f2f306
+  ctime: 1741332890533
+  domains:
+    CharacterCondition:609c216d-482d-41ea-9014-1e16a7f2f306: true
+  powertable: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.506545543670654
+      s: 1.00208115577698
+      v: 1.00238537788391
+      a: 1
+  name: Strained
+  iconid: 903ef403-92f5-4480-a958-b53c0f30c17f
+  description: A Talent becomes strained when they have negative Clarity.
+  mtime: 1768208538017
+  implementation: 3
+da6867b1-01e3-4570-8d1b-1b94ea1ea343:
+  __typeName: CharacterCondition
+  display:
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+    source: Condition
+    modtype: bane
+    keywords:
+      Strike: true
+    activationCondition: true
+    guid: 7fc19018-c9a5-44f0-a4f4-47f201cdc7be
+    rollType: ability_power_roll
+    domains:
+      CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+    description: |-
+      While you are prone, attacks you make suffer a bane, and melee attacks made against you gain an edge. You must crawl to move along the ground, which costs you 1 extra square of movement for every square you crawl. 
+
+      When this condition ends, you can choose to immediately stand up as no action or remain prone (see Crawl).
+    behavior: power
+    name: Prone
+  - __typeName: CharacterModifier
+    sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+    source: Condition
+    modtype: edge
+    keywords:
+      Strike: true
+      Melee: true
+    activationCondition: true
+    guid: 7112b01b-339e-4343-84fa-c23f383d7518
+    rollType: enemy_ability_power_roll
+    domains:
+      CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+    description: |-
+      While you are prone, attacks you make suffer a bane, and melee attacks made against you gain an edge. You must crawl to move along the ground, which costs you 1 extra square of movement for every square you crawl. 
+
+      When this condition ends, you can choose to immediately stand up as no action or remain prone (see Crawl).
+    behavior: power
+    name: Prone
+  - __typeName: CharacterModifier
+    sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+    source: Condition
+    value: 1
+    filterCondition: not Ignore Prone Difficulty
+    guid: aa22fbbf-639a-46b7-a36f-886d9e57f2a1
+    name: Prone
+    domains:
+      CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+    description: |-
+      While you are prone, attacks you make suffer a bane, and melee attacks made against you gain an edge. You must crawl to move along the ground, which costs you 1 extra square of movement for every square you crawl. 
+
+      When this condition ends, you can choose to immediately stand up as no action or remain prone (see Crawl).
+    behavior: attribute
+    attribute: movementDifficulty
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+    sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+    description: |-
+      While you are prone, attacks you make suffer a bane, and melee attacks made against you gain an edge. You must crawl to move along the ground, which costs you 1 extra square of movement for every square you crawl. 
+
+      When this condition ends, you can choose to immediately stand up as no action or remain prone (see Crawl).
+    source: Condition
+    name: Prone
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 9967ce59-d59d-422a-b76d-6ac3049fd7ef
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      targetType: self
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - da6867b1-01e3-4570-8d1b-1b94ea1ea343
+        filterTarget: not Cannot Stand
+      name: Prone
+      trigger: teleport
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: 1f1f5f39-df90-4f0b-8192-522750876ebe
+  - __typeName: CharacterModifier
+    sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+    source: Condition
+    value: -99
+    domains:
+      CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+    name: Prone
+    guid: 1e1f85e2-41d1-4776-aa96-b678f2c0b855
+    description: |-
+      While a creature is prone, they are flat on the ground, any strike they make takes a bane, and melee abilities used against them gain an edge. A prone creature must crawl to move along the ground, which costs 1 additional square of movement for every square crawled. A creature can’t climb, jump, swim, or fly while prone. If they are climbing, flying, or jumping when knocked prone, they fall. 
+
+      Unless the ability or effect that imposed the prone condition says otherwise, a prone creature can stand up using the Stand Up maneuver (see Maneuvers in Chapter 10: Combat). A creature adjacent to a willing prone creature can likewise use the Stand Up maneuver to make that creature stand up.
+    behavior: attribute
+    attribute: fly
+  guid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+  iconid: 4ed2da23-daf5-416c-bbc2-4e826483a00a
+  stackable: true
+  id: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+  ctime: 1699988385502
+  domains:
+    CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+  indefiniteDuration: true
+  powertable: true
+  name: Prone
+  mtime: 1771985883905
+  description: |-
+    While a creature is prone, they are flat on the ground, any strike they make takes a bane, and melee abilities used against them gain an edge. A prone creature must crawl to move along the ground, which costs 1 additional square of movement for every square crawled. A creature can’t climb, jump, swim, or fly while prone. If they are climbing, flying, or jumping when knocked prone, they fall. 
+
+    Unless the ability or effect that imposed the prone condition says otherwise, a prone creature can stand up using the Stand Up maneuver (see Maneuvers in Chapter 10: Combat). A creature adjacent to a willing prone creature can likewise use the Stand Up maneuver to make that creature stand up.
+  trackCaster: false
+  implementation: 3
+25bb844c-23af-4acc-ab39-c4656af87f6d:
+  __typeName: CharacterCondition
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  guid: 855972ba-0ff7-467b-bd72-0174614bce61
+  id: 25bb844c-23af-4acc-ab39-c4656af87f6d
+  ctime: 1757816121994
+  domains:
+    CharacterCondition:25bb844c-23af-4acc-ab39-c4656af87f6d: true
+  powertable: true
+  description: Override Line of Effect between Caster and Target
+  showInMenus: false
+  name: Line of Effect
+  mtime: 1768208526663
+  trackCaster: true
+  iconid: ui-icons/skills/1.png
+18ff50ab-053b-49d2-a456-927f8e4f9cf9:
+  __typeName: CharacterCondition
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  modifiers:
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:18ff50ab-053b-49d2-a456-927f8e4f9cf9: true
+    sourceguid: 9fb25aff-bd2b-465f-a17a-af24eda29dcb
+    description: 'While a creature is bleeding, whenever they make a test using Might or Agility, make a strike, or use an action, a maneuver, or a triggered action, they lose Stamina equal to 1d6 + their level after the test, strike, action, maneuver, or triggered action is resolved. This Stamina loss can’t be prevented in any way. '
+    source: Condition
+    name: Bleeding
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 10995c88-5ede-4e94-ade4-cb297732e184
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        applyto: caster
+        roll: 1d6+Level
+        cannotBeReduced: true
+      conditionFormula: (Resource is "main action" or Resource is "trigger") and not Ignores Bleeding
+      whenActive: combat
+      numTargets: "1"
+      trigger: useresource
+      name: Bleeding
+      description: While a creature is bleeding, whenever they use a main action, use a triggered action, or make a test or ability roll using Might or Agility, they lose Stamina equal to 1d6 + their level after the main action, triggered action, or power roll is resolved. This Stamina loss can’t be prevented in any way.
+      abilityType: none
+      iconid: bd44e33a-fb70-490c-acac-882da0d34642
+    guid: fbc732e6-7539-4732-9ed8-58fc889f7cb6
+  immunityPossible: false
+  iconid: bd44e33a-fb70-490c-acac-882da0d34642
+  stackable: false
+  id: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  ctime: 1710002647486
+  domains:
+    CharacterCondition:18ff50ab-053b-49d2-a456-927f8e4f9cf9: true
+  powertable: true
+  guid: 9fb25aff-bd2b-465f-a17a-af24eda29dcb
+  name: Bleeding
+  mtime: 1764486607075
+  description: 'While a creature is bleeding, whenever they make a test using Might or Agility, make a strike, or use an action, or a triggered action, they lose Stamina equal to 1d6 + their level after the test, strike, action, or triggered action is resolved. This Stamina loss can’t be prevented in any way. '
+  trackCaster: true
+  implementation: 3
+85e26e12-e853-464d-bbbc-98ddf2c0071a:
+  __typeName: CharacterCondition
+  display:
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.789500176906586
+      s: 1.00169110298157
+      v: 0.99999988079071
+      a: 1
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: f28db13b-e475-4dc0-89e5-1986c71ed01a
+    source: Condition
+    modtype: double_bane
+    keywords:
+      Attack: true
+    activationCondition: not cast.HasTarget(ConditionCaster("Taunted"))
+    guid: fe289274-9047-4c71-9c78-6c57a732d187
+    rollType: ability_power_roll
+    domains:
+      CharacterCondition:85e26e12-e853-464d-bbbc-98ddf2c0071a: true
+    description: If you are taunted, you suffer a bane on attacks that don’t include a creature who taunted you. If you gain the taunted condition from a creature while already taunted by a different creature, the new condition, including the value, replaces the old one.
+    behavior: power
+    name: Taunted
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:85e26e12-e853-464d-bbbc-98ddf2c0071a: true
+    sourceguid: f28db13b-e475-4dc0-89e5-1986c71ed01a
+    description: 'If you are taunted, you have a double bane on ability power rolls that don’t target the creature who taunted you while you have line of effect to that creature. If you gain the taunted condition from one creature while already taunted by a different creature, the new condition replaces the old one. '
+    source: Condition
+    name: Taunted
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - 85e26e12-e853-464d-bbbc-98ddf2c0071a
+        chatMessage: Taunter Died
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 157f8287-fe86-4528-8054-42a0d3136804
+      persistence: []
+      conditionFormula: self.ConditionCaster("Taunted") = subject
+      subject: other
+      targetType: self
+      trigger: creaturedeath
+      name: Taunted
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: f153f27f-1b86-406b-b444-ac59823843e2
+  immunityPossible: true
+  iconid: da22a911-febf-451c-8e0f-d53673a62216
+  stackable: false
+  id: 85e26e12-e853-464d-bbbc-98ddf2c0071a
+  ctime: 1699691789880
+  domains:
+    CharacterCondition:85e26e12-e853-464d-bbbc-98ddf2c0071a: true
+  powertable: true
+  guid: f28db13b-e475-4dc0-89e5-1986c71ed01a
+  name: Taunted
+  mtime: 1771646783611
+  description: 'If you are taunted, you have a double bane on ability power rolls that don’t target the creature who taunted you while you have line of effect to that creature. If you gain the taunted condition from one creature while already taunted by a different creature, the new condition replaces the old one. '
+  trackCaster: true
+  implementation: 3
+6f23b05d-6683-42dc-a5b6-ee23d35d3177:
+  __typeName: CharacterCondition
+  guid: a61aab7c-ea46-489e-86ee-3e15bba4204f
+  id: 6f23b05d-6683-42dc-a5b6-ee23d35d3177
+  ctime: 1771648185788
+  domains:
+    CharacterCondition:6f23b05d-6683-42dc-a5b6-ee23d35d3177: true
+  powertable: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  showInMenus: false
+  name: Careful Observation
+  mtime: 1773705543926
+  trackCaster: true
+  iconid: ui-icons/skills/1.png
+98e85a3b-95a1-41d8-b176-d2d64e7d18d0:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 4e7ba9c4-b99f-4c07-ae60-f29eaa2025ae
+    source: Condition
+    modtype: bane
+    keywords:
+      Strike: true
+    activationCondition: true
+    guid: 4567c18d-05f8-4ca3-ad4b-4c8ed84dc693
+    rollType: enemy_ability_power_roll
+    domains:
+      CharacterCondition:98e85a3b-95a1-41d8-b176-d2d64e7d18d0: true
+    description: Invisible creatures always have concealment from other creatures. If an invisible creature isn’t hidden, they can still be targeted with abilities, though strikes against them take a bane. The test made to find a hidden creature who is invisible takes a bane.
+    behavior: power
+    name: Invisible
+  guid: 4e7ba9c4-b99f-4c07-ae60-f29eaa2025ae
+  id: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+  ctime: 1746291054329
+  domains:
+    CharacterCondition:98e85a3b-95a1-41d8-b176-d2d64e7d18d0: true
+  powertable: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Invisible
+  description: Invisible creatures always have concealment from other creatures. If an invisible creature isn’t hidden, they can still be targeted with abilities, though strikes against them take a bane. The test made to find a hidden creature who is invisible takes a bane.
+  mtime: 1770050869586
+  implementation: 2
+  iconid: 04a4b1a7-614e-4bea-bf90-47f89f8eae66
+c95a5d2d-6069-4434-b5d4-29796ec90f51:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:c95a5d2d-6069-4434-b5d4-29796ec90f51: true
+    sourceguid: 285c4f3a-dfa2-4748-9ad8-36ceeb2eb049
+    description: You take fire damage equal to the condition’s value at the start of every round. If you submerge yourself in water or another liquid that isn’t flammable, the condition ends.
+    source: Condition
+    name: On Fire
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      numTargets: "1"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: 1c02ee7e-b415-4897-8f6e-e2905dffbc52
+      repeatTargets: false
+      abilityType: none
+      domains:
+        CharacterCondition:c95a5d2d-6069-4434-b5d4-29796ec90f51: true
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        damageType: fire
+        roll: ConditionStacks("On Fire")
+      trigger: beginturn
+      name: On Fire
+      targetType: self
+      description: ""
+      range: 5
+      iconid: ui-icons/skills/1.png
+    guid: 2886eaec-2d93-4d2f-b8ad-5008f32c3879
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  description: You take fire damage equal to the condition’s value at the start of every round. If you submerge yourself in water or another liquid that isn’t flammable, the condition ends.
+  guid: 285c4f3a-dfa2-4748-9ad8-36ceeb2eb049
+  id: c95a5d2d-6069-4434-b5d4-29796ec90f51
+  ctime: 1699758307979
+  domains:
+    CharacterCondition:c95a5d2d-6069-4434-b5d4-29796ec90f51: true
+  powertable: true
+  iconid: 3617c071-3c3d-4348-bcaf-f90a35e4ff62
+  name: On Fire
+  emoji: 6cf40923-6435-409a-89d1-28f8a1aa2c8c
+  mtime: 1768208529865
+  stackable: true
+  implementation: 3
+70504ebe-3899-41d3-9f60-74b52ce35e39:
+  __typeName: CharacterCondition
+  id: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  powertable: true
+  display:
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  trackCaster: true
+  description: This creature is grabbed.
+  modifiers:
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+    description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+    source: Condition
+    name: Grabbed
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        purgeType: all
+        conditions:
+        - 70504ebe-3899-41d3-9f60-74b52ce35e39
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 5d6c3019-fc4e-43fc-bf7c-c8119c335e78
+      persistence: []
+      domains:
+        CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+      conditionFormula: ""
+      targetType: self
+      trigger: teleport
+      name: Grabbed
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: 6f843d43-20c8-4f51-b99d-c9c67155ceb3
+  - __typeName: CharacterModifier
+    operation: set
+    sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+    source: Condition
+    value: 0
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    name: Grabbed
+    guid: 3f2583d8-c9b2-4f36-8c20-623e807deab1
+    description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+    behavior: attribute
+    attribute: speed
+  - __typeName: CharacterModifier
+    operation: set
+    sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+    source: Condition
+    value: 0
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    name: Grabbed
+    guid: 5ad7ce3f-8d09-4d59-96d1-6686cc8d9249
+    description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+    behavior: attribute
+    attribute: movementMultiplier
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+    description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+    source: Condition
+    name: Knockback
+    behavior: suppressabilities
+    explanation: You cannot use the Knockback maneuver when you are grabbed.
+    guid: 87e5f7fa-85e3-401f-a0cb-ae64dc1f7737
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+    description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+    source: Condition
+    name: Grabbed
+    behavior: activated
+    guid: 653c1b28-64a2-4fb9-b842-65f870424122
+    activatedAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - You fail to escape the grab.
+        - You fail to escape the grab.
+        - You are no longer grabbed.
+        roll: 2d10 + Might or Agility
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - You fail to escape the grab.
+        - You escape the grab, the creature grabbing you may make a melee free strike against you before you are released from the grab.
+        - You are no longer grabbed.
+        guid: 8793baa7-6cbb-4109-a660-997fc01d776f
+        modesSelected:
+        - 2
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 2
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: e625a3d8-7255-4cb6-bb05-6be0013a932e
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: The creature grabbing you may make a free strike against you.
+        standardAbility: e19f1d97-6e44-4366-8f35-418bd5c5ab8e
+        abilityType: standard
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        tiersSelected:
+        - 3
+        guid: d4b5281a-fe01-46e6-86f6-70f1d8513d55
+        modesSelected:
+        - 1
+        conditions:
+        - 70504ebe-3899-41d3-9f60-74b52ce35e39
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        tiersSelected:
+        - 2
+        - 3
+        modesSelected:
+        - 2
+        conditions:
+        - 70504ebe-3899-41d3-9f60-74b52ce35e39
+      - __typeName: ActivatedAbilityDelayBehavior
+        delay: "0.2"
+        guid: 20f2a93f-2bb6-4857-be52-a3d395eaef60
+        modesSelected:
+        - 2
+        tiersSelected:
+        - 3
+        - 2
+      - __typeName: ActivatedAbilityFallBehavior
+        tiersSelected:
+        - 3
+        - 2
+        guid: e80dfe4d-4a96-4e21-bdec-4799758f4d9f
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityDelayBehavior
+        delay: "0.2"
+        guid: 23ff8758-8c9f-4e86-aaba-04ad4f5348df
+        modesSelected:
+        - 1
+        tiersSelected:
+        - 3
+      - __typeName: ActivatedAbilityFallBehavior
+        tiersSelected:
+        - 3
+        guid: 66036598-8f96-4099-953b-b7eb2a0c09ae
+        modesSelected:
+        - 1
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Careful
+        rules: If you get a tier 2 result you will not escape the grab but you will not suffer a free strike.
+        condition: ""
+      - rules: If you get a tier 2 result you will escape the grab but you will suffer a free strike.
+        text: Reckless
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      domains:
+        CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+      numTargets: "1"
+      guid: 83158889-ce4e-45cb-a631-6111f1d31db0
+      name: Escape Grab
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: 56729dfc-0cf4-4b75-99db-61ae8ac81d71
+  - __typeName: CharacterModifier
+    text: You cannot move when you are grabbed.
+    sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+    source: Condition
+    guid: 188c0f62-0b1e-453e-b834-c54440c2b984
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    name: Grabbed
+    description: This creature is grabbed.
+    behavior: movementtext
+    color: red
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+    description: This creature is grabbed.
+    source: Condition
+    name: Grabbed
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: ad666669-dd3c-43c0-a8d7-f9bce5a9f14c
+      repeatTargets: false
+      trigger: forcemove
+      conditionFormula: Self.Distance(ConditionCaster("Grabbed")) > 1
+      targetType: self
+      persistence: []
+      name: Grabbed
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - 70504ebe-3899-41d3-9f60-74b52ce35e39
+        chatMessage: Force moved away from grab
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    guid: 189b3cc6-e3e2-41d4-90dd-4c2972f3b4cb
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+    description: This creature is grabbed.
+    source: Condition
+    name: Grabbed
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - 70504ebe-3899-41d3-9f60-74b52ce35e39
+        chatMessage: Force moved away from grab
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 3d97a400-91cd-4485-93a6-ddc85153939c
+      persistence: []
+      conditionFormula: ConditionCaster("Grabbed") = Subject and Subject.Distance(Self) > 1
+      subject: other
+      targetType: self
+      trigger: forcemove
+      name: Grabbed
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: 2faee6ed-f782-49d8-ae30-19dbea3fe743
+  - __typeName: CharacterModifier
+    sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+    displayCondition: (target != ConditionCaster("Grabbed")) and ability.name != "Escape Grab"
+    source: Condition
+    modtype: bane
+    keywords: []
+    activationCondition: (target != ConditionCaster("Grabbed")) and ability.name != "Escape Grab"
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    name: Grabbed
+    rollType: ability_power_roll
+    description: You take a bane on abilities that don't target the creature, object or effect that has them grabbed.
+    guid: db779beb-ae34-4c5a-bd1d-19f86eb54531
+    behavior: power
+  implementation: 2
+  casterCanDrag: true
+  guid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  casterCanClick: true
+  ctime: 1705261777988
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  indefiniteDuration: true
+  name: Grabbed
+  sustainFormula: (not Grabber.dead) where Grabber = ConditionCaster("grabbed")
+  casterClickAbility:
+    __typeName: ActivatedAbility
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: f678b276-dc67-48bf-a262-365a3c07782e
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityType: none
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions:
+      - 70504ebe-3899-41d3-9f60-74b52ce35e39
+    - __typeName: ActivatedAbilityDelayBehavior
+      delay: "0.2"
+    - __typeName: ActivatedAbilityFallBehavior
+    targetType: self
+    name: Drop Target
+    numTargets: "1"
+    description: Click to let go of the target.
+    range: 1
+    iconid: ui-icons/skills/1.png
+  mtime: 1775044237332
+  maxInstancesFormula: Maximum Grabbed Creatures
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+a0d68486-a5ee-44e6-9c43-e89b72f14614:
+  __typeName: CharacterCondition
+  maxInstancesFormula: Level
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  guid: 1fb5596c-c0f4-41eb-ac6a-121b553f44e1
+  id: a0d68486-a5ee-44e6-9c43-e89b72f14614
+  ctime: 1750042498117
+  domains:
+    CharacterCondition:a0d68486-a5ee-44e6-9c43-e89b72f14614: true
+  powertable: false
+  showInMenus: false
+  name: Vengeance Sigil
+  iconid: ui-icons/skills/1.png
+  mtime: 1768208557267
+  trackCaster: true
+  implementation: 3
+ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: d7a4f118-54a2-42e3-8759-8d6b01bfc220
+    source: Condition
+    modtype: edge
+    keywords: []
+    activationCondition: true
+    guid: 670cac4f-38a7-4f28-8a2f-9f9dcf4ced43
+    rollType: enemy_ability_power_roll
+    domains:
+      CharacterCondition:ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355: true
+    description: 'A surprised creature can’t take triggered or free triggered actions and ability power rolls against them gain an edge. '
+    behavior: power
+    name: Surprised
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355: true
+    sourceguid: d7a4f118-54a2-42e3-8759-8d6b01bfc220
+    description: 'A surprised creature can’t take triggered or free triggered actions and ability power rolls against them gain an edge. '
+    source: Condition
+    name: Surprised
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 06654ade-08ce-45a2-b2dd-6c5316fadf8c
+      repeatTargets: false
+      trigger: beginround
+      conditionFormula: Combat Round > 1
+      targetType: self
+      persistence: []
+      name: Surprised
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    guid: 9232896f-0341-4fb7-9095-6cb88bfa9be6
+  - __typeName: CharacterModifier
+    sourceguid: d7a4f118-54a2-42e3-8759-8d6b01bfc220
+    source: Condition
+    value: 1
+    domains:
+      CharacterCondition:ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355: true
+    name: Surprised
+    guid: 08358dfd-6a5d-4b44-b769-ad523d1d2c6e
+    description: 'A surprised creature can’t take triggered or free triggered actions and ability power rolls against them gain an edge. '
+    behavior: attribute
+    attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  guid: d7a4f118-54a2-42e3-8759-8d6b01bfc220
+  id: ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+  ctime: 1704299815224
+  domains:
+    CharacterCondition:ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355: true
+  indefiniteDuration: true
+  powertable: true
+  name: Surprised
+  iconid: 87c16b08-7f2e-46b2-9647-f9b092d836a0
+  description: 'A surprised creature can’t take triggered or free triggered actions and ability power rolls against them gain an edge. '
+  mtime: 1768208539549
+  implementation: 2
+567a3454-ead6-4416-b338-ed73d64b7805:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 4cabe828-306b-4918-a0d4-9cdfedad9fa3
+    source: Condition
+    modtype: bane
+    keywords: []
+    activationCondition: true
+    guid: ddddb8b1-baf8-4ba7-bb3b-eb8452d09495
+    rollType: all
+    domains:
+      CharacterCondition:567a3454-ead6-4416-b338-ed73d64b7805: true
+    description: While weakened, you make Attacks and Tests with Banes.
+    behavior: power
+    name: Weakened
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.672959685325623
+      v: 0.958149790763855
+      a: 1
+  guid: 4cabe828-306b-4918-a0d4-9cdfedad9fa3
+  id: 567a3454-ead6-4416-b338-ed73d64b7805
+  ctime: 1704789106799
+  domains:
+    CharacterCondition:567a3454-ead6-4416-b338-ed73d64b7805: true
+  powertable: true
+  implementation: 3
+  name: Weakened
+  stackable: false
+  description: A creature who is weakened takes a bane on power rolls.
+  mtime: 1768208551647
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+c27e0b16-291a-45ad-8406-973e26576a44:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+    sourceguid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+    description: |-
+      A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+      A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+    source: Condition
+    name: Dazed
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityReplenishBehavior
+        applyto: caster
+        filterTarget: resources.MainAction > 0
+        mode: expend
+        resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        chatMessage: Dazed-you can only do 1 thing
+      - __typeName: ActivatedAbilityReplenishBehavior
+        applyto: caster
+        filterTarget: resources.Maneuver > 0
+        mode: expend
+        resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        chatMessage: Dazed-you can only do 1 thing
+      characterConditionRequired: c27e0b16-291a-45ad-8406-973e26576a44
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      whenActive: combat
+      name: Dazed
+      domains:
+        CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+      guid: 5b9a99fd-5132-4b9c-9369-12554342a092
+      targetType: self
+      trigger: move
+      numTargets: "1"
+      description: |-
+        A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+        A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+      abilityType: none
+      iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335
+    guid: 98c0ba63-31dc-484a-8c0c-6a811424c1fb
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+    sourceguid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+    description: |-
+      A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+      A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+    source: Condition
+    name: Dazed
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      characterConditionRequired: c27e0b16-291a-45ad-8406-973e26576a44
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 272337ad-a067-41fa-bd6c-63c92db17faa
+      conditionFormula: UsedAbility.Action or UsedAbility.Maneuver
+      domains:
+        CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+      behaviors:
+      - __typeName: ActivatedAbilityReplenishBehavior
+        applyto: caster
+        filterTarget: Resources.Maneuver > 0
+        mode: expend
+        resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        chatMessage: Dazed-you can only do 1 thing
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        filterTarget: Resources.Main Action > 0
+        applyto: caster
+        guid: ab53ac94-747d-4c03-9f93-b8b68f9f9914
+        mode: expend
+        chatMessage: Dazed-you can only do 1 thing
+      name: Dazed
+      trigger: useability
+      numTargets: "1"
+      description: |-
+        A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+        A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+      abilityType: none
+      iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335
+    guid: df8b23c3-bb32-4e02-ac9c-776946597aaf
+  - __typeName: CharacterModifier
+    sourceguid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+    source: Condition
+    value: 1
+    domains:
+      CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+    name: Dazed
+    guid: 6dbd3c67-3f72-4426-8af8-5d4867daabb5
+    description: |-
+      A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+      A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+    behavior: attribute
+    attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+  - __typeName: CharacterModifier
+    operation: set
+    sourceguid: 98bff601-1581-451e-96db-be88e063afaf
+    source: Ongoing Effect
+    value: 0
+    filterCondition: resources.Main Action = 0
+    name: Immobilized
+    guid: 20277a8a-2f0a-4f94-a1e7-a7f4d590b058
+    description: This creature cannot use movement.
+    behavior: attribute
+    attribute: movementMultiplier
+  - __typeName: CharacterModifier
+    text: You cannot take a move action if you have taken a main action or maneuver when you are dazed.
+    sourceguid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+    source: Condition
+    behavior: movementtext
+    domains:
+      CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+    name: Dazed
+    filterCondition: resources.Main Action = 0
+    description: |-
+      A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+      A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+    guid: 765402a8-992d-4651-ad8b-a0e0a28ec749
+    color: red
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  guid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+  id: c27e0b16-291a-45ad-8406-973e26576a44
+  ctime: 1705259269480
+  domains:
+    CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+  powertable: true
+  implementation: 2
+  name: Dazed
+  stackable: false
+  description: |-
+    A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+    A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+  mtime: 1768208514101
+  iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335
+3210b68d-64c1-4642-a61f-71392055def6:
+  __typeName: CharacterCondition
+  maxInstancesFormula: "1"
+  guid: c3452366-0ecd-4d02-b4b0-4c18d62ea03a
+  id: 3210b68d-64c1-4642-a61f-71392055def6
+  ctime: 1760745344788
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  powertable: true
+  description: Support for Null's Relentless Nemesis ability
+  showInMenus: false
+  name: Relentless Nemesis
+  mtime: 1768208533367
+  trackCaster: true
+  iconid: ui-icons/skills/1.png
+bfe300f4-83f9-4303-9abb-951974025e88:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+    source: Condition
+    modtype: double_edge
+    keywords: []
+    activationCondition: false
+    guid: e37f22f9-57cf-40ab-808a-06f362525199
+    rollType: enemy_ability_power_roll
+    domains:
+      CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+    description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+    behavior: power
+    name: Unconscious
+  - __typeName: CharacterModifier
+    operation: min
+    sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+    source: Condition
+    value: "0	"
+    domains:
+      CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+    name: Unconscious
+    guid: 1866de3c-6a5f-45b5-9249-6ae76705889b
+    description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+    behavior: attribute
+    attribute: speed
+  - __typeName: CharacterModifier
+    sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+    source: Condition
+    guid: f962a591-2109-4b14-927f-70e5f6c8ea14
+    conditionid: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+    name: Unconscious
+    behavior: bestowcondition
+    description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+    explanation: You are prone because you are unconscious.
+    domains:
+      CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+  - __typeName: CharacterModifier
+    sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+    source: Condition
+    guid: c0127449-46e4-4626-9680-091cfd706b28
+    domains:
+      CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+    abilityFilter: Ability.action and ability.Maneuver
+    name: Unconscious
+    description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+    explanation: While you are unconscious, you can’t take main actions, maneuvers, triggered actions, free triggered actions, or free maneuvers
+    behavior: suppressabilities
+  - __typeName: CharacterModifier
+    sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+    source: Condition
+    value: 1
+    domains:
+      CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+    name: Unconscious
+    guid: b323107e-57a4-4859-b5bf-86518fdcb400
+    description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+    behavior: attribute
+    attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+  guid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+  id: bfe300f4-83f9-4303-9abb-951974025e88
+  ctime: 1705262208139
+  domains:
+    CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+  powertable: false
+  display:
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Unconscious
+  description: While you are unconscious, you can’t take main actions, maneuvers, triggered actions, free triggered actions, or free maneuvers; your speed is 0; you are unaware of your surroundings; and you are prone. Ability rolls against you have a double edge. If you wake up from being unconscious, you can stand up from prone as a free maneuver.
+  mtime: 1774575679558
+  implementation: 2
+  iconid: 144134df-02dc-44cd-9e2e-3d546b31a0f2
+31daf7f6-f77c-4f73-8eab-43e2d0f123c0:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    domains:
+      CharacterOngoingEffect:13fbb977-7be0-4d9b-b3b8-9d22c35e0ba6: true
+    sourceguid: 13fbb977-7be0-4d9b-b3b8-9d22c35e0ba6
+    description: You are hidden. You have an edge on strikes.
+    source: Ongoing Effect
+    name: Hidden
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        ongoingEffect: 13fbb977-7be0-4d9b-b3b8-9d22c35e0ba6
+        mode: conditions
+        purgeType: all
+        conditions:
+        - 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 5
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 9bc28bc4-2d96-4b3b-8b97-45e150847cc3
+      persistence: []
+      domains:
+        CharacterOngoingEffect:13fbb977-7be0-4d9b-b3b8-9d22c35e0ba6: true
+      conditionFormula: ""
+      targetType: self
+      trigger: attack
+      name: Hiding
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: d2ac0082-1eb1-4f7d-aa89-874d3212df4f
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:31daf7f6-f77c-4f73-8eab-43e2d0f123c0: true
+    sourceguid: be0cab3d-7c53-4c88-a21c-3256593f3b5e
+    description: You are hidden.
+    source: Condition
+    name: Hidden
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 4e98ee8c-e4ac-407b-bdb6-2bc88fe8f40f
+      repeatTargets: false
+      trigger: useability
+      conditionFormula: not Used Ability.Remain Hidden
+      targetType: self
+      persistence: []
+      name: Hidden
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        mode: conditions
+        ongoingEffect: 13fbb977-7be0-4d9b-b3b8-9d22c35e0ba6
+        guid: 2e50870e-2dcc-47dd-97fa-dd845bd11a12
+        purgeType: all
+        conditions:
+        - 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    guid: 0f7357b8-b192-43d5-af05-c148e0183fe5
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.73584908246994
+      s: 0.861788630485535
+      v: 0.482352942228317
+      a: 1
+  powertable: true
+  guid: be0cab3d-7c53-4c88-a21c-3256593f3b5e
+  id: 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+  ctime: 1709620377545
+  domains:
+    CharacterCondition:31daf7f6-f77c-4f73-8eab-43e2d0f123c0: true
+  indefiniteDuration: true
+  showInMenus: true
+  name: Hidden
+  description: You are hidden. While you are hidden from another creature, you gain an  edge on ability rolls made against that creature. When you use an ability or interact with an enemy you are no longer hidden.
+  mtime: 1763746397708
+  iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80
+  implementation: 2
+13275b73-cd4e-4d33-ada3-647d7474facf:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 65ce185e-1a65-414b-bcb2-756fc9308763
+    displayCondition: (Caster.Ignore Concealment = 0) and target.distance(caster) > Caster.IgnoreConcealmentWithinRange
+    source: Condition
+    modtype: bane
+    keywords: []
+    activationCondition: "1"
+    domains:
+      CharacterCondition:13275b73-cd4e-4d33-ada3-647d7474facf: true
+    name: Concealment
+    rollType: enemy_ability_power_roll
+    description: Darkness, fog, invisibility magic, and other phenomena that fully obscures a creature but doesn’t protect their body give a creature concealment. You can target creatures who are in concealment with attacks, provided they aren’t hidden, however attacks against these creatures have a bane.
+    guid: f729bc35-305a-4689-88ee-b5fc8f5803e0
+    behavior: power
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: -0.00208079814910889
+      v: 0.316417396068573
+      a: 1
+  guid: 65ce185e-1a65-414b-bcb2-756fc9308763
+  id: 13275b73-cd4e-4d33-ada3-647d7474facf
+  ctime: 1709487380406
+  domains:
+    CharacterCondition:13275b73-cd4e-4d33-ada3-647d7474facf: true
+  powertable: true
+  iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80
+  name: Concealment
+  showInMenus: false
+  description: Darkness, fog, invisibility magic, and other phenomena that fully obscures a creature but doesn’t protect their body give a creature concealment. You can target creatures who are in concealment with attacks, provided they aren’t hidden, however attacks against these creatures have a bane.
+  mtime: 1768208513149
+  implementation: 3
+1211270f-bfce-45a6-b937-d72f0e8a06a8:
+  __typeName: CharacterCondition
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: a0e3a5c6-6cd5-4567-9b0a-910c735173eb
+    source: Condition
+    modtype: bane
+    keywords:
+      Attack: true
+    activationCondition: target.ConditionCaster("Frightened") = self
+    guid: 7b551f3b-d02d-4934-8bb4-014a7336aaca
+    rollType: ability_power_roll
+    domains:
+      CharacterCondition:1211270f-bfce-45a6-b937-d72f0e8a06a8: true
+    description: If you are frightened, attacks you make against the source of your fear with a bane. If that source is a creature, they make attacks against you with an edge. You can’t willingly move closer to the source of your fear while you have a Line of Effect to it. If you gain the frightened condition from a creature while already frightened by a different creature, the new condition, including the value, replaces the old one.
+    behavior: power
+    name: Frightened
+  - __typeName: CharacterModifier
+    sourceguid: a0e3a5c6-6cd5-4567-9b0a-910c735173eb
+    source: Condition
+    modtype: edge
+    keywords:
+      Attack: true
+    activationCondition: target.ConditionCaster("Frightened") = self
+    guid: af2e877c-e1af-4b9f-a61e-10b9c5f1a6e1
+    rollType: enemy_ability_power_roll
+    domains:
+      CharacterCondition:1211270f-bfce-45a6-b937-d72f0e8a06a8: true
+    description: If you are frightened, attacks you make against the source of your fear with a bane. If that source is a creature, they make attacks against you with an edge. You can’t willingly move closer to the source of your fear while you have a Line of Effect to it. If you gain the frightened condition from a creature while already frightened by a different creature, the new condition, including the value, replaces the old one.
+    behavior: power
+    name: Frightened
+  _fork: H4sIAAAAAAAACtVTy27cIBT9FeRuQwR+gO1tpEhdtIuq+9EFrscoHjMCXMmK8u8FZpom6lRqF13UCwvu45xzHzxXh0Pcz/gZTliN1cMMHnRE/+BWY6N1a3VHKoNBe3su17H6OJHdbQQ8ksnb4xxxRXNHIEbQT6H4TvCEBI5g1xBJnJEEt3mNxJVUTyYET8I2TegJJwpWvCcJNs4Qf4TaQIBojxA3jwl93V8ZEuD+niJz5mMGc269z6LXS0WPrxKz0Wq3WpPMQhsQvBO0b7WirR46OgyyoQa7VjUMRM+7nHCKNsNwyaRsZdsNtZS5IzacF9ir8blShWDFEFJYcs0bhtlOsRpZuoWsHy6dy1511G5xPin4MF2/THNYNvgKaklU0W/4kkz6lbkTfZ30NE2bBTljJ4s+ZG6ef7cH+Oka99/O74KTS3q7ijenatwp4+Rm/LrAI685ryWbqJo00rYDQdXQSGpkPTHsgQnoL22/PQiFM3yzZWYGTnDEQllOj3Z591bGCZaQYY5b2bK6Gxgy0dAWjKBtYqTK8J5q0aPshWQtVz9rvSYBwwY6LWja0S7pFZIOigEdONOy6bhssCSVTdi/uGVJSZcp/GaV3piKwJd/3rO/LKUE/xHnDbrvBQxTA8MEAAA=
+  implementation: 2
+  stackable: true
+  id: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+  ctime: 1710002924980
+  domains:
+    CharacterCondition:1211270f-bfce-45a6-b937-d72f0e8a06a8: true
+  powertable: true
+  mtime: 1768208517316
+  name: Frightened
+  guid: a0e3a5c6-6cd5-4567-9b0a-910c735173eb
+  description: 'When a creature is frightened, any ability roll they make against the source of their fear takes a bane. If that source is a creature, their ability rolls made against the frightened creature gain an edge. A frightened creature can’t willingly move closer to the source of their fear if they know the location of that source. If a creature gains the frightened condition from one source while already frightened by a different source, the new condition replaces the old one. '
+  trackCaster: true
+  iconid: 6cda6156-84cb-4c95-9973-de54b30a6815
+2989a051-204f-442e-967d-edafc2dd5e43:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    operation: min
+    sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+    source: Condition
+    value: 0
+    domains:
+      CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+    name: Restrained
+    guid: 7c3571fe-9f02-44fa-88ce-4ca702a39669
+    description: |-
+      While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+      If you teleport while restrained, the condition ends.
+    behavior: attribute
+    attribute: speed
+  - __typeName: CharacterModifier
+    sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+    source: Condition
+    modtype: bane
+    keywords:
+      Attack: true
+    activationCondition: true
+    guid: c81aa3f3-4f63-4567-ac78-3b233194a6da
+    rollType: ability_power_roll
+    domains:
+      CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+    description: |-
+      While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+      If you teleport while restrained, the condition ends.
+    behavior: power
+    name: Restrained
+  - __typeName: CharacterModifier
+    sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+    source: Condition
+    modtype: edge
+    keywords:
+      Attack: true
+    activationCondition: true
+    guid: 58777437-f3a3-4cf1-ba00-d3b17d04e023
+    rollType: enemy_ability_power_roll
+    domains:
+      CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+    description: |-
+      While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+      If you teleport while restrained, the condition ends.
+    behavior: power
+    name: Restrained
+  - __typeName: CharacterModifier
+    domains:
+      CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+    sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+    description: |-
+      While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+      If you teleport while restrained, the condition ends.
+    source: Condition
+    name: Restrained
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      trigger: teleport
+      strain: []
+      guid: f1c4a76a-3639-4129-a179-58ff3088a308
+      repeatTargets: false
+      abilityType: none
+      domains:
+        CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+      targetType: self
+      persistence: []
+      name: Restrained
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - 2989a051-204f-442e-967d-edafc2dd5e43
+      description: If a creature teleports while restrained, that condition ends.
+      range: 1
+      iconid: ui-icons/skills/1.png
+    guid: a6b04d8e-467d-469c-af43-c575fa51858e
+  - __typeName: CharacterModifier
+    sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+    source: Condition
+    behavior: power
+    keywords: []
+    activationCondition: true
+    modtype: bane
+    domains:
+      CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+    name: Restrained
+    rollType: test_power_roll
+    description: |-
+      While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+      If you teleport while restrained, the condition ends.
+    guid: 5c3c480f-d4db-4737-8c9b-dd1127984567
+    attribute: mgt
+  - __typeName: CharacterModifier
+    sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+    source: Condition
+    behavior: power
+    keywords: []
+    activationCondition: true
+    modtype: bane
+    domains:
+      CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+    name: Restrained
+    rollType: test_power_roll
+    description: |-
+      While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+      If you teleport while restrained, the condition ends.
+    guid: 54c599cf-40f0-46fc-9fb9-fbc4b4d0a3f7
+    attribute: agl
+  - __typeName: CharacterModifier
+    sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+    source: Condition
+    value: 1
+    domains:
+      CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+    name: Restrained
+    guid: f89393f1-0e69-4dbc-9102-7f916c17398c
+    description: "A creature who is restrained has speed 0, can’t use the Stand Up maneuver, and can’t be force moved. A restrained creature takes a bane on ability rolls and on Might and Agility tests, and abilities used against them gain an edge. \n\nIf a creature teleports while restrained, that condition ends. "
+    behavior: attribute
+    attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+  - __typeName: CharacterModifier
+    text: You cannot move while restrained
+    sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+    source: Condition
+    guid: f22eea45-0316-4fdf-8945-c92374c7ceae
+    domains:
+      CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+    name: Restrained
+    description: "A creature who is restrained has speed 0, can’t use the Stand Up maneuver, and can’t be force moved. A restrained creature takes a bane on ability rolls and on Might and Agility tests, and abilities used against them gain an edge. \n\nIf a creature teleports while restrained, that condition ends. "
+    behavior: movementtext
+    color: red
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  stackable: true
+  guid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  id: 2989a051-204f-442e-967d-edafc2dd5e43
+  ctime: 1699753380340
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  powertable: true
+  description: "A creature who is restrained has speed 0, can’t use the Stand Up maneuver, and can’t be force moved. A restrained creature takes a bane on ability rolls and on Might and Agility tests, and abilities used against them gain an edge. \n\nIf a creature teleports while restrained, that condition ends. "
+  name: Restrained
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+  mtime: 1769609070830
+  trackCaster: true
+  implementation: 3
+5d091cca-ecb7-4cd0-a2b5-6081de20332a:
+  __typeName: CharacterCondition
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  maxInstancesFormula: "1"
+  showInMenus: false
+  iconid: 47dfb08a-7a22-4856-86a4-57502f236f4e
+  guid: 2ff75f15-2f1a-47ec-a205-9c6706e6c2e6
+  id: 5d091cca-ecb7-4cd0-a2b5-6081de20332a
+  ctime: 1727830301884
+  domains:
+    CharacterCondition:5d091cca-ecb7-4cd0-a2b5-6081de20332a: true
+  powertable: false
+  modifiers: []
+  name: Judged
+  mtime: 1768208563732
+  description: If a judged creature uses an action and you have line of effect to them, you can use a free triggered action to deal holy damage equal to twice your Presence score to them.
+  trackCaster: true
+  implementation: 3
+68f455f5-135f-495c-822d-40d809d2b15f:
+  __typeName: CharacterCondition
+  modifiers:
+  - __typeName: CharacterModifier
+    operation: min
+    sourceguid: 73cd2209-3e15-4592-bfa8-662e68a6f034
+    source: Condition
+    value: Speed While Slowed
+    domains:
+      CharacterCondition:68f455f5-135f-495c-822d-40d809d2b15f: true
+    name: Slowed
+    guid: 5639b013-dc12-4db6-9a7c-6f5d587d063d
+    description: Your speed is halved.
+    behavior: attribute
+    attribute: speed
+  - __typeName: CharacterModifier
+    text: You cannot shift since you are slowed.
+    sourceguid: 73cd2209-3e15-4592-bfa8-662e68a6f034
+    source: Condition
+    behavior: movementtext
+    domains:
+      CharacterCondition:68f455f5-135f-495c-822d-40d809d2b15f: true
+    name: Slowed
+    movementType: shift
+    description: 'A creature who is slowed has a speed of 2 unless their speed is already lower, and they can’t shift. '
+    guid: 9c1660d4-43e0-475a-b601-6827fdd88e68
+    color: red
+  - __typeName: CharacterModifier
+    sourceguid: 73cd2209-3e15-4592-bfa8-662e68a6f034
+    source: Condition
+    value: 1
+    domains:
+      CharacterCondition:68f455f5-135f-495c-822d-40d809d2b15f: true
+    name: Slowed
+    guid: ffe60ef3-d94a-4a49-be89-0286c9578292
+    description: 'A creature who is slowed has a speed of 2 unless their speed is already lower, and they can’t shift. '
+    behavior: attribute
+    attribute: 42d3d3ec-da00-4338-a97a-fa5ea9d62472
+  _fork: H4sIAAAAAAAACpVSTY/bIBD9KxHnsuXDg02uuXZ72V56ivgYYiTHjgCnWq363wtOqo3aPbQHhHgz896bGd7I8VheL/jVnJHsyWE0ybiC6bDMPpa4zOTTjnjMLsXL9tyT78uadvmC6Hcx70YzXdE/tbT5xvEyLT/QNyC6ZY6+Qk73QVgQlPVG0k4aRwcESwNnuuu4FB0XreBcYqPgPQMQohdcaNb0Y75M5pXs34hN8TSWGXOuaTU0rpjHGArZt8RsyprMzWeL2pNbpiW1wuNxzZhaq9XPl9UctkBjuJfW60n3A3AABVKDBKjwtcGKM8Y5V0z2Ug1DhU3l/1nv47Sab8ZOlbSkFRvkHnvgMNQjWmuLjyFiys0Mvzn6aPDP97z/mHuuAbeRPC7tr21YHM01tmkQU0qKdi3Y8OWCv2dGMpYGvccr1BTfZU7rttFeOi8E01QiB9qBFtQGM1ClBKrBqMBk14ru6aCktoxL6h0XtPNWUW16R1UAD0PvmZKbxtVMaxN9Xq54xrnsXpr65+1zfDDrByiYKW/YpqeG0AEEoFxCoJ2G+uGE8LRjfmDaC8shPNj7127+tPALiyArOT4DAAA=
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  guid: 73cd2209-3e15-4592-bfa8-662e68a6f034
+  id: 68f455f5-135f-495c-822d-40d809d2b15f
+  ctime: 1710003198207
+  domains:
+    CharacterCondition:68f455f5-135f-495c-822d-40d809d2b15f: true
+  powertable: true
+  description: 'A creature who is slowed has a speed of 2 unless their speed is already lower, and they can’t shift. '
+  name: Slowed
+  iconid: c97f2b52-07a3-43ac-8e5b-f10944132412
+  mtime: 1768208536867
+  stackable: true
+  implementation: 2

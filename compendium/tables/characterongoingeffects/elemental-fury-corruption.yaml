@@ -1,0 +1,54 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: f36d2209-2bf5-40b2-bac0-64d726e93696
+    repeatTargets: false
+    trigger: losehitpoints
+    conditionFormula: HasAttacker
+    targetType: attacker
+    persistence: []
+    name: Elemental Fury - Corruption
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "10"
+      damageType: corruption
+      chatMessage: Elemental Fury Damage
+    - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+      applyto: subject
+      filterTarget: Cast.Damage Dealt >= Cast.Primary Target.Stamina
+      stamina: "10"
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: Until the end of the encounter or until you are dying, whenever an enemy damages you, they take 10 damage of the chosen type. If this damage reduces the enemy to 0 Stamina, you gain 10 temporary Stamina
+  source: Ongoing Effect
+  behavior: trigger
+  guid: dd75241f-f7bc-4877-a39c-a05782b293ba
+  name: Elemental Fury - Acid
+  sourceguid: fb0fd79f-c24a-494a-8ada-fcc3940343cc
+source: Ongoing Effect
+guid: ae330f33-9a91-4589-a129-665e5fbdbada
+id: ae330f33-9a91-4589-a129-665e5fbdbada
+ctime: 1770350057569
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Elemental Fury - Corruption
+description: Until the end of the encounter or until you are dying, whenever an enemy damages you, they take 10 damage of the chosen type. If this damage reduces the enemy to 0 Stamina, you gain 10 temporary Stamina
+custom: true
+mtime: 1770350148217
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,39 @@
+__typeName: MarkdownDocument
+description: B4. Reeve’s House
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 18c92911-274c-4582-b7b8-5e9d0872e6db
+annotations: []
+id: 9e841a0c-1852-4240-8810-9e0dc1d66cee
+mtime: 1762857958909
+content: |
+  # B4. Reeve’s House
+
+  > * “The inside of this one-room home features a table with four chairs and a fireplace and clutter everywhere, as if the person who lives here is too busy to tidy up.”
+  > * “That person is seated on an unmade bed, reading over a piece of parchment as you enter. She raises a finger to have you wait for a moment as she finishes reading. Then she looks up and says, ‘[Reeve Rosamund], at your service. What can I do for you?’”
+
+
+  [Reeve Rosamund] grew up in Broadhurst, and its residents elected her to be the reeve. She helps enforce the laws of Dalrath, and, through nobles she communicates with Lord Kenway, the leader of all Dalrath, to request resources for the village. Since Broadhurst is a peaceful place, most of her time is spent helping farmers settle disputes and organizing search parties for missing livestock. Recent events outside the village have made her life infinitely more stressful, but luckily Lord Kenway has given her the funds to hire help.
+
+  [Reeve Rosamund] is intelligent but overworked and stressed. She speaks quickly, giving as much detail in her answers as she can to try to stave off further questions, though she is also willing to answer more if it means getting the job done.
+
+
+  ## Stolen Food
+
+  If the heroes tell [Reeve Rosamund] that they’re there for work and the Forsaken Wraith bandits are still at large, she gives a grateful sigh and says:
+  > * “Thank the gods. We could really use the help. I asked those [Gilded Hand] folks, but we can’t afford them.”
+  > * “Here’s the deal. Someone’s been stealing food. I don’t know if it’s one person from many places, or many people each from one place, but I got complaints of stuff being stolen from the granary and the smokehouse.”
+  > * “If you can start asking questions around those places and track down who did this, I’ll be forever grateful … and I’ll pay you! Lord Kenway has given some coin to this cause.”
+  > * “I’ve not heard much other than some stuff’s gone missing. Been dealing with some other issues!”
+
+
+  ## Thurston Negotiation
+
+  If the heroes negotiated with [Thurston] (see [Fort Forsaken]) and need to grant the bandit and his followers a pardon to seal an alliance, Rosamund is happy to write a letter indicating they can come and live in Broadhurst provided the heroes have completed at least one other quest from this part of the adventure.
+
+
+  ## Other Jobs
+
+  If the heroes have already taken care of the Forsaken Wraiths, [Reeve Rosamund] offers this information instead:
+  > * “There’s not much I can offer you in the way of official work, but there are some folks around town who could use help.”
+  > * “You might see [Tansy] the furrier, [Orson] the charcoal burner, or [Dunquat] the mason. All three of them are having trouble.”
+ctime: 1761388122444

@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 92b50582-45e7-43a1-866e-03a807fa9111
+id: 92b50582-45e7-43a1-866e-03a807fa9111
+ctime: 1773654186955
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+custom: true
+name: Radical Fantasia Free Triggered Action Used
+mtime: 1773654256265
+description: Additionally, once per combat round, each target in the aura can use a triggered action as a free triggered action.
+endTrigger: beginround
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

@@ -1,0 +1,20 @@
+__typeName: equipment
+id: c90f7a83-bdab-4272-b177-b0bcb01e29f4
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature is also weakened (save ends). If the creature is within 10 squares when this weakened effect ends, you can use a free triggered action to make a free strike against them.
+itemPrerequisite: An olothec tentacle
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Variac
+imbuePrereq: none
+name: Anathema
+imbueTargetType: implement
+mtime: 1770782298407
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+imbueLevel: 9

@@ -1,0 +1,19 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+  sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+  value: 1
+  source: Character
+  name: Stamina Modification
+  behavior: attribute
+  description: ""
+  attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+source: Character
+guid: 2359108d-cb7d-4a79-8a98-38f577168092
+id: 101e2863-cdfa-42a2-9627-9df50d99b437
+ctime: 1756013546597
+name: Disengage Speed Modification
+description: ""
+mtime: 1756046320740
+implementation: 3

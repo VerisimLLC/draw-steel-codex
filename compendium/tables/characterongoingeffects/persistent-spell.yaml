@@ -1,0 +1,16 @@
+__typeName: CharacterOngoingEffect
+modifiers: []
+source: Ongoing Effect
+guid: f8784618-bb13-41f8-b8ac-43f304651a1f
+id: f8784618-bb13-41f8-b8ac-43f304651a1f
+ctime: 1710004498491
+name: Persistent Spell
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1710004498491
+custom: true
+description: ""
+iconid: ui-icons/skills/1.png

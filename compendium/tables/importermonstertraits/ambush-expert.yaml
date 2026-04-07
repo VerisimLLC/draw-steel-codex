@@ -1,0 +1,24 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 9fee1696-ac0c-481e-b5a2-b234341491ac
+  source: Monster
+  modtype: double_edge
+  keywords:
+    Attack: true
+  activationCondition: true
+  guid: 9602db47-d383-4db3-a558-938076260e1a
+  rollType: ability_power_roll
+  filterCondition: has condition "hiding"
+  description: ""
+  behavior: power
+  name: Ambush Expert
+source: Monster
+guid: 9fee1696-ac0c-481e-b5a2-b234341491ac
+importMatch: "<<Monster>> has a <<double>> edge on Attacks against creatures they are hidden from."
+ctime: 1709485733358
+name: Ambush Expert
+id: de82f9b5-f60d-4389-8950-8bb9450cadb1
+description: ""
+mtime: 1711783357197
+importMatchType: rules

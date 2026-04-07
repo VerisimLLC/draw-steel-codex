@@ -1,0 +1,319 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Walking Boulder
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: a568238b-953a-44f6-acee-a28cdde1253d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import: []
+    skillProficiencies: []
+    role: Minion Defender
+    inflictedConditions: []
+    keywords:
+      Earth: true
+      Signature: true
+      Elemental: true
+      Summoner: true
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: A massive clod of animated stone that rolls above smaller piles of rocks that could be perceived as ‘legs’. Boulders are good for taking up space and building barricades.
+      title: Walking Boulder
+    monster_category: Monster
+    monster_type: Walking Boulder
+    characterFeatures:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: dea29721-bd8b-489c-b138-3bbe5a50891b
+        source: Custom
+        value: 5
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: Walking Boulder
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: " "
+        behavior: attribute
+        attribute: creatureSize
+      - __typeName: CharacterModifier
+        sourceguid: dea29721-bd8b-489c-b138-3bbe5a50891b
+        source: Custom
+        value: Walking Speed
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: Walking Boulder
+        guid: ca7ed0cb-c589-43e1-b804-6c5233d283db
+        description: " "
+        behavior: attribute
+        attribute: climb
+      source: Custom
+      guid: dea29721-bd8b-489c-b138-3bbe5a50891b
+      id: 6450780b-d70f-4bf2-ae23-9620e047e693
+      ctime: 1756099470349
+      domains:
+        CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+      name: Walking Boulder
+      description: " "
+      mtime: 1756099470349
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2dab1b75-3a22-467c-9f09-1f0aaeed1b6f: true
+        CharacterFeature:02137ade-68c2-453f-8775-65250de0ddc9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2dab1b75-3a22-467c-9f09-1f0aaeed1b6f
+        source: Trait
+        seq: 8de3d19a-648f-4c85-825c-e2b4d2ceed15
+        aura:
+          __typeName: Aura
+          modifiers: []
+          source: Obstruct
+          blocks_line_of_effect: true
+          guid: 3651719f-6e2e-4eb8-8db5-453f5c782919
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+          applyto: enemies
+          name: Obstruct
+          description: The boulder obstructs line of effect for enemies.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+        domains:
+          CharacterFeature:2dab1b75-3a22-467c-9f09-1f0aaeed1b6f: true
+          CharacterFeature:02137ade-68c2-453f-8775-65250de0ddc9: true
+        radius: "0"
+        guid: cdc5cbd7-272f-458f-95a0-579429fd1f3e
+        description: The boulder obstructs line of effect for enemies.
+        behavior: aura
+        name: Obstruct
+      name: Obstruct
+      guid: 02137ade-68c2-453f-8775-65250de0ddc9
+      description: The boulder obstructs line of effect for enemies.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:940a2393-a292-404c-a87d-8df5e3f69551: true
+        CharacterFeature:294490d7-2667-43cb-9f74-27126f1dc7d1: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 294490d7-2667-43cb-9f74-27126f1dc7d1
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:940a2393-a292-404c-a87d-8df5e3f69551: true
+          CharacterFeature:294490d7-2667-43cb-9f74-27126f1dc7d1: true
+        name: Pile Up
+        resourceRefreshType: encounter
+        description: When the boulder is reduced to 0 Stamina, they leave behind a stone wall equal to their size in their space until the end of the encounter.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 01bd16b1-85c1-4b41-bf36-678e81dbc9fe
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: e11a9130-bd35-4e8f-ac73-f252fb722734
+          domains:
+            CharacterFeature:940a2393-a292-404c-a87d-8df5e3f69551: true
+            CharacterFeature:294490d7-2667-43cb-9f74-27126f1dc7d1: true
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aliveafterdeath: true
+            aura:
+              __typeName: Aura
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              difficult_terrain: true
+              modifiers: []
+              source: Pile Up
+              blocks_line_of_effect: true
+              guid: 4d61cdcf-7c08-4e98-beec-8feee74d1391
+              name: Pile Up
+              objectid: 00f1761f-1896-4b4f-8367-afcede45b5f5
+          name: Pile Up
+          trigger: creaturedeath
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 01bd16b1-85c1-4b41-bf36-678e81dbc9fe
+      name: Pile Up
+      guid: 940a2393-a292-404c-a87d-8df5e3f69551
+      description: When the boulder is reduced to 0 Stamina, they leave behind a stone wall equal to their size in their space until the end of the encounter.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:61346e6a-1066-4935-b8ab-15c593a7ae47: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 61346e6a-1066-4935-b8ab-15c593a7ae47
+        source: Character Feature
+        value: Summoner.Reason
+        domains:
+          CharacterFeature:61346e6a-1066-4935-b8ab-15c593a7ae47: true
+        name: Stability
+        guid: 14cb3946-4238-4f7b-b879-40458b97aee0
+        description: Stability is equal to the Summoner's Reason.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      name: Stability
+      guid: 61346e6a-1066-4935-b8ab-15c593a7ae47
+      description: Stability is equal to the Summoner's Reason.
+      source: Character Feature
+    availableTriggers: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    levelChoices: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    resources: []
+    max_hitpoints: 3
+    minionSquad: Walking Boulder Squad 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 1 damage
+        - 1 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+    walkingSpeed: 4
+    initiativeGrouping: 609ae5bc-74a1-42a2-9d47-b90b973c979d
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    minion: true
+    damage_taken: 0
+    notesRevision: f9f9047f-5fe7-4ffb-872a-33c29defa5b9
+  tokenType: null
+  bestiaryId: cb94d804-feb7-4ea7-808f-f31707d27982
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1759439867114
+description: null
+parentFolder: ab335af6-6b6f-4e77-9295-060f8ee787ab
+artist: null
+ord: 2
+ctime: 1759505212314
+mtime: 1775167536447
+hidden: false

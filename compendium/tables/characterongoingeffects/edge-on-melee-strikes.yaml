@@ -1,0 +1,43 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.134499907493591
+    s: 0.795321643352509
+    v: 0.670588254928589
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  modtype: edge
+  keywords:
+    Melee: true
+    Attack: true
+  surges: stacks
+  behavior: power
+  domains:
+    CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+  name: Edge on Melee Strikes
+  rollType: ability_power_roll
+  description: Has an Edge on Melee Strikes
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  activationCondition: true
+source: Ongoing Effect
+endTrigger: none
+stackable: true
+id: 59cd5c85-e486-40d6-b94e-46a3c2a8f28b
+ctime: 1742875679523
+domains:
+  CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+implementation: 3
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+name: Edge on Melee Strikes
+categorization: common
+description: Has an Edge on Melee Strikes
+mtime: 1742875679523
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e

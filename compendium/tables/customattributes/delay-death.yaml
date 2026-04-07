@@ -1,0 +1,7 @@
+__typeName: CustomAttribute
+baseValue: "0"
+name: Delay Death
+mtime: 1769068577028
+documentation: Monsters will delay their death by this number of seconds. Useful if you want to just force a monster to stay alive a little while to make any on-death effects happen.
+id: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+ctime: 1769068577028

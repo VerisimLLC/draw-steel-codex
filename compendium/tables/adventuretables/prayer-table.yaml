@@ -1,0 +1,32 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 752d95d5-07f2-4beb-ba9e-15b9bc905f5a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start + 1} Piety; 1d6 + {Level} Psychic Damage
+- __typeName: RollTableRow
+  id: a5fa3928-63d2-464b-9ece-72a8dbccc352
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start + 2} Piety
+- __typeName: RollTableRow
+  id: 1c4fe35e-fb59-45e3-be29-99f9c339d5c6
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start + 4} Piety; choose and use a domain effect
+rollType: d3
+name: Prayer Table
+mtime: 1769642136604
+id: 2fb998b9-5924-46b5-927a-c97d8a66d391
+ctime: 1741928218036

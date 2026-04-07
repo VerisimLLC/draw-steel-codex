@@ -1,0 +1,272 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 51db02a3-5d07-4d89-9cc7-3a8f40b3309c
+ctime: 1762879481977
+textStorage:
+  __typeName: TextStorage
+  sections:
+    yX: |
+      > * “If you have an edge and a bane or a double edge and a double bane, the roll is made normally without any edges or banes.”
+    yT: |
+      > * “If you have a situational disadvantage (bane) on a power roll, the roll gains a −2 penalty. If you have two or more banes, the roll is one tier lower than its initial result instead.”
+    yg: |+
+      > * “If you have a double bane and an edge, the roll has one bane.”
+
+
+
+    y: |2+
+
+
+
+    K: |
+      > * “To determine which side goes first, let’s look at the outcome of the Intuition test you made before the fight.”
+    w: |+
+      ## Monster Free Strikes
+
+    yq: |+
+      After the first turn of combat, continue with creatures acting as described in Draw Steel! Feel free to review the rules above and the Rules Reference as you go. If you make a mistake, don’t worry about it, part 1 is a tutorial meant to teach you the rules of combat.
+
+    u: |
+      > * “When you reduce a creature controlled by me to 0 Stamina, the creature dies or is knocked out, your choice. Either way, they’re out of the fight.”
+    v: |+
+      > * “You don’t go down so easy. You can keep fighting when your Stamina is at 0 or negative. However, when your Stamina is 0 or less, you are dying, which means you can’t take the Catch Breath maneuver in combat and you are bleeding. These effects last until your Stamina is at least 1 or higher. If your Stamina reaches a negative value equal to half your Stamina maximum, you die.”
+
+
+
+    s: |
+      The first time a creature takes damage during the encounter, explain how damage works to the players:
+    t: |
+      > * “When a creature takes damage, their Stamina is reduced by the damage dealt. When a creature’s Stamina value is half or less than their maximum, they are winded.”
+    q: |+
+      > * The goblin forgoes using a maneuver this round. This is a choice you can make for the creatures you control to keep moving combat along.
+
+
+
+
+    r: |+
+      ## Damage
+
+    o: |
+      > * The goblin uses the Advance move action to move 6 squares toward a hero.
+    p: |
+      > * Then the goblin uses Spear Charge. The Charge keyword on this ability allows each warrior to first move their speed in a straight line toward a hero and deal damage to them based on the power rolls you make all as part of the same main action.
+    m: |+
+      ## First Goblin Turn
+
+    n: |
+      When it is time for the goblins to act, choose a group of two goblin warriors to act. Each goblin takes their turn one at a time, targeting a different hero to spread the damage around:
+    k: |
+      > * “Read over that section carefully. You each gain heroic resources at the start of your turn. Additionally, you each gain resources in some other ways during the round, so pay attention for those things to happen!”
+    l: |+
+      > * “Your heroic resources disappear at the end of combat. You’ll all most likely have a lot leftover at the end of this battle. Don’t sweat it! More ways to spend them are coming.”
+
+
+
+    i: |
+      When the first hero acts, give the following information to the players:
+    j: |
+      > * “Each of you gains heroic resources, which you can use to enhance your abilities. The way you generate heroic resources should be listed on your hero’s sheet.”
+    g: |+
+      Now that you’ve explained the basics to the heroes, go ahead and have the first side to act take a turn.
+
+
+
+    h: |+
+      ## Heroic Resources
+
+    e: |
+      > * “Then each ability has a power roll, an effect entry, or both! If the ability requires a power roll, it should tell you what to roll in addition to 2d10, and what occurs at each tier of result for the roll. Skills are never added to ability power rolls. The effect entry of an ability notes what happens when the ability is used regardless of any power roll.”
+    f: |
+      > * “Many abilities deal damage, which allows you to harm the target. Abilities also allow you to force move targets, teleport, impose a condition, such as ‘taunted,’ on the target, or do similar things. The Rules Reference defines the effects used in this first battle.”
+    c: |
+      > * “Each ability has a distance. Melee abilities are used within a short distance and include creatures you can touch with your body or weapons you are holding. Ranged abilities can be used at a farther distance. The number in this entry, such as Melee 1 or Ranged 5, tells you how far away a creature can be targeted with this ability. Some abilities affect an area on the map. These areas of effect are defined in the Rules Reference.”
+    d: |
+      > * “Each ability also has a target entry, that tells you how many and what kinds of creatures within distance you can affect with the ability.”
+    a: |
+      After taking a minute to look over your options, explain further how abilities work to your players:
+    yP: |
+      > * “If you have an edge on a power roll, the roll gains a +2 bonus. If you have two or more edges, the roll is one tier higher than its initial result instead.”
+    V: |
+      > * “There is also a list of main actions and maneuvers any creature can take listed in the Rules Reference sheet. For example, anyone can use the Knockback maneuver, which allows you to attempt to push a nearby creature.”
+    O: |+
+      Once you determine which side goes first, have the players pick a hero to take the first turn, or you pick a pair of goblins to take the first turn.
+
+
+
+    x: |
+      When a creature you control makes a free strike, they don't roll. Instead, their stat block features a Free Strike stat representing the amount of damage they deal with a melee free strike with a distance of melee 1 or the creature's signature ability, whichever is higher. This is also the amount of damage they deal with a ranged free strike with a distance equal to 5 or the range of the creature's signature ability, whichever is higher. Even though a Director-controlled creature doesn't roll when they make a free strike, if they have a bane on attacks against a creature, they still can't make an opportunity attack against them.
+    b: |
+      > * “As you’re looking over your abilities, pay attention to the various details. In addition to an action type, each ability has keywords listed at the top of the entry, like Magic, Melee, Psionic, Ranged, or Weapon. The rules occasionally reference abilities with a specific keyword. You won’t need to worry much about it this battle.”
+    yH: |
+      The first time you come upon a rule that refers to an edge or bane, share the following information with the players:
+    yD: |+
+      ## Edges and Banes
+
+    Y: |+
+      Read over the [goblin warrior] stat block in [Goblin Guards Combat] to see what your goblins can do.
+
+
+
+    Z: |+
+      ## Abilities in Combat
+
+    W: |
+      > * “Take a minute to read over your various abilities and their action types. I’ll discuss the other details after you’ve had a chance to review them.”
+    X: |
+      What you’re telling the players is also true of the creatures you control.
+    U: |
+      > * “If an action is listed as a free maneuver, then you can take it on your turn without it counting against the number of actions you can take.”
+    yv: |+
+      When the first round of combat is complete, reinforcements from the tomb attack! See Goblin Guards in the Encounters Book for more information about these reinforcements.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    S: |
+      > *  “In general, your move action is used to take the Advance move action, which is available to all creatures. You can use this move action to move a number of squares equal to your speed in any direction, including diagonally.”
+    T: |
+      > * “Your hero’s statistics include a number of abilities, many of which are actions and some of which are maneuvers.”
+    Q: |
+      When you know which creature is acting first in the combat encounter, explain the following rules to the players:
+    R: |
+      > * “On your turn in combat, you can take three different actions: a main action, a move action, and a maneuver.”
+    yl: |+
+      ## Keep the Combat Going
+
+    P: |+
+      ## Actions in Combat
+
+    M: |
+      > * “Since you noticed the goblins at the same time as they noticed you, you’ll need to roll to see who goes first.”
+    N: |
+      > * “Pick one player on your side to roll a single ten-sided die. If the roll comes up as a 6 or higher, the heroes take the first turn. Otherwise, my goblins go first.”
+    yb: |
+      > * “If you have a double edge and a bane, the roll has one edge.”
+    L: |
+      The test total in Searching for Goblins determines which side acts first. If the heroes achieve a 12–16 total, an additional roll determines who goes first. Read the following:
+    I: |
+      > * “We go back and forth like this until everyone has acted. If all the creatures on one side have acted and the other side still has multiple creatures left to act, those remaining creatures on that side can act in any order they choose. Once everyone has acted, a new round begins.”
+    J: |
+      > * “Whichever side acts first during the first round of combat acts first in all subsequent rounds.”
+    G: |
+      > * “Combat takes place in a series of turns and rounds. During a round of combat, each creature in the combat takes a turn one at a time.”
+    H: |
+      > * “Creatures act in alternating side order. So, when your side—the heroes’ side—gets to act, you pick one hero from among you and they take their turn. After they take a turn, I get to pick a group of monsters, and they each take a turn, and then play passes back to your side.”
+    E: |+
+      ## Draw Steel!
+
+    F: |
+      To explain the order of combat to your players, read the following text aloud:
+    C: |+
+      When the map is set with tokens, it’s time to draw steel! The following sections provide a script and rules you can use to explain how combat works to your players. The rules outlined here aren’t true for just this encounter, but for all future encounters as well.
+
+    D: |+
+      Feel free to repeat yourself as often as necessary.
+
+
+
+    yL: |
+      > * “Edges and banes are circumstantial bonuses and penalties that can be applied to any power roll, including tests.”
+    B: |+
+      # Explaining Combat
+
+parentFolder: 950a66b0-f3d6-41b9-b5dd-7bef2f74d154
+updateid: e87178a3-a39c-4e21-87d2-e2cc1df421f2
+mtime: 1763480555878
+content: |+
+  # Explaining Combat
+
+  When the map is set with tokens, it’s time to draw steel! The following sections provide a script and rules you can use to explain how combat works to your players. The rules outlined here aren’t true for just this encounter, but for all future encounters as well.
+
+  Feel free to repeat yourself as often as necessary.
+
+
+
+  ## Draw Steel!
+
+  To explain the order of combat to your players, read the following text aloud:
+  > * “Combat takes place in a series of turns and rounds. During a round of combat, each creature in the combat takes a turn one at a time.”
+  > * “Creatures act in alternating side order. So, when your side—the heroes’ side—gets to act, you pick one hero from among you and they take their turn. After they take a turn, I get to pick a group of monsters, and they each take a turn, and then play passes back to your side.”
+  > * “We go back and forth like this until everyone has acted. If all the creatures on one side have acted and the other side still has multiple creatures left to act, those remaining creatures on that side can act in any order they choose. Once everyone has acted, a new round begins.”
+  > * “Whichever side acts first during the first round of combat acts first in all subsequent rounds.”
+  > * “To determine which side goes first, let’s look at the outcome of the Intuition test you made before the fight.”
+  The test total in Searching for Goblins determines which side acts first. If the heroes achieve a 12–16 total, an additional roll determines who goes first. Read the following:
+  > * “Since you noticed the goblins at the same time as they noticed you, you’ll need to roll to see who goes first.”
+  > * “Pick one player on your side to roll a single ten-sided die. If the roll comes up as a 6 or higher, the heroes take the first turn. Otherwise, my goblins go first.”
+  Once you determine which side goes first, have the players pick a hero to take the first turn, or you pick a pair of goblins to take the first turn.
+
+
+
+  ## Actions in Combat
+
+  When you know which creature is acting first in the combat encounter, explain the following rules to the players:
+  > * “On your turn in combat, you can take three different actions: a main action, a move action, and a maneuver.”
+  > *  “In general, your move action is used to take the Advance move action, which is available to all creatures. You can use this move action to move a number of squares equal to your speed in any direction, including diagonally.”
+  > * “Your hero’s statistics include a number of abilities, many of which are actions and some of which are maneuvers.”
+  > * “If an action is listed as a free maneuver, then you can take it on your turn without it counting against the number of actions you can take.”
+  > * “There is also a list of main actions and maneuvers any creature can take listed in the Rules Reference sheet. For example, anyone can use the Knockback maneuver, which allows you to attempt to push a nearby creature.”
+  > * “Take a minute to read over your various abilities and their action types. I’ll discuss the other details after you’ve had a chance to review them.”
+  What you’re telling the players is also true of the creatures you control.
+  Read over the [goblin warrior] stat block in [Goblin Guards Combat] to see what your goblins can do.
+
+
+
+  ## Abilities in Combat
+
+  After taking a minute to look over your options, explain further how abilities work to your players:
+  > * “As you’re looking over your abilities, pay attention to the various details. In addition to an action type, each ability has keywords listed at the top of the entry, like Magic, Melee, Psionic, Ranged, or Weapon. The rules occasionally reference abilities with a specific keyword. You won’t need to worry much about it this battle.”
+  > * “Each ability has a distance. Melee abilities are used within a short distance and include creatures you can touch with your body or weapons you are holding. Ranged abilities can be used at a farther distance. The number in this entry, such as Melee 1 or Ranged 5, tells you how far away a creature can be targeted with this ability. Some abilities affect an area on the map. These areas of effect are defined in the Rules Reference.”
+  > * “Each ability also has a target entry, that tells you how many and what kinds of creatures within distance you can affect with the ability.”
+  > * “Then each ability has a power roll, an effect entry, or both! If the ability requires a power roll, it should tell you what to roll in addition to 2d10, and what occurs at each tier of result for the roll. Skills are never added to ability power rolls. The effect entry of an ability notes what happens when the ability is used regardless of any power roll.”
+  > * “Many abilities deal damage, which allows you to harm the target. Abilities also allow you to force move targets, teleport, impose a condition, such as ‘taunted,’ on the target, or do similar things. The Rules Reference defines the effects used in this first battle.”
+  Now that you’ve explained the basics to the heroes, go ahead and have the first side to act take a turn.
+
+
+
+  ## Heroic Resources
+
+  When the first hero acts, give the following information to the players:
+  > * “Each of you gains heroic resources, which you can use to enhance your abilities. The way you generate heroic resources should be listed on your hero’s sheet.”
+  > * “Read over that section carefully. You each gain heroic resources at the start of your turn. Additionally, you each gain resources in some other ways during the round, so pay attention for those things to happen!”
+  > * “Your heroic resources disappear at the end of combat. You’ll all most likely have a lot leftover at the end of this battle. Don’t sweat it! More ways to spend them are coming.”
+
+
+
+  ## First Goblin Turn
+
+  When it is time for the goblins to act, choose a group of two goblin warriors to act. Each goblin takes their turn one at a time, targeting a different hero to spread the damage around:
+  > * The goblin uses the Advance move action to move 6 squares toward a hero.
+  > * Then the goblin uses Spear Charge. The Charge keyword on this ability allows each warrior to first move their speed in a straight line toward a hero and deal damage to them based on the power rolls you make all as part of the same main action.
+  > * The goblin forgoes using a maneuver this round. This is a choice you can make for the creatures you control to keep moving combat along.
+
+
+
+
+  **See [Explaining Combat Continued].**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+description: Explaining Combat

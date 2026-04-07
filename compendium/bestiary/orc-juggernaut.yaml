@@ -1,0 +1,781 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1c686c3c-d0ac-473b-9f1c-bf35b9876369
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 60
+    inflictedConditions: []
+    ev: 10
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: -1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: -1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    moveDistance: 10
+    traitNames: []
+    damageEntries:
+      c2e766c9-7164-48b7-a9ea-267ac26cf44d:
+        damage: 6
+        seq: 4
+        attackerid: c4e31259-361c-4366-ae3f-7fd87d248cc9
+        id: c2e766c9-7164-48b7-a9ea-267ac26cf44d
+        damage_type: untyped
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        012628ee-aa90-453f-ba98-804a038ae846:
+          note: 6 damage from Ricky's Ranged Free Strike
+          disposition: bad
+          attackerid: c4e31259-361c-4366-ae3f-7fd87d248cc9
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 54
+        964536e7-0e25-452f-b4b6-85c2e35e2365:
+          note: 6 damage from Ricky's Ranged Free Strike
+          disposition: bad
+          attackerid: c4e31259-361c-4366-ae3f-7fd87d248cc9
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 48
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Orc Juggernaut	Level 3 Platoon Brute
+        Humanoid, Orc	EV 10
+        <b>Stamina</b> 60
+        <b>Speed</b> 6	<b>Size</b> 1L /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +2	Agility +2	Reason -1	Intuition -1	Presence +2
+        <b>Haymaker Greataxe</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; prone
+        %E2%9C%B8	<b>17</b>	14 damage; prone; M<2 bleeding (save ends)
+        <b>Effect</b> This ability deals an additional 6 damage against already prone targets.
+
+        <b>Hrraaaaaagh!</b> (Free Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Trigger</b> The juggernaut takes damage.
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The juggernaut moves up to their speed and makes a free strike.
+
+        <b>Blood in the Water</b>
+        The juggernaut can move 3 additional squares if they end their movement closer to a prone creature.
+
+        <b>Relentless</b>
+        If the juggernaut's Stamina drops to 0, they can take a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the juggernaut lives and their Stamina is reduced to 1 instead.
+        Orc Rampart	Level 2 Platoon Defender
+        Humanoid, Orc	EV 8
+        <b>Stamina</b> 59
+        <b>Speed</b> 6	<b>Size</b> 1L /<b> Stability</b> 2
+        <b>Free Strike</b> 4
+        Might +2	Agility +2	Reason +2	Intuition +2	Presence +2
+        <b>My Spear, My Foe</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	9 damage; taunted (EoT)
+        %E2%9C%B8	<b>17</b>	12 damage; taunted (EoT)
+        <b>Effect</b> This ability has a double edge if the target dealt damage to the rampart this round.
+
+        <b>Castling</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> 1 ally
+        <b>Effect</b> The rampart moves or shifts up to their speed to a square adjacent to the target and then swaps places with the target.
+
+        <b>No.</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger</b> A creature targets an adjacent ally with an ability.
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The rampart becomes the new target.
+
+        <b>Relentless</b>
+        If the rampart's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the rampart lives and their Stamina is reduced to 1 instead.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a99b77df-f326-4440-8e76-faefe8b2f96b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a99b77df-f326-4440-8e76-faefe8b2f96b
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:a99b77df-f326-4440-8e76-faefe8b2f96b: true
+        name: Blood in the Water
+        resourceRefreshType: turn
+        description: The juggernaut can move 3 additional squares if they end their movement closer to a prone creature.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: You may move an additional 3 squares if you end your movement closer to a prone creature.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: 94cf3357-dba5-4fc0-867a-a7c6d9f79408
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: a71ed0bc-a9b9-42d2-846a-38d3273d6cc4
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            namedAbility: move speed
+            abilityType: custom
+            promptText: Whenever the Orc Juggernaut willingly moves, they can move 3 additional squares if they end their movement closer to a prone creature.
+            filterTarget: Moved This Turn > 3 and Moved This Turn < 10
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: ccfd96b7-e99d-4be2-9447-7d72c943892c
+              repeatTargets: false
+              abilityType: none
+              persistence: []
+              targeting: pathfind
+              targetType: emptyspace
+              name: Invoked Ability
+              behaviors:
+              - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                movementType: move
+              description: ""
+              range: "3"
+              iconid: ui-icons/skills/1.png
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+            applyto: caster
+          conditionFormula: Count Nearby Creatures(100, "prone") > 0
+          whenActive: combat
+          trigger: finishmove
+          name: Blood in the Water
+          persistence: []
+          description: Whenever the juggernaut willingly moves, they can move 3 additional squares if they end their movement closer to a prone creature.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 94cf3357-dba5-4fc0-867a-a7c6d9f79408
+      source: Trait
+      description: The juggernaut can move 3 additional squares if they end their movement closer to a prone creature.
+      guid: a99b77df-f326-4440-8e76-faefe8b2f96b
+      name: Blood in the Water
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+        CharacterFeature:d5365feb-71ff-4b2a-94d6-8a56e76038e9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+          CharacterFeature:d5365feb-71ff-4b2a-94d6-8a56e76038e9: true
+        sourceguid: d5365feb-71ff-4b2a-94d6-8a56e76038e9
+        behavior: trigger
+        source: Trait
+        name: Relentless
+        description: If the Orc Juggernaut's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 395b4189-beeb-4aa2-a50c-618e6c10e49f
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: 6702b2c3-b668-49fa-8e0f-df6642e4a474
+              repeatTargets: false
+              persistence: []
+              targetType: self
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  source: ""
+                  filterAbility: Ability.Free Strike
+                  guid: 3f01b3d2-b4fc-4826-ac51-34f25c48e5c4
+                  name: Modify Attack
+                  attributes: []
+                  cannotModifyAction: true
+                  description: ""
+                  behavior: modifyability
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: b2abeaef-260e-4356-8279-9834d910edb1
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      invokeOnCaster: true
+                      filterTarget: target.stamina <= 0
+                      abilityType: custom
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        numTargets: "1"
+                        modifiers: []
+                        abilityType: none
+                        strain: []
+                        guid: 6d7bd275-a1af-45a3-b604-036a11ca8336
+                        repeatTargets: false
+                        persistence: []
+                        targetType: self
+                        behaviors:
+                        - __typeName: ActivatedAbilityHealBehavior
+                          applyto: caster
+                          roll: "1"
+                        iconid: ui-icons/skills/1.png
+                        name: Relentless - Heal if target of free strike dies
+                        preDescription: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc lives and drops to 1 stamina instead.
+                        description: ""
+                        range: 1
+                        implementation: 3
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              iconid: ui-icons/skills/1.png
+              name: Relentless Free Strike
+              description: ""
+              sourceReference:
+                __typeName: SourceReference
+                page: 218
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: 1
+              implementation: 3
+            invokeOnCaster: true
+            promptText: The Orc Juggernaut selects a Creature to Free Strike, if the target is reduce to 0 stamina the Juggernaut lives and drops to 1 stamina instead.
+          domains:
+            CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+            CharacterFeature:d5365feb-71ff-4b2a-94d6-8a56e76038e9: true
+          whenActive: combat
+          numTargets: "1"
+          trigger: zerohitpoints
+          name: Relentless
+          description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 7256f5d3-b574-4211-886a-b98c511e0c48
+      source: Trait
+      description: If the Orc Juggernaut's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+      guid: d5365feb-71ff-4b2a-94d6-8a56e76038e9
+      name: Relentless
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:459552c8-217d-448e-990d-0daca7a8f0b8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:459552c8-217d-448e-990d-0daca7a8f0b8: true
+        sourceguid: 459552c8-217d-448e-990d-0daca7a8f0b8
+        behavior: trigger
+        source: Character Feature
+        name: Hrraaaaaagh!
+        description: |-
+          Trigger: The juggernaut takes damage.
+          Effect: The juggernaut moves up to their speed and can make a free
+          strike.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: |-
+            Trigger: The juggernaut takes damage.
+
+            Effect: The juggernaut moves up to their speed and can make a free strike.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          whenActive: combat
+          persistence: []
+          guid: f41ce191-e2b5-46c1-9be3-8632910efe0e
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            runOnController: true
+            promptText: When the juggernaut takes damage, they may use a free triggered action to move up to their speed and can make a free strike.
+            namedAbility: Move Speed
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 23d80c71-5563-4ab3-b389-afc413e6f4a7
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 529a5869-6951-4a81-84df-7077c756aa53
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            autoTarget: false
+            standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+            abilityType: standard
+          trigger: losehitpoints
+          name: Hrraaaaaagh!
+          description: |-
+            Trigger: The juggernaut takes damage.
+
+            Effect: The juggernaut moves up to their speed and can make a free strike.
+          abilityType: none
+          iconid: e7d55d80-630d-432d-8d3d-33051478bcd9
+        guid: 20c810b6-f5a1-4e9a-bc67-f2bf1d92ba27
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:459552c8-217d-448e-990d-0daca7a8f0b8: true
+        sourceguid: 459552c8-217d-448e-990d-0daca7a8f0b8
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Hrraaaaaagh!
+        description: |-
+          Trigger: The juggernaut takes damage.
+          Effect: The juggernaut moves up to their speed and can make a free
+          strike.
+        guid: d5da32a8-02e4-48d3-b4ca-8d12df1d7121
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: free
+          effect: The juggernaut moves up to their speed and can make a free strike.
+          name: Hrraaaaaagh!
+          trigger: The juggernaut takes damage.
+          cost: 1 Malice
+          guid: 0eca0890-0dfa-47e8-af40-4a89bb73c5eb
+          distance: Self
+          keywords: []
+      source: Character Feature
+      description: |-
+        Trigger: The juggernaut takes damage.
+        Effect: The juggernaut moves up to their speed and can make a free
+        strike.
+      guid: 459552c8-217d-448e-990d-0daca7a8f0b8
+      name: Hrraaaaaagh!
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b0e7437c-181a-4122-b98f-a430c42f89b8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b0e7437c-181a-4122-b98f-a430c42f89b8
+        source: Character Feature
+        modtype: none
+        adjustments: []
+        keywords: []
+        activationCondition: target.Conditions has "prone" and Ability.Name is "Haymaker Greataxe"
+        behavior: power
+        domains:
+          CharacterFeature:b0e7437c-181a-4122-b98f-a430c42f89b8: true
+        name: Haymaker Greataxe Prone Bonus Damage
+        description: " A target who is already prone takes an extra 6 damage."
+        damageModifier: "6"
+        rollType: ability_power_roll
+        guid: 04b436e6-ab74-49c9-98fc-c4f7c4f78f52
+      source: Character Feature
+      description: " A target who is already prone takes an extra 6 damage."
+      guid: b0e7437c-181a-4122-b98f-a430c42f89b8
+      name: Haymaker Greataxe Prone Bonus Damage
+      implementation: 3
+    role: Platoon Brute
+    equipment: []
+    titles: []
+    moveDistanceRoundId: 7d81d3d6-f262-4fe8-b304-3c79af609daa-19
+    resistances: []
+    opportunityAttack: 5
+    keywords:
+      Humanoid: true
+      Orc: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        20d28ace-0e7c-4599-a87c-86aa2d17be1f:
+          refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-19
+          note: Ranged Free Strike
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+    availableTriggers: []
+    initiativeGrouping: 88ec058a-7f9f-4e4b-a92b-6cf04de88336
+    damage_taken: 12
+    94cf3357-dba5-4fc0-867a-a7c6d9f79408_history:
+      __typeName: StatHistory
+      entries:
+        2eda46ed-3a85-4294-a481-d78c9f34f330:
+          refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-18-88ec058a-7f9f-4e4b-a92b-6cf04de88336
+          note: Blood in the Water
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/0"
+        a7ed9458-658c-4d71-b21b-558b10e28886:
+          refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-16-88ec058a-7f9f-4e4b-a92b-6cf04de88336
+          note: Blood in the Water
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/0"
+        f3564f24-1f83-45b0-853e-0d28be64ce6e:
+          refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-15-88ec058a-7f9f-4e4b-a92b-6cf04de88336
+          note: Blood in the Water
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/0"
+        3df95c9f-f425-4797-815d-6ec54d612689:
+          refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-13-88ec058a-7f9f-4e4b-a92b-6cf04de88336
+          note: Blood in the Water
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/0"
+        230fc4bc-11f0-4de6-9b1c-b68674221fc1:
+          refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-17-88ec058a-7f9f-4e4b-a92b-6cf04de88336
+          note: Blood in the Water
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/0"
+    walkingSpeed: 6
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 11 damage; Prone
+        - 14 damage; prone; M<2 bleeding (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 04f11f66-67f3-4b87-ae8a-2f839eb94284
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 220
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Haymaker Greataxe
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: A target who is already prone takes an extra 6 damage.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: b3e3a60b-96cf-4045-aeda-882ddf2ef72b
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Hrraaaaaagh!
+      implementation: 0
+      description: The juggernaut moves up to their speed and makes a free strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage; taunted (EoT)
+        - 12 damage; taunted (EoT)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 61851deb-b6d0-42b0-a1c6-99f0eebba41f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: My Spear, My Foe
+      numTargets: 1
+      description: This ability has a double edge if the target dealt damage to the rampart this round.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: 4c0ba1b5-9439-4cd6-aedb-186e26adc3fc
+      numTargets: 1
+      targetType: target
+      implementation: 0
+      name: Castling
+      persistence: []
+      description: The rampart moves or shifts up to their speed to a square adjacent to the target and then swaps places with the target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 02d95dd9-3e16-4013-8555-c378c6ba2fbf
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: No.
+      numTargets: "1"
+      description: The rampart becomes the new target.
+      abilityType: none
+      implementation: 0
+    equipmentMeta:
+      offhand0: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-19
+        used: 1
+      94cf3357-dba5-4fc0-867a-a7c6d9f79408:
+        __typeName: CharacterResource
+        refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-18-88ec058a-7f9f-4e4b-a92b-6cf04de88336
+        used: 1
+    movementSpeeds: []
+    skillRatings: []
+    monster_type: Orc Juggernaut
+    creatureSize: 1L
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 20543e85-d9fc-4606-81aa-6048cfa48acd-750
+  tokenType: null
+  bestiaryId: 6c6e71be-de40-4422-9693-2528deaf2eea
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1726301040866
+description: Orc Juggernaut
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590262666
+mtime: 1775201137032
+hidden: false

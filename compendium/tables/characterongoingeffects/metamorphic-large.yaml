@@ -1,0 +1,92 @@
+__typeName: CharacterOngoingEffect
+association: []
+description: Abilities using this weapon gain a +1 melee distance bonus or a +3 ranged distance bonus.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 118083d7-0cb8-4425-b5c7-d8ff6f344254
+  modifyDescription: +1 Range to Melee Abilities due to Metamorphic - Large
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Melee: true
+  domains:
+    CharacterOngoingEffect:118083d7-0cb8-4425-b5c7-d8ff6f344254: true
+  attributes:
+  - operation: Add
+    value: "1"
+    id: range
+  guid: 50016fc9-a09e-4335-9adf-4dca94ca0989
+  description: Abilities using this weapon gain a +1 melee distance bonus or a +3 ranged distance bonus.
+  name: Metamorphic - Large
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0f2e9440-6715-410e-9ad1-ef9b710307c1
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: 118083d7-0cb8-4425-b5c7-d8ff6f344254
+  modifyDescription: +3 Range to Ranged abilities due to Metamorphic - Large
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Ranged: true
+  domains:
+    CharacterOngoingEffect:118083d7-0cb8-4425-b5c7-d8ff6f344254: true
+  attributes:
+  - operation: Add
+    value: "3"
+    id: range
+  guid: 17903f73-df12-4d51-84f5-6d1a7b6a7b4e
+  description: Abilities using this weapon gain a +1 melee distance bonus or a +3 ranged distance bonus.
+  name: Metamorphic - Large
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0beef3c5-cf45-4895-bfb3-08052446895a
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+id: 118083d7-0cb8-4425-b5c7-d8ff6f344254
+guid: 118083d7-0cb8-4425-b5c7-d8ff6f344254
+hiddenOnToken: true
+ctime: 1774705827078
+domains:
+  CharacterOngoingEffect:118083d7-0cb8-4425-b5c7-d8ff6f344254: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+buffType: buff
+name: Metamorphic - Large
+iconid: ui-icons/skills/1.png
+custom: true
+mtime: 1774706884956
+implementation: 4

@@ -1,0 +1,73 @@
+__typeName: ActivatedAbility
+id: 92dee248-5564-4737-9b76-cab40f18bfb3
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: Ability.Categorization = "Signature Ability" or Ability.Categorization = "Heroic Ability" or Ability.Name is "knockback" or Ability.Name is "heal" or Ability.Name is "grab" or Ability.Name is "melee free strike" or Ability.Name is "ranged free strike"
+    behavior: modifyability
+    guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+    cannotModifyAction: true
+    attributes: []
+    mustPayResourceCost: false
+    description: ""
+    name: Modify Attack
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors:
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+          modtype: double_edge
+          keywords: []
+          activationCondition: true
+          guid: cd0fedaa-7048-4b2e-bcfd-22bfaf3fea8c
+          rollType: ability_power_roll
+          domains: []
+          description: ""
+          name: Power Roll Modifier
+          behavior: power
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: The target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+importMatch: ""
+ctime: 1746594003713
+targetType: self
+persistence: []
+description: the target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+name: Any Ability
+repeatTargets: false
+mtime: 1771247856940
+abilityType: none
+iconid: ui-icons/skills/1.png

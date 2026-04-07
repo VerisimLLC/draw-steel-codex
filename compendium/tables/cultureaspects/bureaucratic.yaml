@@ -1,0 +1,18 @@
+__typeName: CultureAspect
+mtime: 1756163918725
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+      interpersonal: true
+    name: Bureaucratic Skill
+    description: Choose one Skill from the intrigue or interpersonal skill groups. (*Quick Build:* Persuade)
+    guid: ba5569ea-2457-4fbe-9a15-144b246d005b
+    source: Bureaucratic Culture Feature
+name: Bureaucratic
+category: organization
+description: "Bureaucratic cultures are steeped in official leadership and formally recorded laws. Members of such a culture are often ranked in power according to those laws, with a small group of people holding the power to rule according to birthright, popular vote, or some other official and measurable standard. Many bureaucratic communities have one person at the top, though others might be ruled by a council. A trade guild with a guildmaster, treasurer, secretary, and a charter of rules and regulations for membership; a feudal lord who rules over a group of knights who in turn rule over peasants working the land; and a militaristic society with ranks and rules that its people must abide are all examples of bureaucratic cultures. \n\nThose who thrive in bureaucratic cultures don’t simply follow the rules. They know how to use those rules to their advantage, either bending, changing, or reinterpreting policy to advance their own interests. Schmoozing with those who make the laws is often key to this approach. Others in a bureaucratic culture might specialize in operating outside the strict regulations that govern the culture without getting caught. "
+id: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1730729805115

@@ -1,0 +1,51 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: bcb7323a-32ed-4402-8110-50bf66f0420d
+  source: Ongoing Effect
+  value: 2
+  domains:
+    CharacterOngoingEffect:bcb7323a-32ed-4402-8110-50bf66f0420d: true
+  name: Upholding High Standards
+  guid: 17d17dab-e9c7-467a-b546-c941555610a9
+  description: You have +2 movement and a +2 damage bonus to strikes this turn.
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: bcb7323a-32ed-4402-8110-50bf66f0420d
+  source: Ongoing Effect
+  guid: 3c0f3e29-64e3-426c-ad81-25f71cb69ea9
+  keywords:
+    Strike: true
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:bcb7323a-32ed-4402-8110-50bf66f0420d: true
+  rollType: ability_power_roll
+  name: Upholding High Standards
+  modtype: none
+  description: You have +2 movement and a +2 damage bonus to strikes this turn.
+  damageModifier: "2"
+  behavior: power
+source: Ongoing Effect
+guid: bcb7323a-32ed-4402-8110-50bf66f0420d
+id: bcb7323a-32ed-4402-8110-50bf66f0420d
+ctime: 1751515963671
+domains:
+  CharacterOngoingEffect:bcb7323a-32ed-4402-8110-50bf66f0420d: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.847000062465668
+    s: 1.00267505645752
+    v: 1.00306534767151
+    a: 1
+custom: true
+name: Upholding High Standards
+iconid: ef6773dc-31d2-4b8a-9771-dd9ce19f9c86
+description: You have +2 movement and a +2 damage bonus to strikes this turn.
+mtime: 1751523468053
+implementation: 3

@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  behavior: power
+  keywords:
+    Attack: true
+  activationCondition: true
+  name: Next Attack Against Has Double Edge
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  description: The next attack against this creature has a Double Edge
+  modtype: double_edge
+  rollType: enemy_ability_power_roll
+source: Ongoing Effect
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+id: c7727b08-d3e2-4065-85cd-6e85ee5c867d
+ctime: 1711343004670
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00169157981873
+    v: 0.494716078042984
+    a: 1
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+description: The next attack against this creature has a Double Edge
+endTrigger: attacked
+name: Next Attack Against Has Double Edge
+categorization: common
+mtime: 1737361082489
+implementation: 3

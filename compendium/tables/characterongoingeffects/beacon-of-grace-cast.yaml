@@ -1,0 +1,77 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+    modifiers: []
+    hasManualVersion: true
+    strain: []
+    guid: 5ceeb316-a40d-465b-bca5-b91daffe4513
+    numTargets: "1"
+    abilityType: none
+    conditionFormula: Subject.ConditionCaster("Beacon of Grace") = self
+    persistence: []
+    name: Beacon of Grace recast
+    trigger: zerohitpoints
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        persistence: []
+        objectTarget: false
+        abilityType: none
+        strain: []
+        guid: 0419b862-e7a2-4deb-96ec-99b17c197190
+        repeatTargets: false
+        modifiers: []
+        numTargets: "1"
+        targetType: target
+        categorization: Hidden
+        name: Beacon of Grace
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 699b523b-b087-4565-ab2e-26adfeca25c5
+          duration: eoe
+          ongoingEffectCustom: false
+        description: ""
+        range: "10"
+        iconid: ui-icons/skills/1.png
+      promptText: Move Beacon of Grace Effect to new target
+    description: If the target is reduced to 0 Stamina before the end of the encounter, you can use a free triggered action to move this effect to another creature within distance.
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 523b3d6c-43d0-4d98-8b4b-a87f988b52ae
+  name: Beacon of Grace Cast
+  sourceguid: f0f720be-7637-4aef-a373-43592172fbc7
+source: Ongoing Effect
+guid: f0f720be-7637-4aef-a373-43592172fbc7
+id: f0f720be-7637-4aef-a373-43592172fbc7
+ctime: 1765339816393
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Beacon of Grace Cast
+description: ""
+custom: true
+mtime: 1765339816393
+iconid: ui-icons/skills/1.png

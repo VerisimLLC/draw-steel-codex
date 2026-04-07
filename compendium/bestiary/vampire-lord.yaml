@@ -1,0 +1,447 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1beeff4b-697a-45b6-8cce-95f8bc5ce7c0
+    offtokenPortraitId: 739f9dfb-c7c7-4ae7-9936-b8ba051dd4c2
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2566378
+    portraitOffset:
+      x: -0.02350068
+      y: 0.2986731
+    frameHueShift: 0.5465902
+    frameSaturation: 0.5169482
+    frameBrightness: 0.7355842
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 3150bd37-3aa2-4bd1-ad2f-be3b4e936e51
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 7
+    skillProficiencies: []
+    max_hitpoints: 200
+    inflictedConditions: []
+    ev: 36
+    max_hitpoints_roll: "200"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 5
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b2e6b13e-c15f-4e50-aa8e-c82a84b46d9b
+      implementation: 3
+      numTargets: 1
+      name: 'Crimson Embrace '
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 13 corruption damage; M<3 bleeding (save ends)
+        - 21 corruption damage; M<4 bleeding (save ends)
+        - 24 corruption damage; M<5 bleeding (save ends)
+        roll: 2d10 + Agility
+      description: |-
+        The vampire regains Stamina equal to half the damage dealt, and can end one effect on them that can be ended by a saving throw.
+        **Spend Malice**: The vampire shifts 3 after striking the last target, and can  target one additional creature for every 2 malice spent.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 6e4729b1-8cd6-459a-960f-cfb02c29d956
+      abilityType: none
+      numTargets: 1
+      implementation: 0
+      name: 'Redirected Charm '
+      behaviors: []
+      description: The target becomes the new target of the strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: a9232e2f-98ed-4751-b544-0a69098b355b
+        multicharge: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 311b762d-b3eb-4f21-baac-579c12811940
+      numTargets: "1"
+      targetType: self
+      implementation: 0
+      name: 'Share My Hunger '
+      effectImplemented: false
+      description: Until the end of the round, each target's melee strikes inflict M<4 bleeding (save ends).
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; M<3 6 corruption damage
+        - 7 damage; M<4 6 corruption damage
+        - 10 damage; M<5 6 corruption damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '513a1f12-6670-4daf-9d3"
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a5f6be3e-e2f6-439d-bab2-67062acf0104
+      numTargets: 1
+      targetType: all
+      implementation: 3
+      name: Red Mist Rising
+      effectImplemented: false
+      description: The vampire lord turns into mist which fills the affected area. Until the end of the round, the vampire lord can't move or be targeted by abilities but can speak and use Crimson Embrace on a target within the affected area. They reform into an unoccupied square within distance at the end of the round.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 20
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'ba194bed-7218-4328-983"
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a476a4a4-ec62-4bcd-a8fc-d3a7f700b67a
+      numTargets: 1
+      targetType: all
+      implementation: 0
+      name: Sacrifice
+      effectImplemented: false
+      description: Each target is marked for sacrifice. At the end of the round, each target that is still alive takes 50 corruption damage, and the vampire lord regains 5 Stamina for each creature killed in this way. The vampire lord then uses the following ability.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 10
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 8acd288d-5cbf-4127-b2ec-df0982b6c48a
+      abilityType: none
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 272
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Arise, My Children
+      numTargets: 1
+      description: |
+        Two blood-starved vampires appear in unoccupied spaces within distance.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 272
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 20
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: da982a04-d6e6-4452-9293-933af408aa7b
+        multicharge: false
+      villainAction: Villain Action 1
+      numTargets: 1
+      modifiers: []
+      guid: 5c87a264-a23c-44c9-81a8-719c84c8abb0
+      behaviors: []
+      categorization: Villain Action
+      name: Let Us Feast!
+      iconid: ui-icons/skills/1.png
+      description: |
+        Each target who has P<4 is now bleeding (save ends).
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 272
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 20
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: d0421cf0-6f09-4be6-9978-a57408c188ec
+        multicharge: false
+      villainAction: Villain Action 4
+      numTargets: 1
+      modifiers: []
+      guid: c5fc890e-64ab-4e11-b00c-32b72bfe1ed7
+      behaviors: []
+      categorization: Villain Action
+      name: Wave of Blood
+      iconid: ui-icons/skills/1.png
+      description: |+
+        Each target makes a Might test. This ability deals an extra 5 damage for each creature killed by the Sacrifice villain action.
+
+
+
+
+
+
+      abilityType: none
+      implementation: 0
+    minion: false
+    stability: 3
+    import:
+      type: mcdm
+      data: |
+        Vampire Lord	Level 7 Leader
+        Undead, Vampire	EV 36
+        <b>Stamina</b> 200	<b>Immunity</b> corruption 9, poison 9
+        <b>Speed</b> 12 (climb, teleport, hover)	<b>Size</b> 1M /<b> Stability</b> 3
+        <b>Free Strike</b> 7
+        Might +2	Agility +5	Reason +1	Intuition +1	Presence +2
+        <b>Crimson Embrace </b>(Action) %E2%97%86 2d10 + 5 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	13 corruption damage; M<3 bleeding (save ends)
+        %E2%98%85	12%E2%80%9316	21 corruption damage; M<4 bleeding (save ends)
+        %E2%9C%B8	17	24 corruption damage; M<5 bleeding (save ends)
+        Effect The vampire lord regains Stamina equal to half the corruption damage dealt and ends one save ends effect affecting them.
+        2 Malice The vampire lord shifts up to their speed and targets an additional creature or object.
+
+        <b>Redirected Charm </b>(Free Triggered Action)%E2%97%86 3 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 enemy
+        <b>Trigger </b>A creature makes a strike against the vampire lord.
+        <b>Effect </b>The target becomes the new target of the strike.
+
+        <b>Controlled Bloodthirst</b>
+        The vampire lord has a speed of 15 and an edge on power rolls while a creature is bleeding within 20. Each bleeding creature within 5 of the vampire lord can't be hidden from them.
+
+        <b>Share My Hunger </b>(Villain Action 1)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 20<b>	Target</b> All allies
+        <b>Effect</b> Until the end of the round, each target's melee strikes inflict <b>M<4</b> bleeding (save ends).
+
+        <b>Red Mist Rising</b> (Villain Action 2) %E2%97%86 2d10 + 5
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%B8	%E2%89%A411	2 damage; M<3 6 corruption damage
+        %E2%98%85	12%E2%80%9316	7 damage; M<4 6 corruption damage
+        %E2%9C%A6	17	10 damage; M<5 6 corruption damage
+        <b>Effect</b> The vampire lord turns into mist which fills the affected area. Until the end of the round, the vampire lord can't move or be targeted by abilities but can speak and use Crimson Embrace on a target within the affected area. They reform into an unoccupied square within distance at the end of the round.
+
+        <b>Sacrifice</b> (Villain Action 3)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> Ranged 20<b>	Target</b> Each ally of the vampire lord's choice
+        <b>Effect</b> Each target is marked for sacrifice. At the end of the round, each target that is still alive takes 50 corruption damage, and the vampire lord regains 5 Stamina for each creature killed in this way. The vampire lord then uses the following ability.
+        <b>Wave of Blood</b>
+        <b>Keywords </b>Area, Magic
+        <b>Distance</b> 20 burst<b>	Target</b> All enemies in the burst
+        Effect Each target makes a Might test. This ability deals an additional 5 damage for each creature killed by Sacrifice.
+        %E2%9C%B8	%E2%89%A411	11 corruption damage
+        %E2%98%85	12%E2%80%9316	8 corruption damage
+        %E2%9C%A6	17	2 corruption damage
+
+        Undead - 4th Echelon
+        Bonecage
+        Oftentimes, undead naturally occur as a result of a tragedy visited upon the living, such as a prisoner being executed for false crimes. Other times, they may come about because a soul has unfinished business, like a lover to say farewell to. Not, however, the bonecage. Its origin lacks tragedy, romance, or even dignity: it is a tool used coldly to solve a numbers problem. Due to how weak many undead minions are, necromancers at war find themselves shy of corpses when their forces lose more numbers than they slay. Enter the bonecage. Made from giant bones, its chest has been warped to resemble a cage, which it can pry open to cram creatures inside. Trawling the scenes of great battles, the bonecage fills its chest cavity with the fallen, stealing them away for ill purpose.
+        Of course, when no mass grave presents itself opportunistically, the bonecage is also more than capable of making corpses of its own. And frankly, its masters rarely mind the difference.
+        Lithgekh
+        Every mage who lives long enough eventually contends with the fact that their knowledge will one day leave the world. Many can't stomach this idea, and as such, the immortality of lichdom becomes an irresistable temptation. Fortunately for the Mundane World, the vast majority of prospectives fail. The lucky ones fail early enough that they can abort the mission entirely and resume their life. The unlucky ones become lithgekh, a First Language word meaning "lich corpse". Having failed to create a proper soul vessel, they suffer an eternal hunger for magic to sustain themselves.
+        Especially cruel liches will sometimes intentionally trick or tempt mortal mages into pursuing lichdom, only to sabotage them and create a lithgekh under the lich's control. These servants are prized by liches for their ability to disrupt enemy magic and empower their own.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0ecae8fa-40ba-4630-92b8-d5cf59a8d8d1: true
+      modifiers: []
+      name: Controlled Bloodthirst
+      description: The vampire lord has a speed of 15 and an edge on power rolls while a creature is bleeding within 20. Each bleeding creature within 5 of the vampire lord can't be hidden from them.
+      guid: 0ecae8fa-40ba-4630-92b8-d5cf59a8d8d1
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:dea909c7-e8f4-4013-bdbe-7b96aecf5894: true
+      modifiers: []
+      name: Lord's Bloodthirst
+      description: The vampire has speed 15 and an edge on power rolls while any creature within 20 squares of them is bleeding. Any bleeding creature within 5 squares of the vampire can't hide.
+      guid: dea909c7-e8f4-4013-bdbe-7b96aecf5894
+      source: Trait
+    role: Leader
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 9
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 9
+      damageType: poison
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    opportunityAttack: 7
+    resources: []
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    walkingSpeed: 12
+    creatureSize: 1M
+    traitNames: []
+    movementSpeeds:
+      climb: 12
+      teleport: 12
+    initiativeGrouping: bc015efd-7d25-4fc3-b84a-ad329f2bd2d7
+    monster_type: Vampire Lord
+    notes:
+    - text: ""
+      title: Monster Notes
+    keywords:
+      Undead: true
+      Vampire: true
+  tokenType: null
+  bestiaryId: fb039a8a-8021-40c4-8d7a-aa53f118def6
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961971173
+description: Vampire Lord
+parentFolder: fc9b27fb-58bf-4b65-9400-d025e2de9480
+artist: null
+ord: 7
+ctime: 1741590331388
+mtime: 1775201137032
+hidden: false

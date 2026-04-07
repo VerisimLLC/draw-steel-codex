@@ -1,0 +1,85 @@
+__typeName: CharacterFeature
+testCases:
+- text: As an action, this goblin chooses any 3 goblins within 10 squares. Each of those goblins can make a weapon attack.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c7793d49-5289-49c9-a933-1de99db619b8
+  guid: 19c42ad2-a6ba-4efd-95f4-ebf93ba4521c
+  source: Monster
+  behavior: activated
+  description: ""
+  name: Fight On!
+  activatedAbility:
+    __typeName: ActivatedAbility
+    numTargets: "<<count>>"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    guid: 198e5082-17ba-4884-bf15-26f0e98ed14b
+    repeatTargets: false
+    abilityType: none
+    domains: []
+    targetType: target
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 324b9cbd-c193-48d2-ab85-bcfd446377a4
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: f9a871ca-ece9-4ee2-b3ab-57c19c7e4f57
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 5
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: standard
+          standardAbility: 72cc1f37-0ba0-47e6-a9f1-20f3c9ad653c
+        range: 5
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      abilityType: custom
+      runOnController: false
+      standardAbility: 72cc1f37-0ba0-47e6-a9f1-20f3c9ad653c
+      targeting: self
+    name: Fight On!
+    categorization: Signature Ability
+    description: ""
+    range: "<<range>> * 5"
+    iconid: 7960d94e-8d18-4fa2-984d-126de8590736
+source: Monster
+guid: c7793d49-5289-49c9-a933-1de99db619b8
+importMatch: As an action, <<monster>> chooses any <<count>> goblins within <<range>> squares. Each of those goblins can make a weapon attack.
+ctime: 1716705339840
+name: Fight On!
+id: 3a06b6f5-ce05-4a84-86e7-b8a0b7d206d6
+description: ""
+mtime: 1716706064968
+implementation: 3

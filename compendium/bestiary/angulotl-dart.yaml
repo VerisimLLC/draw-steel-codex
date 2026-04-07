@@ -1,0 +1,314 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 19157cdf-a3b7-4e67-b506-82c791b13404
+    offtokenPortraitId: c9f3c362-4bfb-4821-9976-cb0b68611654
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.5627283
+    portraitOffset:
+      x: -0.07466727
+      y: 0.02625048
+    frameHueShift: 0.3466946
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.8407013
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8ea775d9-b6b2-40db-85f6-01d56b5415fc
+  properties:
+    __typeName: monster
+    groupid: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 3
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 poison damage
+        - 4 poison damage
+        - 5 poison damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: f2255c76-5adb-49c0-93c9-8d867b6b5b07
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: f2255c76-5adb-49c0-93c9-8d867b6b5b07
+          displayCondition: "1"
+          modtype: edge
+          keywords: []
+          activationCondition: target.stamina < target.Maximum Stamina
+          guid: e134b7b3-f953-4a51-8bad-7b4059d45747
+          name: Poison Dart
+          domains: []
+          description: The dart gains an edge on this ability against any target who has less than full Stamina.
+          rollType: ability_power_roll
+          behavior: power
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.323750019073486
+          s: 0.782617568969727
+          v: 1.00238561630249
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 42
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: "8"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: c9080ae2-193d-45d8-8e5b-ebb3eb1ca14b
+      targetType: target
+      numTargets: "1"
+      iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9
+      categorization: Signature Ability
+      name: Poison Dart
+      persistence: []
+      description: The dart gains an edge on this ability against any target who has less than full Stamina.
+      abilityType: none
+      implementation: 4
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        ANGULOTL DART	LEVEL 1 MINION ARTILLERY
+        Angulotl, Humanoid	EV 3 for four minions
+        Stamina 3	Immunity poison 2
+        Speed 5 (swim, climb)	Size 1S / Stability 0
+        With Captain Ranged distance +4	Free Strike 2
+        Might 0	Agility +2	Reason +1	Intuition 0	Presence 0
+        Poison Dart (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        Keywords Ranged, Strike, Weapon
+        Distance Ranged 8	Target 1 creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 damage
+        %E2%98%85	12%E2%80%9316	4 poison damage
+        %E2%9C%B8	17	5 poison damage
+        Effect This ability has an edge on targets that don't have full Stamina.
+
+        Toxiferous
+        When an adjacent enemy grabs or uses a melee ability against the dart, they take 1 poison damage.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+        CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+        CharacterFeature:48f88325-8fce-45f0-ba7d-3c0f448e4c29: true
+        CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:48f88325-8fce-45f0-ba7d-3c0f448e4c29: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+        sourceguid: ec4426d5-b894-4154-a4ee-acf74c5a231c
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the dart or uses a melee ability against them, that enemy takes 1 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous
+            roll: "1"
+            damageType: poison
+            chatMessage: Melee ability vs toxic creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 78fcc0c8-76b3-489c-815a-9b29f1ffcee6
+          persistence: []
+          domains:
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:48f88325-8fce-45f0-ba7d-3c0f448e4c29: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          conditionFormula: target = self and (UsedAbility.Keywords has "Melee")
+          subject: enemy
+          name: Toxiferous
+          trigger: targetwithability
+          targetType: subject
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 932d333e-a635-43cb-adef-28e62124c4ef
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:48f88325-8fce-45f0-ba7d-3c0f448e4c29: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+        sourceguid: 014e497d-86b9-4eeb-9958-db7261fe30f8
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the dart or uses a melee ability against them, that enemy takes 1 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 707c0f0a-249d-4502-a335-c6b0c4a5def9
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "1"
+            damageType: poison
+            guid: b2778aba-d949-4c29-a3bd-ce8613a7c864
+            titleText: Toxiferous
+            chatMessage: Grabbed a Toxiferous Creature
+          domains:
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:48f88325-8fce-45f0-ba7d-3c0f448e4c29: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          conditionFormula: condition = "Grabbed" and (HasAttacker)
+          numTargets: "1"
+          trigger: inflictcondition
+          name: Toxiferous
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: cc1e4089-bc89-4ee2-b113-10f36cb6f593
+      source: Character Feature
+      description: Whenever an adjacent enemy grabs the dart or uses a melee ability against them, that enemy takes 1 poison damage.
+      guid: 48f88325-8fce-45f0-ba7d-3c0f448e4c29
+      name: Toxiferous
+      implementation: 3
+    role: Minion Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    innateLanguages:
+      e14c1512-fc48-4cb6-945c-18b3eb0b808d: true
+    initiativeGrouping: a753a22d-1f55-4218-ad8c-a806b225743e
+    keywords:
+      Humanoid: true
+      Angulotl: true
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 5
+    resources: []
+    minionSquad: Angulotl Dart Squad 1
+    traitNames: []
+    withCaptain: +4 bonus to ranged distance
+    movementSpeeds:
+      climb: 5
+      swim: 5
+    monster_type: Angulotl Dart
+    availableTriggers: []
+    creatureSize: 1S
+    equipmentMeta:
+      offhand0: []
+  tokenType: null
+  bestiaryId: 50cc07a1-3bff-4893-9f19-dcbe5223540f
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Angulotl Dart
+parentFolder: b4d6a13f-3431-4ade-b564-2cc17bcde303
+artist: null
+ord: 0
+ctime: 1741590248821
+mtime: 1775201137032
+hidden: false

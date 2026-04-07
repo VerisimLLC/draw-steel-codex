@@ -1,0 +1,71 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 7bb59c15-e4b5-4638-a8fb-3e9b1a904bb9
+  description: You can use a maneuver to cause this armor to take the form of any type of clothing that you have been in the presence of a noble's dress, a guard's uniform, a cultist's robes, and so forth. The armor loses none of its protective qualities while transformed into other clothing.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 7bb59c15-e4b5-4638-a8fb-3e9b1a904bb9
+    guid: 329940d5-27a3-40f5-8876-439cde43bb58
+    source: Item
+    behavior: activated
+    description: You can use a maneuver to cause this armor to take the form of any type of clothing that you have been in the presence of a noble's dress, a guard's uniform, a cultist's robes, and so forth. The armor loses none of its protective qualities while transformed into other clothing.
+    name: Disguise
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      implementationDetails: 'This ability consumes a maneuver and applies an ongoing effect to track the caster as disguised. The other benefits are narrative. '
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: b77d880b-11ec-4014-9b4f-50a4ff0f79ea
+        ongoingEffectCustom: b77d880b-11ec-4014-9b4f-50a4ff0f79ea
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 297
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      persistence: []
+      modifiers: []
+      domains: []
+      strain: []
+      guid: 97808da7-13d6-4396-a38a-ea1744fe7473
+      targetType: self
+      numTargets: "1"
+      castImmediately: true
+      iconid: a1f8b8ab-a695-4b99-af22-02986221aec6
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Disguise
+      categorization: Ability
+      description: You can use a maneuver to cause this armor to take the form of any type of clothing that you have been in the presence of a noble's dress, a guard's uniform, a cultist's robes, and so forth. The armor loses none of its protective qualities while transformed into other clothing.
+      abilityType: none
+      implementation: 2
+  source: Item
+  name: Disguise
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+itemPrerequisite: The blood of a lycanthrope
+imbuePrereq: none
+projectSource: Khelt
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 2
+ctime: 1770698928353
+projectGoal: "150"
+id: 6a113e2d-b5a2-4b48-beb9-fd2af5e39aba
+mtime: 1774310988900
+name: Disguise
+imbueTargetType: armor
+description: You can use a maneuver to cause this armor to take the form of any type of clothing that you have been in the presence of a noble's dress, a guard's uniform, a cultist's robes, and so forth. The armor loses none of its protective qualities while transformed into other clothing.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 9fa86bff-ddc1-468e-b550-7f53db0ab4fb

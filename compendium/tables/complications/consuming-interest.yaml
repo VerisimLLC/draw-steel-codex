@@ -1,0 +1,29 @@
+__typeName: CharacterComplication
+drawback: |-
+  You can’t imagine ever being wrong on the topic of your obsession. Whenever you make a test to recall lore using your chosen skill, the Director makes the test in secret. Instead of informing you whether you’re right or wrong, they provide you with correct information if you succeeded and false information if you failed.
+
+  Study Lore
+  Item Prerequisite: None
+  Project Source: A significant source of information on the topic of your
+  obsession, such as a major library or a world-renowned sage
+  Project Roll Characteristic: Reason
+  Project Goal: 120, 150, 180
+  Each time you complete this project, your knowledge of your chosen
+  field expands, and the bonus to tests provided by your chosen skill
+  increases by 1.
+mtime: 1765799439208
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      lore: true
+    name: Benefit
+    guid: 27de7c61-3fb5-457a-ab22-8ed742d538ed
+    description: Choose a Skill from the Lore Skill Group
+    source: Feat
+name: Consuming Interest
+ctime: 1755513150702
+description: 'Ever since you were a kid, you’ve been obsessed with a certain topic. During your travels, you spend your free time gleaning all the information you can on that obsession. You might not be the world’s leading expert quite yet, but people should certainly trust your opinion on the topic. '
+id: 0390abe4-3d6a-423b-ae05-c58e153c41c7
+benefit: "You have one skill of your choice from the lore skill group, and you can use the Study Lore project (see below) up to three times for that skill. Each time you use the project, you must use a different project source, and the project goal increases. (See Chapter 12: Downtime Projects.)"

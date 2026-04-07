@@ -1,0 +1,313 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 28c2009a-45ca-49bc-874a-ad4bedce74a3
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Aeolyxria the Uncanny	Level 6 Elite Controller
+        Draconian, Dragon, Humanoid	EV 32
+        <b>Stamina</b> 140	<b>Immunity </b>poison 6
+        <b>Speed</b> 5 (flying)	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 7
+        Might -1	Agility +2	Reason +4	Intuition +3	Presence +1
+        <b>Spittlesplash</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10<b>	Target</b> 2 enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 poison damage; M<1 slowed (save ends)
+        %E2%98%85	<b>12-16</b>	15 poison damage; M<2 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	18 poison damage; M<3 slowed (save ends)
+
+        <b>Experimental Treasure</b> (Action)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	The target regains 10 Stamina
+        %E2%98%85	<b>12-16</b>	12 corruption damage; A<2 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	12 lightning damage; A<2 bleeding (save ends)
+        <b>Effect</b> The first time in an encounter that Lydixavus rolls a result with this ability, she can choose that result instead of rolling whenever she uses this ability for the rest of the encounter.
+        <b>2+ Malice</b> Aeolyxria targets an additional creature or object for every 2 malice spent.
+
+        <b>Elevate!</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> 1 cube within 5<b>	Target</b> Special
+        <b>Effect</b> The ground is elevated by 5 squares, creating a pillar of dirt. Each creature in the affected area is lifted along with it.
+        <b>1+ Malice</b> Aeolyxria creates an additional pillar for each malice spent.
+
+        <b>Blood For Blood</b> (Triggered Action) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Ranged, Weapon
+        <b>Distance</b> Ranged 5<b>	Target</b> One creature
+        <b>Trigger</b> The target inflicts the bleeding condition on an ally.
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 poison damage; A<2 bleeding (save ends)
+        %E2%98%85	<b>12-16</b>	12 poison damage; A<3 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	15 poison damage; bleeding (save ends)
+
+        <b>That's Our Opening!</b>
+        The Director gains 1 malice whenever Aeolyxria inflicts a condition on an enemy.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ae56a93e-da2d-4959-b464-28ac5dae5797: true
+      modifiers: []
+      name: That's Our Opening!
+      description: The Director gains 1 malice whenever Aeolyxria inflicts a condition on an enemy.
+      guid: ae56a93e-da2d-4959-b464-28ac5dae5797
+      source: Trait
+    role: Elite Controller
+    inflictedConditions: []
+    keywords:
+      Dragon: true
+      Humanoid: true
+      Draconian: true
+    max_hitpoints_roll: "140"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Aeolyxria the Uncanny
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: -1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 140
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ede86011-391b-40ea-88f8-e3ffb17eceb6
+      implementation: 4
+      numTargets: 2
+      name: Spittlesplash
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 poison damage; M<1 slowed (save ends)
+        - 15 poison damage; M<2 slowed (save ends)
+        - 18 poison damage; M<3 slowed (save ends)
+        roll: 2d10 + Intuition
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 0 damage; the target regains 10 stamina
+        - 12 corruption damage; A<2 weakened (save ends)
+        - 12 lightning damage; A<2 bleeding (save ends)
+        roll: 2d10 + Intuition
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9695ce45-e663-415c-aa98-b0f5a9a0a916
+      targetType: target
+      implementation: 3
+      numTargets: 2
+      name: Experimental Treasure
+      sourceReference:
+        __typeName: SourceReference
+        page: 86
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |-
+        The first time in an encounter that Aeolyxria makes a power roll for this ability, she can subsequently use the outcome of that roll instead of rolling whenever she uses this ability until the end of the encounter.
+        **Spend Malice**: The ability targets one additional target for each 2 Malice spent.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: b214ff9a-c8ee-4f3c-8be8-ccf4adf40612
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Elevate!
+      implementation: 0
+      description: The ground is elevated by 5 squares, creating a pillar of dirt. Each creature in the affected area is lifted along with it.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: f0d933ae-5e11-44fa-aa8b-b84977a5149e
+      implementation: 4
+      numTargets: 1
+      name: Blood For Blood
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 poison damage; A<2 bleeding (save ends)
+        - 12 poison damage; A<3 bleeding (save ends)
+        - 15 poison damage; bleeding (save ends)
+        roll: 2d10 + Intuition
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: b411d363-11c1-41ea-8092-d547b0152325
+      abilityType: none
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 86
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Elevate
+      numTargets: 1
+      description: |-
+        The ground in the area rises 5 squares, creating a pillar of dirt. Any creature in the area moves with the ground to its new elevation.
+
+        **Spend Malice**: Aeolyxria creates an additional pillar for each Malice spent.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    groupid: 30f074ad-8a42-413f-a987-fb1a491e8ac7
+    movementSpeeds:
+      fly: 5
+    ev: 32
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: d7063118-5562-4f03-9e76-bf6f03aab573
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Aeolyxria the Uncanny
+parentFolder: 9c6966f1-7896-4854-a485-664d5d643aee
+artist: null
+ord: 0
+ctime: 1741590314606
+mtime: 1775201137032
+hidden: false

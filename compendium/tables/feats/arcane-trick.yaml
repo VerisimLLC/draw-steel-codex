@@ -1,0 +1,58 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 2eb7c962-81c8-4f61-842c-931876427351
+      guid: 79db3e31-ebce-4f15-9a37-bde15f883a00
+      source: Feat
+      behavior: activated
+      description: 'You cast an entertaining spell that creates a minor but impressive magical effect. '
+      name: Arcane Trick
+      activatedAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        strain: []
+        guid: 8333b9e9-8195-4264-a1a0-2e4b4ced22e0
+        repeatTargets: false
+        abilityType: none
+        domains: []
+        behaviors: []
+        persistence: []
+        name: Arcane Trick
+        targetType: self
+        description: |
+          **Effect:** Choose one of the following effects:
+          • You teleport a size 1S or smaller object adjacent to you into an unoccupied space adjacent to you.
+
+          • Until the start of your next turn, a part of your body shoots a shower of harmless noisy sparks that light up each square adjacent to you.
+
+          • You ignite or snuff out (your choice) every mundane light source of 1L or smaller adjacent to you.
+
+          • You transform up to 1 pound of edible food you touch to make it taste delicious or disgusting.
+
+          • Until the start of your next turn, you make your body exude a particular odor you’ve smelled before. This smell can be sensed by each creature within 5 squares of you, but can’t impose any condition or other drawback on those creatures.
+
+          • You place a small magical inscription on the surface of a mundane object you touch, or you can remove an inscription that was made by you or by another creature using Arcane Trick.
+
+          • You touch a size 1T object to cover it with an illusion that makes it look like a different object. Any creature who handles the object becomes aware of the illusion. The illusion ends when you stop touching the object.
+        range: 1
+        iconid: ec6bc428-544e-4e8d-b479-a08a6845f14b
+    name: Arcane Trick
+    guid: 2eb7c962-81c8-4f61-842c-931876427351
+    description: 'You cast an entertaining spell that creates a minor but impressive magical effect. '
+    source: Feat
+tag: Supernatural Perks
+name: Arcane Trick
+description: You gain the ability Arcane Trick
+mtime: 1775035450558
+id: 0c047d4e-fcdc-4091-8fec-2ce11cd2b465
+ctime: 1730700891063

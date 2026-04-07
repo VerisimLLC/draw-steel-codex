@@ -1,0 +1,50 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: 903025b6-4cd5-4546-916d-6e4e6695bab1
+        repeatTargets: false
+        trigger: collide
+        conditionFormula: (No Damage from Forced Movement < 1) and (NoDamageFromForcedMovementWithObjects < 1 or not WIthObject)
+        targetType: self
+        persistence: []
+        name: Collision
+        behaviors:
+        - __typeName: ActivatedAbilityDamageBehavior
+          roll: |-
+            (Speed + (2 when WithObject) +
+
+            ((Pusher.BonusPushDamageIntoObjects when (WithObject and MovementType = "push")) when HasPusher)) - Forced Movement Damage Reduction
+          chatMessage: Collision
+        description: ""
+        range: 5
+        iconid: ui-icons/skills/1.png
+      description: When you are knocked into another creature or an object, you take 1 damage for each square remaining in the movement.
+      source: Collision Global Rule Mod Feature
+      behavior: trigger
+      guid: 5a592f45-4376-4bb0-8004-4b7fbadbdd94
+      name: Collision
+      sourceguid: 1f94ab92-6243-44f7-a016-4d2f12869ec9
+    name: Collision
+    description: When you are knocked into another creature or an object, you take 1 damage for each square remaining in the movement.
+    guid: 1f94ab92-6243-44f7-a016-4d2f12869ec9
+    source: Collision Global Rule Mod Feature
+    implementation: 3
+name: Collision
+mtime: 1770743008169
+id: c2d07fb5-0eeb-4932-ae5f-758d516ded7d
+ctime: 1711098573140

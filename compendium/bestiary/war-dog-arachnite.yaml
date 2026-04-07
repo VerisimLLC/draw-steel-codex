@@ -1,0 +1,238 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1cff6c47-ed22-4c7d-8f9b-1f11e058a2bf
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        War Dog Arachnite	Level 6 Horde Artillery
+        Humanoid, War Dog	EV 8
+        <b>Stamina</b> 35	<b>Immunity </b>psychic 6
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1L /<b>Stability</b> 0
+        <b>Free Strike</b> 4
+        Might +0	Agility +3	Reason +2	Intuition +2	Presence +1
+        <b>Longarm Shrikegun</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 15<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 special damage
+        %E2%98%85	<b>12-16</b>	9 special damage
+        %E2%9C%B8	<b>17</b>	11 special damage; A<3 bleeding (save ends)
+        <b>Effect</b> This ability ignores cover and concealment. The arachnite chooses one of the following damage types when making the attack: acid, cold, fire, lightning, poison, psychic, or sonic.
+        <b>2 Malice</b> The arachnite can use this ability as if they were occupying the space of an ally within distance.
+
+        <b>Web Vial</b> (Maneuver)
+        <b>Keywords</b> Area, Ranged
+        <b>Distance</b> 2 Cube within 10<b>Target</b> Special
+        <b>Effect </b>The affected area becomes difficult terrain.
+
+        <b>Eight-Eyed Sight</b>
+        The arachnite automatically finds all hidden creatures within 10 at the start of their turn.
+
+        <b>Loyalty Collar</b>
+        When the arachnite dies, they explode, dealing 2d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8d9091a3-f46d-4bd1-a07e-dd6334738629: true
+      modifiers: []
+      name: Eight-Eyed Sight
+      description: The arachnite automatically finds all hidden creatures within 10 at the start of their turn.
+      guid: 8d9091a3-f46d-4bd1-a07e-dd6334738629
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:57694284-488e-4ac6-8e4d-3f56a8440432: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 2d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the arachnite is reduced to 0 Stamina, their loyalty collar explodes, dealing 2d6 damage to each adjacent enemy and object.
+      guid: 57694284-488e-4ac6-8e4d-3f56a8440432
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Artillery
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "35"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 4
+    monster_type: War Dog Arachnite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 35
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 9 damage
+        - 11 damage; A<3 bleeding (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a8e75719-43d8-4f58-86f8-9bc97ee185ac
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Longarm Shrikegun
+      numTargets: 1
+      description: "This ability ignores cover and concealment. The arachnite chooses one of the following damage types when making the attack: acid, cold, fire, lightning, poison, psychic, or sonic."
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 37cbcb39-415c-4956-bfe7-78471a20120a
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Web Vial
+      numTargets: 1
+      description: The affected area becomes difficult terrain.
+      abilityType: none
+      implementation: 0
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds:
+      climb: 5
+    ev: 8
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: b3244830-1b39-4ee1-9eb8-4ecc01540031
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: War Dog Arachnite
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 4
+ctime: 1749972314034
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,43 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  conditionid: 68f455f5-135f-495c-822d-40d809d2b15f
+  sourceguid: 402241f6-ce1d-4b30-8d57-52e66c2b11e8
+  source: Ongoing Effect
+  guid: 3d17695d-4458-4578-8bb2-8753586018c3
+  description: A shapechanged creature is slowed and has fire weakness 10 as their limbs stretch and their skin becomes paper thin.
+  behavior: bestowcondition
+  name: Shapechanged
+- __typeName: CharacterModifier
+  sourceguid: 402241f6-ce1d-4b30-8d57-52e66c2b11e8
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-10"
+    damageType: fire
+    apply: Damage Reduction
+  description: A shapechanged creature is slowed and has fire weakness 10 as their limbs stretch and their skin becomes paper thin.
+  name: Shapechanged
+  guid: ef43cc58-2403-4907-9686-81410b15dc37
+source: Ongoing Effect
+guid: 402241f6-ce1d-4b30-8d57-52e66c2b11e8
+id: 402241f6-ce1d-4b30-8d57-52e66c2b11e8
+ctime: 1758304824144
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00843715667725
+    v: 1.00962734222412
+    a: 1
+custom: true
+name: Shapechanged
+iconid: b9e47bcb-e55c-453a-a874-54aada00f152
+description: A shapechanged creature is slowed and has fire weakness 10 as their limbs stretch and their skin becomes paper thin.
+mtime: 1758305627775
+implementation: 3

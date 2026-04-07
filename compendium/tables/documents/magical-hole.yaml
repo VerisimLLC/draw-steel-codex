@@ -1,0 +1,35 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: 24d293bc-5d31-464e-b825-b6d6c8505dfc
+ctime: 1761053094280
+textStorage:
+  __typeName: TextStorage
+  sections:
+    O: |
+      The hole cannot be entered, as it is drawing energy from a different dimension. The first time on a turn that a creature enters a square adjacent to the hole or starts their turn there, they must make a moderate Might test:
+    H: |+
+      # Magical Hole
+
+    V: |
+      |Magic Hole: Might Test (Alertness, Survival)
+    c: |
+      |{#The creature's speed becomes 0 until the start of their next turn. If they fail this test three rounds in a row, they turn to stone for as long as they remain adjacent to the hole. While stone, a creature has damage immunity 10 and they are unconscious. If left this way for 24 hours, a creature becomes stone permanently.}
+    j: |
+      |{#At the end of this turn, the creature is slowed (save ends).}
+    r: "|{#The creature can move and is immune to the hole's effects for the next 24 hours. If the creature enters a square adjacent to the hole after this time, they must make the test again.}"
+parentFolder: 7cb5c634-6ed3-43bd-970d-7877c47b4772
+updateid: afc798e3-e837-4e4c-9bb5-7486801f5430
+description: Magical Hole
+content: |-
+  # Magical Hole
+
+  The hole cannot be entered, as it is drawing energy from a different dimension. The first time on a turn that a creature enters a square adjacent to the hole or starts their turn there, they must make a moderate Might test:
+  |Magic Hole: Might Test (Alertness, Survival)
+  | The creature's speed becomes 0 until the start of their next turn. If they fail this test three rounds in a row, they turn to stone for as long as they remain adjacent to the hole. While stone, a creature has damage immunity 10 and they are unconscious. If left this way for 24 hours, a creature becomes stone permanently.
+  |At the end of this turn, the creature is slowed (save ends).
+  | The creature can move and is immune to the hole's effects for the next 24 hours. If the creature enters a square adjacent to the hole after this time, they must make the test again.
+mtime: 1765833592787

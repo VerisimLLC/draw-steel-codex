@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: min
+  sourceguid: 27b6adb4-0ce8-4a35-831e-00df2d4151f5
+  source: Ongoing Effect
+  value: Stability <= Maximum Stability/2
+  name: Stability Halved
+  guid: a9a3ae9c-ee88-4e67-b36e-3aaba89437b5
+  description: This creatures stability is halved.
+  behavior: attribute
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+guid: 27b6adb4-0ce8-4a35-831e-00df2d4151f5
+id: 27b6adb4-0ce8-4a35-831e-00df2d4151f5
+ctime: 1770914045516
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.00367963314056396
+    s: 0.949847459793091
+    v: 0.969710111618042
+    a: 1
+mtime: 1771497518039
+description: This creatures stability is halved.
+name: Stability Halved
+iconid: 11d94f0a-d2cb-4f82-a64e-b36bc75e8670

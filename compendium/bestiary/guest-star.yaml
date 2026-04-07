@@ -1,0 +1,284 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5e0d302b-11f1-4746-843a-3a1cc7cfc057: true
+        CharacterFeature:d27140ec-27b8-47c0-832a-9b0a37b3f986: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 5e0d302b-11f1-4746-843a-3a1cc7cfc057
+        source: Character Feature
+        value: summoner.Might
+        domains:
+          CharacterFeature:5e0d302b-11f1-4746-843a-3a1cc7cfc057: true
+          CharacterFeature:d27140ec-27b8-47c0-832a-9b0a37b3f986: true
+        name: Guest Star
+        guid: 63d4d211-bdcd-41b6-b6ae-31eafc86a25e
+        description: ""
+        behavior: attribute
+        attribute: mgt
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 5e0d302b-11f1-4746-843a-3a1cc7cfc057
+        source: Character Feature
+        value: summoner.Agility
+        domains:
+          CharacterFeature:5e0d302b-11f1-4746-843a-3a1cc7cfc057: true
+          CharacterFeature:d27140ec-27b8-47c0-832a-9b0a37b3f986: true
+        name: Guest Star
+        guid: 50cababa-2813-4e66-9ce3-2df4cef8b7cc
+        description: ""
+        behavior: attribute
+        attribute: agl
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 5e0d302b-11f1-4746-843a-3a1cc7cfc057
+        source: Character Feature
+        value: summoner.Reason
+        domains:
+          CharacterFeature:5e0d302b-11f1-4746-843a-3a1cc7cfc057: true
+          CharacterFeature:d27140ec-27b8-47c0-832a-9b0a37b3f986: true
+        name: Guest Star
+        guid: c58fbae5-57d4-4333-9838-546e49e1831e
+        description: ""
+        behavior: attribute
+        attribute: rea
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 5e0d302b-11f1-4746-843a-3a1cc7cfc057
+        source: Character Feature
+        value: summoner.Intuition
+        domains:
+          CharacterFeature:5e0d302b-11f1-4746-843a-3a1cc7cfc057: true
+          CharacterFeature:d27140ec-27b8-47c0-832a-9b0a37b3f986: true
+        name: Guest Star
+        guid: 71d7d65e-2918-4652-b687-2a8d448c58bb
+        description: ""
+        behavior: attribute
+        attribute: inu
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 5e0d302b-11f1-4746-843a-3a1cc7cfc057
+        source: Character Feature
+        value: summoner.Presence
+        domains:
+          CharacterFeature:5e0d302b-11f1-4746-843a-3a1cc7cfc057: true
+          CharacterFeature:d27140ec-27b8-47c0-832a-9b0a37b3f986: true
+        name: Guest Star
+        guid: 09c06309-1918-452a-ad6b-d2497425abf3
+        description: ""
+        behavior: attribute
+        attribute: prs
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 5e0d302b-11f1-4746-843a-3a1cc7cfc057
+        source: Character Feature
+        value: (summoner.MaximumStamina / 2) When summoner != self
+        domains:
+          CharacterFeature:5e0d302b-11f1-4746-843a-3a1cc7cfc057: true
+          CharacterFeature:d27140ec-27b8-47c0-832a-9b0a37b3f986: true
+        name: Guest Star
+        guid: bbe46f0a-c0e8-41d3-a2ea-a48fe8e865b2
+        description: ""
+        behavior: attribute
+        attribute: hitpoints
+      source: Character Feature
+      description: ""
+      guid: d27140ec-27b8-47c0-832a-9b0a37b3f986
+      name: Guest Star
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:10a6cc61-7b44-4779-80df-45ce64b00a16: true
+        CharacterFeature:defd32df-dab6-475b-a5f3-032e990aa761: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:10a6cc61-7b44-4779-80df-45ce64b00a16: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: b417d403-c35e-46dd-8b1d-885394eabafe
+        description: ""
+        source: Character Feature
+        name: Melee Free Strike
+        behavior: activated
+        guid: 7086ca8c-a2b3-478d-9d98-a6c4e1e9e95c
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          repeatTargets: false
+          keywords:
+            Strike: true
+            Melee: true
+            Weapon: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 2 + M or A damage
+            - 5 + M or A damage
+            - 7 + M or A damage
+            roll: 2d10 + Might or Agility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 0.10884352773428
+              v: 0.576470613479614
+              a: 1
+          categorization: Basic Attack
+          range: "1"
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          modifiers: []
+          strain: []
+          guid: c9c0cae5-3426-474c-9770-640d79c43788
+          domains:
+            CharacterFeature:10a6cc61-7b44-4779-80df-45ce64b00a16: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          numTargets: "1"
+          persistence: []
+          name: Melee Free Strike
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: 391aec7f-87ba-4b36-9c2b-2b478ff823d8
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:10a6cc61-7b44-4779-80df-45ce64b00a16: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: b417d403-c35e-46dd-8b1d-885394eabafe
+        description: ""
+        source: Character Feature
+        name: Ranged Free Strike
+        behavior: activated
+        guid: 6e624a46-2a93-4160-abcf-2962c2fb5424
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Strike: true
+            Weapon: true
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 0.10884352773428
+              v: 0.576470613479614
+              a: 1
+          categorization: Basic Attack
+          range: "5	"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: c9c0cae5-3426-474c-9770-640d79c43788
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 2 + M or A damage
+            - 4 + M or A damage
+            - 6 + M or A damage
+            roll: 2d10 + Might or Agility
+          domains:
+            CharacterFeature:10a6cc61-7b44-4779-80df-45ce64b00a16: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          numTargets: "1"
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          name: Ranged Free Strike
+          displayOrder: 2
+          description: ""
+          abilityType: none
+          iconid: 8a3caccc-e8f7-401e-84f3-78287c2e2624
+      name: Free Strikes
+      guid: 10a6cc61-7b44-4779-80df-45ce64b00a16
+      description: ""
+      source: Character Feature
+    max_hitpoints: 10
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    monster_type: Guest Star
+    damage_taken: 0
+    walkingSpeed: 5
+    levelChoices: []
+    resources: []
+    skillRatings: []
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: 580a5d54-f1ee-4606-b041-c85cfa348d46
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1756739724870
+description: null
+parentFolder: 5297853e-ebee-44e4-bf79-d85bc84880c1
+artist: null
+ord: 2
+ctime: 1756739791042
+mtime: 1775167551051
+hidden: false

@@ -1,0 +1,502 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 311c829b-c082-49ac-8aa1-d8db5f7a112e
+    offtokenPortraitId: 9c702b3e-5577-4053-9b47-70f81826a770
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2503913
+    portraitOffset:
+      x: -0.1004556
+      y: 0.1202987
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.48
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1fe31b6c-4dd3-42d8-9a63-dac5bf6644f9
+  properties:
+    __typeName: monster
+    groupid: 5163b6cd-991f-4277-b81c-8e42a53d328e
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 240
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Rival: true
+    max_hitpoints_roll: "240"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 4
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 3
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d6c21802-73fe-4682-8251-6746b2ae4c27: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d6c21802-73fe-4682-8251-6746b2ae4c27
+        source: Trait
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          guid: 81b29066-1626-4813-8442-fa76d7867238
+          keywords: []
+          activationCondition: Ability.Keywords has "strike"
+          modtype: none
+          damageMultiplier: half
+          name: Inertial Shield
+          rules: ""
+          description: The first time each round that the null is targeted by a damage-dealing strike, they halve the damage.
+          rollType: enemy_ability_power_roll
+          resourceRefreshType: round
+        guid: db68709a-314b-41df-b158-a6a8441cb511
+        type: trigger
+        domains:
+          CharacterFeature:d6c21802-73fe-4682-8251-6746b2ae4c27: true
+        targetType: self
+        trigger: takedamage
+        name: Inertial Shield
+        rules: ""
+        description: The first time each round that the null is targeted by a damage-dealing strike, they halve the damage.
+        range: 10
+        behavior: powertabletrigger
+      source: Trait
+      description: The first time each round that the null is targeted by a damage-dealing strike, they halve the damage.
+      guid: d6c21802-73fe-4682-8251-6746b2ae4c27
+      name: Inertial Shield
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+        CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+          CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+        sourceguid: 3146422c-eb42-4160-ae0e-642168383dc6
+        behavior: trigger
+        source: Trait
+        name: Rivalry
+        description: The Null selects one creature within line of effect at the start of an encounter. Both the Null and the creature can add a 1d3 to all power rolls made against each other.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetTextOverride: Choose another magic-wielder as the target for your Rivalry
+              repeatTargets: false
+              targetAllegiance: enemy
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+                duration: eoe
+                ongoingEffectCustom: e349e64f-4422-4fa9-995b-130c492a473a
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 240
+                docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+              range: "50"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: c4193d77-d471-4d84-8d0b-925f72f62cac
+              targetType: target
+              iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              implementation: 3
+            promptText: Choose a player Hero as the target for your Rivalry.
+            autoTarget: false
+            abilityType: custom
+            applyto: caster
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+            duration: eoe
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          guid: c171ef5c-50db-42ed-93a9-9c72ad7ea4bc
+          numTargets: "1"
+          domains:
+            CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+            CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+          description: ""
+          targetType: self
+          trigger: rollinitiative
+          name: Rivalry
+          abilityFilters: []
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 6fc99f50-afce-47f7-b90f-464a3b25089f
+      source: Trait
+      description: The Null selects one creature within line of effect at the start of an encounter. Both the Null and the creature can add a 1d3 to all power rolls made against each other.
+      guid: 03d6d373-36c8-4559-b50f-0166af9ad568
+      name: Rivalry
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fe0b4119-7d5b-4b8a-ae0b-c9949c0b521b: true
+      modifiers: []
+      name: Energy Conservation
+      description: The first time each round that the null is targeted by a strike, it takes a bane and the null halves the damage from it. The creature making the strike takes 10 damage.
+      guid: fe0b4119-7d5b-4b8a-ae0b-c9949c0b521b
+      source: Trait
+    role: Elite Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: 58d9d49b-a6a8-4bf4-bca7-a5854f411b83
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 10
+    ev: 48
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: ff3a8de2-2c9d-4bb9-88e1-1ea8c3482e45
+      repeatTargets: false
+      abilityType: none
+      persistence: []
+      targetType: self
+      iconid: ui-icons/skills/1.png
+      name: Thunder of Heavens
+      behaviors: []
+      description: ""
+      range: 1
+      implementation: 0
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; the null can shift up to 2 squares
+        - 10 damage; the null can shift up to 3 squares
+        - 13 damage; the null can shift up to 4 squares
+        roll: 2d10 + 2 Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 865b8296-4d7f-4f20-88e3-d8ddbd072dcd
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        standardAbilityParams:
+          distance: "2"
+          targetfilter: ""
+        abilityType: standard
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        tiersSelected:
+        - 1
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: b3ac9f88-3caf-4a94-8d61-246dcc9cad81
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        promptText: The Null may shift up to 3 squares
+        standardAbilityParams:
+          distance: "3"
+        abilityType: standard
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        tiersSelected:
+        - 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 139f36bf-fcff-45fb-bad1-e626fdd9e681
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        promptText: The Null may shift up to 4 squares
+        standardAbilityParams:
+          distance: "4"
+        abilityType: standard
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        tiersSelected:
+        - 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 241
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 2164ee7d-1fdb-4790-b62a-137d0c03aeb7
+      categorization: Signature Ability
+      numTargets: "2"
+      targetType: target
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      name: Nimble Step
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; R<0 slowed (EoT)
+        - 10 damage; R<1 slowed (EoT)
+        - 13 damage; R<2 dazed and slowed (EoT)
+        roll: 2d10 + Might or Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 241
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: ea277789-26e8-4b5f-a460-8faf1ece2f77
+      categorization: Malice
+      targetType: target
+      numTargets: "1"
+      implementation: 4
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Numb
+      reasonedFilters:
+      - reason: ""
+        formula: Target is Enemy
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: cbbb6e37-81c2-4927-8a3a-55ff60790747
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 13 damage; R<3 dazed and restrained (save ends)
+        - 17 damage; R<4 dazed and restrained (save ends)
+        - 20 damage; R<5 dazed and restrained (save ends)
+        roll: 2d10 + Agility
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 244
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Incapacitate
+      numTargets: 2
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; the null shifts up to 4 squares; A<3 10 damage
+        - 20 damage; the null shifts up to 5 squares; A<4 15 damage
+        - 24 damage; the null shifts up to 6 squares; A<5 19 damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6b64b4a3-c8ed-44d7-adad-7469b70f69d6
+      targetType: target
+      implementation: 4
+      numTargets: 2
+      name: Kinetic Danse
+      sourceReference:
+        __typeName: SourceReference
+        page: 244
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    movementSpeeds: []
+    walkingSpeed: 7
+    monster_type: Rival Null
+    creatureSize: 1M
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: d71d4deb-cafe-4859-ba16-988148d791ca
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961969981
+description: Rival Null
+parentFolder: 62dde676-136f-4d24-9390-903417c9a726
+artist: null
+ord: 0
+ctime: 1762624298957
+mtime: 1775201137032
+hidden: false

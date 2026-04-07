@@ -1,0 +1,65 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 0708e556-8f78-44c1-98b0-7e2a34f0a366
+  sourceguid: 6daef30b-2d59-4db6-8c79-39938fa7ca4e
+  value: 1
+  source: Ongoing Effect
+  name: Special Delivery
+  behavior: attribute
+  description: ""
+  attribute: f97461b9-3424-4479-8c46-e48c835c5d68
+- __typeName: CharacterModifier
+  sourceguid: 6daef30b-2d59-4db6-8c79-39938fa7ca4e
+  displayCondition: Ability.Free Strike
+  source: Ongoing Effect
+  guid: c2bfc779-906f-4e57-bb8f-c6f3c968dbd5
+  behavior: power
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 8cf648bf-b819-4f1a-bb46-b1f784bca52d
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 6daef30b-2d59-4db6-8c79-39938fa7ca4e
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  name: Special Delivery
+  rollType: ability_power_roll
+  damageModifier: ConditionCaster("Special Delivery").might
+  activationCondition: Ability.Free Strike
+  modtype: none
+source: Ongoing Effect
+guid: 6daef30b-2d59-4db6-8c79-39938fa7ca4e
+id: 6daef30b-2d59-4db6-8c79-39938fa7ca4e
+ctime: 1758163877690
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Special Delivery
+description: ""
+custom: true
+mtime: 1758164278818
+iconid: ui-icons/skills/1.png

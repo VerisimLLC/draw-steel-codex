@@ -1,0 +1,31 @@
+__typeName: ActivatedAbility
+targetFilter: "<<targetfilter>>"
+id: 4a993863-896f-47d0-8449-74c1fe2279b0
+targetType: emptyspace
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<distance>>"
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+testCases:
+- text: An ally within 4 shifts 3 squares
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 12e9b308-313f-4688-87fb-a040094aaa63
+importMatch: shifts <<distance>> squares
+ctime: 1771170078308
+numTargets: "1"
+targeting: pathfind
+repeatTargets: false
+name: Move
+description: ""
+mtime: 1774876530290
+abilityType: none
+iconid: ui-icons/skills/1.png

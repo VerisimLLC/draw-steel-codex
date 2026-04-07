@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 6b9ea931-b803-4811-8086-c1590a2195e5
+id: 6b9ea931-b803-4811-8086-c1590a2195e5
+ctime: 1749180759248
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+condition: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+name: Invisible
+description: ""
+mtime: 1766137607924
+custom: true
+iconid: 04a4b1a7-614e-4bea-bf90-47f89f8eae66

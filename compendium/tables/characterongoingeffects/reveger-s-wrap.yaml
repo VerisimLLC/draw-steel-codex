@@ -1,0 +1,64 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c1f77365-fc5d-4211-a35f-5da84f9169ac
+  displayCondition: Target.ConditionCaster("Marked for Revenge") = Self
+  source: Ongoing Effect
+  guid: 532ef014-b370-453b-a0e8-c274e85b3694
+  keywords:
+    Strike: true
+  activationCondition: "1"
+  behavior: power
+  name: Reveger's Wrap
+  description: ""
+  damageModifier: Highest Characteristic
+  rollType: ability_power_roll
+  modtype: none
+- __typeName: CharacterModifier
+  sourceguid: c1f77365-fc5d-4211-a35f-5da84f9169ac
+  source: Ongoing Effect
+  filterAbility: Ability.Has Attack
+  behavior: modifyability
+  attributes: []
+  name: Reveger's Wrap
+  description: ""
+  guid: c79deefa-d0f1-4d68-9e7f-739c26b0847a
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 67515bda-792d-45cd-bacc-fde991d01432
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 08d6e8e7-5209-43e9-9eba-cd124aa81d51
+      duration: end_of_next_turn
+      ongoingEffectCustom: false
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: c1f77365-fc5d-4211-a35f-5da84f9169ac
+id: c1f77365-fc5d-4211-a35f-5da84f9169ac
+ctime: 1761705733184
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Reveger's Wrap
+description: ""
+custom: true
+mtime: 1761705971376
+iconid: ui-icons/skills/1.png

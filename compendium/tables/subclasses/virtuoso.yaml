@@ -1,0 +1,1745 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1738540258272
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureList
+      name: Crowd Favorites
+      features:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: c4743215-a9c0-463d-9f29-f3d5cabc1281
+          behavior: routine
+          source: Virtuoso Class Feature
+          name: Moonlight Sonata
+          description: ""
+          guid: 03e88f6d-56e3-4b09-bcd6-d119bda0a71c
+          ability:
+            __typeName: RoutineDisplay
+            target: Each ally in the area
+            effect: While this performance is active, each target who is dead can choose to continue taking turns after death. On each of their turns, a target can move and use either a main action or a maneuver, but can’t spend Recoveries or use triggered actions. At the end of the encounter, each target who chose to take turns this way turns to dust and blows away.
+            type: No Action
+            name: Moonlight Sonata
+            flavor: Music pours out of your heart, filling the area with the utmost delicacy and without damper
+            guid: 3558419e-25a3-4ac7-aaa3-7bcd502f60b9
+            distance: 5 Aura
+            keywords:
+              Area: true
+              Magic: true
+              Performance: true
+        - __typeName: CharacterModifier
+          sourceguid: 0827be19-5567-4536-893e-605200b2eb14
+          source: Virtuoso Class Feature
+          seq: 91f1e8ec-5daf-4046-9dd7-068c72d112f1
+          aura:
+            __typeName: Aura
+            modifiers:
+            - __typeName: CharacterModifier
+              triggeredAbility:
+                __typeName: TriggeredAbility
+                repeatTargets: false
+                targetType: subject
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                range: "5"
+                numTargets: "1"
+                modifiers: []
+                subjectRange: "5"
+                strain: []
+                whenActive: combat
+                persistence: []
+                abilityType: none
+                conditionFormula: Subject.Dead
+                guid: 8f5fb046-5822-41c5-8344-e03b1e97e637
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: d1e6f397-c091-4866-bb05-420020171023
+                  ongoingEffectCustom: d1e6f397-c091-4866-bb05-420020171023
+                trigger: beginturn
+                name: Moonlight Sonata
+                description: ""
+                subject: allies
+                iconid: ui-icons/skills/1.png
+              description: While this performance is active, each target who is dead can choose to continue taking turns after death. On each of their turns, a target can move and use either a main action or a maneuver, but can’t spend Recoveries or use triggered actions. At the end of the encounter, each target who chose to take turns this way turns to dust and blows away.
+              source: Moonlight Sonata
+              behavior: trigger
+              guid: 7ab8a34f-82ba-4ffa-9827-c912e09d7b3f
+              name: Moonlight Sonata
+              sourceguid: 2a687ac6-323c-4c7a-a3c9-b2060c75cb1f
+            source: Moonlight Sonata
+            guid: 2a687ac6-323c-4c7a-a3c9-b2060c75cb1f
+            objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+            applyto: friends
+            name: Moonlight Sonata
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.809000134468079
+                s: 0.929296731948853
+                v: 1.00191080570221
+                a: 1
+            description: While this performance is active, each target who is dead can choose to continue taking turns after death. On each of their turns, a target can move and use either a main action or a maneuver, but can’t spend Recoveries or use triggered actions. At the end of the encounter, each target who chose to take turns this way turns to dust and blows away.
+            implementation: 2
+            iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          radius: "5"
+          guid: a92978e6-0cc8-481c-b00b-5f0dc067d01f
+          description: ""
+          behavior: aura
+          name: Moonlight Sonata
+        source: Virtuoso Class Feature
+        guid: c4743215-a9c0-463d-9f29-f3d5cabc1281
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: ""
+        name: Moonlight Sonata
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: 0827be19-5567-4536-893e-605200b2eb14
+          behavior: routine
+          source: Virtuoso Class Feature
+          name: Radical Fantasia
+          description: ""
+          guid: eb2f1d62-87c5-4993-b2f4-180175e382ab
+          ability:
+            __typeName: RoutineDisplay
+            target: Self and each ally in the area
+            effect: While this performance is active, each target who starts their turn in the area ignores difficult terrain, and any ability they use that imposes forced movement gains a +2 bonus to the forced movement distance until the end of their turn. Additionally, once per combat round, each target can use a triggered action as a free triggered action.
+            type: No action
+            name: Radical Fantasia
+            flavor: Viras, my Viras, will you hold their hands as they cryyy-aaaiigh?
+            guid: ed6d8e55-ac4e-4d57-8262-4c029cac23a0
+            distance: 5 aura
+            keywords:
+              Area: true
+              Magic: true
+              Performance: true
+        - __typeName: CharacterModifier
+          sourceguid: 0827be19-5567-4536-893e-605200b2eb14
+          source: Virtuoso Class Feature
+          seq: 91f1e8ec-5daf-4046-9dd7-068c72d112f1
+          aura:
+            __typeName: Aura
+            modifiers:
+            - __typeName: CharacterModifier
+              triggeredAbility:
+                __typeName: TriggeredAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 4adf5770-6789-4e02-a68b-2a6aea3a2169
+                repeatTargets: false
+                abilityType: none
+                trigger: beginturn
+                targetType: self
+                numTargets: "1"
+                name: Radical Fantasia
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 809135fc-57eb-4f1a-a3bb-ba57f3d792d8
+                  duration: 0
+                  ongoingEffectCustom: 809135fc-57eb-4f1a-a3bb-ba57f3d792d8
+                description: While this performance is active, each target who starts their turn in the area ignores difficult terrain, and any ability they use that imposes forced movement gains a +2 bonus to the forced movement distance until the end of their turn. Additionally, once per combat round, each target can use a triggered action as a free triggered action.
+                range: 1
+                iconid: ui-icons/skills/1.png
+              description: Self and allies who start their turn in this aura get +2 speed until end of turn.
+              source: Choreography
+              behavior: trigger
+              guid: 532b1557-b68d-4755-a75f-e31559b2914a
+              name: Choreography
+              sourceguid: 671931f9-c6c2-4e34-96be-7a2ab8e5023a
+            - __typeName: CharacterModifier
+              sourceguid: dcbcb768-e278-420d-a432-9a88d44ff0d4
+              source: Radical Fantasia
+              behavior: modifytrigger
+              triggerCondition: not Ongoing Effects has "Radical Fantasia Free Triggered Action Used"
+              attributes:
+              - text: Free Triggered Action
+                actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+                condition: ""
+                rules: "Radical Fantasia: Once per combat round, each target in the aura can use a triggered action as a free triggered action."
+                id: modifyaction
+              name: Radical Fantasia
+              description: While this performance is active, each target who starts their turn in the area ignores difficult terrain, and any ability they use that imposes forced movement gains a +2 bonus to the forced movement distance until the end of their turn. Additionally, once per combat round, each target can use a triggered action as a free triggered action.
+              guid: 1924604f-e41c-45c7-bb8d-a3b856f4a417
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                strain: []
+                guid: e49f4c98-5327-4441-9b8f-733049d4c5c6
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  applyto: caster
+                  ongoingEffect: 92b50582-45e7-43a1-866e-03a807fa9111
+                  duration: endround
+                  ongoingEffectCustom: 92b50582-45e7-43a1-866e-03a807fa9111
+                abilityType: none
+                name: New Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+            source: Radical Fantasia
+            guid: dcbcb768-e278-420d-a432-9a88d44ff0d4
+            objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+            applyto: selfandfriends
+            name: Radical Fantasia
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.809000134468079
+                s: 0.929296731948853
+                v: 1.00191080570221
+                a: 1
+            description: While this performance is active, each target who starts their turn in the area ignores difficult terrain, and any ability they use that imposes forced movement gains a +2 bonus to the forced movement distance until the end of their turn. Additionally, once per combat round, each target can use a triggered action as a free triggered action.
+            implementation: 4
+            iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          radius: "5"
+          guid: d3603db6-05d7-4329-9799-a0cebb8f41ba
+          description: ""
+          behavior: aura
+          name: Radical Fantasia
+        source: Virtuoso Class Feature
+        guid: dab44ce8-8e98-4db1-a3db-4114c9709b61
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: ""
+        name: Radical Fantasia
+        implementation: 4
+      description: |-
+        You have the following performance abilities, which are usable with
+        your Routines feature.
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      guid: 9d8ac4a4-281c-4eae-a81f-f9daa76dc4a4
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+      guid: 9e15757b-7967-44f8-a5be-b699ee56e592
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        sourceguid: dbea33b6-f2f2-41f7-baf8-b69273547831
+        description: ""
+        source: Virtuoso Class Feature
+        name: Power Chord
+        behavior: activated
+        guid: ab679c0c-91b4-4062-be0e-a7c4b0310b35
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: Enemy
+          repeatTargets: false
+          keywords:
+            Magic: true
+            Area: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - Push 1
+            - Push 2
+            - Push 3
+            roll: 2d10 + Presence
+            promptWhenResolvingText: Select which target to push.
+            promptWhenResolving: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.843750059604645
+              s: 0.339258670806885
+              v: 1.00238573551178
+              a: 1
+          flavor: Your instrument rings true and your music blows everyone away.
+          sourceReference:
+            __typeName: SourceReference
+            page: 206
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "2"
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: b70a0cc0-843d-485d-90d4-dae7d7800cb7
+          persistence: []
+          categorization: Heroic Ability
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          implementation: 4
+          name: Power Chord
+          targetType: all
+          description: ""
+          abilityType: none
+          iconid: f62d3227-8f69-48d1-ad82-b7ee4365bf5c
+      name: Power Chord
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      description: ""
+      source: Virtuoso Class Feature
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+      guid: 2fdc1aea-48b9-4b83-a536-509d2924a806
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: efa4110c-9de5-44ee-bb6c-0a0a994137e5
+        source: Virtuoso Class Feature
+        behavior: proficiency
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        guid: d837365d-57b7-40dc-a0fd-8e0dd5d13dc0
+        equate: false
+        name: Music
+        proficiency: proficient
+        description: You gain the music skill and you wield an instrument.
+        subtype: skill
+        skills:
+          d188b959-e993-4239-a350-5e7ad69d27b6: true
+      name: Music
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      description: You gain the music skill and you wield an instrument.
+      source: Virtuoso Class Feature
+      implementation: 3
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: Virtuoso Features
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 2c699672-7b67-4f20-b164-bf870dfd441b
+          source: Virtuoso Class Feature
+          behavior: activated
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          name: 'Bolstering Banter '
+          resourceRefreshType: turn
+          description: Once on each of your turns, you can use a free maneuver to exchange words with a target of your current performance, other than yourself. The target can spend a Recovery to gain temporary Stamina equal to their recovery value.
+          guid: d2ab94cc-dd29-4666-b9c8-5744b4c77c11
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: false
+            repeatTargets: false
+            targetAllegiance: ally
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            sourceReference:
+              __typeName: SourceReference
+              page: 211
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: RoutineDistance
+            usageLimitOptions:
+              resourceRefreshType: turn
+              charges: "1"
+              resourceid: d2ab94cc-dd29-4666-b9c8-5744b4c77c11
+              multicharge: false
+            numTargets: "1"
+            modifiers: []
+            strain: []
+            guid: 494be26d-2b89-402d-a26a-3651212f1ebd
+            persistence: []
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                abilityType: none
+                strain: []
+                guid: 317064ea-a626-4333-b21f-5a4cb1ec8a71
+                repeatTargets: false
+                resourceCost: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+                targetType: self
+                behaviors:
+                - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+                  stamina: Recovery Value
+                categorization: Hidden
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptText: Spend Recovery to Gain Tempoary Stamina
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+            iconid: ui-icons/skills/1.png
+            actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+            name: 'Bolstering Banter '
+            categorization: Ability
+            description: Once on each of your turns, you can use a free maneuver to exchange words with a target of your current performance, other than yourself. The target can spend a Recovery to gain temporary Stamina equal to their recovery value.
+            abilityType: none
+            implementation: 3
+        source: Virtuoso Class Feature
+        guid: 2c699672-7b67-4f20-b164-bf870dfd441b
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: Once on each of your turns, you can use a free maneuver to exchange words with a target of your current performance, other than yourself. The target can spend a Recovery to gain temporary Stamina equal to their recovery value.
+        name: 'Bolstering Banter '
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          operation: set
+          sourceguid: 635c854c-9b15-4c00-a729-02ccd104cdb0
+          source: Virtuoso Class Feature
+          value: 2
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          name: 'Medley '
+          guid: 45d00fe1-8513-49d4-8cab-458137c6918f
+          description: You can maintain two performances at a time using your Routines feature.
+          behavior: attribute
+          attribute: 5e8e32e0-b2be-4c1b-859d-ed98f4015d0a
+        source: Virtuoso Class Feature
+        guid: 635c854c-9b15-4c00-a729-02ccd104cdb0
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: You can maintain two performances at a time using your Routines feature.
+        name: 'Medley '
+        implementation: 3
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      guid: 560cf4ca-051d-446e-86de-0d4c9dd70b5d
+      source: Virtuoso Class Feature
+      description: Choose one of the following features.
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 6th-level Virtuoso Ability
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: ebb38cac-5c4b-4994-8c9b-bb789b8be5cf
+          description: Your music pounds the crowd to the beat until their hearts can’t stand it anymore.
+          source: Virtuoso Class Feature
+          name: Feedback
+          behavior: activated
+          guid: 85055509-2272-4c68-a013-93284f64dc2f
+          activatedAbility:
+            __typeName: ActivatedAbility
+            rangeTextOverride: Three 3 cubes within 1
+            resourceNumber: "9"
+            objectTarget: false
+            abilityType: none
+            channelIncrement: 9
+            targetTextOverride: Each Enemy in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetAllegiance: enemy
+            targetType: cube
+            range: 1
+            display:
+              brightness: 1
+              saturation: 0
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your music pounds the crowd to the beat until their hearts can’t stand it anymore.
+            categorization: Heroic Ability
+            preDescription: A prone target ignores this ability.
+            implementation: 4
+            sourceReference:
+              __typeName: SourceReference
+              page: 212
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            persistence: []
+            modifiers: []
+            name: Feedback
+            strain: []
+            guid: 993df1f5-6367-49b8-832a-0b7b0f2d61f8
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityAddNewTargetsBehavior
+              applyto: caster
+              targetingAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: enemy
+                behaviors: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "1"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: c120294a-3d39-4355-ba21-3c8068f8b4a4
+                numTargets: "1"
+                name: Choose Additional Targets
+                radius: "3"
+                targetType: cube
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Second Cube
+            - __typeName: ActivatedAbilityAddNewTargetsBehavior
+              applyto: caster
+              guid: f98b28f5-9f15-4172-a7a8-83457717fc3d
+              targetingAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: enemy
+                behaviors: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "1"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: c120294a-3d39-4355-ba21-3c8068f8b4a4
+                numTargets: "1"
+                name: Choose Additional Targets
+                radius: "3"
+                targetType: cube
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Third Cube
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 7 sonic damage; P < Weak, prone
+              - 10 sonic damage; P < Average, prone
+              - 13 sonic damage; P < Strong, prone
+              filterTarget: Conditions has not "prone"
+              roll: 2d10 + Presence
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+            targeting: contiguous
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            radius: "3"
+            channeledResource: none
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 71858398-4a43-409d-9c44-e01cc8106e62
+        source: Virtuoso Class Feature
+        guid: ebb38cac-5c4b-4994-8c9b-bb789b8be5cf
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: Your music pounds the crowd to the beat until their hearts can’t stand it anymore.
+        name: Feedback
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: 613d518d-d9a0-49f7-8462-8373b9cc0ebc
+          description: You start a drumroll that roars like thunder with every impact the heroes make.
+          source: Virtuoso Class Feature
+          name: Legendary Drum Fill
+          behavior: activated
+          guid: fc592b43-e6b1-4eaf-a88f-73a26e84e166
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Self and each ally in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: d1090bc5-502c-4863-9313-3e4ee1bff62a
+              duration: eoe
+              ongoingEffectCustom: d1090bc5-502c-4863-9313-3e4ee1bff62a
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You start a drumroll that roars like thunder with every impact the heroes make.
+            categorization: Heroic Ability
+            range: "4"
+            abilityType: none
+            numTargets: "1"
+            persistence: []
+            modifiers: []
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            strain: []
+            guid: cdd43044-445e-4447-a915-946a121cdb60
+            rangeTextOverride: 4 burst
+            sourceReference:
+              __typeName: SourceReference
+              page: 212
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+            targetType: all
+            name: Legendary Drum Fill
+            selfTarget: true
+            implementation: 3
+            description: Each target gains 1 surge, then gains 1 surge at the start of each combat round until the end of the encounter.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Virtuoso Class Feature
+        guid: 613d518d-d9a0-49f7-8462-8373b9cc0ebc
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: You start a drumroll that roars like thunder with every impact the heroes make.
+        name: Legendary Drum Fill
+        implementation: 3
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      guid: 73dbb056-ff84-4211-ba40-3f24e5d31ab5
+      source: Virtuoso Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: fb8e4ba2-e901-4b6c-b916-9db7f79bf8ef
+          description: ""
+          source: Virtuoso Class Feature
+          name: Encore
+          behavior: activated
+          guid: ea012ed2-8269-4727-8cd9-cb689de8ab0b
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Strike: true
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Again! Again!
+            sourceReference:
+              __typeName: SourceReference
+              page: 209
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 13d35b6a-f578-4969-831a-ac2a7b187031
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+            categorization: Heroic Ability
+            castImmediately: true
+            numTargets: "1"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Encore
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              applyto: targets
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: 21c06524-32fd-4cf1-bb20-e1fd2f1ff431
+                  source: Ongoing Effect
+                  behavior: power
+                  keywords: []
+                  replaceText: 2d10 + Presence
+                  damageTypeMappings:
+                    acid: sonic
+                    corruption: sonic
+                    holy: sonic
+                    untyped: sonic
+                    cold: sonic
+                    poison: sonic
+                    psychic: sonic
+                    lightning: sonic
+                    fire: sonic
+                  modtype: replaceroll
+                  name: Encore
+                  rollType: ability_power_roll
+                  description: You use an ability that you have observed being used this combat round. The ability must have the Strike keyword, cost 5 or fewer of a Heroic Resource, and cost no Malice. When you make the strike, you use your Presence score for any power rolls, and any damage you deal is sonic damage.
+                  guid: d617f3bb-98c4-4225-9628-50cd59eb9905
+                  activationCondition: true
+                source: Ongoing Effect
+                guid: 21c06524-32fd-4cf1-bb20-e1fd2f1ff431
+                id: 21c06524-32fd-4cf1-bb20-e1fd2f1ff431
+                name: Encore
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                description: You use an ability that you have observed being used this combat round. The ability must have the Strike keyword, cost 5 or fewer of a Heroic Resource, and cost no Malice. When you make the strike, you use your Presence score for any power rolls, and any damage you deal is sonic damage.
+                implementation: 3
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 8c0cfb87-f78e-4ee9-aa14-d1e854f75614
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityType: none
+                behaviors:
+                - __typeName: ActivatedAbilityRecastBehavior
+                  abilityFilter: |-
+                    (ability.keywords has "Strike") and (ability.heroicResourceCost <= 5) and
+                    (ability.maliceCost <= 0)
+                  applyto: caster
+                targetType: self
+                name: Encore
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+            description: You use an ability that you have observed being used this combat round. The ability must have the Strike keyword, cost 5 or fewer of a Heroic Resource, and cost no Malice. When you make the strike, you use your Presence score for any power rolls, and any damage you deal is sonic damage.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Virtuoso Class Feature
+        guid: fb8e4ba2-e901-4b6c-b916-9db7f79bf8ef
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: ""
+        name: Encore
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: fc43b0a8-a698-4a34-897c-3e5a9f292a69
+          description: ""
+          source: Virtuoso Class Feature
+          name: Tough Crowd
+          behavior: activated
+          guid: 409dda43-8268-4397-899a-342071ce8cb3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Area: true
+              Magic: true
+            targetType: cube
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your fans don’t seem to like the opening act ...
+            sourceReference:
+              __typeName: SourceReference
+              page: 209
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            abilityType: none
+            persistence:
+              enabled: false
+              mode: none
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 9bde3ef4-4a7d-4e6d-9256-b67c18fafc23
+            numTargets: "1"
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 5 corruption damage; m<weak, pull 1 toward the center of the area
+              - 9 corruption damage; m<average, pull 2 toward the center of the area
+              - 12 corruption damage; m<strong, pull 3 toward the center of the area
+              filterTarget: 0 {Tooltip information}
+              roll: 2d10 + Presence
+              guid: b31a850a-b769-4470-af4d-a0010312bd18
+            - __typeName: ActivatedAbilityAuraBehavior
+              guid: 431a1823-ea95-4214-92ff-0b3e7c215cf3
+              aura:
+                __typeName: Aura
+                modifiers: []
+                source: Tough Crowd
+                guid: 41e95bfc-ae64-4496-abe7-6464aa0dc57f
+                objectid: b5b247f1-f046-42f9-99e3-6c83779e2e27
+                flags:
+                  zerocost: true
+                name: Tough Crowd
+                triggers:
+                - ability:
+                    __typeName: TriggeredAbility
+                    repeatTargets: false
+                    behaviors:
+                    - __typeName: ActivatedAbilityForcedMovementLocBehavior
+                      type: aura
+                    - __typeName: ActivatedAbilityPowerRollBehavior
+                      tiers:
+                      - 5 corruption damage; m<weak, pull 1 toward the center of the area
+                      - 9 corruption damage; m<average, pull 2 toward the center of the area
+                      - 12 corruption damage; m<strong, pull 3 toward the center of the area
+                      filterTarget: not Friends(caster, target)
+                      roll: 2d10 + Presence
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    silent: true
+                    range: 5
+                    persistence: []
+                    modifiers: []
+                    strain: []
+                    guid: a86d9547-0df0-488c-9d76-02f55790f16a
+                    trigger: casterendturnaura
+                    numTargets: "1"
+                    targetType: aura
+                    name: Tough Crowd
+                    radius: 0
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  trigger: casterendturnaura
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                applyto: selfandfriends
+                implementation: 3
+            categorization: Heroic Ability
+            name: Tough Crowd
+            radius: "3"
+            description: The area is haunted by a swirling horde of phantoms until the end of the encounter. Allies can enter any square of the area without spending movement. At the end of each of your turns, you can make one power roll that targets each enemy in the area.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Virtuoso Class Feature
+        guid: fc43b0a8-a698-4a34-897c-3e5a9f292a69
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: ""
+        name: Tough Crowd
+        implementation: 3
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      guid: 3e8aad49-7318-4824-932e-69b8ffe41890
+      description: Choose one of the following abilities.
+      name: 2nd-level Virtuoso Ability
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+      guid: 047746fe-2b46-4da9-9521-c1028c5e4317
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 54e4b4bf-7657-4ef2-9c4c-5c325fe008fa
+        abilityTargets: "2"
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        source: Virtuoso Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          resourceCostType: cost
+          damageTypeMappings:
+            acid: sonic
+            corruption: sonic
+            holy: sonic
+            untyped: sonic
+            cold: sonic
+            poison: sonic
+            psychic: sonic
+            lightning: sonic
+            fire: sonic
+          guid: 2d4f28d1-7e20-494b-a246-d4907e0c231c
+          keywords: []
+          resourceCostAmount: "3"
+          activationCondition: false
+          source: Trigger
+          damageMultiplier: full
+          name: Harmonize
+          rules: ""
+          modtype: none
+          rollType: ability_power_roll
+          behavior: power
+        behavior: powertabletrigger
+        castingFilter: targetCount = 1 and Ability.Number of Targets = 1 and Ability.Categorization is Heroic Ability or Ability.Categorization is Signature Ability or Ability.Categorization is Basic Attack
+        trigger: casting
+        type: trigger
+        targetType: ally
+        castingCostOverride: max(3, Ability.HeroicResourceCost)
+        name: Harmonize
+        rules: ""
+        description: "Implementation status: Spend 1+drama is not currently supported."
+        range: "5"
+        sourceguid: 8e1865c6-0281-4a0e-839b-0cc190ac03ab
+      - __typeName: CharacterModifier
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        sourceguid: 8e1865c6-0281-4a0e-839b-0cc190ac03ab
+        behavior: triggerdisplay
+        source: Virtuoso Class Feature
+        name: Harmonize
+        description: "Implementation status: Spend 1+drama is not currently supported."
+        guid: cd02ed0f-cb59-4b06-bbdb-237bce11f5fc
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: |-
+            The target chooses an additional target for the triggering ability within distance of that ability. They use the original power roll for all additional targets. Any damage dealt to an additional target is sonic damage.
+
+            **Spend 1+ Drama:** You can duplicate an ability with a heroic resource cost that is 1 more than 3 for every drama spent.
+          guid: bc0406aa-0528-446f-8452-ed6eccc9eb57
+          distance: Ranged 5
+          keywords: []
+          target: One ally
+          trigger: The target uses an ability that costs 3 or fewer heroic resources that targets only one enemy.
+          cost: 3 Drama
+          flavor: Give the chorus a little punch.
+          name: Harmonize
+      name: Harmonize
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      description: "Implementation status: Spend 1+drama is not currently supported."
+      source: Virtuoso Class Feature
+      implementation: 3
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+      guid: eaa99908-7899-4c26-a7e8-296785b5025c
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        sourceguid: 28a2de69-852b-4e7d-a23d-5dcd3f31bc0b
+        behavior: routine
+        source: Virtuoso Class Feature
+        name: "\"Thunder Mother\""
+        description: All for thunder motherrr!  Run and hide for coverrr!
+        guid: a389cd3b-75e5-4ac2-8c90-f2c0b2f9d703
+        ability:
+          __typeName: RoutineDisplay
+          type: No action
+          name: "\"Thunder Mother\""
+          flavor: All for thunder motherrr! Run and hide for coverrr!
+          guid: 386ca171-2b89-4110-90bc-f9d0cbef6079
+          effect: |-
+            At the end of each round while this routine is active, make a power roll that ignores cover. You can’t target the same creature twice with this effect.
+            Power Roll + {Presence}:
+            • 11 or lower: Lightning damage equal to your level
+            • 12–16: Lightning damage equal to 5 + your level
+            • 17+: Lightning damage equal to 10 + your level
+          keywords:
+            Ranged: true
+            Performance: true
+            Magic: true
+            Strike: true
+      - __typeName: CharacterModifier
+        sourceguid: 0827be19-5567-4536-893e-605200b2eb14
+        source: Virtuoso Class Feature
+        seq: c4df7fc6-79e3-4f63-9f6d-c7f3978d5be7
+        aura:
+          __typeName: Aura
+          modifiers:
+          - __typeName: CharacterModifier
+            filterCondition: Self = Aura.Caster
+            sourceguid: 671931f9-c6c2-4e34-96be-7a2ab8e5023a
+            description: At the end of the round, the Troubadour may target an enemy in this aura with lightning.
+            source: "\"Thunder Mother\""
+            name: "\"Thunder Mother\""
+            behavior: trigger
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              targetType: self
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              mandatory: false
+              range: 1
+              persistence: []
+              modifiers: []
+              hasManualVersion: true
+              strain: []
+              whenActive: combat
+              guid: 6fa7c4cb-4282-4b3d-9c03-88c7f6f09540
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                inheritKeywords: true
+                customAbility:
+                  __typeName: ActivatedAbility
+                  objectTarget: false
+                  repeatTargets: false
+                  reasonedFilters:
+                  - formula: not Target.ConditionCaster("Thunder Mother") = Caster
+                    reason: You cannot target the same creature twice with Thunder Mother
+                  implementationDetails: ""
+                  behaviors:
+                  - __typeName: ActivatedAbilityPowerRollBehavior
+                    tiers:
+                    - Lightning damage equal to your level
+                    - 'Lightning damage equal to 5 + your level '
+                    - Lightning damage equal to 10 + your level
+                    roll: 2d10 + Presence
+                  - __typeName: ActivatedAbilityDamageBehavior
+                    tiersSelected:
+                    - 1
+                    roll: Level
+                    damageType: lightning
+                    titleText: Thunder Mother
+                    chatMessage: Thunder Mother
+                  - __typeName: ActivatedAbilityDamageBehavior
+                    tiersSelected:
+                    - 2
+                    roll: 5 + Level
+                    damageType: lightning
+                    guid: 2bf6285f-1e36-45a9-b9e2-f24add280079
+                    titleText: Thunder Mother
+                    chatMessage: Thunder Mother
+                  - __typeName: ActivatedAbilityDamageBehavior
+                    tiersSelected:
+                    - 3
+                    roll: 10 + Level
+                    damageType: lightning
+                    guid: 5f146924-9e7f-4bda-9b79-a0f4c084f351
+                    titleText: Thunder Mother
+                    chatMessage: Thunder Mother
+                  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                    ongoingEffect: 67d94e8e-8e37-4c27-9358-4f66867bcfc6
+                    duration: eoe
+                    ongoingEffectCustom: 67d94e8e-8e37-4c27-9358-4f66867bcfc6
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  sourceReference:
+                    __typeName: SourceReference
+                    page: 205
+                    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+                  range: "10"
+                  persistence: []
+                  modifiers: []
+                  strain: []
+                  guid: d84fd9a3-032f-4351-b4e8-387c3afa5f56
+                  targetType: target
+                  implementation: 4
+                  categorization: Hidden
+                  name: Thunder Mother
+                  numTargets: "1"
+                  description: ""
+                  abilityType: none
+                  iconid: 6b8dc23f-2d3b-4f49-949f-7f66bffd3364
+                promptText: Make a power roll against the target, which ignores cover
+              numTargets: "1"
+              trigger: beginround
+              name: "\"Thunder Mother\""
+              description: ""
+              abilityType: none
+              iconid: 1c1b85b7-98f3-423c-8d45-705e86fc0227
+            guid: 37614ba8-bd26-4a51-a303-0a096aa4e012
+          source: "\"Thunder Mother\""
+          guid: 671931f9-c6c2-4e34-96be-7a2ab8e5023a
+          objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+          applyto: selfandfriends
+          creatureFilter: ""
+          name: "\"Thunder Mother\""
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.148999929428101
+              s: 0.929296731948853
+              v: 1.00191080570221
+              a: 1
+          description: At the end of the round, the Troubadour may target an enemy in this aura with lightning.
+          implementation: 4
+          iconid: 1c1b85b7-98f3-423c-8d45-705e86fc0227
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        radius: "10"
+        guid: 9744689a-4f90-4d73-b638-c1e627986a68
+        description: All for thunder motherrr!  Run and hide for coverrr!
+        behavior: aura
+        name: Choreography
+      name: "\"Thunder Mother\""
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      description: All for thunder motherrr!  Run and hide for coverrr!
+      source: Virtuoso Class Feature
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+      guid: 59cbaba0-ae87-4340-9ede-995416a3177e
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        sourceguid: 5ac20a77-43fc-49c6-bbc0-c46d954ad083
+        behavior: routine
+        source: Virtuoso Class Feature
+        name: "\"Ballad of the Beast\""
+        description: ""
+        guid: 7391505e-aabe-4730-b5ff-a5eefda89b48
+        ability:
+          __typeName: RoutineDisplay
+          target: Self and each ally in the area
+          effect: While this routine is active, each target who starts their turn in the aura gains a surge.
+          type: No action
+          name: "\"Ballad of the Beast\""
+          flavor: Teeth are bare! Eyes black! No escaping the beast!
+          guid: 6163cc9b-a146-4d44-bdce-01bf76c95d38
+          distance: 5 aura
+          keywords:
+            Area: true
+            Magic: true
+            Performance: true
+      - __typeName: CharacterModifier
+        sourceguid: 5ac20a77-43fc-49c6-bbc0-c46d954ad083
+        source: Virtuoso Class Feature
+        seq: 0b2bbbd8-cd27-45e0-9af8-e1498e054e9f
+        aura:
+          __typeName: Aura
+          modifiers:
+          - __typeName: CharacterModifier
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: c27a4829-1327-4671-8c59-307599aade31
+              repeatTargets: false
+              abilityType: none
+              trigger: beginturn
+              targetType: self
+              numTargets: "1"
+              name: "\"Ballad of the Beast\""
+              behaviors:
+              - __typeName: ActivatedAbilityReplenishBehavior
+                resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+                chatMessage: "\"Ballad of the Beast\""
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            description: You gain a surge at the start of your turn.
+            source: "\"Ballad of the Beast\""
+            behavior: trigger
+            guid: 1fa4ab3d-891e-4c6b-9b91-4d031cc8ac4f
+            name: "\"Ballad of the Beast\""
+            sourceguid: ce4a3868-e450-4d78-bd3d-02ca0c0b98d7
+          source: "\"Ballad of the Beast\""
+          guid: ce4a3868-e450-4d78-bd3d-02ca0c0b98d7
+          objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+          applyto: selfandfriends
+          name: "\"Ballad of the Beast\""
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.806499838829041
+              s: 1.00166583061218
+              v: 1.00191080570221
+              a: 1
+          description: You gain a surge at the start of your turn.
+          implementation: 4
+          iconid: 92a6d94b-65ab-49b6-b33e-0dae78f3a332
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        radius: "5"
+        guid: 978dd76a-bb53-46bd-9dff-397b2961bbe3
+        description: ""
+        behavior: aura
+        name: "\"Ballad of the Beast\""
+      name: "\"Ballad of the Beast\""
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      description: ""
+      source: Virtuoso Class Feature
+      implementation: 4
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: 791814cd-a64f-4576-b6cc-ac02f8e98e60
+          description: Your jam session creates new genres that compel everyone to get up and move.
+          source: Virtuoso Class Feature
+          name: Jam Session
+          behavior: activated
+          guid: 95fae4d8-a0c7-446f-a8e2-5056b7c217a6
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 sonic damage
+              - 11 sonic damage
+              - 15 sonic damage
+              roll: 2d10 + Presence
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 51819a1a-ac83-4eb5-b430-0e27256ae4d2
+              duration: end_of_next_turn
+              ongoingEffectCustom: 51819a1a-ac83-4eb5-b430-0e27256ae4d2
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your jam session creates new genres that compel everyone to get up and move.
+            categorization: Heroic Ability
+            range: "5"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 88f136d4-a2b7-4d1a-90e7-f43d74cb8fba
+            sourceReference:
+              __typeName: SourceReference
+              page: 214
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            numTargets: "1"
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+            targetType: all
+            implementation: 3
+            name: Jam Session
+            implementationDetails: 'The Codex does not force the full movement. There is reminder text when moving for the Director to read. '
+            description: Each creature within distance gains a +5 bonus to speed until the end of their next turn. While under this effect, each target must use their full movement during their turn.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Virtuoso Class Feature
+        guid: 791814cd-a64f-4576-b6cc-ac02f8e98e60
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: Your jam session creates new genres that compel everyone to get up and move.
+        name: Jam Session
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: df5bd8bd-65d2-4944-970b-5d158ac7b583
+          description: The power of music rips through the reality around the target and blows them away.
+          source: Virtuoso Class Feature
+          name: Melt Their Faces
+          behavior: activated
+          guid: 257a7c05-bbbb-41d0-aef8-c52b16a4cb43
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Magic: true
+              Melee: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: The power of music rips through the reality around the target and blows them away.
+            sourceReference:
+              __typeName: SourceReference
+              page: 214
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: d9c60754-94aa-4b12-be18-df062eff9a6e
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              applyto: caster
+              lingerTime: 10
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 0ad861f6-4b17-4719-a561-fbed4e696e11
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  guid: fca79c97-5ad4-4a63-aaad-18db058dd9d4
+                  sourceguid: 0ad861f6-4b17-4719-a561-fbed4e696e11
+                  value: 1
+                  source: Ongoing Effect
+                  name: Melt Their Faces
+                  behavior: attribute
+                  description: Forced movement from this ability ignores stability.
+                  attribute: ce01b08c-82b7-4fa5-8fc5-8e110cf019d7
+                source: Ongoing Effect
+                name: Melt Their Faces
+                description: Forced movement from this ability ignores stability.
+                id: 0ad861f6-4b17-4719-a561-fbed4e696e11
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 12 + P sonic damage; push 5
+              - 16 + P sonic damage; push 10
+              - 22 + P sonic damage; push 15
+              roll: 2d10 + Presence
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 4
+            name: Melt Their Faces
+            categorization: Heroic Ability
+            description: Forced movement from this ability ignores stability.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Virtuoso Class Feature
+        guid: df5bd8bd-65d2-4944-970b-5d158ac7b583
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: The power of music rips through the reality around the target and blows them away.
+        name: Melt Their Faces
+        implementation: 4
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      guid: a401ed95-9475-47ea-9986-24d18fc7713f
+      description: Choose one of the following abilities.
+      name: 9th-level Virtuoso Ability
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureList
+      name: Second Album
+      features:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: e06a3b67-51ee-47e0-b62f-2176c3122682
+          behavior: routine
+          source: Virtuoso Class Feature
+          name: "\"Fire Up the Night\""
+          description: ""
+          guid: e96f7012-ab83-4ece-9076-66e53d208d2e
+          ability:
+            __typeName: RoutineDisplay
+            target: Self and each ally in the area
+            effect: While this performance is active, each target who starts their turn in the area doesn’t take a bane on strikes against creatures with concealment. Once during their turn, they can search for hidden creatures as a free maneuver.
+            type: No action
+            name: "\"Fire Up the Night\""
+            flavor: Maybe you and I ... We can still bring the light!
+            guid: 504d27e2-16ec-4427-b6a9-efe85a43e10e
+            distance: 5 aura
+            keywords:
+              Area: true
+              Magic: true
+              Performance: true
+        - __typeName: CharacterModifier
+          sourceguid: e06a3b67-51ee-47e0-b62f-2176c3122682
+          source: Virtuoso Class Feature
+          seq: 133f3e34-a24b-4579-936a-3708f0a1b10a
+          aura:
+            __typeName: Aura
+            applyto: selfandfriends
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            modifiers:
+            - __typeName: CharacterModifier
+              triggeredAbility:
+                __typeName: TriggeredAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 2bc13091-e6b6-47d0-bf5b-73f1ba00e3af
+                repeatTargets: false
+                abilityType: none
+                trigger: beginturn
+                targetType: self
+                numTargets: "1"
+                name: Fire Up the Night
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 3924f857-6e52-4763-8a86-ee9634252075
+                  duration: 0
+                  ongoingEffectCustom: 3924f857-6e52-4763-8a86-ee9634252075
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              description: Targets who start their turn in the area don't take a bane on strikes against creatures with concealment. Once during their turn, they can search for hidden creatures as a free maneuver.
+              source: Aura
+              behavior: trigger
+              guid: ce18c59d-139c-4738-a75e-f38749e43205
+              name: Fire Up the Night
+              sourceguid: 2c0676bc-b94b-4c56-a5e9-16052b8a95ed
+            name: Fire Up the Night
+            guid: 2c0676bc-b94b-4c56-a5e9-16052b8a95ed
+            description: Targets who start their turn in the area don't take a bane on strikes against creatures with concealment. Once during their turn, they can search for hidden creatures as a free maneuver.
+            objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+            implementation: 3
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          radius: "5"
+          guid: 86ac5aeb-aa00-4805-bb60-6b9501966531
+          description: ""
+          behavior: aura
+          name: "\"Fire Up the Night\""
+        source: Virtuoso Class Feature
+        guid: 20f160a7-23b6-4b45-b02e-d37dfa7f04d9
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: ""
+        name: "\"Fire Up the Night\""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          sourceguid: f2494148-64a0-403f-8c6b-c458695f2e3e
+          behavior: routine
+          source: Virtuoso Class Feature
+          name: "\"Never-Ending Hero\""
+          description: ""
+          guid: 54be34cb-5ff8-4e3c-b025-34140c7e1de9
+          ability:
+            __typeName: RoutineDisplay
+            target: Self and each ally in the area
+            effect: While this performance is active, each target who starts their turn dying while in the area gains an edge on power rolls and ignores the effects of bleeding until the end of their turn.
+            type: No action
+            name: "\"Never-Ending Hero\""
+            flavor: And toniiight we can truly say They will alllways find a way!
+            guid: 5d688520-09d7-4aa9-915b-621997229345
+            distance: 5 aura
+            keywords:
+              Area: true
+              Magic: true
+              Performance: true
+        - __typeName: CharacterModifier
+          sourceguid: f2494148-64a0-403f-8c6b-c458695f2e3e
+          source: Virtuoso Class Feature
+          seq: 957b8b7f-fc3a-4bbf-82e9-f4fe18ef25a5
+          aura:
+            __typeName: Aura
+            applyto: selfandfriends
+            modifiers:
+            - __typeName: CharacterModifier
+              triggeredAbility:
+                __typeName: TriggeredAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                numTargets: "1"
+                modifiers: []
+                abilityType: none
+                strain: []
+                guid: a3eb4db4-8d7a-420b-b1b9-bc59256dfe37
+                repeatTargets: false
+                trigger: beginturn
+                conditionFormula: (not dead) and stamina <= 0 and Hero
+                targetType: self
+                persistence: []
+                name: "\"Never-Ending Hero\""
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 1031d9b5-41b0-4459-a544-206a2626fb4a
+                  duration: 0
+                  ongoingEffectCustom: 1031d9b5-41b0-4459-a544-206a2626fb4a
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              description: ""
+              source: Aura
+              behavior: trigger
+              guid: 68010197-f1d4-4bdb-86d4-a7b9d7aabcdb
+              name: "\"Never-Ending Hero\""
+              sourceguid: d3042704-9891-4269-ab84-9e4cf1f260ec
+            name: "\"Never-Ending Hero\""
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            guid: d3042704-9891-4269-ab84-9e4cf1f260ec
+            implementation: 3
+            objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+          radius: "5"
+          guid: 9d34c763-7388-4852-862a-0021d3b4022a
+          description: ""
+          behavior: aura
+          name: "\"Never-Ending Hero\""
+        source: Virtuoso Class Feature
+        guid: 43365225-500f-4feb-ba9b-adde6d7a7a1b
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+        canHavePrerequisites: true
+        classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+        description: ""
+        name: "\"Never-Ending Hero\""
+        implementation: 3
+      description: You have the following performance abilities, which are usable with your Routines feature.
+      classid: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+      guid: a2815361-6427-48e6-ab1f-37e5555a7003
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:f65b9fe2-aee3-4d2b-ae9e-97b7293979af: true
+details: 'You find drama in music and song, weaving magic between the vibrations of your sound and filling the audience with your pathos. You gain the Music skill and you wield an instrument. '
+name: Virtuoso
+mtime: 1774718057795
+id: f65b9fe2-aee3-4d2b-ae9e-97b7293979af
+primaryClassId: 97bd30e0-b670-41c7-9136-6a832625f049

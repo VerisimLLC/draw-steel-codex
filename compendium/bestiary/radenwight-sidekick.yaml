@@ -1,0 +1,298 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 20fa53df-4500-488f-8d48-c4a72ba2acd9
+    offtokenPortraitId: bcc02233-db84-4c2f-ab12-d10c43ee9c9a
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 066a8500-4e20-4ae4-a8e7-d39c5aa84fa0
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.5252448
+    portraitOffset:
+      x: 0.01742756
+      y: 0.07466785
+    frameHueShift: 0
+    frameSaturation: 0.5919092
+    frameBrightness: 0.15776
+    popoutScale: 0.99
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8a29ae42-b7b7-477b-955e-b2b9376ba314
+  properties:
+    __typeName: follower
+    followerType: retainer
+    cr: 1
+    skillProficiencies: []
+    role: Follower Support
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Radenwight: true
+    titles: []
+    innateAttacks: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 58d68f7b-5f81-4948-85a7-d90300f3b4ba
+        source: Custom
+        value: -1
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: Custom Modification
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: ""
+        behavior: attribute
+        attribute: creatureSize
+      source: Custom
+      guid: 58d68f7b-5f81-4948-85a7-d90300f3b4ba
+      id: 6450780b-d70f-4bf2-ae23-9620e047e693
+      ctime: 1756099470349
+      domains:
+        CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+      name: Custom Modification
+      description: ""
+      mtime: 1756099470349
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d1d968f3-891b-4410-8228-f51007a9cf42: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d1d968f3-891b-4410-8228-f51007a9cf42
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:d1d968f3-891b-4410-8228-f51007a9cf42: true
+        name: Can Climb
+        guid: ed4e7783-cf1e-43b1-9d03-43809e196277
+        description: Can Climb
+        behavior: attribute
+        attribute: climb
+      source: Character Feature
+      description: Can Climb
+      guid: d1d968f3-891b-4410-8228-f51007a9cf42
+      name: Can Climb
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e152c76c-982f-4338-9965-41a215724dc8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e152c76c-982f-4338-9965-41a215724dc8: true
+        sourceguid: e152c76c-982f-4338-9965-41a215724dc8
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Ready Rodent
+        description: ""
+        guid: e8fa46f3-609c-4a96-ab2e-e8e09c33da1f
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The sidekick makes a free strike against the target.
+          name: Ready Rodent
+          trigger: An ally deals damage to the target.
+          guid: 440286da-646e-4745-8c1c-e307dd73bc27
+          distance: Melee 1
+          keywords:
+            Melee: true
+            Weapon: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e152c76c-982f-4338-9965-41a215724dc8: true
+        sourceguid: e152c76c-982f-4338-9965-41a215724dc8
+        description: ""
+        source: Character Feature
+        name: Ready Rodent
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: ac452c83-cd8f-41b3-a545-33a3418e5be3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Free Strike Against Target
+            standardAbilityParams:
+              targetid: "<<subject.id>>"
+            abilityType: standard
+            standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+          triggerPrompt: Make a Free Strike Against the Target of your Allies Attack
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          guid: 18ab2013-ff47-4e67-9bbc-73a958011122
+          targetType: self
+          conditionFormula: Friends(Attacker, Self) and (not Attacker = Self)
+          abilityType: none
+          trigger: losehitpoints
+          name: Ready Rodent
+          numTargets: "1"
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 873527d4-4f8b-4e58-a112-8c929f54659c
+      source: Character Feature
+      description: ""
+      guid: e152c76c-982f-4338-9965-41a215724dc8
+      name: Ready Rodent
+      implementation: 3
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: mgt
+    availableRolls: 0
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    monster_type: Radenwight Sidekick
+    max_hitpoints: 10
+    availableTriggers: []
+    initiativeGrouping: 7cbb0754-a139-4556-903b-48dc5c8ab98c
+    levelChoices: []
+    walkingSpeed: 5
+    retainer: true
+    groupid: 763027dd-bc4d-485c-9bfc-6888f41a1b35
+    resources: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + Highest Characteristic
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 371
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "5"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: bcd93ef7-0671-4f2e-879d-a5a1002c99ab
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Dagger’s Bite
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    monster_category: Monster
+    damage_taken: 0
+    minion: false
+    opportunityAttack: 2
+    savingThrowRatings: []
+  tokenType: null
+  bestiaryId: 35ac631c-8ba3-4103-9e86-65cf41c2f2e1
+  summonerid: null
+  ownerId: PARTY
+  partyid: null
+  size: 2
+  createdTimestamp: 1763826451061
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 12
+ctime: 1763826451061
+mtime: 1775167439730
+hidden: false

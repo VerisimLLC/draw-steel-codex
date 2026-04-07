@@ -1,0 +1,54 @@
+__typeName: MarkdownDocument
+annotations: []
+id: ec161738-f54a-4f9d-be14-23954b839956
+ctime: 1765812384049
+textStorage:
+  __typeName: TextStorage
+  sections:
+    yT: |
+      |The hero is unconvincing and the bandits they’re talking to attack, and raise the alarm.
+    y: |+
+      A hero who wants to pose as a wannabe bandit looking to join the Forsaken Wraiths can make a moderate Presence test while talking to another bandit. This test has an edge if another member of the Forsaken Wraiths is vouching for them.
+
+    w: |+
+      | The hero succeeds and finds the best handholds. Other heroes after them automatically succeed on the test.
+
+    x: |+
+      ## Bluffing In
+
+    u: |
+      |The hero makes it over the wall, but makes some noise that is heard by the Kora at the guard post at the entrance. She comes to investigate. If the heroes don’t deceive Kora or reduce her to 0 within the first three turns of combat, she raises the alarm.
+    v: |
+      | The hero scales the wall quickly and quietly, unnoticed by anyone inside.
+    s: |+
+      ## Sneaking In
+
+    t: |
+      |Sneakily Scale the Wall: Agility Test
+    Q: |+
+      Deep grass between the shore of the island and the fort provides cover for creatures as they approach the area.
+
+    r: |2+
+
+
+    yE: |2
+
+    yp: "|The hero is trusted, and these bandits don’t bother them again unless they learn the truth."
+    h: |
+      > * "The south of the fort is a wooden palisade held together with twine and mud. The north end of the fort is an old stone building."
+    yJ: |
+      |Lie to the Bandits: Presence Test
+    Y: |+
+      The original fortress was a stone structure abandoned by its previous occupants long ago. Aldiva and the rest of her bandit crew built the wooden palisade that is 2 squares high at the front of the stone section. Now they pitch tents within the palisade as shelters, while the leaders make their homes in the stone section.
+
+    q: "> * \"A sentry holding a crossbow stands atop a platform above a southern opening palisade of the fort, distracted by talking to someone below.\""
+    ye: |
+      |The hero is convincing, and they are taken directly to Thurston.
+    I: |+
+      # Entering the Fort
+
+parentFolder: 3869de06-287d-49b3-b58a-e783f2d757c0
+updateid: 6878850b-250e-4b68-a7c1-5717d1c4afe9
+mtime: 1765816216940
+content: "# Room 1"
+description: Entering the Fort

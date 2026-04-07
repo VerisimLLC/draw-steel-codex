@@ -1,0 +1,58 @@
+__typeName: equipment
+itemPrerequisite: An ounce of demon honey
+keywords:
+  Oil: true
+  Magic: true
+projectSource: Texts or lore in Kalliak
+flavor: This cooling orange salve crackles and pops when exposed to the air.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+iconid: 0c1fb104-d4ff-41ae-94a4-ed9d812e48e4
+id: 7acfeb49-488a-4c2f-a5ba-e372feabd8b7
+ctime: 1759148539827
+projectGoal: "45"
+mtime: 1763594249411
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  consumables:
+    7acfeb49-488a-4c2f-a5ba-e372feabd8b7: 1
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: 280dffc6-3ba3-48bd-ba80-440d445d9efd
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  iconid: 0c1fb104-d4ff-41ae-94a4-ed9d812e48e4
+  castImmediately: true
+  description: You immediately end the bleeding and weakened conditions on yourself, and you gain a +2 bonus to speed until the start of your next turn.
+  behaviors:
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    conditions:
+    - 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+    - 567a3454-ead6-4416-b338-ed73d64b7805
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 41e79778-7267-4947-b05a-824b0600c681
+    durationUntilEndOfTurn: false
+    duration: 1
+    ongoingEffectCustom: false
+  name: Buzz Balm
+  persistence: []
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 3
+name: Buzz Balm
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+description: As a maneuver, you rub the balm on your body and feel it tingle across your skin. You immediately end the bleeding and weakened conditions on yourself, and you gain a +2 bonus to speed until the start of your next turn.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 3

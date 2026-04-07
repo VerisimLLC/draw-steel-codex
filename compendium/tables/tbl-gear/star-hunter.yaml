@@ -1,0 +1,203 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 58c5dd5c-cc5b-4237-8509-c9060fc1b5e1
+    sourceguid: 5cd4cb49-88b5-4370-a5be-f6fd624ed97e
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "6"
+        threshold: 1
+      - script: "12"
+        threshold: 5
+      - script: "21"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    source: Item
+    name: Bonus Stamina
+    behavior: attribute
+    description: ""
+    attribute: hitpoints
+  source: Item
+  name: Bonus Stamina
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 5cd4cb49-88b5-4370-a5be-f6fd624ed97e
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 9f17f92a-7834-4e6b-81a1-034b90fdde25
+    displayCondition: Magic Abilities Against You Gain An Edge
+    source: Item
+    modtype: edge
+    keywords:
+      Magic: true
+    activationCondition: Ability.Keywords has "Magic"
+    rollType: enemy_ability_power_roll
+    guid: 85af6654-057d-42b4-bef1-76471ba45898
+    description: ""
+    behavior: power
+    name: Edge on Magic Against You
+  source: Item
+  name: Edge on Magic Against You
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 9f17f92a-7834-4e6b-81a1-034b90fdde25
+- __typeName: CharacterFeature
+  description: You can also turn invisible as a maneuver. Your invisibility ends if you take damage or use an ability, or at the end of your next turn.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: a950a3fd-3029-4447-a827-621e0fd8a994
+    guid: c99949c4-7dee-4685-b77a-61d4f243c709
+    source: Item
+    behavior: activated
+    description: You can also turn invisible as a maneuver. Your invisibility ends if you take damage or use an ability, or at the end of your next turn.
+    name: Maneuver Invisibility
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        filterTarget: Level < 5
+        duration: end_of_next_turn
+        ongoingEffectCustom: false
+        ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        filterTarget: Level > 4
+        ongoingEffectCustom: false
+        ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+        guid: fa333c8c-3fcf-41a8-a567-1ddf098deedd
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: ce84a8cc-22d1-49b5-a3ef-a5e9586f4bc6
+      targetType: self
+      domains: []
+      numTargets: "1"
+      castImmediately: true
+      name: Turn Invisible
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: ""
+      abilityType: none
+      iconid: ce22a366-97fc-4e9d-90ab-50c3501ae02b
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+        mode: effect
+        conditions: []
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: b3bb0547-6397-4a7c-b3fe-17ba05d6026b
+      persistence: []
+      conditionFormula: Subject.Conditions has "Invisible"
+      targetType: self
+      castImmediately: true
+      trigger: losehitpoints
+      name: Maneuver Invisibility
+      description: You can also turn invisible as a maneuver. Your invisibility ends if you take damage or use an ability, or at the end of your next turn.
+      abilityType: none
+      iconid: ce22a366-97fc-4e9d-90ab-50c3501ae02b
+    description: You can also turn invisible as a maneuver. Your invisibility ends if you take damage or use an ability, or at the end of your next turn.
+    source: Item
+    behavior: trigger
+    guid: 5100b82f-12f4-43ae-9fff-5a2fa238ded9
+    name: Maneuver Invisibility
+    sourceguid: a950a3fd-3029-4447-a827-621e0fd8a994
+  source: Item
+  name: Maneuver Invisibility
+  addText: Add Magical Property
+  itemAttached: true
+  guid: a950a3fd-3029-4447-a827-621e0fd8a994
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: Level > 4 and Level < 9
+    sourceguid: 0731216e-0658-4894-bdd0-b8b6163bab5d
+    name: Level 5 Psychic Immunity
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "5"
+      damageType: psychic
+      apply: Damage Reduction
+    description: ""
+    behavior: resistance
+    guid: 7577bd44-b66b-4163-aa6b-96bcec79e313
+  source: Item
+  name: Level 5 Psychic Immunity
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 0731216e-0658-4894-bdd0-b8b6163bab5d
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: Level > 9
+    sourceguid: 0731216e-0658-4894-bdd0-b8b6163bab5d
+    name: Level 9 Psychic Immunity
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "10"
+      damageType: psychic
+      apply: Damage Reduction
+    description: ""
+    behavior: resistance
+    guid: 7577bd44-b66b-4163-aa6b-96bcec79e313
+  source: Item
+  name: Level 9 Psychic Immunity
+  addText: Add Magical Property
+  itemAttached: true
+  guid: e770abbc-a584-4e6b-8c6f-3f31336eb81a
+itemPrerequisite: A large vessel of astral ice, a pint of supercooled mercury
+keywords:
+  Heavy Armor: true
+  Psionic: true
+projectSource: Texts or lore in Voll
+flavor: Shimmering light flows like liquid along this suit of crystalline armor.
+level9: The armor’s bonus to Stamina increases to +21, and you instinctively know the location of any creature with concealment within 10 squares. Your invisibility no longer ends when you use an ability, and you have psychic immunity 10.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The armor’s bonus to Stamina increases to +12, you instinctively know the location of any creature with concealment within 5 squares, and your invisibility no longer ends at the end of your next turn. Additionally, you have psychic immunity 5.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 6932c6d8-5c63-4d86-afb2-2b5c1c457daf
+ctime: 1758401729753
+name: Star-Hunter
+description: While you wear this armor, you gain a +6 bonus to Stamina, but any magic ability gains an edge when targeting you. Additionally, you instinctively know the location of any creature with concealment within 2 squares. You can also turn invisible as a maneuver. Your invisibility ends if you take damage or use an ability, or at the end of your next turn.
+mtime: 1759210309391
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: ce22a366-97fc-4e9d-90ab-50c3501ae02b

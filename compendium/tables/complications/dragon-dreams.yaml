@@ -1,0 +1,752 @@
+__typeName: CharacterComplication
+drawback: Whenever you are reduced to 0 Stamina, you explode with heat and fire. You and each creature within 5 squares of you takes fire damage equal to twice your level. You can’t reduce this damage for yourself in any way.
+mtime: 1764681239213
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    numChoices: "2"
+    costsPoints: true
+    options:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: e1e98137-88d1-4451-9c43-4fd9ef6577a9
+        behavior: triggerdisplay
+        source: Feat
+        name: Draconian Guard
+        description: When you or a creature adjacent to you takes damage from a strike, you can use a triggered action to swing your wings around and guard against the blow, reducing the any damage from the strike by an amount equal to your level.
+        guid: 52ea1f44-6de6-4219-9b64-3c57954b9906
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or Ally
+          effect: The damage is reduced by {level|an amount equal to your level}.
+          name: Draconian Guard
+          trigger: The target takes damage from a strike.
+          flavor: You swing your wings around and guard against the blow.
+          guid: 97ac128b-3e1c-49d9-8e96-0adac6bc6396
+          distance: Melee 1
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: e1e98137-88d1-4451-9c43-4fd9ef6577a9
+        source: Feat
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          modtype: none
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          name: Draconian Guard
+          rules: ""
+          damageModifier: "-Target.Level"
+          behavior: power
+          guid: e3c681e8-9444-4ae2-866c-69eaba20fdbb
+        guid: 83feed8f-a0a6-47ca-bde0-1b58881bd264
+        filterCondition: Victories >= 5
+        type: trigger
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        targetType: selforally
+        trigger: strike
+        name: Draconian Guard
+        rules: The damage is reduced by {level|an amount equal to your level}.
+        description: When you or a creature adjacent to you takes damage from a strike, you can use a triggered action to swing your wings around and guard against the blow, reducing the any damage from the strike by an amount equal to your level.
+        range: "1"
+        behavior: powertabletrigger
+      source: Feat
+      guid: 0d3c510c-1018-4a3c-ac24-1f5d1623019c
+      pointsCost: 1
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      canHavePrerequisites: true
+      name: Draconian Guard
+      description: When you or a creature adjacent to you takes damage from a strike, you can use a triggered action to swing your wings around and guard against the blow, reducing the any damage from the strike by an amount equal to your level.
+      prerequisites: []
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: 7c7b4988-41ca-414a-9f3a-e9f8118a8132
+        description: As a maneuver, you can recite your oath. Until the start of your next turn, whenever you make a saving throw, you succeed on a 4 or higher.
+        source: Feat
+        name: Remember Your Oath
+        behavior: activated
+        guid: 1f6fd3ba-dafb-419c-91d3-ca231443a95d
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: |-
+            <i>Even should the sun stop in the sky 
+
+            Even should the night last a thousand years 
+
+            I will stand forever 
+
+            I shall not yield 
+
+            Those who suffer and yearn for justice 
+
+            I am your sword and shield 
+
+            I will yield no ground 
+
+            I will speak no lies 
+
+            I will stand against all tyrants 
+
+            Until the last villain dies</i>
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 0105ae01-bc30-4ccf-957c-e9223629bc56
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            hasTemporaryHitpoints: false
+            durationUntilEndOfTurn: true
+            duration: 1
+            ongoingEffectCustom: 54c875f1-d632-4485-b916-bc897e6d5c81
+            ongoingEffect: 54c875f1-d632-4485-b916-bc897e6d5c81
+            applyto: caster
+          numTargets: "1"
+          name: Remember Your Oath
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          description: |
+            As a maneuver, you can recite the following oath. If you do, you succeed on saving throws when you roll a 4 or higher until the start of your next turn: 
+          abilityType: none
+          iconid: 114facd6-e696-4cda-aed7-2a1cffd2f410
+      - __typeName: CharacterModifier
+        sourceguid: 5924d8b7-3792-4b5a-a59e-b3d4cc5aaa7e
+        source: Feat
+        guid: 3d5f5e7d-c3bd-4264-a117-4f0e1bb4d54d
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        abilityFilter: not Ability.Name is "Remember Your Oath"
+        name: Remember Your Oath
+        filterCondition: Victories < 5
+        description: As a maneuver, you can recite your oath. Until the start of your next turn, whenever you make a saving throw, you succeed on a 4 or higher.
+        explanation: "Dragon Dreams: You have less than 5 Victories."
+        behavior: suppressabilities
+      source: Feat
+      guid: 5924d8b7-3792-4b5a-a59e-b3d4cc5aaa7e
+      pointsCost: 1
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      name: Remember Your Oath
+      description: As a maneuver, you can recite your oath. Until the start of your next turn, whenever you make a saving throw, you succeed on a 4 or higher.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: 0d630fd6-0b3c-4c91-8954-ee7a7526086d
+        description: "You can use the following ability: Draconian Pride"
+        source: Feat
+        name: Draconian Pride
+        behavior: activated
+        guid: b5e34f0e-db38-4e4c-a5e4-17f01cab4881
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You let loose a mighty roar to shake your foes’ spirits.
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 8fb05a82-06f0-48dc-ad6f-6aa087f50756
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 2 damage
+            - 5 damage; push 1
+            - 7 damage; push 2
+            roll: 2d10 + Might or Presence
+          numTargets: "1"
+          name: Draconian Pride
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          description: ""
+          abilityType: none
+          iconid: 25fee67e-3c71-4aae-80ec-b94da4b4ee91
+      - __typeName: CharacterModifier
+        sourceguid: 5924d8b7-3792-4b5a-a59e-b3d4cc5aaa7e
+        source: Feat
+        guid: 5a0e1eff-b18c-4d48-b2ce-5b597ecddb03
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        abilityFilter: not Ability.Name is "Draconian Pride"
+        name: Draconian Pride
+        filterCondition: Victories < 5
+        description: As a maneuver, you can recite your oath. Until the start of your next turn, whenever you make a saving throw, you succeed on a 4 or higher.
+        explanation: "Dragon Dreams: You have less than 5 Victories."
+        behavior: suppressabilities
+      source: Feat
+      guid: fcf804ff-d338-4b4d-a71f-9b8ffec0707f
+      pointsCost: 2
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      name: Draconian Pride
+      description: "You can use the following ability: Draconian Pride"
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: 1ba77d3b-3f14-4151-b6e7-8dde7ceca1f1
+        description: "You can use the following ability: Dragon Breath"
+        source: Feat
+        name: Dragon Breath
+        behavior: activated
+        guid: e23b469d-c429-41f7-a57a-28a583a4b9b1
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: enemy
+          repeatTargets: false
+          keywords:
+            Magic: true
+            Area: true
+          targetType: cube
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You expel energy to damage your foes.
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList:
+          - text: Acid Damage
+          - text: Cold Damage
+          - text: Corruption Damage
+          - text: Fire Damage
+          - text: Lightning Damage
+          - text: Poison Damage
+          guid: 1cff5e47-2f6b-4144-9a1e-f2ba71cfbdc0
+          numTargets: "1"
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            applyto: targets
+            roll: 2d10 + Might or Presence
+            tiers:
+            - 2 damage
+            - 4 damage
+            - 6 damage
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+            modesSelected:
+            - 1
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: acid
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Acid Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: bf73fc93-bd45-41a2-ac0c-6c7eddf3ee4c
+            modesSelected:
+            - 2
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: cold
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Cold Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 6fa5c8c8-17b9-4123-8cab-4fb0b30a5d7c
+            modesSelected:
+            - 3
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: corruption
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Corruptiion Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: b4e3fc1e-79a7-4c3c-a42b-b7342bb63397
+            modesSelected:
+            - 4
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: fire
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Fire Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 3e0d825f-9d72-42ad-96eb-6a91ebd4e4c5
+            modesSelected:
+            - 5
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: lightning
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Lightning Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 4983bdef-e21a-488b-bc8c-6f182a17b8dd
+            modesSelected:
+            - 6
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: poison
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Poison Damage
+              description: ""
+              behavior: power
+              modtype: none
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          name: Dragon Breath
+          radius: 3
+          description: You choose the attack’s damage type from acid, cold, corruption, fire, lightning, or poison.
+          abilityType: none
+          iconid: 7c525005-fd0c-4312-aa3c-e53840feea9b
+      - __typeName: CharacterModifier
+        sourceguid: 5924d8b7-3792-4b5a-a59e-b3d4cc5aaa7e
+        source: Feat
+        guid: 17a96395-ca60-43a5-933e-e86f4e232b92
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        abilityFilter: not Ability.Name is "Dragon Breath"
+        name: Dragon Breath
+        filterCondition: Victories < 5
+        description: As a maneuver, you can recite your oath. Until the start of your next turn, whenever you make a saving throw, you succeed on a 4 or higher.
+        explanation: "Dragon Dreams: You have less than 5 Victories."
+        behavior: suppressabilities
+      source: Feat
+      guid: 2401d540-5fd5-4252-aa30-a25997eb0ebf
+      pointsCost: 2
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      name: Dragon Breath
+      description: "You can use the following ability: Dragon Breath"
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: Prismatic Scales
+      options:
+      - __typeName: CharacterFeature
+        description: Damage from acid attacks is reduced by your level
+        modifiers:
+        - __typeName: CharacterModifier
+          filterCondition: Victories >= 5
+          sourceguid: b5159028-d113-421c-86ec-b9ad1d9eeea8
+          name: Acid Immunity
+          source: Feat
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: level
+            damageType: acid
+            apply: Damage Reduction
+          description: Damage from acid attacks is reduced by your level
+          behavior: resistance
+          guid: a3a395b5-1fb0-4e6d-820d-3de52f574eaf
+        source: Feat
+        canHavePrerequisites: true
+        guid: 7c8f7fda-6ac4-4b9c-a3d6-ea5352350261
+        name: Acid Immunity
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: b82bcc74-5897-4e0e-9076-986df6a0ba16
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 411a1412-fb4f-4c51-bad1-dcff5e046bd6
+          source: Feat
+          behavior: resistance
+          filterCondition: Victories >= 5
+          name: Cold Immunity
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: cold
+            apply: Damage Reduction
+          description: Damage from cold attacks is reduced by your level.
+          guid: b9039dc9-157d-43ef-8b7a-b9b4c57e417c
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        canHavePrerequisites: true
+        name: Cold Immunity
+        description: Damage from cold attacks is reduced by your level.
+        source: Feat
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: c80e0327-d676-4d52-8573-50f6c1d0e822
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: cdd015ed-2d9a-423b-953a-c0c7255e4545
+          source: Feat
+          behavior: resistance
+          filterCondition: Victories >= 5
+          name: Corruption Immunity
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: corruption
+            apply: Damage Reduction
+          description: Damage from corruption attacks is reduced by your level.
+          guid: 43b2191a-349b-4941-ad8a-a4a8d241afce
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        canHavePrerequisites: true
+        name: Corruption Immunity
+        description: Damage from corruption attacks is reduced by your level.
+        source: Feat
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: 37141a5f-92f0-4722-b0f3-925189487cbf
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: efb897ff-9c79-4aab-9e40-fc8321b9dc85
+          source: Feat
+          behavior: resistance
+          filterCondition: Victories >= 5
+          name: Fire Immunity
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: fire
+            apply: Damage Reduction
+          description: Damage from fire attacks is reduced by your level.
+          guid: d1ecd235-ffe2-443b-b425-c69aac620851
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        canHavePrerequisites: true
+        name: Fire Immunity
+        description: Damage from fire attacks is reduced by your level.
+        source: Feat
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: 8531573a-afe7-434f-9c02-f37eb856557b
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: aa2c9300-1f35-42b9-9a88-972853a165f7
+          source: Feat
+          behavior: resistance
+          filterCondition: Victories >= 5
+          name: Lightning Immunity
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: lightning
+            apply: Damage Reduction
+          description: Damage from lightning attacks is reduced by your level.
+          guid: 315dbc44-c16b-4b09-a930-42c974f71517
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        canHavePrerequisites: true
+        name: Lightning Immunity
+        description: Damage from lightning attacks is reduced by your level.
+        source: Feat
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: 36414c1f-502a-4a4a-a32b-65d7e00104a5
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 9aed58fd-cf05-4fa0-8a89-8bd6347364ee
+          source: Feat
+          behavior: resistance
+          filterCondition: Victories >= 5
+          name: Poison Immunity
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: poison
+            apply: Damage Reduction
+          description: Damage from poison attacks is reduced by your level.
+          guid: 6d4bc3f3-8d4d-4f49-88fb-d24cfb9dccd1
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        canHavePrerequisites: true
+        name: Poison Immunity
+        description: Damage from poison attacks is reduced by your level.
+        source: Feat
+        implementation: 3
+      source: Feat
+      description: Select one damage immunity granted by your Wyrmplate trait. You always have this immunity from your trait in addition to the one it normally grants.
+      pointsCost: 1
+      guid: 3ea70c61-838f-4ee9-9379-365b5bbcaa5c
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: add
+        sourceguid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+        source: Feat
+        value: Movement Speed
+        filterCondition: Victories >= 5
+        guid: d8a087bc-689f-47f1-bde9-304c4d27b1af
+        name: Wings
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+        behavior: attribute
+        attribute: fly
+      - __typeName: CharacterModifier
+        sourceguid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+        source: Feat
+        behavior: resistance
+        filterCondition: Movement Type = "Fly" and Level <= 3 and (Victories >= 5)
+        name: Wings
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "-5"
+          damageType: all
+          apply: Damage Reduction
+        description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+        guid: 8159cfc7-58d8-4092-a112-5eb165298945
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      - __typeName: CharacterModifier
+        sourceguid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+        source: Feat
+        guid: c7232c83-6920-4441-a1fb-71ef480c8237
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        name: Wings
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: bb77c6ce-5af5-4e2a-a9dd-a4427c77e486
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 6a6f4254-937b-4500-92cd-9fcfa26350ea
+            ongoingEffectCustom: 6a6f4254-937b-4500-92cd-9fcfa26350ea
+          - __typeName: ActivatedAbilityFizzleBehavior
+            filterTarget: Stacks("Flying Fatigue") < Might
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            instant: false
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              modifiers:
+              - __typeName: CharacterModifier
+                operation: set
+                sourceguid: 342f981a-0f2b-4895-8556-45765bccc1e1
+                source: Ongoing Effect
+                value: 0
+                name: Fall
+                guid: d00ee953-ee46-4f6e-b717-58caa3cda261
+                description: ""
+                behavior: attribute
+                attribute: fly
+              source: Ongoing Effect
+              guid: 342f981a-0f2b-4895-8556-45765bccc1e1
+              id: 342f981a-0f2b-4895-8556-45765bccc1e1
+              name: Fall
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              description: ""
+              implementation: 3
+              iconid: ui-icons/skills/1.png
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityDelayBehavior
+            delay: "0.5"
+          - __typeName: ActivatedAbilityFallBehavior
+          conditionFormula: Movement Type = "Fly"
+          whenActive: combat
+          numTargets: "1"
+          trigger: beginround
+          name: Wings
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+        behavior: trigger
+        filterCondition: Victories >= 5
+      source: Feat
+      guid: 6dd209ae-effd-4dfb-aef1-1f0720d08074
+      pointsCost: 2
+      domains:
+        race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      name: Wings
+      description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+      canHavePrerequisites: true
+      implementation: 3
+    name: 'Dragon Knight Traits '
+    description: 'You have 3 ancestry points to spend on the following traits. '
+    source: Feat
+    guid: 0f0448c2-5d1c-4ce1-9b60-780a372b0afa
+  - __typeName: CharacterFeature
+    description: Whenever you are reduced to 0 Stamina, you explode with heat and fire. You and each creature within 5 squares of you takes fire damage equal to twice your level. You can’t reduce this damage for yourself in any way.
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityDamageBehavior
+          filterTarget: ""
+          damageType: fire
+          roll: 2*Level
+        triggerPrompt: 5 fire damage to self each creature within 5
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: true
+        range: "5"
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 024d645b-ce9a-4dd6-b9e7-e06cf8122e5c
+        name: Dragon Dreams - Other Creatures
+        numTargets: "1"
+        selfTarget: false
+        trigger: dying
+        targetType: all
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: Whenever you are reduced to 0 Stamina, you explode with heat and fire. You and each creature within 5 squares of you takes fire damage equal to twice your level. You can’t reduce this damage for yourself in any way.
+      source: Complication
+      behavior: trigger
+      guid: 7f9c3dcb-cd66-44e6-a2c7-18115525177f
+      name: Dragon Dreams
+      sourceguid: 72f31525-9611-42c7-98ad-be24198c658a
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityDamageBehavior
+          cannotBeReduced: true
+          filterTarget: ""
+          damageType: fire
+          roll: 2*Level
+        triggerPrompt: Fire Damage equal to twice level applied to Self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: true
+        range: "5"
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: fd78f091-205d-487b-a0c9-8fb143dc961a
+        name: Dragon Dreams - Self
+        numTargets: "1"
+        selfTarget: false
+        trigger: dying
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: Whenever you are reduced to 0 Stamina, you explode with heat and fire. You and each creature within 5 squares of you takes fire damage equal to twice your level. You can’t reduce this damage for yourself in any way.
+      source: Complication
+      behavior: trigger
+      guid: 93f07367-afa9-478a-9015-14ee1c6f4b3e
+      name: Dragon Dreams
+      sourceguid: 72f31525-9611-42c7-98ad-be24198c658a
+    source: Complication
+    canHavePrerequisites: true
+    guid: 72f31525-9611-42c7-98ad-be24198c658a
+    name: Dragon Dreams
+    implementation: 3
+name: Dragon Dreams
+ctime: 1755513901190
+description: You sometimes have strange dreams of a raging inferno… a gleaming pile of treasure… of spreading your wings and taking flight. You haven’t told anyone about these dreams, except for your one strange relative who seems to know more than they’re letting on.
+id: 9997076d-f3f0-4716-8cae-18b45c9350dc
+benefit: "Choose 2 ancestry points’ worth of purchased dragon knight traits (see Chapter 3: Ancestries). You can use these traits whenever you have 5 or more Victories."

@@ -1,0 +1,65 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    subjectRange: "99"
+    strain: []
+    guid: 162275f2-b511-44de-8b27-39d6ea2edf14
+    name: and 10 damage at the start of caster's turn
+    abilityType: none
+    conditionFormula: Subject = ConditionCaster("Restrained")
+    castImmediately: true
+    numTargets: "1"
+    trigger: beginturn
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Thorn Cage!
+      filterTarget: ""
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 0.98535168170929
+        v: 0.978165149688721
+        a: 1
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "10"
+      chatMessage: "Thorn Cage: Start of Caster's Turn."
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  description: While restrained this way, the target takes 10 damage at the start of each of the caster's turns.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 94d1afcd-f1b4-46fb-abe3-c5dbf199a5de
+  name: and 10 damage at the start of caster's turn
+  sourceguid: 8c153b4a-4709-4257-b64c-d3c98d424773
+source: Ongoing Effect
+guid: 8c153b4a-4709-4257-b64c-d3c98d424773
+id: 8c153b4a-4709-4257-b64c-d3c98d424773
+ctime: 1770276715967
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: Thorn Cage
+description: While restrained this way, the target takes 10 damage at the start of each of the caster's turns.
+mtime: 1770277700939
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db

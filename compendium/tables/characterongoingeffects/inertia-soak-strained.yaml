@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: f062ee2d-fe40-41cc-8780-9e784bf0865a
+  sourceguid: 53ec7c9d-995c-4d2c-b227-2cbff6f717d7
+  value: 5
+  source: Ongoing Effect
+  name: Inertia Soak - Strained
+  behavior: attribute
+  description: You are weakened and whenever an effect with forced movement targets you, the forced movement value is increased by 5 for you (save ends).
+  attribute: a1924d69-7d88-4752-9c3b-75465856c91d
+source: Ongoing Effect
+guid: 53ec7c9d-995c-4d2c-b227-2cbff6f717d7
+id: 53ec7c9d-995c-4d2c-b227-2cbff6f717d7
+ctime: 1749179446348
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+name: Inertia Soak - Strained
+description: You are weakened and whenever an effect with forced movement targets you, the forced movement value is increased by 5 for you (save ends).
+mtime: 1749179446348
+custom: true
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725

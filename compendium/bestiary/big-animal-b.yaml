@@ -1,0 +1,232 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 37aad305-377b-4b0e-b57f-7e7b5fd98dcd
+    offtokenPortraitId: null
+    portraitFrameId: 332770d5-bdfb-40bb-92c0-f8476e7e80f2
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.05648202
+      y: 0.1451861
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e4865de2-15b8-486f-95d1-aa8e2aae2ef0
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 2
+    import:
+      type: mcdm
+      data: |+
+        Big Animal B	Level 2 Elite Mount
+        Animal	EV 16
+        <b>Stamina</b> 80
+        <b>Speed</b> 6	<b>Size</b> 3 /<b> Stability</b> 3
+        <b>	Free Strike</b> 5
+        Might +2	Agility +1	Reason -1	Intuition +1	Presence +0
+        <b>Natural Weapon</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; push 1
+        %E2%9C%B8	<b>17</b>	13 damage; push 2
+
+        <b>Trundle</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The beast moves up to their speed. The beast can make a free strike on each creature that makes an opportunity attack against them during this movement.
+
+        <b>Animal Rally</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> An ally within line of effect is knocked prone.
+        <b>Effect</b> The beast moves up to their speed. If they end their turn adjacent to the triggering ally, they can pick the ally up and allow them to climb on top of the beast.
+
+        <b>Beast of Burden</b>
+        Two of the beast's size 1 allies can occupy the same space while riding the beast.
+
+        <b>Nature Calls</b>
+        The beast ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cf374a4b-3bba-4a85-8e3e-9fed1aa9185a: true
+      modifiers: []
+      name: Beast of Burden
+      description: Two of the beast's size 1 allies can occupy the same space while riding the beast.
+      guid: cf374a4b-3bba-4a85-8e3e-9fed1aa9185a
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:193c9e17-fe3f-4c6f-96b4-e40eab2a5473: true
+      modifiers: []
+      name: Nature Calls
+      description: The beast ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+      guid: 193c9e17-fe3f-4c6f-96b4-e40eab2a5473
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:56ab05e5-c371-43b5-b7c9-082418691e61: true
+      modifiers: []
+      name: Nature's Spirit
+      description: While outdoors or in a natural environment, the animal can negate a bane on their abilities or turn a double bane into a bane.
+      guid: 56ab05e5-c371-43b5-b7c9-082418691e61
+      source: Trait
+    role: Elite Mount
+    inflictedConditions: []
+    keywords:
+      Animal: true
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    monster_type: Big Animal B
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 80
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 7b1fde3b-7d89-430a-b032-9804e478abe8
+      implementation: 4
+      numTargets: 2
+      name: Natural Weapon
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage; push 1
+        - 13 damage; push 2
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: f8a40f5d-bf99-4c6d-ac9e-573240d8f5b1
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Trundle
+      numTargets: 1
+      description: The beast moves up to their speed. The beast can make a free strike on each creature that makes an opportunity attack against them during this movement.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: adfb46de-2041-4d47-aea2-8a0d91ae9aeb
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Animal Rally
+      numTargets: 1
+      description: The beast moves up to their speed. If they end their turn adjacent to the triggering ally, they can pick the ally up and allow them to climb on top of the beast.
+      abilityType: none
+      implementation: 0
+    groupid: a68c91b6-55f3-4c16-82d9-e0da68078b49
+    movementSpeeds: []
+    ev: 16
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: cfc085f3-efce-4e0d-a8ad-b8f99da99b24
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Big Animal B
+parentFolder: 4b3931af-633a-4d06-a87c-a4139290d258
+artist: null
+ord: 5
+ctime: 1741590309095
+mtime: 1775201137032
+hidden: false

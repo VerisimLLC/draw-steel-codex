@@ -1,0 +1,79 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: enemy
+    targetType: all
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "1000"
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    numTargets: "1"
+    conditionFormula: not path.Forced
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: targets
+      customAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: Walking Speed
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 78916382-1438-4b03-b242-b60bc81ef6c0
+        actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+        targeting: pathfind
+        numTargets: "1"
+        name: Invoked Ability
+        targetType: emptyspace
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      promptText: Choose to Move
+      filterTarget: ConditionCaster("Apex Predator") = Target
+      standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+      abilityType: custom
+    name: Apex Predator
+    trigger: finishmove
+    guid: 66d73cee-b0ab-42a3-9acc-8ba7bf25cc07
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: whenever the target willingly moves, Fury can use a free triggered action to move.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: cdd33d2a-c512-472f-b9dd-0e19e3163494
+  name: Apex Predator
+  sourceguid: e2f4e598-da9d-4d82-9aec-0577548e91fc
+source: Ongoing Effect
+casterTracking: one
+guid: e2f4e598-da9d-4d82-9aec-0577548e91fc
+id: e2f4e598-da9d-4d82-9aec-0577548e91fc
+ctime: 1758202813682
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Apex Predator
+description: whenever the target willingly moves, Fury can use a free triggered action to move.
+custom: true
+mtime: 1758202813682
+iconid: ui-icons/skills/1.png

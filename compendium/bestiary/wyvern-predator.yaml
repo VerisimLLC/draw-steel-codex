@@ -1,0 +1,323 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e7390581-19c7-4662-be99-1f266b879594
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Wyvern Predator	Level 4 Elite Brute
+        Beast, Wyvern	EV 24
+        <b>Stamina</b> 140	<b>Immunity</b> Acid 5
+        <b>Speed</b> 7 (fly)	<b>Size</b> 3 /<b> Stability</b> 3
+        <b>Free Strike</b> 6
+        Might +3	Agility +2	Reason -1	Intuition +1	Presence 0
+        <b>Sedating Stinger</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	9 damage
+        %E2%98%85	12%E2%80%9316	14 damage; M<2 slowed (save ends)
+        %E2%9C%B8	17	17 damage; M<3 slowed (save ends)
+        <b>Effect</b> The target is restrained (save ends) if they are already slowed.
+
+        <b>Tail Sweep</b> (Action) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 3 x 6 line within 1<b>	Target</b> All enemies and objects in the line
+        %E2%9C%A6	%E2%89%A411	6 damage; A<1 3 acid damage
+        %E2%98%85	12%E2%80%9316	11 damage; A<2 3 acid damage
+        %E2%9C%B8	17+	14 damage A<3 3 acid damage
+        <b>5 Malice</b> The predator uses this ability a second time. They can target a new line or the same one.
+
+        <b>Grasping Jaws</b> (Maneuver) %E2%97%86 2d10 + 3 %E2%97%86 2 Malice
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%B8	%E2%89%A411	9 damage; A<1 grabbed
+        %E2%98%85	12%E2%80%9316	14 damage; A<2 grabbed
+        %E2%9C%A6	17	17 damage; A<3 grabbed (bane to escape)
+
+        <b>Deterring Sting</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Triggering creature
+        <b>Trigger</b> A creature deals damage to the predator with a melee ability.
+        <b>Effect</b> The predator uses their Sedating Stinger ability against the target and then shifts 3.
+
+        <b>Stubborn Rage</b>
+        The predator is immune to being dazed or frightened while winded or while within 10 squares of another wyvern.
+
+        <b>Tenacious Hunter</b>
+        Any creature suffering a condition inflicted by a wyvern can't be hidden from the predator.
+
+
+        Xorannox The Tyract
+        Xorannox the Tyract is an Overmind. Formally known by their endonym, vaurath (plural vaurathi), overminds plot and scheme against their chief rivals, the synlirii and the olothec, for control of the World Below.
+        Psionic Eyes
+        An overmind is an enormous floating brain with a large central eye surrounded by many smaller embedded eyes. Even more alien, several psionic eyes float within inches of their head, each connected to a small brain that can manifest a unique psionic effect.
+        Intelligent Loremasters
+        Like their rivals, overminds are loremasters of supreme intellect. They aren't usually wizards, but they all view the collection of knowledge and arcane sciences as the best tool for ultimate conquest. Overminds are cruel and capricious but enjoy tests of intellectual might. Their one vanity is their unshakable belief in their own intellectual superiority over all others.
+        Overmind Lairs
+        Thanks to their innate flight, overminds prefer to build (or rather, have their thralls build) towers with no doors or entrances anywhere near the bottom.
+        Rivalries and Negotiations
+        Unlike their rivals, overminds have an intense hatred of their own kind and never work together. However, overminds often enjoy diplomacy with other species, seeking to form alliances and build secret networks of agents throughout the World Below.
+        Smelly Eggs
+        Overmind procreation involves one horror laying a single egg in a slime pool and leaving it behind. When another overmind later detects the distinct smell of the egg, they spray their inseminating fluid into the pool. These actions are compelled by biological necessity, a compulsion even the overminds can't ignore.
+        Unwitting explorers sometimes accidentally abscond with an egg. If unfertilized, its bearer is likely to attract the attention of other overminds and synlirii that use the eggs in genetic experiments to create psionic creatures. If fertilized, the explorer could find themselves as a newly hatched overmind's first victim.
+        Xorannox the Tyract
+        Xorannox (ZOR-ah-nocks) rules as Lord of the White Tower, a multi-level finger of alabaster stone. Commonly known as the Tyract %E2%80%93 an ancient Za'hariax word that literally translates as "a king who rules with his teeth" %E2%80%93 the overmind indeed consumes those who displease him.
+        Xorannox is chief of the Grasp, a secret organization that seeks to overthrow the voiceless talkers' great empire and place Xorannox above all, first as king, then as god.
+        The Tyract is a master strategist, always one step ahead of his enemies. Heroes may be surprised to discover their allies are members of the Grasp. When they meet Xorannox, he's delighted! He loves treating with humanoids! They have the same enemies, after all.
+        Unfortunately, no matter how useful or dependable a party of heroes might be, Xorannox is nearly incapable of resisting the urge to betray his allies. He assumes, as do most vaurathi, that the natural end of all alliances is betrayal. Thus when the gauntlet is thrown, and his life is in danger, the only minions he can truly trust are his own six eyes.
+        Xorannox's Languages
+        Overminds typically speak Za'hariax. Xorannox also speaks Caelian, Voll, and Hyrallic.
+
+        Xorannox's Malice	Malice Features
+        At the start of Xorannox's turn, you can spend malice to activate one of the following features.
+        <b>Gas Belch</b> %E2%97%86 3 Malice
+        Xorannox lets out a noxious belch. Each enemy within 2 of him is <b>M<3</b> weakened (save ends).
+
+        <b>Solo Action</b> %E2%97%86 5 Malice
+        Xorannox can take an additional action on his turn. Xorannox can use this feature even if he is dazed.
+
+        <b>Slime Trail</b> %E2%97%86 5 Malice
+        Until the end of Xorannox's next turn, whenever he or his eyes leave their space, they secrete a viscous slime into the squares on the ground. An enemy that enters an affected square has lightning weakness 5 and fire weakness 5 until the end of the encounter.
+
+        <b>Mind Over Matter</b> %E2%97%86 7 Malice
+        Xorannox fills the encounter map with a powerful telekinetic field. The Director chooses a cardinal direction (North, South, East, or West). A creature is affected by pull 2 in the chosen direction whenever they take a move action or are force moved. Each instance of this feature causes the previous instance to end. This additional movement ignores stability.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:10d97dba-f5aa-4a67-b5b2-8d7477e68eca: true
+      modifiers: []
+      name: Stubborn Rage
+      description: The predator is immune to being dazed or frightened while winded or while within 10 squares of another wyvern.
+      guid: 10d97dba-f5aa-4a67-b5b2-8d7477e68eca
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:52506228-bf16-4133-b031-0416a3a2b84f: true
+      modifiers: []
+      name: Tenacious Hunter
+      description: Any creature suffering a condition inflicted by a wyvern can't be hidden from the predator.
+      guid: 52506228-bf16-4133-b031-0416a3a2b84f
+      source: Trait
+    role: Elite Brute
+    inflictedConditions: []
+    keywords:
+      Wyvern: true
+      Beast: true
+    max_hitpoints_roll: "140"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: acid
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Wyvern Predator
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 140
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 14 damage; M<2 slowed (save ends)
+        - 17 damage; M<3 slowed (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e3c2b4fe-1236-4319-a76f-b2a34b24a4b4
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Sedating Stinger
+      numTargets: 2
+      description: The target is restrained (save ends) if they are already slowed.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 1cd58e83-c8bd-45ac-b4f6-52c3ae255568
+      implementation: 3
+      numTargets: 1
+      name: Tail Sweep
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; 3 acid damage
+        - 11 damage; 3 acid damage
+        - 14 damage; 3 acid damage
+        roll: 2d10 + Might
+      description: |2-
+
+        **5 Malice**: The predator uses this ability a second time, either recreating the same line or creating a new line.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 4d0cb0f8-2a26-4481-a79c-99d6665a3823
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage; A<1 grabbed
+        - 14 damage; A<2 grabbed
+        - 17 damage; A<3 grabbed and the target takes a bane on the Escape Maneuver
+        roll: 2d10 + Might
+      name: Grasping Jaws
+      numTargets: 1
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: dd97adbd-5c36-4606-a2e4-cd459626dc79
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Deterring Sting
+      implementation: 0
+      description: The predator uses their Sedating Stinger ability against the target and then shifts 3.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: ab7a9ca9-83a4-43ca-b9b1-43b420932892
+    movementSpeeds:
+      fly: 7
+    ev: 24
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 003e09bd-9b1b-404f-9f5b-922bac5efc65
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Wyvern Predator
+parentFolder: 3343aa43-c50f-4db2-ab7b-dc2db7192c7a
+artist: null
+ord: 0
+ctime: 1741590212350
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,53 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 47d5107c-e006-492b-8608-706acc6e3fa0
+    repeatTargets: false
+    range: 5
+    conditionFormula: self.Combat Round > 1
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions:
+      - ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+      mode: conditions
+    targetType: self
+    name: Surprised
+    trigger: beginround
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: While you are surprised, attacks against you have 1 boon and you can't use triggered actions.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: c584d1ee-122e-4e16-b157-c6ed26343f5a
+  name: Surprised
+  sourceguid: 7576a4ac-64ea-42e1-aa18-ab88b55680e4
+source: Ongoing Effect
+guid: 7576a4ac-64ea-42e1-aa18-ab88b55680e4
+id: 7576a4ac-64ea-42e1-aa18-ab88b55680e4
+ctime: 1704868972783
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.839499831199646
+    s: 1.00141143798828
+    v: 0.997754037380219
+    a: 1
+name: Surprised
+condition: ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+mtime: 1748240334431
+description: While you are surprised, attacks against you have 1 boon and you can't use triggered actions.
+iconid: d55a0ed1-c2c8-4a7c-8f24-8db4136ae90c

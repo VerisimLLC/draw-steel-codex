@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 2ce5c32b-5ee7-406f-a63f-b3ad630ddea6
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: false
+  name: Nature's Bounty
+  guid: f2c65207-8e6c-4a1c-bace-189ebfec28d7
+  description: You gain an edge on tests to influence other creatures
+  modtype: edge
+  rollType: test_power_roll
+source: Ongoing Effect
+guid: 2ce5c32b-5ee7-406f-a63f-b3ad630ddea6
+id: 2ce5c32b-5ee7-406f-a63f-b3ad630ddea6
+ctime: 1773028172679
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Nature's Bounty - Edge on Tests
+description: You gain an edge on tests to influence other creatures
+custom: true
+mtime: 1773028176878
+iconid: b2cd4026-2b0a-4f05-821c-a3435536405a

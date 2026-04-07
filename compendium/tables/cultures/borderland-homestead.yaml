@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Borderland Homestead
+id: 9da9e077-b9e2-406a-9539-eb027d71ba6c
+mtime: 1769349244579
+aspects:
+  upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+  environment: 4dbf32ef-46d1-48ec-be9e-1783e7b36f07
+  organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+ctime: 1768796286949

@@ -1,0 +1,10 @@
+__typeName: Skill
+specializations: []
+category: exploration
+id: 6d714e12-50c3-4202-955e-0fadaeb1f9a0
+ctime: 1715750804239
+name: Lift
+description: Pick up, carry, and throw heavy obj
+mtime: 1768772603219
+hasPassive: false
+attribute: mgt

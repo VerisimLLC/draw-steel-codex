@@ -1,0 +1,60 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  modtype: double_edge
+  keywords:
+    Attack: true
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: dca4e13c-3ee6-4ef3-b4bb-aca6fab5e56e
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: f02a12ec-b938-4798-86b3-ddddd7fe0eb3
+      mode: effect
+      conditions: []
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  activationCondition: true
+  name: Next Power Roll Has Double Edge
+  rollType: all
+  description: The next power roll this creature makes has a Double Edge
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  behavior: power
+source: Ongoing Effect
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+id: f02a12ec-b938-4798-86b3-ddddd7fe0eb3
+ctime: 1728012536212
+display:
+  brightness: 1.81428484235491
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.343137264251709
+    s: 0.795321643352509
+    v: 0.670588254928589
+    a: 1
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e
+description: The next power roll this creature makes has a Double Edge
+endTrigger: none
+name: Next Power Roll Has Double Edge
+categorization: common
+mtime: 1746336886405
+implementation: 3

@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ab2cf7f0-bdc6-41c9-9539-0e8b9c935521
+  guid: 7a09c450-3275-4b66-b9fa-7ec42572a418
+  source: Ongoing Effect
+  conditions:
+  - 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  description: While you have temporary Stamina from this ability, you can’t be made bleeding even while dying.
+  behavior: conditionimmunity
+  name: Kinetic Shield
+source: Ongoing Effect
+guid: ab2cf7f0-bdc6-41c9-9539-0e8b9c935521
+id: ab2cf7f0-bdc6-41c9-9539-0e8b9c935521
+ctime: 1757984459815
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Kinetic Shield
+description: While you have temporary Stamina from this ability, you can’t be made bleeding even while dying.
+custom: true
+mtime: 1757984459815
+iconid: ui-icons/skills/1.png

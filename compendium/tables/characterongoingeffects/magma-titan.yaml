@@ -1,0 +1,109 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: add
+  sourceguid: 6ae494c4-cb6b-4417-987b-993216a732a5
+  source: Ongoing Effect
+  value: 2
+  domains:
+    CharacterOngoingEffect:6ae494c4-cb6b-4417-987b-993216a732a5: true
+  name: Magma Titan
+  guid: a465e41a-87e6-494d-83b3-010302247b27
+  description: Your size increases by 2 to atleast 3. You have 10 fire immunity, and your attacks deal additional fire damage. You have an additional +2 to forced movement.
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  operation: max
+  sourceguid: 6ae494c4-cb6b-4417-987b-993216a732a5
+  source: Ongoing Effect
+  value: 6
+  domains:
+    CharacterOngoingEffect:6ae494c4-cb6b-4417-987b-993216a732a5: true
+  name: Magma Titan
+  guid: a54f2f90-b217-4797-9196-9d39b9c836e8
+  description: Your size increases by 2 to atleast 3. You have 10 fire immunity, and your attacks deal additional fire damage. You have an additional +2 to forced movement.
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:6ae494c4-cb6b-4417-987b-993216a732a5: true
+  sourceguid: 6ae494c4-cb6b-4417-987b-993216a732a5
+  name: Magma Titan
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "10"
+    damageType: fire
+    apply: Damage Reduction
+  description: Your size increases by 2 to atleast 3. You have 10 fire immunity, and your attacks deal additional fire damage. You have an additional +2 to forced movement.
+  behavior: resistance
+  guid: 7c953676-0bfb-426a-876c-668744c044d2
+- __typeName: CharacterModifier
+  sourceguid: 6ae494c4-cb6b-4417-987b-993216a732a5
+  source: Ongoing Effect
+  guid: 536044dd-db05-4922-9f1d-7ad14cd4c4a1
+  damageModifier: ConditionCaster("Magma Titan").Reason*2
+  keywords:
+    Strike: true
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:6ae494c4-cb6b-4417-987b-993216a732a5: true
+  description: Your size increases by 2 to atleast 3. You have 10 fire immunity, and your attacks deal additional fire damage. You have an additional +2 to forced movement.
+  rollType: ability_power_roll
+  modtype: none
+  damageModifierType: fire
+  behavior: power
+  name: Magma Titan
+- __typeName: CharacterModifier
+  sourceguid: 6ae494c4-cb6b-4417-987b-993216a732a5
+  displayCondition: Ability.hasforcedmovement
+  source: Ongoing Effect
+  modtype: none
+  adjustments:
+  - type: push
+    value: "2"
+  - type: pull
+    value: "2"
+  - type: slide
+    value: "2"
+  keywords: []
+  activationCondition: "1"
+  behavior: power
+  name: Magma Titan
+  domains:
+    CharacterOngoingEffect:6ae494c4-cb6b-4417-987b-993216a732a5: true
+  description: Your size increases by 2 to atleast 3. You have 10 fire immunity, and your attacks deal additional fire damage. You have an additional +2 to forced movement.
+  rollType: ability_power_roll
+  guid: 998f7751-599c-46ae-8829-cb30bd2ada6a
+- __typeName: CharacterModifier
+  sourceguid: 6ae494c4-cb6b-4417-987b-993216a732a5
+  source: Ongoing Effect
+  guid: f7b1cc5b-6de6-4d9c-8301-78af8e086834
+  keywords: []
+  replaceText: 2d10 +  Highest Characteristic
+  behavior: power
+  domains:
+    CharacterOngoingEffect:6ae494c4-cb6b-4417-987b-993216a732a5: true
+  name: Magma Titan
+  rollType: ability_power_roll
+  description: Your size increases by 2 to atleast 3. You have 10 fire immunity, and your attacks deal additional fire damage. You have an additional +2 to forced movement.
+  modtype: replaceroll
+  activationCondition: "1"
+source: Ongoing Effect
+casterTracking: one
+guid: 6ae494c4-cb6b-4417-987b-993216a732a5
+id: 6ae494c4-cb6b-4417-987b-993216a732a5
+ctime: 1766764335297
+domains:
+  CharacterOngoingEffect:6ae494c4-cb6b-4417-987b-993216a732a5: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Magma Titan
+custom: true
+description: Your size increases by 2 to atleast 3. You have 10 fire immunity, and your attacks deal additional fire damage. You have an additional +2 to forced movement.
+mtime: 1767209367767
+iconid: ui-icons/skills/1.png

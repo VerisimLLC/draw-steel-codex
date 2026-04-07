@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: When your lover is in trouble, they might call on you for help. But if your relationship is discovered, the circumstances that keep you apart will be made worse.
+mtime: 1755514397119
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Forbidden Romance
+ctime: 1755514397119
+description: You are in love with someone powerful, but tragic circumstances mean you cannot be with them. Whether your lover is from a feuding family, betrothed to another, or has been driven from your side, you are fated to always be apart.
+id: d4bb70e3-5bbb-4e72-8a60-f0eea009ec58
+benefit: You can secretly call on your betrothed for favors. Though they support you from afar, they might be constrained in how much aid they provide—and they can’t openly reveal their connection with you

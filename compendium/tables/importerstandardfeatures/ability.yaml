@@ -1,0 +1,38 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+  guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+  source: Character
+  behavior: activated
+  description: ""
+  name: Ability
+  activatedAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 82ee09e3-0083-41f2-9d68-8cc9521847b3
+    repeatTargets: false
+    abilityType: none
+    domains: []
+    behaviors: []
+    persistence: []
+    name: Ability
+    targetType: self
+    description: ""
+    range: 5
+    iconid: ui-icons/skills/1.png
+source: Character
+guid: f09da83c-5843-497a-8316-d5fdca4349aa
+id: 7c01cba8-8cfc-459d-a1f3-c024c4af4fd3
+ctime: 1715748063870
+name: Ability
+description: ""
+mtime: 1748489794783
+implementation: 3

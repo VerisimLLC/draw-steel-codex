@@ -1,0 +1,348 @@
+__typeName: CharacterCondition
+id: 70504ebe-3899-41d3-9f60-74b52ce35e39
+powertable: true
+display:
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+trackCaster: true
+description: This creature is grabbed.
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+  source: Condition
+  name: Grabbed
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      purgeType: all
+      conditions:
+      - 70504ebe-3899-41d3-9f60-74b52ce35e39
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 5d6c3019-fc4e-43fc-bf7c-c8119c335e78
+    persistence: []
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    conditionFormula: ""
+    targetType: self
+    trigger: teleport
+    name: Grabbed
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 6f843d43-20c8-4f51-b99d-c9c67155ceb3
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  source: Condition
+  value: 0
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  name: Grabbed
+  guid: 3f2583d8-c9b2-4f36-8c20-623e807deab1
+  description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  source: Condition
+  value: 0
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  name: Grabbed
+  guid: 5ad7ce3f-8d09-4d59-96d1-6686cc8d9249
+  description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+  behavior: attribute
+  attribute: movementMultiplier
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+  source: Condition
+  name: Knockback
+  behavior: suppressabilities
+  explanation: You cannot use the Knockback maneuver when you are grabbed.
+  guid: 87e5f7fa-85e3-401f-a0cb-ae64dc1f7737
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  description: Your speed is 0. If you teleport while Grappled, the condition ends. If you are Grappled by another creature who is physically grappling you, when thecreature is force moved, you move with them. Whenyou are force moved, the creature moves with you.The speed of the creature grappling you is halved. When they move, they can bring you with them. Unless otherwise noted, a creature can only grappleone other creature at a time. If you teleport whileGrappled, the condition ends. If a creature ismentally grappling you, the condition ends if theydon’t have Line of Effect to you. You can use aManeuver when you are Grappled to make a Mightor Agility Resistance Roll (your choice). The TN isdetermined by the effect that has you Grappled. On a success, you break the Grapple and can shift 1 square.
+  source: Condition
+  name: Grabbed
+  behavior: activated
+  guid: 653c1b28-64a2-4fb9-b842-65f870424122
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - You fail to escape the grab.
+      - You fail to escape the grab.
+      - You are no longer grabbed.
+      roll: 2d10 + Might or Agility
+      modesSelected:
+      - 1
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - You fail to escape the grab.
+      - You escape the grab, the creature grabbing you may make a melee free strike against you before you are released from the grab.
+      - You are no longer grabbed.
+      guid: 8793baa7-6cbb-4109-a660-997fc01d776f
+      modesSelected:
+      - 2
+      roll: 2d10 + Might or Agility
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      tiersSelected:
+      - 2
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: e625a3d8-7255-4cb6-bb05-6be0013a932e
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      modesSelected:
+      - 2
+      promptText: The creature grabbing you may make a free strike against you.
+      standardAbility: e19f1d97-6e44-4366-8f35-418bd5c5ab8e
+      abilityType: standard
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      tiersSelected:
+      - 3
+      guid: d4b5281a-fe01-46e6-86f6-70f1d8513d55
+      modesSelected:
+      - 1
+      conditions:
+      - 70504ebe-3899-41d3-9f60-74b52ce35e39
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      tiersSelected:
+      - 2
+      - 3
+      modesSelected:
+      - 2
+      conditions:
+      - 70504ebe-3899-41d3-9f60-74b52ce35e39
+    - __typeName: ActivatedAbilityDelayBehavior
+      delay: "0.2"
+      guid: 20f2a93f-2bb6-4857-be52-a3d395eaef60
+      modesSelected:
+      - 2
+      tiersSelected:
+      - 3
+      - 2
+    - __typeName: ActivatedAbilityFallBehavior
+      tiersSelected:
+      - 3
+      - 2
+      guid: e80dfe4d-4a96-4e21-bdec-4799758f4d9f
+      modesSelected:
+      - 2
+    - __typeName: ActivatedAbilityDelayBehavior
+      delay: "0.2"
+      guid: 23ff8758-8c9f-4e86-aaba-04ad4f5348df
+      modesSelected:
+      - 1
+      tiersSelected:
+      - 3
+    - __typeName: ActivatedAbilityFallBehavior
+      tiersSelected:
+      - 3
+      guid: 66036598-8f96-4099-953b-b7eb2a0c09ae
+      modesSelected:
+      - 1
+    multipleModes: true
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    modeList:
+    - text: Careful
+      rules: If you get a tier 2 result you will not escape the grab but you will not suffer a free strike.
+      condition: ""
+    - rules: If you get a tier 2 result you will escape the grab but you will suffer a free strike.
+      text: Reckless
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    domains:
+      CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+    numTargets: "1"
+    guid: 83158889-ce4e-45cb-a631-6111f1d31db0
+    name: Escape Grab
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: 56729dfc-0cf4-4b75-99db-61ae8ac81d71
+- __typeName: CharacterModifier
+  text: You cannot move when you are grabbed.
+  sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  source: Condition
+  guid: 188c0f62-0b1e-453e-b834-c54440c2b984
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  name: Grabbed
+  description: This creature is grabbed.
+  behavior: movementtext
+  color: red
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  description: This creature is grabbed.
+  source: Condition
+  name: Grabbed
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: ad666669-dd3c-43c0-a8d7-f9bce5a9f14c
+    repeatTargets: false
+    trigger: forcemove
+    conditionFormula: Self.Distance(ConditionCaster("Grabbed")) > 1
+    targetType: self
+    persistence: []
+    name: Grabbed
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions:
+      - 70504ebe-3899-41d3-9f60-74b52ce35e39
+      chatMessage: Force moved away from grab
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: 189b3cc6-e3e2-41d4-90dd-4c2972f3b4cb
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  description: This creature is grabbed.
+  source: Condition
+  name: Grabbed
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions:
+      - 70504ebe-3899-41d3-9f60-74b52ce35e39
+      chatMessage: Force moved away from grab
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 3d97a400-91cd-4485-93a6-ddc85153939c
+    persistence: []
+    conditionFormula: ConditionCaster("Grabbed") = Subject and Subject.Distance(Self) > 1
+    subject: other
+    targetType: self
+    trigger: forcemove
+    name: Grabbed
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 2faee6ed-f782-49d8-ae30-19dbea3fe743
+- __typeName: CharacterModifier
+  sourceguid: 0d3d80cd-b807-48e6-b360-b2f680239143
+  displayCondition: (target != ConditionCaster("Grabbed")) and ability.name != "Escape Grab"
+  source: Condition
+  modtype: bane
+  keywords: []
+  activationCondition: (target != ConditionCaster("Grabbed")) and ability.name != "Escape Grab"
+  domains:
+    CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+  name: Grabbed
+  rollType: ability_power_roll
+  description: You take a bane on abilities that don't target the creature, object or effect that has them grabbed.
+  guid: db779beb-ae34-4c5a-bd1d-19f86eb54531
+  behavior: power
+implementation: 2
+casterCanDrag: true
+guid: 0d3d80cd-b807-48e6-b360-b2f680239143
+casterCanClick: true
+ctime: 1705261777988
+domains:
+  CharacterCondition:70504ebe-3899-41d3-9f60-74b52ce35e39: true
+indefiniteDuration: true
+name: Grabbed
+sustainFormula: (not Grabber.dead) where Grabber = ConditionCaster("grabbed")
+casterClickAbility:
+  __typeName: ActivatedAbility
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: f678b276-dc67-48bf-a262-365a3c07782e
+  repeatTargets: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  abilityType: none
+  behaviors:
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    conditions:
+    - 70504ebe-3899-41d3-9f60-74b52ce35e39
+  - __typeName: ActivatedAbilityDelayBehavior
+    delay: "0.2"
+  - __typeName: ActivatedAbilityFallBehavior
+  targetType: self
+  name: Drop Target
+  numTargets: "1"
+  description: Click to let go of the target.
+  range: 1
+  iconid: ui-icons/skills/1.png
+mtime: 1775044237332
+maxInstancesFormula: Maximum Grabbed Creatures
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65

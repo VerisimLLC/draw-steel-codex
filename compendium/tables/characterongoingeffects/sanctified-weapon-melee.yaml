@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 2df939ce-c414-4316-b408-4547f003d8dd
+  source: Ongoing Effect
+  guid: 1315f929-e737-4d26-8fe4-dae9c5bcd9b2
+  keywords:
+    Melee: true
+    Weapon: true
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:2df939ce-c414-4316-b408-4547f003d8dd: true
+  rollType: ability_power_roll
+  name: Sanctified Weapon - Melee
+  modtype: none
+  description: You gain a +1 rolled damage bonus with abilities that use Melee and weapon keywords. This benefit lasts until you finish another respite.
+  damageModifier: "1"
+  behavior: power
+source: Ongoing Effect
+guid: 2df939ce-c414-4316-b408-4547f003d8dd
+id: 2df939ce-c414-4316-b408-4547f003d8dd
+ctime: 1746200793262
+domains:
+  CharacterOngoingEffect:2df939ce-c414-4316-b408-4547f003d8dd: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Sanctified Weapon - Melee
+statusEffect: false
+description: You gain a +1 rolled damage bonus with abilities that use Melee and weapon keywords. This benefit lasts until you finish another respite.
+mtime: 1764521914137
+iconid: ui-icons/skills/1.png

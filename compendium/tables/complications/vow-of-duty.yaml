@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: If you are ever forced to disobey your organization’s orders, your stability becomes 0 until your doubts are resolved or you find a new organization to pledge yourself to.
+mtime: 1755517644543
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Vow of Duty
+ctime: 1755517644543
+description: You have sworn an oath to an organization. That organization is your rock, and as long as your faith in it remains unshaken, you are immovable.
+id: 20f2308b-e1c2-4a95-aa34-c20802eeb58f
+benefit: You gain a +1 bonus to stability.

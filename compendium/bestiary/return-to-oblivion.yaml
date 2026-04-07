@@ -1,0 +1,281 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 3c3f4e57-10a9-46bb-8928-3f38efd6a6dc
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b4dcf082-0be6-4f13-95bf-cce48f5a41bb: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b4dcf082-0be6-4f13-95bf-cce48f5a41bb: true
+        sourceguid: b4dcf082-0be6-4f13-95bf-cce48f5a41bb
+        description: ""
+        source: Character Feature
+        name: Triggers
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 9455c6d5-d8b9-4928-ab2d-bdbce432fe01
+          repeatTargets: false
+          trigger: beginround
+          conditionFormula: Count Nearby Enemies(0) > 0
+          targetType: all
+          persistence: []
+          name: New Feature
+          behaviors:
+          - __typeName: ActivatedAbilityDestroyBehavior
+            filterTarget: winded and (not leader or solo)
+          description: ""
+          range: "0"
+          iconid: ui-icons/skills/1.png
+        guid: 42d8aa5a-fe8e-4951-8db0-4249ce4d8b58
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b4dcf082-0be6-4f13-95bf-cce48f5a41bb: true
+        sourceguid: b4dcf082-0be6-4f13-95bf-cce48f5a41bb
+        description: ""
+        source: Character Feature
+        name: Triggers
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: enemy
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: pull 3
+            promptWhenResolving: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "5"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 02946f03-0eae-4a90-862f-5127800aab59
+          conditionFormula: Count Nearby Enemies(0) < 1
+          targetType: all
+          name: New Feature
+          trigger: beginround
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 06c46e0f-93cd-44aa-a612-10b41075f74f
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b4dcf082-0be6-4f13-95bf-cce48f5a41bb: true
+        sourceguid: b4dcf082-0be6-4f13-95bf-cce48f5a41bb
+        description: ""
+        source: Character Feature
+        name: Triggers
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: prone
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 4c835fed-f738-41c1-88d8-461c1b6f6a62
+          persistence: []
+          conditionFormula: Target = Self
+          subject: other
+          targetType: self
+          trigger: movethrough
+          name: New Feature
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: e42d3323-c5e3-425c-b236-2cdbc57a8091
+      name: Triggers
+      guid: b4dcf082-0be6-4f13-95bf-cce48f5a41bb
+      description: ""
+      source: Character Feature
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 686d397c-dd39-45c0-a274-e49b6ba2563f
+        source: Custom
+        value: 1
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: Custom Modification
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: ""
+        behavior: attribute
+        attribute: creatureSize
+      source: Custom
+      guid: 686d397c-dd39-45c0-a274-e49b6ba2563f
+      id: 6450780b-d70f-4bf2-ae23-9620e047e693
+      ctime: 1756099470349
+      domains:
+        CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+      name: Custom Modification
+      description: ""
+      mtime: 1756099470349
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2fb97f97-8fd1-498c-bda9-8cc2fc65d2d6: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2fb97f97-8fd1-498c-bda9-8cc2fc65d2d6
+        source: Character Feature
+        seq: fbb0e2da-e672-41ba-a0ae-fd95b22e03df
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          modifiers:
+          - __typeName: CharacterModifier
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 913877a6-5e0d-4f04-9f31-074e8279bda5
+              repeatTargets: false
+              abilityType: none
+              trigger: beginturn
+              targetType: self
+              numTargets: "1"
+              name: Return to Oblivion
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: prone
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            description: ""
+            source: Aura
+            behavior: trigger
+            guid: 8a8bb8d0-5467-4a9c-9c54-452b7c35b7ec
+            name: Return to Oblivion
+            sourceguid: 2b0ce042-c739-4732-931c-183815ba5908
+          name: Return to Oblivion
+          guid: 2b0ce042-c739-4732-931c-183815ba5908
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+        domains:
+          CharacterFeature:2fb97f97-8fd1-498c-bda9-8cc2fc65d2d6: true
+        radius: "0"
+        guid: d50f7891-9d02-4967-a73a-0cdd4e33ec3f
+        description: ""
+        behavior: aura
+        name: Knock targets prone
+      source: Character Feature
+      description: ""
+      guid: 2fb97f97-8fd1-498c-bda9-8cc2fc65d2d6
+      name: Knock targets prone
+      implementation: 3
+    max_hitpoints: 10
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    monster_category: Monster
+    damage_taken: 0
+    walkingSpeed: 5
+    levelChoices: []
+    resources: []
+    monster_type: Return to Oblivion
+    skillRatings: []
+    treatAsObject: true
+  tokenType: null
+  bestiaryId: 1e44570a-3fa6-4e99-90b0-68ae1203e422
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1773979279184
+description: null
+parentFolder: null
+artist: null
+ord: 0
+ctime: 1773979279184
+mtime: 1775167418330
+hidden: false

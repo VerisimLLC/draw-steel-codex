@@ -1,0 +1,63 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 99b28c07-c2d6-4011-8b42-cc56bfec023b
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Watch Officer Career Feature
+      behavior: proficiency
+      description: ""
+      equate: false
+      name: Alertness
+      sourceguid: 32995400-35e8-4d11-a686-109dd1f374a4
+      proficiency: proficient
+      guid: 3d1748ad-245b-4652-bd47-4391bb7c2450
+      skills:
+        db532974-aa0a-41a9-aacf-4adc1e6121d3: true
+    name: Alertness
+    description: ""
+    guid: 32995400-35e8-4d11-a686-109dd1f374a4
+    source: Watch Officer Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+    numChoices: 2
+    source: Watch Officer Career Feature
+    description: "In addition to Alertness, choose two more skills from the intrigue skill group. (Quick Build: Search, Track)"
+    guid: 02f8ee02-5eca-4a09-9b7c-a0642c8f48db
+    name: Watch Officer Intrigue Skills
+    individualSkills: []
+  - __typeName: CharacterLanguageChoice
+    name: Watch Officer Languages
+    numChoices: 2
+    description: Choose two Languages.
+    source: Watch Officer Career Feature
+    guid: b75e7eb3-e435-43cb-bd01-1bcc763bed15
+  - __typeName: CharacterFeatChoice
+    guid: b02ec6b9-b222-460d-b3d3-f46fc9d9f11c
+    description: "Choose one perk from the exploration perk type. (Quick Build: Team Leader)"
+    tag: exploration perks
+    name: Watch Officer Exploration Perk
+name: Watch Officer
+mtime: 1768796558365
+description: |-
+  You served as an officer of the law for a local government. You might have been a single person in a much larger city watch or the only constable patrolling a small village. In defining your career, think about the following questions: 
+
+  What type of settlement did you protect? 
+
+  What was your law enforcement style like? Were you a by-the-book officer, a more lenient-but-fair type, or totally corrupt? 
+
+  What criminal still eludes your grasp to this day? 
+
+  Whose life did you save in the line of duty? 
+
+  What is the most absurd call you ever responded to and how did you handle it?
+id: 03e01769-3c8e-4306-b5c9-25a0555fb276
+ctime: 1730565399090

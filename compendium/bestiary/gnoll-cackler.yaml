@@ -1,0 +1,704 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ff4a3afd-8b12-4df7-b2b9-8e3790cab6be
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    creatureSize: 1S
+    levelChoices: []
+    deathSavingThrowFailures: 0
+    damageEntries:
+      1f491d5f-6d78-4c52-b268-a5f7b1a0df16:
+        id: 1f491d5f-6d78-4c52-b268-a5f7b1a0df16
+        heal: 15
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        3f3bff7a-a71b-4f6b-9aa6-3c2a85c1b50b:
+          disposition: good
+          note: 20 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        c15d3288-5131-44a4-b0f4-acddee3a4cb2:
+          disposition: bad
+          note: 15 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        c54ec1e8-5c5b-46f2-9c1c-0609f3310c69:
+          disposition: bad
+          note: 15 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        417ec175-1bc6-4c8b-a1d2-d48e9080fe2a:
+          disposition: good
+          note: 15 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        a90a5ab2-0449-405f-a835-412027f55bfe:
+          disposition: good
+          note: 20 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        a42bc38a-015e-4510-b37c-f993afd88bbf:
+          disposition: bad
+          note: 15 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        4c21ed3a-08e4-430a-b0e1-4ecdf7bb75fc:
+          note: 7 damage from Troubadour's Fancy Footwork
+          disposition: bad
+          attackerid: 27db1039-b964-4065-98a8-973573b8b2fa
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 8
+        365c30b6-ad5e-4b1f-b014-fea81bce3141:
+          disposition: good
+          note: 20 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Gnoll Cackler	Level 2 Horde Hexer
+        Abyssal, Gnoll	EV 4
+        <b>Stamina</b> 15
+        <b>Speed</b> 5	<b>Size</b> 1S /<b> Stability</b> 1
+        <b>Free Strike</b> 2
+        Might 0	Agility 0	Reason +2	Intuition +2	Presence +2
+        <b>Moment of Brutality</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 8	<b>Target</b> 1 creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 psychic damage; I<0 target makes a free strike against a creature of the cackler's choice
+        %E2%98%85	<b>12%E2%80%9316</b>	5 psychic damage; I<1 target makes a free strike against a creature of the cackler's choice
+        %E2%9C%B8	<b>17</b>	7 psychic damage; I<2 target uses a signature action against a creature of the cackler's choice
+        <b>Effect</b> An ally targeted by this ability makes a free strike instead of taking damage.
+
+        <b>Cackletongue</b> (Maneuver) %E2%97%86 4 Malice
+        <b>Keywords</b> Area, Magic, Resistance
+        <b>Distance</b> 2 burst	<b>Target</b> All creatures in the burst
+        <b>Effect</b> Each enemy target makes an <b>Intuition test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	Frightened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	Frightened (EoT)
+        %E2%9C%A6	<b>17</b>	No effect
+        <b>Effect</b> Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+
+        <b>Death Frenzy</b>
+        Whenever a non-minion ally within 5 is reduced to 0 Stamina, the cackler moves up to their speed and makes a free strike.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a6914712-fe23-4b6d-8c0f-fe4283889d7e: true
+        CharacterFeature:8df99cab-1857-4f7d-b9fb-9c47b8ca8556: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:330bb759-a4bd-43f9-9e2e-a7183caac87c: true
+          CharacterFeature:a6914712-fe23-4b6d-8c0f-fe4283889d7e: true
+        sourceguid: 330bb759-a4bd-43f9-9e2e-a7183caac87c
+        behavior: trigger
+        source: Trait
+        name: Death Frenzy
+        description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the cackler moves up to their speed and makes a melee free strike.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Move speed and make a melee free strike
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          subjectRange: "5"
+          strain: []
+          guid: 3a482b88-dcb4-4eef-ac79-93f6d72dcfc0
+          abilityType: none
+          trigger: zerohitpoints
+          castImmediately: true
+          numTargets: "1"
+          domains:
+            CharacterFeature:330bb759-a4bd-43f9-9e2e-a7183caac87c: true
+            CharacterFeature:a6914712-fe23-4b6d-8c0f-fe4283889d7e: true
+          name: Death Frenzy
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            runOnController: true
+            standardAbility: dfb59889-b651-40a6-80be-56d38bd34198
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2071ae07-2a9a-4f45-86b0-3681fdc99a7b
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: aa8f4afb-0cd9-4397-973f-f7a7a6b9a5b4
+      source: Trait
+      description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the cackler moves up to their speed and makes a melee free strike.
+      guid: a6914712-fe23-4b6d-8c0f-fe4283889d7e
+      name: Death Frenzy
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+        CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+        CharacterFeature:0fd65992-d3bb-45ed-b0df-b711539e8aef: true
+        CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+          CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+          CharacterFeature:0fd65992-d3bb-45ed-b0df-b711539e8aef: true
+          CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+        sourceguid: 1973bc9c-2c26-497e-be94-a73fba966ef2
+        behavior: trigger
+        source: Character Feature
+        name: Cackletongue Trigger
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 36940624-3907-4780-877e-8366bb26e624
+              repeatTargets: false
+              abilityType: none
+              persistence: []
+              targetType: self
+              categorization: Hidden
+              name: Use Cackletongue
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Name = "Cackler's Cackletongue"
+                  behavior: modifyability
+                  guid: d5f4351b-d59b-464f-8081-999dd3ba0737
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 2fd2c65b-c931-4b2b-9b19-e0740bd797d7
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            namedAbility: Archer's Cackletongue
+            abilityType: custom
+            runOnController: true
+          triggerPrompt: Use Cackler's Cackletongue at no cost
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 86ea5a17-9ca4-45e5-bbbe-b019b4b2e046
+          domains:
+            CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+            CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+            CharacterFeature:0fd65992-d3bb-45ed-b0df-b711539e8aef: true
+            CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+          targetType: self
+          numTargets: "1"
+          trigger: custom
+          name: Cackletongue
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 13a98295-b140-42e5-839e-edeafb8748bc
+      source: Character Feature
+      description: ""
+      guid: 0fd65992-d3bb-45ed-b0df-b711539e8aef
+      name: Cackletongue Trigger
+      implementation: 3
+    role: Horde Hexer
+    opportunityAttack: 2
+    equipment: []
+    titles: []
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+    ongoingEffects: []
+    skillRatings: []
+    resistances: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 15
+    initiativeGrouping: 3a6a6dde-afcd-4e9b-89c3-b84846c9b2cb
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        dac3aa62-6c50-4cf5-a3c1-d77bb9f4f906:
+          set: 1/1
+          note: Moment of Brutality
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 5bfac84f-69ba-46ab-a368-255f058d4163
+        816b9b96-3d36-4317-89cf-06ad2a4a8402:
+          set: 1/1
+          note: Moment of Brutality
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 5bfac84f-69ba-46ab-a368-255f058d4163
+        7703cd54-9c89-483c-8647-b78cd2a7b035:
+          set: 1/1
+          note: Moment of Brutality
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 5bfac84f-69ba-46ab-a368-255f058d4163
+        e041d916-ea34-4a6c-81c9-c32d3cfc9452:
+          set: 1/1
+          note: Moment of Brutality
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 5bfac84f-69ba-46ab-a368-255f058d4163
+        f54a2a71-a6cb-434c-adbd-b71ae4726988:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        8b8a1c13-edec-425b-8cc1-b38929a1faf1:
+          set: 1/1
+          note: Moment of Brutality
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: f9c928af-5219-42af-ad93-1f8cff2405c0
+        8fd0b284-ee3e-4682-8495-7bdb7aaeafb6:
+          set: 1/1
+          note: Moment of Brutality
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 5bfac84f-69ba-46ab-a368-255f058d4163
+        7cb78052-07e3-40a2-a513-72337ced6f09:
+          set: 1/1
+          note: Moment of Brutality
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 5bfac84f-69ba-46ab-a368-255f058d4163
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: 3c08a839-a364-456a-a1d1-5b13f3e1c263-244
+    availableTriggers: []
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    damage_taken: 0
+    ev: 4
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+        used: 1
+    walkingSpeed: 5
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        filterTarget: not Friends(target, caster)
+        modesSelected:
+        - 1
+        tiers:
+        - 4 psychic damage; I<0 target makes a free strike against a creature of the cackler's choice
+        - 5 psychic damage; I<1 target makes a free strike against a creature of the cackler's choice
+        - 7 psychic damage; I<2 target uses a signature ability against a creature of the cackler's choice
+        guid: 3f8e534a-459e-498b-8513-d7f2a1259ca7
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 1
+        - 2
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 882bce08-1d8d-49ab-8405-233c9ceb1b37
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 1
+        filterTarget: not Friends(target, caster)
+        guid: 76c80c41-a31e-4c35-8272-ae9538e437fe
+        abilityType: standard
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 3
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 882bce08-1d8d-49ab-8405-233c9ceb1b37
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 1
+        filterTarget: not Friends(target, caster)
+        guid: f7697995-4508-41e9-9ff1-22870ce92021
+        abilityType: standard
+        standardAbility: 7b19698f-5fe2-4eea-9ef8-7621a7974073
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 51584262-9e4f-4483-ae0f-ea4e030ade90
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: Make a Free Strike
+        filterTarget: Friends(target, caster)
+        guid: bbb46b37-2415-4316-86db-bb276d664cdd
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+        runOnController: true
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 156
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 8
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      guid: 5bfac84f-69ba-46ab-a368-255f058d4163
+      targetType: target
+      numTargets: 1
+      implementation: 3
+      name: Moment of Brutality
+      categorization: Signature Ability
+      description: |-
+        An ally targeted by this ability ignores the damage and can
+        make a free strike.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 4
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Resistance: true
+        Area: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        filterTarget: ""
+        isTest: false
+        roll: 2d10 + Might or Agility
+        resistanceRoll: true
+        tiers:
+        - Frightened (save ends)
+        - Frightened (EoT)
+        - No effect.
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        duration: endround
+        ongoingEffectCustom: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        ongoingEffect: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        guid: 58752833-d4a4-4e33-8a5a-19904798f89f
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            filterTarget: not Ongoing Effects has "Used Cackletongue"
+            guid: 9afc767b-c616-4075-b8e3-079b4d855ef9
+            value: ""
+            triggerName: Cackletongue
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d1d71f25-faf5-4d26-ad8f-c36cacb92c07
+          numTargets: "1"
+          name: Use Cackletongue
+          targetType: all
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: ""
+        filterTarget: ""
+        guid: cfb53e5b-6124-4eff-81dc-c3b11d1220e6
+        abilityType: custom
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 156
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 2
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 3025fcfd-539d-42e7-9de9-e885053e3f5e
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: all
+      numTargets: 1
+      implementation: 2
+      name: Cackler's Cackletongue
+      categorization: Heroic Ability
+      description: Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    equipmentMeta:
+      offhand0: []
+    movementSpeeds: []
+    abilityUses:
+      Cackletongue Limit:
+        refreshid: d0fc66df-541d-4569-85f7-c2ee9cefccbc-1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        31192746-6f65-4fe6-859a-3c907566602e:
+          note: Cackler's Cackletongue
+          abilityid: 3025fcfd-539d-42e7-9de9-e885053e3f5e
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        a250fbb4-08c4-412f-8c80-82640700ab16:
+          set: 1/1
+          note: Cackler's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3025fcfd-539d-42e7-9de9-e885053e3f5e
+        64604e60-6d3b-4811-8fd5-5ca4148f64af:
+          set: 1/1
+          note: Cackler's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3025fcfd-539d-42e7-9de9-e885053e3f5e
+        94f15f65-14af-4eab-8bcc-286736e8a8b9:
+          set: 1/1
+          note: Cackler's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3025fcfd-539d-42e7-9de9-e885053e3f5e
+        c70a0643-2c2b-488f-b5f0-5f568633e047:
+          set: 1/1
+          note: Cackler's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3025fcfd-539d-42e7-9de9-e885053e3f5e
+        a014d3ab-8553-45d9-b662-7e667070292b:
+          set: 1/1
+          note: Cackler's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3025fcfd-539d-42e7-9de9-e885053e3f5e
+        3a725605-4e3b-4f1a-b6ad-53dd1dcc2041:
+          set: 1/1
+          note: Cackler's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3025fcfd-539d-42e7-9de9-e885053e3f5e
+        5dcf5101-4641-41f3-a4fd-eebc61899dd2:
+          set: 1/1
+          note: Cackler's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3025fcfd-539d-42e7-9de9-e885053e3f5e
+    monster_type: Gnoll Cackler
+    monster_category: Gnoll
+  tokenType: null
+  bestiaryId: d1bed14e-94cc-476c-b239-f2182267b189
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Gnoll Cackler
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1741590311441
+mtime: 1775201137032
+hidden: false

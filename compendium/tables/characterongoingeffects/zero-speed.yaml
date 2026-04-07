@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 4cb14d4b-95fe-4a3c-862f-161a97af39b5
+  source: Ongoing Effect
+  value: 0
+  name: Zero Speed
+  guid: 9ab62bfc-db84-40e6-a970-40437746443c
+  description: Your Speed is reduced to zero.
+  behavior: attribute
+  attribute: speed
+source: Ongoing Effect
+guid: 4cb14d4b-95fe-4a3c-862f-161a97af39b5
+id: 4cb14d4b-95fe-4a3c-862f-161a97af39b5
+ctime: 1753249100509
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00208103656769
+    v: 1.00238585472107
+    a: 1
+name: Zero Speed
+description: Your Speed is reduced to zero.
+mtime: 1753249100509
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd
+implementation: 3

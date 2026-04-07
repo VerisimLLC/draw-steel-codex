@@ -1,0 +1,34 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 9cf1fc5c-11a9-4507-84be-a15f3cbedf3f
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Bane on Ability Rolls
+  guid: 8ae52100-62c2-4445-8123-79d32a2ae847
+  description: The target takes a bane on ability rolls for the duration.
+  modtype: bane
+  rollType: ability_power_roll
+source: Ongoing Effect
+guid: 9cf1fc5c-11a9-4507-84be-a15f3cbedf3f
+id: 9cf1fc5c-11a9-4507-84be-a15f3cbedf3f
+ctime: 1773111491713
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.970703065395355
+    v: 0.984156727790833
+    a: 1
+custom: true
+name: Bane on Ability Rolls
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e
+description: The target takes a bane on ability rolls for the duration.
+mtime: 1773594237695
+implementation: 4

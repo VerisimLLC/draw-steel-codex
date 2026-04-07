@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: Incorporeal undead within 10 squares of you can communicate telepathically with you. Additionally, you have the Contact Spirits ability.
+mtime: 1755516075691
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Medium
+ctime: 1755516075691
+description: You can perceive ghosts and spirits that others don’t sense. These supernatural entities constantly whisper unsettling secrets in your mind—when they’re not trying to kill you.
+id: c4cdb796-f89c-4edf-83e8-ce41ed38a35d
+benefit: Incorporeal undead within 10 squares of you can communicate telepathically with you. Additionally, you have the Contact Spirits ability.

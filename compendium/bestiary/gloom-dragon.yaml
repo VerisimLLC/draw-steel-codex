@@ -1,0 +1,493 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 91d1cc94-b2bf-4358-931d-3d4274548bb5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Gloom Dragon	Level 4 Solo
+        Dragon, Elemental	EV 60
+        <b>Stamina</b> 350	<b>Immunity</b> psychic 5
+        <b>Speed</b> 8 (fly, hover)	<b>Size</b> 4 /<b> Stability</b> 2
+        <b>Free Strike</b> 6
+        Might +2	Agility +4	Reason +1	Intuition +3	Presence +4
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The dragon takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the dragon can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Gloaming Wyrmscale Aura</b>
+        The dragon's scales emit a 4 aura of dark fog. An enemy who starts their turn in the affected area takes 2 psychic damage. The dragon feeds on their victims' fears, dealing an additional 3 psychic damage on abilities while at least one enemy is in their aura.
+
+        <b>Breath of Brume</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 4 cube within 10<b>	Target</b> All enemies and objects
+        <b>Effect </b>Each target makes an <b>Agility test</b>.
+        %E2%9C%B8	%E2%89%A411	14 cold damage; dragonsealed (save ends)
+        %E2%98%85	12%E2%80%9316	11 cold damage; dragonsealed (save ends)
+        %E2%9C%A6	17	6 cold damage
+        <b>Effect</b> The affected area becomes an area of magical darkness. The dragon ignores concealment granted by the darkness. A creature dragonsealed by the dragon has psychic weakness 3 and cold weakness 3 until the condition ends.
+
+        <b>Phantom Tail Swing</b> (Action) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Charge, Magic, Melee, Strike
+        <b>Distance</b> Melee 3<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	10 psychic damage; pull 2
+        %E2%98%85	12%E2%80%9316	15 psychic damage; pull 4
+        %E2%9C%B8	17	18 psychic damage; pull 6
+        <b>2 Malice</b> The pull becomes a vertical slide.
+
+        <b>Visions in the Dark</b> (Maneuver) %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 10 burst <b>	Target</b> All dragonsealed enemies
+        <b>Effect</b> Each target takes 3 psychic damage and is <b>I<3</b> compelled to immediately make a free strike against one of their allies within range as they hallucinate a threat.
+
+        <b>Shadow Skulk </b>(Free Maneuver)
+        Once per turn, the dragon shifts up to their speed and leaves behind a 4 cube area of magical darkness. The dragon ignores concealment granted by the darkness. An enemy that ends their turn in the affected area is <b>I<3</b> frightened of the dragon.
+
+        <b>Shroud</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> The dragon takes damage.
+        <b>Effect</b> The dragon reduces the damage by 2 for each enemy in their aura.
+
+        <b>Encroaching Darkness</b> (Free Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> Special
+        <b>Trigger</b> A creature moves.
+        <b>Effect</b> The dragon moves two cubes of magical darkness up to 10.
+
+        <b>Gloom Dragon's Domain</b>
+        If the encounter map is a location the dragon has occupied for 1 week or more, illusory magic drenches the air such that even the scenery emanates malice. Each creature other than the dragon in the affected area has a -2 on saving throws made to end the frightened condition. A frightened enemy in the affected area takes an additional 3 psychic damage whenever they take damage.
+
+        <b>Enveloping Umbrage</b> (Villain Action 1) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies
+        %E2%9C%A6	%E2%89%A411	Pull 2; I<2 frightened (EoT)
+        %E2%98%85	12%E2%80%9316	Push 4; I<3 frightened (save ends)
+        %E2%9C%B8	17	Push 6; I<4 frightened (save ends)
+
+        <b>Pall of Nightmares </b>(Villain Action 2)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 10 burst<b>	Target</b> All dragonsealed enemies
+        %E2%9C%A6	%E2%89%A411	6 psychic damage
+        %E2%98%85	12%E2%80%9316	11 psychic damage
+        %E2%9C%B8	17	14 psychic damage
+        <b>Effect</b> The targets are <b>I<3 </b>dazed as they are assaulted by their hallucinations.
+
+        <b>Absence of All Light</b> (Villain Action 3)
+        <b>Keywords</b> -
+        <b>Distance</b> Special<b>	Target</b> Self
+        <b>Effect</b> The dragon disappears and then reappears anywhere on the encounter map, along with three hallucinatory versions of them at other points on the encounter map (the director determines which one is real). Then, the dragon and each hallucination immediately uses Breath of Brume.
+        Each hallucination has 1 Stamina and shares the dragon's speed and turn. Once per round, the dragon can instantly trade places with a duplicate before or after using an ability.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f54a9ee9-b8d2-4a11-a109-eb54e344ec11: true
+      modifiers: []
+      name: Gloaming Wyrmscale Aura
+      description: The dragon's scales emit a 4 aura of dark fog. An enemy who starts their turn in the affected area takes 2 psychic damage. The dragon feeds on their victims' fears, dealing an additional 3 psychic damage on abilities while at least one enemy is in their aura.
+      guid: f54a9ee9-b8d2-4a11-a109-eb54e344ec11
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6076095e-130c-45ba-a6d4-7d6272aad99e: true
+      modifiers: []
+      name: Gloom Dragon's Domain
+      description: If the encounter map is a location the dragon has occupied for 1 week or more, illusory magic drenches the air such that even the scenery emanates malice. Each creature other than the dragon in the affected area has a -2 on saving throws made to end the frightened condition. A frightened enemy in the affected area takes an additional 3 psychic damage whenever they take damage.
+      guid: 6076095e-130c-45ba-a6d4-7d6272aad99e
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:41e2a67e-9b71-48bd-b1fa-52ed44f225dd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the dragon can take 10 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.The dragon can take two turns each round. They can't take turns consecutively.
+      guid: 41e2a67e-9b71-48bd-b1fa-52ed44f225dd
+      name: Solo Monster
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b41da1c6-76e7-40ba-90a9-34530298508e: true
+      modifiers: []
+      name: Shadow Skulk
+      description: Once per turn, the dragon can shift up to their speed, leaving behind a 4 cube area of magical darkness in their starting space that lasts until the end of the encounter. The dragon ignores concealment created by this darkness. Any enemy who ends their turn in the area and has I<3 is frightened (EoT) of the dragon until the end of their next turn.
+      guid: b41da1c6-76e7-40ba-90a9-34530298508e
+      source: Trait
+    role: Solo
+    inflictedConditions: []
+    keywords:
+      Elemental: true
+      Dragon: true
+    max_hitpoints_roll: "350"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Gloom Dragon
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 4
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 350
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 14 cold damage; dragonsealed (save ends)
+        - 11 cold damage; dragonsealed (save ends)
+        - 6 cold damage
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: dcbcf78b-0f5d-470a-9a0b-a1d610905ef3
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Breath of Brume
+      numTargets: 1
+      description: The affected area becomes an area of magical darkness. The dragon ignores concealment granted by the darkness. A creature dragonsealed by the dragon has psychic weakness 3 and cold weakness 3 until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Magic: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ec05a544-88b0-47bd-9663-49cc44e19fc4
+      implementation: 3
+      numTargets: 2
+      name: Phantom Tail Swing
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 psychic damage; pull 2
+        - 15 psychic damage; pull 4
+        - 18 psychic damage; pull 6
+        roll: 2d10 + Agility
+      description: |2-
+
+        **3 Malice**: The pull becomes a vertical slide.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 3c65b841-7c1f-49b6-a47d-c6cbfa2518f6
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Visions in the Dark
+      implementation: 0
+      description: Each target takes 3 psychic damage and is I<3 compelled to immediately make a free strike against one of their allies within range as they hallucinate a threat.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: dbe6c14a-1159-4050-a164-0696e5aaee5e
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Shroud
+      implementation: 0
+      description: The dragon reduces the damage by 2 for each enemy in their aura.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 0ce2e5ec-5138-40c0-b146-d0f1aee91527
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Encroaching Darkness
+      implementation: 0
+      description: The dragon moves two cubes of magical darkness up to 10.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '55c94e73-2a7f-4ca8-932"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 69962dba-ff8e-4e9b-b36c-708e90f16209
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - pull 2; I<2 frightened (EoT)
+        - pull 4; I<3 frightened (save ends)
+        - pull 6; I<4 frightened (save ends)
+        roll: 2d10 + Agility
+      iconid: ui-icons/skills/1.png
+      name: Enveloping Umbrage
+      numTargets: 1
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 97
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: c32b0b68-2d70-4e71-8d9e-0996edcea47e
+        multicharge: false
+      villainAction: Villain Action 2
+      numTargets: 1
+      modifiers: []
+      guid: 9d6a49ed-34d0-4a94-a415-ff1a380396c6
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 psychic damage
+        - 11 psychic damage
+        - 14 psychic damage
+        roll: 2d10 + Agility
+      categorization: Villain Action
+      name: Pall of Nightmares
+      iconid: ui-icons/skills/1.png
+      description: Each target must be dragonsealed. Any target who has I<3 is also dazed (save ends).
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 46f54334-5247-4b11-b1fc-b967a50c5445
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '1474694b-9ca6-4e8a-9bc"
+      implementation: 0
+      behaviors: []
+      name: Absence of All Light
+      numTargets: 1
+      description: The dragon disappears and then reappears anywhere on the encounter map, along with three hallucinatory versions of them at other points on the encounter map (the director determines which one is real). Then, the dragon and each hallucination immediately uses Breath of Brume.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: c8ac88e1-3d1e-4bb7-8218-acbc05329b2e
+    movementSpeeds:
+      fly: 8
+    ev: 72
+    minion: false
+    levelChoices: []
+    creatureSize: "4"
+  tokenType: null
+  bestiaryId: bde6e5c5-715e-4174-b7f4-e062768e4a01
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Gloom Dragon
+parentFolder: aa240fca-4fa8-4add-ac99-cb9c5724a8dd
+artist: null
+ord: 4
+ctime: 1741590301830
+mtime: 1775201137032
+hidden: false

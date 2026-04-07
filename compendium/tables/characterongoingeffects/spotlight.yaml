@@ -1,0 +1,86 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  activationCondition: false
+  guid: 26f1c646-1d49-4baf-85bf-5aaba4bd73e8
+  rollType: test_power_roll
+  domains:
+    CharacterOngoingEffect:528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5: true
+  description: While illuminated, a creature can’t sneak or hide,  and they take a bane on tests made to perform any action secretly
+  behavior: power
+  name: Illuminated
+- __typeName: CharacterModifier
+  sourceguid: 528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5
+  source: Ongoing Effect
+  guid: 1e8a25b4-2d05-4171-b176-2491b6ec138f
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5: true
+  behavior: power
+  rollType: test_power_roll
+  name: Spotlight
+  description: While illuminated, a creature gains an edge on tests made using the Lead, Music, or Perform skills.
+  modtype: edge
+  skills:
+  - 27995005-8a25-435d-9f50-351c9d08a7b4
+  - d188b959-e993-4239-a350-5e7ad69d27b6
+  - bd66a379-6ea9-4ecc-ad82-c9a2b82750d4
+- __typeName: CharacterModifier
+  sourceguid: 528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5
+  source: Ongoing Effect
+  seq: 7498b0b1-e009-41ac-8b80-d5daecbd960e
+  aura:
+    __typeName: Aura
+    applyto: all
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.187000036239624
+        s: 0.9453125
+        v: 0.960861384868622
+        a: 1
+    modifiers: []
+    name: Spotlight
+    objectid: 090e0303-b65f-4ebc-85ad-dc9b9af1ec39
+    guid: 38d978c5-0734-4241-9ebf-0e2e834ac2c1
+    creatureFilter: Self
+    iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+  domains:
+    CharacterOngoingEffect:528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5: true
+  radius: "5"
+  guid: 5a76c3d4-0aa5-41ff-8b1b-96f12d4c94b9
+  description: While illuminated, a creature can’t sneak or hide, they take a bane on tests made to perform any action secretly, and they gain an edge on tests made using the Lead, Music, or Perform skills.
+  behavior: aura
+  name: Spotlight
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.159499824047089
+    s: 0.958984434604645
+    v: 0.966186463832855
+    a: 1
+guid: 528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5
+id: 528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5
+ctime: 1768993115212
+domains:
+  CharacterOngoingEffect:528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5: true
+sustainFormula: Distance(ConditionCaster("Spotlight")) < 10
+description: While illuminated, a creature can’t sneak or hide, they take a bane on tests made to perform any action secretly, and they gain an edge on tests made using the Lead, Music, or Perform skills.
+name: Spotlight
+custom: true
+mtime: 1768993745558
+iconid: d55a0ed1-c2c8-4a7c-8f24-8db4136ae90c
+implementation: 3

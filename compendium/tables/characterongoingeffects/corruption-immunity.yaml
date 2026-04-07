@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 92a205a8-c56a-4483-8630-9d69004c42bc
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "100"
+    damageType: corruption
+    apply: Damage Reduction
+  description: You have immunity all to corruption damage
+  name: Corruption Immunity
+  guid: 75f7663f-2167-46e0-b7eb-16985c0bd5d0
+source: Ongoing Effect
+guid: 92a205a8-c56a-4483-8630-9d69004c42bc
+id: 92a205a8-c56a-4483-8630-9d69004c42bc
+ctime: 1772836537529
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Corruption Immunity
+description: You have immunity all to corruption damage
+custom: true
+mtime: 1772836537529
+iconid: 2b3b154b-cac7-44f2-a36f-e60ecb3e4f6f

@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  conditionid: 567a3454-ead6-4416-b338-ed73d64b7805
+  sourceguid: f684e8d1-3351-4301-9132-51f8af151746
+  source: Ongoing Effect
+  guid: 0636776e-6016-4fb3-8074-a207c101a4ba
+  description: ""
+  behavior: bestowcondition
+  name: Exothermic Shield Strained
+source: Ongoing Effect
+guid: f684e8d1-3351-4301-9132-51f8af151746
+id: f684e8d1-3351-4301-9132-51f8af151746
+ctime: 1765943368310
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 68f455f5-135f-495c-822d-40d809d2b15f
+name: Exothermic Shield Strained
+description: ""
+mtime: 1765943368310
+custom: true
+iconid: c97f2b52-07a3-43ac-8e5b-f10944132412

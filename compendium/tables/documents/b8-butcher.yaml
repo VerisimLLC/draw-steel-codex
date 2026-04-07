@@ -1,0 +1,60 @@
+__typeName: MarkdownDocument
+description: B8. Butcher
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 5a8e84af-0c7c-483d-a59b-341e8f7490fc
+annotations: []
+id: 36955d6f-8ae7-4169-b9a6-40f85adffd48
+mtime: 1761417516232
+content: |+
+  # B8. Butcher
+
+  > * “The image of a pig is painted onto a sign in front of this simple butcher shop, which displays cuts of meat hanging on pegs on the wall.”
+  > * “Even outside the shop, the place reeks of blood and offal.”
+
+
+  If the heroes arrive here because they chased Saberna (see [B7. Smokehouse]) it’s possible they have already met [Brune] the butcher. But if not, Brune is in the shop, butchering a hog with a long knife and cleaver when the heroes arrive.
+
+  [Brune] is in league with the Forsaken Wraiths. He gives them some of the meat he butchers and sells it to them at night whenever they come by. Lately, [Brune] has become even greedier and offered the bandits smoked meat from the smokehouse in exchange for more gold. To steal bits of meat from the smokehouse, [Brune] threatened [Saberna], the woman who tends to the meat smoking. Some folks have noticed their meat comes back smaller after being smoked and complained to the reeve about it.
+
+  [Brune] is gruff and rude. He tells the heroes to “buy some meat or retreat.” If they start asking questions, he rolls his eyes and mocks them, giving no useful information about the town or most anything else they ask.
+
+
+  ## Stolen Meat
+
+  If the heroes ask [Brune] about [Saberna] or the missing meat from the smokehouse, [Brune] laughs, addressing the question directly and saying, “I got meat aplenty. What do I need to mess with that girl or the smokehouse for? Now get out. You’re bothering me.”
+
+  The heroes can tell they struck a nerve by asking about this. They can attempt to intimidate [Brune] into sharing more. Like most bullies, he’s not as confident as he projects and can fold when confronted. To get him to share more, a hero must make a moderate Reason or Presence test. A hero has an edge on this test if they’ve already obtained the truth from [Saberna] and mention this to Brune.
+
+  |Press Brune for the Truth: Reason or Presence Test
+  |{#Brune refuses to speak about the matter.}
+  |{#Brune agrees to share what he knows, but only if the heroes promise not to report him to the reeve. Otherwise, he doesn’t know anything.}
+  |{#Brune tells the heroes what he knows about the Forsaken Wraiths.}
+
+  If Brune won’t speak to the heroes and they press the matter, he tells them to return at the next day and promises all their questions will be answered then. A hero who is suspicious of Brune can make a hard Intuition test.
+
+  |Discern Brune’s Honesty: Intuition Test
+  |{#The hero can’t tell if Brune is being honest. You gain 1 Malice to the start of the next Forsaken Wraiths encounter.}
+  |{#The hero can’t tell if Brune is being honest.}
+  |{#The hero knows Brune is lying. If called out on this, Brune tells the heroes what he knows about the Forsaken Wraiths.}
+
+  Should the heroes leave, Brune goes and speaks to the Forsaken Wraiths as soon as they leave him. The Forsaken Wraiths raid Broadhurst that same night (see [Wraith Raid] in [Events]).
+
+
+  ## What Brune Knows
+  If the heroes get Brune to talk, he shares the following information:
+  > * “I got wind of some bandits in the Silver Wood and found myself in an opportunity for profit. Can’t blame a man for tryin’ to squeak out a livin’ in this world, can you?”
+  > * “Anyway, I wandered up the Dunn River, jinglin’ a bag of metal so it sounded like coin. Didn’t take long to draw ’em out.”
+  > * “I was quick to explain the metal scraps I had was worthless, but that I did have something they needed—food to grow up big and strong.”
+  > * “So, we cut a deal. I gives ’em food. They gives me coin.”
+  > * “If you want to find ’em, go north along the river into the Silver Wood. You’ll hit their camp soon enough.”
+
+  If the heroes decide to follow the Dunn River north into the Silver Forest, they eventually find [Fort Forsaken].
+
+
+  ## Turning in Brune
+  If the heroes bring [Brune] to [Reeve Rosemund], she has him arrested and sent to the capital of Dalrath to face judgment.
+
+
+
+
+ctime: 1761388279905

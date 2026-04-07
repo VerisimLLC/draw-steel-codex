@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: Max(1, Max(Might, Agility))
+category: Movement
+name: Jump Distance
+documentation: Whenever an effect allows you to move including using the Advance move action you can automatically long jump a number of squares up to your Might or Agility score your choice minimum 1 square as part of that movement The height of your jump is automatically 1 square as part of that movement.
+mtime: 1765903987441
+id: 11650b6f-ee8f-4ab1-9a44-b56a3d43119a
+ctime: 1765903752092

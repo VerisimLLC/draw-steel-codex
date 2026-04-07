@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: d9b2dcf2-5354-491c-99f2-f63d39c0c39a
+id: d9b2dcf2-5354-491c-99f2-f63d39c0c39a
+ctime: 1768828860325
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Stink of Magic
+description: You are aware of whether each creature within 5 squares is a construct, undead, or a creature from another world, and whether they have used a magic ability in the previous hour. You can’t be surprised by constructs, undead, or creatures from another world
+custom: true
+mtime: 1768829292710
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Crafting Perk
+name: Handy
+description: Whenever you make a test to craft something and don’t have a skill that applies to the test, you gain a +1 bonus to the power roll.
+mtime: 1755373356478
+id: 631febee-7a99-4319-b3a8-7df0fe2f5aa1
+ctime: 1730700388067

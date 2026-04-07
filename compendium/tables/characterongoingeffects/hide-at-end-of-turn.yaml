@@ -1,0 +1,70 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: "EoT Trigger: If this creature has cover or concealment, they may attempt to hide."
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    abilityType: none
+    guid: a2661a02-4d9c-4add-8dbb-0eab61465da0
+    numTargets: "1"
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 3a9cf65b-ab65-4f7f-a85f-ad4a8cdefce3
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      abilityType: standard
+      standardAbility: 9683c15c-de03-4129-869c-d4054928cf97
+    trigger: endturn
+    name: Hide at End of Turn
+    description: ""
+    subject: allies
+    iconid: ui-icons/skills/1.png
+  description: If this creature has cover or concealment, they can attempt to hide at the end of the current creature's turn.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 8cecdfac-1efc-4fbb-b321-6ce6780721b0
+  name: Hide at End of Turn
+  sourceguid: 419b4595-05a3-4b89-b1a2-b00472a1f284
+source: Ongoing Effect
+guid: 419b4595-05a3-4b89-b1a2-b00472a1f284
+id: 419b4595-05a3-4b89-b1a2-b00472a1f284
+ctime: 1769594793635
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Hide at End of Turn
+description: If this creature has cover or concealment, they can attempt to hide at the end of the current creature's turn.
+custom: true
+mtime: 1769598929814
+iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80

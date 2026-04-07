@@ -1,0 +1,455 @@
+__typeName: MarkdownDocument
+annotations:
+  'encounter:Burning ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'Burning '
+  encounter:Burning Square QB:
+    __typeName: RichEncounter
+    identifier: Burning Square QB
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"c7e76834-9ec6-442e-aa6c-96baeecff5f3\",\"offtokenPortraitId\": \"2775c45b-26c8-478f-b99c-eb4c9d35e957\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.262882,\"portraitOffset\": {\"x\": 0.1955131,\"y\": -0.01531382},\"frameHueShift\": 0.26,\"frameSaturation\": 0.6,\"frameBrightness\": 0.2,\"popoutScale\": 0.5,\"characterName\": \"Vile Goblin Battleborn\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c7e76834-9ec6-442e-aa6c-96baeecff5f3\",\"offtokenPortraitId\": \"2775c45b-26c8-478f-b99c-eb4c9d35e957\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.262882,\"portraitOffset\": {\"x\": 0.1955131,\"y\": -0.01531382},\"frameHueShift\": 0.26,\"frameSaturation\": 0.6,\"frameBrightness\": 0.2,\"popoutScale\": 0.5,\"characterName\": \"Sinister Goblin Battleborn\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,6,2"
+        - __usertype: LuaLoc
+          loc: "2,5,2"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      - appearances:
+        - false
+        - false
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,0,2"
+        - __usertype: LuaLoc
+          loc: "-4,0,2"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - "{\"portraitId\": \"42e47fbf-3ed0-4eb1-8518-adc3066d0015\",\"offtokenPortraitId\": \"2775c45b-26c8-478f-b99c-eb4c9d35e957\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2628827,\"portraitOffset\": {\"x\": 0.375458,\"y\": -0.1576324},\"frameHueShift\": 0.2592382,\"frameSaturation\": 0.6012795,\"frameBrightness\": 0.2046107,\"popoutScale\": 0.5,\"characterName\": \"Gaunt Goblin Mastermind\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "2,0,2"
+        - __usertype: LuaLoc
+          loc: 2,-1,2
+        - __usertype: LuaLoc
+          loc: "2,1,2"
+        - __usertype: LuaLoc
+          loc: "2,2,2"
+        - __usertype: LuaLoc
+          loc: "0,2,2"
+        monsters:
+          d02daacd-edb7-44da-91f9-208ccce37171: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,-3,2"
+        - __usertype: LuaLoc
+          loc: "-5,-3,2"
+        - __usertype: LuaLoc
+          loc: "-6,-3,2"
+        - __usertype: LuaLoc
+          loc: "-7,-3,2"
+        - __usertype: LuaLoc
+          loc: "-6,-1,2"
+        monsters:
+          d02daacd-edb7-44da-91f9-208ccce37171: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 7,-3,2
+        - __usertype: LuaLoc
+          loc: 4,-3,2
+        - __usertype: LuaLoc
+          loc: 6,-5,2
+        - __usertype: LuaLoc
+          loc: 7,-6,2
+        - __usertype: LuaLoc
+          loc: 4,-6,2
+        - __usertype: LuaLoc
+          loc: 6,-9,2
+        - __usertype: LuaLoc
+          loc: 4,-8,2
+        - __usertype: LuaLoc
+          loc: 2,-6,2
+        monsters:
+          cd5f724b-4707-46d5-821e-a8d172c986f6: 8
+      - appearances:
+        - "{\"portraitId\": \"1b6be50a-4314-4ecf-97f4-3784421248c3\",\"offtokenPortraitId\": \"2775c45b-26c8-478f-b99c-eb4c9d35e957\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": -0.1646988,\"y\": -0.1549685},\"frameHueShift\": 0.26,\"frameSaturation\": 0.6,\"frameBrightness\": 0.2,\"popoutScale\": 0.5,\"characterName\": \"Curious Goblin Deathtongue\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"1b6be50a-4314-4ecf-97f4-3784421248c3\",\"offtokenPortraitId\": \"2775c45b-26c8-478f-b99c-eb4c9d35e957\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": -0.1646988,\"y\": -0.1549685},\"frameHueShift\": 0.26,\"frameSaturation\": 0.6,\"frameBrightness\": 0.2,\"popoutScale\": 0.5,\"characterName\": \"Vile Goblin Deathtongue\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,-6,2"
+        - __usertype: LuaLoc
+          loc: "-6,-7,2"
+        monsters:
+          10927d4a-3bd0-43e3-b994-9a11ed2fad53: 2
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 0,-4,2
+        - __usertype: LuaLoc
+          loc: "5,0,2"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      name: Burning Square QB
+  encounter:Burning Square:
+    __typeName: RichEncounter
+    identifier: Burning Square
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"78229dea-090c-4227-a8cd-ad679a23bebb\",\"offtokenPortraitId\": \"80d3cabb-bf21-46e0-94c2-0b118e321904\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0.03125095,\"y\": -0.03190637},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Cowardly Goblin Warrior\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"78229dea-090c-4227-a8cd-ad679a23bebb\",\"offtokenPortraitId\": \"80d3cabb-bf21-46e0-94c2-0b118e321904\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0.03125095,\"y\": -0.03190637},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Annoyed Goblin Warrior\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "2,5,2"
+        - __usertype: LuaLoc
+          loc: "0,6,2"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      - appearances:
+        - false
+        - false
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,0,2"
+        - __usertype: LuaLoc
+          loc: "-9,0,2"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - "{\"portraitId\": \"527ea0c3-3d77-495d-bc90-34f69e6ac5f8\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Moody Goblin Underboss\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "2,1,2"
+        - __usertype: LuaLoc
+          loc: "2,2,2"
+        - __usertype: LuaLoc
+          loc: "2,0,2"
+        - __usertype: LuaLoc
+          loc: 2,-1,2
+        - __usertype: LuaLoc
+          loc: "0,2,2"
+        monsters:
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+          806915da-99a4-45fb-88a9-60ec110f9d18: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,-3,2"
+        - __usertype: LuaLoc
+          loc: "-5,-3,2"
+        - __usertype: LuaLoc
+          loc: "-6,-3,2"
+        - __usertype: LuaLoc
+          loc: "-7,-3,2"
+        - __usertype: LuaLoc
+          loc: "-6,-1,2"
+        monsters:
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+          806915da-99a4-45fb-88a9-60ec110f9d18: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 4,-3,2
+        - __usertype: LuaLoc
+          loc: 7,-3,2
+        - __usertype: LuaLoc
+          loc: 2,-6,2
+        - __usertype: LuaLoc
+          loc: 4,-6,2
+        - __usertype: LuaLoc
+          loc: 6,-5,2
+        - __usertype: LuaLoc
+          loc: 7,-6,2
+        - __usertype: LuaLoc
+          loc: 4,-8,2
+        - __usertype: LuaLoc
+          loc: 6,-9,2
+        monsters:
+          cd5f724b-4707-46d5-821e-a8d172c986f6: 8
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Alert Goblin Cursespitter\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Meek Goblin Cursespitter\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,-6,2"
+        - __usertype: LuaLoc
+          loc: "-6,-7,2"
+        monsters:
+          76de605d-434b-4210-905f-5c47caf159cf: 2
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "5,0,2"
+        - __usertype: LuaLoc
+          loc: 0,-4,2
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      name: Burning Square
+  encounter:Burning Square - QB:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Burning Square - QB
+  encounter:Burning Square-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Burning Square
+  encounter:Burning Square - Q:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Burning Square - Q
+  encounter:V:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: V
+  'encounter:Burning Square - ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'Burning Square - '
+  encounter:Burning:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Burning
+  encounter:Burning Square - QV:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Burning Square - QV
+  encounter:Burning S:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Burning S
+  encounter:Burn:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Burn
+  encounter:Bur:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Bur
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: ""
+id: 4ea30018-b296-4bf1-99aa-1a383b66fcfa
+ctime: 1764024705487
+textStorage:
+  __typeName: TextStorage
+  sections:
+    GD: |+
+      > * “Several buildings in the village square are burning! Good thing there’s a well with multiple buckets right here.”
+
+
+    YQ: |
+      |4 |One [goblin underboss] (captain), Four [goblin spinecleaver]s (minion squad)|
+    NKs: |+
+      ## Queen Bargnot has the Cup of Iulius[[encounter:Burning Square QB]]
+
+    qZ: |+
+      When the heroes enter the square, the blacksmith, butcher, and cobbler shops are on fire.
+
+    NKX: |2
+
+    yw: |+
+      The goblins fight until the heroes outnumber them two to one, and then they flee. If two or fewer buildings collapsed during the fight, the heroes earn 1 Victory each.
+
+    yq: |
+      Four snipers attempt to burn buildings and the remaining snipers each attack a different target, prioritizing those furthest from the melee. The cursespitters also fight at range, using Eye of Surlach to weaken foes on
+    yu: |+
+      ## Ending the Encounter
+
+    ys: |+
+      the front line.
+
+
+    gU: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    yk: |+
+      ## Well
+
+    yi: |+
+      |The creature takes 3 fire damage.
+
+    QM: |
+      |**Group**| **Creatures**|
+    NKe: |+
+      ## The Heroes have the Cup of Iulius
+
+    kW: |
+      * For four heroes, remove two goblin warriors.
+    NKH: |+
+      [[/activateobjects e1_start.AreaTemplate activate|Show Hero Start Area]][[/activateobjects e1_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    cS: |+
+      |6 |Two [goblin cursespitter]s|
+
+    UO: |
+      |2 |Two [goblin warrior]s|
+    JG: |+
+      > * “Each calls out a different battle cry in a chaotic chorus that effectively amounts to, ‘Bring us the cup or we’ll burn this village to the ground!’”
+
+
+    yg: |
+      |The creature takes 7 fire damage.
+    xe: |
+      When a building collapses, each creature within 2 squares of it must make an Agility test:
+    vc: |+
+      At the end of each round, roll 1d6 for each burning building and add 1 to the result for the number of rounds the building has been burning, including the current round. On a total of 6 or higher, the building collapses.
+
+    sa: |+
+      Each round when the goblin snipers take their turn, four of the snipers all target the same building of your choice, lighting it on fire. If fewer than four goblin snipers remain, they can't target a building.
+
+    FC: |
+      > * “Outside, the air is thick with smoke and the scent of burning timber.”
+    yy: "[[//awardvp 1|Award Heroes 1 Victory]]"
+    DAZ: |2
+
+    oY: |+
+      ## Buildings on Fire
+
+    DA: |2
+
+    HE: |+
+      **If the heroes have the Cup of Iulius, add:**
+
+    ym: |+
+      ## Tactics
+
+    yo: |+
+      The underboss, the spinecleavers, and warriors move to surround the heroes, attempting to keep them away from the well and burning buildings. They focus fire on any heroes who grab buckets. Once the heroes are surrounded, the goblins use Malice to activate Tiny Stabs to maximize damage.
+
+    NKQ: |+
+      [[setting:Number of Heroes]]
+
+    LI: |
+      > * “A crew of very capable goblins moves about the square, systematically burning buildings.”
+    NK: |+
+      The heroes must fight Jagged Edge invaders and fires in the village square of Broadhurst.
+
+    OL: |
+      **Burning Square Groups**
+    aR: |
+      |5 |Eight [goblin sniper]s (minion squad)|
+    EB: |
+      > * “Your respite ends as you hear screams coming from the village square.”
+    yl: |+
+      The well at the center of the town is 4 squares deep and has less than 1 square of water in it.
+
+
+    ub: |+
+      A hero adjacent to the well can use a free maneuver to pull up a bucket of water. A hero holding a bucket of water can hurl it at a burning building up to 10 squares away to douse the flames as a maneuver.
+
+    yj: |+
+      When a building collapses, the ground it occupies becomes difficult terrain. For the rest of this encounter, when a creature enters a square of this difficult terrain for the first time on a turn or starts their turn there, they take 1 fire damage.
+
+
+    iV: |
+      * For six heroes, add two goblin warriors.
+    NKl: |+
+      [[encounter:Burning Square]]
+
+    mX: |+
+      * For three heroes, remove two goblin warriors and one group of a goblin underboss and four goblin spinecleavers.
+
+
+
+    eT: |
+      **Encounter Adjustments**
+    SN: |
+      |1 |Two [goblin warrior]s|
+    wd: |+
+      [[/r 1d6|Roll 1D6]]
+
+    WP: |
+      |3 |One [goblin underboss] (captain), Four [goblin spinecleaver]s (minion squad)|
+    MJ: |+
+      > * “These aren’t the same foes you fought in the Delian Tomb—they’re muscled, agile, and dangerous.”
+
+
+
+    KH: |+
+      **If the goblins have the Cup of Iulius, add:**
+
+    C: |
+      # Encounter 1: Burning Square
+    yh: |
+      |The creature takes 5 fire damage.
+    IF: |
+      > * “A group of goblins carrying weapons and torches runs about the square.”
+    yf: |
+      |Collapsing Building: Agility Test
+parentFolder: 3c68a98c-720a-433b-977c-dee19e9fcaf4
+updateid: 1ce27b52-a095-4f11-a11d-de014a8310dc
+description: "Encounter 1: Burning Square"
+content: "# Room 1"
+mtime: 1766078218265

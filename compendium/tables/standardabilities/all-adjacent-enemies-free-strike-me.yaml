@@ -1,0 +1,58 @@
+__typeName: ActivatedAbility
+objectTarget: false
+targetFilter: ""
+id: 47f8874f-b78d-4bdb-b423-23e43378ab8b
+targetAllegiance: enemy
+targetType: all
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  namedAbility: Melee Free Strike
+  promptText: Free strike the target
+  applyto: targets
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  filterTarget: ""
+  abilityType: named
+  autoTarget: false
+  runOnController: true
+  standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+  targeting: prompt
+testCases: []
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+importMatch: ""
+ctime: 1751781532661
+description: ""
+numTargets: "1"
+implementation: 3
+name: All Adjacent Enemies Free Strike Me
+repeatTargets: false
+mtime: 1772033377216
+abilityType: none
+iconid: ui-icons/skills/1.png

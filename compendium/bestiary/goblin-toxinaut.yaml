@@ -1,0 +1,385 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d0f1f6c5-8826-48a1-880f-4d900a192df2
+    offtokenPortraitId: 2775c45b-26c8-478f-b99c-eb4c9d35e957
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3092666
+    portraitOffset:
+      x: 0.05282801
+      y: -0.2834519
+    frameHueShift: 0.26
+    frameSaturation: 0.6
+    frameBrightness: 0.2
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fba8fb67-4460-4641-8013-9ce449408826
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      agl:
+        id: agl
+        baseValue: 1
+      prs:
+        id: prs
+        baseValue: 2
+      rea:
+        id: rea
+        baseValue: 0
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+        baseValue: 1
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+        baseValue: -1
+    attackNames:
+    - Light Melee
+    monster_category: Monster
+    levelChoices: []
+    pr: 1
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    role: Horde Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - title: Monster Notes
+      text: ""
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+        CharacterFeature:c64e2743-10c4-431f-9fdc-794d2f0a66a9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        domains:
+          CharacterFeature:c64e2743-10c4-431f-9fdc-794d2f0a66a9: true
+        name: Cunning
+        behavior: attribute
+        description: The toxinaut doesn’t provoke opportunity attacks by moving. Whenever the toxinaut is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the toxinaut can use a triggered action to make an opportunity attack against the enemy.
+        value: 1
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+          CharacterFeature:c64e2743-10c4-431f-9fdc-794d2f0a66a9: true
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          mandatory: false
+          range: 1
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 415e5fe2-a956-4f74-a0ac-619d0cba684c
+              repeatTargets: false
+              behaviors: []
+              targetType: self
+              range: 1
+              display:
+                brightness: 1
+                bgcolor: "#ffffffff"
+                hueshift: 0
+                saturation: 1
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+            abilityType: standard
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: bbaa0031-bfe4-4a85-a9a5-6de2f8bdf92f
+          name: Cunning
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          conditionFormula: 0 {Should this always be manual?}
+          numTargets: "1"
+          domains:
+            CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+            CharacterFeature:c64e2743-10c4-431f-9fdc-794d2f0a66a9: true
+          trigger: finishmove
+          abilityType: none
+          description: The toxinaut doesn’t provoke opportunity attacks by moving. Whenever the toxinaut is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the toxinaut can use a triggered action to make an opportunity attack against the enemy.
+          subject: self
+          iconid: ui-icons/skills/1.png
+        behavior: trigger
+        source: Trait
+        name: Cunning
+        guid: 24eaa045-059a-4a39-8482-d2c22e47175e
+        sourceguid: e89248a7-dfeb-4824-96c0-b3e10bb9baf9
+        description: The toxinaut doesn’t provoke opportunity attacks by moving. Whenever the toxinaut is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the toxinaut can use a triggered action to make an opportunity attack against the enemy.
+      source: Trait
+      description: The toxinaut doesn’t provoke opportunity attacks by moving. Whenever the toxinaut is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the toxinaut can use a triggered action to make an opportunity attack against the enemy.
+      guid: c64e2743-10c4-431f-9fdc-794d2f0a66a9
+      name: Cunning
+      implementation: 2
+    opportunityAttack: 4
+    resistances:
+    - __typeName: ResistanceEntry
+      apply: Damage Reduction
+      damageType: poison
+      dr: 3
+    animations:
+      anim:
+      - animType: consumeResource
+        resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+      guid: 0a60a2c0-4ec2-472f-b6f7-4148f92d1069-4091
+    initiativeGrouping: 9e5dea12-7b61-4f7d-9011-091ccc7500b1
+    keywords:
+      Mystic Goblin: true
+      Goblin: true
+      Humanoid: true
+    damage_taken: 0
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: ""
+      targetTextOverride: Each enemy in the area
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetAllegiance: enemy
+      targetType: cube
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 95
+      range: 15
+      numTargets: "1"
+      modifiers: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 poison damage; slide 1
+        - 3 poison damage; slide 2
+        - 5 poison damage; slide 3
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 064441de-1279-4c36-8617-dd88368d9e4f
+          resourceCostType: multicost
+          modtype: none
+          adjustments:
+          - type: slide
+            value: charges
+          keywords: []
+          domains: []
+          behavior: power
+          rollType: ability_power_roll
+          name: "Toxic Winds: 1+ Malice"
+          description: For each Malice spent, one target can be force moved 1 additional square.
+          guid: 39c4c68c-c3c5-4536-9269-53310a01f5af
+          activationCondition: false
+        guid: 064441de-1279-4c36-8617-dd88368d9e4f
+      strain: []
+      guid: eaaa3465-1cb0-4d37-8aa7-6a86343b5fbf
+      name: Toxic Winds
+      iconid: ui-icons/skills/1.png
+      description: ""
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      radius: "4"
+      persistence: []
+      channeledResource: none
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetTextOverride: Special
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: cube
+      display:
+        brightness: 1
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.323750138282776
+          s: 1.00267505645752
+          v: 1.0030654668808
+          a: 1
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 96
+      range: "15"
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: b212d70a-ccee-47c2-9f1b-e12f24a5060b
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        duration: nextturn
+        aura:
+          __typeName: Aura
+          difficult_terrain: true
+          movedamage: poison
+          guid: ddb2101f-0c27-4105-bf08-d3d1bbce0e82
+          objectid: 4623e5a8-2823-4611-98aa-63ee700f38ab
+          applyto: othertype
+          name: Swamp Gas
+          damage: 2
+          display:
+            brightness: 1
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.316500425338745
+              s: 1.00267481803894
+              v: 1.0030654668808
+              a: 1
+            hueshift: 0
+            saturation: 1
+          triggers: []
+          description: The area is filled with a green haze that lasts until the start of the toxinaut’s next turn or until the toxinaut is reduced to 0 Stamina, and which can’t be dispersed by wind. The area is difficult terrain for non-goblins, and each non-goblin who moves in the area takes 2 poison damage for each square moved. This poison damage ignores immunity.
+          modifiers: []
+          iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+      name: Swamp Fumes
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: "1"
+      categorization: Signature Ability
+      radius: "4"
+      implementation: 3
+      description: The area is filled with a green haze that lasts until the start of the toxinaut’s next turn or until the toxinaut is reduced to 0 Stamina, and which can’t be dispersed by wind. The area is difficult terrain for non-goblins, and each non-goblin who moves in the area takes 2 poison damage for each square moved. This poison damage ignores immunity.
+      abilityType: none
+      iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 9e3141e3-64e7-407b-8b5c-35179e898efd-20
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 0caa7f36-1f3b-4106-8dbf-32469bc65a08-2
+    walkingSpeed: 6
+    monster_type: Goblin Toxinaut
+    availableTriggers: []
+    creatureSize: 1S
+    movementSpeeds:
+      climb: 5
+    fmr: 0
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        a6e5ae95-ed7c-4f36-9c97-77ba859234f3:
+          note: Swamp Gas
+          refreshid: 0caa7f36-1f3b-4106-8dbf-32469bc65a08-2
+          timestamp: 1740884069684
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        06ffec71-9ac5-4f15-9d14-d55a393b7938:
+          note: Toxic Winds
+          abilityid: eaaa3465-1cb0-4d37-8aa7-6a86343b5fbf
+          refreshid: 9e3141e3-64e7-407b-8b5c-35179e898efd-20
+          timestamp: 1754989459956
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+  tokenType: null
+  bestiaryId: 1e16b64f-44bc-450a-b2bd-2dfb8958f9c1
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1715748088616
+description: null
+parentFolder: 116486c1-2208-4bb6-a244-b13ffe9d7ead
+artist: null
+ord: 4
+ctime: 1763582306356
+mtime: 1763628853705
+hidden: false

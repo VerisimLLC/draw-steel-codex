@@ -1,0 +1,335 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 7894ac6f-c6bf-4c27-97eb-04a4f7496949
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: fed834fd-494d-437e-98f8-23270a1d982b
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.6205879
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1a3cb29f-0ab4-4cfe-8b99-051c24daa005
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 20
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: War Dog Subcommander
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 7e5f69bd-056f-445f-8b6d-600fb4e53306
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          targetid: "<<cast.PrimaryTarget.id>>"
+          range: "5"
+          targetcount: "1"
+        promptText: Choose an Ally Within 5 Spaces
+        autoTarget: false
+        abilityType: standard
+        standardAbility: 7cb2aa05-2a8d-42ed-acd0-e1086e87beb0
+        targeting: prompt
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 2feef4bd-073b-460b-aadb-e505e7fd20d5
+      numTargets: 1
+      targetType: target
+      implementation: 4
+      name: Command Saber
+      persistence: []
+      description: An ally within 5 squares of the subcommander can make a free strike against the target
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Target has "Loyalty Collar"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 10
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 6b5dd38c-6f7c-4b80-8a67-2bf1975fe85f
+      numTargets: 1
+      targetType: target
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Posthumous Promotion
+      selfTarget: true
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      implementation: 2
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |-
+        War Dog Subcommander	Level 2 Horde Support
+        Humanoid, War Dog	EV 4
+        **Stamina** 20
+        **Speed** 5	**Size** 1M / **Stability** 0
+        	**Free Strike** 2
+        Might +2	Agility +0	Reason +0	Intuition +0	Presence +1
+        **Command Saber** (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        **Keywords** Melee, Strike, Weapon
+        **Distance** Melee 1	**Target** One creature or object
+        %E2%9C%A6	%E2%89%A411	4 damage
+        %E2%98%85	12%E2%80%9316	5 damage
+        %E2%9C%B8	17+	7 damage
+        **Effect **An ally within 5 squares of the subcommander can make a free strike against the target.
+
+        **Posthumous Promotion** (Maneuver)
+        **Keywords** Magic, Ranged
+        **Distance** Ranged 10	**Target** One war dog with a loyalty collar
+        **Effect **The target's loyalty collar detonates, killing them instantly.
+        **The Iron Saint Does Not Recognize Retreat **
+        Each ally within 5 squares of the subcommander adds 3 to their stability.
+        **Loyalty Collar**
+        When the subcommander dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bbfdbfd0-f6a3-461d-9e71-331d19b84226: true
+        CharacterFeature:403df6f8-6cdb-4579-89b0-466b58f584d9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:403df6f8-6cdb-4579-89b0-466b58f584d9: true
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+        behavior: trigger
+        source: Trait
+        name: Loyalty Collar
+        description: When the subcommander dies, they explode, dealing 1d6 damage to each adjacent enemy.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          targetFilter: Enemy
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          trigger: creaturedeath
+          domains:
+            CharacterFeature:403df6f8-6cdb-4579-89b0-466b58f584d9: true
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+      source: Trait
+      description: When the subcommander dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      guid: 403df6f8-6cdb-4579-89b0-466b58f584d9
+      name: Loyalty Collar
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:590b12e6-0024-4428-bdba-7767d78da35a: true
+        CharacterFeature:135639ce-61bb-4770-b288-0348702a5ebb: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 590b12e6-0024-4428-bdba-7767d78da35a
+        source: Trait
+        seq: 59683671-6c99-472d-88e9-d43154085ca0
+        guid: 43cec66a-ed75-4c30-b504-2c1447df608b
+        domains:
+          CharacterFeature:590b12e6-0024-4428-bdba-7767d78da35a: true
+          CharacterFeature:135639ce-61bb-4770-b288-0348702a5ebb: true
+        radius: "5"
+        behavior: aura
+        description: Each ally within 5 squares of the subcommander adds 3 to their stability.
+        aura:
+          __typeName: Aura
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 51f57365-6d61-452a-b248-95e71e9fda02
+            source: Subcommander
+            guid: eca44464-a138-419a-ae5e-fcd68c25ec0c
+            statusIcon: b2cd4026-2b0a-4f05-821c-a3435536405a
+            description: Each Ally within 5 squares of the subcommander adds 3 to their stability
+            name: Iron Saint Aura
+            value: 3
+            displayIcon: true
+            behavior: attribute
+            attribute: forcedmoveresistance
+          source: Subcommander
+          guid: 51f57365-6d61-452a-b248-95e71e9fda02
+          objectid: f7b5aa95-990b-490e-9fea-b293ecf19b70
+          applyto: friends
+          name: Iron Saint Aura
+          description: Each Ally within 5 squares of the subcommander adds 3 to their stability
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          implementation: 3
+        name: 'The Iron Saint Does Not Recognize Retreat '
+      source: Trait
+      description: Each ally within 5 squares of the subcommander adds 3 to their stability.
+      guid: 590b12e6-0024-4428-bdba-7767d78da35a
+      name: 'The Iron Saint Does Not Recognize Retreat '
+      implementation: 3
+    role: Horde Support
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: 240d81b4-ed3c-4c51-be8d-bd7afca10486
+    opportunityAttack: 2
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        ddecbf85-dc11-48ae-b0ab-fe5c73eb256f:
+          refreshid: 16df0416-66c2-4a0f-b49e-b67f2d9505e3-1
+          note: Command Saber
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 0/1
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 16df0416-66c2-4a0f-b49e-b67f2d9505e3-1
+        used: 1
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    walkingSpeed: 5
+    creatureSize: 1M
+    traitNames: []
+    movementSpeeds: []
+    monster_category: Monster
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 555a4e96-d155-4839-bf70-e90e67bcc45a-1727
+    notes: []
+  tokenType: null
+  bestiaryId: 819d25f1-5217-4acf-8f50-fac27f395b2b
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: War Dog Subcommander
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 11
+ctime: 1749972311966
+mtime: 1775201137032
+hidden: false

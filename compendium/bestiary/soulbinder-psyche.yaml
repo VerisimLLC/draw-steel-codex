@@ -1,0 +1,515 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: df4483d1-4cdc-4e14-b5d6-c19f74d5c8ef
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Soulbinder Psyche	Level 10 Elite Hexer
+        Humanoid, War Dog	EV 48
+        <b>Stamina</b> 220
+        <b>Speed</b> 5 (fly, hover)	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 10
+        Might +1	Agility +3	Reason +3	Intuition +4	Presence +5
+        <b>Soulbind</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	15 holy damage; R<3 soulbound (save ends)
+        %E2%98%85	<b>12-16</b>	20 holy damage; R<4 soulbound (save ends)
+        %E2%9C%B8	<b>17</b>	24 holy damage; R<5 soulbound (save ends)
+        <b>Effect</b> Soulbound creatures cannot benefit from surges or edges until the condition ends as their equipment fights against them.
+
+        <b>Soulstorm</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 2 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 cube within 10<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 corruption damage; P<3 weakened (EoT)
+        %E2%98%85	<b>12-16</b>	12 corruption damage; P<4 weakened (EoT)
+        %E2%9C%B8	<b>17</b>	15 corruption damage; P<5 weakened (EoT)
+        <b>Effect</b> The affected area is considered difficult terrain until the beginning of Psyche's next turn. Psyche may use a maneuver at the start of her turn to maintain this effect, move it up to 5 squares in any direction, and roll power against each creature in the new area.
+        <b>1 Malice </b>Until the start of Psyche's next turn, if this ability applies weakened, it also applies Soulbound (save ends)
+
+        <b>Command the Awakened </b>(Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> 5 burst<b>	Target</b> all soulbound enemies
+        <b>Effect</b> Each target takes 5 damage as if attacking themself, and <b>M<4</b> slides 5.
+
+        <b>Spirit Form </b>(Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> An enemy moves within 2 squares of Psyche.
+        <b>Effect</b> Psyche moves 5 squares away. During this movement, she has damage immunity 5 and ignores difficult terrain. Whenever she passes through a creature for the first time during the movement, that creature takes 5 corruption damage.
+
+        <b>Vengeance for the Slain </b>(Free Triggered Action)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> One war dog
+        <b>Trigger</b> The target becomes winded or dies.
+        <b>Effect</b> An enemy within 10 of the target loses all Surges and takes 5 corruption damage.
+        <b>1 Malice </b>The enemy also has a bane on their next strike.
+
+        <b>Immortal Soul</b>
+        When Psyche dies, her spirit supports the nearest war dog, who gains damage immunity 2, deals an additional 5 damage on strikes, and may use the Immortal Strike maneuver until the end of the encounter. That war dog also gains the Immortal Soul trait, and on their death will transfer this effect to the nearest war dog.
+
+        <b>Immortal Strike </b>(Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> one creature or object
+        <b>Effect</b> The target takes 10 psychic damage.
+        Castellan Hoplon	Level 10 Elite Defender
+        Humanoid, War Dog	EV 48
+        <b>Stamina</b> 260	<b>Immunity</b> damage 3
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 3
+        <b>Free Strike</b> 10
+        Might +5	Agility +2	Reason +4	Intuition +3	Presence +4
+        <b>Inspiring Strike</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	15 damage
+        %E2%98%85	<b>12-16</b>	20 damage; push 3
+        %E2%9C%B8	<b>17</b>	24 damage; push 5
+        <b>Effect </b>Two allies within 10 of Hoplon can shift up to their speed and either take the defend action or make a free strike.
+
+        <b>Summon the Onyx Tower</b> (Action) %E2%97%86 5 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 5 cube within 15<b>	Target</b> Special
+        <b>Effect</b> A 10-square tall tower made of black stone shimmers into being. It has 3 floors and a crenelated rooftop. War dogs within or adjacent to the onyx tower gain 5 Stamina at the start of each of their turns and have damage immunity 2, and war dogs within the tower have line of effect through its walls. The tower has an entrance in the middle of each side on the ground floor. This ability can only be used once per encounter.
+
+        <b>Shield Warden</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 3 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	R<3 taunted (EoT)
+        %E2%98%85	<b>12-16</b>	R<4 taunted (EoT)
+        %E2%9C%B8	<b>17</b>	R<5 taunted (EoT)
+        <b>Effect</b> Until the start of his next turn, enemy abilities that include Hoplon as a target have a bane.
+
+        <b>Timely Intervention</b> (Triggered Action)
+        <b>Keywords</b> Attack, Magic
+        <b>Distance</b> Ranged 10<b>	Target</b> Triggering enemy
+        <b>Trigger</b> An enemy targets an ally with a strike or ability.
+        <b>Effect</b> Hoplon teleports to an unoccupied space adjacent to the target and becomes the new target. Hoplon then makes a free strike against the target, who becomes <b>R<4</b> taunted (EoT).
+
+        <b>Black Shield's Curse</b> (Free Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> One enemy
+        <b>Trigger</b> The target deals damage to Hoplon.
+        <b>Effect</b> Hoplon's cursed shield returns some of the damage it takes. The target takes corruption damage equal to half the damage dealt to Hoplon +3 (or +10 if Last Stand is activated).
+
+        <b>Hold the Line</b>
+        Each ally within 3 squares of Hoplon has damage immunity 2 and cover.
+
+        <b>Last Stand</b>
+        The first time Hoplon's Stamina would be reduced to 0, it is instead reduced to 1. He gains damage immunity 10 until the end of his next turn. When Hoplon dies, each ally within 5 gains damage immunity 3 and deals an additional 5 damage on strikes.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e8c33163-fd4c-4251-88bd-96eac0ca5639: true
+      modifiers: []
+      name: Immortal Soul
+      description: When Psyche dies, her spirit supports the nearest war dog, who gains damage immunity 2, deals an additional 5 damage on strikes, and may use the Immortal Strike maneuver until the end of the encounter. That war dog also gains the Immortal Soul trait, and on their death will transfer this effect to the nearest war dog.
+      guid: e8c33163-fd4c-4251-88bd-96eac0ca5639
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:712ed494-a7f2-41a3-ac4a-cca83b5e3d52: true
+      modifiers: []
+      name: Hold the Line
+      description: Each ally within 3 squares of Hoplon has damage immunity 2 and cover.
+      guid: 712ed494-a7f2-41a3-ac4a-cca83b5e3d52
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b6029eff-64a2-4d67-be71-7b3d684bb274: true
+      modifiers: []
+      name: Last Stand
+      description: The first time Hoplon's Stamina would be reduced to 0, it is instead reduced to 1. He gains damage immunity 10 until the end of his next turn. When Hoplon dies, each ally within 5 gains damage immunity 3 and deals an additional 5 damage on strikes.
+      guid: b6029eff-64a2-4d67-be71-7b3d684bb274
+      source: Trait
+    role: Elite Hexer
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "220"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 10
+    monster_type: Soulbinder Psyche
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 5
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 4
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    damage_taken: 0
+    max_hitpoints: 220
+    resources: []
+    traitNames: []
+    ev: 48
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 holy damage; R<3 the target is soulbound (save ends)
+        - 20 holy damage; R<4 the target is soulbound (save ends)
+        - 24 holy damage; R<5 the target is soulbound (save ends)
+        roll: 2d10 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 08aeeaef-c356-40dc-9407-3ff6455ff7e5
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Soulbind
+      numTargets: 2
+      description: Soulbound creatures cannot benefit from surges or edges until the condition ends as their equipment fights against them.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 230b94df-d8da-4d5c-906c-3bfb4a3cf219
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 corruption damage; P<3 weakened (EoT)
+        - 12 corruption damage; P<4 weakened (EoT)
+        - 15 corruption damage; P<5 weakened (EoT)
+        roll: 2d10 + Presence
+      name: Soulstorm
+      implementation: 3
+      description: The affected area is considered difficult terrain until the beginning of Psyche's next turn. Psyche may use a maneuver at the start of her turn to maintain this effect, move it up to 5 squares in any direction, and roll power against each creature in the new area.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: da7f19e6-85d2-4442-b40a-3c3f1fb2e671
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: 'Command the Awakened '
+      numTargets: 1
+      description: Each target takes 5 damage as if attacking themself, and M<4 slides 5.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: eed83dc7-8e4b-4721-8ed4-6f44b5d370ea
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: 'Spirit Form '
+      numTargets: 1
+      description: Psyche moves 5 squares away. During this movement, she has damage immunity 5 and ignores difficult terrain. Whenever she passes through a creature for the first time during the movement, that creature takes 5 corruption damage.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: e68eb98a-845d-482f-8502-385f726d4321
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: 'Vengeance for the Slain '
+      numTargets: 1
+      description: An enemy within 10 of the target loses all Surges and takes 5 corruption damage.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: e6ade2f0-1b9e-4afa-b8ea-fc38b37483cc
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: 'Immortal Strike '
+      numTargets: 2
+      description: Two allies within 10 of Hoplon can shift up to their speed and either take the defend action or make a free strike.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 60f0f378-9995-4d79-91d6-fb9e81d3f7c8
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Summon the Onyx Tower
+      implementation: 0
+      description: A 10-square tall tower made of black stone shimmers into being. It has 3 floors and a crenelated rooftop. War dogs within or adjacent to the onyx tower gain 5 Stamina at the start of each of their turns and have damage immunity 2, and war dogs within the tower have line of effect through its walls. The tower has an entrance in the middle of each side on the ground floor. This ability can only be used once per encounter.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 5c089551-e495-4d41-b104-f88cc3cb48bd
+      abilityType: none
+      numTargets: 1
+      implementation: 0
+      name: Shield Warden
+      behaviors: []
+      description: Until the start of his next turn, enemy abilities that include Hoplon as a target have a bane.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Strike: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 7f1069fb-21a8-47b0-8341-fcb64867f9e6
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Timely Intervention
+      numTargets: "1"
+      description: Hoplon teleports to an unoccupied space adjacent to the target and becomes the new target. Hoplon then makes a free strike against the target, who becomes R<4 taunted (EoT).
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      guid: 42e408be-f512-4b89-84bb-573a910c5689
+      iconid: ui-icons/skills/1.png
+      name: Black Shield's Curse
+      behaviors: []
+      description: Hoplon's cursed shield returns some of the damage it takes. The target takes corruption damage equal to half the damage dealt to Hoplon +3 (or +10 if Last Stand is activated).
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 10
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: a6546f8c-27b8-4995-a8f9-4b362b43186f
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Immortal Flare
+      sourceReference:
+        __typeName: SourceReference
+        page: 319
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        See Immortal SoulThe target takes 10 psychic damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds:
+      fly: 5
+    levelChoices: []
+    minion: false
+    creatureSize: 1M
+    walkingSpeed: 5
+  tokenType: null
+  bestiaryId: ef5c55f2-31c7-427b-ba43-958fede031ef
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: Soulbinder Psyche
+parentFolder: 59c9947d-a228-4d1c-8cc3-a2a4185851ab
+artist: null
+ord: 0
+ctime: 1741590326579
+mtime: 1775201137032
+hidden: false

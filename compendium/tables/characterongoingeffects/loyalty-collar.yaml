@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 51eae9d3-3411-458b-aadd-04882ac2b633
+id: 51eae9d3-3411-458b-aadd-04882ac2b633
+ctime: 1747121672172
+domains:
+  CharacterOngoingEffect:51eae9d3-3411-458b-aadd-04882ac2b633: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Loyalty Collar
+statusEffect: true
+description: "{This ongoing effect enables \"Posthumous Promotion\" maneuver by other monsters}"
+mtime: 1747124221226
+iconid: e8608ee7-b3c9-4f0c-9aae-7013e5223f6b

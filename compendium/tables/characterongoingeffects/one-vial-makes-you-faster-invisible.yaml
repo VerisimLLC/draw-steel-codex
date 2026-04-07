@@ -1,0 +1,25 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  conditionid: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+  sourceguid: 87135433-7deb-4a7f-87f0-40ed39ba264b
+  source: Ongoing Effect
+  guid: bee21f13-4d3e-436c-84c8-4f0769c646ff
+  description: You are invisible
+  behavior: bestowcondition
+  name: One Vial Makes You Faster - invisible
+source: Ongoing Effect
+guid: 87135433-7deb-4a7f-87f0-40ed39ba264b
+id: 87135433-7deb-4a7f-87f0-40ed39ba264b
+ctime: 1767505058160
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: One Vial Makes You Faster - invisible
+description: You are invisible
+custom: true
+mtime: 1767505058160
+iconid: ui-icons/skills/1.png

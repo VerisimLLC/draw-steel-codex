@@ -1,0 +1,166 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 688389f8-f3cc-465f-bd67-366b60a92ab7
+    guid: 345fa581-af8e-4553-8428-fdee8a0501c5
+    source: Item
+    behavior: activated
+    description: ""
+    name: Divine Vine
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: b273c5a1-7c12-4484-808b-c303530c5ce6
+      domains: []
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        namedAbility: Grab
+        abilityType: named
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 1c223bac-4d16-4576-89d7-0855b43e71a3
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      name: Divine Vine
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: 907e6b8e-2d0c-4a53-ad32-f7e01c6c4e95
+  - __typeName: CharacterModifier
+    sourceguid: 688389f8-f3cc-465f-bd67-366b60a92ab7
+    modifyDescription: Use your Divine Vine to grab
+    source: Item
+    filterAbility: ability.name is "Grab"
+    behavior: modifyability
+    attributes:
+    - operation: Set
+      value: "5"
+      id: range
+    guid: 29193ebc-bf57-4dd2-b63d-88d185e01fa5
+    description: ""
+    name: Divine Vine
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 69e96f53-ab03-413b-91dd-a6ccdb0c346a
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Item
+  name: Divine Vine
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 688389f8-f3cc-465f-bd67-366b60a92ab7
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 83749aed-8bce-4a22-9bb7-42c619b223f2
+    guid: bb422314-9c07-42b5-a213-6cda6d01c6b6
+    source: Item
+    behavior: activated
+    description: ""
+    name: Pull Grabbed Target
+    activatedAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        modesSelected:
+        - 2
+        rule: pull 6
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        applyto: caster
+        rule: pull 6
+        modesSelected:
+        - 1
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Pull Self
+      - text: Pull Target
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      domains: []
+      numTargets: "1"
+      guid: 4b0bc45c-88e3-47d2-b1df-e84e1489e01b
+      name: Pull Self/Grabbed Target
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  source: Item
+  name: Pull Grabbed Target
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 83749aed-8bce-4a22-9bb7-42c619b223f2
+id: cf2b74c7-e511-45c2-b0be-517eddf0bdcc
+keywords:
+  Magic: true
+projectSource: Songs in Yllyric
+flavor: A coil of emerald-green vines is topped with the jaws of an enormous Venus flytrap.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+ctime: 1758404344159
+projectGoal: "150"
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+itemPrerequisite: Three withered mundane vines, a tree’s blessing
+name: Divine Vine
+mtime: 1759400241024
+description: As a maneuver, you call upon the Divine Vine in Yllyric, causing it to extend up to 5 squares from you and attach its jaws to a creature or object, allowing you to use the Grab maneuver at a distance. If the target is grabbed, you can choose to keep the divine vine extended, pull the target adjacent to you, or pull yourself adjacent to the target. The divine vine stays attached to the target until it takes damage from a strike, the target escapes your grab, or you call upon the vine to release the target (no action required).
+projectRollCharacteristic:
+  rea: true
+  prs: true
+iconid: 907e6b8e-2d0c-4a53-ad32-f7e01c6c4e95

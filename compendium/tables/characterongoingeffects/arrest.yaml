@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: c7415371-0d0f-4198-9edb-16526768282c
+id: c7415371-0d0f-4198-9edb-16526768282c
+ctime: 1749859207270
+domains:
+  CharacterOngoingEffect:c7415371-0d0f-4198-9edb-16526768282c: true
+sustainFormula: Conditions has "grabbed"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Arrest
+custom: true
+description: ""
+mtime: 1758638981899
+iconid: ui-icons/skills/1.png

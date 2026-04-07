@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+testCases:
+- text: Forced movement +2
+modifiers:
+- __typeName: CharacterModifier
+  guid: c73ffe50-415c-4fed-a1b0-b996d177c76d
+  sourceguid: 03d2f018-411d-4110-a10d-1b8c7dfa0bac
+  value: "<<bonus>>"
+  source: Monster
+  name: Forced Movement Bonus
+  behavior: attribute
+  description: ""
+  attribute: ba15f0e1-b50c-4324-af08-ce8f2b8f2cf0
+source: Monster
+guid: 03d2f018-411d-4110-a10d-1b8c7dfa0bac
+importMatch: Forced movement \+<<bonus>>
+ctime: 1738391467833
+name: Forced Movement Bonus
+id: d676be22-5dbb-45dd-a59c-7075ee79af40
+description: ""
+mtime: 1755645841433
+implementation: 3

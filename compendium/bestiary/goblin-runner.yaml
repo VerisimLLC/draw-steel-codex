@@ -1,0 +1,198 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 96256a40-32a3-4f10-8659-5b73ae7b1104
+    offtokenPortraitId: 09fe1dc6-0d1f-4cbe-ab1c-6aa3be7649cc
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.335293
+    portraitOffset:
+      x: 0.04296971
+      y: 0.01953098
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Goblin Runner
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5ca01bb1-ab23-4d8a-99a5-0b572f9afdd0
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    attackNames:
+    - Light Melee
+    creatureSize: 1S
+    levelChoices: []
+    pr: 2
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Goblin Runner	Level 1 Minion Harrier
+        Goblin, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed</b> 6 (climb)	<b>Size </b>1S / <b>Stability</b> 0
+        <b>With Captain</b> Edge on strikes	<b>Free Strike</b> 1
+        Might -2	Agility +2	Reason +0	Intuition +0	Presence -1
+        <b>Club Charge</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	1 damage
+        %E2%98%85	12%E2%80%9316	2 damage
+        %E2%9C%B8	17+	3 damage
+
+        <b>Crafty</b>
+        The runner doesn't provoke opportunity attacks by moving.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a5056d66-3161-42cc-82c8-bc5b1d93bec7: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        behavior: attribute
+        source: Trait
+        name: Crafty
+        value: 1
+        description: The runner doesn't provoke opportunity attacks by moving.
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Crafty: you do not provoke opportunity attacks while moving."
+        sourceguid: eae4d953-c53f-41d8-aae3-cc9de122b1f8
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        description: The runner doesn't provoke opportunity attacks by moving.
+        guid: ae40d818-4992-4a2a-b075-eaf5d52b5910
+        color: green
+      source: Trait
+      description: The runner doesn't provoke opportunity attacks by moving.
+      guid: a5056d66-3161-42cc-82c8-bc5b1d93bec7
+      name: Crafty
+      implementation: 3
+    role: Minion Harrier
+    equipment: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 1
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    initiativeGrouping: 2ea525b4-897d-44b1-a6e0-affe42448471
+    keywords:
+      Goblin: true
+      Humanoid: true
+    damage_taken: 0
+    notes:
+    - text: ""
+      title: Monster Notes
+    walkingSpeed: 6
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    minionSquad: Goblin Runner Squad 1
+    resources: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: dca49d38-942d-4531-a307-366609264374
+      implementation: 4
+      numTargets: 1
+      name: Club Charge
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    movementSpeeds:
+      climb: 6
+    fmr: 0
+    withCaptain: Gain an edge on strikes
+    monster_category: Monster
+    monster_type: Goblin Runner
+  tokenType: null
+  bestiaryId: bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1715748088616
+description: Goblin Runner
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590301006
+mtime: 1775201137032
+hidden: false

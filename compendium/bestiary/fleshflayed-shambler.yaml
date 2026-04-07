@@ -1,0 +1,166 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d6a04678-826d-4483-b9e9-14634a0006c6
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Fleshflayed Shambler	Level 4 Minion Brute
+        Undead	EV 6 for four minions
+        <b>Stamina</b> 9	<b>Immunity</b> corruption 4, poison 4
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Strike damage +2<b>Free Strike</b> 3
+        Might +3	Agility -1	Reason +0	Intuition +0	Presence +0
+        <b>Bone Carvers </b>(Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12-16</b>	5 damage
+        %E2%9C%B8	<b>17</b>	7 damage
+        <b>Effect</b> The target is bleeding (save ends) if the shambler has an edge on this ability.
+
+        <b>Fleshfused Spines</b>
+        Whenever an enemy makes physical contact with the shambler or uses a melee ability against the shambler, they take 2 damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:678cbac7-5a75-47b2-872d-c38df2bfc732: true
+      modifiers: []
+      name: Fleshfused Spines
+      description: Whenever an enemy makes physical contact with the shambler or uses a melee ability against the shambler, they take 2 damage.
+      guid: 678cbac7-5a75-47b2-872d-c38df2bfc732
+      source: Trait
+    role: Minion Brute
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "9"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 3
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    monster_type: Fleshflayed Shambler
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    withCaptain: Strike damage +2
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 9
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d548823c-40ab-43e2-87b8-d2213d854b36
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: 'Bone Carvers '
+      numTargets: 1
+      description: The target is bleeding (save ends) if the shambler has an edge on this ability.
+      abilityType: none
+      implementation: 3
+    keywords:
+      Undead: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 0ba16222-c665-41bf-a10a-fef5cc2afc37
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969981
+description: Fleshflayed Shambler
+parentFolder: 68f67367-de21-43f0-8448-61d0408cd721
+artist: null
+ord: 2
+ctime: 1741590218085
+mtime: 1775201137032
+hidden: false

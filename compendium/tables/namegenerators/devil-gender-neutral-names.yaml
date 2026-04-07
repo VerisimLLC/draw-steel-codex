@@ -1,0 +1,49 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 25403990-5e5a-4e4b-9b91-50e1b8d7d005
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Halciar
+- __typeName: RollTableRow
+  id: 755e3127-8b8a-48c5-80a7-a3372acddab6
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Illion
+- __typeName: RollTableRow
+  id: 0bed68c4-9341-455f-a6a5-bb037b9475e4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Karya
+- __typeName: RollTableRow
+  id: 88e3125b-d45b-4ac2-996a-e1911c0e08b8
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Moriel
+- __typeName: RollTableRow
+  id: 14191ad3-c31a-48d1-8269-c7f62f5b08d4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Orliath
+id: 22a73d02-bf8c-4dae-9ce2-c4c1ad4708fb
+name: Devil Gender Neutral Names
+subtable: true
+mtime: 1743448564090
+items: false
+ctime: 1743443734811

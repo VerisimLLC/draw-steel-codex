@@ -1,0 +1,53 @@
+__typeName: ActivatedAbility
+insertAtStart: false
+targetFilter: ""
+repeatTargets: false
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+flavor: "***Note from Lisa**** This was created and is not needed - should probably be deleted."
+categorization: Ability
+range: 1
+abilityType: none
+testCases:
+- text: moves up to their speed
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: c47d747b-8fb6-47e9-bfe5-17a6dba062ee
+importMatchType: rules
+importMatch: moves up to their speed
+ctime: 1740883188981
+_fork: H4sIAAAAAAAACrVUQW7bMBD8CqHejDKRHNqSfEsDFCjQ5BLfgyW5kohQpEBSbt2gfy8pK3GauGkLtD4Y1nhnObM71EN2dxf2A95Aj9kmuxRB7SCgvORKq7DP3pPMobejE3hlfYglxhpMcADXYthGbgQ96iaBh8oIXFvjA7qEmUPr28EpExKg+sG6cA1BdDPdjRp9+qu3UjUKnc82D9mdHmELXMeKBrTH74krrFEyUkZF029/7u+V1v68OBtMm1rAQfnc+VFtO04swUpZspLTquFrykqsKW9wRYsS1pJDvl7iwRz6cAUeJx1F+gr4Nbnv7Q49GQcSLAkdKkf8gCgT55nc4MZJ7SkHIo63tU59g6CsSTM/jppjBztl3fHYN7fzyezsPc4PH2butIYARoJ72uImWzJRggCe7CJlqxwo4CqPcygQKlhXgovEFKMPtn/i/UbAK82nDJux305ZiRXRVEoUmDZWFMdwHJxI8qzvP4iCwwEhPB0+MSMs0Qunhnn8qVAqP2iY/HYj+k41cdd5MtcKq+NMN9m7Zv5Mnp1qu2DQ+4MLD2F08z6L01GYA5iX9XKZ55xCnleU8aailWxWlMk65rAQBZbNr1N88s6dOAyGQe+DjUVhNv+q5WNE/iK5rxcZ45DWV5Qsv2Drep1X+TLCjYbdNLTFYnFjA5LG2Z58Vh4isCDbTnnyBTwRDlOYSFRCImRsICZepohQ4js7akkGZ3mUsScciUSNsfzsxTvk7VvZHyVW5bpmZc0ufo7gH6dEGY8uXIbbONTwrPD/h2eKjkRgQrCcrnDJKauBUeBCUrmKlxekqEA2x5B8VDq9fw/KX7b8Af0mpLX2BQAA
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: targets
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0792200b-a008-4bf8-8df5-4d9fe51c1e7f
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  standardAbility: 24c7acab-bfee-450a-ae50-8f1ea8a68cbc
+  abilityType: standard
+description: ""
+name: Sprint
+id: dea4cc40-5e2b-49a4-abcd-d58cbadc8adf
+mtime: 1743459951511
+resourceCost: none
+iconid: ui-icons/skills/1.png

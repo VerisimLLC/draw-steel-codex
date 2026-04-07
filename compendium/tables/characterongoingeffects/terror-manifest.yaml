@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: ba0ae658-65e2-4295-95dd-61e632599726
+id: ba0ae658-65e2-4295-95dd-61e632599726
+ctime: 1751724573814
+sustainFormula: ConditionCaster("frightened") =  ConditionCaster("Terror Manifest")
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Terror Manifest
+description: While frightened this way, if a target who is a leader or solo creature is winded, they take an extra 25 psychic damage. If a target frightened this way is not a leader or solo creature and is winded, they are reduced to 0 Stamina.
+mtime: 1768956634677
+custom: true
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,127 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  objectTarget: false
+  targetFilter: target.Ongoing Effects has "DragonsealedThorn"
+  repeatTargets: false
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "100"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: c202d488-8c79-4f8a-b322-e3728439a3f1
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+    duration: end_of_next_turn
+    ongoingEffectCustom: false
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Cage of Thorns
+  numTargets: "1"
+  description: A cage of thorns grows around one dragonsealed enemy on the encounter map, making that enemy restrained until the end of their next turn.
+  abilityType: none
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  targetType: anyspace
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "100"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: f49b0c4a-4bdc-4381-9104-2fdca855cf38
+  behaviors:
+  - __typeName: ActivatedAbilityCreateObjectBehavior
+    randomize: true
+    objectid: d6404f9b-91f2-4b53-88a2-1562e70fe839
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    applyto: caster
+    ongoingEffect: 91494f35-cb5b-4a46-a3f2-0ceccd48a688
+    ongoingEffectCustom: 91494f35-cb5b-4a46-a3f2-0ceccd48a688
+  targeting: contiguous_wall
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Bramble Barricade
+  numTargets: "10"
+  description: |-
+    The dragon grows a 10 wall of briars in unoccupied spaces on the encounter map. The wall blocks line of effect for all creatures except the dragon. Each square of the wall has 5 Stamina and fire weakness 5. The area can be moved through but is difficult terrain.
+
+    Any creature who is force moved into or within the area takes 1 damage for each square of the area entered and is bleeding until the end of their next turn.
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: 9649eaea-cfb3-43ff-9b2c-d86380fb8d41
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 1e893ba5-8363-4203-98da-6a974692a6e6
+  castImmediately: true
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: The dragon takes an additional main action on their turn. They can use this feature even if they are dazed.
+  abilityType: none
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  targetFilter: Enemy
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 6b2897f8-a343-4ba0-8b0e-d7a12adcb2f3
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: agl
+    roll: 2d10 + Agility
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 12 poison damage; restrained (save ends)
+    - 9 poison damage; bleeding (save ends)
+    - 5 poison damage; bleeding (EoT)
+  name: Afflictive Overgrowth
+  numTargets: "1"
+  description: |-
+    The dragon summons poisonous, biting thorns around their foes.
+    Each enemy on the encounter map makes an Agility test.
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1772805808088
+name: Thorn Dragon
+traits: []
+attacks: []
+id: b2158049-17c2-4846-b7ee-a54f23397281
+ctime: 1762942794598

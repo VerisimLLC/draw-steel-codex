@@ -1,0 +1,98 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetFilter: target.Keywords has not "Dragon"
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00208115577698
+        v: 0.804975986480713
+        a: 1
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: b398fec8-c553-4cfc-a9ac-2119f1f68175
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 48f3563f-a603-4287-aa41-2c473a000273
+      ongoingEffectSource: specific
+      duration: end_of_next_turn
+      ongoingEffectCustom: d2305f8b-f23b-4e6d-a4ec-e89c2d3a1602
+    conditionFormula: Movement Type is not "fly"
+    castImmediately: true
+    numTargets: "1"
+    trigger: beginturn
+    name: Thorn Dragon Domain
+    description: ""
+    abilityType: none
+    iconid: 5f787e7d-f544-436b-806b-28b94774f5f9
+  description: 'Any creature other than the dragon who starts their turn on the encounter map has their speed reduced by 2 (to a minimum of 1). Any creature made restrained while on the ground is also made bleeding. '
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 0f216ff6-c3f3-4310-a73a-87c8672f66e4
+  name: Thorn Dragon Domain
+  sourceguid: 97d2bb3a-bdae-438f-b003-962c592f0fe0
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetFilter: target.Keywords has not "Dragon"
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: b6b8db9f-f389-4a51-9964-4f21696ab0ed
+    behaviors:
+    - __typeName: ActivatedAbilityApplyRidersBehavior
+      conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+      riderid: 1e874976-0a90-4d84-86c5-b8b9f71f99be
+    conditionFormula: Condition is "Restrained"
+    castImmediately: true
+    numTargets: "1"
+    trigger: inflictcondition
+    name: Thorn Dragon Domain
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: 'Any creature other than the dragon who starts their turn on the encounter map has their speed reduced by 2 (to a minimum of 1). Any creature made restrained while on the ground is also made bleeding. '
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 90df777b-4047-4ade-887e-04a1f2c718a6
+  name: Thorn Dragon Domain
+  sourceguid: 97d2bb3a-bdae-438f-b003-962c592f0fe0
+source: Ongoing Effect
+guid: 97d2bb3a-bdae-438f-b003-962c592f0fe0
+id: 97d2bb3a-bdae-438f-b003-962c592f0fe0
+ctime: 1770204261221
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00208115577698
+    v: 0.817536771297455
+    a: 1
+description: 'Any creature other than the dragon who starts their turn on the encounter map has their speed reduced by 2 (to a minimum of 1). Any creature made restrained while on the ground is also made bleeding. '
+name: Thorn Dragon Domain
+hiddenOnToken: true
+mtime: 1774444392728
+custom: true
+iconid: 5f787e7d-f544-436b-806b-28b94774f5f9

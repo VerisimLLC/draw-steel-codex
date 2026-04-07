@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+canEndWithAction: false
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.6670001745224
+    s: 0.89843761920929
+    v: 0.914457738399506
+    a: 1
+guid: 5135d211-9fec-4748-94ed-d93388bd91f1
+id: e2b6b7b5-bcb0-46d6-b894-38363619c122
+ctime: 1765801525029
+domains:
+  CharacterOngoingEffect:5135d211-9fec-4748-94ed-d93388bd91f1: true
+description: Damage dealing abilities deal lightning damage
+endActionType: none
+name: Damage-Dealing Abilities do Lightning Damage
+custom: true
+mtime: 1765801671180
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5135d211-9fec-4748-94ed-d93388bd91f1
+  displayCondition: Ability.doesdamage
+  source: Ongoing Effect
+  guid: f846a4a9-7d28-4c99-8c06-fbec450fc5f1
+  keywords: []
+  activationCondition: Ability.doesdamage
+  damageTypeMappings:
+    all: lightning
+  domains:
+    CharacterOngoingEffect:5135d211-9fec-4748-94ed-d93388bd91f1: true
+  name: Damage-Dealing Abilities do Lightning Damage
+  modtype: none
+  description: Damage dealing abilities deal lightning damage
+  rollType: ability_power_roll
+  behavior: power
+iconid: 00a89db6-da4a-47fc-98aa-303a1e6b5226

@@ -1,0 +1,52 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:8e7e6bd0-9eca-4c46-84de-56466f66b515: true
+  sourceguid: 8e7e6bd0-9eca-4c46-84de-56466f66b515
+  description: ""
+  source: Ongoing Effect
+  name: Bound Ahead
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: leaveadjacent
+    strain: []
+    guid: a24dff40-0b8e-4892-a32c-b4a183645d28
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:8e7e6bd0-9eca-4c46-84de-56466f66b515: true
+    targetType: self
+    persistence: []
+    name: Bound Ahead
+    behaviors: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: af357537-9cbf-48b8-9bef-c6105b935e41
+source: Ongoing Effect
+guid: 8e7e6bd0-9eca-4c46-84de-56466f66b515
+id: 8e7e6bd0-9eca-4c46-84de-56466f66b515
+ctime: 1771334821149
+domains:
+  CharacterOngoingEffect:8e7e6bd0-9eca-4c46-84de-56466f66b515: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Bound Ahead
+statusEffect: true
+description: ""
+mtime: 1771336530235
+iconid: ui-icons/skills/1.png

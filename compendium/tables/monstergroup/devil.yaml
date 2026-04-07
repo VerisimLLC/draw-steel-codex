@@ -1,0 +1,71 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: 1238a779-5027-4882-bbf7-e4cc0e28c4d1
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Bureaucratic Tape
+  range: 1
+  description: One devil acting this turn uses a signature ability against an adjacent creature. On a tier 3 outcome, the target of the ability has a double bane on strikes (save ends).
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: 2c758597-b616-483f-888d-88d74eb74c5c
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Underhanded Tactics
+  range: 1
+  description: One or two devils can teleport to a space adjacent to one or more creatures who aren’t hidden and make a free strike. For each 2 additional Malice spent on this feature, one additional devil can teleport.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "7"
+  strain: []
+  guid: 71bc7172-1e67-406d-92d5-11c91d7e9a20
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Read the Small Print
+  range: 1
+  description: Each enemy in the encounter is subject to a bad deal proposed by the devils. An enemy must choose between having damage weakness 5 or taking a bane on power rolls. The bad deal lasts until the end of the encounter.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762942345877
+name: Devil
+traits: []
+attacks: []
+id: 2c4ebcaf-087b-4f0d-a94a-61e9b67fb70f
+ctime: 1758524612606

@@ -1,0 +1,45 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: cdb0b934-8df0-4760-839b-335fb859f282
+projectpoints: "240"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Disciple Career Feature
+      behavior: proficiency
+      description: You have the Religion skill
+      equate: false
+      name: Religion Skill
+      sourceguid: 5a40632f-c8c8-4146-8604-055347bf7ab7
+      proficiency: proficient
+      guid: 94af98dd-46a5-4f52-adaf-9743993ca64f
+      skills:
+        afd26a9a-22e2-4341-b171-f7e3182c8744: true
+    name: Religion Skill
+    description: You have the Religion skill
+    guid: 5a40632f-c8c8-4146-8604-055347bf7ab7
+    source: Disciple Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      lore: true
+    name: Disciple Lore Skills
+    numChoices: 2
+    guid: 9abf5e74-b10c-4c46-b70d-486f4d2ca353
+    description: "Choose two Skills from the lore skill group (Quick Build: Culture, Magic)"
+    source: Disciple Career Feature
+  - __typeName: CharacterFeatChoice
+    guid: ea636e05-5cd4-42a0-857b-c93fd762f355
+    description: "Choose one supernatural perk. (Quick Build: Ritualist)"
+    tag: supernatural perks
+    name: Disciple Supernatural Perk
+name: Disciple
+mtime: 1757094916889
+description: "You worked in a church, temple, or other religious institution as part of the clergy. In defining your career, think about the following questions: \n\nWhat gods or saints did your institution venerate? \n\nWhat initiation rites did you undergo to get the job? \n\nWhat were your responsibilities as a disciple? \n\nHow was your institution viewed by members of the local culture? "
+id: b33ce4be-bde3-40fa-90ee-4b6ea6728610
+ctime: 1730558252726

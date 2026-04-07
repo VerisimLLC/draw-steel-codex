@@ -1,0 +1,30 @@
+__typeName: CharacterComplication
+drawback: You have corruption weakness 5.
+mtime: 1765803087514
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 0bc2caca-121f-41d4-983e-4c84da68a57a
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: corruption
+        apply: Damage Reduction
+      description: ""
+      name: Cult Victim
+      guid: b1554a06-3663-42c0-88c0-91943333dda7
+    name: Cult Victim
+    description: ""
+    guid: 0bc2caca-121f-41d4-983e-4c84da68a57a
+    canHavePrerequisites: true
+    source: Feat
+name: Cult Victim
+ctime: 1755513475386
+description: Cultists captured you while raiding your home, then began an unholy ritual to turn your body into an undead spirit. Though the ritual failed, your body became infused with corrupted magic, turning you partially incorporeal.
+id: 71ead44c-c9ae-44a9-a84b-6533398f0591
+benefit: Once per turn, you can move through solid matter 1 square thick or less. If you end your turn inside solid matter, you are forced out into the space from which you entered it and you take 5 damage that can’t be reduced in any way.

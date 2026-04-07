@@ -1,0 +1,28 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 62126376-448d-4c07-bd29-e37beef3153c
+ctime: 1774908905592
+textStorage:
+  __typeName: TextStorage
+  sections:
+    h: |
+      | | | <color=white>Wraith Raid</color> | | <color=yellow>Second Meeting<br>Gilded Hand</color> | <color=yellow>Gilded Hand Showdown</color> | | <color=purple>Mage Tower</color> | |
+    P: |
+      | <color=lightblue>Mikael<br>Carpenter</color><br>[B10. Carpenter] | <color=lightblue>Tansy<br>Furrier</color><br>[B11. Furrier] |<color=orange>Reeve<br>Rosamund</color><br>[B4. Reeve’s House]|| <color=green>Orson<br>Charcoal Burner</color> | <color=yellow>Gilded Hand</color> | <color=purple>Dunquat<br>Mason</color> | <color=purple>Murkik<br>Dwarf Merchants</color> | <color=purple>Harim<br>Cobbler</color> | 
+    E: |+
+      # Part 2 Flowchart
+
+    V: |
+      | <color=white>Full Moon</color> | | <color=orange>Saberna<br>Smokehoues</color> | <color=orange>Mill&Granary</color> | <color=green>Arixx Lair</color> | <color=yellow>Meeting the<br>Gilded Hand</color> | <color=purple>Carriage Heist</color> | <color=purple>Negotiate</color> | |
+    n: |
+      | | | <color=orange>Fort Forsaken</color> | | <color=green>Delian Tomb<br>Level 3</color> | | | | |
+    t: "| | | | | | | | | | "
+    b: |
+      | <color=white>Wolf Den</color> | | <color=orange>Brune<br>Butcher</color> | <color=orange>Vaughn<br>Woodcutter</color> | <color=green>Delian Tomb<br>Level 2</color> | <color=yellow>Illwyth Alone</color> | <color=white>Tavern Brawl</color> | | |
+    J: |
+      ||||| <color=white>Return to Broadhurst<br>Abott Loric's Quests</color><br>[Broadhurst] |||||
+parentFolder: 423b20dc-f04b-44af-849e-7a7e01636bf4
+updateid: cc301240-deec-499e-bc38-d8bcedd4ea3c
+mtime: 1774910139887
+content: ""
+description: Part 2 Flowchart

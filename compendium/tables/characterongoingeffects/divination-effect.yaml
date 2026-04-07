@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: fb68dbaf-d61d-4294-b035-af3333546be7
+id: fb68dbaf-d61d-4294-b035-af3333546be7
+ctime: 1770382049933
+domains:
+  CharacterOngoingEffect:fb68dbaf-d61d-4294-b035-af3333546be7: true
+custom: true
+description: This effect is cosmetic only
+name: Divination Effect
+statusEffect: false
+mtime: 1770814184920
+emoji: 95919a3e-5b47-4928-bc5d-f100e03456df
+iconid: ui-icons/skills/1.png

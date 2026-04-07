@@ -1,0 +1,342 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0758e3c6-bba7-4605-80ed-94ebb89846fb
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Myxovidan the Sintaker	Level 6 Elite Hexer
+        Draconian, Dragon, Humanoid	EV 46
+        <b>Stamina</b> 140	<b>Immunity </b>corruption 6
+        <b>Speed</b> 5 (flying)	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 7
+        Might -1	Agility +3	Reason +2	Intuition +2	Presence +1
+        <b>Breaking Palm</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 2 enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 damage; M<1 weakened (save ends)
+        %E2%98%85	<b>12-16</b>	15 damage; M<2 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	18 corruption damage; M<3 weakened (save ends)
+        <b>2 Malice</b> Myxovidan regains Stamina equal to half the damage dealt.
+
+        <b>Expunging Exhalation </b>(Action)
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 corruption damage; M<1 condemned (save ends)
+        %E2%98%85	<b>12-16</b>	12 corruption damage; M<2 condemned (save ends)
+        %E2%9C%B8	<b>17</b>	15 corruption damage; M<3 condemned (save ends)
+        <b>Effect </b>A condemned creature has corruption weakness 3 until the condition ends.
+
+        <b>Step and Swap </b>(Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 3<b>	Target</b> 1 ally
+        <b>Effect </b>Myxovidan and the target shift and swap places.
+
+        <b>Anyone Can Do That</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> An adjacent creature damages Myxovidan
+        <b>Effect </b>Myxovidan perfectly recreates the damaging move. If the move requires a Power Roll, Myxovidan rolls power using his stats. If Myxovidan gets a higher tier on this roll than the triggering creature, the Director gains 2 Malice.
+
+        <b>Stench of Death</b>
+        Whenever an enemy regains Stamina while within 5 of Myxovidan, they regain 3 less Stamina.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:279a0bfb-a4c7-4c0f-ae84-a831c5fd199b: true
+      modifiers: []
+      name: Stench of Death
+      description: Whenever an enemy regains Stamina while within 5 of Myxovidan, they regain 3 less Stamina.
+      guid: 279a0bfb-a4c7-4c0f-ae84-a831c5fd199b
+      source: Trait
+    role: Elite Hexer
+    inflictedConditions: []
+    keywords:
+      Dragon: true
+      Humanoid: true
+      Draconian: true
+    max_hitpoints_roll: "140"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: corruption
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Myxovidan the Sintaker
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: -1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 140
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 88
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: Myxovidan regains Stamina equal to half the damage dealt.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage; M<1 weakened (save ends)
+        - 15 damage; M<2 weakened (save ends)
+        - 18 corruption damage; M<3 weakened (save ends)
+        roll: 2d10 + Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: c33f9226-09d1-4a72-90b5-95382ab0416f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: Cast.DamageDealt / 2
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: Myxovidan regains Stamina equal to half the damage dealt."
+        autoTarget: false
+        applyto: caster
+      guid: 2fba0555-c7fa-4249-a892-c12d0e5d4a00
+      numTargets: 2
+      iconid: ui-icons/skills/1.png
+      name: Breaking Palm
+      categorization: Signature Ability
+      description: |2-
+
+        **2 Malice**: Myxovidan regains Stamina equal to half the damage dealt.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e1688e21-7a58-4d5f-a3d0-94908bcd857d
+      sourceReference:
+        __typeName: SourceReference
+        page: 88
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: ui-icons/skills/1.png
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 corruption damage; M<1 the target has corruption weakness 3 (save ends)
+        - 12 corruption damage; M<2 the target has corruption weakness 3 (save ends)
+        - 15 corruption damage; M<3 the target has corruption weakness 3 (save ends)
+        roll: 2d10 + Agility
+      name: Expunging Exhalation
+      numTargets: 1
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 24dd969e-9186-4a3f-9c3e-29fda2258b13
+      numTargets: 1
+      targetType: target
+      name: 'Step and Swap '
+      iconid: ui-icons/skills/1.png
+      description: Myxovidan and the target shift and swap places.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: f0c80fc3-2d8d-419a-bff5-aa1d1fbe24aa
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Anyone Can Do That
+      implementation: 0
+      description: Myxovidan perfectly recreates the damaging move. If the move requires a Power Roll, Myxovidan rolls power using his stats. If Myxovidan gets a higher tier on this roll than the triggering creature, the Director gains 2 Malice.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 3
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 1558af19-4a04-4b4b-9947-076ca292aa1d
+      sourceReference:
+        __typeName: SourceReference
+        page: 88
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Step & Swap
+      numTargets: 1
+      description: |
+        Myxovidan and the target shift to swap places.
+      abilityType: none
+      implementation: 0
+    groupid: 30f074ad-8a42-413f-a987-fb1a491e8ac7
+    movementSpeeds:
+      fly: 5
+    ev: 32
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 7d6d1668-cdc8-468c-a745-036139d905ee
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Myxovidan the Sintaker
+parentFolder: 9c6966f1-7896-4854-a485-664d5d643aee
+artist: null
+ord: 0
+ctime: 1741590270994
+mtime: 1775201137032
+hidden: false

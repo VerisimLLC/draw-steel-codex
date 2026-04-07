@@ -1,0 +1,59 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    targetFilter: Target = Self.Summoner
+    strain: []
+    guid: a037625a-c6be-4510-ae78-74ef9359783d
+    repeatTargets: false
+    abilityType: none
+    trigger: losehitpoints
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: Cast.Damage Dealt
+      chatMessage: Mind Projection Shared Damage
+    - __typeName: ActivatedAbilityRemoveCreatureBehavior
+    targetType: all
+    name: Mind Projection body
+    numTargets: "1"
+    description: ""
+    range: "100"
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 13731c55-8938-4946-b06c-b3828eb25e59
+  name: Mind Projection body
+  sourceguid: 6f22dc84-df2a-487c-8043-804602951cd8
+- __typeName: CharacterModifier
+  conditionid: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+  sourceguid: 6f22dc84-df2a-487c-8043-804602951cd8
+  source: Ongoing Effect
+  guid: c9bfde7d-10d5-402e-ad20-b3f0fdad7001
+  description: ""
+  behavior: bestowcondition
+  name: Mind Projection body
+source: Ongoing Effect
+guid: 6f22dc84-df2a-487c-8043-804602951cd8
+id: 6f22dc84-df2a-487c-8043-804602951cd8
+ctime: 1757014162566
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1765946144443
+condition: bfe300f4-83f9-4303-9abb-951974025e88
+endTrigger: none
+description: ""
+name: Mind Projection body
+iconid: 144134df-02dc-44cd-9e2e-3d546b31a0f2

@@ -1,0 +1,40 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 9c33b873-cbea-4003-9677-0cb263760c37
+ctime: 1763576948684
+textStorage:
+  __typeName: TextStorage
+  sections:
+    l: 'The areas detailed inside and outside the keep are keyed to the [Castle '
+    f: |+
+      Deep in the Silver Wood and rumored to be haunted by Caelian ghosts, the ruins of Castle Andreas slumbered untouched for centuries. Then a few months ago, the Jagged Edge stumbled into it. The old keep verges on the brink of collapse, but the goblins aren’t afraid of toppling it if it means putting an end to their attackers. 
+
+    Z: |+
+      # Castle Andreas
+
+    w: |+
+      ## Keep Interior Features
+
+    xL: |
+      * **Ceilings:** The ceilings in most rooms are 4 squares high. The ceilings in [A2. Great Hall Barracks] are 6 squares high.
+    u: |
+      |So Many Different Encounters!|
+    v: |+
+      |There are different goblins in every battle depending on if the heroes have the cup, Queen Bargnot has the cup, and how long she has had the cup for. See [Goblin Replacements] for more information. The encounters have already been sorted out for you, you just need to select the right one based on your adventure situation!|
+
+
+    s: |+
+      Andreas Map].
+
+    t: |2
+
+    xN: |+
+      * **Illumination:** The keep is sparingly lit by torches in sconces at night. It receives a lot of natural light during the day.
+
+    yg: |2
+
+parentFolder: 3f6f50d2-bd00-4fb5-a3ba-b6089e65ec79
+updateid: 7d8fd9a4-3460-4fb2-adcb-036fc9bcf0fe
+description: Start Here - Castle Andreas
+content: "# Room 1"
+mtime: 1773430603344

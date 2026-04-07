@@ -1,0 +1,324 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 902a2584-d5b4-43d0-ad95-b58b10698b7b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 8
+    skillProficiencies: []
+    role: Platoon Brute
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 578cafbf-2b10-4cfb-acd6-4234233d8264-328
+    keywords:
+      Elemental: true
+    titles: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        d1ac1c06-70a5-4815-9c77-1a795b04a55e:
+          timestamp: 1771506073353
+          note: Melee Free Strike
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        9af58840-a1d6-4ecb-b1a5-19c11d319054:
+          timestamp: 1771505744993
+          note: Boulder of Bash
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        6cfa3688-de39-4e86-b159-89b7798151ac:
+          timestamp: 1771506049498
+          note: Melee Free Strike
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:de607578-0e96-4841-adbc-b3ff6f08f4fd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: de607578-0e96-4841-adbc-b3ff6f08f4fd
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:de607578-0e96-4841-adbc-b3ff6f08f4fd: true
+        name: Melee Reach 2
+        guid: 79a5b1f2-0f31-45a1-8675-a59e842cbe96
+        description: ""
+        behavior: attribute
+        attribute: reach
+      - __typeName: CharacterModifier
+        sourceguid: de607578-0e96-4841-adbc-b3ff6f08f4fd
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:de607578-0e96-4841-adbc-b3ff6f08f4fd: true
+        name: Melee Reach 2
+        guid: 454e15b5-ff6a-436b-a87e-134f33befb90
+        description: ""
+        behavior: attribute
+        attribute: burrow
+      name: Melee Reach 2
+      guid: de607578-0e96-4841-adbc-b3ff6f08f4fd
+      description: ""
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2cf96bd6-1d82-400a-9bf9-8a07e2a7db61: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2cf96bd6-1d82-400a-9bf9-8a07e2a7db61
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:2cf96bd6-1d82-400a-9bf9-8a07e2a7db61: true
+        name: Earthwalk
+        guid: bbc47d56-431b-4de3-8bac-220d50da3aad
+        description: Difficult terrain composed of earth and stone doesn’t cost the source extra movement.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      source: Character Feature
+      description: Difficult terrain composed of earth and stone doesn’t cost the source extra movement.
+      guid: 2cf96bd6-1d82-400a-9bf9-8a07e2a7db61
+      name: Earthwalk
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:66d9ee74-b74a-4850-bdf4-15adbba47927: true
+      modifiers: []
+      source: Character Feature
+      description: When the source burrows, they create a size 2 tunnel.
+      guid: 66d9ee74-b74a-4850-bdf4-15adbba47927
+      name: Tunnler
+      implementation: 0
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:01b13c73-79f5-4946-986c-5a1a1bfc0d8e: true
+      modifiers: []
+      name: Earth Harness
+      guid: 01b13c73-79f5-4946-986c-5a1a1bfc0d8e
+      description: A creature that has the Earth Accepts Me ability can use it as a free action to meld into the source.
+      source: Character Feature
+    equipmentMeta:
+      offhand0: []
+    monster_type: Source of Earth
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: -5
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -3
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -5
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    initiativeGrouping: 159b9fa0-11cb-4d8a-b940-de968cd0385e
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    damage_taken: 0
+    max_hitpoints: 45
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+    monster_category: Monster
+    inflictedConditions: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      rangeTextOverride: Melee 2 or Ranged 10
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 126
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: "10"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 60d8bc8a-68be-450b-9d7f-19271b7c4e08
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; push 3
+        - 9 damage; push 4
+        - 12 damage; push 5
+        roll: 2d10 + 3
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      iconid: ui-icons/skills/1.png
+      categorization: Signature Ability
+      name: Boulder of Bash
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Basic Attack
+      range: 1
+      id: 0a68f64c-67f7-4279-9741-38aedaab7029
+      numTargets: "1"
+      persistence: []
+      modifiers: []
+      source: Monster
+      strain: []
+      guid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      ctime: 1738219154119
+      castImmediately: false
+      implementation: 4
+      description: 3 corruption damage
+      name: Melee Free Strike
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        damageType: corruption
+        roll: 5*Charges
+      mtime: 1771254818415
+      abilityType: none
+      iconid: 391aec7f-87ba-4b36-9c2b-2b478ff823d8
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Basic Attack
+      range: 10
+      description: 3 corruption damage
+      persistence: []
+      modifiers: []
+      source: Monster
+      strain: []
+      guid: 8c0c9118-1554-4b79-9bf6-64352c89f71a
+      id: 0ca5fc04-6068-4f47-b5c6-936d3a595f24
+      ctime: 1715748044543
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "1"
+      implementation: 4
+      name: Ranged Free Strike
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: 5*Charges
+        damageType: corruption
+        chatMessage: ""
+      mtime: 1771254822264
+      abilityType: none
+      iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9
+    innateAttacks: []
+    levelChoices: []
+    retainer: false
+    opportunityAttack: 5
+    walkingSpeed: 6
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 11d12858-e729-47d3-8a3a-74a0b989bf5d
+  summonerid: null
+  ownerId: PARTY
+  partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+  size: 2
+  createdTimestamp: 1771504123687
+description: null
+parentFolder: a5ae2d3c-3124-40c1-a172-e59be545591d
+artist: null
+ord: 1
+ctime: 1771504310264
+mtime: 1775167426997
+hidden: false

@@ -1,0 +1,19 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+  sourceguid: efa2429c-5e24-46cc-b53a-60c590440d1f
+  behavior: resource
+  source: Character
+  name: Recoveries
+  num: "<<quantity>>"
+  description: ""
+  guid: 03032596-dca3-4f3e-8c59-27f437b7630b
+source: Character
+guid: efa2429c-5e24-46cc-b53a-60c590440d1f
+id: d1bec0aa-e2d9-415f-b130-dfb842eac32c
+ctime: 1715748325133
+name: Recoveries
+description: ""
+mtime: 1715748325133
+implementation: 3

@@ -1,0 +1,221 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: e37d8d51-8c6e-4538-9538-9405244d077c
+    offtokenPortraitId: 75069f99-e52d-4b03-9a4a-433001838ef1
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: a3ba6a10-adb4-43f1-a743-a59ca523c672
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.02986431
+      y: 0.09955767
+    frameHueShift: 0.5403429
+    frameSaturation: 0.6200197
+    frameBrightness: 0.5419353
+    popoutScale: 0.96
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 09e2c2e7-a5b0-4cb5-8152-cf2aeb4114a1
+  properties:
+    __typeName: monster
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Rogue	Level 1 Minion Ambusher
+        Human, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 4	<b>Immunity</b> Corruption 1, Psychic 1
+        <b>Speed</b> 7	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Edge on strikes	<b>Free Strike</b> 2
+        Might +0	Agility +2	Reason +0	Intuition +0	Presence +1
+        <b>Concealed Dagger</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5
+        <b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage
+        <b>	Effect</b> This ability deals an additional 3 damage if the spy was disguised or hidden before using it.
+
+        <b>Supernatural Insight</b>
+        The spy ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        CharacterFeature:5324d261-8697-4118-80e6-c3f989e27f8e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+          CharacterFeature:5324d261-8697-4118-80e6-c3f989e27f8e: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The rogue ignores concealment if it's granted by a supernatural effect.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The rogue ignores concealment if it's granted by a supernatural effect.
+      guid: 5324d261-8697-4118-80e6-c3f989e27f8e
+      name: Supernatural Insight
+      implementation: 3
+    role: Minion Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 2
+    initiativeGrouping: 21a9bdd4-f1c8-4d02-9ce7-210d45affe75
+    keywords:
+      Humanoid: true
+      Human: true
+    damage_taken: 0
+    savingThrowRatings: []
+    resources: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetTextOverride: One creature or object per minion
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 182
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 017ed5a7-ad06-4a92-bc7e-59dc7504e294
+      meleeRange: 1
+      iconid: d15fe212-5892-433b-869f-4778a5a9604d
+      numTargets: 1
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Concealed Dagger
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: ab4f547d-d232-4af5-aa50-3d4037243369
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: ab4f547d-d232-4af5-aa50-3d4037243369
+          displayCondition: Ongoing Effects has "disguised" or Conditions has "hidden"
+          behavior: power
+          keywords: []
+          activationCondition: "1"
+          description: If the rogue is disguised or hidden when they use this ability, it deals an extra 3 damage.
+          domains: []
+          name: Concealed Dagger
+          rollType: ability_power_roll
+          damageModifier: "3"
+          modtype: none
+          guid: c9b49376-8b98-4f48-9041-1399a3eecb93
+      description: If the rogue is disguised or hidden when they use this ability, it deals an extra 3 damage.
+      abilityType: none
+      implementation: 4
+    minionSquad: Human Rogue Squad 2
+    availableTriggers: []
+    walkingSpeed: 7
+    movementSpeeds: []
+    creatureSize: 1M
+    monster_type: Human Rogue
+    withCaptain: Gain an edge on strikes
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 4d33c185-2dd1-4e13-a3a2-b32246bc9b5a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1730266376535
+description: Human Rogue
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590247340
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,724 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727851141971
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: c454be38-1bec-43c0-aee3-7bc7680a8535
+        source: Earth Class Feature
+        name: 'Summon Source of Earth '
+        description: ""
+        behavior: activated
+        guid: d86f1184-4444-4033-ac60-43bc27753870
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetTextOverride: Special
+          repeatTargets: false
+          keywords:
+            Earth: true
+            Magic: true
+            Ranged: true
+          implementationDetails: The Codex doesn't currently support blocking this ability until you earn a victory.
+          targetType: emptyspace
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: The ground rumbles as an elemental bursts forth, ready to serve.
+          sourceReference:
+            __typeName: SourceReference
+            page: 126
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "10"
+          recastNewAbility:
+            __typeName: ActivatedAbility
+            objectTarget: false
+            targetFilter: ""
+            repeatTargets: false
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: f67b66ae-8b0c-4b87-afee-91b66d10f820
+              duration: 0
+              ongoingEffectCustom: f67b66ae-8b0c-4b87-afee-91b66d10f820
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            categorization: Hidden
+            range: "100"
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 3a917103-4437-4daf-9d1f-b7f32d256982
+            domains:
+              class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+              class:c1e1c512-6092-423f-85b2-324547f7f390: true
+            numTargets: "1"
+            name: Summon Source of Earth
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          persistence:
+            cost: 2
+            mode: none
+            enabled: true
+          modifiers: []
+          categorization: Ability
+          strain: []
+          guid: 4a527402-382b-4aa7-bd0e-a95400872bd6
+          behaviors:
+          - __typeName: ActivatedAbilitySummonBehavior
+            casterChoosesCreatures: false
+            monsterType: 11d12858-e729-47d3-8a3a-74a0b989bf5d
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Name = "Source of Earth"
+              repeatTargets: false
+              targetType: all
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: "100"
+              persistence:
+                cost: 2
+                enabled: false
+              modifiers: []
+              strain: []
+              guid: a22a6442-c788-440c-9180-bad46fd5292b
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: f846c6bf-8b13-4362-95cf-11d425b78daa
+                ongoingEffectCustom: f846c6bf-8b13-4362-95cf-11d425b78daa
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: Stacks("Source of Earth Damage Taken")
+                filterTarget: ""
+              selfTarget: false
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          domains:
+            class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          rangeTextOverride: ""
+          implementation: 3
+          name: Summon Source of Earth
+          numTargets: "1"
+          description: |-
+            **Effect**: A source of earth emerges from an unoccupied space within distance. The source takes their turn immediately after you, moving up to their speed and either taking a main action or a maneuver. The source is dismissed at the start of your next turn. The source starts an encounter at full Stamina, but maintains their current Stamina throughout the encounter, even if they are dismissed and you use this ability again. They can’t regain Stamina during the encounter. When the source’s Stamina is reduced to 0, you can’t use this ability again until you earn 1 or more Victories. 
+
+            **Persistent 2**: The source takes another turn. They are dismissed at the start of your next turn.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      source: Earth Class Feature
+      guid: c454be38-1bec-43c0-aee3-7bc7680a8535
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+      description: ""
+      name: 'Summon Source of Earth '
+      implementation: 3
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 60cd87f1-9485-4620-8cdb-2e87f1d701d8
+        source: Earth Class Feature
+        name: Motivate Earth
+        description: You have the following ability.
+        behavior: activated
+        guid: 98a4eace-c22d-4eee-a56b-d48ac5aa84de
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: 2
+          targetTextOverride: Special
+          repeatTargets: false
+          keywords:
+            Earth: true
+            Magic: true
+            Melee: true
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: 'The earth rises, falls, or opens up at your command. '
+          sourceReference:
+            __typeName: SourceReference
+            page: 116
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 163b5beb-9ac9-4f75-be99-3f3272ea9011
+          abilityType: none
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          domains:
+            class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          numTargets: "1"
+          behaviors: []
+          name: Motivate Earth
+          categorization: Ability
+          description: "You touch a square containing mundane dirt, stone, or metal and create a 5 wall of the same material, which rises up out of the ground and must include the square you touched. \n\nAlternatively, you touch a structure made of mundane dirt, stone, or metal that occupies 2 or more squares. You can open a 1-square opening in the structure where you touched it. You can instead touch an existing doorway or other opening that is 1 square or smaller in a mundane dirt, stone, or metal surface. The opening is sealed by the same material that makes up the surface. "
+          resourceCost: none
+          iconid: ui-icons/skills/1.png
+      source: Earth Class Feature
+      classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+      guid: 95e3a49b-ad64-4f09-8929-18bb3391d749
+      description: You have the following ability.
+      name: Motivate Earth
+    - __typeName: CharacterFeature
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 58daa810-91eb-44c5-abfa-f35a2d48c063
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 58daa810-91eb-44c5-abfa-f35a2d48c063
+        description: ""
+        source: Earth Class Feature
+        name: Acolyte of Earth
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: be257ebc-5dc6-42df-8340-b16036578e84
+            durationUntilEndOfTurn: false
+            duration: 1
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 83fa7289-2cc2-4edc-a885-8dac85788a86
+          conditionFormula: (Used Ability.Keywords has "Magic") and (Used Ability.Keywords has "Earth")
+          domains:
+            class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          targetType: self
+          name: Acolyte of Earth
+          trigger: useability
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f1d7b1f7-3fba-4d87-aed7-044d7dc2a999
+      name: Acolyte of Earth
+      classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+      description: ""
+      source: Earth Class Feature
+      implementation: 3
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2f93bb3b-29ee-4390-9c81-9475229ed3db
+        source: Earth Class Feature
+        value: Level
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: The Mountain Does Not Move
+        guid: 3971e4d7-4483-43b2-bf91-1f938e6fbb87
+        description: |-
+          You stand firm and magnetize your allies to stay grounded. Your stability increases by your level. 
+          Additionally, whenever an ally within distance of your Hurl Element ability is force moved, you can use a free triggered action to decrease your stability down to a minimum of 0, then increase the ally’s stability by an amount equal to the stability you lost. This change lasts until the end of the round.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 2f93bb3b-29ee-4390-9c81-9475229ed3db
+        description: |-
+          You stand firm and magnetize your allies to stay grounded. Your stability increases by your level. 
+          Additionally, whenever an ally within distance of your Hurl Element ability is force moved, you can use a free triggered action to decrease your stability down to a minimum of 0, then increase the ally’s stability by an amount equal to the stability you lost. This change lasts until the end of the round.
+        source: Earth Class Feature
+        name: The Mountain Does Not Move
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 8304ba4f-feea-45cf-9791-700cd9a55a70
+            stacks: Mode
+            duration: endround
+            ongoingEffectCustom: 8304ba4f-feea-45cf-9791-700cd9a55a70
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            duration: endround
+            ongoingEffectCustom: f04ac94e-cd0f-455b-b056-b067cc846aca
+            ongoingEffect: f04ac94e-cd0f-455b-b056-b067cc846aca
+            stacks: Mode
+          triggerPrompt: Give up your Stability to increase Ally's
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          domains:
+            class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          range: 1
+          abilityType: none
+          multipleModes: true
+          persistence: []
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          trigger: targetwithability
+          numTargets: "1"
+          conditionFormula: Used Ability.hasforcedmovement
+          modeList:
+          - text: 1 Stability
+            condition: Stability >= 1
+          - text: 2 Stability
+            condition: Stability >= 2
+          - text: 3 Stability
+            condition: Stability >= 3
+          - text: 4 Stability
+            condition: Stability >= 4
+          - text: 5 Stability
+            condition: Stability >= 5
+          - text: 6 Stability
+            condition: Stability >= 6
+          - text: 7 Stability
+            condition: Stability >= 7
+          - text: 8 Stability
+            condition: Stability >= 8
+          - text: 8 Stability
+            condition: Stability >= 9
+          - text: 9 Stability
+            condition: Stability >= 9
+          guid: f39fd13b-c7be-4a15-88ce-7e70252d8123
+          name: The Mountain Does Not Move
+          targetType: subject
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 3ceaf293-c584-4dd6-81af-113ad84aad45
+      source: Earth Class Feature
+      guid: 2f93bb3b-29ee-4390-9c81-9475229ed3db
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+      description: |-
+        You stand firm and magnetize your allies to stay grounded. Your stability increases by your level. 
+        Additionally, whenever an ally within distance of your Hurl Element ability is force moved, you can use a free triggered action to decrease your stability down to a minimum of 0, then increase the ally’s stability by an amount equal to the stability you lost. This change lasts until the end of the round.
+      name: The Mountain Does Not Move
+      implementation: 3
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1b3de591-e953-42fa-a947-61fda9301af5
+        source: Earth Class Feature
+        guid: 7de3a8a0-3486-485b-ae10-28c27535d14a
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: Quaking Earth
+        behavior: activated
+        description: |-
+          Your Mantle of Essence feature no longer requires essence. 
+
+          Additionally, your Mantle of Essence now radiates magic that creates a calming air. Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation. While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, the bonus to patience increases to 2 and tests that use the Handle Animals skill have a double edge.
+        suppressOthers: true
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: cb3859c6-ed31-4c59-942e-3342f7236239
+            duration: eoe_or_dying
+            ongoingEffectCustom: cb3859c6-ed31-4c59-942e-3342f7236239
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 122
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 6cb6a605-5f53-4ada-a1e3-73b194a51eea
+          domains:
+            class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          name: Quaking Earth
+          targetType: self
+          description: |-
+            While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).
+
+            At the end of each of your turns, you can push each enemy in the area up to a number of squares equal to your Reason score.
+          abilityType: none
+          implementation: 3
+      source: Earth Class Feature
+      guid: 8a962a88-9085-4289-ba46-01e76891c7b9
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+      description: |-
+        Your Mantle of Essence feature no longer requires essence. 
+
+        Additionally, your Mantle of Essence now radiates magic that creates a calming air. Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation. While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, the bonus to patience increases to 2 and tests that use the Handle Animals skill have a double edge.
+      name: Quaking Earth
+      implementation: 3
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1b3de591-e953-42fa-a947-61fda9301af5
+        source: Earth Class Feature
+        behavior: activated
+        filterCondition: Heroic Resources Available to Spend >=3
+        name: Quaking Earth
+        guid: 7de3a8a0-3486-485b-ae10-28c27535d14a
+        description: "While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).\v\vAt the end of each of your turns, you can push each enemy in the area up to a number of squares equal to your Reason score."
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: cb3859c6-ed31-4c59-942e-3342f7236239
+            duration: eoe_or_dying
+            ongoingEffectCustom: cb3859c6-ed31-4c59-942e-3342f7236239
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 122
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 6cb6a605-5f53-4ada-a1e3-73b194a51eea
+          domains:
+            class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          name: Quaking Earth
+          targetType: self
+          description: |-
+            While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).
+
+            At the end of each of your turns, you can push each enemy in the area up to a number of squares equal to your Reason score.
+          abilityType: none
+          implementation: 3
+      source: Earth Class Feature
+      guid: e11bd19a-a4ac-4400-b410-c13f2d3fe2ad
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+      description: "While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).\v\vAt the end of each of your turns, you can push each enemy in the area up to a number of squares equal to your Reason score."
+      name: Quaking Earth
+      implementation: 3
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 80694aa2-5190-4e73-9681-ca947c7232a6
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 80694aa2-5190-4e73-9681-ca947c7232a6
+        source: Earth Class Feature
+        value: Level*3
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: Disciple of Earth
+        guid: 76393179-190a-41df-8e9b-bdc66cb50816
+        description: Your body is strengthened by your mind’s connection to the element of permanence. You have a +6 bonus to Stamina, and you gain an additional +3 bonus to Stamina whenever you gain a level past 2nd in this class.
+        behavior: attribute
+        attribute: hitpoints
+      name: Disciple of Earth
+      classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+      description: Your body is strengthened by your mind’s connection to the element of permanence. You have a +6 bonus to Stamina, and you gain an additional +3 bonus to Stamina whenever you gain a level past 2nd in this class.
+      source: Earth Class Feature
+      implementation: 3
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: cfba8f47-6df1-4d22-aeb3-98c00bf1594b
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c1c93f1b-fb09-4674-a22f-b448559ed392
+        multitarget: one
+        source: Earth Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          keywords: []
+          activationCondition: true
+          damageMultiplier: half
+          rollType: ability_power_roll
+          rules: ""
+          guid: 5f659ff2-0c17-4d43-9dd1-5c60bd4301b0
+          modtype: none
+          name: Skin Like Castle Walls
+        guid: ad62a25d-ca49-45e5-8630-c175c21d9944
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        targetType: selforally
+        trigger: takedamage
+        name: Skin Like Castle Walls
+        rules: The damage is halved.
+        description: ""
+        range: 10
+        additionalCostModifiers:
+        - __typeName: CharacterModifier
+          source: Trigger
+          guid: b572b349-4648-497d-bcd9-d595f0eece49
+          behavior: power
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          resourceCostType: cost
+          name: Skin Like Castle Walls+
+          rules: ""
+          potencymod: "-1"
+          modtype: none
+          rulesText: If the damage has any potency effect associated with it, the potency is reduced by 1.
+      - __typeName: CharacterModifier
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: c1c93f1b-fb09-4674-a22f-b448559ed392
+        behavior: triggerdisplay
+        source: Earth Class Feature
+        name: Skin Like Castle Walls
+        description: ""
+        guid: 0bf59e4b-afd3-459b-b781-6abb08d017db
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or one ally
+          effect: |-
+            The damage is halved.
+            **Spend 1 Essence:** If the damage has any potency effect associate with it, the potency is reduced by 1.
+          trigger: The target takes damage.
+          flavor: You make yourself or an ally covered in protective stone.
+          guid: 7febec20-d98c-4d5a-8e94-c90303813e8f
+          name: Skin Like Castle Walls
+          keywords:
+            Earth: true
+            Magic: true
+            Ranged: true
+      name: Skin Like Castle Walls
+      classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+      description: ""
+      source: Earth Class Feature
+      implementation: 3
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: dd2c4930-8b6e-4e5c-b665-5bc9c8d9ad68
+        source: Earth Class Feature
+        name: Earth Accepts me
+        description: ""
+        behavior: activated
+        guid: 1b67cd38-16b5-4908-8e47-4cd48ed7fbf5
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          keywords:
+            Earth: true
+            Magic: true
+          behaviors: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 136
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 1007c625-34ea-49df-8c35-11bf24fda97c
+          targetType: self
+          domains:
+            class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          numTargets: "1"
+          categorization: Heroic Ability
+          name: Earth Accepts me
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          description: 'You step into a mundane dirt, metal, or stone object (including a wall) that is as large as you or larger. You can remain inside the object for as long as you like. While inside the object, you can observe events and speak to creatures outside it, but you don’t have line of effect to anything outside the object and vice versa. You can travel through the object freely until you exit it. If the object you meld with is destroyed, you take 10 damage and exit the object. '
+          abilityType: none
+          iconid: 40b40d58-ab7f-4f50-bf0d-16f1fe993aaa
+      source: Earth Class Feature
+      classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+      guid: dd2c4930-8b6e-4e5c-b665-5bc9c8d9ad68
+      description: ""
+      name: Earth Accepts me
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+details: "**Earth** is the element of permanence. Earth abilities bolster your body and grant the power to permanently create and shape physical terrain."
+name: Earth
+mtime: 1775044074840
+id: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+primaryClassId: c1e1c512-6092-423f-85b2-324547f7f390

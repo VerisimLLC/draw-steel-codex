@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Oleq
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 5b2f40f2-5dd7-4182-ae6d-00a2c3201775
+annotations:
+  image:
+    __typeName: RichImage
+id: 0fda258d-4f1c-4152-bb7b-c3d6bb7e3874
+mtime: 1762867984270
+content: |-
+  # Oleq
+
+  [[image]]
+
+  *Yerris' brother. A Shepherd and civilian.*
+  {
+  Secret: See [Wolf Den]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1762867613014

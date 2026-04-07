@@ -1,0 +1,62 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f62a526f-13ae-497e-9f98-62ce05e5d7d5
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "1000"
+    damageType: acid
+    apply: Damage Reduction
+  - __typeName: ResistanceEntry
+    dr: "1000"
+    damageType: cold
+    apply: Damage Reduction
+  - __typeName: ResistanceEntry
+    dr: "1000"
+    damageType: corruption
+    apply: Damage Reduction
+  - __typeName: ResistanceEntry
+    dr: "1000"
+    damageType: fire
+    apply: Damage Reduction
+  - __typeName: ResistanceEntry
+    dr: "1000"
+    damageType: holy
+    apply: Damage Reduction
+  - __typeName: ResistanceEntry
+    dr: "1000"
+    damageType: lightning
+    apply: Damage Reduction
+  - __typeName: ResistanceEntry
+    dr: "1000"
+    damageType: poison
+    apply: Damage Reduction
+  - __typeName: ResistanceEntry
+    dr: "1000"
+    damageType: psychic
+    apply: Damage Reduction
+  - __typeName: ResistanceEntry
+    dr: "1000"
+    damageType: sonic
+    apply: Damage Reduction
+  description: ""
+  name: Impervious Touch
+  guid: acd20cde-4e18-47f0-aa47-8e547bceeaa7
+source: Ongoing Effect
+casterTracking: one
+guid: f62a526f-13ae-497e-9f98-62ce05e5d7d5
+id: f62a526f-13ae-497e-9f98-62ce05e5d7d5
+ctime: 1766862910626
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Impervious Touch
+description: ""
+custom: true
+mtime: 1766862919847
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,27 @@
+__typeName: ActivatedAbility
+targetFilter: ""
+id: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+targetType: emptyspace
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: fea09ebf-c4dd-46ef-b132-f28ead5e007c
+importMatch: ""
+ctime: 1709448928341
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+numTargets: "1"
+mtime: 1772947781732
+name: Teleport
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

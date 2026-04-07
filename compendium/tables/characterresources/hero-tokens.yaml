@@ -1,0 +1,41 @@
+__typeName: CharacterResource
+textColor: dark
+usageLimit: global
+id: 2166c5fe-260e-4691-9743-06cf097a59f3
+grouping: Hidden
+display:
+  expended:
+    brightness: 0.5
+    saturation: 0.5
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.184500217437744
+      s: 0.251953482627869
+      v: 1.00238597393036
+      a: 1
+  highlight:
+    brightness: 1.5
+    saturation: 1
+    hueshift: 1
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.184500217437744
+      s: 0.251953482627869
+      v: 1.00238597393036
+      a: 1
+  normal:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.184500217437744
+      s: 0.251953482627869
+      v: 1.00238597393036
+      a: 1
+name: Hero Tokens
+ctime: 1748308226282
+mtime: 1748308226282
+largeQuantity: true
+iconid: 7ba3b2dc-5641-487c-9e1b-4ef3794787e7

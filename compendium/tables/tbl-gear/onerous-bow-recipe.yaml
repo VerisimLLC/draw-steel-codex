@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: f81f4d18-c6f5-4b29-9c98-147b6eecdab0
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765471103896
+ctime: 1765471103896
+name: Onerous Bow Recipe
+flavor: Text or lore in Caelian and Variac
+description: The project source necessary to craft Onerous Bow
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

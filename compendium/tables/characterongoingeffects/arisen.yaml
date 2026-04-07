@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: aa2ea519-4419-4926-958f-920c80d9787b
+id: aa2ea519-4419-4926-958f-920c80d9787b
+ctime: 1750463427535
+display:
+  brightness: 1.00990339006696
+  saturation: 0.663303920200893
+  hueshift: 0.425820486886161
+  bgcolor: "#ffffffff"
+name: Arisen
+description: 'Arisen has been activated '
+mtime: 1750463427535
+iconid: 32789065-122e-4b8a-a9e2-f65016a406cf
+implementation: 3

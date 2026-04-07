@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: db8f6c0e-eac0-4ec5-a69b-713aa7bab905
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-10"
+    damageType: all
+    apply: Damage Reduction
+  description: Weakness 10
+  name: Apostate
+  guid: 1ac22f28-e4c7-4eda-9adf-6ae7cc062772
+source: Ongoing Effect
+guid: db8f6c0e-eac0-4ec5-a69b-713aa7bab905
+id: db8f6c0e-eac0-4ec5-a69b-713aa7bab905
+ctime: 1751761761555
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Apostate
+description: Weakness 10
+custom: true
+mtime: 1768837404711
+iconid: ui-icons/skills/1.png

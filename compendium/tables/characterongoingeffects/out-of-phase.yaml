@@ -1,0 +1,44 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: c6765acc-f9af-4826-a04e-6aeb6c1cafc8
+  sourceguid: b04cd4f8-d8c0-41dd-9906-ef8a50612cfa
+  value: "-(Stacks)"
+  source: Ongoing Effect
+  name: Out of Phase
+  behavior: attribute
+  description: ""
+  attribute: forcedmoveresistance
+- __typeName: CharacterModifier
+  sourceguid: b04cd4f8-d8c0-41dd-9906-ef8a50612cfa
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: false
+  name: Out of Phase
+  guid: 15bd8017-abab-476b-bee8-e75bd17be1fb
+  description: ""
+  modtype: nottierthree
+  rollType: ability_power_roll
+source: Ongoing Effect
+guid: b04cd4f8-d8c0-41dd-9906-ef8a50612cfa
+id: b04cd4f8-d8c0-41dd-9906-ef8a50612cfa
+ctime: 1749493233611
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 68f455f5-135f-495c-822d-40d809d2b15f
+custom: true
+name: Out of Phase
+description: ""
+mtime: 1757727454099
+stackable: true
+iconid: c97f2b52-07a3-43ac-8e5b-f10944132412

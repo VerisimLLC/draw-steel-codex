@@ -1,0 +1,1121 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727830896352
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        sourceguid: 42100a80-87bb-40af-b452-c97cc3f6b67a
+        description: The most esoteric secrets of your order teach you that to defeat your enemy, you must understand them. You treat your Renown as 2 higher than usual when dealing with demons, devils, and other agents of chaos. If you successfully complete a negotiation with one of these creatures, you gain an edge on power rolls made against them and can use your Judgment ability against them as a free triggered action before an encounter begins.
+        source: Exorcist Class Feature
+        name: Demonologist
+        behavior: activated
+        guid: cfac40de-d3bc-4f23-bd0a-86c58bce137a
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          implementationDetails: Negotiations are WiP and for the time being, this ability can be used to generate the effects of this feature.
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 24d24f38-60b1-4e75-b865-fc512eb33065
+            duration: eoe
+            ongoingEffectCustom: 24d24f38-60b1-4e75-b865-fc512eb33065
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: Judgment
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 9e8920f3-6698-4536-81a7-0d77c47e23ae
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: named
+            promptText: Free Triggered Action to Judge an Agent of Chaos.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 91
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 7eee1da9-6df7-400b-9fae-f2846342919e
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          numTargets: "1"
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+          categorization: Trigger
+          iconid: ui-icons/skills/1.png
+          name: Demonologist
+          targetType: self
+          description: The most esoteric secrets of your order teach you that to defeat your enemy, you must understand them. You treat your Renown as 2 higher than usual when dealing with demons, devils, and other agents of chaos. If you successfully complete a negotiation with one of these creatures, you gain an edge on power rolls made against them and can use your Judgment ability against them as a free triggered action before an encounter begins.
+          abilityType: none
+          implementation: 2
+      source: Exorcist Class Feature
+      guid: 8d7ecd64-def3-4400-b119-7007c7ba0ad9
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+      canHavePrerequisites: true
+      classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+      description: The most esoteric secrets of your order teach you that to defeat your enemy, you must understand them. You treat your Renown as 2 higher than usual when dealing with demons, devils, and other agents of chaos. If you successfully complete a negotiation with one of these creatures, you gain an edge on power rolls made against them and can use your Judgment ability against them as a free triggered action before an encounter begins.
+      name: Demonologist
+      implementation: 2
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+      guid: a7b2a699-ee30-4a78-ad30-4b70e7121eda
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a7b2a699-ee30-4a78-ad30-4b70e7121eda
+        modifyDescription: "**Exorcist:** You can teleport up to a number of squares equal to twice your Presence score. This movement must take you closer to the judged creature. You do not need line of effect to your destination."
+        source: Exorcist Class Feature
+        filterAbility: Ability.name is Judgment	
+        behavior: modifyability
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        attributes: []
+        guid: 1a407e06-9150-471b-af46-a0a4cc7a4e0d
+        description: ""
+        name: Judgment Order Benefit
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: f7766246-d424-4b3d-ae3c-a42775981b8f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors:
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: judged
+            refresh: turn
+            guid: d35c215e-b7be-4a2f-b3c7-bf20f4550ae8
+            key: 97604ef6-7e4c-45aa-bfcd-77e3141970a8
+            applyto: caster
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 9ca4fc63-6628-486d-a584-b8dbe7ff88bf
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 2ed70c5e-6494-47e3-bf84-3dd30e9e8b9c
+            abilityType: standard
+            standardAbilityParams:
+              targetid: "{Cast.Primary Target.id}"
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            promptText: Teleport toward judged target.
+            guid: 15fffba4-d4a5-482b-9e2e-f2f0c72a9dd7
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: e81a1ff9-2d07-464f-99a0-bd3071dafca6
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+            autoTarget: true
+            inheritRange: false
+            abilityType: standard
+            standardAbilityParams:
+              range: Presence*2
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      name: Judgment Order Benefit
+      classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+      description: ""
+      source: Exorcist Class Feature
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+      guid: 7e5db0a9-590f-4de0-af55-552804f261c0
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c8ca9c51-eb36-433a-8ff3-359b056369e4
+        source: Exorcist Class Feature
+        behavior: proficiency
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        guid: 9d2f0024-b8a6-442e-8769-4803ca443304
+        equate: false
+        name: Read Person
+        proficiency: proficient
+        description: You gain the Read Person skill.
+        subtype: skill
+        skills:
+          30a30090-3699-48f1-b252-ce7d0445abee: true
+      name: Read Person
+      classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+      description: You gain the Read Person skill.
+      source: Exorcist Class Feature
+      implementation: 4
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+      guid: 7fa6447f-1fb6-497f-b091-a87b40107222
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7fa6447f-1fb6-497f-b091-a87b40107222
+        source: Exorcist Class Feature
+        guid: ca6cf774-6706-46ed-b36e-33012bed3367
+        behavior: power
+        keywords: []
+        hasCustomTrigger: true
+        customTrigger:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 4841ead3-fdbd-44f3-b30b-ab6329bc360e
+          repeatTargets: false
+          abilityType: none
+          trigger: d20roll
+          targetType: self
+          numTargets: "1"
+          name: Evil Revealed
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 5ecaab3e-fde3-468f-8f93-fa97a4a72fd4
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityType: none
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.name is Judgement
+                  behavior: modifyability
+                  guid: 173f9866-f386-45a5-908f-5c4018188c4d
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 6645fbb8-0d78-43e2-bf8e-b31e5d19b46e
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors: []
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              targetType: self
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            abilityType: custom
+            promptText: You can use your judgment ability against the target, if you see through their disguise
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        rollType: test_power_roll
+        activationCondition: false
+        description: Your order has taught you methods to discern the disguises of both mortals and monsters. You automatically see through disguises and illusions created by creatures of your level or lower, and you gain an edge on tests made to see through the disguises and illusions of more powerful creatures. Whenever you see through a creature’s disguise or illusion, you can use your Judgment ability against them as a free triggered action.
+        modtype: edge
+        name: Evil Revealed
+      name: Evil Revealed
+      classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+      description: Your order has taught you methods to discern the disguises of both mortals and monsters. You automatically see through disguises and illusions created by creatures of your level or lower, and you gain an edge on tests made to see through the disguises and illusions of more powerful creatures. Whenever you see through a creature’s disguise or illusion, you can use your Judgment ability against them as a free triggered action.
+      source: Exorcist Class Feature
+      implementation: 2
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+          sourceguid: 970270f0-c1d8-4c7b-ae86-f1ea6efe38d5
+          description: You terrify your enemies into retreating, creating chaos in their ranks.
+          source: Exorcist Class Feature
+          name: Begone!
+          behavior: activated
+          guid: 469c52ff-456f-4533-bd0e-3890a0ef4b87
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 4 psychic damage; slide 3
+              - 6 psychic damage; slide 5
+              - 8 psychic damage; slide 7
+              roll: 2d10 + Presence
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You terrify your enemies into retreating, creating chaos in their ranks.
+            categorization: Heroic Ability
+            range: "3"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 7d1211ef-3c5c-452a-bf8b-c0044137c589
+            sourceReference:
+              __typeName: SourceReference
+              page: 88
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            numTargets: "1"
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+            targetType: all
+            implementation: 3
+            name: Begone!
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Exorcist Class Feature
+        guid: 970270f0-c1d8-4c7b-ae86-f1ea6efe38d5
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        canHavePrerequisites: true
+        classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+        description: You terrify your enemies into retreating, creating chaos in their ranks.
+        name: Begone!
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+          sourceguid: 00a55e9c-6252-4e52-9e81-2bda7bff8bfe
+          description: You reverse the effects from an evildoer.
+          source: Exorcist Class Feature
+          name: Pain of Your Own Making
+          behavior: trigger
+          triggeredAbility:
+            __typeName: TriggeredAbility
+            resourceNumber: 9
+            repeatTargets: false
+            targetType: subject
+            triggerPrompt: End effect on target and impose on caster
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            range: "10"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            hasManualVersion: true
+            strain: []
+            guid: 918d00ad-c822-4717-b4da-97446d5c639f
+            trigger: inflictcondition
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+            conditionFormula: ""
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              purgeType: one
+              conditions: []
+            name: Pain of Your Own Making
+            subject: selfandallies
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+          guid: 3678b071-468e-4b12-b338-09dbdf6b4cb9
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+          sourceguid: 00a55e9c-6252-4e52-9e81-2bda7bff8bfe
+          behavior: triggerdisplay
+          source: Exorcist Class Feature
+          name: Pain of Your Own Making
+          description: You reverse the effects from an evildoer.
+          guid: d7fe2237-dce7-497f-88f5-13d88529ccf4
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: The effect ends on the target and is applied to the creature who imposed the effect on them. That creature also takes damage equal to three times your Presence score.
+            guid: a18fb034-5a31-43e0-a6b2-09fe11d17bb5
+            keywords:
+              Ranged: true
+              Magic: true
+            target: Self or one ally
+            trigger: The target gains a condition or effect that is ended by a saving throw or that ends at the end of their turn.
+            cost: 9 Wrath
+            flavor: You reverse the effects from an evildoer.
+            name: Pain of Your Own Making
+            type: free
+        source: Exorcist Class Feature
+        guid: 00a55e9c-6252-4e52-9e81-2bda7bff8bfe
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        canHavePrerequisites: true
+        classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+        description: You reverse the effects from an evildoer.
+        name: Pain of Your Own Making
+        implementation: 3
+      classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+      guid: aad8e072-d8e4-4337-8709-7f26412077f8
+      description: Choose one of the following abilities.
+      name: 6th-Level Exorcist Abilities
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: Exorcist Order Ability
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+          sourceguid: ed014864-8559-49f7-8991-33d4620c64b3
+          description: I am but a vessel. Your own deeds weigh upon you.
+          source: Exorcist Class Feature
+          name: It Is Justice You Fear
+          behavior: activated
+          guid: af92b06d-4ab4-4c83-9d3a-091e60176cfb
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            behaviors:
+            - __typeName: ActivatedAbilityDamageBehavior
+              filterTarget: Conditions has "frightened"
+              damageType: psychic
+              roll: Presence*2
+              titleText: 'It Is Justice You Fear '
+              chatMessage: 'It Is Justice You Fear '
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 + M holy damage; P < weak, frightened (save ends)
+              - 12 + M holy damage; P < average, frightened (save ends)
+              - 15 + M holy damage; P < strong, frightened (save ends)
+              filterTarget: ""
+              roll: 2d10 + Might
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.0510204024612904
+                s: 0.604938268661499
+                v: 0.317647069692612
+                a: 1
+            flavor: I am but a vessel. Your own deeds weigh upon you.
+            sourceReference:
+              __typeName: SourceReference
+              page: 85
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 373297c2-1e94-4a47-ade7-8734b7fd5ff1
+            numTargets: "1"
+            categorization: Heroic Ability
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+            implementation: 3
+            persistence: []
+            name: It Is Justice You Fear
+            targetType: target
+            description: If the target is already frightened of you or another creature and this ability would frighten them again, they instead take psychic damage equal to twice your Presence score
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: c5c81fb6-27a5-4a08-8e90-db8007c69329
+        source: Exorcist Class Feature
+        guid: 742cec76-192a-4df2-82f2-22bdfde1b7f7
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        canHavePrerequisites: true
+        classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+        description: I am but a vessel. Your own deeds weigh upon you.
+        name: It Is Justice You Fear
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+          sourceguid: 95f34f5e-3c16-4b61-8aae-55cd649cb8be
+          description: You channel holy energy to harm unbelievers and reveal those hidden from your judgment
+          source: Exorcist Class Feature
+          name: Revelator
+          behavior: activated
+          guid: dfa57e49-34a8-4582-9068-24cd4357fcba
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            targetFilter: enemy
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetType: all
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.665032684803009
+                s: 0.931506872177124
+                v: 0.858823537826538
+                a: 1
+            flavor: You channel holy energy to harm unbelievers and reveal those hidden from your judgment
+            sourceReference:
+              __typeName: SourceReference
+              page: 99
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "3"
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 6ee8e7c8-d3d0-4466-85a6-5d4285c58416
+            iconid: f3ca1e31-fa85-4a4f-aa5d-36d4a551310f
+            numTargets: "1"
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+            persistence: []
+            categorization: Heroic Ability
+            name: Revelator
+            behaviors:
+            - __typeName: ActivatedAbilityDamageBehavior
+              roll: Presence*2
+              damageType: holy
+              magicalDamage: true
+              titleText: Revelator
+              chatMessage: Revelator
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              filterTarget: ""
+              ongoingEffect: 13fbb977-7be0-4d9b-b3b8-9d22c35e0ba6
+              mode: conditions
+              purgeType: all
+              conditions:
+              - 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              promptText: You can use Judgment on one of the targets as a free triggered action.
+              applyto: caster
+              filterTarget: ""
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 60d42386-0e5f-4e0f-a8b5-c0f69b93bb72
+                repeatTargets: false
+                abilityType: none
+                categorization: Hidden
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    cannotModifyAction: true
+                    filterAbility: Ability.name is Judgment
+                    behavior: modifyability
+                    guid: a85ae0ec-dec2-4d59-94ee-c1436485a353
+                    attributes: []
+                    source: ""
+                    description: ""
+                    name: Modify Attack
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      guid: 8a9b2f21-7298-4339-b2e8-48846ea45a59
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors: []
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                numTargets: "1"
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              standardAbility: 1d717024-b15f-4292-ad8e-e6d47fcdc0d9
+              autoTarget: false
+              inheritRange: true
+              abilityType: custom
+              targeting: prompt
+            description: Each target takes holy damage equal to twice your Presence score. Additionally, each hidden target is automatically revealed and can’t become hidden again until the start of your next turn. You can then use your Judgment ability against one target as a free triggered action.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Exorcist Class Feature
+        guid: 48a9bfba-ed6c-4400-a9c2-ac651c66609a
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        canHavePrerequisites: true
+        classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+        description: You channel holy energy to harm unbelievers and reveal those hidden from your judgment
+        name: Revelator
+        implementation: 3
+      classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+      guid: face2d62-1621-4c67-8248-fab4d7798e8d
+      source: Exorcist Class Feature
+      description: Your censor order grants your choice of one of two heroic abilities.
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+      guid: dd51ca47-34cb-41cd-bbab-fd471f4984aa
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: dd51ca47-34cb-41cd-bbab-fd471f4984aa
+        modifyDescription: ""
+        source: Exorcist Class Feature
+        filterAbility: Ability.name is Judgment
+        behavior: modifyability
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        attributes: []
+        guid: 47a9f79c-bd5d-4e73-923f-58fedc9d414c
+        description: You have honed your ability to detect sin and can use it to find those who hide from justice. Any creature judged by you can’t use the Hide maneuver. Additionally, you gain an edge when searching for hidden creatures. If you find a hidden creature, you can use your Judgment ability against them as a free triggered action.
+        name: Saint’s Vigilance
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: caaa1e1d-ac65-47fb-a7bf-40601163c0dd
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 677b1bb4-7efc-40b7-8246-95acc8321475
+            ongoingEffectCustom: 677b1bb4-7efc-40b7-8246-95acc8321475
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        sourceguid: dd51ca47-34cb-41cd-bbab-fd471f4984aa
+        displayCondition: Ability.name is Search for Hidden Creatures
+        source: Exorcist Class Feature
+        modtype: edge
+        keywords: []
+        activationCondition: "1"
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        name: Saint’s Vigilance
+        rollType: opposed_power_roll
+        description: You have honed your ability to detect sin and can use it to find those who hide from justice. Any creature judged by you can’t use the Hide maneuver. Additionally, you gain an edge when searching for hidden creatures. If you find a hidden creature, you can use your Judgment ability against them as a free triggered action.
+        guid: 4fe61a76-73a1-4edc-beae-f158da406337
+        behavior: power
+      - __typeName: CharacterModifier
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        sourceguid: dd51ca47-34cb-41cd-bbab-fd471f4984aa
+        description: You have honed your ability to detect sin and can use it to find those who hide from justice. Any creature judged by you can’t use the Hide maneuver. Additionally, you gain an edge when searching for hidden creatures. If you find a hidden creature, you can use your Judgment ability against them as a free triggered action.
+        source: Exorcist Class Feature
+        name: Saint’s Vigilance
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: If you successfully found a creature, you can use Judgment as a free triggered action
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 72373546-b6c9-45ef-b259-9277c66edd02
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          trigger: useability
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+          numTargets: "1"
+          conditionFormula: Used Ability.name is Search for Hidden Creatures
+          name: Saint’s Vigilance
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: Judgment
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 34adb848-6a00-4978-a73d-d811cc379049
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: fae3617f-7d8c-422a-b66e-ed7baddf4511
+      name: Saint’s Vigilance
+      classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+      description: You have honed your ability to detect sin and can use it to find those who hide from justice. Any creature judged by you can’t use the Hide maneuver. Additionally, you gain an edge when searching for hidden creatures. If you find a hidden creature, you can use your Judgment ability against them as a free triggered action.
+      source: Exorcist Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+      guid: 97b0e097-71ec-4d50-bfb3-8c29567abc7f
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 97b0e097-71ec-4d50-bfb3-8c29567abc7f
+        source: Exorcist Class Feature
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: f029932b-39fb-4248-9d08-15c8c8668b59
+        rollType: test_power_roll
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        description: You are trained in secret techniques from your order that allow you to discern the truth with supernatural precision. If a creature is of a lower level than you, you automatically know when they are lying, though you don’t necessarily know the actual truth behind their lie. Additionally, you gain an edge on tests made to detect lies or hidden motives.
+        behavior: power
+        name: A Sense For Truth
+      name: A Sense For Truth
+      classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+      description: You are trained in secret techniques from your order that allow you to discern the truth with supernatural precision. If a creature is of a lower level than you, you automatically know when they are lying, though you don’t necessarily know the actual truth behind their lie. Additionally, you gain an edge on tests made to detect lies or hidden motives.
+      source: Exorcist Class Feature
+      implementation: 3
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+          sourceguid: be313637-ef0f-4b26-9a2d-5582df2f6e04
+          description: You sever the target’s tenuous connection to the world
+          source: Exorcist Class Feature
+          name: Banish
+          behavior: activated
+          guid: 09ae1739-a7e6-417d-93b8-72d9c51899b2
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You sever the target’s tenuous connection to the world
+            sourceReference:
+              __typeName: SourceReference
+              page: 93
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 639724b9-d43f-4a54-b49d-d31b58356084
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "5 + M Damage; P < Weak, #the target is banished (save ends)"
+              - "8 + M Damage; P < Average, #the target is banished (save ends)"
+              - "11 + M Damage; P < Strong, #the target is banished (save ends)"
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: 6481072c-c435-4186-8dc9-2b59cf19631e
+              modifier:
+                __typeName: CharacterModifier
+                sourceguid: 6481072c-c435-4186-8dc9-2b59cf19631e
+                displayCondition: ""
+                modtype: edge
+                keywords: []
+                activationCondition: Target.Type is demon or Target.Type is devil or Target.Type is undead
+                guid: 41a3694d-20a0-4aed-8621-b0ae059403b9
+                name: Banish
+                domains: []
+                description: This ability gains an edge against demons, devils, undead, and creatures not native to your current world.
+                behavior: power
+                rollType: ability_power_roll
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: c742350b-b508-43c1-a973-d5b0938fdb6a
+              modifier:
+                __typeName: CharacterModifier
+                sourceguid: c742350b-b508-43c1-a973-d5b0938fdb6a
+                modtype: double_edge
+                keywords: []
+                activationCondition: false
+                guid: 5697fa2d-a349-45a3-a23c-8ad9533bfa47
+                rollType: ability_power_roll
+                domains: []
+                description: If you know the target’s true name, this ability has a double edge.
+                name: Banish
+                behavior: power
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72
+              filterTarget: not Cast.PassesPotency(Target, "P")
+              duration: save_ends
+              ongoingEffectCustom: 81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Banish
+            categorization: Heroic Ability
+            description: This ability gains an edge against demons, devils, undead, and creatures not native to your current world. If you know the target’s true name, this ability has a double edge. While banished, the target is sent to another manifold in the timescape and removed from the encounter map. A banished target can do nothing but make saving throws, and takes 10 holy damage each time they do so. If the target is reduced to 0 Stamina while banished, they are lost to the timescape.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Exorcist Class Feature
+        guid: be313637-ef0f-4b26-9a2d-5582df2f6e04
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        canHavePrerequisites: true
+        classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+        description: You sever the target’s tenuous connection to the world
+        name: Banish
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+          sourceguid: fac461b7-9d98-49d3-9702-18e0cfbfeb91
+          description: “I know what you fear.”
+          source: Exorcist Class Feature
+          name: Terror Manifest
+          behavior: activated
+          guid: 6479d731-4424-433a-a5f3-6e9585ec83e0
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: “I know what you fear.”
+            sourceReference:
+              __typeName: SourceReference
+              page: 92
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: f7aa6568-0195-493d-a778-67894a4f8194
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 7 + P psychic damage; P < weak, frightened (save ends)
+              - 10 + P psychic damage; P < average, frightened (save ends)
+              - 13 + P psychic damage; P < strong, frightened (save ends)
+              roll: 2d10 + Might or Agility
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+              riderid: c26f00e5-92a2-49ba-af30-fce0496d40fe
+            - __typeName: ActivatedAbilityDelayBehavior
+            - __typeName: ActivatedAbilityDamageBehavior
+              roll: "25"
+              filterTarget: Target.leader or Target.Solo and (not Cast.PassesPotency(Target, "P")) and target.Winded
+              damageType: psychic
+              chatMessage: Terror Manifest Frightened Damage
+            - __typeName: ActivatedAbilityDestroyBehavior
+              filterTarget: Target.winded and not Target.leader or Target.Solo and Cast.PassesPotency(Target, "P")
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Terror Manifest
+            categorization: Heroic Ability
+            description: While frightened this way, if a target who is a leader or solo creature is winded, they take an extra 25 psychic damage. If a target frightened this way is not a leader or solo creature and is winded, they are reduced to 0 Stamina.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Exorcist Class Feature
+        guid: fac461b7-9d98-49d3-9702-18e0cfbfeb91
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+        canHavePrerequisites: true
+        classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+        description: “I know what you fear.”
+        name: Terror Manifest
+        implementation: 3
+      classid: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+      guid: 3b412012-6245-45fb-8072-cd45d101f583
+      description: Choose one of the following abilities.
+      name: 9th-Level Exorcist Abilities
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:1f7923cb-3018-45a9-955c-50ab6ccba28e: true
+details: You specialize in hunting your order’s hidden enemies, knowing that an open mind is an unguarded fortress.
+name: Exorcist
+mtime: 1770916656799
+id: 1f7923cb-3018-45a9-955c-50ab6ccba28e
+primaryClassId: 1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049

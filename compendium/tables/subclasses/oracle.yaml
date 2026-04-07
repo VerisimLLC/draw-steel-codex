@@ -1,0 +1,1169 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727830904213
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        sourceguid: 633c9b2e-9df6-4094-a55d-849b472df291
+        description: Your constant fragmentary visions become clearer, and can be honed to understand the past of creatures you interact with. While speaking with any creature, you can make a medium Presence test to see visions from their past. On a success, you see a clear view of any subject related to the creature’s past that you wish to understand. On a success with a consequence, you see two visions, one false and one true. On a failure, you lose 2d6 Stamina.
+        source: Oracle Class Feature
+        name: Their Past Revealed
+        behavior: activated
+        guid: 43ef9794-136f-43d2-80dd-a35242142e87
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            attrid: prs
+            roll: 2d10 + Presence
+            isTest: true
+            resistanceRoll: false
+            tiers:
+            - you lose 2d6 Stamina.
+            - you see two visions, one false and one true.
+            - you see a clear view of any subject related to the creature’s past that you wish to understand.
+          - __typeName: ActivatedAbilityDamageBehavior
+            applyto: caster
+            roll: 2d6
+            tiersSelected:
+            - 1
+            chatMessage: Their Past Revealed failure
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 91
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a78476ec-5788-4cb8-9904-ebd68bf348b3
+          targetType: target
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          numTargets: "1"
+          iconid: ui-icons/skills/1.png
+          name: Their Past Revealed
+          preDescription: Your constant fragmentary visions become clearer, and can be honed to understand the past of creatures you interact with. While speaking with any creature, you can make a medium Presence test to see visions from their past. On a success, you see a clear view of any subject related to the creature’s past that you wish to understand. On a success with a consequence, you see two visions, one false and one true. On a failure, you lose 2d6 Stamina.
+          description: ""
+          abilityType: none
+          implementation: 3
+      source: Oracle Class Feature
+      guid: 633c9b2e-9df6-4094-a55d-849b472df291
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+      canHavePrerequisites: true
+      classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+      description: Your constant fragmentary visions become clearer, and can be honed to understand the past of creatures you interact with. While speaking with any creature, you can make a medium Presence test to see visions from their past. On a success, you see a clear view of any subject related to the creature’s past that you wish to understand. On a success with a consequence, you see two visions, one false and one true. On a failure, you lose 2d6 Stamina.
+      name: Their Past Revealed
+      implementation: 3
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+      guid: 32ccf71d-11ef-4238-b1f3-24bd859333ef
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c8ca9c51-eb36-433a-8ff3-359b056369e4
+        source: Oracle Class Feature
+        behavior: proficiency
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        guid: 9d2f0024-b8a6-442e-8769-4803ca443304
+        equate: false
+        name: Magic
+        proficiency: proficient
+        description: You gain the Magic skill.
+        subtype: skill
+        skills:
+          57101165-410a-4734-98ee-d4e5b656d3df: true
+      name: Magic
+      classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+      description: You gain the Magic skill.
+      source: Oracle Class Feature
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+      guid: fcc9ca0a-4088-405d-be35-3fe17e41fffa
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: fcc9ca0a-4088-405d-be35-3fe17e41fffa
+        modifyDescription: "**Oracle:** You can deal holy damage equal to twice your Presence score to the judged creature."
+        source: Oracle Class Feature
+        filterAbility: Ability.name is Judgment	
+        behavior: modifyability
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        attributes: []
+        guid: 5afe52f4-38bb-482f-ba54-c7a353ae16cb
+        description: ""
+        name: Judgment Order Benefit
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: e3f4da57-bb0e-4dfb-9d6b-1aa537c1ab45
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors:
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: judged
+            key: 97604ef6-7e4c-45aa-bfcd-77e3141970a8
+            applyto: caster
+            refresh: turn
+          - __typeName: ActivatedAbilityDamageBehavior
+            applyto: targets
+            filterTarget: not friends(target, caster)
+            damageType: holy
+            roll: Presence*2
+            target_proximity_range: "2"
+            guid: 123ab54d-9276-4d4f-aa81-bf623b36982e
+            titleText: Oracle Judgment Order Benefit
+            chatMessage: Oracle Judgment Order Benefit
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      name: Judgment Order Benefit
+      classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+      description: ""
+      source: Oracle Class Feature
+      implementation: 4
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+      guid: 4a2f69ef-1c74-4bf8-9cbb-ac63ca0febb2
+      modifiers: []
+      name: Prophecy
+      classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+      description: |-
+        You can better sift through the constant fragmentary visions from your deity and act to make them manifest. Each time you earn 1 or more Victories, you can make a number of 2d10 rolls equal to the number of Victories you earned. Record each roll in order. Then whenever you or a creature within 10 squares makes a power roll, you can use a free triggered action to replace the total on the dice with your first
+        recorded roll.
+        You discard each roll as it is used, and each time you earn Victories, you add new rolls to the bottom of the list. Any unused rolls are discarded when you finish a respite.
+      source: Oracle Class Feature
+      implementation: 4
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          sourceguid: a87ff0c7-6972-4d91-b918-3b6a33ca44fd
+          description: You reveal a vision of your enemies’ fate that causes them to scramble as it staggers  them.
+          source: Oracle Class Feature
+          name: Burden of Evil
+          behavior: activated
+          guid: ae499a9b-f162-46ba-a349-40d722d8772c
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - slide 3; I < Weak, dazed (save ends)
+              - slide 5; I < Average, dazed (save ends)
+              - slide 7; I < Strong, dazed (save ends)
+              roll: 2d10 + Might or Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You reveal a vision of your enemies’ fate that causes them to scramble as it staggers them.
+            categorization: Heroic Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: e69b6d45-5ee4-4226-9510-813670b03d6c
+            numTargets: "3"
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+            targetType: target
+            sourceReference:
+              __typeName: SourceReference
+              page: 89
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Burden of Evil
+            implementation: 3
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Oracle Class Feature
+        guid: a87ff0c7-6972-4d91-b918-3b6a33ca44fd
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        canHavePrerequisites: true
+        classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+        description: You reveal a vision of your enemies’ fate that causes them to scramble as it staggers  them.
+        name: Burden of Evil
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          sourceguid: 94eb44fc-f492-42d3-a826-6ff6c5311d90
+          description: You anticipate your foes’ moves and deny them
+          source: Oracle Class Feature
+          name: Edict of Peace
+          behavior: activated
+          guid: c14bd2a4-31f4-45a6-ae8f-a8d24fdb260c
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            rangeTextOverride: 3 aura
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 1984d5a6-4697-4d6f-a0cb-73983c7771db
+              duration: eoe_or_dying
+              ongoingEffectCustom: 1984d5a6-4697-4d6f-a0cb-73983c7771db
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You anticipate your foes’ moves and deny them
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            strain: []
+            guid: 6b84803b-a220-4172-802c-237ed73c9daa
+            keywords:
+              Magic: true
+              Area: true
+            numTargets: "1"
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 89
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            implementation: 3
+            name: Edict of Peace
+            targetType: self
+            description: Until the end of the encounter or until you are dying, whenever any target takes a triggered action or a free triggered action, that action is negated and the target takes holy damage equal to your Presence score.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Oracle Class Feature
+        guid: 94eb44fc-f492-42d3-a826-6ff6c5311d90
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        canHavePrerequisites: true
+        classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+        description: You anticipate your foes’ moves and deny them
+        name: Edict of Peace
+        implementation: 3
+      classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+      guid: dc97b320-3b1f-45c1-b82f-34d2523475a5
+      description: Choose one of the following abilities
+      name: 6th-Level Oracle Abilities
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+      guid: 160826e6-36d3-482f-a789-06ea1c3972ae
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        sourceguid: 160826e6-36d3-482f-a789-06ea1c3972ae
+        description: |-
+          Your order has trained you to understand fragments of the visions granted to you by your deity, giving you a momentary advantage in challenging situations. At the start of an encounter, you can take one main action before any other creature and before your first turn. Additionally, whenever the Director calls for a montage test, you can make one free test before the montage begins, which counts as an earned
+          success or failure as usual.
+        source: Oracle Class Feature
+        name: It Was Foretold
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Take one main action at start of combat.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 0152ac8f-c8af-4f26-b0eb-29f4036fb71d
+          name: It Was Foretold
+          castImmediately: true
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 0910e71a-0299-4815-8415-b9d9ab1a50d5
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityType: none
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                guid: 5b78e366-3432-4401-a591-c2e699165234
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  source: ""
+                  filterAbility: ability.action
+                  behavior: modifyability
+                  guid: 9829176c-b253-4087-b6bf-9ce94e84c7b8
+                  name: Modify Attack
+                  attributes: []
+                  description: ""
+                  cannotModifyAction: true
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: f6ae9898-8e82-4953-8a48-3c8b692004ac
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors: []
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              targetType: self
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          trigger: rollinitiative
+          numTargets: "1"
+          description: |-
+            Your order has trained you to understand fragments of the visions granted to you by your deity, giving you a momentary advantage in challenging situations. At the start of an encounter, you can take one main action before any other creature and before your first turn. Additionally, whenever the Director calls for a montage test, you can make one free test before the montage begins, which counts as an earned
+            success or failure as usual.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: a377376c-eb2a-4447-b0fd-c1d0652579ef
+      - __typeName: CharacterModifier
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        sourceguid: 160826e6-36d3-482f-a789-06ea1c3972ae
+        behavior: triggerdisplay
+        source: Oracle Class Feature
+        name: It Was Foretold
+        description: |-
+          Your order has trained you to understand fragments of the visions granted to you by your deity, giving you a momentary advantage in challenging situations. At the start of an encounter, you can take one main action before any other creature and before your first turn. Additionally, whenever the Director calls for a montage test, you can make one free test before the montage begins, which counts as an earned
+          success or failure as usual.
+        guid: d5bdc457-a194-4d1a-b3e9-38a4bf327aa7
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: You can take one main action before any other creature and before your first turn.
+          guid: 6f7f4b25-5f91-49f9-901b-a3804a33ca01
+          distance: ""
+          keywords: []
+          target: Self
+          name: It Was Foretold
+          flavor: ""
+          trigger: An encounter starts
+          type: free
+      name: It Was Foretold
+      classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+      description: |-
+        Your order has trained you to understand fragments of the visions granted to you by your deity, giving you a momentary advantage in challenging situations. At the start of an encounter, you can take one main action before any other creature and before your first turn. Additionally, whenever the Director calls for a montage test, you can make one free test before the montage begins, which counts as an earned
+        success or failure as usual.
+      source: Oracle Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+      guid: 0516614a-480e-4195-bf93-86090487d77f
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0516614a-480e-4195-bf93-86090487d77f
+        source: Oracle Class Feature
+        guid: 9bc21e1d-943f-4773-af19-3139df87274b
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        keywords: []
+        replaceText: 2d10 + Presence
+        rollType: test_power_roll
+        modtype: replaceroll
+        name: Judge of Character
+        activationCondition: true
+        description: 'Your focus on your fragmentary visions to gain divine insight on creatures and the world beyond your normal senses. Whenever you would make an Intuition test, you can make a Presence test instead. '
+        behavior: power
+        attribute: inu
+      name: Judge of Character
+      classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+      description: 'Your focus on your fragmentary visions to gain divine insight on creatures and the world beyond your normal senses. Whenever you would make an Intuition test, you can make a Presence test instead. '
+      source: Oracle Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        guid: c30f1afe-e4d2-4984-8aaa-e371b51d10de
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          sourceguid: 6efbb883-7783-48f4-92ec-8d9b8a6f527a
+          description: ""
+          source: Oracle Class Feature
+          name: Prescient Grace
+          behavior: trigger
+          triggeredAbility:
+            __typeName: TriggeredAbility
+            resourceNumber: 5
+            whenActive: combat
+            repeatTargets: false
+            abilityType: none
+            trigger: beginturn
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: ally
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "5"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: cee02454-a26f-4b6a-9a39-da17597bc009
+                numTargets: "1"
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  standardAbilityParams:
+                    numrecoveries: Recoveries Available to Spend
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 92ff8583-8ef1-4596-8eb3-735b64534b80
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+                  abilityType: standard
+                - __typeName: ActivatedAbilityInitiativeBehavior
+                selfTarget: true
+                name: Invoked Ability
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            triggerPrompt: You can spend a Recovery to allow the target to regain Stamina equal to your Recovery value. The target can then take their turn immediately before the triggering enemy.
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            castImmediately: true
+            range: 1
+            numTargets: "1"
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+            actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+            modifiers: []
+            subjectRange: "10"
+            strain: []
+            guid: e12219ef-e23e-489c-a9e7-091da04b694b
+            multipleModes: false
+            targetType: self
+            conditionFormula: Resources.Recovery > 0
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            modeList:
+            - text: Activate
+            - text: 1 Wrath
+              rules: You can end one effect on the target that is ended by a saving throw or that ends at the end of their turn, or a prone target can stand up.
+              condition: Resources.Heroic Resource > 0
+            name: Prescient Grace
+            persistence: []
+            description: You can spend a Recovery to allow the target to regain Stamina equal to your Recovery value. The target can then take their turn immediately before the triggering enemy.
+            subject: enemy
+            iconid: ui-icons/skills/1.png
+          guid: 9454c41e-5b72-4c32-80c1-533bb715dfff
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          sourceguid: 6efbb883-7783-48f4-92ec-8d9b8a6f527a
+          behavior: triggerdisplay
+          source: Oracle Class Feature
+          name: Prescient Grace
+          description: ""
+          guid: 7d371fb0-e95b-4717-a13e-87f4145c3218
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            target: Self or one ally
+            effect: You can spend a Recovery to allow the target to regain Stamina equal to your recovery value. The target can then take their turn immediately before the triggering enemy.
+            cost: "5"
+            trigger: An enemy within 10 squares starts their turn.
+            flavor: Gifted by a prescient vision, you warn an ally of an impending attack.
+            guid: 94e46652-3055-499f-8db5-fb4ec87edea5
+            name: Prescient Grace
+            keywords:
+              Ranged: true
+              Magic: true
+        name: Prescient Grace
+        classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+        description: ""
+        source: Oracle Class Feature
+        implementation: 4
+      - __typeName: CharacterFeature
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        guid: b3a2de05-0345-437b-92fa-4779421cfa9f
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          sourceguid: 5655270d-9816-4158-923f-3350cdf327f4
+          description: ""
+          source: Oracle Class Feature
+          name: With My Blessing
+          behavior: activated
+          guid: 437fe5c2-c596-4035-ad88-e06e57a209e1
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            targetFilter: not enemy
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              runOnController: true
+              promptText: With My Blessing
+              autoTarget: false
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 67a0130e-0121-403f-92d0-15f246d63c0e
+                repeatTargets: false
+                abilityType: none
+                categorization: Hidden
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  guid: 52f44406-d849-4cde-a7c1-93dd69735e37
+                  modifier:
+                    __typeName: CharacterModifier
+                    modifyDescription: ""
+                    cannotModifyAction: true
+                    filterAbility: Ability.Usable as Signature Ability or Ability.Categorization = "Heroic Ability"
+                    guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+                    keywords:
+                      Strike: true
+                    source: ""
+                    attributes: []
+                    name: Modify Attack
+                    mustPayResourceCost: true
+                    description: ""
+                    behavior: modifyability
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      strain: []
+                      guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors:
+                      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+                        guid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+                        modifier:
+                          __typeName: CharacterModifier
+                          sourceguid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+                          resourceCostType: cost
+                          behavior: power
+                          guid: cd0fedaa-7048-4b2e-bcfd-22bfaf3fea8c
+                          resourceCostAmount: "-3"
+                          activationCondition: true
+                          domains: []
+                          overrideCost: false
+                          name: Power Roll Modifier
+                          keywords: []
+                          description: ""
+                          modtype: double_edge
+                          rollType: ability_power_roll
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                numTargets: "1"
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              abilityType: custom
+              standardAbility: de8e56f5-508b-4bc8-a447-29c93d2c2c4e
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.141176477074623
+                s: 1
+                v: 1
+                a: 1
+            flavor: 'A word in prayer, and the gods show the way. '
+            categorization: Heroic Ability
+            range: "10"
+            targetType: target
+            implementation: 3
+            persistence: []
+            modifiers: []
+            numTargets: "1"
+            strain: []
+            guid: e68b20fd-0749-478f-a691-a6098f3a0d6f
+            description: The target can use a free triggered action to use a strike signature ability or a strike heroic ability, and has a double edge on that ability.
+            sourceReference:
+              __typeName: SourceReference
+              page: 86
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+            name: With My Blessing
+            channelDescription: ""
+            selfTarget: true
+            maxChannel: 5
+            channeledResource: none
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: c4893538-9809-4de1-8ef9-2fa83a84fe2b
+        name: With My Blessing
+        classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+        description: ""
+        source: Oracle Class Feature
+        implementation: 3
+      classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+      guid: 19fb9523-5874-44df-b60f-813824abcdf6
+      description: Choose one of the following abilities.
+      name: 2nd-Level Oracle Ability
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          sourceguid: 713ea554-4e25-4c51-9c18-1c900ca43925
+          behavior: triggerdisplay
+          source: Oracle Class Feature
+          name: Blessing and a Curse
+          description: The gods bless and damn in equal measure
+          guid: 90fb88db-b64b-42af-acc9-80cf588b157a
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: |-
+              The target obtains a tier 1 or tier 3 outcome on their power roll (your choice). You can then choose another target within distance, who obtains the opposite outcome on their next power roll.
+
+              **Note:** Apply opposite outcome to another target is not automated
+            flavor: The gods bless and damn in equal measure
+            trigger: The target makes a power roll.
+            cost: 11 Wrath
+            guid: 6febda1c-42cc-4539-961a-9244bac65c80
+            name: Blessing and a Curse
+            keywords:
+              Ranged: true
+              Magic: true
+        - __typeName: CharacterModifier
+          sourceguid: 713ea554-4e25-4c51-9c18-1c900ca43925
+          source: Oracle Class Feature
+          powerRollModifier:
+            __typeName: CharacterModifier
+            source: Trigger
+            guid: 388a290e-37a0-4f77-90e9-7838675c421e
+            behavior: power
+            name: Blessing and a Curse - Tier 1
+            keywords: []
+            hasCustomTrigger: true
+            customTrigger:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: c9569d2d-3e90-4bd4-b801-61a621284497
+              repeatTargets: false
+              abilityType: none
+              trigger: d20roll
+              targetType: self
+              numTargets: "1"
+              name: Tier 3 Result
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                customAbility:
+                  __typeName: ActivatedAbility
+                  objectTarget: false
+                  repeatTargets: false
+                  targetType: target
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  categorization: Hidden
+                  range: "10"
+                  persistence: []
+                  modifiers: []
+                  strain: []
+                  guid: 81a17f14-a94e-4487-a31d-7db883b6d2d9
+                  iconid: ui-icons/skills/1.png
+                  behaviors:
+                  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                    ongoingEffect: 45233f5a-56ac-488a-bb64-9b2b45382316
+                    ongoingEffectCustom: 45233f5a-56ac-488a-bb64-9b2b45382316
+                  name: Invoked Ability
+                  numTargets: "1"
+                  description: ""
+                  abilityType: none
+                  implementation: 4
+                promptText: Select another creature to receive a Tier 3 result on their next power roll
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            modtype: tier1
+            rollType: ability_power_roll
+            rules: ""
+            description: The target obtains a tier 1 outcome on their power roll. You can then choose another target within distance, who obtains the opposite outcome on their next power roll.
+            activationCondition: false
+            changeTarget: false
+          guid: 64e8debb-d6cb-47b0-8d2a-ea4411e52c00
+          type: trigger
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          targetType: anycreature
+          behavior: powertabletrigger
+          name: Blessing and a Curse Tier 1
+          rules: The target obtains a tier 1 outcome on their power roll. You can then choose another target within distance, who obtains the opposite outcome on their next power roll.
+          description: The gods bless and damn in equal measure
+          range: 10
+          trigger: powerroll
+        - __typeName: CharacterModifier
+          sourceguid: 713ea554-4e25-4c51-9c18-1c900ca43925
+          source: Oracle Class Feature
+          powerRollModifier:
+            __typeName: CharacterModifier
+            source: Trigger
+            modtype: tier3
+            activationCondition: false
+            keywords: []
+            hasCustomTrigger: true
+            customTrigger:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: b7d60626-07f5-4e6b-a2a1-dfee241e0c5c
+              repeatTargets: false
+              abilityType: none
+              trigger: d20roll
+              targetType: self
+              numTargets: "1"
+              name: New Ability
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                guid: b8e3941c-5ce9-45c9-a3bf-25090e56d5f0
+                customAbility:
+                  __typeName: ActivatedAbility
+                  objectTarget: false
+                  repeatTargets: false
+                  targetType: target
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  categorization: Hidden
+                  range: "10"
+                  persistence: []
+                  modifiers: []
+                  strain: []
+                  guid: 81a17f14-a94e-4487-a31d-7db883b6d2d9
+                  iconid: ui-icons/skills/1.png
+                  behaviors:
+                  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                    ongoingEffect: 0f26e654-4ef1-4342-a9f9-a521cce40011
+                    ongoingEffectCustom: 0f26e654-4ef1-4342-a9f9-a521cce40011
+                  name: Invoked Ability
+                  numTargets: "1"
+                  description: ""
+                  abilityType: none
+                  implementation: 4
+                promptText: Select another creature to receive a Tier 1 result on their next power roll
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            rollType: ability_power_roll
+            name: Blessing and a Curse - Tier 3
+            rules: ""
+            description: The target obtains a tier 3 outcome on their power roll. You can then choose another target within distance, who obtains the opposite outcome on their next power roll.
+            guid: 999088d8-98c1-4137-90e6-39e14ede3ba3
+            behavior: power
+          guid: 8f345c06-8191-44e9-9ae9-f99f19845efa
+          type: trigger
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          targetType: anycreature
+          behavior: powertabletrigger
+          name: Blessing and a Curse - Tier 3
+          rules: The target obtains a tier 3 outcome on their power roll. You can then choose another target within distance, who obtains the opposite outcome on their next power roll.
+          description: The gods bless and damn in equal measure
+          range: 10
+          trigger: powerroll
+        source: Oracle Class Feature
+        guid: 27fc7b16-1747-4d6c-8cc8-be6dce3b3592
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        canHavePrerequisites: true
+        classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+        description: The gods bless and damn in equal measure
+        name: Blessing and a Curse
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          sourceguid: 2b9801ec-181e-460c-9969-d4038e1911d5
+          behavior: triggerdisplay
+          source: Oracle Class Feature
+          name: 'Fulfill Your Destiny '
+          description: You have looked at various futures, and only this one works
+          guid: 73787dcf-1f7a-4e18-8d34-13725da5dbd5
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            target: One ally
+            effect: |-
+              The target takes their turn after the triggering hero, and immediately removes all conditions and negative effects on themself.
+              During their turn, the target has a double edge on power rolls.
+            cost: 11 Wrath
+            trigger: You or another hero ends their turn.
+            flavor: You have looked at various futures, and only this one works
+            guid: 6767d96a-6cc5-4621-8c7c-dcb1e8c4da6f
+            name: You have looked at various futur
+            keywords:
+              Ranged: true
+              Magic: true
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+          sourceguid: 2b9801ec-181e-460c-9969-d4038e1911d5
+          description: You have looked at various futures, and only this one works
+          source: Oracle Class Feature
+          name: 'Fulfill Your Destiny '
+          behavior: trigger
+          triggeredAbility:
+            __typeName: TriggeredAbility
+            resourceNumber: 11
+            repeatTargets: false
+            targetType: self
+            triggerPrompt: Fulfill Your Destiny
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            range: 1
+            abilityType: none
+            trigger: endturn
+            actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+            modifiers: []
+            subjectRange: "10"
+            strain: []
+            guid: 9e6c86fc-1344-409e-9d75-4bc2b94d5839
+            numTargets: "1"
+            hasManualVersion: true
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+            persistence: []
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            name: 'Fulfill Your Destiny '
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              inheritRange: true
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                targetFilter: 'not Taken Turn '
+                repeatTargets: false
+                keywords:
+                  Ranged: true
+                  Magic: true
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                flavor: You have looked at various futures, and only this one works
+                categorization: Hidden
+                range: "10"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: fc8f4397-27ce-43a7-bef8-06005ef14e0b
+                behaviors:
+                - __typeName: ActivatedAbilityInitiativeBehavior
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 9b71b7dd-3044-4995-bb95-4e136a1cf5b0
+                  duration: 0
+                  ongoingEffectCustom: 9b71b7dd-3044-4995-bb95-4e136a1cf5b0
+                name: Fulfill Your Destiny
+                numTargets: "1"
+                description: The target takes their turn after the triggering hero, and immediately removes all conditions and negative effects on themself. During their turn, the target has a double edge on power rolls
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Select hero to take their turn
+            description: |-
+              The target takes their turn after the triggering hero, and immediately removes all conditions and negative effects on themself.
+              During their turn, the target has a double edge on power rolls.
+            subject: selfandheroes
+            iconid: ui-icons/skills/1.png
+          guid: 1ddfbe37-3485-4fbb-8e3f-55b076324257
+        source: Oracle Class Feature
+        guid: 2b9801ec-181e-460c-9969-d4038e1911d5
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+        canHavePrerequisites: true
+        classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+        description: You have looked at various futures, and only this one works
+        name: 'Fulfill Your Destiny '
+        implementation: 3
+      classid: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+      guid: bc5c2656-040e-4d45-8f53-08ceb36bd0f8
+      description: Choose one of the following abilities.
+      name: 9th-Level Oracle Abilities
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a: true
+details: Corruption has deep tendrils that can be missed, leading you to specialize in uncovering clandestine threats to your order.
+name: Oracle
+mtime: 1774058883975
+id: 6f82ec8b-5511-4dc0-bc9d-9c968f88ed4a
+primaryClassId: 1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049

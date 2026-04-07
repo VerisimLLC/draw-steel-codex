@@ -1,0 +1,418 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d1cca621-41bd-469a-a31f-f2bcaef67cc4
+    offtokenPortraitId: null
+    portraitFrameId: 98407687-be6a-4d52-a6e1-04f019cfaf6d
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.2
+    portraitOffset:
+      x: -0.06250048
+      y: 0.04302054
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e4323f64-9e0e-45a5-b4fc-a4c23e9f4fd8
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    inventory: []
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      inu:
+        baseValue: 0
+        id: inu
+      pre:
+        __typeName: CharacterAttribute
+        id: pre
+      mgt:
+        baseValue: 0
+        id: mgt
+      agl:
+        baseValue: 1
+        id: agl
+      rsn:
+        baseValue: 1
+        id: rsn
+      rea:
+        baseValue: 2
+        id: rea
+      prs:
+        baseValue: 0
+        id: prs
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      agi:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: agi
+      end:
+        __typeName: CharacterAttribute
+        id: end
+    weight: 3
+    monster_type: Kobold Adeptus
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 lightning damage
+        - 6 lightning damage
+        - 7 lightning damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 26b3b3bc-c7cd-44c8-8ffb-bf54f7c3648b
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 26b3b3bc-c7cd-44c8-8ffb-bf54f7c3648b
+          displayCondition: "1"
+          modtype: edge
+          keywords: []
+          activationCondition: target.CountNearbyFriends(1) > 0
+          guid: 5d2505ee-1461-47c5-930c-76996a2b455a
+          name: Edge When Next to Another Enemy
+          domains: []
+          description: While the target is adjacent to any enemy, the adeptus  gains an edge on this ability.
+          rollType: ability_power_roll
+          behavior: power
+      - __typeName: ActivatedAbilityDamageBehavior
+        applyto: proximity_only
+        filterTarget: not Friends(target, caster)
+        damageType: lightning
+        titleText: Shocking Bolt
+        roll: "2"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: d67203df-e2e5-412d-87aa-7cd4f8268e17
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 143
+        docid: a6af1208-0560-4a2c-b1c9-09e4bb01bdd5
+      targetType: target
+      implementation: 4
+      name: Shocking Bolt
+      persistence: []
+      description: The adeptus has an edge on the ability if the target is adjacent to another enemy. All enemies adjacent to the target take 2 lighting damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityModifyCastBehavior
+        description: Ignores damage immunity
+        paramid: ability_ignore_immunity
+        value: "1"
+        name: Arcane Telum
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 6 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: fad4e011-3c8f-4086-99da-a72d2bc31ca9
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: fad4e011-3c8f-4086-99da-a72d2bc31ca9
+          modtype: ignore_banes
+          adjustments: []
+          keywords: []
+          activationCondition: false
+          guid: 88e9d62d-268e-442c-855a-007825b71fc2
+          rollType: ability_power_roll
+          domains: []
+          description: This attack ignores banes and double banes.
+          behavior: power
+          name: Ignore Banes
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.193749904632568
+          s: 1.0020809173584
+          v: 1.00238561630249
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 143
+        docid: a6af1208-0560-4a2c-b1c9-09e4bb01bdd5
+      range: 15
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 3c77a220-4323-4ada-ac37-ae6beb213f97
+      abilityType: none
+      targetType: target
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 3
+      implementation: 4
+      name: Arcane Telum
+      categorization: Heroic Ability
+      description: This attack ignores banes, double banes, and damage immunity.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 5db1172b-326f-42d8-b028-b500d89b27b0
+    opportunityAttack: 2
+    minion: false
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+    traitNames: []
+    attributesOverride: []
+    stability: 0
+    notes:
+    - text: The Adeptus and one other 1/2 level ally can take their turn at the same time.
+      title: "Two for One:"
+    import:
+      override: true
+      data: |+
+        Kobold Adeptus	Level 1 Horde Artillery
+        Humanoid, Kobold	EV 3
+        <b>Stamina</b> 10
+        <b>Speed </b>5	<b>Size</b> 1S /<b> Stability</b> 0
+        	<b>Free Strike</b> 2
+        Might 0	Agility +1	Reason +2	Intuition 0	Presence 0
+        <b>Shocking Bolt</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 15<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 lighting damage
+        %E2%98%85	<b>12%E2%80%9316</b>	6 lighting damage
+        %E2%9C%B8	<b>17</b>	7 lighting damage
+        <b>Effect</b> The adeptus has an edge on the ability if the target is adjacent to another enemy. All enemies adjacent to the target take 2 lighting damage.
+
+        <b>Arcane Telum</b> (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 15<b>Target</b> 3 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 damage
+        %E2%9C%B8	<b>17</b>	6 damage
+        <b>Effect</b> This attack ignores all banes and damage reduction.
+
+        <b>Shield? Shield!</b>
+        The adeptus has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:eaaf9bd2-0a6b-4e84-a48d-8895954f5943: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        iconColor: "#ffffffff"
+        behavior: icon
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+        name: Shield? Shield!
+        description: The adeptus has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        value: "1"
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+        description: The adeptus has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The adeptus has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The adeptus has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+      source: Trait
+      description: The adeptus has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+      guid: eaaf9bd2-0a6b-4e84-a48d-8895954f5943
+      name: Shield? Shield!
+      implementation: 3
+    role: Horde Artillery
+    max_hitpoints: 10
+    equipment: []
+    titles: []
+    monster_category: Monster
+    initiativeGrouping: e3d10c1b-c132-4725-b8f3-e3932e12a51d
+    damage_entry:
+      damage: 7
+      id: aeeda589-62a8-45f5-a578-eec2c4bfc0c0
+    resistances: []
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: eeba1059-f0c3-4f9d-b8a9-e81ed7dde560-5200
+    keywords:
+      Humanoid: true
+      Kobold: true
+    creatureSize: 1S
+    max_hitpoints_history:
+      __typeName: StatHistory
+      entries:
+        a86e349b-56f1-42b0-aa38-6551218bd12a:
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 35
+        0bd23cae-1651-4b19-9ae5-8661f71b1ec1:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 8
+        512ad6df-247d-4978-b24d-0956bf5c8963:
+          userid: SqYjPoYf0Mchqb4p2fWdGjySOm73
+          set: 30
+    expectedDamage: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        e5e0b350-3475-4923-b686-968ff4bca55c:
+          note: Arcane Telum
+          abilityid: 3c77a220-4323-4ada-ac37-ae6beb213f97
+          refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    damage_taken: 0
+    attributesBonusAdd: []
+    walkingSpeed: 5
+    equipmentMeta:
+      mainhand2: []
+      armor: []
+      attune3: []
+      belt4: []
+      attune4: []
+      belt3: []
+      offhand1: []
+      mainhand1: []
+      belt1: []
+      mainhand3: []
+      attune1: []
+      offhand2: []
+      offhand3: []
+      belt2: []
+      attune2: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+        used: 1
+      b8977f9c-df97-40fc-b9ce-56a88035df9c:
+        __typeName: CharacterResource
+        refreshid: 8c0249b0-31c2-4eb5-8f68-75e899f7b5a2
+        used: 0
+    selectedLoadout: 3
+    hitpoints_history:
+      __typeName: StatHistory
+      entries:
+        49d316ff-a5ce-41e5-b4d6-289b7de3a7da:
+          disposition: bad
+          note: 7 damage from Kobold Centurion's Boom Pilum
+          userid: SqYjPoYf0Mchqb4p2fWdGjySOm73
+          set: 19
+        8ddbc94d-c32e-452a-8040-38b65c0c2174:
+          disposition: bad
+          note: 4 damage from Kobold Centurion's Boom Pilum
+          userid: SqYjPoYf0Mchqb4p2fWdGjySOm73
+          set: 26
+    movementSpeeds: []
+    fmr: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        4a041a10-a1e4-4d19-bceb-a9c95b14e7e5:
+          note: Shocking Bolt
+          abilityid: d67203df-e2e5-412d-87aa-7cd4f8268e17
+          refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    skillRatings:
+      ac718c6f-05e2-4301-997c-b1c54aad9250: true
+    notesRevision: ba4c852b-f331-46d5-a36b-e0aaabcb201b
+  tokenType: null
+  bestiaryId: 29cd277a-85fa-4499-b059-de804fb0b0cf
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1699688388438
+description: Kobold Adeptus
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590233326
+mtime: 1775201137032
+hidden: false

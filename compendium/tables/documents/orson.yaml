@@ -1,0 +1,28 @@
+__typeName: MarkdownDocument
+description: Orson
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 243fce25-6ede-46fa-8b99-18c2eebfacbd
+annotations:
+  image:
+    __typeName: RichImage
+id: 66f889cd-4f7d-4be6-bea4-8b334b49f807
+mtime: 1761417849377
+content: |-
+  # Orson
+
+  [[image]]
+
+  *An old man, seemingly eccentric, and a charcoal burner who is covered in soot.*
+  {
+  Secret: See [B9. Charcoal Burner]
+
+  Orson plays the doddering old man, but he belongs to a semisecret organization of adventuring heroes called the Coursers. Retired from performing heroic deeds, Orson stays in Broadhurst and operates a safehouse for adventuring Coursers passing through the village. His put-on persona keeps the other villagers away and his waystation a secret.
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761396101680

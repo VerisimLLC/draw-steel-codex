@@ -1,0 +1,24 @@
+__typeName: equipment
+itemPrerequisite: A time crystal
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Voll
+flavor: This spiked crystal makes a beautiful ringing sound when first touched.
+weight: 1
+echelon: 3
+specialDescription: ""
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+ctime: 1775045661230
+type: Gear
+projectGoal: "180"
+mtime: 1775045752629
+name: Timesplitter
+category: Gear
+description: |-
+  As a maneuver, you make a ranged free strike using the Timesplitter, which shatters upon impact. The strike deals an extra 1d6 psychic damage and adds the following effects to the tier outcomes of the power roll:
+  Tier 1: The target and each creature within 3 squares of them is slowed (save ends).Tier 2: The target and each creature within 5 squares of them is slowed (save ends).
+  Tier 3: The target and each creature within 8 squares of them is slowed (save ends).
+projectRollCharacteristic:
+  rea: true
+  inu: true
+id: d8d2bf33-47b3-4b9c-b00a-c580a04d0765

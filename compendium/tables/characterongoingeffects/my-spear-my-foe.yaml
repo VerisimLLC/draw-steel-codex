@@ -1,0 +1,39 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: b7e750f9-c079-423a-974f-d69ec715a75c
+  source: Ongoing Effect
+  modtype: none
+  keywords: []
+  activationCondition: false
+  guid: b9b07f1e-c963-4daa-8775-d3ecdcdc6b1f
+  rollType: enemy_ability_power_roll
+  domains:
+    CharacterOngoingEffect:b7e750f9-c079-423a-974f-d69ec715a75c: true
+  description: The ability My Spear, My Foe has a double edge against any target who has this ongoing effect.
+  behavior: power
+  name: My Spear, My Foe
+source: Ongoing Effect
+casterTracking: set
+guid: b7e750f9-c079-423a-974f-d69ec715a75c
+id: b7e750f9-c079-423a-974f-d69ec715a75c
+ctime: 1766167130138
+domains:
+  CharacterOngoingEffect:b7e750f9-c079-423a-974f-d69ec715a75c: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00089943408966
+    v: 1.00103223323822
+    a: 1
+hiddenOnToken: false
+name: My Spear, My Foe
+description: The ability My Spear, My Foe has a double edge against any target who has this ongoing effect.
+custom: true
+mtime: 1770734040145
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce

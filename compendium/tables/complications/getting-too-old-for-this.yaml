@@ -1,0 +1,38 @@
+__typeName: CharacterComplication
+drawback: While you are winded, you take a -2 penalty to speed
+mtime: 1765367371343
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      operation: set
+      sourceguid: c4a15b5e-4fc4-444e-af8e-8388b87d83bc
+      source: Feat
+      value: Walking Speed/2
+      filterCondition: Winded
+      name: Getting Too Old for This - Drawback
+      guid: 3646ac14-9392-478b-b642-d945d85980dc
+      description: ""
+      behavior: attribute
+      attribute: speed
+    source: Feat
+    canHavePrerequisites: true
+    guid: c4a15b5e-4fc4-444e-af8e-8388b87d83bc
+    name: Getting Too Old for This - Drawback
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: On your turn, you can choose a heroic ability that you would be able to learn if you were one level higher. Provided you meet the ability’s other prerequisites and can spend any required Heroic Resource, you can use the ability. Once you use this benefit, you can’t do so again until you earn 2 or more Victories.
+    modifiers: []
+    source: Feat
+    canHavePrerequisites: true
+    guid: b7433e7b-8ca7-4b63-8ea7-779e7866c316
+    name: Getting Too Old for This - Benefit
+    implementation: 4
+name: Getting Too Old for This
+ctime: 1755514484853
+description: You were once a renowned hero, but you’ve been living the last few years in blissful peace. Now you’re coming out of retirement for one last hurrah. Your fighting skills might have atrophied to the point where you’re no stronger than a wet behind-the-ears novice adventurer, but you still remember some of your old tricks.
+id: a3e3a577-1a65-4b5c-ad90-b9fd216a8c50
+benefit: On your turn, you can choose a heroic ability that you would be able to learn if you were one level higher. Provided you meet the ability’s other prerequisites and can spend any required Heroic Resource, you can use the ability. Once you use this benefit, you can’t do so again until you earn 2 or more Victories.

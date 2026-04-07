@@ -1,0 +1,27 @@
+__typeName: ActivatedAbility
+id: 9683c15c-de03-4129-869c-d4054928cf97
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: 13fbb977-7be0-4d9b-b3b8-9d22c35e0ba6
+  ongoingEffectCustom: false
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 6534dd12-d084-4533-9d7c-727d6d92f043
+ctime: 1754546076439
+targetType: self
+numTargets: "1"
+mtime: 1760189944722
+name: Hide if in Cover or Concealment
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

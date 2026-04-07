@@ -1,0 +1,16 @@
+__typeName: CharacterFeat
+prerequisite: "	"
+tag: Lore Perks
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterLanguageChoice
+    numChoices: 2
+    guid: a3052614-7561-44a6-9a89-5213325ccdf9
+    description: Choose Two New Languages
+    source: Feat
+name: Linguist
+description: You automatically learn two new languages, as long as you have regularly heard those languages spoken or seen them written before. Additionally, if you spend 7 days or more in a place where you regularly hear or read a language you don’t know, you can pick up enough of that language to hold a conversation or understand basic written information. Having picked up a language this way, you can subsequently learn it using the Learn New Language research project at half the usual project goal cost.
+mtime: 1756582039450
+id: 5a480801-a2e6-408b-a14f-32c0194b2908
+ctime: 1730700863983

@@ -1,0 +1,323 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: "-MDiy3RMw8oTL_dLBz8a"
+    offtokenPortraitId: null
+    portraitFrameId: 9242a1db-25ff-403c-908c-010ef15dc821
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7de5cca9-0fb7-4219-ab07-c7fca6d05060
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 40
+    inflictedConditions: []
+    ev: 8
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    moveDistance: 6
+    traitNames: []
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      ongoingEffectid: 760be874-e320-44e5-8a13-e528a34ebb71
+      seq: 3
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.56740617752075
+        queueguid: 98f39b50-622d-4138-8500-8936c5f7fa46
+        initiativeid: 36ee4237-2e11-491d-a9d9-ca126d31050b
+        round: 1
+      sourceDescription: Applied by Edmund's <b>Rise, My Minions</b> ability
+      stacks: 1
+      id: a0dd9312-2da1-40db-a5dd-67c21450ac1a
+      casterInfo:
+        abilityName: Rise, My Minions
+        tokenid: 5efc2c42-056b-48c6-a436-9872f43a3d7d
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Death Cultist	Level 2 Platoon Support
+        Human, Humanoid	EV 8
+        <b>Stamina</b> 40	<b>Immunity</b> Corruption 2, Psychic 2
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 4
+        Might +0	Agility +1	Reason +0	Intuition +0	Presence +2
+        <b>Death Scythe</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 10	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	6 corruption damage
+        %E2%98%85	12%E2%80%9316	9 corruption damage
+        %E2%9C%B8	17+	12 corruption damage; I<2 weakened (save ends)
+        <b>2 Malice </b>The death cultist regains Stamina equal to half the damage dealt by this ability.
+
+        <b>Rise, My Minions</b> (Maneuver) %E2%97%86 1 Malice per minion
+        <b>Keywords</b> Area
+        <b>Distance</b> 5 burst	<b>Target</b> One or more dead minions
+        <b>Special</b> Each target must have died during this encounter
+        <b>Effect </b>Each target revives with their full Stamina. They immediately die at the end of the encounter or if the death cultist is killed. A target can be revived multiple times by this ability.
+
+        <b>Supernatural Insight</b>
+        The death cultist ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bf5576ea-73bb-4421-bfee-2ff0c26c3f46: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:bf5576ea-73bb-4421-bfee-2ff0c26c3f46: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The death cultist ignores concealment if it's granted by a supernatural effect.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The death cultist ignores concealment if it's granted by a supernatural effect.
+      guid: bf5576ea-73bb-4421-bfee-2ff0c26c3f46
+      name: Supernatural Insight
+      implementation: 3
+    role: Platoon Support
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 4
+    initiativeGrouping: 36ee4237-2e11-491d-a9d9-ca126d31050b
+    notes:
+    - text: ""
+      title: Monster Notes
+    damage_taken: 0
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: f209aadc-036a-49d5-b032-00cc8e7c9445-295
+    walkingSpeed: 5
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    resources:
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 98f39b50-622d-4138-8500-8936c5f7fa46-1
+        used: 1
+    moveDistanceRoundId: 98f39b50-622d-4138-8500-8936c5f7fa46-1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Weapon: true
+        Melee: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 corruption damage
+        - 9 corruption damage
+        - 12 corruption damage; I<2 weakened (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityHealBehavior
+        applyto: caster
+        roll: Cast.Damage Dealt *0.5
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+        mode: expend
+        modesSelected:
+        - 2
+        quantity: "2"
+        chatMessage: "2 Malice: The death cultist regains Stamina equal to half the damage dealt."
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 183
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      persistence: []
+      modifiers: []
+      meleeRange: 1
+      strain: []
+      modeList:
+      - text: No Malice
+      - text: 2 Malice
+      guid: bf095b0a-cbe6-4da9-b728-61e5211a7bb4
+      targetType: target
+      numTargets: 1
+      implementation: 4
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Death Scythe
+      categorization: Signature Ability
+      description: "2 Malice: The death cultist regains Stamina equal to half the damage dealt."
+      abilityType: none
+      iconid: d15fe212-5892-433b-869f-4778a5a9604d
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: target.Stamina = 0 or dead and Minion
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityRaiseCorpseBehavior
+        guid: fa771fa5-5cd8-447b-ae20-7b4f5be3dfc5
+        restoreStamina: true
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: d3b50284-a103-4a7f-8567-db5484d41c53
+        duration: eoe_or_dying
+        ongoingEffectCustom: d3b50284-a103-4a7f-8567-db5484d41c53
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 760be874-e320-44e5-8a13-e528a34ebb71
+        ongoingEffectCustom: 760be874-e320-44e5-8a13-e528a34ebb71
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 183
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      effectImplemented: true
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 481ee11f-764c-4f7d-b024-4e2183a8032e
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: all
+      numTargets: 1
+      implementation: 4
+      name: Rise, My Minions
+      categorization: Signature Ability
+      description: Each target revives with their full Stamina. They immediately die at the end of the encounter or if the death cultist is killed. A target can be revived multiple times by this ability.
+      abilityType: none
+      iconid: d38cfd57-01a7-4bae-bc92-74689ddc4e92
+    movementSpeeds: []
+    creatureSize: 1M
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        17de789f-ab44-434a-9eb1-ca7d578ee4bb:
+          refreshid: 98f39b50-622d-4138-8500-8936c5f7fa46-1
+          note: Rise, My Minions
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    monster_type: Human Death Cultist
+    keywords:
+      Humanoid: true
+      Human: true
+  tokenType: null
+  bestiaryId: 5949474c-9dcf-47c9-ad53-9035a085f941
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Human Death Cultist
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590254303
+mtime: 1775201137032
+hidden: false

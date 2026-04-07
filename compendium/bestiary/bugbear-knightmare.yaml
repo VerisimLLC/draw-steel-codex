@@ -1,0 +1,273 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0be1a2c9-6b95-4cc9-9aa5-b05b3f97c351
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Bugbear Knightmare	Level 8 Minion Hexer
+        Bugbear, Goblin, Humanoid, Fey	EV 10 for four minions
+        <b>Stamina</b> 12
+        <b>Speed</b> 5	<b>Size</b> 1L /<b> Stability</b> 2
+        <b>With Captain </b>Edge on strikes<b>Free Strike</b> 3
+        Might +4	Agility +3	Reason +1	Intuition +1	Presence +4
+        <b>Corrosive Blade</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 corruption damage
+        %E2%98%85	<b>12-16</b>	6 corruption damage; P<3 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	8 corruption damage; grabbed; P<4 bleeding (save ends)
+        <b>Effect</b> A target grabbed by the knightmare can be immediately vertically pushed 5.
+
+        <b>Bu'gathic Inspiration</b>
+        Each ally has +1 on dice rolls for each adjacent knightmare.
+
+        <b>Magic Terror</b>
+        Each enemy has -1 to dice rolls for each adjacent knightmare.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e8855177-3f23-421a-8d38-b038f97a481b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e8855177-3f23-421a-8d38-b038f97a481b
+        source: Trait
+        guid: a1d4e7f2-3b89-4c56-9e0a-5f72d8c31b94
+        domains:
+          CharacterFeature:e8855177-3f23-421a-8d38-b038f97a481b: true
+        name: Bu'gathic Inspiration
+        behavior: aura
+        description: Any ally has a +1 bonus to power rolls for each knightmare adjacent to them.
+        aura:
+          __typeName: Aura
+          applyto: allies
+          modifiers:
+          - __typeName: CharacterModifier
+            rollmod: "1"
+            guid: c3f5a9b4-5d08-4e78-bf2c-7184e0d53c16
+            activationCondition: true
+            rollType: ability_power_roll
+            name: Bu'gathic Inspiration
+            modtype: none
+            description: +1 bonus to power rolls from adjacent knightmare.
+            source: Aura
+            behavior: power
+          name: Bu'gathic Inspiration
+          triggers: []
+          guid: b2e5f8a3-4c97-4d67-ae1b-6a83c9d42e05
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+        radius: "1"
+      source: Trait
+      description: Any ally has a +1 bonus to power rolls, saving throws, or damage rolled as a d6 or a d3 for each knightmare adjacent to them.
+      guid: e8855177-3f23-421a-8d38-b038f97a481b
+      name: Bu'gathic Inspiration
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c6bee008-8103-48d7-a2b7-98cd7bb502e1: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c6bee008-8103-48d7-a2b7-98cd7bb502e1
+        source: Trait
+        guid: d2e5f8a3-4c97-4d67-ae1b-6a83c9d42e06
+        domains:
+          CharacterFeature:c6bee008-8103-48d7-a2b7-98cd7bb502e1: true
+        name: Magic Terror
+        behavior: aura
+        description: Each enemy has a -1 penalty to power rolls for each knightmare adjacent to them.
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          modifiers:
+          - __typeName: CharacterModifier
+            rollmod: "-1"
+            guid: f4a6c0d5-6f19-4089-d14e-9306a2f75e38
+            activationCondition: true
+            rollType: ability_power_roll
+            name: Magic Terror
+            modtype: none
+            description: "-1 penalty to power rolls from adjacent knightmare."
+            source: Aura
+            behavior: power
+          name: Magic Terror
+          triggers: []
+          guid: e3f6b9c4-5e08-4f89-c03d-8295f1e64d27
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+        radius: "1"
+      source: Trait
+      description: Each enemy has a -1 penalty to power rolls, saving throws, or damage rolled as a d6 or a d3 for each knightmare adjacent to them.
+      guid: c6bee008-8103-48d7-a2b7-98cd7bb502e1
+      name: Magic Terror
+      implementation: 3
+    role: Minion Hexer
+    inflictedConditions: []
+    ev: 10
+    max_hitpoints_roll: "12"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    groupid: ad734f83-9fbe-4f7d-b0f9-7a6b67917513
+    monster_type: Bugbear Knightmare
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 4
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    withCaptain: Gain an edge on strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 12
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Magic: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage
+        - 6 corruption damage; P<3 bleeding (save ends)
+        - 8 corruption damage; P<4 bleeding (save ends); grabbed
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        conditionFormula: CountNearbyCreatures(1, "grabbed")
+        targeting: prompt
+        promptText: Vertical push a grabbed target up to 5 squares
+        autoTarget: false
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: Conditions has "grabbed"
+          repeatTargets: false
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d4a7e1b3-5f82-4c96-a0d8-7e93b6f24c15
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: vertical push 5
+          name: Corrosive Blade Push
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        inheritRange: true
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8f1aadac-ec2a-4b56-b212-86b1915c2872
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Corrosive Blade
+      numTargets: 1
+      description: A target grabbed by the knightmare can be immediately vertically pushed 5.
+      abilityType: none
+      implementation: 4
+    keywords:
+      Fey: true
+      Bugbear: true
+      Goblin: true
+      Humanoid: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1L
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 0e28c76f-2a53-44db-8ce7-e6ba979060e5
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222946034
+description: Bugbear Knightmare
+parentFolder: 48e8f60e-8ed1-400a-83c2-e4170481f4b4
+artist: null
+ord: 0
+ctime: 1741590218592
+mtime: 1775201137032
+hidden: false

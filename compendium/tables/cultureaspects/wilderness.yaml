@@ -1,0 +1,18 @@
+__typeName: CultureAspect
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      crafting: true
+      exploration: true
+    name: Wilderness Skill
+    source: Wilderess Culture Feature
+    description: Choose one Skill from crafting or exploration. (*Quick Build:* Endurance)
+    guid: 37676bd8-c570-457f-b1e5-9249cad1b921
+    individualSkills: []
+name: Wilderness
+description: 'A wilderness culture doesn’t try to tame the terrain in which its people live, whether desert, forest, swamp, tundra, ocean, or more exotic climes. Instead, the folk of such a culture thrive amid nature, taking their sustenance and shelter from the land. A wilderness culture might be a circle of druids protecting a remote wode, a band of brigands hiding out in desert caves, or a camp of orc mercenaries who call the trackless mountains home. People in a wilderness culture learn how to use the land for all they need to live, typically crafting their own tools, clothing, and more. '
+mtime: 1756163737176
+id: 4dbf32ef-46d1-48ec-be9e-1783e7b36f07
+ctime: 1730729742737

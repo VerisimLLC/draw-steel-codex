@@ -1,0 +1,62 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 2f3eafd8-bb90-4714-9f14-d2f2cd1e9fb9
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          applyto: caster
+          resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          chatMessage: Critical Hit!
+        - __typeName: ActivatedAbilityCustomTriggerBehavior
+          applyto: caster
+          value: ""
+          triggerName: Critical Hit
+        - __typeName: ActivatedAbilityFloatTextBehavior
+          applyto: caster
+          text: Critical Hit!
+          color:
+            __usertype: LuaColor
+            h: 0.135749965906143
+            s: 0.28417956829071
+            v: 0.989622592926025
+            a: 1
+        conditionFormula: ((High Roll + Low Roll) >= Critical Threshold) and Ability.Action
+        whenActive: combat
+        numTargets: "1"
+        trigger: rollpower
+        name: Critical Hit!
+        description: "Whenever you make an ability roll as an action and the roll is a natural 19 or natural 20—a total of 19 or 20 before adding your characteristic score or other modifiers—you score a critical hit. A critical hit allows you to immediately take an additional action after resolving the power roll, whether or not it’s your turn and even if you are dazed (see Conditions below). \n\nYou can’t score a critical hit with an ability roll made as a maneuver or any other action type, but you can score a critical hit with an action you use off your turn. For example, an opportunity attack made as a triggered action or a signature attack used as a free triggered action with the assistance of the tactician’s Strike Now ability can be critical hits. "
+        abilityType: none
+        iconid: b5db9101-7d79-4166-b119-21a12922ffcd
+      description: ""
+      source: Critical Hit! Global Rule Mod Feature
+      behavior: trigger
+      guid: 3807f0c2-04ab-4032-b1d3-184fc22fb5aa
+      name: Critical Hit!
+      sourceguid: e14ab0db-d62e-4789-959b-c0eecf06302c
+    name: Critical Hit!
+    description: ""
+    guid: e14ab0db-d62e-4789-959b-c0eecf06302c
+    source: Critical Hit! Global Rule Mod Feature
+    implementation: 3
+name: Critical Hit!
+mtime: 1772146479279
+id: 228176cb-87b7-4e06-bf75-67a8d9b9c845
+ctime: 1743447665249

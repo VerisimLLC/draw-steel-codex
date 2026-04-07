@@ -1,0 +1,66 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 24679de3-64f1-47e2-9c01-3005d01354b1
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      exploration: true
+    name: Beggar Exploration Skill
+    guid: 362480fe-965b-4d34-ace9-49ded411023a
+    description: "Choose one exploration Skill (Quick Build: Endurance)"
+    source: Beggar Career Feature
+  - __typeName: CharacterSkillChoice
+    categories:
+      interpersonal: true
+    name: Beggar Interpersonal Skill
+    guid: a4189c7b-39d5-4b95-8e6a-d688c0d1d54f
+    description: "Choose one interpersonal Skill. (Quick Build: Empathize)"
+    source: Beggar Career Feature
+  - __typeName: CharacterFeatChoice
+    guid: 246312d8-9d9b-4905-81d1-1a2a5160c4c8
+    description: "Select a Interpersonal Perk. (Quick Build: Spot the Tell)"
+    tag: interpersonal perk
+    name: Beggar Interpersonal Perk
+  - __typeName: CharacterLanguageChoice
+    name: Beggar Languages
+    numChoices: 2
+    description: Choose two Languages
+    source: Beggar Career Feature
+    guid: 1d64b03c-1629-4d71-a0c0-b55a4df22ee7
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Beggar Career Feature
+      behavior: proficiency
+      description: You have the Rumors skill.
+      equate: false
+      name: Rumours Skill
+      sourceguid: 30b22139-0555-472e-a573-7721c30c5657
+      proficiency: proficient
+      guid: eb324513-9d15-41c2-8a6b-c90e9b0267ec
+      skills:
+        f014760c-c987-4436-81ba-5e6acfdf6905: true
+    name: Rumours Skill
+    description: You have the Rumors skill.
+    guid: 30b22139-0555-472e-a573-7721c30c5657
+    source: Beggar Career Feature
+    implementation: 3
+name: Beggar
+mtime: 1768796515682
+description: |-
+  You lived by going to a tavern, crossroads, city street, or other busy area and begging passersby for money or food. In defining your career, think about the following questions: 
+
+  What unfortunate circumstances led you to become a beggar? 
+
+  Where did you beg? 
+
+  Who made sport out of bullying you? 
+
+  Who showed you the most kindness?
+id: 57e6cb85-b782-4c95-bc45-934d273a4042
+ctime: 1730557191264

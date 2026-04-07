@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 49ec8906-b55f-4544-85fa-186855a1d883
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: Stacks
+    damageType: all
+    apply: Damage Reduction
+  description: ""
+  name: Saved in the Edit - Immunity
+  guid: 0edb189b-8e89-4bea-aa20-44c7f81f3a49
+source: Ongoing Effect
+stackable: true
+id: 49ec8906-b55f-4544-85fa-186855a1d883
+ctime: 1772953585268
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+custom: true
+name: Saved in the Edit - Immunity
+description: ""
+mtime: 1772953610777
+guid: 49ec8906-b55f-4544-85fa-186855a1d883
+iconid: ui-icons/skills/1.png

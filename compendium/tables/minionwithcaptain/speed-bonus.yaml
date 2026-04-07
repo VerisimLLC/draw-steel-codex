@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+testCases:
+- text: Speed +2
+modifiers:
+- __typeName: CharacterModifier
+  guid: 13294013-4599-4884-98b0-a8232dc2a1f4
+  sourceguid: 11e4f7bb-aa7b-41ae-88c7-6201c5ca75ed
+  value: "<<bonus>>"
+  source: Monster
+  name: Speed Bonus
+  behavior: attribute
+  description: ""
+  attribute: speed
+source: Monster
+guid: 11e4f7bb-aa7b-41ae-88c7-6201c5ca75ed
+importMatch: Speed \+<<bonus>>
+ctime: 1738391516036
+name: Speed Bonus
+id: 22329623-2a71-4cb5-a7c5-01dfda5e4753
+description: ""
+mtime: 1738391516036
+implementation: 3

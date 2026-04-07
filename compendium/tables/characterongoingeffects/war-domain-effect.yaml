@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1f1f4f52-276f-44f9-97d4-aff4c186d61c
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Attack: true
+  activationCondition: false
+  description: Your attacks deal extra damage equal to twice your Intuition score until the end of your next turn.
+  name: War Domain Effect
+  behavior: power
+  damageModifier: 2*Intuition
+  rollType: ability_power_roll
+  guid: fddacc49-56c3-4064-9958-83cdb56f46b7
+source: Ongoing Effect
+guid: 1f1f4f52-276f-44f9-97d4-aff4c186d61c
+id: 1f1f4f52-276f-44f9-97d4-aff4c186d61c
+ctime: 1728968231728
+name: War Domain Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1728968231728
+custom: true
+description: Your attacks deal extra damage equal to twice your Intuition score until the end of your next turn.
+iconid: 170fa23d-cb8f-4f7a-8608-1d281994f844

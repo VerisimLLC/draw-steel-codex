@@ -1,0 +1,156 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 3ddc7c5d-c78b-49e5-a5d9-060f2e51fd60
+ctime: 1761037132818
+textStorage:
+  __typeName: TextStorage
+  sections:
+    WU: |
+      #### **Snare Trap**
+    jh: |
+      **Trigger:** A creature or object of the appropriate size enters the trap’s space.
+    FD: |
+      > * “The old bones of a humanoid hang in a shameful position within a patch of the ivy.”
+    yzi: |+
+      Activating the switch causes the room to shake before the panel slides open and the stone steps slowly grind and slide down.
+
+    HF: |
+      > * “Heavy wooden planks cover a hole in the southern part of the room.”
+    US: |
+      If the heroes are not in combat and work together to find the trap ivy, have them make a moderate Intuition group test to investigate the ivy throughout the room. 
+    wu: |+
+      ## Hidden Staircase
+
+    fd: |
+      **Activate**
+    pn: |+
+      **Effect:** A creature restrained this way is vertical pulled 2 squares and suspended in the air by the snare line. On a successful save, the snare is cut or breaks and the creature falls to the ground. The snare must be manually reset.
+
+    nl: |
+      |{#1 damage; A<1 restrained (save ends)}
+    hf: |
+      **Effect:** A triggering creature or object ends their movement and is targeted by the Snare ability.
+    db: |
+      |{#The trap is deactivated but the creature is slowed (EoT).}
+    UST: |
+      |{#No trap ivy can be identified until it is activated.}
+    ge: |+
+      The snare trap is calibrated to be triggered by creatures or objects of a particular size or larger. The trap triggers when a creature or object of the appropriate size enters its space.
+
+    OM: |
+      Several patches of the ivy are trap ivy, which act like snare traps while nearly indistinguishable from the regular ivy. Dealing damage to trap ivy causes it to activate before being destroyed. The goblins know which patches to avoid.
+    tr: |
+      **Hidden**
+    om: |+
+      |{#3 damage; A<2 restrained (save ends)}
+
+    MK: |+
+      ## Ivy Curtains
+
+    QO: |
+      |Find the Trap Ivy: Reason or Intuition Test
+    aY: |+
+      As a maneuver, a creature adjacent to a snare trap can make an Agility test.
+
+    KI: |
+      {**Secret:** The bookcase on the north wall features a hidden stone switch that causes a set of stone stairs to descend from the ceiling, leading into area [A5. War Room].}
+    yy: |
+      |Find the Hidden Staircase: Reason Test
+    USe: |
+      |{#All trap ivy can be identified, but the heroes must pick half of their members to have activated a patch of trap ivy in the room.}
+    USJ: |
+      |Investigate the ivy: Intuition Test
+    yw: |+
+      The switch is a stone book affixed to the bookcase on the north wall. The spine reads *The Last Resort* in Caelian.
+
+    mk: |
+      |{#The target shifts 1 square away from the snare.}
+    yzM: |
+      |{#The hero manages to find the switch with some serious effort. The hero can choose between losing a Recovery or the Director gaining 2 Malice at the start of of the first combat encounter the heroes face featuring Queen Bargnot.}
+    GE: |
+      > * “A lot of books are missing from the shelves or have heavy damage. Several old books on war and strategy are flipped open and scattered all over the floor.”
+    YW: |+
+      *A rope snare is set to grab a target, leaving them hanging upside down.*
+
+
+    yzr: "[[/activateobjects a4_a5_teleporter activate; objectcommand a4_secret playsound; broadcast screenshake 4 0.2 8 5 |Reveal Stairs(Enable Teleporter)]] [[/activateobjects a4_a5_teleporter deactivate|Disable Teleporter]]\n \n\n \n\n\n\n"
+    XV: |+
+      Level 1 Trap Ambusher - EV 1 - Stamina: 1 - Size: 1S
+
+    EC: |
+      > * “Ivy has overtaken the shelves, the walls, the ceilings, and hangs down in thick curtains throughout the room.”
+    IG: |
+      > * “The ivy is cut away from a large section of the ceiling, revealing an inset panel with no visible latch. The Caelian word ‘WAR’ is etched into the panel.”
+    SQ: |
+      |{#The hero identifies all trap ivy within 1 square of them and activates the nearest one.}
+    ZX: |
+      **Deactivate**
+    VT: |
+      ---
+    yzZ: |+
+      |{#The hero immediately knows where to look for the switch. 
+
+    yx: |+
+      A hero who searches the room for the switch can make a moderate Reason test. They have an edge if they intuit that they’re looking for a book, and a double edge if they determine that it couldn’t be a real book.
+
+    xv: |+
+      The panel on the ceiling conceals a set of steps that lead up into area [A5. War Room]. The panel won’t budge until its switch is activated.
+
+    ec: |+
+      |{#The trap is deactivated and doesn’t trigger.}
+
+
+    ig: |+
+      Melee, Strike, Weapon - Triggered action
+
+    ki: |
+      |Snare: Power Roll + 2
+    qo: |
+      **Upgrade**
+    ca: |
+      |{#The creature triggers the trap and is affected as if in its space.}
+    rp: |
+      Net Trap (+1 EV) The snare becomes a net that can wrap up multiple targets. The net has Stamina 3 and fills an area of 3 squares by 3 squares. The Snare ability loses its existing keywords, gains the Area keyword, and targets each creature or object in the area. The trap can be triggered by a target moving through one specific square, or by requiring multiple squares to be moved through. Any creature who makes their save to end the restrained effect ends that effect for all targets, who all fall to the ground.
+    yz: |
+      |{#The hero stumbles loudly through the room before finding the switch, allowing Queen Bargnot to prepare. The Director gains 4 Malice at the start of the first combat encounter the heroes face featuring Queen Bargnot.}
+    vt: |+
+      ---
+
+
+    sq: |2
+
+    PN: |+
+      A hero actively looking for trap ivy can make a moderate Reason or Intuition test while within 1 square of a patch of ivy.
+
+    LJ: |+
+      {**Secret:** Multiple sets of hanging ivy act as snare traps, wrapping around their victims and hoisting them into the air.}
+
+
+    CA: |2
+
+    bZ: |
+      |Deactivate the Snare Trap: Agility Test
+    TR: |+
+      |{#The hero identifies all trap ivy within 1 square of them.}
+
+    DB: |
+      Heroes climbing into the room from [A2. Great Hall Barracks] appear near the hole in the floor towards the south. Any creatures escaping from [A3. Old Armory] have an opportunity to hide before their pursuers arrive.
+    JH: |+
+      > * “Angry Szetch and loud stomping can be heard through the ceiling.”
+
+    RP: |
+      |{#The hero activates the nearest trap ivy within distance, and their Agility is considered 1 lower when resisting a snare trap’s potency effect.}
+    NL: |
+      Each curtain of ivy blocks line of effect except for prone creature.
+    us: |
+      The snare trap is hidden until triggered or detected.
+    USp: |+
+      |{#All trap ivy can be identified.}
+
+    B: |
+      # A4. Overgrown Library
+parentFolder: 3f6f50d2-bd00-4fb5-a3ba-b6089e65ec79
+updateid: c54fd9a3-1ff3-4bfa-a9f7-0a666f0b931d
+mtime: 1763984851512
+content: "# Room 1"
+description: A4. Overgrown Library

@@ -1,0 +1,134 @@
+__typeName: MarkdownDocument
+annotations:
+  follower:Abott:
+    __typeName: RichFollower
+    identifier: Abott
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 6df11107-0bdc-49ba-8458-9d89590412e8
+      skills: []
+  follower:Abbott Loric:
+    __typeName: RichFollower
+    identifier: Abbott Loric
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 0a4807c5-7d43-46f7-b094-6c5e7396954b
+      skills: []
+  follower:Abo:
+    __typeName: RichFollower
+    identifier: Abo
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 38b6d1f0-2785-4cbd-9910-dcd37d5da6ed
+      skills: []
+  follower:Abott Loric:
+    __typeName: RichFollower
+    identifier: Abott Loric
+    follower:
+      __typeName: Follower
+      type: sage
+      ancestry: 6f995f3d-a4e3-456a-9294-ff2c9ec5cb95
+      portrait: f4aaf477-3319-490c-ad1a-35a51bd24b2d
+      name: Abbott Loric
+      guid: f1229675-9253-44a5-afbd-b7443dfea97d
+      languages:
+        9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+        7e7efb1d-4627-44ab-9407-11daff1a15cf: true
+        ba8d6dd2-7a18-4b47-9c8e-c2e989f60765: true
+      skills:
+        bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a: true
+        0df23459-ab2f-4659-8a2d-ae5820dc889f: true
+        57101165-410a-4734-98ee-d4e5b656d3df: true
+        afd26a9a-22e2-4341-b171-f7e3182c8744: true
+  follower:
+    __typeName: RichFollower
+    identifier: false
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: c2b5039f-2161-402e-ae7f-c8edcaa3368b
+      skills: []
+  'follower:Abott ':
+    __typeName: RichFollower
+    identifier: 'Abott '
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: eac55e8f-c703-4c5e-9696-c37efa4d51f0
+      skills: []
+  "follower:":
+    __typeName: RichFollower
+    identifier: ""
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 3a227426-b75e-4fe0-8cc2-0b6d091bf97a
+      skills: []
+id: 0bafc8cc-0afd-4089-855d-3fcace4d58bd
+ctime: 1761388069026
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      **[ ]Find the Jagged Edge hideout (45 Project Points):** 
+    w: "[[follower:Abott Loric]]\n \n"
+    U: |
+      **[ ]Unseal the third level of the Delian Tomb (45 Project Points):** 
+    S: |+
+      Upon completion of this project, the heroes learn that the second level of the Delian Tomb can be unsealed by the Amulet of the Delian Order, which is a large brass amulet that looks like a sun. Many of these amulets were acquired by an organization called the Coursers, whose members operate in secret.
+
+    t: |+
+      If a hero has enough Renown to gain a follower and doesn’t have one, they can recruit Abbott Loric as a sage. If the heroes wish to recruit him as a sage, give them the Abbott Loric Follower.
+
+    q: |+
+      ## Follower: Abbott Loric
+
+    O: |+
+      While the heroes are here, they have project sources in Caelian that allow them to undertake the following Discover Lore projects:
+
+    M: |+
+      If the heroes are taking a respite in Broadhurst, they’re free to use the library to do research as part of their downtime activities.
+
+    n: |+
+      Or an ancient Caelian ruined called Castle Andreas that is northeast of Broadhurst in the Silver Wood (see [Castle Andreas] in [Part 3 The Jagged Edge]).
+
+
+    k: |+
+      A cave on the bank of the Dunn River as it flows south out of town (see [Wolf Den]).
+
+    I: |+
+      [Abbott Loric] greets the heroes with a smile whenever they come here, and he leaves his books available to them.
+
+    K: |+
+      ## Research at the Church
+
+    G: |+
+      > * “A small room at the back of the house serves as [Abbott Loric]’s bedroom and study—with bookshelves lining each wall and a small cot in the corner.”
+
+    h: |+
+      An abandoned mage tower out near the east road (see [Mage Tower]).
+
+    E: |
+      > * “The doors to this long house are open, revealing the inside to be a chapel set with wood benches and a modest altar.”
+    W: |+
+      The third level of the tomb can be unsealed with the Delian Knight Commander’s Ring, many of which are buried with other Caelian knights, such as Cressa. The ring is a gold band with an emerald cut like a shield.
+
+    C: |+
+      # B3. Church of Saint Gryffyn
+
+    Q: |
+      **[ ]Unseal the second level of the Delian Tomb (45 Project Points):** 
+    e: |+
+      A ruined fort out on a lake in the northwestern part of the Silver Wood (see [Fort Forsaken]). 
+
+    b: |+
+      The heroes can look for likely places in the region where the Jagged Edge could be hiding out. When they complete this project, there are four likely places: 
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: bb1bb16f-b2f8-433b-b8c5-e8b8810ed5e3
+description: B3. Church of Saint Gryffyn
+content: "# B3. Church of Saint Gryffyn\n\n> * “The doors to this long house are open, revealing the inside to be a chapel set with wood benches and a modest altar.”\n> * “A small room at the back of the house serves as [Abbott Loric]’s bedroom and study—with bookshelves lining each wall and a small cot in the corner.”\n\n[Abbott Loric] greets the heroes with a smile whenever they come here, and he leaves his books available to them.\n\n## Research at the Church\n\nIf the heroes are taking a respite in Broadhurst, they’re free to use the library to do research as part of their downtime activities.\n\nWhile the heroes are here, they have project sources in Caelian that allow them to undertake the following Discover Lore projects:\n\n**Unseal the second level of the Delian Tomb (45 Project Points):** \nUpon completion of this project, the heroes learn that the second level of the Delian Tomb can be unsealed by the Amulet of the Delian Order, which is a large brass amulet that looks like a sun. Many of these amulets were acquired by an organization called the Coursers, whose members operate in secret.\n\n**Unseal the third level of the Delian Tomb (45 Project Points):** \nThe third level of the tomb can be unsealed with the Delian Knight Commander’s Ring, many of which are buried with other Caelian knights, such as Cressa. The ring is a gold band with an emerald cut like a shield.\n\n**Find the Jagged Edge hideout (45 Project Points):** \nThe heroes can look for likely places in the region where the Jagged Edge could be hiding out. When they complete this project, there are four likely places: \n\nA ruined fort out on a lake in the northwestern part of the Silver Wood (see [Fort Forsaken]). \n\nAn abandoned mage tower out near the east road (see [Mage Tower]).\n\nA cave on the bank of the Dunn River as it flows south out of town (see [Wolf Den]).\n\nOr an ancient Caelian ruined called Castle Andreas that is northeast of Broadhurst in the Silver Wood (see [Castle Andreas] in [Part 3: The Jagged Edge]).\n\n\n## Follower: Abbott Loric\n\nIf a hero has enough Renown to gain a follower and doesn’t have one, they can recruit Abbott Loric as a sage. If the heroes wish to recruit him as a sage, give them the [Abbott Loric Follower Card]..\n\n \n"
+mtime: 1766079237051

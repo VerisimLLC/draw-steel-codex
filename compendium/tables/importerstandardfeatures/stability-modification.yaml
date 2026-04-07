@@ -1,0 +1,19 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+  sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+  value: 1
+  source: Character
+  name: Stamina Modification
+  behavior: attribute
+  description: ""
+  attribute: forcedmoveresistance
+source: Character
+guid: 2359108d-cb7d-4a79-8a98-38f577168092
+id: fa6dff80-34f8-4413-8ee9-25c37fe55aff
+ctime: 1756055028858
+name: Stability Modification
+description: ""
+mtime: 1756055028858
+implementation: 3

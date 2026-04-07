@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+id: 0c8d5438-22a9-41d1-97fa-0f35f7f01692
+behaviors:
+- __typeName: ActivatedAbilityCharacterSpeechBehavior
+  applyto: caster
+  variations:
+  - "<<text>>"
+  guid: 194e1f68-05d3-42a7-b6fe-61850f2bb6bd
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 60f535c5-37d0-4999-8463-436b31905bd5
+ctime: 1767262591492
+targetType: self
+numTargets: "1"
+mtime: 1767262591492
+name: Speech
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

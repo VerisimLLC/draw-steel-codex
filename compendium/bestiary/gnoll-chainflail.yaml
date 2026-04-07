@@ -1,0 +1,240 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b1414c41-f54b-4f1a-97d2-52964c9e9766
+  properties:
+    __typeName: monster
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    cr: 2
+    max_hitpoints: 4
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    damage_taken_minion_count: 4
+    monster_category: Gnoll
+    levelChoices: []
+    damage_taken_seq: 1
+    traitNames: []
+    minion: true
+    stability: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fd198948-0d92-42f7-be90-41e4e5fc4e20: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:fd198948-0d92-42f7-be90-41e4e5fc4e20: true
+        sourceguid: fd198948-0d92-42f7-be90-41e4e5fc4e20
+        behavior: trigger
+        source: Trait
+        name: Death Circle
+        description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the chainflail archer moves up to their speed.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: ""
+          repeatTargets: false
+          reasonedFilters: []
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: e16c73d8-d611-42a0-9307-4551632c2e6d
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            promptText: The Chainflail can move up to their speed.
+          triggerPrompt: The Chainflail can move up to their speed.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          persistence: []
+          modifiers: []
+          subjectRange: "5"
+          strain: []
+          guid: 5fe8b431-dad8-4fcb-b645-ef2bd0b771d6
+          trigger: zerohitpoints
+          targetType: self
+          conditionFormula: ""
+          name: Death Circle
+          numTargets: "1"
+          selfTarget: true
+          despawnBehavior: corpse
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 66f00933-943e-4bdb-82a8-7451a09ff506
+      source: Trait
+      description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the chainflail archer moves up to their speed.
+      guid: fd198948-0d92-42f7-be90-41e4e5fc4e20
+      name: Death Circle
+      implementation: 3
+    role: Minion Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+    initiativeGrouping: 9dc50865-355f-42bd-a5b1-3991e6b2fad7
+    notes:
+    - text: ""
+      title: Monster Notes
+    damage_taken: 0
+    ev: 4
+    resources: []
+    savingThrowRatings: []
+    minionSquad: Gnoll Chainflail Squad 6
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 154
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 8
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 5a1a16f1-2b52-4c41-81fb-36f1fe39e52a
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage; push 1
+        - 6 damage; push 3
+        roll: 2d10 + Might
+      implementation: 4
+      persistence: []
+      categorization: Signature Ability
+      name: Chain Shotput
+      numTargets: 1
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    walkingSpeed: 5
+    movementSpeeds: []
+    monster_type: Gnoll Chainflail
+    availableTriggers: []
+    creatureSize: 1M
+    withCaptain: +1 damage bonus to strikes
+  tokenType: null
+  bestiaryId: 9f4d278c-5ca4-48c3-937e-7ec0f5b65955
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222946034
+description: Gnoll Chainflail
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1757314565993
+mtime: 1775201137032
+hidden: false

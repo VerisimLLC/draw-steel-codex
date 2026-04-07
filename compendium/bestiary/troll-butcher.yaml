@@ -1,0 +1,321 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b057fa08-55be-4231-be5f-e0e2d36ac575
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Troll Butcher	Level 5 Elite Hexer
+        Giant, Troll	EV 28
+        <b>Stamina</b> 120	<b>Weakness </b>Acid 5, Fire 5
+        <b>Speed</b> 8	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>Free Strike</b> 6
+        Might +3	Agility +1	Reason +1	Intuition +0	Presence +0
+        <b>Savoring Bite</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	9 damage; M<1 bleeding (save ends)
+        %E2%98%85	12%E2%80%9316	14 damage; M<2 bleeding (save ends)
+        %E2%9C%B8	17	17 damage; M<3 bleeding (save ends)
+        <b>1 Malice</b> The gourmand regains Stamina equal to the damage dealt.
+
+        <b>Rotten Scraps</b> (Action)
+        <b>Keywords</b> Area, Ranged
+        <b>Distance</b> 3 cube within 10<b>	Target</b> Each enemy in the cube
+        %E2%9C%A6	%E2%89%A411	5 poison damage; M<1 weakened (save ends)
+        %E2%98%85	12%E2%80%9316	9 poison damage; M<2 weakened (save ends)
+        %E2%9C%B8	17	11 poison damage; M<3 weakened (save ends)
+        <b>Effect</b> Each troll in the cube regains 3 Stamina.
+
+        <b>Gourmet Flesh</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The gourmand enhances their next Savoring Bite ability, changing the damage type and inflicted condition to one of the following combinations: corruption and dazed, acid and restrained, or lightning and frightened.
+
+        <b>Acquired Taste</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> Triggering creature
+        <b>Trigger</b> A creature with deals damage to the gourmand with an Edge or a Surge.
+        <b>Effect</b> The gourmand makes a free strike against the target. The gourmand has an edge on power rolls and deals an additional 3 damage on their strikes until the end of their next turn.
+
+        <b>Bloody Feast</b>
+        Each ally within 5 of the gourmand has an edge on power rolls that target an enemy suffering from a condition.
+
+        <b>Relentless Hunger</b>
+        The gourmand only dies when they are reduced to 0 Stamina by acid or fire damage, end their turn with 0 Stamina, or take acid or fire damage while at 0 Stamina.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3a605d6b-2511-4191-9d62-3adb9425a61e: true
+      modifiers: []
+      name: Bloody Feast
+      description: Each ally within 5 of the gourmand has an edge on power rolls that target an enemy suffering from a condition.
+      guid: 3a605d6b-2511-4191-9d62-3adb9425a61e
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bdcc1c4c-e7cf-4af0-b3e8-73d65568b444: true
+      modifiers: []
+      name: Relentless Hunger
+      description: The gourmand only dies when they are reduced to 0 Stamina by acid or fire damage, end their turn with 0 Stamina, or take acid or fire damage while at 0 Stamina.
+      guid: bdcc1c4c-e7cf-4af0-b3e8-73d65568b444
+      source: Trait
+    role: Elite Hexer
+    inflictedConditions: []
+    keywords:
+      Giant: true
+      Troll: true
+    max_hitpoints_roll: "120"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: acid
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Troll Butcher
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 120
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 1 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 254
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: 2
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: The butcher regains Stamina equal to the damage dealt.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage; M<1 bleeding (save ends)
+        - 14 damage; M<2 bleeding (save ends)
+        - 17 damage; M<3 bleeding (save ends)
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 24bb24ae-31f7-4d45-bb38-c19f5143e884
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: Cast.DamageDealt
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: The butcher regains Stamina equal to the damage dealt."
+        autoTarget: false
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Savoring Bite
+      guid: bacde145-159d-43d1-9643-cef5ccb67793
+      description: |2-
+
+        **1 Malice**: The butcher regains Stamina equal to the damage dealt.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 poison damage; M<1 weakened (save ends)
+        - 9 poison damage; M<2 weakened (save ends)
+        - 11 poison damage; M<3 weakened (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6d6aaf11-c9ea-494f-831a-38bcc5d07519
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Rotten Scraps
+      sourceReference:
+        __typeName: SourceReference
+        page: 254
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: Each troll in the area ignores the damage and instead regains 3 Stamina.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 9858580d-529f-4cef-aa84-4e17f23044d5
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Gourmet Flesh
+      implementation: 0
+      description: "The gourmand enhances their next Savoring Bite ability, changing the damage type and inflicted condition to one of the following combinations: corruption and dazed, acid and restrained, or lightning and frightened."
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: b44925b5-8262-414b-b303-dc3de5654a4b
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Acquired Taste
+      numTargets: 1
+      description: The gourmand makes a free strike against the target. The gourmand has an edge on power rolls and deals an additional 3 damage on their strikes until the end of their next turn.
+      abilityType: none
+      implementation: 0
+    groupid: 67902c1a-5307-415e-8495-52212b0c0def
+    movementSpeeds: []
+    ev: 28
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 945df487-0bec-4b7c-95a0-2a8eab062095
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Troll Butcher
+parentFolder: f10d63e4-32ef-4b09-8bed-6007e0c43454
+artist: null
+ord: 0
+ctime: 1741590283913
+mtime: 1775201137032
+hidden: false

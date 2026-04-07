@@ -1,0 +1,55 @@
+__typeName: equipment
+itemPrerequisite: A cup of algae from glacial water
+keywords:
+  Potion: true
+  Psionic: true
+projectSource: Texts or lore in Yllyric
+flavor: This clear, pasty substance has a bitter aroma.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+implementation: 2
+description: Consuming this potion as a maneuver causes your skin to shimmer and a set of tiny gills to appear on your neck or shoulders. For 1 hour, you can breathe in any environment, and you ignore the effects of harmful gases, vapors, and inhaled poisons.
+echelon: 2
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: 90 (yields 1d3 doses)
+id: aa03394a-9e32-4564-883c-148f5186925b
+ctime: 1774793656877
+name: Purified Jelly
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  implementationDetails: The effects of this are narrative.
+  behaviors: []
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Ability
+  range: 5
+  consumables:
+    aa03394a-9e32-4564-883c-148f5186925b: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: a0b1acd8-320b-49b4-b989-81eff6e5fa87
+  sourceReference:
+    __typeName: SourceReference
+    page: 3318
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  targetType: self
+  description: Consuming this potion as a maneuver causes your skin to shimmer and a set of tiny gills to appear on your neck or shoulders. For 1 hour, you can breathe in any environment, and you ignore the effects of harmful gases, vapors, and inhaled poisons.
+  iconid: 48052c44-c390-4bef-8b40-b3fa98684722
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  name: Purified Jelly
+  numTargets: "1"
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 2
+mtime: 1774793656877
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 48052c44-c390-4bef-8b40-b3fa98684722

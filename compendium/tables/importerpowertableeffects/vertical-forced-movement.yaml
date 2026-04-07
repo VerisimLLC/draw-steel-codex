@@ -1,0 +1,45 @@
+__typeName: ActivatedAbility
+id: fa56c693-68f8-4537-8550-3b53aa77f2d2
+behaviors:
+- __typeName: ActivatedAbilityModifyPowerRollBehavior
+  guid: cfb9fb89-ff7f-4345-a02d-91dc286989fe
+  modifier:
+    __typeName: CharacterModifier
+    sourceguid: cfb9fb89-ff7f-4345-a02d-91dc286989fe
+    behavior: power
+    modtype: none
+    adjustments: []
+    keywords: []
+    replaceText: vertical slide
+    domains: []
+    activationCondition: false
+    name: Power Roll Modifier
+    rollType: ability_power_roll
+    description: ""
+    guid: ba2a231b-5eef-48f9-8fae-5fa076c47083
+    replacePattern: slide
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 9f56bf8f-d1c8-4ab1-b34a-7352630792ad
+testCases:
+- text: the forced movement is vertical
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: Change slide to vertical slide
+importMatch: the forced movement is vertical
+ctime: 1770264385473
+repeatTargets: false
+numTargets: "1"
+mtime: 1770264385473
+name: Vertical Forced Movement
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

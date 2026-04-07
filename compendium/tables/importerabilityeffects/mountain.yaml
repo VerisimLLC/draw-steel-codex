@@ -1,0 +1,32 @@
+__typeName: ActivatedAbility
+insertAtStart: true
+invokeSurroundingAbility: false
+id: f49dfd9d-6fcf-49bc-96a1-252052af31c3
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+testCases:
+- text: If the target dealt damage to you since the end of your last turn, this attack gains an edge.
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: e420323f-bfcd-416e-accd-51b1da5d661c
+importMatch: If the target dealt damage to you since the end of your last turn, this attack gains an edge.
+ctime: 1711333765770
+repeatTargets: false
+behaviors:
+- __typeName: ActivatedAbilityModifyCastBehavior
+  filterTarget: Caster.LastDamagedBy(Target.id) > Caster.End Turn Timestamp
+  name: Pain for Pain
+  value: "1"
+  paramid: ability_boon
+  description: You get a +1 on the attack if the target damaged you since the end of your last turn.
+name: Mountain
+mtime: 1739139404750
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

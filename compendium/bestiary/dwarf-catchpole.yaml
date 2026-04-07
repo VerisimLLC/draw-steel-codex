@@ -1,0 +1,176 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: df1417bc-7b16-49de-a11b-66211c726f38
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440925
+    portraitOffset:
+      x: -0.04977894
+      y: 0.09952153
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 66f173fe-9337-4e0b-9174-38787d426fa5
+  properties:
+    __typeName: monster
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 7
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "7"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 2
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Catchpole	Level 1 Minion Brute
+        Dwarf, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 7
+        <b>Speed </b>5	<b>Size</b> 1M / <b>Stability</b> 2
+        <b>With Captain</b> Stamina +2<b>	Free Strike</b> 2
+        Might +2	Agility 0	Reason 0	Intuition 0	Presence 0
+        <b>Maul</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage
+        %E2%9C%B8	<b>17</b>	5 damage; grabbed or prone
+        <b>Effect</b> The catchpole deals an additional 2 damage to restrained targets.
+
+    characterFeatures: []
+    role: Minion Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    initiativeGrouping: 3631f240-79d0-4628-a96a-390efe82d8db
+    keywords:
+      Dwarf: true
+      Humanoid: true
+    damage_taken: 0
+    savingThrowRatings: []
+    resources: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: f655e224-7f68-4d6f-8926-6cab001f8fbb
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage; grabbed or prone
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: acfdf9ea-e10a-4aa5-bbb1-fe29ff96becf
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: acfdf9ea-e10a-4aa5-bbb1-fe29ff96becf
+          displayCondition: ""
+          behavior: power
+          keywords: []
+          activationCondition: Target.Conditions has "restrained"
+          description: If the target is restrained, they take an extra 2 damage.
+          domains: []
+          name: Maul Extra Damage
+          rollType: ability_power_roll
+          damageModifier: "2"
+          modtype: none
+          guid: 6b2dc24e-8012-4e98-b1b1-d484a1e427ce
+      name: Maul
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: The catchpole deals an additional 2 damage to restrained targets.
+      abilityType: none
+      implementation: 4
+    minionSquad: Dwarf Catchpole Squad 2
+    availableTriggers: []
+    walkingSpeed: 5
+    movementSpeeds: []
+    creatureSize: 1M
+    monster_type: Dwarf Catchpole
+    withCaptain: +2 bonus to Stamina
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 26eb494e-88f1-4288-a5fa-9ed3f252edd2
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222946034
+description: Dwarf Catchpole
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590232598
+mtime: 1775201137032
+hidden: false

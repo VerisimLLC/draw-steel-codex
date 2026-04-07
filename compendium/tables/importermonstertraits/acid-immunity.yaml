@@ -1,0 +1,25 @@
+__typeName: CharacterFeature
+testCases:
+- text: ""
+- text: Acid immunity 5
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e9c200bf-734a-4998-a05a-89a24eac713e
+  behavior: resistance
+  source: Monster
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "<<immunity>>"
+    damageType: acid
+    apply: Damage Reduction
+  description: ""
+  name: Acid Immunity
+  guid: c505095a-7f3f-4ad1-a60a-aa6762e79b72
+source: Monster
+guid: e9c200bf-734a-4998-a05a-89a24eac713e
+importMatch: acid Immunity <<immunity>>
+ctime: 1711734307236
+name: Acid Immunity
+description: ""
+id: 67486fef-a4f5-401a-adaa-33acc10ef333
+mtime: 1711784286245

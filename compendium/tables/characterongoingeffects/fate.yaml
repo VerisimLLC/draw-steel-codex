@@ -1,0 +1,59 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 53ec5925-b298-4d97-924a-2ab876c3df29
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-5"
+    damageType: all
+    apply: Damage Reduction
+  description: You have damage weakness 5 and are knocked prone from taking damage
+  name: Fate
+  guid: aa8d86c9-74d4-4d8b-9c44-6e8bc4128a5d
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 62dc0c83-15af-42fa-8759-7b5c4fbd99a2
+    repeatTargets: false
+    abilityType: none
+    trigger: losehitpoints
+    targetType: self
+    numTargets: "1"
+    name: Fate
+    behaviors:
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: prone
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You have damage weakness 5 and are knocked prone from taking damage
+  source: Ongoing Effect
+  behavior: trigger
+  guid: b52e18c6-f162-40b4-b51d-8ab106431300
+  name: Fate
+  sourceguid: 53ec5925-b298-4d97-924a-2ab876c3df29
+source: Ongoing Effect
+guid: 53ec5925-b298-4d97-924a-2ab876c3df29
+id: 53ec5925-b298-4d97-924a-2ab876c3df29
+ctime: 1766116675139
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Fate
+description: You have damage weakness 5 and are knocked prone from taking damage
+custom: true
+mtime: 1770806860152
+iconid: ui-icons/skills/1.png

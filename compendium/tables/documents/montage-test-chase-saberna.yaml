@@ -1,0 +1,396 @@
+__typeName: MarkdownDocument
+annotations:
+  Party:vailableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Current player:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:currentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  "encounter: Br":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  Party:Current layer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:actedplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Acted Players:
+    __typeName: RichParty
+    partyid: false
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Actedplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Current Player:
+    __typeName: RichParty
+    partyid: false
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:urrentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  image:imageone:
+    __typeName: RichImage
+    uiscale: 0.500000305175781
+    image: "-MDiuJMHgUipszf0nOb5"
+  "encounter: Brune":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  Party:Available Players:
+    __typeName: RichParty
+    partyid: false
+    state:
+      54ff6135-4ae2-49ee-af27-1b23c8433635: highlight
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Acted players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Available players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Availableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  image:montageimage:
+    __typeName: RichImage
+  "encounter: Brune & Saberna":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"8aaccb81-4e5c-4799-9c8b-01731edb9d07\",\"offtokenPortraitId\": \"d80a331d-8683-49b2-ae55-b7447094faf2\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.8823537,\"portraitOffset\": {\"x\": 0.006503459,\"y\": 0.03391171},\"frameHueShift\": 0.01237254,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.98,\"characterName\": \"Brune\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"612f8a21-42e7-44aa-9f6d-e6f36a5c3f3c\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.9901094,\"frameSaturation\": 0.7605713,\"frameBrightness\": 0.732461,\"characterName\": \"Saberna\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "5,8,2"
+        - __usertype: LuaLoc
+          loc: "4,7,2"
+        monsters:
+          50f884a7-8b66-4cf9-b7aa-f35cb3065cd8: 1
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      name: Brune & Saberna
+  "image:":
+    __typeName: RichImage
+  Party:availableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  Party:Currentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+id: f6c4ebed-ba73-4aa6-803e-21ae66985b1b
+ctime: 1761409765761
+textStorage:
+  __typeName: TextStorage
+  sections:
+    fA: |
+      [ ]
+      }
+      {
+    eA: |
+      *Suggested Skills:* Handle Animals, Intimidate, Nature.
+    Pa: |
+      |Successes:  |  [[-----]]|
+    gA: |
+      |Avoid the Dog: Intuition or Presence (Handle Animals or Intimidate or Nature)
+    bA: |
+      |Medium
+      }
+      {#
+    aA: |
+      |Debris on the Road: Might or Agility (Gymnastics or Jump or Lift)
+    dA: |
+      *Suggested Characteristics:* Intuition, Presence. 
+    cA: |
+      **Avoid the Dog:** The barking dog has an even worse bite! 
+    PU: |
+      ???
+    ZA: |
+      [ ] 
+      }
+      {
+    YA: |
+      *Suggested Skills:* Gymnastics, Jump, Lift. 
+    yZ: |+
+      If Brune starts the battle with Saberna grabbed, he uses her as a shield against incoming strikes thanks to his Shoot the Hostage trait. He then wades into the fray and fights until reduced to 0 Stamina.
+
+    PI: |
+      ???
+    UA: |
+      {*(You can change the test difficulty before having the players roll, if you want, by clicking on the difficulty text to the right of the test. They are all set to Medium by default. You can also reveal the text before the power roll by clicking "Reveal to Players".)*
+    XA: |
+      *Suggested Characteristics:* Might, Agility. 
+    WA: |
+      **Debris on the Road:** Saberna covers her escape by shoving logs into the road that must be cleared away or barreled through or over. 
+    Pyr: |
+      :<>[[Party:Current Player]]
+    xAf: |
+      *Suggested Skills:* Endurance, Navigate, Sneak. 
+    yQ: |+
+      **Partial Success:** The heroes catch up to Saberna just as she reaches the door of the butcher. She tells them nothing, but calls out for Brune to help her. Brune opens the door and hurls a knife at a hero, dealing 1d6 damage to them.
+
+    PX: |
+      ???query numheroes = 5
+    xAY: |
+      *Suggested Characteristics:* Agility. 
+    yt: |
+      |{#Brune attacks the heroes.}
+    S: |+
+      ## Montage Challenges
+
+    T: |
+      The following challenges can be part of the montage test:
+    R: |+
+      {Add all your players to the available players party at the start. When a player is acting move them to the current player party. Then to acted players once they are done. At the end of the round move all players back to available players}
+
+
+    O: |+
+      [[setting:Number of Heroes]]
+
+    uA: |
+      **Navigate Tight Alleys:** The small but crowded village square alleys are an easy place to lose Saberna. 
+    M: |
+      |Five|5|5|
+    N: |
+      |Six|6|6|
+      }
+    rA: |
+      [ ]
+      }
+      {
+    qA: |
+      *Suggested Skills:* Endurance, Escape Artist, Intimidate, Lead
+    tA: |
+      |Medium
+      }
+
+      {#
+    sA: |
+      |Push Through the Crowd: Might or Presence (Endurance or Escape Artist or Intimidate or Lead)
+    nA: |
+      |Medium
+      }
+
+      {#
+    mA: |
+      |Get Past the Cart: Might or Agility or Presence (Drive or Gymnastics or Intimidate or Jump or Lead)
+    pA: |
+      *Suggested Characteristics:* Might, Presence. 
+    oA: |
+      **Push Through the Crowd:** The rowdy tavern goers block the heroes’ path and obscure Saberna from sight. 
+    jA: |
+      *Suggested Characteristics:* Might, Agility, Presence. 
+    iA: |
+      **Get Past the Cart:** A farmer’s large cart blocks the heroes’ path and could result in a harmful collision.
+    lA: |
+      [ ]
+      }
+      {
+    kA: |
+      *Suggested Skills:* Drive, Gymnastics, Intimidate, Jump, Lead.
+    yX: |
+      If the heroes achieve a partial success or total failure, they likely want to fight [Brune]. Use the [Broadhurst Town Square] Map for this battle. [Saberna] is also part of the battle and uses the civilian stat block.
+    yT: |+
+      **Total Failure:** The heroes notice Saberna enter the butcher. Moments later, Brune emerges on the street with a knife in one hand and the girl in the other, threatening to harm her if the heroes don’t let him leave.
+
+    Pg: |
+      ???
+    yx: |+
+      see [B8. Butcher]
+
+      }
+
+    wA: |
+      *Suggested Skills:* Alertness, Climb, Navigate, Track.
+    Pk: |
+      ???query numheroes > 5
+    xAL: |
+      |Medium
+      }
+
+      {#
+    xAm: |
+      **Special: This obstacle can be overcome twice during the montage.**
+    yp: |
+      |Convince Brune to Talk: Presence Test
+    G: |+
+      :<>[[image:montageimage]]
+
+    Po: |
+      |Successes:  |  [[------]]|
+    yl: |+
+      ## Talking to Brune
+
+    Pw: "???\n  \n \n"
+    F: |+
+      “The girl heads for tight spaces between the square’s buildings as she slides under a farmer’s horse-drawn cart and emerges into a crowd of rowdy tavern goers on the other side.”
+
+    yh: |+
+      The heroes earn no Victories for defeating Brune. If they don’t kill him, he tells them what he knows once he is able. See [B8. Butcher] for more information about [Brune].
+
+    Ps: |
+      |Failures:  |  [[------]]|
+    hA: |
+      |Medium
+      }
+
+      {#
+    yd: |+
+      [[encounter: Brune & Saberna]]
+
+    PO: |
+      |Successes:  |  [[----]]|
+    PC: |
+      |Successes:  |  [[---]]|
+    yb: |
+      Go to the [Broadhurst Town Square] Map and place down the Heroes, and Brune & Saberna. 
+    yV: |+
+      ## Battling Brune
+
+    yR: |+
+      [[/r 1d6|Roll 1d6]]
+
+    yO: |+
+      [[/awardvp 1|Give Heroes 1 Victory]]
+
+    yM: |+
+      **Total Success:** The heroes catch up to [Saberna] before she reaches her destination. Once caught, she tells them that [Brune] the butcher has been stealing food occasionally from the smokehouse. She doesn’t know why, but she says the butcher threatened to kill her if she told anyone. The heroes earn 1 Victory each.
+
+
+    K: |
+      |Three|3|3|
+    yI: |+
+      ## Montage Test Outcomes
+
+
+    PwZ: |2
+
+    Pd: |
+      |Failures:  |  [[-----]]|
+    H: |
+      ## Party
+      {
+    yE: |
+      **Common Tests you may present to your players during a montage:**
+    yC: |
+      |Medium
+      }
+
+      {
+    yA: |
+      |Close the Gap: Agility (Endurance or Navigate or Sneak)
+    xAt: |
+      [ ] [ ] 
+      }
+      {
+    xAR: |
+      **Close the Gap:** Saberna has a head start and the heroes must reach her if they wish to catch up. 
+    yr: |
+      |{#Brune attacks the heroes and starts the battle with all heroes surprised.}
+    xAF: |
+      |Navigate Tight Alleys: Agility or Reason (Alertness or Climb or Navigate or Track)
+    xA: |
+      [ ]
+      }
+      {
+    yv: |+
+      |{#Brune recognizes he can’t win the fight and surrenders, telling the heroes everything he knows about the Forsaken Wraiths.}
+
+    vA: |
+      *Suggested Characteristics:* Agility, Reason. 
+    B: |+
+      # Montage Test: Chase Saberna
+
+    VA: |
+      Also read [Consequences and Rewards] before starting the montage test. }
+
+      {#
+    PR: |
+      |Failures:  |  [[----]]|
+    D: |+
+      ## Setting the Scene
+
+    C: |+
+      The heroes must catch [Saberna] or follow her through Broadhurst without losing track of her. The Chase Saberna Test Difficulty table shows this montage test’s success and failure limit based on the number of heroes in the test.
+
+    yj: |+
+      When Brune is defeated, Saberna tells the heroes that Brune has been stealing food occasionally from the smokehouse. She doesn’t know why, but she says the butcher threatened to kill her if she told anyone.
+
+
+    E: |+
+      “[Saberna] takes off, running through the village square as she sends logs spinning out into the path behind her covering her path. She whistles as she runs, summoning a large, growling dog who bares their teeth at you.”
+
+    yG: |
+      [:Tests]
+      }
+
+      {
+    yn: |+
+      If the heroes achieve a partial success or a total failure on the montage test and decide to try to talk to Brune without fighting him, the hero appealing to him must make a hard Presence test.
+
+    J: |
+      |Heroes|Success Limit|Failure Limit|
+    I: |
+      ** Chase Saverna Test Difficulty **
+    L: |
+      |Four|4|4|
+    yK: |+
+      The montage test has the following outcomes:
+
+    PL: |
+      ???query numheroes = 4
+    P: |
+      ???query numheroes < 4
+    Pxi: |
+      :<>[[Party:Available Players]]
+    Qz: ":<>[[Party:Acted Players]]\n \n \n\n"
+    PF: |
+      |Failures:  |  [[---]]|
+    yf: |
+      Once the fighting starts and Saberna is free, she cowers behind the heroes.
+parentFolder: 423b20dc-f04b-44af-849e-7a7e01636bf4
+updateid: d86e670a-157d-418e-93f0-6f58512ff1c0
+mtime: 1775224781929
+content: "# Montage Test: Chase Saberna\n\nThe heroes must catch Saberna or follow her through Broadhurst without losing track of her. The Chase Saberna Test Difficulty table shows this montage test’s success and failure limit based on the number of heroes in the test.\n\n## Setting the Scene\n\n“[Saberna] takes off, running through the village square as she sends logs spinning out into the path behind her covering her path. She whistles as she runs, summoning a large, growling dog who bares their teeth at you.”\n\n“The girl heads for tight spaces between the square’s buildings as she slides under a farmer’s horse-drawn cart and emerges into a crowd of rowdy tavern goers on the other side.”\n\n:<>[[image:montageimage]]\n\n## Party\n{\n** Chase Saverna Test Difficulty **\n|Heroes|Success Limit|Failure Limit|\n|Three|3|3|\n|Four|4|4|\n|Five|5|5|\n|Six|6|6|\n}\n\n|Successes:  |  [[-----]]|\n|Failures:  |  [[-----]]|\n\n  \n \n [[Party:Available Players]] :<>[[Party:Current Player]] :>[[Party:Acted Players]]\n \n \n\n{Add all your players to the available players party at the start. When a player is acting move them to the current player party. Then to acted players once they are done. At the end of the round move all players back to available players}\n\n\n## Montage Challenges\n\nThe following challenges can be part of the montage test:\n{*(Edit the document to change the test difficulty before having the players roll, if you want. They are all set to Medium by default. You can also reveal the text before the power roll by changing the # to an !)*\nAlso read [Consequences and Rewards] before starting the montage test. }\n\n{#\n**Debris on the Road:** Saberna covers her escape by shoving logs into the road that must be cleared away or barreled through or over. \n*Suggested Characteristics:* Might, Agility. \n*Suggested Skills:* Gymnastics, Jump, Lift. \n}\n{\n|Debris on the Road: Might or Agility (Gymnastics or Jump or Lift)\n|Medium\n}\n{#\n**Avoid the Dog:** The barking dog has an even worse bite! \n*Suggested Characteristics:* Intuition, Presence. \n*Suggested Skills:* Handle Animals, Intimidate, Nature.\n}\n{\n|Avoid the Dog: Intuition or Presence (Handle Animals or Intimidate or Nature)\n|Medium\n}\n\n{#\n**Get Past the Cart:** A farmer’s large cart blocks the heroes’ path and could result in a harmful collision.\n*Suggested Characteristics:* Might, Agility, Presence. \n*Suggested Skills:* Drive, Gymnastics, Intimidate, Jump, Lead.\n}\n{\n|Get Past the Cart: Might or Agility or Presence (Drive or Gymnastics or Intimidate or Jump or Lead)\n|Medium\n}\n\n{#\n**Push Through the Crowd:** The rowdy tavern goers block the heroes’ path and obscure Saberna from sight. \n*Suggested Characteristics:* Might, Presence. \n*Suggested Skills:* Endurance, Escape Artist, Intimidate, Lead\n}\n{\n|Push Through the Crowd: Might or Presence (Endurance or Escape Artist or Intimidate or Lead)\n|Medium\n}\n\n{#\n**Navigate Tight Alleys:** The small but crowded village square alleys are an easy place to lose Saberna. \n*Suggested Characteristics:* Agility, Reason. \n*Suggested Skills:* Alertness, Climb, Navigate, Track.\n}\n{\n|Navigate Tight Alleys: Agility or Reason (Alertness or Climb or Navigate or Track)\n|Medium\n}\n\n{#\n**Close the Gap:** Saberna has a head start and the heroes must reach her if they wish to catch up. \n*Suggested Characteristics:* Agility. \n*Suggested Skills:* Endurance, Navigate, Sneak. \n**Special: This obstacle can be overcome twice during the montage.**\n}\n{\n|Close the Gap: Agility (Endurance or Navigate or Sneak)\n|Medium\n}\n\n{\n**Common Tests you may present to your players during a montage:**\n[:Tests]\n}\n\n{\n## Montage Test Outcomes\n\n\nThe montage test has the following outcomes:\n\n**Total Success:** The heroes catch up to [Saberna] before she reaches her destination. Once caught, she tells them that [Brune] the butcher has been stealing food occasionally from the smokehouse. She doesn’t know why, but she says the butcher threatened to kill her if she told anyone. The heroes earn 1 Victory each.\n\n\n[[/awardvp 1|Give Heroes 1 Victory]]\n\n**Partial Success:** The heroes catch up to Saberna just as she reaches the door of the butcher. She tells them nothing, but calls out for Brune to help her. Brune opens the door and hurls a knife at a hero, dealing 1d6 damage to them.\n\n[[/r 1d6|Roll 1d6]]\n\n**Total Failure:** The heroes notice Saberna enter the butcher. Moments later, Brune emerges on the street with a knife in one hand and the girl in the other, threatening to harm her if the heroes don’t let him leave.\n\n## Battling Brune\n\nIf the heroes achieve a partial success or total failure, they likely want to fight [Brune]. Use the Village Square map ([Village]) for this battle. [Saberna] is also part of the battle and uses the civilian stat block.\nIf Brune starts the battle with Saberna grabbed, he uses her as a shield against incoming strikes thanks to his Shoot the Hostage trait. He then wades into the fray and fights until reduced to 0 Stamina.\n\nGo to the [Village] Map and place down the Heroes, and Brune & Saberna. \n[[encounter: Brune & Saberna]]\n\nOnce the fighting starts and Saberna is free, she cowers behind the heroes.\nThe heroes earn no Victories for defeating Brune. If they don’t kill him, he tells them what he knows once he is able. See [B8. Butcher] for more information about [Brune].\n\nWhen Brune is defeated, Saberna tells the heroes that Brune has been stealing food occasionally from the smokehouse. She doesn’t know why, but she says the butcher threatened to kill her if she told anyone.\n\n\n## Talking to Brune\n\nIf the heroes achieve a partial success or a total failure on the montage test and decide to try to talk to Brune without fighting him, the hero appealing to him must make a hard Presence test.\n\n|Convince Brune to Talk: Presence Test\n|{#Brune attacks the heroes and starts the battle with all heroes surprised.}\n|{#Brune attacks the heroes.}\n|{#Brune recognizes he can’t win the fight and surrenders, telling the heroes everything he knows about the Forsaken Wraiths.}\n\nsee [B8. Butcher]\n\n}\n\n"
+description: "Montage Test: Chase Saberna"

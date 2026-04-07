@@ -1,0 +1,33 @@
+__typeName: ActivatedAbility
+id: 2551c517-4599-4aaf-bdff-e4b678910e2d
+behaviors:
+- __typeName: ActivatedAbilityHealBehavior
+  roll: Recovery Value
+- __typeName: ActivatedAbilityReplenishBehavior
+  resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+  mode: expend
+  chatMessage: "<<expendmessage>>"
+  quantity: "<<expendrecovery>>"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+resourceCost: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+numTargets: "<<targets>>"
+modifiers: []
+source: Monster
+strain: []
+guid: d9e4b3a4-8e76-4e48-8506-00c2d43da77d
+repeatTargets: false
+ctime: 1745732480488
+targetType: target
+persistence: []
+mtime: 1767500669862
+selfTarget: true
+name: Ally Heals Recovery Value
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

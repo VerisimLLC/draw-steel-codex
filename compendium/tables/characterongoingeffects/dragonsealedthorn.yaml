@@ -1,0 +1,69 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:4ef44735-ac86-41a8-bd3b-5ad8c07671d9: true
+  sourceguid: 4ef44735-ac86-41a8-bd3b-5ad8c07671d9
+  description: 'A dragonsealed creature has their wounds bound by nettles and thorns, causing them to take an extra 1d3 damage whenever they take damage rolled as a d6 or a d3. '
+  source: Ongoing Effect
+  name: Dragonsealed
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      cannotBeReduced: true
+      roll: 1d3
+      titleText: Dragonsealed
+      chatMessage: Dragonsealed
+    triggerPrompt: You take an extra 1d3 damage whenever you take damage rolled as a d6 or a d3.
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00136113166809
+        v: 0.845436215400696
+        a: 1
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    hasManualVersion: true
+    strain: []
+    guid: 1655c7c3-5a15-4f94-8327-49234d6d898e
+    domains:
+      CharacterOngoingEffect:4ef44735-ac86-41a8-bd3b-5ad8c07671d9: true
+    targetType: self
+    name: Dragonsealed
+    trigger: losehitpoints
+    numTargets: "1"
+    description: 'A dragonsealed creature has their wounds bound by nettles and thorns, causing them to take an extra 1d3 damage whenever they take damage rolled as a d6 or a d3. '
+    abilityType: none
+    iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+  guid: ab897819-827e-4734-9626-4dcd225c518b
+source: Ongoing Effect
+guid: 4ef44735-ac86-41a8-bd3b-5ad8c07671d9
+id: 4ef44735-ac86-41a8-bd3b-5ad8c07671d9
+ctime: 1770657031565
+domains:
+  CharacterOngoingEffect:4ef44735-ac86-41a8-bd3b-5ad8c07671d9: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0345002412796021
+    s: 1.00136172771454
+    v: 0.738673865795135
+    a: 1
+name: DragonsealedThorn
+iconid: d55a0ed1-c2c8-4a7c-8f24-8db4136ae90c
+description: 'A dragonsealed creature has their wounds bound by nettles and thorns, causing them to take an extra 1d3 damage whenever they take damage rolled as a d6 or a d3. '
+mtime: 1772736536906
+implementation: 2

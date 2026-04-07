@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Artisan Guild
+id: 88b2d25f-7308-4cfd-9ebc-12b89024ac20
+mtime: 1769349242145
+aspects:
+  upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+  environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796269958

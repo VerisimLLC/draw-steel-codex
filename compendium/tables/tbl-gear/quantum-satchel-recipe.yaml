@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: fac340e2-d39d-491a-ba27-0225fbc3b577
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765469149754
+ctime: 1765469149754
+name: Quantum Satchel Recipe
+flavor: Text or lore in Caelian
+description: The project source necessary to craft a Quantum Satchel
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

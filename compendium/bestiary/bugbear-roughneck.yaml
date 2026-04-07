@@ -1,0 +1,1149 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 213b22e7-9a9a-425d-b34a-5ddcc5508709
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 109
+    inflictedConditions: []
+    ev: 16
+    max_hitpoints_roll: "109"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Bugbear Roughneck
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 11 damage; one target is grabbed; one target is pushed 2
+        - 14 damage; one target is grabbed; one target is vertically pushed 3
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 09804333-635a-4691-915f-2bb0884de63e
+        duration: 0
+        ongoingEffectCustom: 09804333-635a-4691-915f-2bb0884de63e
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptText: Select Target to Grab
+        inheritKeywords: true
+        targetingFormula: Target.Ongoing Effects has "Haymaker Targets"
+        applyto: caster
+        targeting: prompt
+        autoTarget: false
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: Ongoing Effects has "Haymaker Targets"
+          repeatTargets: false
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 8236a65a-1c50-424a-bee2-57a93691cd9f
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: grabbed
+          name: Haymaker Grab
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        inheritRange: true
+        tiersSelected:
+        - 2
+        - 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptText: Select Target to Push
+        guid: 76e0f3b5-b3cd-4074-a15e-a8826c0cab3a
+        targetingFormula: Target.Ongoing Effects has "Haymaker Targets"
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: Ongoing Effects has "Haymaker Targets"
+          repeatTargets: false
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 8236a65a-1c50-424a-bee2-57a93691cd9f
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: push 2
+          name: Haymaker Grab
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        targeting: prompt
+        autoTarget: false
+        inheritKeywords: true
+        inheritRange: true
+        tiersSelected:
+        - 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptText: Select Target to Vertically Push
+        guid: 45c25181-a85a-4b14-ab82-d0a7b9a10dc5
+        targetingFormula: Target.Ongoing Effects has "Haymaker Targets"
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: Ongoing Effects has "Haymaker Targets"
+          repeatTargets: false
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 8236a65a-1c50-424a-bee2-57a93691cd9f
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: vertical push 3
+          name: Haymaker Grab
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        targeting: prompt
+        autoTarget: false
+        inheritKeywords: true
+        inheritRange: true
+        tiersSelected:
+        - 3
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        ongoingEffect: 09804333-635a-4691-915f-2bb0884de63e
+        mode: effect
+        conditions: []
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 54
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Normal
+      - variation:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          keywords:
+            Area: true
+            Melee: true
+            Weapon: true
+          targetAllegiance: enemy
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 7 damage
+            - 11 damage; one target is grabbed; one target is pushed 2
+            - 14 damage; one target is grabbed; one target is vertically pushed 3
+            guid: dcfc9507-3f95-4cfc-9186-5449c51dcb5a
+            roll: 2d10 + 2
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 09804333-635a-4691-915f-2bb0884de63e
+            guid: 2608a4f6-5013-45ae-9add-96c77b25e307
+            duration: 0
+            ongoingEffectCustom: 09804333-635a-4691-915f-2bb0884de63e
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            promptText: Select Target to Grab
+            guid: ed39f5b3-1bd8-472c-a7d0-7dc1a5788f5c
+            targetingFormula: Target.Ongoing Effects has "Haymaker Targets"
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Ongoing Effects has "Haymaker Targets"
+              repeatTargets: false
+              targetType: target
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: 1
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 8236a65a-1c50-424a-bee2-57a93691cd9f
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: grabbed
+              name: Haymaker Grab
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            targeting: prompt
+            autoTarget: false
+            inheritKeywords: true
+            inheritRange: true
+            tiersSelected:
+            - 2
+            - 3
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            promptText: Select Target to Push
+            guid: 1e3727b7-b9a8-4570-94c7-57ae2468c793
+            targetingFormula: Target.Ongoing Effects has "Haymaker Targets"
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Ongoing Effects has "Haymaker Targets"
+              repeatTargets: false
+              targetType: target
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: 1
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 8236a65a-1c50-424a-bee2-57a93691cd9f
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: push 2
+              name: Haymaker Grab
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            targeting: prompt
+            autoTarget: false
+            inheritKeywords: true
+            inheritRange: true
+            tiersSelected:
+            - 2
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            promptText: Select Target to Vertically Push
+            guid: e90f0055-c615-47d7-b3dd-a5936c190b84
+            targetingFormula: Target.Ongoing Effects has "Haymaker Targets"
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Ongoing Effects has "Haymaker Targets"
+              repeatTargets: false
+              targetType: target
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: 1
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 8236a65a-1c50-424a-bee2-57a93691cd9f
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: vertical push 3
+              name: Haymaker Grab
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            targeting: prompt
+            autoTarget: false
+            inheritKeywords: true
+            inheritRange: true
+            tiersSelected:
+            - 3
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 09804333-635a-4691-915f-2bb0884de63e
+            guid: 8ed63cd1-becb-4e24-81b9-b78af2615d63
+            conditions: []
+            mode: effect
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Signature Ability
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 029c346e-5eca-4191-8d52-0e80b51dd3c2
+          domains: []
+          targetType: all
+          name: Haymaker
+          persistence: []
+          description: he ability takes the Area keyword and loses the Strike keyword, its distance becomes a 1 burst, and it targets each enemy in the area.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        text: 5 Malice
+        hasAbility: true
+        rules: he ability takes the Area keyword and loses the Strike keyword, its distance becomes a 1 burst, and it targets each enemy in the area.
+      targetType: target
+      guid: e7fcb0a7-2061-4115-94d8-f2769b0744ed
+      categorization: Signature Ability
+      numTargets: 2
+      implementation: 4
+      name: Haymaker
+      persistence: []
+      description: "**5 Malice:** The ability takes the Area keyword and loses the Strike keyword, its distance becomes a 1 burst, and it targets each enemy in the area."
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetTextOverride: One creature or object
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 5b0b8b98-511a-41c3-b604-c13b0399cc21
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 7891188c-3bba-4649-b533-4c73127d0add
+        abilityType: standard
+        standardAbilityParams:
+          targetid: "<<Cast.Primary Target.id>>"
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        inheritRange: false
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 83c53163-2250-4aad-affb-0882f7a08a34
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: jump
+          numTargets: "1"
+          targetType: emptyspace
+          targeting: straightpath
+          name: Leaping Fury
+          categorization: Hidden
+          description: ""
+          range: "5"
+          iconid: ui-icons/skills/1.png
+        promptText: Jump up to 5 squares to an unoccupied space within distance of the target
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; M<1 prone
+        - 13 damage; M<2 prone
+        - 16 damage; M<3 prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 54
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: c1ae5bc5-3c1b-403e-bd62-ee692f59fe6a
+      categorization: Signature Ability
+      persistence: []
+      targetType: target
+      numTargets: 1
+      name: Leaping Fury
+      implementation: 4
+      description: The roughneck leaps 5 to an unoccupied space adjacent to the target before making the attack.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: true
+      targetFilter: ConditionCaster("grabbed") = caster
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 54
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 6bf3b795-b119-4e00-b07e-8ffc725bc2d0
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      numTargets: 1
+      categorization: Heroic Ability
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Drag Through Hell
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: d4c39b82-5cb0-41c9-9234-a27ed4974eaa
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Move Up to Your Speed
+        inheritKeywords: false
+        abilityType: standard
+        standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: Cast.Spaces Moved *2
+        titleText: Drag Through Hell
+        chatMessage: Drag Through Hell
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - 70504ebe-3899-41d3-9f60-74b52ce35e39
+        mode: conditions
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: prone
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: none
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: afed3ec9-10ca-4a0f-8c39-e7ee7e52d88b
+          repeatTargets: false
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aura:
+              __typeName: Aura
+              applyto: enemies
+              modifiers: []
+              name: Drag Through Hell Difficult Terrain
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              guid: 71b43048-b3fd-440f-9caf-fc9cbabb2d9f
+              difficult_terrain: true
+              objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+          targetType: anyspace
+          numTargets: "<<spacesmoved>>"
+          name: Drag Through Hell
+          categorization: Hidden
+          description: ""
+          range: "<<spacesmoved>>"
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          spacesmoved: "<<Cast.Spaces Moved>>"
+        promptText: Select Spaces Moved through to create difficult terrain
+      description: |-
+        **Special:** The target must be grabbed by the roughneck
+
+        The roughneck moves up to their speed, dragging the target across the ground. The target takes 2 damage for each square they were dragged through before being released prone. Each square the target was dragged through becomes difficult terrain for enemies.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: Conditions has "grabbed"
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 54
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: c2236f41-1036-4bac-a7ca-569003d6ad8b
+      persistence: []
+      categorization: Ability
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Friends(caster,Target)
+        duration: 0
+        ongoingEffectCustom: false
+        ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+        stacks: "3"
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: vertical push 5
+      name: Throw
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: |-
+        **Special:** The target must be grabbed by the roughneck.
+
+        The target is vertical pushed up to 5 squares. An ally doesn’t take damage from being force moved this way.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 54
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: dfe39bee-4cbd-41e9-8098-9ccf5e1d1908
+      categorization: Signature Ability
+      implementation: 3
+      numTargets: 1
+      name: Catcher
+      behaviors:
+      - __typeName: ActivatedAbilityRevertLocBehavior
+        distance: 1
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: grabbed
+      description: The target is grabbed by the roughneck.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 54
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: eb44f1e5-0bd6-4463-afb8-a581ddc419c6
+      categorization: Signature Ability
+      implementation: 3
+      numTargets: 1
+      name: Flying Sawblade
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          guid: 79b4d87c-1a5d-4b0e-bc9f-ffaf6b8c9d1b
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 79b4d87c-1a5d-4b0e-bc9f-ffaf6b8c9d1b
+            modifyDescription: ""
+            source: Ongoing Effect
+            filterAbility: Ability.name is Haymaker
+            behavior: modifyability
+            attributes:
+            - operation: Set
+              value: "1"
+              id: numtargets
+            guid: 3a2f9a99-6cfe-4b3b-a495-92fed9133312
+            description: ""
+            name: Haymaker Targeting
+            ability:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: d2923117-4ab4-4ca3-997c-e7631176493e
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityModification: true
+              targetType: self
+              abilityType: none
+              name: New Ability
+              behaviors: []
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+          source: Ongoing Effect
+          name: Haymaker Targeting
+          description: ""
+          id: 79b4d87c-1a5d-4b0e-bc9f-ffaf6b8c9d1b
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        namedAbility: Haymaker
+        abilityType: named
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 3d599471-60d4-4053-b794-f6dbe57cf073
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      description: The roughneck uses Haymaker against a creature or object at any point during the forced movement, or after falling as a result of it.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Bugbear Roughneck	Level 2 Elite Brute
+        Bugbear, Goblin, Humanoid, Fey	EV 16
+        <b>Stamina</b> 109
+        <b>Speed</b> 6	<b>Size</b> 1L /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +2	Agility +2	Reason 0	Intuition 0	Presence 0
+        <b>Haymaker</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; one target is grabbed; one target is pushed 2
+        %E2%9C%B8	<b>17</b>	14 damage; one target is grabbed; one target is vertically pushed 3
+        <b>5 Malice</b> The distance becomes 1 Burst, the Strike keyword is replaced with Area, and the roughneck targets all enemies instead.
+
+        <b>Leaping Fury</b> (Action)%E2%97%86 2d10 + 3
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; M<1 prone
+        %E2%98%85	<b>12%E2%80%9316</b>	13 damage; M<2 prone
+        %E2%9C%B8	<b>17</b>	16 damage; M<3 prone
+        <b>Effect</b> The roughneck leaps 5 to an unoccupied space adjacent to the target before making the attack.
+
+        <b>Drag Through Hell</b> (Maneuver)%E2%97%86 3 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1	<b>Target</b> 1 creature or object grabbed by the roughneck
+        <b>Effect</b> The roughneck moves up to their speed, dragging the target across the ground. The target takes 2 damage for each square they were dragged through before being released prone. Each square the target was dragged through becomes difficult terrain for enemies.
+
+        <b>Throw</b> (Maneuver)
+        <b>Keywords</b> Attack, Melee
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object grabbed by the roughneck
+        <b>Effect</b> Vertical push 5. An ally target doesn't take damage from being force moved.
+
+        <b>Catcher</b> (Free Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> 1 size 1 creature or object
+        <b>Trigger</b> The target is force moved into a square adjacent to the roughneck.
+        <b>Effect</b> The target is grabbed by the roughneck.
+
+        <b>Flying Sawblade</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> The roughneck is vertically moved by another creature.
+        <b>Effect</b> The roughneck uses their Haymaker ability against a creature or object at the end of the movement.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b4f904fb-33f5-4cf3-9938-4d9be9af2d3e: true
+        CharacterFeature:296d82a3-1278-4dc9-851b-a24532eada05: true
+        CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b4f904fb-33f5-4cf3-9938-4d9be9af2d3e: true
+          CharacterFeature:296d82a3-1278-4dc9-851b-a24532eada05: true
+          CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+        sourceguid: 46e1891f-8463-4676-978f-4685cb36d5ef
+        description: " "
+        source: Character Feature
+        name: Catcher
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          trigger: finishmove
+          persistence: []
+          modifiers: []
+          subjectRange: "20"
+          strain: []
+          guid: 7ac9c2fa-8aea-4c71-88d3-5993130b379d
+          conditionFormula: ((Not Friends(self, Subject)) and Path.DistanceToCreature(Self) <= 1 and path.Forced) or (Friends(self, subject) and Path.DistanceToCreature(Self) <= 1)
+          hasManualVersion: true
+          domains:
+            CharacterFeature:b4f904fb-33f5-4cf3-9938-4d9be9af2d3e: true
+            CharacterFeature:296d82a3-1278-4dc9-851b-a24532eada05: true
+            CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+          numTargets: "1"
+          whenActive: combat
+          name: Catcher
+          behaviors:
+          - __typeName: ActivatedAbilityRevertLocBehavior
+            distance: 1
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: grabbed
+          description: |-
+            Trigger: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+            Effect: The target is grabbed by the roughneck.
+          subject: other
+          iconid: ui-icons/skills/1.png
+        guid: fa9d0be9-249c-4abd-a15b-c97f79594b37
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b4f904fb-33f5-4cf3-9938-4d9be9af2d3e: true
+          CharacterFeature:296d82a3-1278-4dc9-851b-a24532eada05: true
+          CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+        sourceguid: b4f904fb-33f5-4cf3-9938-4d9be9af2d3e
+        description: " "
+        source: Character Feature
+        name: Catcher
+        behavior: triggerdisplay
+        guid: 4b0da475-9034-4dac-a10d-91df1f28cd37
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The target is grabbed by the roughneck.
+          guid: 941102b9-fa19-4197-a8df-f3d4c67cbc8f
+          distance: Melee 1
+          keywords:
+            Melee: true
+          target: The triggering creature or objec
+          name: Catcher
+          flavor: ""
+          trigger: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+          type: free
+      name: Catcher
+      guid: b4f904fb-33f5-4cf3-9938-4d9be9af2d3e
+      description: " "
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:75cf111b-cbd5-47dd-82f8-19d7910e1a63: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:75cf111b-cbd5-47dd-82f8-19d7910e1a63: true
+        sourceguid: 75cf111b-cbd5-47dd-82f8-19d7910e1a63
+        description: ""
+        source: Character Feature
+        name: Flying Sawblade
+        behavior: triggerdisplay
+        guid: 19538084-8703-4200-aac5-3faf9451ffac
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: The roughneck uses Haymaker against a creature or object at any point during the forced movement, or after falling as a result of it.
+          trigger: The roughneck is vertical force moved by another creature.
+          name: Flying Sawblade
+          guid: 88241b05-f7f1-4d9c-a97e-8a0c8f33410f
+          distance: Self
+          keywords:
+            Melee: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:75cf111b-cbd5-47dd-82f8-19d7910e1a63: true
+        sourceguid: 75cf111b-cbd5-47dd-82f8-19d7910e1a63
+        description: ""
+        source: Character Feature
+        name: Flying Sawblade
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Use Haymaker against a creature or object at any point during forced movement
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 883c4959-66db-472b-94c5-679c255f5eba
+          conditionFormula: Vertical
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              guid: 79b4d87c-1a5d-4b0e-bc9f-ffaf6b8c9d1b
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              modifiers:
+              - __typeName: CharacterModifier
+                sourceguid: 79b4d87c-1a5d-4b0e-bc9f-ffaf6b8c9d1b
+                modifyDescription: ""
+                source: Ongoing Effect
+                filterAbility: Ability.name is Haymaker
+                behavior: modifyability
+                attributes:
+                - operation: Set
+                  value: "1"
+                  id: numtargets
+                guid: 3a2f9a99-6cfe-4b3b-a495-92fed9133312
+                description: ""
+                name: Haymaker Targeting
+                ability:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: d2923117-4ab4-4ca3-997c-e7631176493e
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  abilityModification: true
+                  targetType: self
+                  abilityType: none
+                  name: New Ability
+                  behaviors: []
+                  description: ""
+                  range: 1
+                  iconid: ui-icons/skills/1.png
+              source: Ongoing Effect
+              name: Haymaker Targeting
+              description: ""
+              id: 79b4d87c-1a5d-4b0e-bc9f-ffaf6b8c9d1b
+              iconid: ui-icons/skills/1.png
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: Haymaker
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 3d599471-60d4-4053-b794-f6dbe57cf073
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          trigger: forcemove
+          name: Flying Sawblade
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 71a1c7f8-a466-4fab-bb7e-88c37e7cf415
+      name: Flying Sawblade
+      guid: 75cf111b-cbd5-47dd-82f8-19d7910e1a63
+      description: ""
+      source: Character Feature
+    role: Elite Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    auras: []
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: 07c25bb3-a566-4fee-a1ca-e5c34964dc09-97
+    initiativeGrouping: a94de655-1945-443c-b159-1e0389a0c9b6
+    groupid: ad734f83-9fbe-4f7d-b0f9-7a6b67917513
+    damage_taken: 0
+    walkingSpeed: 6
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+    monster_category: Monster
+    traitNames: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        15724903-8ca5-4d19-89a8-cd6f605d9e7c:
+          note: Leaping Fury
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        0fb184f3-f736-4cd3-952f-739f08366153:
+          note: Haymaker
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        4eff3eec-3c65-472f-a63a-9fc4a35a499f:
+          note: Leaping Fury
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        0e00b8c9-8982-4bbd-9733-9a651f112983:
+          note: Leaping Fury
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        ffc781d5-394f-4938-91a2-71a5ddbf5473:
+          note: Leaping Fury
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        c469b48d-8fe3-4ac0-818f-f9123b48f3d0:
+          note: Haymaker
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        008bb1fe-5b22-4832-866c-bdc460fc1415:
+          note: Leaping Fury
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        d91b628b-6b94-4b6c-8735-c51680d7178f:
+          note: Leaping Fury
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+    creatureSize: 1L
+    movementSpeeds: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        98abf9d9-9bc6-412c-9e8e-7e7204a03401:
+          note: Drag Through Hell
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        a15607f9-a320-4dc8-8964-bccad778ccce:
+          note: Drag Through Hell
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        72ed379d-4f43-418c-bb39-59d9bfc50960:
+          note: Drag Through Hell
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        b42019ba-61ff-40ea-a32f-783adc14f1eb:
+          note: Drag Through Hell
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        641c56b2-85cf-410f-adb3-b16d6df40d4c:
+          note: Drag Through Hell
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        1402c397-216b-4e14-984b-225c9f375e9a:
+          note: Drag Through Hell
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+    availableTriggers: []
+    keywords:
+      Fey: true
+      Goblin: true
+      Bugbear: true
+      Humanoid: true
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: d1a0e7d7-2367-45f6-8187-075625073d3a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1726301040866
+description: Bugbear Roughneck
+parentFolder: 48e8f60e-8ed1-400a-83c2-e4170481f4b4
+artist: null
+ord: 0
+ctime: 1741590311121
+mtime: 1775184669617
+hidden: false

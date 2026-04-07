@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: If the creature you’re bound to dies, you die as well, no matter what other traits or features you have.
+mtime: 1755603886930
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Lifebonded
+ctime: 1755515670107
+description: 'In a sinister ritual, your soul has been bound to that of another creature. This might be a companion, a creature you are beholden to, or an enemy. When they die, you die—making you the perfect bodyguard. '
+id: 7e0cd4f9-9fea-4f16-81ca-fe6f79df13b5
+benefit: Choose another creature who doesn’t have the Lifebonded complication. When you die, your body disappears until that creature finishes a respite or earns 1 or more Victories. You then appear next to the creature, fully healed.

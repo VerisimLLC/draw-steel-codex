@@ -1,0 +1,32 @@
+__typeName: ActivatedAbility
+insertAtStart: true
+invokeSurroundingAbility: false
+id: 4a266309-8fbc-4e0a-bbc5-4a31ac2f72d9
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+testCases:
+- text: If the target is grabbed or restrained, this attack deals additional damage equal to your MGT or AGL.
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: e535e075-75aa-45dd-87da-61f7f9c1487d
+importMatch: If the target is grabbed or restrained, this attack deals additional damage equal to your MGT or AGL.
+ctime: 1711340470003
+repeatTargets: false
+behaviors:
+- __typeName: ActivatedAbilityModifyCastBehavior
+  filterTarget: target.Conditions has "Restrained"
+  name: Pugilism
+  value: Might or Agility
+  paramid: ability_damage
+  description: Since the target is grabbed or restrained, you deal extra damage equal to MGT or AGL.
+name: Pugilist
+mtime: 1743459928256
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

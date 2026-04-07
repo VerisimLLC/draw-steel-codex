@@ -1,0 +1,166 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c4b4fa90-7423-47ea-8551-575649a860f9
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Demon Wobalas	Level 4 Minion Artillery
+        Abyssal, Demon	EV 6 for four minions
+        <b>Stamina</b> 7	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6 	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Strike damage +2	<b>Free Strike</b> 3
+        Might +1	Agility +3	Reason +1	Intuition +2	Presence +1
+        <b>Despair Bolt</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 20<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 psychic damage
+        %E2%98%85	<b>12-16</b>	5 psychic damage
+        %E2%9C%B8	<b>17</b>	7 psychic damage
+        <b>Effect</b> The target has a bane on their next attack. If the target is winded, they have a double bane on their next attack instead.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the wobalas can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e7a5aac4-7a36-4af4-9b8d-473ddf2f5019: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the wobalas can't be hidden from them.
+      guid: e7a5aac4-7a36-4af4-9b8d-473ddf2f5019
+      source: Trait
+    role: Minion Artillery
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "7"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 3
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    monster_type: Demon Wobalas
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    withCaptain: Strike damage +2
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 7
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Magic: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 psychic damage
+        - 5 psychic damage
+        - 7 psychic damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 20
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 212d3848-c605-4be1-979d-2c059918dadc
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Despair Bolt
+      numTargets: 1
+      description: The target has a bane on their next attack. If the target is winded, they have a double bane on their next attack instead.
+      abilityType: none
+      implementation: 3
+    keywords:
+      Demon: true
+      Abyssal: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: d230895c-1f06-4892-accf-c1b41ed5ca79
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Demon Wobalas
+parentFolder: d2197625-9db6-4f37-8d6f-353a079bffdf
+artist: null
+ord: 3
+ctime: 1741590312461
+mtime: 1775201137032
+hidden: false

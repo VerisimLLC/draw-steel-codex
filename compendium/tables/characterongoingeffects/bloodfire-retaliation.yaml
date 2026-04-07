@@ -1,0 +1,27 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 36f1709b-0213-4398-8edd-ccbeb4b5cab5
+  modifyRoll: +1d4
+  source: Ongoing Effect
+  behavior: damage
+  filterCondition: target.Ongoing Effects has "Bloodfire Target"
+  name: Bloodfire Retaliation
+  description: When a creature deals Damage to you, you gain 1 Boon on Attacks against them until the end of your next turn.
+  guid: 351bc85a-f695-48bb-9df8-7a1a9eb0f3a3
+  damageFilterCondition: false
+source: Ongoing Effect
+guid: 36f1709b-0213-4398-8edd-ccbeb4b5cab5
+id: 36f1709b-0213-4398-8edd-ccbeb4b5cab5
+ctime: 1700241428749
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Bloodfire Retaliation
+description: When a creature deals Damage to you, you gain 1 Boon on Attacks against them until the end of your next turn.
+custom: true
+mtime: 1746023313244
+iconid: ui-icons/skills/1.png

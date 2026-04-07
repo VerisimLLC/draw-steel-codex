@@ -1,0 +1,126 @@
+__typeName: equipment
+itemPrerequisite: One vial of fire giant blood
+keywords:
+  Oil: true
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: A small pot is filled with a viscous, ochre oil that smells of sulfur and burnt hair.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+iconid: ee5321e9-6f6e-4138-9db1-83f1f316b8a1
+id: 19280d26-b619-4441-90d5-1d23d0deb9da
+ctime: 1759149832780
+projectGoal: "45"
+mtime: 1762395078958
+consumable:
+  __typeName: ActivatedAbility
+  targetTextOverride: Special
+  repeatTargets: false
+  rangeTextOverride: Special
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 713ff2f0-936c-4fae-a5a5-cb311c26421d
+      repeatTargets: false
+      abilityType: none
+      castImmediately: true
+      targetType: self
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 5435dba0-058c-4f01-acdb-b3a01c625535
+        ongoingEffectCustom: 5435dba0-058c-4f01-acdb-b3a01c625535
+      name: Invoked Ability
+      numTargets: "1"
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    modesSelected:
+    - 1
+    targeting: self
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 4b6d9330-6adb-4a83-bc2b-9a9c9f70e0bd
+      repeatTargets: false
+      targetFilter: ""
+      abilityType: none
+      targetType: anyspace
+      numTargets: "1"
+      name: Invoked Ability
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: b8b10e56-4be5-48ef-99d6-d933e99ecc61
+        filterTarget: ""
+        ongoingEffectCustom: b8b10e56-4be5-48ef-99d6-d933e99ecc61
+      description: ""
+      range: "5"
+      iconid: ui-icons/skills/1.png
+    modesSelected:
+    - 2
+    targeting: self
+  multipleModes: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  consumables:
+    19280d26-b619-4441-90d5-1d23d0deb9da: 1
+  persistence: []
+  modifiers: []
+  description: |-
+    As a maneuver, you coat a weapon in this oil and ignite it. The weapon burns persistently and without harming itself until it is extinguished as a maneuver. Whenever you use a weapon ability that deals rolled damage using a weapon that is ignited this way, the ability deals an extra 2 fire damage. 
+
+    Alternatively, you can use a maneuver to throw the pot up to 5 squares, coating the square where it lands and any creatures or objects in that square with a sticky flammable oil. If the oil takes any fire damage, it burns persistently and deals 5 fire damage at the end of each of your turns to anything it has coated. A creature covered in the oil or who can reach it can use a main action to extinguish the flames and end the effect. 
+
+    Any fire caused by the oil is extinguished after burning for 1 hour.
+  strain: []
+  modeList:
+  - rules: Whenever you use a weapon ability that deals rolled damage using a weapon that is ignited this way, the ability deals an extra 2 fire damage.
+    text: Coat Weapon
+  - rules: Throw the pot up to 5 squares, coating the square where it lands and any creatures or objects in that square with a sticky flammable oil. If the oil takes any fire damage, it burns persistently and deals 5 fire damage at the end of each of your turns to anything it has coated.
+    text: Throw Pot
+  targetType: self
+  numTargets: "1"
+  castImmediately: false
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  abilityFilters:
+  - formula: ""
+    reason: ""
+  name: Giant's-Blood Flame
+  guid: e6473b60-5f7e-44bb-bbd8-f06ee85f0991
+  attributeOverride: no_attribute
+  abilityType: none
+  iconid: ee5321e9-6f6e-4138-9db1-83f1f316b8a1
+name: Giant's-Blood Flame
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+description: |-
+  As a maneuver, you coat a weapon in this oil and ignite it. The weapon burns persistently and without harming itself until it is extinguished as a maneuver. Whenever you use a weapon ability that deals rolled damage using a weapon that is ignited this way, the ability deals an extra 2 fire damage. 
+
+  Alternatively, you can use a maneuver to throw the pot up to 5 squares, coating the square where it lands and any creatures or objects in that square with a sticky flammable oil. If the oil takes any fire damage, it burns persistently and deals 5 fire damage at the end of each of your turns to anything it has coated. A creature covered in the oil or who can reach it can use a main action to extinguish the flames and end the effect. 
+
+  Any fire caused by the oil is extinguished after burning for 1 hour.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 2

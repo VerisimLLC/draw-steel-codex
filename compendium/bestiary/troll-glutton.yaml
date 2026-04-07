@@ -1,0 +1,311 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fb9a51e4-8301-4223-938f-dfb50e27f608
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 4
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Troll Glutton	Level 5 Elite Brute
+        Giant, Troll	EV 28
+        <b>Stamina</b> 160	<b>Weakness</b> Acid 5, Fire 5
+        <b>Speed</b> 6	<b>Size</b> 2 /<b> Stability</b> 4
+        <b>Free Strike</b> 7
+        Might +3	Agility +1	Reason -1	Intuition +0	Presence +1
+        <b>Voracious Mastication</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	10 damage
+        %E2%98%85	12%E2%80%9316	15 damage; M<2 slowed (save ends)
+        %E2%9C%B8	17	18 damage; M<3 slowed (save ends)
+        <b>1 Malice</b> The glutton regains Stamina equal to the damage dealt.
+
+        <b>Crash Through</b> (Action) %E2%97%86 3 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The glutton shifts up to their speed in a straight line, ignoring difficult terrain. A creature can choose to fall prone or take 10 damage the first time the glutton passes through their space during the movement. If the glutton moves into a creature or object larger than them and the glutton doesn't knock the creature prone or destroy the object, the glutton's movement stops early and they become dazed until the end of their next turn.
+
+        <b>Food Frenzy</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The glutton has a double edge on strikes and strikes have an edge against them, until the start of their next turn.
+
+        <b>Spiteful Retort</b> (Free Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> Self
+        <b>Trigger</b> The glutton is reduced to 0 Stamina but doesn't die.
+        <b>Effect</b> The glutton uses their Voracious Mastication ability against an adjacent creature.
+
+        <b>Insatiable Appetite</b>
+        Once per turn, the glutton can take the Charge action as a free maneuver if they target a winded creature.
+
+        <b>Relentless Hunger</b>
+        The glutton only dies when they are reduced to 0 Stamina by acid or fire damage, end their turn with 0 Stamina, or take acid or fire damage while at 0 Stamina.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5392d069-c012-4687-abf1-4d1861447d48: true
+      modifiers: []
+      name: Insatiable Appetite
+      description: Once per turn, the glutton can take the Charge action as a free maneuver if they target a winded creature.
+      guid: 5392d069-c012-4687-abf1-4d1861447d48
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9b226e7c-2cf3-4976-b200-acb84f5e7e92: true
+      modifiers: []
+      name: Relentless Hunger
+      description: The glutton only dies when they are reduced to 0 Stamina by acid or fire damage, end their turn with 0 Stamina, or take acid or fire damage while at 0 Stamina.
+      guid: 9b226e7c-2cf3-4976-b200-acb84f5e7e92
+      source: Trait
+    role: Elite Brute
+    inflictedConditions: []
+    keywords:
+      Giant: true
+      Troll: true
+    max_hitpoints_roll: "160"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: acid
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Troll Glutton
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 160
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 1 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 256
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: 2
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: The glutton regains Stamina equal to the damage dealt.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage
+        - 15 damage; M<2 slowed (save ends)
+        - 18 damage; M<3 slowed (save ends)
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: d1745ba0-eade-4526-aa04-cfe48b452569
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: Cast.DamageDealt
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: The glutton regains Stamina equal to the damage dealt."
+        autoTarget: false
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Voracious Mastication
+      guid: 1d37e608-bf73-46a9-aab5-2db42f7f9f09
+      description: |2-
+
+        **1 Malice**: The glutton regains Stamina equal to the damage dealt.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: aaea5da2-36fe-4c73-a012-30fd59b03a16
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Crash Through
+      implementation: 0
+      description: The glutton shifts up to their speed in a straight line, ignoring difficult terrain. A creature can choose to fall prone or take 10 damage the first time the glutton passes through their space during the movement. If the glutton moves into a creature or object larger than them and the glutton doesn't knock the creature prone or destroy the object, the glutton's movement stops early and they become dazed until the end of their next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: a1b93979-61f2-4836-ad76-aa07b9fb1f72
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Food Frenzy
+      numTargets: 1
+      description: The glutton has a double edge on strikes and strikes have an edge against them, until the start of their next turn.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 815a8372-cd2e-4767-8e06-681d109d1a3c
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Spiteful Retort
+      implementation: 0
+      description: The glutton uses their Voracious Mastication ability against an adjacent creature.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 67902c1a-5307-415e-8495-52212b0c0def
+    movementSpeeds: []
+    ev: 28
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 9c14d013-75b3-409a-ba3f-1d44c12d6dcd
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Troll Glutton
+parentFolder: f10d63e4-32ef-4b09-8bed-6007e0c43454
+artist: null
+ord: 0
+ctime: 1741590287533
+mtime: 1775201137032
+hidden: false

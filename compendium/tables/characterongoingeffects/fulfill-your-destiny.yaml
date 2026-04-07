@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 9b71b7dd-3044-4995-bb95-4e136a1cf5b0
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: false
+  name: Fulfill Your Destiny
+  guid: f3980ee0-8ecf-4377-aa99-10793f271dec
+  description: You have double edges on power rolls.
+  modtype: double_edge
+  rollType: all
+source: Ongoing Effect
+guid: 9b71b7dd-3044-4995-bb95-4e136a1cf5b0
+id: 9b71b7dd-3044-4995-bb95-4e136a1cf5b0
+ctime: 1751761322267
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Fulfill Your Destiny
+description: You have double edges on power rolls.
+custom: true
+mtime: 1751761322267
+iconid: ui-icons/skills/1.png

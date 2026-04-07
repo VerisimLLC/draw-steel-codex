@@ -1,0 +1,33 @@
+__typeName: MarkdownDocument
+description: Gweldyr
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 9975a38e-5211-4d14-a9b6-cc4635eee602
+annotations:
+  image:
+    __typeName: RichImage
+id: cbe6c536-f743-4b37-8360-240370289469
+mtime: 1761403032924
+content: |-
+  # Gweldyr
+  [[image]]
+
+  *Rosy-cheeked, middle-aged. Runs the Feather Bed Inn*
+  {
+  Secret: 
+  [B1. Feather Bed Inn]
+  Gweldyr is always happy to greet the heroes as they enter the inn, and her greetings become warmer with every quest they accomplish. She’s polite but doesn’t like to waste time. There’s always something to take care of, especially with the inn this packed. If asked about Broadhurst or its happenings, Gweldyr offers the following information:
+
+  **If asked about Broadhurst or general happenings:** “Honestly, I don’t know much, love, but I can say that if you’re around in the evening and want to take a pint with some folks in the common room, they’ll happily gossip ’til the sun’s rising.”
+
+  **If asked about the Gilded Hand:** “Came all the way from Wend, they did. I heard them sayin’ they battled cultists in some tomb! I can’t imagine why they came all the way out here. As far as I can tell, no one in Broadhurst can afford them.”
+
+  **If asked about the dwarf merchants:** “Ah, they’re bringing stone for Dunquat, but it seems they can’t agree on a price. That’s a tough go. Dunquat prides herself on using quality dwarf stone.”
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761395829990

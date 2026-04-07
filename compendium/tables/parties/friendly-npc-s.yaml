@@ -1,0 +1,12 @@
+__typeName: Party
+_fork: H4sIAAAAAAAACm2OPQuDQBBE/4pckyYHert73tkGUopFetnoHggXCX4UIvnvObEKpH3Mm5ldte2yvaXml6hKNTwtm7pmqluGAxSWjKOSwHryCY9n7D4NMvZxy+rmdpmPPMe4HfIgs6p2lQP4EEB0MM5pZEeac9NpRnJd7gvrMKhqmVZJbhtXfvAzykk+CQ19WgGwgaAnjeBEI1KuOcnaS8nosTA9wbH9+v1qCbH4U/sFQxG1GusAAAA=
+name: Friendly NPC's
+id: 336f53d5-438e-4450-ac09-9e7a49412d53
+mtime: 1773430972909
+allyParties:
+  8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676: true
+  45d9d32b-252d-4116-85d7-f7dc72d8304e: true
+  0339ff3e-f288-4a85-a02c-a458c091684f: true
+  99875cc1-a5a6-491f-8af6-51b29f0da555: true
+  b72876c4-e9d7-42dc-a8a1-cd4c3744056c: true
+ctime: 1759641614593

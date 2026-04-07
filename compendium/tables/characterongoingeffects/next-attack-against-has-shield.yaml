@@ -1,0 +1,43 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1.28571515764509
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: -0.00208103656768799
+    v: 1.00238597393036
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  activationCondition: true
+  keywords:
+    Attack: true
+  surges: ""
+  domains:
+    CharacterOngoingEffect:1e585796-8497-405b-b5c0-a1e65ffb0701: true
+  modtype: none
+  rollType: enemy_ability_power_roll
+  shields: stacks
+  description: The next attack against this creature has a Shield
+  behavior: power
+  name: Next Attack Against Has Shield
+source: Ongoing Effect
+endTrigger: attacked
+stackable: true
+id: 0142c23c-3d75-4490-8f07-990c571f8ef1
+ctime: 1730098026785
+domains:
+  CharacterOngoingEffect:1e585796-8497-405b-b5c0-a1e65ffb0701: true
+implementation: 3
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+name: Next Attack Against Has Shield
+categorization: common
+description: The next attack against this creature has a Shield
+mtime: 1737361027039
+iconid: 20c26bc2-3c3b-498c-af59-f29874538b13

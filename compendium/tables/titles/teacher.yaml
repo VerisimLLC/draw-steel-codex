@@ -1,0 +1,21 @@
+__typeName: Title
+effect: |-
+  You can travel with a student who shares your class. The student has the statistics of a 1st-level member of your class and has the same
+  skills as you, but doesn’t engage in combat. They can perform any out-of-combat tasks a 1st-level member of your class can perform. Whenever they make a test to assist you in a task, they can’t obtain less than a tier 2 outcome on the test.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers: []
+    name: Teacher Benefit
+    description: You can travel with a student who shares your class. The student has the statistics of a 1st-level member of your class and has the same skills as you, but doesn’t engage in combat. They can perform any out-of-combat tasks a 1st-level member of your class can perform. Whenever they make a test to assist you in a task, they can’t obtain less than a tier 2 outcome on the test.
+    guid: dcf426c3-2751-4752-babf-eccf727c8ab8
+    canHavePrerequisites: true
+    source: Feat
+id: 2f469c4a-a8db-4588-b29e-faa3d63527f9
+ctime: 1762352146744
+name: Teacher
+description: Someday, I’ll understand how peeling these carrots for dinner relates to my elementalist training.
+mtime: 1775216078764
+echelon: "3"
+prerequisite: You train or command at least three lower-level members of your class.

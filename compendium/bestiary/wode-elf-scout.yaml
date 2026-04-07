@@ -1,0 +1,261 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 44b2a28c-a610-42d9-8acd-5820d3223abb
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Scout	Level 1 Minion Ambusher
+        Fey, Humanoid, Wode Elf	EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed </b>10	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Edge on strikes	<b>Free Strike</b> 2
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Daggers</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5<b>Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage
+        %E2%9C%B8	<b>17</b>	5 damage
+
+        <b>Hunter's Glamor</b>
+        The scout immediately hides at the end of their turn, even if they are observed.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+        sourceguid: ef33fb6b-21fb-4b32-9939-63af62f3d3a5
+        behavior: trigger
+        source: Trait
+        name: Into the Green
+        description: The scout can attempt to hide at the end of each of their turns.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: The scout can attempt to hide at the end of each of their turns.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          whenActive: combat
+          persistence: []
+          guid: 30874938-60dd-4ea4-b028-546c6355b77d
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 0aa81848-85f7-4c0a-915c-146de14eb8aa
+            ongoingEffectCustom: false
+          trigger: endturn
+          name: Into the Green
+          description: The scout can attempt to hide at the end of each of their turns.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 6d05c88f-b1e8-45b2-9ddc-fa8471261510
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+        sourceguid: ef33fb6b-21fb-4b32-9939-63af62f3d3a5
+        behavior: triggerdisplay
+        source: Trait
+        name: Into the Green
+        description: The scout can attempt to hide at the end of each of their turns.
+        guid: 0b9c2a49-f008-4c69-aa0f-f2a576103cb8
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: The scout can attempt to hide.
+          trigger: When the Scout ends their turn
+          type: free
+          guid: c050ebec-ef00-4262-a735-7b262c7f89e4
+          name: Into the Green
+          keywords: []
+      source: Trait
+      description: The scout can attempt to hide at the end of each of their turns.
+      guid: ef33fb6b-21fb-4b32-9939-63af62f3d3a5
+      name: Into the Green
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+        CharacterFeature:e39b4270-2ec9-44fa-8d60-07ba96205112: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e39b4270-2ec9-44fa-8d60-07ba96205112
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1)) and Self.Ignore Cover <= 0 '
+        guid: 96120cdc-4ac3-4509-906f-e09c8224a631
+        name: Masking Glamor
+        domains:
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:e39b4270-2ec9-44fa-8d60-07ba96205112: true
+        description: Abilities targeting the scout that would take a bane from cover have a double bane instead.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: e39b4270-2ec9-44fa-8d60-07ba96205112
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Target.Conditions has "concealment"
+        domains:
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:e39b4270-2ec9-44fa-8d60-07ba96205112: true
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the scout that would take a bane from cover or concealment have a double bane instead.
+        behavior: power
+        guid: 44ccf69d-2c86-42bc-8e64-e508524cd15d
+      source: Trait
+      description: Abilities targeting the scout that would take a bane from cover or concealment have a double bane instead.
+      guid: e39b4270-2ec9-44fa-8d60-07ba96205112
+      name: Masking Glamor
+      implementation: 3
+    role: Minion Ambusher
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Wode Elf: true
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: Wode Elf Scout
+    equipment: []
+    withCaptain: Gain an edge on strikes
+    max_hitpoints: 4
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    levelChoices: []
+    walkingSpeed: 10
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 49810070-902d-4fd7-97de-d90d89564a14
+      meleeRange: 1
+      numTargets: 1
+      targetType: target
+      implementation: 4
+      persistence: []
+      name: Daggers
+      sourceReference:
+        __typeName: SourceReference
+        page: 137
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: ""
+      abilityType: none
+      iconid: d15fe212-5892-433b-869f-4778a5a9604d
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    opportunityAttack: 2
+  tokenType: null
+  bestiaryId: 4a9d14e3-9097-401b-9969-b1580e057250
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Wode Elf Scout
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590246780
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,294 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: b0550bb6-7fd8-4982-bc1b-bf84c0c3d38e
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.05078113
+      y: -0.08984387
+    frameHueShift: 0.3117658
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 47424833-20cd-4452-8e2f-023cf8dbd381
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: bf0b31c6-80cb-4a7e-b0fa-d159549a5aff
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Rapier Flunge
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage; slide 1; the swiftpaw can shift 1 square
+        - 2 damage; slide 2; the swiftpaw can shift up to 2 squares
+        - 3 damage; slide 3; the swiftpaw can shift up to 3 squares
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 9a0e1982-26bd-4b82-954b-f33ed6fbf85c
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Ready Rodent
+      sourceReference:
+        __typeName: SourceReference
+        page: 227
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The Swiftpaw makes a free strike against the target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Radenwight Swiftpaw    Level 1 Minion Harrier
+        Humanoid, Radenwight    EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed</b> 7 (climb)    <b>Size</b> 1S /<b> Stability</b> 0
+        <b>With Captain</b> Edge on strikes<b>Free Strike</b> 1
+        Might +0    Agility +2    Reason +1    Intuition +0    Presence -1
+        <b>Rapier Flunge</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1    <b>Target</b> One creature or object per minion
+        %E2%9C%A6    %E2%89%A411    1 damage; slide 1; shift 1
+        %E2%98%85    12%E2%80%9316    2 damage; slide 2; shift 2
+        %E2%9C%B8    17+    3 damage; slide 3; shift 3
+
+        <b>Ready Rodent </b>(Triggered Action)
+        <b>Keywords</b> Melee, Weapon
+        <b>Distance</b> Melee 1    <b>Target</b> One creature
+        <b>Trigger</b> An ally deals damage to the target.
+        <b>Effect</b> The swiftpaw makes a free strike against the target.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5763d86c-aaa7-45e4-98c3-aed198eed8c8: true
+        CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+        CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+        CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:5763d86c-aaa7-45e4-98c3-aed198eed8c8: true
+          CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+          CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+          CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+        sourceguid: 5763d86c-aaa7-45e4-98c3-aed198eed8c8
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Ready Rodent
+        description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+        guid: 8e77afb5-156a-490f-8775-e8348fdfe9ff
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The bruxer makes a free strike against the target.
+          name: Ready Rodent
+          trigger: An ally deals damage to the target.
+          guid: e2ed1297-1002-4eae-b4a7-6eff9f463121
+          distance: Melee 1
+          keywords:
+            Melee: true
+            Weapon: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:5763d86c-aaa7-45e4-98c3-aed198eed8c8: true
+          CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+          CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+          CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+        sourceguid: 5763d86c-aaa7-45e4-98c3-aed198eed8c8
+        behavior: trigger
+        source: Character Feature
+        name: Ready Rodent
+        description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Make a free strike aganst the target.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          trigger: losehitpoints
+          persistence: []
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          whenActive: combat
+          conditionFormula: HasAttacker and Friends(self, Attacker) and Attacker != self
+          numTargets: "1"
+          domains:
+            CharacterFeature:5763d86c-aaa7-45e4-98c3-aed198eed8c8: true
+            CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+            CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+            CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          guid: efbc327c-c511-42c9-95e2-4db1ce73ac12
+          name: Ready Rodent
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 40c11f6e-2c70-4df2-a4a2-919ffc0e8562
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            autoTarget: true
+            abilityType: standard
+            standardAbilityParams:
+              targetid: "<<subject.id>>"
+            standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: f4e1cfd3-6529-4d5e-823b-7df5ffd5b9c1
+      source: Character Feature
+      description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+      guid: 5763d86c-aaa7-45e4-98c3-aed198eed8c8
+      name: Ready Rodent
+      implementation: 3
+    role: Minion Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    withCaptain: Gain an edge on strikes
+    damage_taken: 0
+    opportunityAttack: 1
+    resources: []
+    groupid: 763027dd-bc4d-485c-9bfc-6888f41a1b35
+    minionSquad: Radenwight Swiftpaw Squad 1
+    walkingSpeed: 7
+    traitNames: []
+    movementSpeeds:
+      climb: 7
+    creatureSize: 1S
+    keywords:
+      Humanoid: true
+      Radenwight: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_type: Radenwight Swiftpaw
+  tokenType: null
+  bestiaryId: 1e7aaeb9-bd89-460b-85bb-83f8b7879234
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Radenwight Swiftpaw
+parentFolder: 17706a52-3552-4044-86fe-e77c1e5f00dd
+artist: null
+ord: 0
+ctime: 1741590227331
+mtime: 1775201137032
+hidden: false

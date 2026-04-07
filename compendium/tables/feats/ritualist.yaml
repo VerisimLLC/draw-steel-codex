@@ -1,0 +1,65 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 818b3868-ad3a-4bca-89ac-455eae31c425
+      guid: c7204944-0e63-4623-b5bc-c062a2262107
+      source: Feat
+      behavior: activated
+      description: ""
+      name: Magic Ritual of Blessing
+      activatedAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        targetTextOverride: self or one willing creature
+        repeatTargets: false
+        rangeTextOverride: ""
+        targetAllegiance: ally
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 38db32c1-155b-4fc3-9092-eb822d42d8a0
+          duration: eoe
+          ongoingEffectCustom: 38db32c1-155b-4fc3-9092-eb822d42d8a0
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        flavor: ""
+        categorization: Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        targetType: target
+        strain: []
+        guid: b028f320-8dfe-44c2-8782-3c5fbc10d6e2
+        description: 'You can spend 1 uninterrupted minute to perform a magic ritual of blessing, targeting yourself or one willing creature you touch. The target has a double edge on the next test they make within the next minute. A target can’t use this benefit on an activity that takes longer than 1 minute.  '
+        sourceReference:
+          __typeName: SourceReference
+          page: 231
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        domains: []
+        implementation: 3
+        numTargets: "1"
+        name: Magic Ritual of Blessing
+        selfTarget: true
+        abilityFilters:
+        - formula: ""
+          reason: ""
+        abilityType: none
+        iconid: 21d1859c-dd65-4d64-917e-ecd30be89107
+    source: Feat
+    canHavePrerequisites: true
+    guid: 818b3868-ad3a-4bca-89ac-455eae31c425
+    name: Magic Ritual of Blessing
+    implementation: 3
+tag: Supernatural Perks
+name: Ritualist
+description: You can spend 1 uninterrupted minute to perform a magic ritual of blessing, targeting yourself or one willing creature you touch. The target has a double edge on the next test they make within the next minute. A target can’t use this benefit on an activity that takes longer than 1 minute.
+mtime: 1770389642600
+id: 108467f5-dc57-48cc-92bf-06f8d54f0e2a
+ctime: 1754891225639

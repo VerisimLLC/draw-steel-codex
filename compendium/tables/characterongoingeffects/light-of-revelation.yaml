@@ -1,0 +1,98 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 29308355-c64c-4a47-aa1d-4f219f83da9f
+  source: Ongoing Effect
+  seq: fad64170-96d0-4e9c-a93f-9985ec413739
+  aura:
+    __typeName: Aura
+    modifiers:
+    - __typeName: CharacterModifier
+      description: ""
+      sourceguid: 487a9a8e-36fb-46c6-b237-dd91a38bb3c7
+      abilityFilter: not Ability.name is Hide
+      source: Aura
+      behavior: suppressabilities
+      guid: 8b5bc1f1-5c1c-4fab-8557-82e431556195
+      explanation: You cannot hide while in Light of Revelation
+      name: Light of Revelation
+    name: Light of Revelation
+    triggers:
+    - ability:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          conditions:
+          - 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 0aa81848-85f7-4c0a-915c-146de14eb8aa
+          mode: effect
+          conditions: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        silent: true
+        range: 5
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 1498ff4c-c90e-4c64-a294-fb2a9fb160ed
+        trigger: onenter
+        conditionFormula: Conditions has "hidden"
+        numTargets: "1"
+        targetType: self
+        name: Light of Revelation
+        radius: 0
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      trigger: onenter
+    guid: 487a9a8e-36fb-46c6-b237-dd91a38bb3c7
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  radius: "5"
+  guid: 69b8eef8-62d4-486f-b691-dff50f6e4bdc
+  description: ""
+  behavior: aura
+  name: Light of Revelation
+- __typeName: CharacterModifier
+  sourceguid: 29308355-c64c-4a47-aa1d-4f219f83da9f
+  guid: 6045da1b-4727-4aba-9874-bb8290d01ae2
+  source: Ongoing Effect
+  behavior: light
+  description: ""
+  itemid: bb699811-7a13-44e1-960f-c1deed366684
+  name: Light of Revelation
+- __typeName: CharacterModifier
+  sourceguid: 29308355-c64c-4a47-aa1d-4f219f83da9f
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: false
+  name: Light of Revelation
+  guid: df10b659-48b2-4ffc-ba01-1d67b0bebab2
+  description: While this feature is active, you gain an edge on tests made to notice hidden objects and entrances and to detect supernatural illusions.
+  modtype: edge
+  rollType: test_power_roll
+source: Ongoing Effect
+guid: 29308355-c64c-4a47-aa1d-4f219f83da9f
+id: 29308355-c64c-4a47-aa1d-4f219f83da9f
+ctime: 1764520474360
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Light of Revelation
+description: ""
+custom: true
+mtime: 1768868029117
+iconid: ui-icons/skills/1.png

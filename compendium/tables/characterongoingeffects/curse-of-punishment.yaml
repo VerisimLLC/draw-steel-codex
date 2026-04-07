@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 9516facc-9364-4c38-9102-76beb44c7a49
+id: 9516facc-9364-4c38-9102-76beb44c7a49
+ctime: 1764673045814
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Curse of Punishment
+description: When you are out of Recoveries, you are dying, no matter what your current Stamina is.
+custom: true
+mtime: 1764673226508
+iconid: ui-icons/skills/1.png

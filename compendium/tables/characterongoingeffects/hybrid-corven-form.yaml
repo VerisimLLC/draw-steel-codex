@@ -1,0 +1,56 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 97d2f0c8-e437-4eaf-ba40-e5bcd7484147
+  source: Ongoing Effect
+  value: 3
+  domains:
+    CharacterOngoingEffect:cae4de28-d561-4dbf-b6cd-cc484a38c464: true
+  name: Hybrid Corven Form
+  guid: 4e37d48c-0fa1-459d-81a2-8fab0b5296c3
+  description: ""
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 5fc3a423-58ac-4ce6-9a54-c5d3dea4873d
+  source: Ongoing Effect
+  value: Walking Speed
+  filterCondition: Level >= 4
+  guid: 2b25aea6-d3e0-4a58-a27e-d5f518a4c389
+  name: Hybrid Corven Form
+  domains:
+    CharacterOngoingEffect:cae4de28-d561-4dbf-b6cd-cc484a38c464: true
+  description: ""
+  behavior: attribute
+  attribute: fly
+- __typeName: CharacterModifier
+  sourceguid: 006d8a10-8d42-4853-907a-5bd8dfa41b51
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:006d8a10-8d42-4853-907a-5bd8dfa41b51: true
+  name: Hybrid Corven Form
+  guid: 6c057c2c-e243-40f4-8750-1bb2afd7bf55
+  description: ""
+  behavior: attribute
+  attribute: disguised
+source: Ongoing Effect
+guid: cae4de28-d561-4dbf-b6cd-cc484a38c464
+id: cae4de28-d561-4dbf-b6cd-cc484a38c464
+ctime: 1770690170056
+domains:
+  CharacterOngoingEffect:cae4de28-d561-4dbf-b6cd-cc484a38c464: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Hybrid Corven Form
+iconid: 54d12486-b6eb-4290-b19c-ffdbab61d585
+description: ""
+mtime: 1770693499377
+implementation: 3

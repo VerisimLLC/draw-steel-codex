@@ -1,0 +1,478 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: ffdc4367-89c6-4245-b60e-daf50933cb66
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.858825
+    portraitOffset:
+      x: -0.203126
+      y: 0.1429892
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d072d820-e066-4b8f-9cf3-606227590550
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    inventory: []
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "80"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        0fc60d0f-d8ac-42c1-ac45-22d7aeef6f3e:
+          note: Drangolin Plume
+          abilityid: b00fc003-5d3c-4e9a-a1cf-acef9a00d651
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    currentMoveType: walk
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: size-4
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList: []
+      guid: 8031d755-5063-47bd-a9a6-2d8231759437
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      implementation: 4
+      numTargets: 2
+      name: Fiery Claws
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 fire damage
+        - 10 fire damage
+        - 13 fire damage
+        roll: 2d10 + 2
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        targetMoveVicinity: true
+        vicinity: 1
+        movementType: shift
+        vicinityFilter: enemy
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 fire damage
+        - 10 fire damage
+        - 13 fire damage
+        roll: 2d10 + Might or Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: Walking Speed
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: b00fc003-5d3c-4e9a-a1cf-acef9a00d651
+      targetType: emptyspace
+      numTargets: "1"
+      castImmediately: true
+      targeting: pathfind
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Drangolin Plume
+      implementation: 4
+      description: The drangolin shifts their speed and uses Fiery Claws against each creature who comes within 1 during the move. The drangolin makes one power roll against all targets.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; push 1; A<0 prone
+        - 8 damage; push 3; A<1 prone
+        - 11 damage; push 5; A<2 prone
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 202
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 2
+      effectImplemented: true
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 205eb034-91ec-4ed5-9798-197b01d537e5
+      abilityType: none
+      targetType: all
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      implementation: 3
+      name: Erupt
+      categorization: Heroic Ability
+      description: |-
+        The drangolin uses the Dig maneuver to breach the surface 
+        before using this ability. Each target in the area where the 
+        drangolin breaches takes an extra 2 fire damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    ongoingEffects: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Shieldscale Drangolin    Level 1 Elite Brute
+        Beast, Kobold    EV 12
+        <b>Stamina</b> 80
+        <b>Speed</b> 7 (burrow)    <b>Size</b> 2 /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +2    Agility +1    Reason -3    Intuition 0    Presence -2
+        <b>Fiery Claws</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> 2 creatures or objects
+        %E2%9C%A6    <b>%E2%89%A411</b>    7 fire damage
+        %E2%98%85    <b>12%E2%80%9316</b>    10 fire damage
+        %E2%9C%B8    <b>17</b>    13 fire damage
+
+        <b>Drangolin Plume</b> (Action) %E2%97%86 5 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self    <b>Target</b> Self
+        <b>Effect</b> The drangolin shifts their speed and uses Fiery Claws against each creature who comes within 1 during the move. The drangolin makes one power roll against all targets.
+
+        <b>Erupt</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> 2 burst (while burrowing)<b>Target</b> All creatures
+        %E2%9C%A6    <b>%E2%89%A411</b>    6 damage; push 1; A<0 prone
+        %E2%98%85    <b>12%E2%80%9316</b>    8 damage; push 3; A<0 prone
+        %E2%9C%B8    <b>17</b>    11 damage; push 5; A<0 prone
+        <b>Effect</b> Each target directly over the drangolin takes 2 fire damage.
+
+        <b>Ashen Cloud</b>
+        Each ally adjacent to the drangolin has concealment.
+
+        <b>Tunneler</b>
+        When the drangolin burrows, they create a size 1S tunnel. The tunnel remains stable for one day, then collapses.
+        Trained Gelatinous Cube    Level 1 Elite Hexer
+        Kobold, Ooze    EV 12
+        <b>Stamina</b> 40    <b>Immunity</b> Acid 3
+        <b>Speed</b> 5    <b>Size</b> 2 / <b>Stability</b> 2
+        <b>Free Strike</b> 4
+        Might +2    Agility -1    Reason -3    Intuition 0    Presence -2
+        <b>Engulf</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> 1 creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    7 acid damage; A<0 dazed (save ends)
+        %E2%98%85    <b>12%E2%80%9316</b>    10 acid damage; A<1 dazed (save ends)
+        %E2%9C%B8    <b>17</b>    14 acid damage; A<2 restrained (save ends)
+        <b>    Effect </b>A size 2 or smaller creature restrained by this ability is pulled into one of the cube's squares and moves with the cube. The creature takes 4 acid damage at the start of each of their turn while restrained. When restrained ends, the creature moves to the nearest unoccupied square adjacent to the cube.
+        <b>2 Malice</b> The cube targets 1 additional creature or object.
+
+        <b>You Didn't Pay Attention!</b> (Free Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger </b>A creature moves or is force moved into the cube.
+        <b>Distance</b> Self<b>Target</b> Self
+        <b>Effect</b> The cube uses Engulf with a double edge.
+
+        <b>Translucent Cube</b>
+        The cube completely occupies their space, blocking line of effect on enemy abilities. The cube is hidden until they act.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2649a39b-d88e-4ccf-aff9-06efb1f5a108: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2649a39b-d88e-4ccf-aff9-06efb1f5a108
+        source: Trait
+        seq: 858186f6-6e4b-4d5e-81fe-ddb6fda752e2
+        guid: c16cc2ad-15aa-4e3a-bff3-637d2513fe57
+        domains:
+          CharacterFeature:2649a39b-d88e-4ccf-aff9-06efb1f5a108: true
+        radius: "1"
+        behavior: aura
+        description: Each ally adjacent to the drangolin has concealment.
+        aura:
+          __typeName: Aura
+          applyto: friends
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: -0.00166606903076172
+              v: 0.427694767713547
+              a: 1
+          modifiers:
+          - __typeName: CharacterModifier
+            conditionid: 13275b73-cd4e-4d33-ada3-647d7474facf
+            sourceguid: 65367bce-3f44-4ca8-b89e-26720af183b8
+            source: Aura
+            guid: b699e73f-5356-4576-97d5-c60ab3b1ed06
+            description: ""
+            behavior: bestowcondition
+            name: Ashen Cloud
+          name: Ashen Cloud
+          objectid: f1558a8b-97ad-4907-9696-8486f2c9b2b6
+          guid: 65367bce-3f44-4ca8-b89e-26720af183b8
+          implementation: 3
+          iconid: 174384e2-ce22-49f3-b6ef-59269c491e1f
+        name: Ashen Cloud
+      source: Trait
+      description: Each ally adjacent to the drangolin has concealment.
+      guid: 2649a39b-d88e-4ccf-aff9-06efb1f5a108
+      name: Ashen Cloud
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:aed4869f-e4f3-41b3-a80f-9bf9e899f118: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:aed4869f-e4f3-41b3-a80f-9bf9e899f118: true
+        sourceguid: aed4869f-e4f3-41b3-a80f-9bf9e899f118
+        behavior: activated
+        source: Character Feature
+        name: Size 2 or 3
+        guid: cd0cbda8-434f-41b1-9c10-7d9aafe8e186
+        description: 'A Shieldscale Drangolin can be Size 2 or 3. '
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList:
+          - text: Size 2
+            condition: size = 6
+          - text: Size 3
+            condition: size = 5
+          numTargets: "1"
+          domains:
+            CharacterFeature:aed4869f-e4f3-41b3-a80f-9bf9e899f118: true
+          castImmediately: false
+          guid: 3e067184-2061-4ee2-83d0-8ceb7fd8b037
+          name: Size 2 or 3
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: 0817bc3c-737a-4f85-9996-dcd03978cbe9
+            modesSelected:
+            - 2
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            applyto: caster
+            mode: effect
+            modesSelected:
+            - 1
+            ongoingEffect: 0817bc3c-737a-4f85-9996-dcd03978cbe9
+            conditions: []
+          description: |
+            The Dragolin can be Size 2 or 3. 
+            Use this ability to change the size of this creature.   Note, this is not an ability the Drangolin has, but an option when using the monster. 
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+      source: Character Feature
+      description: 'A Shieldscale Drangolin can be Size 2 or 3. '
+      guid: aed4869f-e4f3-41b3-a80f-9bf9e899f118
+      name: Size 2 or 3
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f034dfe5-cf75-458a-8d17-26f371c127b7: true
+      modifiers: []
+      name: Burrow Bond
+      description: |-
+        When the drangolin burrows, each adjacent size 1S or smaller ally
+        can move with them.
+      guid: f034dfe5-cf75-458a-8d17-26f371c127b7
+      source: Character Feature
+    role: Elite Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: -3
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 80
+    initiativeGrouping: 7c3f50c5-b630-4b94-aa90-725eb7d6700e
+    keywords:
+      Humanoid: true
+      Kobold: true
+    damage_taken: 0
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    walkingSpeed: 7
+    traitNames: []
+    innateAttacks: []
+    equipmentMeta:
+      mainhand2: []
+      attune1: []
+      offhand1: []
+      armor: []
+      belt4: []
+      attune3: []
+      belt3: []
+      mainhand1: []
+      attune4: []
+      belt1: []
+      belt2: []
+      offhand0: []
+      offhand2: []
+      offhand3: []
+      mainhand3: []
+      attune2: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-1
+        used: 1
+    movementSpeeds:
+      burrow: 7
+    availableTriggers: []
+    monster_type: Shieldscale Drangolin
+    creatureSize: "2"
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: f322ecda-df16-4b30-810a-25932260f308-1022
+  tokenType: null
+  bestiaryId: e1990359-7a57-42d4-9004-2668d275f4e1
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1730266376535
+description: Shieldscale Drangolin
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590319985
+mtime: 1775201137032
+hidden: false

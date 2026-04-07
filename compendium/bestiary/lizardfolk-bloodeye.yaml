@@ -1,0 +1,196 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: a9161581-0bc0-4e77-9fe9-4c415f7bd37c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Lizardfolk Bloodeye	Level 1 Platoon Hexer
+        Humanoid, Lizardfolk	EV 6
+        <b>Stamina</b> 20
+        <b>Speed</b> 5 (swim)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +1	Agility +1	Reason 0	Intuition +2	Presence 0
+        <b>Bola Knock</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; A<0 restrained (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage; A<1 restrained (save ends)
+        %E2%9C%B8	<b>17</b>	9 damage; A<2 restrained (save ends)
+
+        <b>Bloodshot</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 2 Malice
+        <b>Keywords</b> Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 acid damage; M<0 target can't establish line of effect beyond 4 squares (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	7 acid damage; M<1 target can't establish line of effect beyond 3 squares (save ends)
+        %E2%9C%B8	<b>17</b>	9 acid damage; M<2 target can't establish line of effect beyond 2 squares (save ends)
+
+        <b>Reptilian Escape</b>
+        While the bloodeye still has a tail, whenever the bloodeye is grabbed, slowed, weakened, or knocked prone, the bloodeye can lose their tail to immediately end the effect and shift 2.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:208239bd-3f01-48c2-bb94-dd4cb0b5950b: true
+      modifiers: []
+      name: Reptilian Escape
+      description: While the bloodeye still has a tail, whenever the bloodeye is grabbed, slowed, weakened, or knocked prone, the bloodeye can lose their tail to immediately end the effect and shift 2.
+      guid: 208239bd-3f01-48c2-bb94-dd4cb0b5950b
+      source: Trait
+    role: Platoon Hexer
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Lizardfolk: true
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: Lizardfolk Bloodeye
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 20
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ee402c45-69f0-41e1-a462-6410021b06cc
+      implementation: 4
+      numTargets: 1
+      name: Bola Knock
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; A<0 restrained (save ends)
+        - 7 damage; A<1 restrained (save ends)
+        - 9 damage; A<2 restrained (save ends)
+        roll: 2d10 + Intuition
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: fb2793da-5aa6-41d0-ae84-9b3fd6ccb3a5
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 acid damage; M<0 the target has line of effect only within 4 squares (save ends)
+        - 7 acid damage; M<1 the target has line of effect only within 3 squares (save ends)
+        - 9 acid damage; M<2 the target has line of effect only within 2 squares (save ends)
+        roll: 2d10 + Intuition
+      name: Bloodshot
+      numTargets: 1
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: d3456343-2a59-400e-af7d-dbb4bd9c8347
+    movementSpeeds:
+      swim: 5
+    ev: 6
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 115b53a3-e8e9-4bf3-8c2c-c6902feded6b
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Lizardfolk Bloodeye
+parentFolder: 40714605-54b3-4a20-b782-f427973a5a25
+artist: null
+ord: 0
+ctime: 1741590220018
+mtime: 1775201137032
+hidden: false

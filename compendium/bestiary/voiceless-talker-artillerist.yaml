@@ -1,0 +1,317 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7bf601cd-ecf2-4243-ab28-db147a4c7f72
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Voiceless Talker Artillerist	Level 6 Elite Artillery
+        Horror, Voiceless Talker	EV 32
+        <b>Stamina</b> 140	<b>Immunity</b> psychic 6
+        <b>Speed</b> 5 (teleport, hover)	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 7
+        Might +0	Agility +3	Reason +1	Intuition +2	Presence +1
+        <b>Psionic Rifle Burst</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Psionic, Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 damage
+        %E2%98%85	<b>12-16</b>	19 damage; spread 1
+        %E2%9C%B8	<b>17</b>	22 damage; spread 2
+        <b>Effect</b> The blast hits nearby targets, dealing 3 damage to each enemy within a number of squares of the target equal to the result's spread value.
+        <b>2 Malice</b> The attack deals an additional 3 damage to each enemy within the spread distance
+
+        <b>Mind Jolt</b> (Action) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 1 x 10 line within 10<b>	Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 lightning damage
+        %E2%98%85	<b>12-16</b>	10 lightning damage; I<2 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	13 lightning damage; I<3 slowed (save ends)
+
+        <b>In Our Sights</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature
+        <b>Effect</b> The next power roll with the psionic keyword made against the target will automatically be a 17 until the start of the artillerist's next turn.
+
+        <b>Tactical Reposition</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> The artillerist takes damage.
+        <b>Effect</b> The artillerist teleports 5 and doesn't suffer any additional effects associated with the damage.
+
+        <b>Psionic Conductor</b>
+        When a non-minion Voiceless Talker within 5 of the artillerist uses an ability with the Psionic keyword, they can do so as if they were in the artillerist's space.
+
+        <b>Locked On</b>
+        The artillerist ignores invisibility, cover, and concealment. A creature can't hide from the artillerist while the artillerist has line of effect to them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:19ed4dea-5e64-44d3-b4b3-2ccbef841643: true
+      modifiers: []
+      name: Psionic Conductor
+      description: When a non-minion Voiceless Talker within 5 of the artillerist uses an ability with the Psionic keyword, they can do so as if they were in the artillerist's space.
+      guid: 19ed4dea-5e64-44d3-b4b3-2ccbef841643
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b7c2cb26-d463-4910-82c0-4ebcdf8f140b: true
+      modifiers: []
+      name: Locked On
+      description: The artillerist ignores invisibility, cover, and concealment. A creature can't hide from the artillerist while the artillerist has line of effect to them.
+      guid: b7c2cb26-d463-4910-82c0-4ebcdf8f140b
+      source: Trait
+    role: Elite Artillery
+    inflictedConditions: []
+    keywords:
+      Horror: true
+      Voiceless Talker: true
+    max_hitpoints_roll: "140"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Voiceless Talker Artillerist
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 140
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 290
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: Each enemy within the strike spread takes an extra 3 damage.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 damage
+        - 19 damage; the strike spreads 1 square
+        - 22 damage; the strike spreads 2 squares
+        roll: 2d10 + Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 9fb1684a-a4b8-4479-a2fc-fcd9862cca12
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "10"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "3"
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: Each enemy within the strike spread takes an extra 3 damage."
+        autoTarget: false
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Psionic Rifle Burst
+      guid: d0a79e40-3bb7-4910-8fa2-e7e1abe7bb46
+      description: |-
+        The strike's spread is the distance it expands from a target to nearby enemies. Each enemy within that distance takes 3 damage.
+        **2 Malice**: Each enemy within the strike spread takes an extra 3 damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      targetType: line
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: eb723991-8e32-4412-8132-bb87ca614605
+      numTargets: 1
+      implementation: 4
+      radius: 10
+      name: Mind Jolt
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 lightning damage
+        - 10 lightning damage; I<2 slowed (save ends)
+        - 13 lightning damage; I<3 slowed (save ends)
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 77058a4c-c833-49d7-9875-b5912ee06506
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: In Our Sights
+      numTargets: 1
+      description: The next power roll with the psionic keyword made against the target will automatically be a 17 until the start of the artillerist's next turn.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: aed4d9e5-b297-43a9-810a-d3fb421322b6
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Tactical Reposition
+      implementation: 0
+      description: The artillerist teleports 5 and doesn't suffer any additional effects associated with the damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 2d9a554d-5f05-4fa2-a46b-e90b0735d7a3
+    movementSpeeds:
+      teleport: 5
+    ev: 32
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 4373f7c5-816b-4272-b915-15f36fb6ceb3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1730266376535
+description: Voiceless Talker Artillerist
+parentFolder: bd101336-f4e1-43da-9fd2-57eb5700365b
+artist: null
+ord: 0
+ctime: 1741590244616
+mtime: 1775201137032
+hidden: false

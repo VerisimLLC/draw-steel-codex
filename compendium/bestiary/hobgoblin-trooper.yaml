@@ -1,0 +1,194 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 74fc1752-edcc-4d56-be83-cbbf6c39ac08
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Trooper	Level 4 Platoon Brute
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 12
+        <b>Stamina</b> 70	<b>Immunity</b> fire 4
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 6
+        Might +3	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Fire Flail</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 fire damage
+        %E2%98%85	<b>12%E2%80%9316</b>	10 fire damage
+        %E2%9C%B8	<b>17</b>	13 fire damage
+        <b>Effect</b> The trooper doesn't provoke opportunity attacks from each target until the end of the trooper's turn.
+
+        <b>Fight Me, Coward!</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature
+        <b>Effect</b> The target is <b>P<2</b> taunted (EoT). While taunted by this ability, a creature takes 1d6 fire damage whenever they use an ability or attack that doesn't target the trooper.
+
+        <b>Infernal Ichor</b>
+        If the trooper's Stamina drops to 0, they spray burning blood. Each creature within 1 of the trooper takes 3 fire damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9950efd7-d1d4-4707-a479-0d6614131b2f: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the trooper's Stamina drops to 0, they spray burning blood. Each creature within 1 of the trooper takes 3 fire damage.
+      guid: 9950efd7-d1d4-4707-a479-0d6614131b2f
+      source: Trait
+    role: Platoon Brute
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Hobgoblin Trooper
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 fire damage
+        - 10 fire damage
+        - 13 fire damage
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e839d2b7-bc01-432c-877e-1ae4a6ef59c8
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Fire Flail
+      numTargets: 2
+      description: The trooper doesn't provoke opportunity attacks from each target until the end of the trooper's turn.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 50340e93-521d-47d2-a371-a818aa6f1bd3
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Fight Me, Coward!
+      numTargets: 1
+      description: The target is P<2 taunted (EoT). While taunted by this ability, a creature takes 1d6 fire damage whenever they use an ability or attack that doesn't target the trooper.
+      abilityType: none
+      implementation: 0
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds: []
+    ev: 12
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: d77a64fd-01ae-43b8-8ec1-079817394c7c
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin Trooper
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590315331
+mtime: 1775201137032
+hidden: false

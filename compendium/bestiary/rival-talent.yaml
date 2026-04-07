@@ -1,0 +1,572 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 3a78a214-e7b2-4eee-b033-658f0fa65466
+    offtokenPortraitId: a8587d12-f2fa-4d9a-b9fe-19b23cf4e0fc
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: f40a29ea-0020-49a5-8f75-1092a3710dad
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2691313
+    portraitOffset:
+      x: 0.01711745
+      y: 0.2405972
+    frameHueShift: 0.3342015
+    frameSaturation: 0.4763446
+    frameBrightness: 0.2983125
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 103a3450-1cb0-4f3c-8887-bd10d7edcd81
+  properties:
+    __typeName: monster
+    groupid: 5163b6cd-991f-4277-b81c-8e42a53d328e
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 220
+    inflictedConditions: []
+    ev: 48
+    max_hitpoints_roll: "220"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        7aef698b-6087-477b-b161-660989b97164:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 220
+    minion: false
+    stability: 2
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5b67460c-e305-4950-80f0-54d00aedd9bd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5b67460c-e305-4950-80f0-54d00aedd9bd
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          activationCondition: false
+          modtype: none
+          rollType: enemy_ability_power_roll
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 0f2778e1-bd50-4065-a057-7e9f260ea4d4
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 7d91a11d-a83b-4a19-9da0-6be906881dde
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                targetType: self
+                range: 1
+                name: Invoked Ability
+                behaviors: []
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              standardAbilityParams:
+                distance: "2"
+              abilityType: standard
+              applyto: caster
+            targetType: self
+            name: New Ability
+            numTargets: "1"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Triggered Modifier
+          rules: ""
+          description: |-
+            Trigger: A creature deals damage to the rival.
+            Effect: The rival halves the damage and shifts up to 2 squares.
+          behavior: power
+          guid: f3b8ca10-0555-48de-b5f8-21ac2391f189
+        guid: b0fb5c3c-11ff-455f-a923-39e315f408c9
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          CharacterFeature:5b67460c-e305-4950-80f0-54d00aedd9bd: true
+        targetType: self
+        trigger: takedamage
+        name: Precognitive Shift
+        rules: ""
+        description: |-
+          Trigger: A creature deals damage to the talent.
+          Effect: The talent halves the damage and shifts up to 2 squares.
+        range: 10
+        additionalCostModifiers: []
+      source: Character Feature
+      description: |-
+        Trigger: A creature deals damage to the talent.
+        Effect: The talent halves the damage and shifts up to 2 squares.
+      guid: 5b67460c-e305-4950-80f0-54d00aedd9bd
+      name: Precognitive Shift
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+        CharacterFeature:d47cff04-bddd-4706-9895-2ec5fbc23d4f: true
+        CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+          CharacterFeature:d47cff04-bddd-4706-9895-2ec5fbc23d4f: true
+          CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+        sourceguid: 3146422c-eb42-4160-ae0e-642168383dc6
+        behavior: trigger
+        source: Trait
+        name: Rivalry
+        description: The Talent selects one creature within line of effect at the start of an encounter. Both the Talent and the creature can add a 1d3 to all power rolls made against each other.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetTextOverride: Choose another magic-wielder as the target for your Rivalry
+              repeatTargets: false
+              targetAllegiance: enemy
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+                duration: eoe
+                ongoingEffectCustom: e349e64f-4422-4fa9-995b-130c492a473a
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 240
+                docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+              range: "50"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: c4193d77-d471-4d84-8d0b-925f72f62cac
+              targetType: target
+              iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              implementation: 3
+            promptText: Choose a player Hero as the target for your Rivalry.
+            autoTarget: false
+            abilityType: custom
+            applyto: caster
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+            duration: eoe
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          guid: c171ef5c-50db-42ed-93a9-9c72ad7ea4bc
+          numTargets: "1"
+          domains:
+            CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+            CharacterFeature:d47cff04-bddd-4706-9895-2ec5fbc23d4f: true
+            CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+          description: ""
+          targetType: self
+          trigger: rollinitiative
+          name: Rivalry
+          abilityFilters: []
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 6fc99f50-afce-47f7-b90f-464a3b25089f
+      source: Trait
+      description: The Talent selects one creature within line of effect at the start of an encounter. Both the Talent and the creature can add a 1d3 to all power rolls made against each other.
+      guid: d47cff04-bddd-4706-9895-2ec5fbc23d4f
+      name: Rivalry
+      implementation: 3
+    role: Elite Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    opportunityAttack: 10
+    initiativeGrouping: 178d8d3b-cfbb-429d-8197-2881806d8ad0
+    keywords:
+      Humanoid: true
+      Rival: true
+    damage_taken: 0
+    deathSavingThrowFailures: 0
+    walkingSpeed: 5
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: d31d036c-dc80-4929-b9c8-34d46e0a2dec
+      numTargets: 1
+      targetType: target
+      name: 'Battlefield Control '
+      iconid: ui-icons/skills/1.png
+      description: At any point during the movement, the tactician and one ally within distance use a signature action against the target.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Chronopathy: true
+        Psionic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 6c8a7e5e-af48-4758-9cc2-378814a0c569
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - R<3 slowed (save ends)
+        - R<4 restrained (save ends)
+        - R<5 restrained (save ends)
+        roll: 2d10 + Reason
+      name: Steal Time
+      implementation: 3
+      description: One ally within distance can use an additional action on their turn until the start of the talent's next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 8a7ca67c-ea25-40a1-a77b-6dd1435b055f
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      name: 'Psionic Retribution '
+      persistence: []
+      description: The talent halves the damage and shifts 2. The triggering creature takes half the damage they dealt in psychic damage and is pushed 5.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetAllegiance: enemy
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Malice
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 95c12c7f-942f-4635-b9de-a15e2b43889a
+      abilityType: none
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetTextOverride: " One ally adjacent to the target regains 5 Stamina."
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            roll: "5"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "6"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5bbd30db-09eb-48a6-87e9-8952364ace8c
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+        applyto: caster
+      name: I'll Cover you!
+      numTargets: "1	"
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Strike: true
+      targetAllegiance: enemy
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 242
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: "10"
+      numTargets: "2"
+      modifiers: []
+      strain: []
+      guid: 2ceb5751-e1d4-4f2a-8ecd-9dc3f6184c0a
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 psychic damage; m<0 prone
+        - 10 psychic damage; push 2; m<1 prone
+        - 13 psychic damage; push 3; m<2 prone
+        roll: 2d10 + Reason
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      implementation: 4
+      name: Reverberating Blast
+      displayOrder: 242
+      description: ""
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Telepathy: true
+        Psionic: true
+      targetAllegiance: enemy
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 242
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 7911ebf5-dec5-4f42-951b-d7cc83b25f0b
+      abilityType: none
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - r<0 slowed (save ends)
+        - r<1 slowed (save ends)
+        - r<2 dazed and slowed (save ends)
+        roll: 2d10 + Might or Agility
+      name: Muddle the Mind
+      categorization: Malice
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 4 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Telekinesis: true
+        Strike: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 245
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      numTargets: 2
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: Each target moves up to their speed and can make a free strike against one creature of the talent's choice. The target's movement can provoke opportunity attacks, but they can't otherwise be moved in a way that would harm them.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 psychic damage
+        - 20 psychic damage
+        - 24 psychic damage
+        roll: 2d10 + Reason
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Override
+      guid: 99d71747-5f37-49f9-b783-c015121cbe4e
+      description: |2-
+
+        **4 Malice**: Each target moves up to their speed and can make a free strike against one creature of the talent's choice. The target's movement can provoke opportunity attacks, but they can't otherwise be moved in a way that would harm them.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    resources:
+      2d3d5511-4b80-46d1-a8c6-4705b9aa45ca:
+        __typeName: CharacterResource
+        refreshid: ""
+        unbounded: 0
+        used: 0
+    deathSavingThrowSuccesses: 0
+    movementSpeeds: []
+    monster_type: Rival Talent
+    availableTriggers: []
+    creatureSize: 1M
+    resistances: []
+  tokenType: null
+  bestiaryId: 6d2465ee-74b2-4ed9-b890-8fa891531837
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961969981
+description: Rival Talent
+parentFolder: 62dde676-136f-4d24-9390-903417c9a726
+artist: null
+ord: 0
+ctime: 1762872701363
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,93 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Diabolist Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 7af34646-8196-4a1a-b5bf-476bc44540be
+    options:
+    - __typeName: CharacterFeature
+      description: You know the Anjali language, and your understanding of this language helps you create irresistible supernatural effects. The potencies of your magic or psionic abilities that target Reason, Intuition, or Presence increase by 1.
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: language
+        source: Feat
+        guid: db31f69a-35db-4417-bd93-d838e7ac7763
+        description: You know the Anjali language, and your understanding of this language helps you create irresistible supernatural effects. The potencies of your magic or psionic abilities that target Reason, Intuition, or Presence increase by 1.
+        equate: false
+        name: Devil Lore
+        sourceguid: 0fe76968-b139-4052-86af-022d68bbd0c9
+        proficiency: proficient
+        behavior: proficiency
+        skills:
+          5287d30a-3dff-404b-8e84-0087508a801b: true
+      - __typeName: CharacterModifier
+        sourceguid: 0fe76968-b139-4052-86af-022d68bbd0c9
+        source: Feat
+        guid: a0e8279f-2755-4376-b40a-1d646bb9954b
+        keywords:
+          Magic: true
+          Psionic: true
+        activationCondition: true
+        modtype: none
+        activationAfterRoll: false
+        rollType: ability_power_roll
+        behavior: power
+        description: The potencies of your magic or psionic abilities that target Reason, Intuition, or Presence increase by 1.
+        potencymod: "1"
+        name: Devil Lore
+      source: Feat
+      canHavePrerequisites: true
+      guid: 0fe76968-b139-4052-86af-022d68bbd0c9
+      name: Devil Lore
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Infernal Legacy
+      description: "You gain 3 ancestry points to spend on purchased devil ancestry traits (see Chapter 3: Ancestries)."
+      guid: 19c86499-6e75-459d-96d2-d1b02e4fbfbb
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterSkillChoice
+      categories:
+        interpersonal: true
+      name: Sly Devil
+      description: "You gain the Silver Tongue signature trait from the devil ancestry.\v\vYour innate magic allows you to twist how your words are perceived to get a better read on people and convince them to see things your way. You gain an interpersonal skill of your choice, and you have an edge when attempting to discover an NPC’s motivations and pitfalls during negotiations (see Negotiation)."
+      guid: 55d63cf9-7a78-4c71-b549-55f181ecf8a8
+      source: Feat
+    - __typeName: CharacterFeature
+      description: Whenever you use a damage-dealing ability, that ability can deal holy damage instead of its usual damage type.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3a828186-38f0-44b6-b35c-24dfff38d6fd
+        displayCondition: ability.doesdamage
+        source: Feat
+        modtype: none
+        keywords: []
+        activationCondition: "1"
+        behavior: power
+        activationAfterRoll: false
+        name: Untouched by Corruption
+        damageTypeMappings:
+          all: holy
+        description: Whenever you use a damage-dealing ability, that ability can deal holy damage instead of its usual damage type.
+        guid: 2b02c995-2bd7-4ef1-8411-ae2764347605
+        rollType: ability_power_roll
+      source: Feat
+      canHavePrerequisites: true
+      guid: 3a828186-38f0-44b6-b35c-24dfff38d6fd
+      name: Untouched by Corruption
+      implementation: 4
+id: 0c72c11b-9a21-4cf5-8c7c-305531b5a34c
+ctime: 1762351898812
+name: Diabolist
+description: If you can’t beat ’em, join ’em.
+mtime: 1775214808363
+echelon: "3"
+prerequisite: |-
+  You defeat a leader or solo creature with the Devil
+  keyword, such as an archdevil, or you make a deal with a devil.

@@ -1,0 +1,27 @@
+__typeName: ActivatedAbility
+repeatTargets: false
+behaviors:
+- __typeName: ActivatedAbilityDrawSteelCommandBehavior
+  rule: "<<type>> <<distance>>, ignoring stability"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: f54691a6-3cdc-4d61-9420-30cac53388f1
+numTargets: "1"
+ctime: 1746033616490
+castImmediately: true
+id: 14ad6263-3dce-414d-80af-bad3efd9ba93
+mtime: 1771843486044
+name: Willing Forced Movement (ignores stability)
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

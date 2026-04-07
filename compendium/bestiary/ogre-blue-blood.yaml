@@ -1,0 +1,204 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: a8a6e214-9a88-4ddf-bad5-53990ad1e830
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 4
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Ogre Blue Blood	Level 7 Minion Brute
+        Giant, Ogre	EV 9 for four minions
+        <b>Stamina</b> 13
+        <b>Speed</b> 5	<b>Size</b> 2 /<b> Stability</b> 4
+        <b>With Captain </b>Edge on strikes<b>Free Strike</b> 4
+        Might +4	Agility +1	Reason -1	Intuition 0	Presence +2
+        <b>Crush Underfoot</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12-16</b>	7 damage; M<3 prone
+        %E2%9C%B8	<b>17</b>	8 damage; prone
+        <b>Effect</b> An already prone target takes an additional 4 damage.
+
+        <b>In My Stead</b>
+        Whenever the blue blood would make a free strike, an ally within 5 can make a free strike instead.
+
+        <b>Defiant Anger</b>
+        The blue blood has damage immunity 2 while they are winded.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:62827544-6b6a-47a1-b7d2-90c32a015a40: true
+      modifiers: []
+      name: In My Stead
+      description: Whenever the blue blood would make a free strike, an ally within 5 can make a free strike instead.
+      guid: 62827544-6b6a-47a1-b7d2-90c32a015a40
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4b21ad1d-abf9-475a-820b-65daf2b43351: true
+      modifiers: []
+      name: Defiant Anger
+      description: The blue blood has damage immunity 2 while they are winded.
+      guid: 4b21ad1d-abf9-475a-820b-65daf2b43351
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1f77e1b0-6550-4fe8-9df0-7ce97e59b77a: true
+      modifiers: []
+      name: Royal Anger
+      description: The blue blood has damage immunity 2 while their squad has three or fewer minions in it.
+      guid: 1f77e1b0-6550-4fe8-9df0-7ce97e59b77a
+      source: Trait
+    role: Minion Brute
+    keywords:
+      Ogre: true
+      Giant: true
+    max_hitpoints_roll: "13"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    monster_type: Ogre Blue Blood
+    max_hitpoints: 13
+    withCaptain: Gain an edge on strikes
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    levelChoices: []
+    equipment: []
+    walkingSpeed: 5
+    traitNames: []
+    groupid: 83a948ff-8852-4626-adfc-f05ec9e2af22
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage; M<3 prone
+        - 8 damage; prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 41ecf31e-7cba-4e0a-ac6d-656a2415729f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Crush Underfoot
+      numTargets: 1
+      description: An already prone target takes an additional 4 damage.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 7
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: fbecf4b7-b92b-4484-9883-e6b84e9e5e79
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Rampage
+      sourceReference:
+        __typeName: SourceReference
+        page: 209
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        Until the end of the round, each ogre has damage immunity 5 and deals an extra 5 damage with abilities, and heroic abilities that target any ogre have their Heroic Resource cost reduced by 1 (to a minimum of 1).
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 0
+    monster_category: Monster
+    movementSpeeds: []
+    damage_taken: 0
+    minion: true
+    ev: 9
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: a013bd1e-19ed-4a34-b6ca-c7e7479889bd
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222946034
+description: Ogre Blue Blood
+parentFolder: f3ad56da-f6fa-4d7d-a056-0d090e6a130f
+artist: null
+ord: 0
+ctime: 1741590289033
+mtime: 1775201137032
+hidden: false

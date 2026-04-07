@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 85c206ce-c49b-4d9b-8545-e103f1e4003a
+  source: Ongoing Effect
+  behavior: resistance
+  filterCondition: Level >= 3
+  name: Devil Flight Fatigue
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-5"
+    damageType: all
+    apply: Damage Reduction
+  description: 'While using your wings to fly, you can stay aloft for a number of rounds equal to your Might (minimum of 1 round) before you fall prone. While using your wings to fly at 1st, 2nd, and 3rd level, you have damage weakness 5. '
+  guid: b858330d-b3f8-4350-9d39-8e6d19e1427c
+  domains:
+    CharacterOngoingEffect:85c206ce-c49b-4d9b-8545-e103f1e4003a: true
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 85c206ce-c49b-4d9b-8545-e103f1e4003a
+id: 85c206ce-c49b-4d9b-8545-e103f1e4003a
+ctime: 1743319465017
+domains:
+  CharacterOngoingEffect:85c206ce-c49b-4d9b-8545-e103f1e4003a: true
+description: 'While using your wings to fly, you can stay aloft for a number of rounds equal to your Might (minimum of 1 round) before you fall prone. While using your wings to fly at 1st, 2nd, and 3rd level, you have damage weakness 5. '
+name: Devil Flight Fatigue
+sustainFormula: stacks
+custom: true
+mtime: 1771518917425
+endTrigger: endturn
+iconid: ce34283a-6c8c-4550-970a-97784bb48c46

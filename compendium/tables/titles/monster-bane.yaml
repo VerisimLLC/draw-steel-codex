@@ -1,0 +1,78 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+prerequisite: You defeat a leader or solo creature with a Reason score of -2 or lower, such as an arixx.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    options:
+    - __typeName: CharacterFeature
+      description: Creatures with the Animal keyword take a bane on strikes made against you.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 368454b4-5eb4-402c-9299-5509011b5d64
+        displayCondition: Caster.Keywords has "Animal"
+        source: Feat
+        modtype: bane
+        keywords:
+          Strike: true
+        activationCondition: Caster.Keywords has "Animal"
+        rollType: enemy_ability_power_roll
+        guid: 429e9510-08fa-422f-82e6-cc633ba63ac5
+        description: Creatures with the Animal keyword take a bane on strikes made against you.
+        behavior: power
+        name: Beast Bane
+      source: Feat
+      canHavePrerequisites: true
+      guid: 368454b4-5eb4-402c-9299-5509011b5d64
+      name: Beast Bane
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You gain an edge on tests made to calm or tame nonsapient creatures.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: eeadfb5d-0d0e-43b6-87c1-171d9d00a038
+        source: Feat
+        behavior: power
+        keywords: []
+        activationCondition: false
+        name: Monster Soother
+        guid: 5429a2da-eaa8-4c0a-b54a-6c1122a849d5
+        description: You gain an edge on tests made to calm or tame nonsapient creatures.
+        modtype: edge
+        rollType: test_power_roll
+      source: Feat
+      canHavePrerequisites: true
+      guid: eeadfb5d-0d0e-43b6-87c1-171d9d00a038
+      name: Monster Soother
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You decorate your equipment with a trophy from a creature you defeated. While the trophy is visible, you gain an edge on tests made to intimidate sapient creatures.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a8d88e44-b16d-4929-8158-9bb4e74ba91a
+        source: Feat
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: 1c6ade2b-d78f-4d29-a06d-d912fd1ee20d
+        name: Monster Trophy
+        behavior: power
+        description: You decorate your equipment with a trophy from a creature you defeated. While the trophy is visible, you gain an edge on tests made to intimidate sapient creatures.
+        rollType: test_power_roll
+        skills:
+        - cb214a42-7f8c-4d02-b6ac-1399724a8b5f
+      source: Feat
+      canHavePrerequisites: true
+      guid: a8d88e44-b16d-4929-8158-9bb4e74ba91a
+      name: Monster Trophy
+      implementation: 3
+    guid: 30d7ccae-ec5f-41ed-b49a-57f916b7428b
+    numChoices: 1
+    name: Monster Bane Choice
+name: Monster Bane
+mtime: 1773772131662
+description: You dare mock Blunwin Mousebane? You think my deed trivial? Ah, but you didn’t see the size of the mouse!
+id: 72bad194-f9bd-4474-9814-e30b23e1153a
+ctime: 1762349819977

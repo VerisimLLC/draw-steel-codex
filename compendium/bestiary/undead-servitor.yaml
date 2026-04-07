@@ -1,0 +1,213 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dab12b3d-b3f3-4d73-94ea-601af38fb8d9
+    offtokenPortraitId: 4f8f75ba-4ef2-4ca0-9915-10d09439fb2c
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7126508
+    portraitOffset:
+      x: 0.01183891
+      y: 0.2571905
+    frameHueShift: 0.04372738
+    frameSaturation: 0.5075781
+    frameBrightness: 0.1952407
+    popoutScale: 0.42
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e377e3cd-349a-445d-be42-80cc3fc5fdc9
+  properties:
+    __typeName: follower
+    savingThrowRatings: []
+    cr: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2de7cf4f-188c-4f27-b2c5-facec658ddb7: true
+        CharacterFeature:08f89b13-2bf8-4767-af17-c7ef8fe95091: true
+        CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5dfcd239-8451-4760-b966-de47ace83f71
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:2de7cf4f-188c-4f27-b2c5-facec658ddb7: true
+          CharacterFeature:08f89b13-2bf8-4767-af17-c7ef8fe95091: true
+          CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+        name: Arise
+        resourceRefreshType: encounter
+        description: The first time the servitor is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they instead have 1 Stamina and fall prone.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: (-Stamina) + 1
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            applyto: caster
+            text: Arise!
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            applyto: caster
+            rule: prone
+          - __typeName: ActivatedAbilityRaiseCorpseBehavior
+            applyto: caster
+            restoreStamina: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b3ebebbe-7f14-4100-a2b9-636f20cb525d
+          name: Arise
+          domains:
+            CharacterFeature:2de7cf4f-188c-4f27-b2c5-facec658ddb7: true
+            CharacterFeature:08f89b13-2bf8-4767-af17-c7ef8fe95091: true
+            CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+          conditionFormula: Damage Type != "Fire" And Damage Type != "Holy"
+          targetType: self
+          trigger: zerohitpoints
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+      source: Trait
+      description: The first time the servitor is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they instead have 1 Stamina and fall prone.
+      guid: 2de7cf4f-188c-4f27-b2c5-facec658ddb7
+      name: Arise
+      implementation: 3
+    role: Follower Brute
+    inflictedConditions: []
+    keywords:
+      Undead: true
+      Soulless: true
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    followerType: retainer
+    availableRolls: 0
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -3
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    monster_type: Undead Servitor
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    initiativeGrouping: e7ec2d9c-d503-4644-87c8-786056d8d0c9
+    skillProficiencies: []
+    levelChoices: []
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    resources: []
+    minion: false
+    max_hitpoints: 10
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage
+        - 10 damage
+        roll: 2d10 + Highest Characteristic
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 374
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 3ba7033b-4dfa-445c-abb2-7b99fa110e4c
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Lurching Swipe
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    monster_category: Monster
+    damage_taken: 0
+    opportunityAttack: 3
+    walkingSpeed: 5
+    retainer: true
+  tokenType: null
+  bestiaryId: c9afc2fb-c4c2-4493-8d01-4cc8d49807c4
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1763828011365
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 14
+ctime: 1763828011365
+mtime: 1775167451199
+hidden: false

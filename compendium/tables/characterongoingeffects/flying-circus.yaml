@@ -1,0 +1,33 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 110acfa9-741e-42fc-acdf-af43513aa556
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:110acfa9-741e-42fc-acdf-af43513aa556: true
+  name: Flying Circus
+  guid: 4b91246b-5c14-4cd1-9abc-6cdbcdc11345
+  description: Gives a maneuver to reduce the height of their fall by 2 squares
+  behavior: attribute
+  attribute: fly
+source: Ongoing Effect
+name: Flying Circus
+guid: 110acfa9-741e-42fc-acdf-af43513aa556
+id: 110acfa9-741e-42fc-acdf-af43513aa556
+ctime: 1769061878853
+domains:
+  CharacterOngoingEffect:110acfa9-741e-42fc-acdf-af43513aa556: true
+description: If this push causes the ally to fall, they can use a maneuver before they fall to reduce the height of the fall by 2.
+iconid: ui-icons/skills/1.png
+endTrigger: endturn
+statusEffect: false
+custom: true
+mtime: 1769517292879
+implementation: 3

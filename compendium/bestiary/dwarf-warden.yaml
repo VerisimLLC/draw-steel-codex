@@ -1,0 +1,389 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: df1417bc-7b16-49de-a11b-66211c726f38
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440925
+    portraitOffset:
+      x: -0.04977894
+      y: 0.09952153
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d39a2bb8-7d3a-4e62-a50f-d41a1e3be4a0
+  properties:
+    __typeName: monster
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 59
+    inflictedConditions: []
+    ev: 8
+    max_hitpoints_roll: "59"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        instant: false
+        filterTarget: ConditionCaster("Restrained").type = "Dwarf"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          modifiers:
+          - __typeName: CharacterModifier
+            operation: add
+            sourceguid: cb000c2e-0009-4f83-997e-76c1fe31bfc9
+            source: Ongoing Effect
+            value: -1
+            name: Can Be Force Moved While Restrained
+            guid: abc248af-b9fb-4240-b197-4e886b8148db
+            description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          guid: cb000c2e-0009-4f83-997e-76c1fe31bfc9
+          id: cb000c2e-0009-4f83-997e-76c1fe31bfc9
+          name: Can Be Force Moved While Restrained
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+          implementation: 3
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+        lingerTime: 0
+        tiersSelected:
+        - 3
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; push 1
+        - 10 damage; push 3
+        - 13 damage; push 5; M<2 restrained (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.126250147819519
+          s: 0.825586795806885
+          v: 0.786792874336243
+          a: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: b3cbf785-11d4-484e-a498-7d9d9f40eff6
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 110
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      implementation: 4
+      name: Concussive Maul
+      persistence: []
+      description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: ConditionCaster("Restrained").type = "Dwarf"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            operation: add
+            sourceguid: cb000c2e-0009-4f83-997e-76c1fe31bfc9
+            source: Ongoing Effect
+            value: -1
+            name: Can Be Force Moved While Restrained
+            guid: 45ce6d04-73b1-43ec-b697-bc577b59c885
+            description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          name: Can Be Force Moved While Restrained
+          guid: dc694112-463c-4465-a54f-8733753b569e
+          id: dc694112-463c-4465-a54f-8733753b569e
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; push 2; A<0 slowed (save ends)
+        - 8 damage; push 2; A<1 slowed (save ends)
+        - 11 damage; push 2; A<2 slowed (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.147499993443489
+          s: 0.86855411529541
+          v: 0.86745548248291
+          a: 1
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 0055a1a1-6aff-489d-9935-559e3182f076
+      radius: "3"
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 110
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: cube
+      implementation: 4
+      name: Concussive Shockwave
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    ongoingEffects: []
+    minion: false
+    stability: 3
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Warden	Level 2 Platoon Brute
+        Dwarf, Humanoid	EV 8
+        <b>Stamina</b> 59
+        <b>Speed </b>5	<b>Size</b> 1M / <b>Stability</b> 3
+        <b>	Free Strike</b> 5
+        Might +2	Agility 0	Reason 0	Intuition +1	Presence 0
+        <b>Concussive Maul</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1 <b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; push 1
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; push 3
+        %E2%9C%B8	<b>17</b>	13 damage; push 5; M<2 restrained (save ends)
+        <b>Effect</b> A target restrained by a dwarf can be pushed by this ability.
+
+        <b>Concussive Shockwave</b> (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 3 cube within 1<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; push 2; A<0 slowed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	8 damage; push 4; A<1 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	11 damage; push 6; A<2 dazed (save ends)
+        <b>Effect</b> A target restrained by a dwarf can be pushed by this ability.
+
+        <b>Escort the Prisoners</b>
+        Whenever the warden moves, they can carry an adjacent restrained enemy as if they were grabbed.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6e369f61-7a3e-4518-a2ce-2f84ef963a93: true
+      modifiers:
+      - __typeName: CharacterModifier
+        text: You can bring an adjacent restrained enamy with you as if they were grabbed.
+        sourceguid: 6e369f61-7a3e-4518-a2ce-2f84ef963a93
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:6e369f61-7a3e-4518-a2ce-2f84ef963a93: true
+        name: Escort the Prisoners
+        guid: 340f5651-4d82-4417-babc-0b404b7f7a7f
+        description: Whenever the warden moves, they can carry an adjacent restrained  enemy as if the enemy were grabbed by them.
+        filterCondition: Count Nearby Enemies(1, "Restrained")
+        color: green
+      source: Trait
+      description: Whenever the warden moves, they can carry an adjacent restrained  enemy as if the enemy were grabbed by them.
+      guid: 6e369f61-7a3e-4518-a2ce-2f84ef963a93
+      name: Escort the Prisoners
+      implementation: 4
+    role: Platoon Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    keywords:
+      Dwarf: true
+      Humanoid: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 604880ab-73c5-4b70-83ba-4dec9a9cc688
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: ee88d421-2e34-416e-bb53-13fcf0e2ae70-415
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 5
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+      2d3d5511-4b80-46d1-a8c6-4705b9aa45ca:
+        __typeName: CharacterResource
+        refreshid: ""
+        unbounded: 0
+        used: 0
+    availableTriggers: []
+    traitNames: []
+    monster_type: Dwarf Warden
+    movementSpeeds: []
+    creatureSize: 1M
+    equipmentMeta:
+      offhand0: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        998466dc-48d1-4ae6-bb34-a3652fa93815:
+          note: Concussive Shockwave
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        488c2045-a12e-4197-afa7-346da707acce:
+          note: Concussive Maul
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        d238f552-fde1-4123-ab83-82a233c64cfd:
+          note: Concussive Maul
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        7dd7c5c2-626c-4cc4-9054-ee706bb367f9:
+          note: Concussive Maul
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        d709a39a-11ae-4926-bab8-f2dd3694ab39:
+          note: Concussive Maul
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        f08f384d-99d9-47ee-a775-838d78125569:
+          note: Concussive Shockwave
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        8bbe8c3e-2b10-4c82-8839-3cc809f13fba:
+          note: Concussive Maul
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        47aa8646-6dd4-46d2-8b64-cb4d2f9227d2:
+          note: Concussive Shockwave
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        9640a164-6de4-407e-ace2-fe535e0b8b5f:
+          note: Knockback
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        666546f9-9348-47bf-95d6-94cfc60f6cdf:
+          note: Knockback
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+  tokenType: null
+  bestiaryId: fb687c40-64ee-4926-9c2f-05f2ac072de2
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Dwarf Warden
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590332173
+mtime: 1775201137032
+hidden: false

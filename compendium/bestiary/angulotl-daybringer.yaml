@@ -1,0 +1,659 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 080a7fcf-327f-42a0-9f3e-fa3a8ea6f520
+    offtokenPortraitId: 91aa6463-fe64-4b32-91f3-4551bcfac892
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4440408
+    portraitOffset:
+      x: -0.0414832
+      y: 0.1238136
+    frameHueShift: 0.6887308
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.8539886
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: dc04905b-3762-49ad-8c72-cc7e1cd9f134
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 80
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 3
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Angulotl Daybringer
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: d4e15233-e24f-42ae-b3b5-4616baa7b17a
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "2"
+      iconid: ui-icons/skills/1.png
+      name: Acid Grasp
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 acid damage; A < 1 dazed (save ends)
+        - 10 acid damage; A < 2 dazed (save ends)
+        - 13 acid damage; A < 3 dazed (save ends)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 35e301cf-3db0-41f5-8598-37a2befbd9d7
+        duration: eoe
+        ongoingEffectCustom: 35e301cf-3db0-41f5-8598-37a2befbd9d7
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 814f6bd8-0f0c-4712-acd9-7f1fdc636c1f
+        durationUntilEndOfTurn: false
+        duration: 1
+        ongoingEffectCustom: 814f6bd8-0f0c-4712-acd9-7f1fdc636c1f
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a458d7e9-c917-40e9-b42d-ce34b6b2e099
+      targetType: self
+      iconid: b6c78c6e-ac58-437c-a83d-2549d06a5412
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 45
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      name: Sun Lamp
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: |
+        The daybringer expands their throat to make it resemble the sun until the start of their next turn. During that time, each angulotl who starts their turn within 10 squares of the daybringer regains 5 Stamina and gains a +3 bonus to speed until the end of their turn.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilitySummonBehavior
+        allCreaturesTheSame: true
+        bestiaryFilter: beast.name = "Angulotl Pollywog"
+        groupInitiativeWithCaster: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Heroic Ability
+      range: 10
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 64d00a7e-d5d6-46d6-84d3-19756d152b45
+      targetType: emptyspace
+      iconid: ui-icons/skills/1.png
+      numTargets: 4
+      sourceReference:
+        __typeName: SourceReference
+        page: 45
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      name: New Dawn
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: Four **angulotl pollywogs** erupt from the daybringer's back and waddle into unoccupied spaces within distance.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: ally
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 39
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 8
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: da8651a6-2a0e-4c57-a419-f8f6ee32a78e
+      categorization: Heroic Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      iconid: ui-icons/skills/1.png
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        promptText: Jump 4 Squares
+        standardAbilityParams:
+          distance: "4"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: d9d97f7a-628e-4385-ad4f-dd49a144e12d
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 8010820f-6bf3-422f-985b-2af02f620113
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 59df980f-3fce-43f4-a8f1-c83b28659a21
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Make a free strike
+        autoTarget: true
+        filterTarget: not target.Minion
+        abilityType: standard
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+      selfTarget: true
+      name: Plague of Frogs
+      numTargets: 1
+      description: Each target can jump up to 4 squares. Each non-minion target can make a free strike at the end of the jump
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      targetType: map
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.523749828338623
+          s: 0.536523342132568
+          v: 1.00306510925293
+          a: 1
+      categorization: Heroic Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: b2ddbe58-632a-4e6d-a5d1-dc417dc20347
+      iconid: b6c78c6e-ac58-437c-a83d-2549d06a5412
+      numTargets: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: It Is Day
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "6"
+        filterTarget: (not friends(caster,target)) and (target has "Wet")
+        damageType: acid
+        chatMessage: It Is Day
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        ongoingEffect: b936df43-5c0e-4046-9221-ce360fa5131b
+        mode: effect
+        filterTarget: (not friends(caster,target)) and (target has "Wet")
+        conditions: []
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: f905e96c-6b89-4d88-9688-71fabc39c9c2
+        filterTarget: (not friends(caster,target))
+        duration: eoe
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 410bfa3d-661c-4942-a80a-3ba23998db8a
+        filterTarget: Target.type = "Angulotl"
+        ongoingEffectCustom: false
+      description: The encounter map dries up and each enemy and object on it is illuminated until the end of the encounter. An illuminated creature or object can't hide or become invisible, and any strike made against an illuminated target gains an edge. Additionally, each enemy in the encounter who is wet has that effect end and takes 6 acid damage. Each angulotl in the encounter has a double edge on their next strike.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 38
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: The target is pulled up to 4 squares after the strike resolves.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      categorization: Trigger
+      name: Tongue Slap
+      guid: 7bce8de6-ec69-4d7d-8189-6890bf789e9c
+      description: |-
+        The outcome of the strike's power roll is reduced by one tier.
+
+        **2 Malice**: The target is pulled up to 4 squares after the strike resolves.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |
+        ANGULOTL DAYBRINGER	LEVEL 1 LEADER
+        Angulotl, Humanoid	EV 12
+        Stamina 80	Immunity poison 3
+        Speed 5 (swim, climb)	Size 1M / Stability 1
+        Free Strike 4
+        Might +3	Agility +2	Reason 0	Intuition +2	Presence 0
+        Acid Grasp (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        Keywords Melee, Strike, Weapon
+        Distance Melee 1	Target 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	7 acid damage; A<1 dazed (save ends)
+        %E2%98%85	12%E2%80%9316	10 acid damage; A<2 dazed (save ends)
+        %E2%9C%B8	17	13 acid damage; A<3 dazed (save ends)
+        Effect The next time the target strikes the daybringer, they immediately take 4 acid damage.
+        1 Malice The daybringer jumps 3 squares before or after using this ability.
+
+        Sun Lamp (Maneuver)
+        Keywords %E2%80%94
+        Distance Self	Target Self
+        Effect The daybringer expands their throat to resemble the sun until the start of their next turn. Each non-minion angulotl who starts their turn within 10 of the daybringer gains 5 temporary Stamina and has their Speed increased by 3 until the end of their turn.
+
+        Tongue Slap (Triggered Action)
+        Keywords %E2%80%94
+        Distance Melee 5	Target 1 creature
+        Trigger The target targets the daybringer or an ally with a strike that isn't a critical hit.
+        Effect The daybringer reduces the power roll result by 1 tier.
+        2 Malice Pull 4.
+
+        Moisturizing End Effect
+        The daybringer either takes 5 damage or removes the wet effect from an adjacent creature and ends one save ends effect affecting them at the end of their turn.
+
+        New Dawn (Villain Action 1)
+        Keywords %E2%80%94
+        Distance Ranged 10	Target Special
+        Effect Four angulotl pollywogs escape the daybringer's back and waddle into unoccupied squares within distance.
+
+        Plague of Frogs (Villain Action 2)
+        Keywords %E2%80%94
+        Distance Self and 8 burst	Target Self and all allies in the burst
+        Effect Each target jumps 4. Each non-minion target also makes a free strike.
+
+        It Is Day (Villain Action 3)
+        Keywords %E2%80%94
+        Distance Special	Target Special
+        Effect The encounter map dries up and becomes illuminated. Each wet enemy has the wet condition end and takes 6 acid damage. All angulotls have a double edge on their next strike.
+
+        Toxiferous
+        When an adjacent enemy grabs or uses a melee ability against the daybringer, they take 3 poison damage.
+
+        RETAINER
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+        CharacterFeature:96e439a6-a872-4804-9c75-4cba038d5fdb: true
+        CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+        CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:96e439a6-a872-4804-9c75-4cba038d5fdb: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+        sourceguid: ec4426d5-b894-4154-a4ee-acf74c5a231c
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the daybringer or uses a melee ability against them, that enemy takes 3 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous
+            roll: "3"
+            damageType: poison
+            chatMessage: Melee ability vs toxic creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 78fcc0c8-76b3-489c-815a-9b29f1ffcee6
+          persistence: []
+          domains:
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:96e439a6-a872-4804-9c75-4cba038d5fdb: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          conditionFormula: target = self and (UsedAbility.Keywords has "Melee")
+          subject: enemy
+          name: Toxiferous
+          trigger: targetwithability
+          targetType: subject
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 932d333e-a635-43cb-adef-28e62124c4ef
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:96e439a6-a872-4804-9c75-4cba038d5fdb: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+        sourceguid: 014e497d-86b9-4eeb-9958-db7261fe30f8
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the daybringer or uses a melee ability against them, that enemy takes 3 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 707c0f0a-249d-4502-a335-c6b0c4a5def9
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "3"
+            damageType: poison
+            guid: b2778aba-d949-4c29-a3bd-ce8613a7c864
+            titleText: Toxiferous
+            chatMessage: Grabbed a Toxiferous Creature
+          domains:
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:96e439a6-a872-4804-9c75-4cba038d5fdb: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          conditionFormula: condition = "Grabbed" and (HasAttacker)
+          numTargets: "1"
+          trigger: inflictcondition
+          name: Toxiferous
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: cc1e4089-bc89-4ee2-b113-10f36cb6f593
+      source: Character Feature
+      description: Whenever an adjacent enemy grabs the daybringer or uses a melee ability against them, that enemy takes 3 poison damage.
+      guid: 96e439a6-a872-4804-9c75-4cba038d5fdb
+      name: Toxiferous
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0abdaa09-7bfb-4e9e-bac3-f1eca7aac951: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0abdaa09-7bfb-4e9e-bac3-f1eca7aac951
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          modtype: tierdown
+          keywords: []
+          activationCondition: false
+          name: Tongue Slap
+          rules: ""
+          guid: 86df2c11-1d71-427c-af16-4eef8f9a3afe
+          rollType: ability_power_roll
+          behavior: power
+        guid: 9d048313-7128-4dab-8e3a-ce15de0ec403
+        type: trigger
+        domains:
+          CharacterFeature:0abdaa09-7bfb-4e9e-bac3-f1eca7aac951: true
+        targetType: selforally
+        trigger: strike
+        name: Tongue Slap
+        rules: ""
+        description: ""
+        range: "5"
+        behavior: powertabletrigger
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:0abdaa09-7bfb-4e9e-bac3-f1eca7aac951: true
+        sourceguid: 0abdaa09-7bfb-4e9e-bac3-f1eca7aac951
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Tongue Slap
+        description: ""
+        guid: bc00578a-af6d-4fe1-bf9f-2415ecb403c7
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: |-
+            The outcome of the strike's power roll is reduced by one tier.
+
+            **2 Malice:** The target is pulled up to 4 squares after the strike resolves.
+          name: Tongue Slap
+          trigger: The target makes a strike against the daybringer or an ally that isn't a critical hit.
+          guid: e11437fc-dfdb-4019-a0f1-6a4b63747aa8
+          distance: Melee 5
+          keywords:
+            Melee: true
+      source: Character Feature
+      description: ""
+      guid: 0abdaa09-7bfb-4e9e-bac3-f1eca7aac951
+      name: Tongue Slap
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+        CharacterFeature:282bc9ec-fcb5-4f96-9443-fad88f334da0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+          CharacterFeature:282bc9ec-fcb5-4f96-9443-fad88f334da0: true
+        sourceguid: 58bdd65e-5a1b-4448-8a61-1b18d5171e7b
+        behavior: trigger
+        source: Trait
+        name: Moisturizing End Effect
+        description: At the end of each of the daybringer's turns, they can either take 5 damage or end the wet effect on an adjacent creature in order to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "5"
+            conditions: []
+            purgeType: one
+            targetDuration: save
+          triggerPrompt: End one save ends effect on self, take 5 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: f2459800-5424-4e21-9879-b320a1a0b74e
+          domains:
+            CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+            CharacterFeature:282bc9ec-fcb5-4f96-9443-fad88f334da0: true
+          conditionFormula: SaveEndsEffects
+          trigger: endturn
+          numTargets: "1"
+          name: End Effect
+          targetType: self
+          description: |
+            At the end of each of their turns, the centurion can take 5 damage to end one effect on them that can be ended by a saving throw. 
+            This damage can't be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: e33ea2d9-6393-4e4a-93c5-af808f232588
+      source: Trait
+      description: At the end of each of the daybringer's turns, they can either take 5 damage or end the wet effect on an adjacent creature in order to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+      guid: 282bc9ec-fcb5-4f96-9443-fad88f334da0
+      name: Moisturizing End Effect
+      implementation: 3
+    role: Leader
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: poison
+      apply: Damage Reduction
+    equipmentMeta:
+      offhand0: []
+    opportunityAttack: 4
+    damage_taken: 0
+    innateLanguages:
+      e14c1512-fc48-4cb6-945c-18b3eb0b808d: true
+    walkingSpeed: 5
+    groupid: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+    resources: []
+    creatureSize: 1M
+    traitNames: []
+    movementSpeeds:
+      climb: 5
+      swim: 5
+    monster_category: Monster
+    initiativeGrouping: cf700ab2-68ab-47cb-9ff9-fcfdfb4f4839
+    keywords:
+      Humanoid: true
+      Angulotl: true
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 83ea73f7-cd41-4509-9c40-5e80d854b69c
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Angulotl Daybringer
+parentFolder: b4d6a13f-3431-4ade-b564-2cc17bcde303
+artist: null
+ord: 0
+ctime: 1741590274266
+mtime: 1775201137032
+hidden: false

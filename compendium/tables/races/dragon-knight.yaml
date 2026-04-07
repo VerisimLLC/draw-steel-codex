@@ -1,0 +1,861 @@
+__typeName: Race
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: "Signature Trait: Wyrmplate"
+    numChoices: 1
+    guid: cbe77035-1c50-42c6-ad6b-9ce5754d4895
+    description: "Your hardened scales grant you immunity equal to your level to one of the following damage types: acid, cold, corruption, fire, lightning, or poison. You can change your damage immunity type when you finish a respite."
+    options:
+    - __typeName: CharacterFeature
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      guid: 305732c5-976c-48ba-92b3-254fe71cc362
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: 9aed58fd-cf05-4fa0-8a89-8bd6347364ee
+        behavior: resistance
+        source: Dragon Knight Race Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Level
+          damageType: acid
+          apply: Damage Reduction
+        guid: 6d4bc3f3-8d4d-4f49-88fb-d24cfb9dccd1
+        name: Acid Immunity
+        description: Damage from acid attacks is reduced by your level.
+      canHavePrerequisites: true
+      name: Acid Immunity
+      description: Damage from acid attacks is reduced by your level.
+      source: Dragon Knight Race Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      guid: 411a1412-fb4f-4c51-bad1-dcff5e046bd6
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: 411a1412-fb4f-4c51-bad1-dcff5e046bd6
+        behavior: resistance
+        source: Dragon Knight Race Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Level
+          damageType: cold
+          apply: Damage Reduction
+        guid: b9039dc9-157d-43ef-8b7a-b9b4c57e417c
+        name: Cold Immunity
+        description: Damage from cold attacks is reduced by your level.
+      canHavePrerequisites: true
+      name: Cold Immunity
+      description: Damage from cold attacks is reduced by your level.
+      source: Dragon Knight Race Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      guid: cdd015ed-2d9a-423b-953a-c0c7255e4545
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: cdd015ed-2d9a-423b-953a-c0c7255e4545
+        behavior: resistance
+        source: Dragon Knight Race Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Level
+          damageType: corruption
+          apply: Damage Reduction
+        guid: 43b2191a-349b-4941-ad8a-a4a8d241afce
+        name: Corruption Immunity
+        description: Damage from corruption attacks is reduced by your level.
+      canHavePrerequisites: true
+      name: Corruption Immunity
+      description: Damage from corruption attacks is reduced by your level.
+      source: Dragon Knight Race Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      guid: efb897ff-9c79-4aab-9e40-fc8321b9dc85
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: efb897ff-9c79-4aab-9e40-fc8321b9dc85
+        behavior: resistance
+        source: Dragon Knight Race Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Level
+          damageType: fire
+          apply: Damage Reduction
+        guid: d1ecd235-ffe2-443b-b425-c69aac620851
+        name: Fire Immunity
+        description: Damage from fire attacks is reduced by your level.
+      canHavePrerequisites: true
+      name: Fire Immunity
+      description: Damage from fire attacks is reduced by your level.
+      source: Dragon Knight Race Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      guid: aa2c9300-1f35-42b9-9a88-972853a165f7
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: aa2c9300-1f35-42b9-9a88-972853a165f7
+        behavior: resistance
+        source: Dragon Knight Race Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Level
+          damageType: lightning
+          apply: Damage Reduction
+        guid: 315dbc44-c16b-4b09-a930-42c974f71517
+        name: Lightning Immunity
+        description: Damage from lightning attacks is reduced by your level.
+      canHavePrerequisites: true
+      name: Lightning Immunity
+      description: Damage from lightning attacks is reduced by your level.
+      source: Dragon Knight Race Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      guid: 9aed58fd-cf05-4fa0-8a89-8bd6347364ee
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: 9aed58fd-cf05-4fa0-8a89-8bd6347364ee
+        behavior: resistance
+        source: Dragon Knight Race Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Level
+          damageType: poison
+          apply: Damage Reduction
+        guid: 6d4bc3f3-8d4d-4f49-88fb-d24cfb9dccd1
+        name: Poison Immunity
+        description: Damage from poison attacks is reduced by your level.
+      canHavePrerequisites: true
+      name: Poison Immunity
+      description: Damage from poison attacks is reduced by your level.
+      source: Dragon Knight Race Feature
+      implementation: 3
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    costsPoints: true
+    options:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: e1e98137-88d1-4451-9c43-4fd9ef6577a9
+        behavior: triggerdisplay
+        source: Dragon Knight Race Feature
+        name: Draconian Guard
+        description: When you or a creature adjacent to you takes damage from a strike, you can use a triggered action to swing your wings around and guard against the blow, reducing the any damage from the strike by an amount equal to your level.
+        guid: 52ea1f44-6de6-4219-9b64-3c57954b9906
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or Ally
+          effect: The damage is reduced by {level|an amount equal to your level}.
+          name: Draconian Guard
+          trigger: The target takes damage from a strike.
+          flavor: You swing your wings around and guard against the blow.
+          guid: 97ac128b-3e1c-49d9-8e96-0adac6bc6396
+          distance: Melee 1
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: e1e98137-88d1-4451-9c43-4fd9ef6577a9
+        source: Dragon Knight Race Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          modtype: none
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          name: Draconian Guard
+          rules: ""
+          damageModifier: "-Target.Level"
+          behavior: power
+          guid: e3c681e8-9444-4ae2-866c-69eaba20fdbb
+        guid: 83feed8f-a0a6-47ca-bde0-1b58881bd264
+        type: trigger
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        targetType: selforally
+        behavior: powertabletrigger
+        name: Draconian Guard
+        rules: The damage is reduced by {level|an amount equal to your level}.
+        description: When you or a creature adjacent to you takes damage from a strike, you can use a triggered action to swing your wings around and guard against the blow, reducing the any damage from the strike by an amount equal to your level.
+        range: "1"
+        trigger: strike
+      source: Dragon Knight Race Feature
+      guid: e1e98137-88d1-4451-9c43-4fd9ef6577a9
+      pointsCost: 1
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      name: Draconian Guard
+      description: When you or a creature adjacent to you takes damage from a strike, you can use a triggered action to swing your wings around and guard against the blow, reducing the any damage from the strike by an amount equal to your level.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: 7c7b4988-41ca-414a-9f3a-e9f8118a8132
+        description: As a maneuver, you can recite your oath. Until the start of your next turn, whenever you make a saving throw, you succeed on a 4 or higher.
+        source: Dragon Knight Race Feature
+        name: Remember Your Oath
+        behavior: activated
+        guid: 1f6fd3ba-dafb-419c-91d3-ca231443a95d
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: |-
+            <i>Even should the sun stop in the sky 
+
+            Even should the night last a thousand years 
+
+            I will stand forever 
+
+            I shall not yield 
+
+            Those who suffer and yearn for justice 
+
+            I am your sword and shield 
+
+            I will yield no ground 
+
+            I will speak no lies 
+
+            I will stand against all tyrants 
+
+            Until the last villain dies</i>
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 0105ae01-bc30-4ccf-957c-e9223629bc56
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            hasTemporaryHitpoints: false
+            durationUntilEndOfTurn: true
+            duration: 1
+            ongoingEffectCustom: 54c875f1-d632-4485-b916-bc897e6d5c81
+            ongoingEffect: 54c875f1-d632-4485-b916-bc897e6d5c81
+            applyto: caster
+          numTargets: "1"
+          name: Remember Your Oath
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          description: |
+            As a maneuver, you can recite the following oath. If you do, you succeed on saving throws when you roll a 4 or higher until the start of your next turn: 
+          abilityType: none
+          iconid: 114facd6-e696-4cda-aed7-2a1cffd2f410
+      source: Dragon Knight Race Feature
+      guid: 7c7b4988-41ca-414a-9f3a-e9f8118a8132
+      pointsCost: 1
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      name: Remember Your Oath
+      description: As a maneuver, you can recite your oath. Until the start of your next turn, whenever you make a saving throw, you succeed on a 4 or higher.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: 0d630fd6-0b3c-4c91-8954-ee7a7526086d
+        description: "You can use the following ability: Draconian Pride"
+        source: Dragon Knight Race Feature
+        name: Draconian Pride
+        behavior: activated
+        guid: b5e34f0e-db38-4e4c-a5e4-17f01cab4881
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You let loose a mighty roar to shake your foes’ spirits.
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 8fb05a82-06f0-48dc-ad6f-6aa087f50756
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 2 damage
+            - 5 damage; push 1
+            - 7 damage; push 2
+            roll: 2d10 + Might or Presence
+          numTargets: "1"
+          name: Draconian Pride
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          description: ""
+          abilityType: none
+          iconid: 25fee67e-3c71-4aae-80ec-b94da4b4ee91
+      source: Dragon Knight Race Feature
+      guid: 0d630fd6-0b3c-4c91-8954-ee7a7526086d
+      pointsCost: 2
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      name: Draconian Pride
+      description: "You can use the following ability: Draconian Pride"
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        sourceguid: 1ba77d3b-3f14-4151-b6e7-8dde7ceca1f1
+        description: "You can use the following ability: Dragon Breath"
+        source: Dragon Knight Race Feature
+        name: Dragon Breath
+        behavior: activated
+        guid: e23b469d-c429-41f7-a57a-28a583a4b9b1
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: enemy
+          repeatTargets: false
+          keywords:
+            Magic: true
+            Area: true
+          targetType: cube
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You expel energy to damage your foes.
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList:
+          - text: Acid Damage
+          - text: Cold Damage
+          - text: Corruption Damage
+          - text: Fire Damage
+          - text: Lightning Damage
+          - text: Poison Damage
+          guid: 1cff5e47-2f6b-4144-9a1e-f2ba71cfbdc0
+          numTargets: "1"
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            applyto: targets
+            roll: 2d10 + Might or Presence
+            tiers:
+            - 2 damage
+            - 4 damage
+            - 6 damage
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+            modesSelected:
+            - 1
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: acid
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Acid Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: bf73fc93-bd45-41a2-ac0c-6c7eddf3ee4c
+            modesSelected:
+            - 2
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: cold
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Cold Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 6fa5c8c8-17b9-4123-8cab-4fb0b30a5d7c
+            modesSelected:
+            - 3
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: corruption
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Corruptiion Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: b4e3fc1e-79a7-4c3c-a42b-b7342bb63397
+            modesSelected:
+            - 4
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: fire
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Fire Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 3e0d825f-9d72-42ad-96eb-6a91ebd4e4c5
+            modesSelected:
+            - 5
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: lightning
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Lightning Damage
+              description: ""
+              behavior: power
+              modtype: none
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 4983bdef-e21a-488b-bc8c-6f182a17b8dd
+            modesSelected:
+            - 6
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 64b7578f-eab8-4f67-aae6-987a9b464c51
+              damageTypeMappings:
+                untyped: poison
+              keywords: []
+              activationCondition: true
+              guid: 017ad10e-33cb-4033-be45-1d7d6383c148
+              domains: []
+              rollType: ability_power_roll
+              name: Poison Damage
+              description: ""
+              behavior: power
+              modtype: none
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          name: Dragon Breath
+          radius: 3
+          description: You choose the attack’s damage type from acid, cold, corruption, fire, lightning, or poison.
+          abilityType: none
+          iconid: 7c525005-fd0c-4312-aa3c-e53840feea9b
+      source: Dragon Knight Race Feature
+      guid: 1ba77d3b-3f14-4151-b6e7-8dde7ceca1f1
+      pointsCost: 2
+      domains:
+        race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+      name: Dragon Breath
+      description: "You can use the following ability: Dragon Breath"
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        description: Damage from acid attacks is reduced by your level
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: b5159028-d113-421c-86ec-b9ad1d9eeea8
+          behavior: resistance
+          source: Dragon Knight Race Feature
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: level
+            damageType: acid
+            apply: Damage Reduction
+          description: Damage from acid attacks is reduced by your level
+          name: Acid Immunity
+          guid: a3a395b5-1fb0-4e6d-820d-3de52f574eaf
+        source: Dragon Knight Race Feature
+        canHavePrerequisites: true
+        guid: b5159028-d113-421c-86ec-b9ad1d9eeea8
+        name: Acid Immunity
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: bfe6ff3b-7cba-41f8-9da2-32b105c24747
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          sourceguid: 411a1412-fb4f-4c51-bad1-dcff5e046bd6
+          behavior: resistance
+          source: Dragon Knight Race Feature
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: cold
+            apply: Damage Reduction
+          guid: b9039dc9-157d-43ef-8b7a-b9b4c57e417c
+          name: Cold Immunity
+          description: Damage from cold attacks is reduced by your level.
+        canHavePrerequisites: true
+        name: Cold Immunity
+        description: Damage from cold attacks is reduced by your level.
+        source: Dragon Knight Race Feature
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: a5cd5a99-ff84-4512-8976-33f8d1a4336d
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          sourceguid: cdd015ed-2d9a-423b-953a-c0c7255e4545
+          behavior: resistance
+          source: Dragon Knight Race Feature
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: corruption
+            apply: Damage Reduction
+          guid: 43b2191a-349b-4941-ad8a-a4a8d241afce
+          name: Corruption Immunity
+          description: Damage from corruption attacks is reduced by your level.
+        canHavePrerequisites: true
+        name: Corruption Immunity
+        description: Damage from corruption attacks is reduced by your level.
+        source: Dragon Knight Race Feature
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: 024231ba-8429-4aec-a271-aa1de1cd5ee6
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          sourceguid: efb897ff-9c79-4aab-9e40-fc8321b9dc85
+          behavior: resistance
+          source: Dragon Knight Race Feature
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: fire
+            apply: Damage Reduction
+          guid: d1ecd235-ffe2-443b-b425-c69aac620851
+          name: Fire Immunity
+          description: Damage from fire attacks is reduced by your level.
+        canHavePrerequisites: true
+        name: Fire Immunity
+        description: Damage from fire attacks is reduced by your level.
+        source: Dragon Knight Race Feature
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: c961c6b8-2afa-4156-92dd-2da350e86394
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          sourceguid: aa2c9300-1f35-42b9-9a88-972853a165f7
+          behavior: resistance
+          source: Dragon Knight Race Feature
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: lightning
+            apply: Damage Reduction
+          guid: 315dbc44-c16b-4b09-a930-42c974f71517
+          name: Lightning Immunity
+          description: Damage from lightning attacks is reduced by your level.
+        canHavePrerequisites: true
+        name: Lightning Immunity
+        description: Damage from lightning attacks is reduced by your level.
+        source: Dragon Knight Race Feature
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+        guid: c8827185-e811-4537-ae09-261bf02667e4
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+          sourceguid: 9aed58fd-cf05-4fa0-8a89-8bd6347364ee
+          behavior: resistance
+          source: Dragon Knight Race Feature
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Level
+            damageType: poison
+            apply: Damage Reduction
+          guid: 6d4bc3f3-8d4d-4f49-88fb-d24cfb9dccd1
+          name: Poison Immunity
+          description: Damage from poison attacks is reduced by your level.
+        canHavePrerequisites: true
+        name: Poison Immunity
+        description: Damage from poison attacks is reduced by your level.
+        source: Dragon Knight Race Feature
+        implementation: 3
+      description: Select one damage immunity granted by your Wyrmplate trait. You always have this immunity from your trait in addition to the one it normally grants.
+      guid: 31055912-7079-40e3-ab53-cd5f70757660
+      pointsCost: 1
+      name: Prismatic Scales
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: add
+        sourceguid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+        source: Dragon Knight Race Feature
+        value: Movement Speed
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        name: Wings
+        guid: d8a087bc-689f-47f1-bde9-304c4d27b1af
+        description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+        behavior: attribute
+        attribute: fly
+      - __typeName: CharacterModifier
+        sourceguid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+        source: Dragon Knight Race Feature
+        behavior: resistance
+        filterCondition: Movement Type = "Fly" and Level <= 3
+        name: Wings
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "-5"
+          damageType: all
+          apply: Damage Reduction
+        description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+        guid: 8159cfc7-58d8-4092-a112-5eb165298945
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      - __typeName: CharacterModifier
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        sourceguid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+        description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+        source: Dragon Knight Race Feature
+        name: Wings
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: bb77c6ce-5af5-4e2a-a9dd-a4427c77e486
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 6a6f4254-937b-4500-92cd-9fcfa26350ea
+            ongoingEffectCustom: 6a6f4254-937b-4500-92cd-9fcfa26350ea
+          - __typeName: ActivatedAbilityFizzleBehavior
+            filterTarget: Stacks("Flying Fatigue") < Might
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            instant: false
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              modifiers:
+              - __typeName: CharacterModifier
+                operation: set
+                sourceguid: 342f981a-0f2b-4895-8556-45765bccc1e1
+                source: Ongoing Effect
+                value: 0
+                name: Fall
+                guid: d00ee953-ee46-4f6e-b717-58caa3cda261
+                description: ""
+                behavior: attribute
+                attribute: fly
+              source: Ongoing Effect
+              guid: 342f981a-0f2b-4895-8556-45765bccc1e1
+              id: 342f981a-0f2b-4895-8556-45765bccc1e1
+              name: Fall
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              description: ""
+              implementation: 3
+              iconid: ui-icons/skills/1.png
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityDelayBehavior
+            delay: "0.5"
+          - __typeName: ActivatedAbilityFallBehavior
+          conditionFormula: Movement Type = "Fly"
+          whenActive: combat
+          numTargets: "1"
+          trigger: beginround
+          name: Wings
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: c7232c83-6920-4441-a1fb-71ef480c8237
+      source: Dragon Knight Race Feature
+      guid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+      pointsCost: 2
+      domains:
+        race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      name: Wings
+      description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+      canHavePrerequisites: true
+      implementation: 3
+    numChoices: "3	"
+    guid: a13b9b12-95d5-4a75-ad09-14c48aeb5e09
+    description: 'You have 3 ancestry points to spend on the following traits. '
+    name: 'Purchased Dragon Knight Traits '
+  domains:
+    race:254848a2-5c86-4a73-9b9d-a87dda64176d: true
+nameGenerator: 3a1af406-9db6-4ab9-b20d-9af36b1ff30f
+lifeSpan: 50–90
+id: 254848a2-5c86-4a73-9b9d-a87dda64176d
+ctime: 1726553123494
+moveSpeeds:
+  walk: 5
+lore: |-
+  The cloaked figure at the back of the inn stood up. As they did so, their hood slipped down, revealing their head and face. A susurration rippled through the crowd. One man standing near the bar dropped his jaw, followed by his flagon of mead.
+
+  A tall, broad draconian stepped into the light. He was old, his scales battle-scarred. He rested one clawed hand on the pommel of a mace that hung from a loop on his belt, while the other carried his shield by a strap. His flat, expressionless look was more terrifying than any threatening glower.
+
+  The three human bandits took a step back. One of the dwarves just sneered—then, sensing his human compatriots’ reluctance, turned to look at them. “What’s this?” the lead dwarf growled.
+
+  Looking at the dragon knight, another bandit added quickly, “We didn’t know there was one of you here.”
+
+  The draconian didn’t move. Didn’t give any indication he heard the man. Just stared unblinking at the lead dwarf. “Think of the bounty,” the dwarf hissed to the humans, but he kept his eye on the draconian. “We’ll all be rich.”
+
+  The two dwarves surveyed the tavern. The people were now all facing them. A few had stood up. They weren’t afraid anymore.
+
+  “We’ll be back,” the lead dwarf said, and the group of them backed out of the inn, sheathing their shortswords before they turned and left.
+
+  As one, the people in the tavern turned to look with undisguised awe at the dragon knight. He noticed this, ducked his head to avoid their gaze. “Show’s over,” he growled, then he turned to go back to his seat in the rear.
+
+  A short, doughty, middle-aged man stood up, and two equally doughty women at the same table stood up with him. “Excuse me, sir knight,” the man said as the dragon knight walked past their table. 
+
+  The knight moved on, ignoring them. The man reached out and grabbed the massive draconian’s arm. The knight wheeled on the peasant, looming over him.
+
+  The man touched his forelock. The two women with him curtseyed.
+
+  “Begging your pardon, sir, but we been lookin’ for you.”
+
+  The dragon knight sneered and bared a set of sharp teeth. “Look for someone else,” he growled as he pulled his arm away.
+
+  The man scurried around to stand in front of the draconian, blocking his way. He took off his worn cap and held it over his breast. “I’m sorry sir, but there ain’t no one else. There’s this new tax, you see, from the new baron. And a priest says he’s of Saint Ajax.”
+
+  The knight bared his impressive teeth, ready to scare Jago and the other two away—when someone else spoke.
+
+  “You might want to hear ’em out, Vaant,” said a voice from the table the three peasants had been sitting at.
+
+  The dragon knight turned sharply to look at the man who’d spoken. His back was to the draconian, but the voice gave him away. 
+
+  “John?”
+
+  The man turned to look up.
+
+  “Hi Vaant,” he said, smiling. He rose from the table. He was middleaged, fit. Black hair hung down to his shoulders. He was armed with many weapons. “Folks,” he said, “this is Vaantikalisax, knight of King Omund in the Thunder Phalanx. He may be the last of the Storm Knights.”
+
+  The man held out his hand. The dragon knight looked at it for a moment before reaching out slowly to grasp it. “What are you doing out here?” he asked.
+
+  “These people need help. I said I’d find it. Heard a rumor someone matching your description was holed up here having a drinking contest with Mr. John Barleycorn.”
+
+  The draconian sniffed, released John’s hand. “Sure,” he said. “But why me?”
+
+  “Thought maybe you’d like to get back in the game.”
+
+  “The game.”
+
+  “Yeah.” Sir John smiled. “The hero game.”
+
+  The inn had mostly gone back to its business but the three peasants watched intently. Eventually the dragon knight spoke again, his voice low.
+
+  “I owe you a lot, John—but not everything.”
+
+  “I’m not asking everything.”
+
+  “No, that’s not how it starts. But I have this feeling that’s how it’ll end.”
+
+  “What does your oath say? ‘Even should the sun stop in the sky, even should the night—’”
+
+  “John,” the dragon knight said, his voice suddenly sad. Exasperated. “You don’t want to quote my oath to me. You really don’t. I liked serving with you. I have fond memories of that time—of you. Don’t spoil it.” He looked at his friend, the three peasants, then shook his head and turned to leave the inn.
+
+  “Vaant,” Sir John said, following. “Sir Vaantikalisax, by your oath!”
+
+  The dragon knight stopped and spun around. Everyone in the inn was watching the show again. Act two. 
+
+  “The people need leadership,” John said.
+
+  Vaantikalisax’s reptile eyes flashed in anger. “They had it! Thirty years, and what did it amount to?! I watched Ajax … I watched him …” The dragon knight’s eyes flinched. His clawed hands tightened on his mace and shield. “I watched the oath … fail.”
+
+  “Vaant … Vaant, the Dragon Phalanx didn’t fail. You were betrayed. It was Mandrake! One of your own, don’t you get it? You’re just as fallible as the rest of us. You were never ‘incorruptible.’ It’s just what we wanted to believe. You’re just people—like the rest of us.”
+
+  The dragon knight looked at the people around him, at the three peasants desperate for someone, anyone, to help them. Then he looked back to his friend.
+
+  “Exactly,” Vaantikalisax said. Then he turned and left the inn.
+details: "The Ritual of Dracogenesis that grants the power to create a generation of dragon knights—also known as draconians or wyrmwights—is obscure and supremely difficult for even an experienced sorcerer to master. Small populations of draconians in Khemhara, Higara, and Khorshir attest to this. Descendants of original generations created millennia ago by powerful wizards, they have never been numerous. A typical clutch yields only a single egg. After only a few generations, these draconians begin to show new adaptations like feathers or frilled ridges.  \n\nThe largest extant population of draconians is the remnants of the Dragon Phalanx in Vasloria. Created by Good King Omund’s wizard Vitae, the Dragon Phalanx once numbered several thousand of the king’s greatest knights, ensuring the rule of law across the land. \n\nKnighthood was a title carried by every member of that first generation of dragon knights. Within the Dragon Phalanx were shadows, censors, tacticians, and elementalists. Members of virtually every heroic vocation could be found in one of the eight dragonflights that made up the phalanx. For over thirty years, these heroes were symbols of justice, protecting the weak from the strong, and standing between the common folk and those who sought power over others. Those who grew up in that place and time could never have imagined any other way of life.  \n\nThen Ajax came. "
+name: Dragon Knight
+mtime: 1770212640491
+height: 6’0’’–7’0’’
+weight: 200–350
+portraitid: e00ca1a3-a9d6-4f8c-a5ea-6c632b5b7e91

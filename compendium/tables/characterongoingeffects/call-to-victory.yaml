@@ -1,0 +1,39 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 2e036229-c53f-48e3-8e03-926f8de269c6
+  source: Ongoing Effect
+  modtype: edge
+  keywords: []
+  activationCondition: ability.Keywords has "melee"
+  guid: 400d7b8e-5f68-43bd-8da9-b9cf6160ce5e
+  rollType: enemy_ability_power_roll
+  domains:
+    CharacterOngoingEffect:2e036229-c53f-48e3-8e03-926f8de269c6: true
+  description: Melee strikes against this target until the Glorifier (caster) and all other glorifiers in their squad are killed.
+  behavior: power
+  name: Call to Victory
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00208139419556
+    v: 1.00238585472107
+    a: 1
+guid: 2e036229-c53f-48e3-8e03-926f8de269c6
+id: 2e036229-c53f-48e3-8e03-926f8de269c6
+ctime: 1765880066676
+domains:
+  CharacterOngoingEffect:2e036229-c53f-48e3-8e03-926f8de269c6: true
+sustainFormula: SquadLiveMembers(SquadCaster("Call to Victory")) > 0
+description: Melee strikes against this target until the Glorifier (caster) and all other glorifiers in their squad are killed.
+name: Call to Victory
+custom: true
+mtime: 1769071379498
+iconid: 006e8403-6056-46d1-bd48-db8804433d39
+implementation: 2

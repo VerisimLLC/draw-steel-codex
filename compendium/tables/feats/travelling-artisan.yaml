@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Crafting Perk
+name: Travelling Artisan
+description: On any day when you don’t take a respite, you can spend 1 uninterrupted hour working on a crafting project using a skill you have from the crafting skill group. If you do so, you gain 1d10 project points toward that project.
+mtime: 1755373476662
+id: a8026df7-a3f4-4e0a-b46a-36157c25d55e
+ctime: 1730700428280

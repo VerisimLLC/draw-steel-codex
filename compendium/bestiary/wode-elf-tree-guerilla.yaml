@@ -1,0 +1,525 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 88887d8f-305b-4313-bd1a-bf380bf19bca
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.5965646
+    frameSaturation: 0.6689229
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 035f225b-6dc1-4439-955c-6ca008b301fd
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 50
+    inflictedConditions: []
+    keywords:
+      Elf: true
+      Wode Elf: true
+      Fey: true
+      Humanoid: true
+      Wode: true
+    max_hitpoints_roll: "50"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 11 damage
+        - 14 damage; M<2 bleeding (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 43511ad9-a211-439a-8742-e7a62c08c0f8
+        modesSelected:
+        - 2
+        duration: 0
+        ongoingEffectCustom: 43511ad9-a211-439a-8742-e7a62c08c0f8
+      - __typeName: ActivatedAbilityDamageBehavior
+        applyto: proximity_only
+        filterTarget: Ongoing Effects has "Splinter Dagger"
+        modesSelected:
+        - 2
+        roll: "3"
+        titleText: ""
+        chatMessage: Splinter Dagger Bonus Damage
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 140
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      meleeRange: 1
+      strain: []
+      modeList:
+      - rules: ""
+        text: Standard
+      - rules: Choose one additional target
+        text: 3 Malice
+        condition: Heroic Resources Available to Spend >= 3
+      guid: ae9e32c2-cea6-4522-85b8-9ec46913c5e9
+      targetType: target
+      numTargets: 2 when Mode = 2 else 1
+      categorization: Signature Ability
+      implementation: 4
+      name: Splinter Dagger
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: The tree guerilla can teleport 3 after using this ability.
+      abilityType: none
+      iconid: d15fe212-5892-433b-869f-4778a5a9604d
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: true
+      numTargets: "1"
+      modifiers: []
+      guid: ef50ab85-b078-4566-9ce7-d9c94048ebb8
+      abilityType: none
+      behaviors: []
+      name: Do Not Hesitate in the Wode
+      implementation: 0
+      description: The targets take their turn immediately. Each target has an edge on their abilities until the end of their turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      ongoingEffectid: 0aa81848-85f7-4c0a-915c-146de14eb8aa
+      seq: 2
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.58358226102941
+        queueguid: 58d05d3b-d549-4c68-9afd-3e6d2fbcf3df
+        initiativeid: 3f6a836f-70d7-48c0-a7d4-621a1e69fad6
+        round: 1
+      sourceDescription: Applied by Sinister Wode Elf Guerilla's <b>Into the Green</b> ability
+      stacks: 1
+      id: a5d1a273-74a0-4153-8c21-77b164746fa4
+      casterInfo:
+        abilityName: Into the Green
+        tokenid: 90c382e9-0f7c-41c3-ac32-6ce63fa76a92
+    - __typeName: CharacterOngoingEffectInstance
+      seq: 4
+      ongoingEffectid: fe9650f3-e8c6-42c4-89d4-9f8a40a94002
+      duration: 0
+      time:
+        __typeName: TimePoint
+        time: 2.62524892769608
+        queueguid: 58d05d3b-d549-4c68-9afd-3e6d2fbcf3df
+        round: 1
+        initiativeord: 0
+      sourceDescription: Applied by Sinister Wode Elf Guerilla's <b>Do Not Hesitate in the Wode</b> ability
+      stacks: 1
+      id: ee9fce56-a8c8-4a6d-bda6-bbd14801e06d
+      casterInfo:
+        abilityName: Do Not Hesitate in the Wode
+        tokenid: 90c382e9-0f7c-41c3-ac32-6ce63fa76a92
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Tree Guerilla	Level 3 Ambusher
+        Fey, Humanoid, Wode Elf	EV 20
+        <b>Stamina</b> 50
+        <b>Speed </b>7 (teleport)	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 5
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Splinter Dagger</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage
+        %E2%9C%B8	<b>17</b>	14 damage; M<2 bleeding (save ends)
+        <b>Effect</b> The tree guerilla can teleport 3 after using this ability.
+        <b>3 Malice</b> The tree guerilla targets an additional creature or object. The tree guerilla deals an additional 3 damage if both targets are adjacent to each other.
+
+        <b>Do Not Hesitate in the Wode</b> (Free Triggered Action) %E2%97%86 3 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self and Squad<b>Target</b> Self and Squad
+        <b>Trigger </b>An ally ends their turn while the tree guerilla hasn't acted this round.
+        <b>Effect</b> The targets take their turn immediately. Each target has an edge on their abilities until the end of their turn.
+
+        <b>Hunter's Glamor</b>
+        The tree guerilla immediately hides at the end of their turn, even if they are observed.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+        CharacterFeature:83f34496-fc00-42e2-a19c-f3b12428268b: true
+        CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+        CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 83f34496-fc00-42e2-a19c-f3b12428268b
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1)) and Self.Ignore Cover <= 0 '
+        guid: df0c7d15-abac-4fe7-b7bc-358a62fe5617
+        name: Masking Glamor
+        domains:
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:83f34496-fc00-42e2-a19c-f3b12428268b: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        description: Abilities targeting the geurrilla that would take a bane from cover have a double bane instead.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 83f34496-fc00-42e2-a19c-f3b12428268b
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Target.Conditions has "concealment"
+        domains:
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:83f34496-fc00-42e2-a19c-f3b12428268b: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the geurrilla that would take a bane from concealment have a double bane instead.
+        behavior: power
+        guid: 268ff0bd-f210-4405-a108-b79af38f85f2
+      source: Trait
+      description: Abilities targeting the geurrilla that would take a bane from cover or concealment have a double bane instead.
+      guid: 83f34496-fc00-42e2-a19c-f3b12428268b
+      name: Masking Glamor
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+        CharacterFeature:21198158-23ed-4bd3-9610-435c50805d7c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+          CharacterFeature:21198158-23ed-4bd3-9610-435c50805d7c: true
+        sourceguid: 21198158-23ed-4bd3-9610-435c50805d7c
+        behavior: trigger
+        source: Trait
+        name: Into the Green
+        description: The geurrilla can attempt to hide at the end of each of their turns.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 0aa81848-85f7-4c0a-915c-146de14eb8aa
+            ongoingEffectCustom: false
+          triggerPrompt: The scout can attempt to hide at the end of each of their turns.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          targetType: self
+          domains:
+            CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+            CharacterFeature:21198158-23ed-4bd3-9610-435c50805d7c: true
+          guid: 8c937856-49ce-4fe6-bde3-86ff3b2c8fe4
+          numTargets: "1"
+          trigger: endturn
+          name: Into the Green
+          description: The scout can attempt to hide at the end of each of their turns.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 611efdbd-addd-4b5c-bb5c-f2337b7fa7ea
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+          CharacterFeature:21198158-23ed-4bd3-9610-435c50805d7c: true
+        sourceguid: 21198158-23ed-4bd3-9610-435c50805d7c
+        behavior: triggerdisplay
+        source: Trait
+        name: Into the Green
+        description: The geurrilla can attempt to hide at the end of each of their turns.
+        guid: d069aab3-a03e-4ded-969c-a370637f6952
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: The geurrilla can attempt to hide.
+          trigger: When the geurrilla ends their turn
+          type: free
+          guid: 02e8664f-83df-45d5-a8c3-b497d313b442
+          name: Into the Green
+          keywords: []
+      source: Trait
+      description: The geurrilla can attempt to hide at the end of each of their turns.
+      guid: 21198158-23ed-4bd3-9610-435c50805d7c
+      name: Into the Green
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ec007e24-b467-42ce-b3c2-fed05032d017: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:ec007e24-b467-42ce-b3c2-fed05032d017: true
+        sourceguid: ec007e24-b467-42ce-b3c2-fed05032d017
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Do Not Hesitate in the Wode
+        description: ""
+        guid: 5626a7de-e998-4d76-8214-a96b94d4828d
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          guid: bbda660c-c8fe-4592-a922-8855615f494d
+          keywords: []
+          trigger: An ally ends their turn, while the guerrilla hasn't acted this round.
+      - __typeName: CharacterModifier
+        sourceguid: ec007e24-b467-42ce-b3c2-fed05032d017
+        source: Character Feature
+        behavior: trigger
+        domains:
+          CharacterFeature:ec007e24-b467-42ce-b3c2-fed05032d017: true
+        name: Do Not Hesitate in the Wode
+        resourceRefreshType: round
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: e3940323-bf57-42ad-ab7d-f3dc9d6a0fe2
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          whenActive: combat
+          trigger: endturn
+          abilityType: none
+          conditionFormula: not Taken Turn and Captain
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            text: Do Not Hestitate in the Wode
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityInitiativeBehavior
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: fe9650f3-e8c6-42c4-89d4-9f8a40a94002
+            duration: 0
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster_minions
+            ongoingEffect: 0ff742e2-c33c-4449-941a-3521d4aacdf9
+            duration: end_of_next_turn
+            ongoingEffectCustom: false
+          name: Do Not Hesitate in the Wode
+          guid: 6c3c4d33-0dd4-40ee-8a3f-f6bdf8633b63
+          description: ""
+          subject: allies
+          iconid: e7d55d80-630d-432d-8d3d-33051478bcd9
+        guid: e3940323-bf57-42ad-ab7d-f3dc9d6a0fe2
+      name: Do Not Hesitate in the Wode
+      description: ""
+      guid: ec007e24-b467-42ce-b3c2-fed05032d017
+      source: Character Feature
+    role: Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    ev: 10
+    animations:
+      anim:
+      - resources:
+          e3940323-bf57-42ad-ab7d-f3dc9d6a0fe2: 1
+        animType: consumeResource
+      guid: 36016ade-b740-431b-a96c-774220d4275f-5171
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 3f6a836f-70d7-48c0-a7d4-621a1e69fad6
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        dd1d89d6-a942-4845-b1c9-ba234fc9e207:
+          refreshid: 58d05d3b-d549-4c68-9afd-3e6d2fbcf3df-1
+          note: Splinter Dagger
+          userid: steam-76561198767161997
+          set: 0/1
+        f306cc13-76dd-43bc-989d-9f93800deb53:
+          refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-9
+          note: Splinter Dagger
+          userid: steam-76561198767161997
+          set: 0/1
+        8e551dfe-8771-42c1-b10a-3e067584e8be:
+          refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-8
+          note: Splinter Dagger
+          userid: steam-76561198767161997
+          set: 0/1
+    walkingSpeed: 7
+    e3940323-bf57-42ad-ab7d-f3dc9d6a0fe2_history:
+      __typeName: StatHistory
+      entries:
+        538ac51d-05df-490c-9145-6289d9f74c37:
+          refreshid: 58d05d3b-d549-4c68-9afd-3e6d2fbcf3df-1
+          note: Do Not Hesitate in the Wode
+          userid: steam-76561198767161997
+          set: "-1/0"
+    minionSquad: Wode Elf Lookout Squad 1
+    traitNames: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 58d05d3b-d549-4c68-9afd-3e6d2fbcf3df-1
+        used: 1
+      e3940323-bf57-42ad-ab7d-f3dc9d6a0fe2:
+        __typeName: CharacterResource
+        refreshid: 58d05d3b-d549-4c68-9afd-3e6d2fbcf3df-1
+        used: 1
+    movementSpeeds:
+      teleport: 7
+    availableTriggers: []
+    equipmentMeta:
+      offhand0: []
+    creatureSize: 1M
+    monster_type: Wode Elf Guerilla
+  tokenType: null
+  bestiaryId: e5da5495-e3df-46ab-8915-f40e4b471d24
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Wode Elf Tree Guerilla
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590321616
+mtime: 1775201137032
+hidden: false

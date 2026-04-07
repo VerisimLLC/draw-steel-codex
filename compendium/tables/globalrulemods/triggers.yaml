@@ -1,0 +1,131 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: You may choose to spend a recovery
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: local
+        range: 1
+        guid: 202f803c-ca0f-490d-80aa-0621358c2970
+        numTargets: "1"
+        modifiers: []
+        mandatoryDifferentPlayer: false
+        strain: []
+        modeList:
+        - text: Spend Recovery
+        - text: Spend 2 Recoveries
+          rules: ""
+          condition: RecoveriesAvailabletoSpend > 1 and Trigger Value > 1
+        - text: Spend 3 Recoveries
+          rules: ""
+          condition: RecoveriesAvailabletoSpend > 2 and Trigger Value > 2
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+          mode: expend
+          quantity: mode
+          guid: 9541be61-afe6-4fc7-8192-a7b89a6a770d
+          chatMessage: Use Recovery
+        - __typeName: ActivatedAbilityHealBehavior
+          filterTarget: ""
+          roll: Recovery Value * Mode
+        multipleModes: true
+        castImmediately: true
+        conditionFormula: Trigger Name = "Spend Recovery" and RecoveriesAvailabletoSpend > 0
+        persistence: []
+        name: Spend Recovery
+        trigger: custom
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      guid: a69c8491-5b28-4cd0-b5c9-5a77310c979f
+      source: Triggers Global Rule Mod Feature
+      behavior: trigger
+      description: Some features may make it possible for a hero to spend a recovery.
+      name: Spend Recovery
+      sourceguid: c5c368a8-83e3-443a-9f39-4323db9c1a76
+    name: Spend Recovery
+    guid: c5c368a8-83e3-443a-9f39-4323db9c1a76
+    description: Some features may make it possible for a hero to spend a recovery.
+    source: Triggers Global Rule Mod Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: You may end an effect with a Free Triggered Action
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 4fdb2bac-f971-4b6c-8fcd-cbb9dfb72686
+        numTargets: "1"
+        conditionFormula: Trigger Name = "Free Trigger End Effect"
+        actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: cf83a426-6e23-477d-9ebf-e9678c16b702
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            targetType: self
+            range: 1
+            name: Invoked Ability
+            behaviors: []
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: standard
+          standardAbility: 0b1cc306-e0b8-4898-836a-c84b0ee7df47
+        trigger: custom
+        name: End Effect
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      guid: cfffe864-d7b4-43d1-b7c3-d19170d3a0f4
+      source: Triggers Global Rule Mod Feature
+      behavior: trigger
+      description: ""
+      name: Free Triggered Action End Effect
+      sourceguid: 7c350784-1636-446f-8c56-2e9a9c2e4a77
+    source: Triggers Global Rule Mod Feature
+    canHavePrerequisites: true
+    guid: 7c350784-1636-446f-8c56-2e9a9c2e4a77
+    name: Free Triggered Action End Effect
+    implementation: 3
+applyRetainers: false
+applyMonsters: false
+ctime: 1746292631518
+name: Triggers
+id: 60c3b18d-3186-406f-badb-d3ba656d4766
+mtime: 1775206581254
+applyCharacters: true
+applyCompanions: false

@@ -1,0 +1,164 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2f97486c-e366-46f1-980b-f3d2ec234ded
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Bugbear Mob	Level 5 Minion Brute
+        Bugbear, Goblin, Humanoid, Fey, Swarm	EV 7 for four minions
+        <b>Stamina</b> 10
+        <b>Speed</b> 6	<b>Size</b> 3 /<b> Stability</b> 2
+        <b>With Captain </b>Strike damage +2<b>Free Strike</b> 3
+        Might +3	Agility -1	Reason 0	Intuition +1	Presence 0
+        <b>Mug and Tear</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage; pull 2
+        %E2%98%85	<b>12-16</b>	6 damage; pull 3
+        %E2%9C%B8	<b>17</b>	7 damage; pull 4; grabbed
+        <b>Effect</b> The target can be pulled into the mob without inflicting damage.
+
+        <b>Swarm</b>
+        The mob can move through squares as if they were size-1M, and can occupy other creatures' spaces. At the start of the mob's turn, they can make a free strike against each creature they share a square with.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:44a53801-3c01-4b72-a759-5079e5bc52af: true
+      modifiers: []
+      name: Swarm
+      description: The mob can move through squares as if they were size-1M, and can occupy other creatures' spaces. At the start of the mob's turn, they can make a free strike against each creature they share a square with.
+      guid: 44a53801-3c01-4b72-a759-5079e5bc52af
+      source: Trait
+    role: Minion Brute
+    inflictedConditions: []
+    ev: 7
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    groupid: ad734f83-9fbe-4f7d-b0f9-7a6b67917513
+    monster_type: Bugbear Mob
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    withCaptain: +2 damage bonus to strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 10
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; pull 2
+        - 6 damage; pull 3
+        - 7 damage; pull 4; grabbed
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 45fe6a10-f3a3-46fe-828a-4bd7fb9d2383
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Mug & Tear
+      sourceReference:
+        __typeName: SourceReference
+        page: 55
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: If the target is pulled into the mob, that forced movement deals damage only at the Director's determination.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Fey: true
+      Bugbear: true
+      Goblin: true
+      Humanoid: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: "3"
+    levelChoices: []
+  tokenType: null
+  bestiaryId: b7536d9d-941c-4e1e-9b4a-4d2f206b4e17
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Bugbear Mob
+parentFolder: 48e8f60e-8ed1-400a-83c2-e4170481f4b4
+artist: null
+ord: 0
+ctime: 1741590299082
+mtime: 1775201137032
+hidden: false

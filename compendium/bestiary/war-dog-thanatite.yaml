@@ -1,0 +1,226 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 247efe6e-96a5-43be-ad2e-ecf3f75304aa
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        War Dog Thanatite	Level 6 Horde Controller
+        Humanoid, War Dog	EV 8
+        <b>Stamina</b> 35
+        <b>Speed</b> 5	<b>Size</b> 1M /<b>Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +1	Agility +1	Reason +2	Intuition +3	Presence +1
+        <b>Snaking Entrails</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10<b>Target</b> 1 ally
+        <b>Effect</b> The target dies. The thanatite makes one power roll against each enemy within 2 of the target:
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 corruption damage; A<1 slowed (save ends)
+        %E2%98%85	<b>12-16</b>	5 corruption damage; A<2 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	7 corruption damage; A<3 restrained (save ends)
+        <b>3 Malice</b> If an affected enemy is adjacent to a corpse, they are frightened of the thanatite (save ends).
+
+        <b>Wall of Flesh</b> (Maneuver)
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 10 wall within 10<b>Target</b> One corpse
+        <b>Effect</b> The target is molded into a wall of blood and bone. The wall must share at least one square with the target. Each enemy within the affected area vertical slides 2 and is knocked prone. Each square of wall has 3 Stamina.
+
+        <b>Loyalty Collar</b>
+        When the thanatite dies, they explode, dealing 2d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fdd7bbba-db66-4970-bc9b-76486d4eca95: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 2d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the thanatite is reduced to 0 Stamina, their loyalty collar explodes, dealing 2d6 damage to each adjacent enemy and object.
+      guid: fdd7bbba-db66-4970-bc9b-76486d4eca95
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Controller
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "35"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: War Dog Thanatite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 35
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage; A<1 slowed (save ends)
+        - 5 corruption damage; A<2 slowed (save ends)
+        - 7 corruption damage; A<3 restrained (save ends)
+        roll: 2d10 + Intuition
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: dff29f56-5625-4c75-835a-5446609a524d
+      numTargets: 1
+      targetType: target
+      name: Snaking Entrails
+      iconid: ui-icons/skills/1.png
+      description: "The target dies. The thanatite makes one power roll against each enemy within 2 of the target:"
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 0d7936c3-bb55-47a7-a95a-55e17ccc8237
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Wall of Flesh
+      numTargets: 1
+      description: The target is molded into a wall of blood and bone. The wall must share at least one square with the target. Each enemy within the affected area vertical slides 2 and is knocked prone. Each square of wall has 3 Stamina.
+      abilityType: none
+      implementation: 0
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 8
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 21dae8e0-2b71-4210-bc11-e116def2caa2
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Thanatite
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 9
+ctime: 1749972308641
+mtime: 1775201137032
+hidden: false

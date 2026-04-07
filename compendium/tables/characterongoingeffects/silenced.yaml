@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  description: Cannot use magic abilities until the end of your next turn.
+  sourceguid: 8af3bf3b-2934-4e57-ae82-15843f01d457
+  abilityFilter: not Ability.Keywords has "magic"
+  source: Ongoing Effect
+  behavior: suppressabilities
+  guid: 4aaae3d2-0102-4db4-ba30-82450cab602f
+  explanation: You are silenced and cannot use magic abilities.
+  name: Silenced
+source: Ongoing Effect
+guid: 8af3bf3b-2934-4e57-ae82-15843f01d457
+id: 8af3bf3b-2934-4e57-ae82-15843f01d457
+ctime: 1774708143093
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Silenced
+description: Cannot use magic abilities until the end of your next turn.
+custom: true
+mtime: 1774708143093
+iconid: ui-icons/skills/1.png

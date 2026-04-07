@@ -1,0 +1,226 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Kobold Sagittarion
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 73514a80-efc8-4669-850d-b2a41922c569
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 3
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: Kobold Sagittarion
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: ad7ce159-7e7e-4302-bca0-df9d3c70ae89
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Composite Bow
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + Agility
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 8cfdd519-08fc-4e28-9783-66db54958c0b
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 8cfdd519-08fc-4e28-9783-66db54958c0b
+          modtype: edge
+          keywords: []
+          activationCondition: Count Nearby Friends(1) > 0
+          guid: d2276818-29c8-45ac-87cf-a7aa71325000
+          rollType: all
+          domains: []
+          description: Edge when Next to Ally
+          name: Ally Edge
+          behavior: power
+      description: The sagittarius has an edge on this ability while adjacent to an ally.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Kobold Sagittarion    Level 1 Minion Artillery
+        Humanoid, Kobold    EV 3 for four minions
+        <b>Stamina</b> 3
+        <b>Speed </b>5    <b>Size</b> 1S /<b> Stability</b> 0
+        <b>With Captain </b>Ranged distance +5    <b>Free Strike</b> 2
+        Might 0    Agility +2    Reason 0    Intuition 0    Presence 0
+        <b>Composite Bow</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Ranged, Weapon
+        <b>Distance</b> Ranged 10<b>Target</b> 1 creature or object per minion
+        %E2%9C%A6    <b>%E2%89%A411</b>    2 damage
+        %E2%98%85    <b>12%E2%80%9316</b>    4 damage
+        %E2%9C%B8    <b>17</b>    5 damage
+        <b>Effect</b> The sagittarius has an edge on this ability while adjacent to an ally.
+
+        <b>Shield? Shield!</b>
+        The sagittarius has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:01fe2bee-f61e-42b6-9cd4-23448cb86eb8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        iconColor: "#ffffffff"
+        behavior: icon
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+        name: Shield? Shield!
+        description: The sagittarius has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        value: "1"
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+        description: The sagittarius has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The sagittarius has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The sagittarius has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+      source: Trait
+      description: The sagittarius has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+      guid: 01fe2bee-f61e-42b6-9cd4-23448cb86eb8
+      name: Shield? Shield!
+      implementation: 3
+    role: Minion Artillery
+    equipment: []
+    skillRatings: []
+    resistances: []
+    withCaptain: +5 bonus to ranged distance
+    opportunityAttack: 2
+    damage_taken: 0
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    resources: []
+    walkingSpeed: 5
+    minionSquad: Kobold Sagittarion Squad 2
+    creatureSize: 1S
+    traitNames: []
+    movementSpeeds: []
+    initiativeGrouping: 66d69f93-398f-485b-8cdf-f3a6a541278c
+    monster_category: Monster
+    keywords:
+      Humanoid: true
+      Kobold: true
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+  tokenType: null
+  bestiaryId: a4ac750c-ea8e-4cdd-8ad3-ab48d0af3620
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1738222946034
+description: Kobold Sagittarion
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590291195
+mtime: 1775201137032
+hidden: false

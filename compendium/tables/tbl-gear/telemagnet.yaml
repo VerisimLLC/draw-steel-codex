@@ -1,0 +1,70 @@
+__typeName: equipment
+itemPrerequisite: A shard of prismacore, an ounce of ferrous metal
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Zaliac
+flavor: |-
+  A short iron wand shaped of interlocking segments leaks greasy black oil
+  from its joints.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+implementation: 3
+description: "As a maneuver, you snap this wand in half, letting you vertically pull one object or creature of size 3 or less within your line of effect a number of squares based on that target’s size:"
+echelon: 2
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: "90"
+id: a513c826-eb25-46af-b922-e20f2c820da0
+ctime: 1764713943280
+name: Telemagnet
+consumable:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  targetFilter: target.Size < 7
+  repeatTargets: false
+  implementationDetails: No support for catching objects.
+  behaviors:
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    filterTarget: Target.Size < 5
+    rule: vertical pull 6
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    filterTarget: target.Size = 5
+    rule: vertical pull 3
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    filterTarget: target.Size = 6
+    rule: vertical pull 1
+  multipleModes: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 318
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  preDescription: "As a maneuver, you snap this wand in half, letting you vertically pull one object or creature of size 3 or less within your line of effect a number of squares based on that target’s size:"
+  consumables:
+    a513c826-eb25-46af-b922-e20f2c820da0: 1
+  modeList: []
+  persistence: []
+  modifiers: []
+  range: "100"
+  strain: []
+  guid: 5de87724-60c3-4ad5-831f-60f280d1aaf8
+  categorization: Ability
+  numTargets: "1"
+  targetType: target
+  iconid: cf3ecb0d-b1f9-4e0f-8fef-dc0213a214bc
+  description: If you pull a size 1T object adjacent to you, you can catch it.
+  name: Telemagnet
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 3
+mtime: 1774843059274
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: cf3ecb0d-b1f9-4e0f-8fef-dc0213a214bc

@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: 03737f6c-d015-4be0-8828-8e59371226ef
+behaviors:
+- __typeName: ActivatedAbilityPowerRollBehavior
+  tiers:
+  - You fail the task with a consequence.
+  - You succeed in the task with a consequence.
+  - You succeed in the task.
+  roll: 2d10 + Might or Agility
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 5
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 23bc49c4-3466-4e20-a6d7-317c40a7ecc7
+ctime: 1717568549818
+targetType: self
+numTargets: "1"
+mtime: 1752390333543
+name: Medium Test
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

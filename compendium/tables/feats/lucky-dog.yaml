@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: intrigue perk
+name: Lucky Dog
+description: Whenever you fail a test using any skill from the intrigue skill group, you can lose Stamina equal to 1d6 + your level to improve the outcome of the test by one tier. You can use this perk only once per test.
+mtime: 1755374292592
+id: 303d8a16-0dee-47e1-a9c3-8c8a4856ae0c
+ctime: 1730442431408

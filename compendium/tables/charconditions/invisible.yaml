@@ -1,0 +1,32 @@
+__typeName: CharacterCondition
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4e7ba9c4-b99f-4c07-ae60-f29eaa2025ae
+  source: Condition
+  modtype: bane
+  keywords:
+    Strike: true
+  activationCondition: true
+  guid: 4567c18d-05f8-4ca3-ad4b-4c8ed84dc693
+  rollType: enemy_ability_power_roll
+  domains:
+    CharacterCondition:98e85a3b-95a1-41d8-b176-d2d64e7d18d0: true
+  description: Invisible creatures always have concealment from other creatures. If an invisible creature isn’t hidden, they can still be targeted with abilities, though strikes against them take a bane. The test made to find a hidden creature who is invisible takes a bane.
+  behavior: power
+  name: Invisible
+guid: 4e7ba9c4-b99f-4c07-ae60-f29eaa2025ae
+id: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+ctime: 1746291054329
+domains:
+  CharacterCondition:98e85a3b-95a1-41d8-b176-d2d64e7d18d0: true
+powertable: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Invisible
+description: Invisible creatures always have concealment from other creatures. If an invisible creature isn’t hidden, they can still be targeted with abilities, though strikes against them take a bane. The test made to find a hidden creature who is invisible takes a bane.
+mtime: 1770050869586
+implementation: 2
+iconid: 04a4b1a7-614e-4bea-bf90-47f89f8eae66

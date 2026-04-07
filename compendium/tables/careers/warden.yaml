@@ -1,0 +1,64 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: cba7d5fe-9585-4706-8188-30956b7c38fd
+projectpoints: "120"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Warden Career Feature
+      behavior: proficiency
+      description: You have the Nature skill.
+      equate: false
+      name: Nature Skill
+      sourceguid: c646b10b-19fa-46dc-8200-d6f87f6ea7c1
+      proficiency: proficient
+      guid: a4105a81-341e-4f91-b829-c47bf8454b8b
+      skills:
+        f15f5445-666a-4ea9-bdf3-fbed284bae85: true
+    name: Nature Skill
+    description: You have the Nature skill.
+    guid: c646b10b-19fa-46dc-8200-d6f87f6ea7c1
+    source: Warden Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      exploration: true
+    name: Warden Exploration Skill
+    description: Choose one skill from the exploration skill group.
+    guid: bb8f5003-73ff-4bfe-b800-2cf1cc54a4d6
+    source: Warden Career Feature
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+    name: Warden Intrigue Skill
+    description: Choose one skill from the intrigue skill group.
+    guid: 5c07d90c-960d-4902-bb1d-c25e4a52da77
+    source: Warden Career Feature
+  - __typeName: CharacterLanguageChoice
+    source: Warden Career Feature
+    guid: 663496f0-1444-4d21-9ea9-7d8c1a70ef6e
+    name: Warden Language
+  - __typeName: CharacterFeatChoice
+    guid: fa9b12d8-921e-4963-ae5a-4cd8e09a0396
+    description: "Choose one perk from the exploration perk type. (Quick Build: Camouflage Hunter)"
+    tag: exploration perks
+    name: Warden Exploration Perk
+name: Warden
+mtime: 1768796399878
+description: |-
+  You protected a wild region from those who sought to harm it, such as poachers and cultists bent on the destruction of the natural world. Knowing your land well, you could also serve as a guide or the leader of a rescue party for those wandering the wilds. In defining your career, think about the following questions: 
+
+  What environment did you protect? 
+
+  Were you part of a formal group of wardens or did you take the job upon yourself? 
+
+  Which animal became your constant companion while you worked in the wild? 
+
+  What mysterious creature or wanderer did you meet in the forest, and what prophecy did they share with you?
+id: e59ff8e5-1017-4ffa-a81e-14ffe39ec25d
+ctime: 1730564579040

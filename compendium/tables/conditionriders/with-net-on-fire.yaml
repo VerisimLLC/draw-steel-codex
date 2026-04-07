@@ -1,0 +1,54 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: d712003b-20e2-4ba1-835a-ba93e26f9ae3
+    repeatTargets: false
+    abilityType: none
+    trigger: beginturn
+    targetType: self
+    numTargets: "1"
+    name: With Net On Fire
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      damageType: fire
+      roll: "2"
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: The net restraining you is on fire, you take 2 fire damage at the start of each of your turns.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: d7577c4f-84fd-4bd2-9f2d-5f8335ff4c80
+  name: With Net On Fire
+  sourceguid: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+source: Ongoing Effect
+guid: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+id: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+ctime: 1751604378650
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+description: The net restraining you is on fire, you take 2 fire damage at the start of each of your turns.
+name: With Net On Fire
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+mtime: 1751606439066
+powerTableText: Restrained with net on fire
+implementation: 3

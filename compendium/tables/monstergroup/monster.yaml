@@ -1,0 +1,73 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    applyto: caster
+    ongoingEffect: bce0ccbb-16b2-41b9-ae68-12100c2771a3
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 7
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: c9d257bc-3888-47bb-b6a6-809a88169a34
+  abilityType: none
+  castImmediately: true
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+  targetType: self
+  name: Brutal Effectiveness
+  numTargets: "1"
+  description: The monster digs into the enemy’s weak spot. The next ability the monster uses with a potency has that potency increased by 1.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: e0e647b9-ffc4-46ae-8139-6588d59f29d6
+    stacks: Charges
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 7
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  abilityType: none
+  numTargets: "1"
+  modifiers: []
+  targetType: self
+  strain: []
+  guid: 5e02701a-3b42-4a8a-9e80-4d617924b7c7
+  iconid: de2d492d-2ea9-4023-9738-d0125cd31734
+  persistence: []
+  castImmediately: false
+  description: The monster pours all their animosity into their attack. Their next strike deals extra damage to one target equal to the monster’s highest characteristic score. The extra damage increases by 1 for each additional Malice spent on this feature (to a maximum of three times the monster’s highest characteristic). This feature can’t be used two rounds in a row, even by different monsters.
+  channelDescription: The extra damage increases by 1 for each additional Malice spent on this feature (to a maximum of three times the monster’s highest characteristic)
+  name: Malicious Strike
+  maxChannel: 3*Highest Characteristic
+  channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+mtime: 1765870202939
+name: Monster
+traits: []
+attacks: []
+id: 69247753-5e1a-43b2-b48e-373c637939a0
+ctime: 1758819366206

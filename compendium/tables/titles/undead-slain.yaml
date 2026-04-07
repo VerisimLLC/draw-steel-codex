@@ -1,0 +1,59 @@
+__typeName: Title
+effect: You return to life 1 minute after being killed with Stamina equal to your winded value. You gain corruption immunity equal to your level and one of the benefits below, based on the type of creature who killed you. If you die again, you rise as an undead creature under the Director’s control.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Undead Slain Benefit
+    numChoices: 1
+    guid: 29ed1072-1738-472a-bc16-ac41fe9437bf
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Ghoul or Vampire
+      description: When you make a melee free strike against an adjacent creature, you can bite that creature. If you do so and obtain a tier 3 outcome, you gain temporary Stamina equal to the damage dealt. If not lost beforehand, this temporary Stamina lasts until the end of your next respite.
+      guid: cf5065c1-0393-48a6-932c-2c3f99f43a45
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      description: You can move through other creatures and objects. The first time in a combat round that you pass through a creature, that creature takes corruption damage equal to half your level. You don’t take damage from being force moved into objects.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 0805423c-140b-4ffe-9a0e-30f635e8c1c5
+        sourceguid: 230eaf61-42f3-4833-a9b4-4f05a53b2adb
+        value: 1
+        source: Feat
+        name: Incorporeal Undead
+        behavior: attribute
+        description: You can move through other creatures and objects. The first time in a combat round that you pass through a creature, that creature takes corruption damage equal to half your level. You don’t take damage from being force moved into objects.
+        attribute: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+      - __typeName: CharacterModifier
+        guid: f1ecd8d3-fa92-4fc9-91f1-07e80274fdab
+        sourceguid: 230eaf61-42f3-4833-a9b4-4f05a53b2adb
+        value: 1
+        source: Feat
+        name: Incorporeal Undead
+        behavior: attribute
+        description: You can move through other creatures and objects. The first time in a combat round that you pass through a creature, that creature takes corruption damage equal to half your level. You don’t take damage from being force moved into objects.
+        attribute: 9148519f-9fb4-4b2b-9d3e-98f88c56bab8
+      source: Feat
+      canHavePrerequisites: true
+      guid: 230eaf61-42f3-4833-a9b4-4f05a53b2adb
+      name: Incorporeal Undead
+      implementation: 1
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Other Corporeal Undead
+      description: When you are reduced to 0 Stamina by damage that isn’t fire or holy damage and your body isn’t destroyed, you can regain half your Stamina and fall prone. Once you use this benefit, you can’t use it again until you earn 10 or more Victories.
+      guid: d404e990-5ae5-424f-8d31-776501554433
+      canHavePrerequisites: true
+      source: Feat
+id: 8309cd2b-9ac2-462e-b6ae-c5fb44802043
+ctime: 1762351777893
+name: Undead Slain
+description: No, I didn’t get bitten. And yes, I’m fine!
+mtime: 1775133319387
+echelon: "2"
+prerequisite: You are killed by an undead creature

@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 7e2a4c91-3b8d-4f5e-a1d6-9c0e3f7b2a48
+id: 7e2a4c91-3b8d-4f5e-a1d6-9c0e3f7b2a48
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.34901961684227
+    s: 1
+    v: 0.5
+    a: 1
+description: This creature has been poisoned by a basilisk. Noxious Bite has an edge against this creature.
+custom: true
+name: Basilisk Venom
+iconid: bc90bb09-9e3c-46d4-bf16-0e5c0134dbf8

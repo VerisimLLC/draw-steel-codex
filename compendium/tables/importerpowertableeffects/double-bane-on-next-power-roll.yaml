@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: 0358d7ca-c815-4b40-9d33-e5986cd32e19
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: f0b84c94-74a3-4d46-a891-32a8394d170f
+  ongoingEffectCustom: f0b84c94-74a3-4d46-a891-32a8394d170f
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: the target has a double bane on their next power roll
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 9e71271a-affd-4021-adb2-bbb7fcfe0ae5
+importMatch: "<<monster>> has a double bane on their next power roll"
+ctime: 1763255889522
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Double Bane on next power roll
+targetType: self
+mtime: 1768251319159
+abilityType: none
+iconid: ui-icons/skills/1.png

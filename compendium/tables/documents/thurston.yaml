@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Thurston
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 4900864c-dce2-4e1d-877f-ff5e27330f98
+annotations:
+  image:
+    __typeName: RichImage
+id: f12da0d4-24d8-407c-baa9-869043c0d5af
+mtime: 1761405923995
+content: |-
+  # Thurston
+
+  [[image]]
+
+  *Description, Known Information*
+  {
+  Secret: Quests or hidden information
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761405917368

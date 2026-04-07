@@ -1,0 +1,76 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1ca67786-2503-4374-91e8-dad200613a25
+  source: Ongoing Effect
+  seq: 5cc3d5d3-979b-41ef-8aa9-affe757b2e23
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: aee6b404-23df-4474-b4ee-0b4140f7dee1
+        repeatTargets: false
+        trigger: losehitpoints
+        conditionFormula: HasAttacker
+        targetType: attacker
+        persistence: []
+        name: Rout
+        behaviors:
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          applyto: caster
+          rule: Frightened (save ends)
+          filterTarget: not Target.PassesPotency("R", Target.ConditionCaster("Mark").Average)
+        - __typeName: ActivatedAbilityConditionSourceBehavior
+          condid: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: 4a80a1c9-efb2-48c0-b81a-72251ecad571
+      name: Rout
+      sourceguid: 13f8c015-73d7-4c4d-8bd7-436c7c61cc98
+    name: Rout
+    implementation: 3
+    guid: 13f8c015-73d7-4c4d-8bd7-436c7c61cc98
+    creatureFilter: (Conditions has "Mark") and (Self.ConditionCaster("Mark") = Caster)
+    iconid: df8e6c86-40a0-4101-8772-46a93ffcbea8
+  radius: "50"
+  guid: 44a4da1c-2b5f-4e08-a43d-d519c4fa8d1e
+  description: Whenever you or any ally deals damage to a target marked by you who has R<Average, the target is frightened of the creature who dealt the damage (save ends). 
+  behavior: aura
+  name: Rout
+source: Ongoing Effect
+guid: 1ca67786-2503-4374-91e8-dad200613a25
+id: 1ca67786-2503-4374-91e8-dad200613a25
+ctime: 1753426493853
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Rout
+iconid: 717f11ee-c3eb-4bb2-b9e8-fae890749c85
+description: Whenever you or any ally deals damage to a target marked by you who has R<Average, the target is frightened of the creature who dealt the damage (save ends). 
+mtime: 1753426880632
+implementation: 3

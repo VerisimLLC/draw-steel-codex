@@ -1,0 +1,81 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c591ce94-e0b3-47f4-9a62-5c0dad604f0b
+  displayCondition: ability.doesdamage and ability.hasforcedmovement
+  source: Ongoing Effect
+  description: |
+    The next damage-dealing ability you use deals an extra 5 damage and gains a +2 bonus to the distance of any forced movement it imposes. If the ability does not impose forced movement, you can push each creature targeted by the ability up to 2 squares.
+  modtype: none
+  adjustments:
+  - type: push
+    value: "2"
+  - type: pull
+    value: "2"
+  - type: slide
+    value: "2"
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 06c69616-18a7-4f2a-aa40-85307078b93a
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: c591ce94-e0b3-47f4-9a62-5c0dad604f0b
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  activationCondition: "1"
+  name: Snapdragon
+  rollType: ability_power_roll
+  damageModifier: "5"
+  guid: 0a784e95-bc39-494c-af88-a69ef2cada85
+  behavior: power
+- __typeName: CharacterModifier
+  sourceguid: c591ce94-e0b3-47f4-9a62-5c0dad604f0b
+  displayCondition: ability.doesdamage and not Ability.hasforcedmovement
+  source: Ongoing Effect
+  modtype: none
+  keywords: []
+  activationCondition: "1"
+  addText: push 2
+  behavior: power
+  name: Snapdragon
+  description: |
+    The next damage-dealing ability you use deals an extra 5 damage and gains a +2 bonus to the distance of any forced movement it imposes. If the ability does not impose forced movement, you can push each creature targeted by the ability up to 2 squares.
+  damageModifier: "5"
+  rollType: ability_power_roll
+  guid: d9d07e33-5c8c-41b0-94d8-50dbde64af29
+source: Ongoing Effect
+guid: c591ce94-e0b3-47f4-9a62-5c0dad604f0b
+id: c591ce94-e0b3-47f4-9a62-5c0dad604f0b
+ctime: 1758395839370
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Snapdragon
+iconid: ui-icons/skills/1.png
+description: |
+  The next damage-dealing ability you use deals an extra 5 damage and gains a +2 bonus to the distance of any forced movement it imposes. If the ability does not impose forced movement, you can push each creature targeted by the ability up to 2 squares.
+mtime: 1761706192101
+implementation: 3

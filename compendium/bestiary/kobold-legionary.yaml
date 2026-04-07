@@ -1,0 +1,371 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 7fe2514c-e5f8-43e1-80f5-6ec65570a3fb
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.205882
+    portraitOffset:
+      x: -0.03983164
+      y: 0.05078125
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 19050b6e-0d94-4e75-a70e-66d2d85d888a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 20
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Kobold Legionary
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 03a54f5b-d8ff-45c8-b270-354d2a19fa86
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Shift 2
+        autoTarget: false
+        abilityType: standard
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        standardAbilityParams:
+          distance: "2"
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster_minions
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 03a54f5b-d8ff-45c8-b270-354d2a19fa86
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          distance: "2"
+        promptText: Shift 2
+        autoTarget: false
+        guid: c3047cc6-b3dc-4e16-80a5-3a2f3e6bf162
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 7642d9eb-ec04-4baf-b110-400dd5636f81
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Attack with Gladius
+        autoTarget: false
+        abilityType: named
+        namedAbility: Gladius
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        applyto: caster
+        filterTarget: 0 {never use this behavior, is used for display purposes only. We invoke the gladius ability above.}
+        tiers:
+        - 3 damage; Taunted (EoT)
+        - 4 damage; Taunted (EoT)
+        - 5 damage; Taunted (EoT)
+        guid: 9c34edd1-8e0a-4904-ae65-58aef2303f4a
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: a989b555-1586-48d7-be49-21c01cedde41
+      abilityType: none
+      iconid: ad96f516-7694-4ed2-af7d-6c81f5fb2e03
+      targetType: self
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Gladius (Malice)
+      persistence: []
+      description: |
+        **3 Malice**: If the legionary is acting as a captain, they and each member of their squad shift up to 2 squares before this ability is used.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: a989b555-1586-48d7-be49-21c01cedde41
+      numTargets: 1
+      persistence: []
+      name: Gladius
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; taunted (EoT)
+        - 4 damage; taunted (EoT)
+        - 5 damage; taunted (EoT)
+        roll: 2d10 + Power Roll Bonus
+      description: |2-
+
+        **3 Malice**: If the legionary is acting as a captain, they and each mem ber of their squad shift up to 2 squares before this ability is used.
+      abilityType: none
+      iconid: ad96f516-7694-4ed2-af7d-6c81f5fb2e03
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: 5a144394-b6ce-4a3c-ac97-62c91aceb880
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Shield Bash
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; push 1; M<0 prone
+        - 3 damage; push 1; M<1 prone
+        - 4 damage; push 1; M<2 prone
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    opportunityAttack: 1
+    stability: 0
+    import:
+      type: mcdm
+      data: |-
+        Kobold Legionary	Level 1 Horde Defender
+        Humanoid, Kobold	EV 3
+        **Stamina** 20
+        **Speed **5	**Size** 1S /** Stability** 0
+        	**Free Strike** 1
+        Might +2	Agility +1	Reason 0	Intuition 0	Presence 0
+        **Gladius** (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        **Keywords** Melee, Strike, Weapon
+        **Distance** Melee 1**Target** 1 creature or object
+        %E2%9C%A6	**%E2%89%A411**	3 damage
+        %E2%98%85	**12%E2%80%9316**	4 damage
+        %E2%9C%B8	**17**	5 damage
+        **Effect** Taunted (EoT).
+        **3 Malice** The legionary and their squad can shift 2 before this ability is used.
+        **Shield Bash** (Maneuver) %E2%97%86 2d10 + 2
+        **Keywords** Melee, Strike, Weapon
+        **Distance** Melee 1**Target** 1 creature or object
+        %E2%9C%A6	**%E2%89%A411**	2 damage; push 1; M<0 prone
+        %E2%98%85	**12%E2%80%9316**	3 damage; push 2; M<1 prone
+        %E2%9C%B8	**17**	4 damage; push 3; M<2 prone
+        **Shield? Shield!**
+        The legionary has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ba35c8e1-4225-424a-801a-ef52aeb2bbe5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        iconColor: "#ffffffff"
+        behavior: icon
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+        name: Shield? Shield!
+        description: The legionary has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        value: "1"
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+        description: The legionary has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The legionary has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The legionary has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+      source: Trait
+      description: The legionary has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+      guid: ba35c8e1-4225-424a-801a-ef52aeb2bbe5
+      name: Shield? Shield!
+      implementation: 3
+    role: Horde Defender
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    damage_taken: 0
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    resources: []
+    minion: false
+    walkingSpeed: 5
+    creatureSize: 1S
+    traitNames: []
+    movementSpeeds: []
+    monster_category: Monster
+    keywords:
+      Humanoid: true
+      Kobold: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+  tokenType: null
+  bestiaryId: be260d64-672b-47ae-9689-082307b1a0ce
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1699749405831
+description: Kobold Legionary
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590302153
+mtime: 1775201137032
+hidden: false

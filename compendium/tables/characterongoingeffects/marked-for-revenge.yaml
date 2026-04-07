@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: one
+guid: 167de01b-874e-4f98-935c-0b550f20b3a5
+id: 167de01b-874e-4f98-935c-0b550f20b3a5
+ctime: 1761705650728
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Marked for Revenge
+description: ""
+custom: true
+mtime: 1761705736752
+iconid: ui-icons/skills/1.png

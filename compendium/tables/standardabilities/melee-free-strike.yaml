@@ -1,0 +1,33 @@
+__typeName: ActivatedAbility
+objectTarget: true
+repeatTargets: false
+keywords:
+  Strike: true
+  Melee: true
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Basic Attack
+range: 1
+id: 0a68f64c-67f7-4279-9741-38aedaab7029
+numTargets: "1"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+ctime: 1738219154119
+castImmediately: false
+implementation: 4
+description: Monster Free Strike
+name: Melee Free Strike
+behaviors:
+- __typeName: ActivatedAbilityDamageBehavior
+  roll: 2*charges
+mtime: 1771254818415
+abilityType: none
+iconid: 391aec7f-87ba-4b36-9c2b-2b478ff823d8

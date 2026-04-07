@@ -1,0 +1,116 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  repeatTargets: false
+  targetType: all
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: "Trigger: A creature deals damage to the kingfissure worm or one of their tongues."
+  range: "5"
+  actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+  modifiers: []
+  strain: []
+  guid: f7c932b0-8283-4d37-a0ec-a79bd019f611
+  abilityType: none
+  persistence: []
+  numTargets: "1"
+  description: Each creature within 5 squares of the kingfissure worm takes 5 damage, and if they have A<4 they are knocked prone. The kingfissure worm can use this ability only once per round.
+  name: Aftershock
+  behaviors:
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: 5 damage; A<4 prone
+  channeledResource: none
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e7d55d80-630d-432d-8d3d-33051478bcd9
+- __typeName: MaliceAbility
+  persistence: []
+  modifiers: []
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  strain: []
+  guid: df0f97dc-5767-4d85-972d-3742be10daf7
+  repeatTargets: false
+  abilityType: none
+  castImmediately: true
+  targetType: self
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: 3b43eb75-ee03-417b-8019-a5214c9df7cc
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  name: Solo Action
+  numTargets: "1"
+  description: The kingfissure worm takes an additional main action on their turn. They can use this feature even if they are dazed.
+  range: 1
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityHealBehavior
+    applyto: caster
+    roll: "35"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 0ad4ba02-2799-496a-8e2b-b9570f5cb027
+  castImmediately: true
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: self
+  name: Spontaneous Regeneration
+  numTargets: "1"
+  description: The kingfissure worm loses 35 Stamina and regrows one tongue, to a maximum of three tongues. The worm is then dazed until the end of their turn.
+  abilityType: none
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: false
+  repeatTargets: false
+  keywords:
+    Area: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 8 damage; M<3 slide 5
+    - 13 damage; M<4 slide 5
+    - 17 damage; M<5 slide 5
+    roll: 2d10 + 5
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "5"
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  modifiers: []
+  strain: []
+  guid: 41f8ded8-04ba-4631-8637-bb62f7b50041
+  abilityType: none
+  persistence: []
+  numTargets: "1"
+  name: Megaquake
+  targetType: all
+  description: Until the end of the next round, each target takes a -3 penalty to stability, treats all terrain as difficult terrain, and takes 10 damage whenever they are knocked prone.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762952357694
+name: Kingfissure Worm
+traits: []
+attacks: []
+id: d3e4dbe0-fc58-4dd8-a21c-94ee1697285c
+ctime: 1758524831162

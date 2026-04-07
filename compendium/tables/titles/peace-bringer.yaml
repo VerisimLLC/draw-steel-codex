@@ -1,0 +1,123 @@
+__typeName: Title
+effect: "Your choice of your Reason or Presence increases by 1 (to a maximum of 6). Additionally, choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Characteristic Increase
+    numChoices: 1
+    description: |-
+      Your choice of your Reason or Presence increases by 1 (to a
+      maximum of 6).
+    guid: 6030b4ca-78a1-4c3c-bff9-36c85e30d360
+    options:
+    - __typeName: CharacterFeature
+      description: ""
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 3f6b6db8-5f1b-4621-beae-17f60c7ffbfc
+        sourceguid: 28e9b4d0-0f95-4ed0-aff3-bab7fbb6d662
+        behavior: attribute
+        source: Feat
+        name: Reason Increase
+        description: ""
+        value: 1
+        attribute: rea
+      source: Feat
+      name: Reason Increase
+      guid: 28e9b4d0-0f95-4ed0-aff3-bab7fbb6d662
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 7f58548d-ac3e-418f-9cae-ea547271eae1
+        filter: Reason < 6
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: ""
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 3e5e1bb7-915f-4fc1-b213-1b62311c4f01
+        sourceguid: 2cb5d3f3-95c8-4c5d-94c1-eb992dc2df80
+        behavior: attribute
+        source: Feat
+        name: Presence Increase
+        description: ""
+        value: 1
+        attribute: prs
+      source: Feat
+      name: Presence Increase
+      guid: 2cb5d3f3-95c8-4c5d-94c1-eb992dc2df80
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: d89c7891-f301-428c-80b8-2dd256eb22f9
+        filter: Presence < 6
+      implementation: 4
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Peace Bringer Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 8902342f-9d8c-4af8-b759-88762597e2bc
+    options:
+    - __typeName: CharacterFeature
+      description: When you make a test to stop combat and start a negotiation, you always obtain a tier 3 outcome.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6da3e63e-b482-4e1e-849c-5ac990f4d80c
+        source: Feat
+        behavior: power
+        keywords: []
+        activationCondition: false
+        name: Calm Heads Prevail
+        guid: 322ee6fc-e9a1-4336-8412-885a148e7a37
+        description: When you make a test to stop combat and start a negotiation, you always obtain a tier 3 outcome.
+        modtype: tier3
+        rollType: test_power_roll
+      source: Feat
+      canHavePrerequisites: true
+      guid: 6da3e63e-b482-4e1e-849c-5ac990f4d80c
+      name: Calm Heads Prevail
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: When you succeed on a test using the Intimidate skill, you can cause affected creatures to drop any items they are holding.
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: dcd6020d-741f-4867-b5bd-6da57e81c619
+      name: Drop Your Sword
+      implementation: 0
+    - __typeName: CharacterFeature
+      description: While you are present in a negotiation, an NPC’s starting patience increases by 3 (to a maximum of 5).
+      modifiers:
+      - __typeName: CharacterModifier
+        text: While you are present in a negotiation, an NPC’s starting patience increases by 3 (to a maximum of 5).
+        sourceguid: 703c75ac-65b5-407a-8ecb-4b91a67917f3
+        description: While you are present in a negotiation, an NPC’s starting patience increases by 3 (to a maximum of 5).
+        source: Feat
+        behavior: movementtext
+        guid: 57b5cfcd-506c-403a-8165-a4c248803402
+        name: Hear Me Out
+        color: white
+      source: Feat
+      canHavePrerequisites: true
+      guid: 703c75ac-65b5-407a-8ecb-4b91a67917f3
+      name: Hear Me Out
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Many Paths to Peace
+      description: When you make a test with a skill from the interpersonal skill group, you can use any characteristic of your choice for the test.
+      guid: 166da0ee-e46c-4849-b879-bde61b972096
+      canHavePrerequisites: true
+      source: Feat
+id: a60760ea-dd00-42e4-8f56-1a1e9a2e7c0a
+ctime: 1762352325367
+name: Peace Bringer
+description: There goes Diana, peace bringer. She has won many a victory with her sword, but her greatest deed was convincing two nations to stop fighting.
+mtime: 1775218461055
+echelon: "4"
+prerequisite: You conduct a successful negotiation on which the fate of a nation or a world stands.

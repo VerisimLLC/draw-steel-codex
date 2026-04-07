@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+id: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+behaviors:
+- __typeName: ActivatedAbilityCustomTriggerBehavior
+  value: "<<numrecoveries>>"
+  triggerName: Spend Recovery
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<distance>>"
+resourceCost: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: This causes the creature to spend a recovery on itself.
+guid: 027f97d9-030c-4521-aeda-76db705ccc6e
+ctime: 1728967058499
+targetType: self
+persistence: []
+description: ""
+name: May Spend Recovery
+repeatTargets: false
+mtime: 1772901317302
+abilityType: none
+iconid: ui-icons/skills/1.png

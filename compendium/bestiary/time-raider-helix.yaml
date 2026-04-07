@@ -1,0 +1,198 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: e596dbe8-1a6a-4970-9fdd-d63bbcd2a813
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 71e98fa5-0591-449f-b569-1e116ef04a4b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 3
+    import:
+      override: true
+      data: |+
+        Time Raider Helix	Level 3 Platoon Controller
+        Humanoid, Time Raider	EV 10
+        <b>Stamina</b> 40	<b>Immunity</b> Psychic 3
+        <b>Speed</b> 5 (fly)	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +0	Agility +2	Reason +2	Intuition +2	Presence +2
+        <b>Blaster Volley</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Psionic, Strike, Weapon
+        <b>Distance</b> Ranged 10	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	6 corruption damage; push 2
+        %E2%98%85	12%E2%80%9316	8 corruption damage; push 4
+        %E2%9C%B8	17+	11 corruption damage; push 6; prone
+
+        <b>Kinetic Lane</b> (Maneuver)
+        <b>Keywords</b> Area, Psionic, Ranged
+        <b>Distance</b> 4 x 2 line within 10	<b>Target</b> Special
+        <b>Effect</b> The area becomes a psionically charged treadmill that pushes creatures and objects at high speed in one direction of the helix's choice. Any creature that moves into the area or starts their turn there immediately slides 3 squares toward the square at the end of the area in the chosen direction. Each enemy in the area when it first appears takes 3 damage before they are moved.
+        <b>3 Malice</b> The helix creates a second kinetic lane.
+
+        <b>Foresight </b>
+        The helix doesn't have a bane on strikes against concealed creatures.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a445f8fb-9f0a-4ed9-b4e0-66f9f6f6b52a: true
+      modifiers: []
+      name: 'Foresight '
+      description: The helix doesn't have a bane on strikes against concealed creatures.
+      guid: a445f8fb-9f0a-4ed9-b4e0-66f9f6f6b52a
+      source: Trait
+    role: Platoon Controller
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Time Raider: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Time Raider Helix
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 40
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 56638659-2801-43bc-b940-ebf6f11548c5
+      implementation: 4
+      numTargets: 2
+      name: Blaster Volley
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 corruption damage; push 2
+        - 8 corruption damage; push 4
+        - 11 corruption damage; push 6; prone
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Psionic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 4d1beea9-c212-43a7-9164-2597b6bc9ae0
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Kinetic Lane
+      numTargets: 1
+      description: The area becomes a psionically charged treadmill that pushes creatures and objects at high speed in one direction of the helix's choice. Any creature that moves into the area or starts their turn there immediately slides 3 squares toward the square at the end of the area in the chosen direction. Each enemy in the area when it first appears takes 3 damage before they are moved.
+      abilityType: none
+      implementation: 0
+    groupid: 0fd6ab3a-e0ae-4c61-86e3-82f06865d109
+    movementSpeeds:
+      fly: 5
+    ev: 10
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 529d4d04-c611-4d87-892f-e48ebae29ff7
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Time Raider Helix
+parentFolder: 37d52d89-62a2-4615-ad94-8549d23e461a
+artist: null
+ord: 0
+ctime: 1741590249630
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,104 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  targetFilter: target.Keywords has "Demon"
+  targetTextOverride: Demon
+  repeatTargets: false
+  rangeTextOverride: Each
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: b0fa1d80-d549-4ec0-a1c5-f93538095084
+    duration: 0
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: 82711fbe-c032-450c-b957-67b7314662a9
+  abilityType: none
+  persistence: []
+  name: Soulburn
+  targetType: map
+  description: Each demon acting this turn has a double edge on abilities.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: false
+  targetFilter: Minion and target.Keywords has "Demon" and not Enemy
+  targetTextOverride: 1 Demon Minion
+  repeatTargets: false
+  rangeTextOverride: "-"
+  behaviors:
+  - __typeName: ActivatedAbilityTransformBehavior
+    applyto: none
+    modesSelected:
+    - -1
+    ongoingEffectCustom: 66fd446a-4627-4016-ab0b-c710de6ee844
+    ongoingEffect: 66fd446a-4627-4016-ab0b-c710de6ee844
+    replaceCaster: false
+    bestiaryFilter: "beast.name = \"Demon Ruinant\" or beast.name = \"Demon Torlas\"\v{beast.keywords has \"Demon\" and beast.Level = Target.Level and beast.keywords has not \"Summoner\" and beast.organization = \"horde\"}"
+  - __typeName: ActivatedAbilityDestroyBehavior
+  - __typeName: ActivatedAbilitySummonBehavior
+    groupInitiativeWithCaster: false
+    bestiaryFilter: beast.name = "Demon Ruinant" or beast.name = "Demon Torlas"
+  multipleModes: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "100"
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  modeList:
+  - text: Spawn New
+  abilityType: none
+  guid: 167fd0ea-4517-4674-8201-43b37e70dc06
+  persistence: []
+  name: Abyssal Evolution
+  targetType: target
+  description: A demon minion of your choice transforms into a non-minion demon of the same level.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "2"
+  modifiers: []
+  resourceNumber: "7"
+  strain: []
+  guid: e664977a-051f-46ca-8832-9f29ab5ca04a
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors:
+  - __typeName: ActivatedAbilitySummonBehavior
+    allCreaturesTheSame: true
+    bestiaryFilter: beast.name = "Abyssal Rift"
+  targetType: emptyspace
+  name: Abyssal Rift
+  range: "100"
+  description: |-
+    Two size 2 rifts to the Abyssal Wasteland appear at locations of your choice. Any demon can use an byssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map.
+
+    An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map.
+    Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+mtime: 1760519373337
+name: Demon
+traits: []
+attacks: []
+id: 2975ac03-05e1-422f-945d-239c08336bf1
+ctime: 1758524592223

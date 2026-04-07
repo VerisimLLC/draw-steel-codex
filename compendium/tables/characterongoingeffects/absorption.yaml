@@ -1,0 +1,67 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  displayCondition: ability.Stolen
+  resourceCostType: cost
+  modtype: replaceroll
+  adjustments: []
+  keywords: []
+  replaceText: 2d10 + Reason or Intuition or Presence
+  overrideCost: true
+  rollType: ability_power_roll
+  sourceguid: 00868f31-aa65-4b8b-90b2-a7cb12e9166c
+  source: Ongoing Effect
+  behavior: power
+  resourceCostAmount: "0"
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 568a9447-1b4a-49c6-9a3f-d795c8019da2
+    repeatTargets: false
+    trigger: d20roll
+    castImmediately: true
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 00868f31-aa65-4b8b-90b2-a7cb12e9166c
+      mode: effect
+      conditions: []
+    numTargets: "1"
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  activationAfterRoll: false
+  name: Absorption
+  guid: d8f3e8ed-31c4-465e-9546-aa8770caba4a
+  description: Whenever you are targeted by a magic or psionic ability that targets only one creature, you can use a free triggered action to cause this armor to absorb the ability after the ability’s effects resolve. While the armor has an ability absorbed, you can’t absorb another. You can use an absorbed ability as if you knew it, making power rolls for the ability using your choice of Reason, Intuition, or Presence. You don’t need to spend any Heroic Resource to activate the ability. Once you use the ability, the armor loses it, and you can absorb another.
+  activationCondition: ability.Stolen
+  domains:
+    CharacterOngoingEffect:00868f31-aa65-4b8b-90b2-a7cb12e9166c: true
+source: Ongoing Effect
+guid: 00868f31-aa65-4b8b-90b2-a7cb12e9166c
+id: 00868f31-aa65-4b8b-90b2-a7cb12e9166c
+ctime: 1773750978766
+domains:
+  CharacterOngoingEffect:00868f31-aa65-4b8b-90b2-a7cb12e9166c: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+buffType: buff
+name: Absorption
+custom: true
+mtime: 1774268920126
+description: Whenever you are targeted by a magic or psionic ability that targets only one creature, you can use a free triggered action to cause this armor to absorb the ability after the ability’s effects resolve. While the armor has an ability absorbed, you can’t absorb another. You can use an absorbed ability as if you knew it, making power rolls for the ability using your choice of Reason, Intuition, or Presence. You don’t need to spend any Heroic Resource to activate the ability. Once you use the ability, the armor loses it, and you can absorb another.
+iconid: ui-icons/skills/1.png

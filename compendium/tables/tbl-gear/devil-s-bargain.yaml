@@ -1,0 +1,20 @@
+__typeName: equipment
+id: d7d82734-0ba0-4ff8-bc90-910372d75ecd
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: "Devil's Bargain: You can fly. Additionally, if an effect would make you prone while flying, you can choose to not go prone by losing Stamina equal to the distance you would have fallen from becoming prone."
+itemPrerequisite: The wing of an archdevil
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Anjali
+imbuePrereq: none
+name: Devil's Bargain
+imbueTargetType: armor
+mtime: 1770779404362
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+imbueLevel: 9

@@ -1,0 +1,66 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1ded2bfa-094e-437f-a9ba-a6bdca947240
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:1ded2bfa-094e-437f-a9ba-a6bdca947240: true
+  name: Null Field Radius
+  guid: 19227ecd-34f3-4361-9f2c-5feadded3bb1
+  description: Until the start of your next turn, the area of your Null Field ability increases by 1.
+  behavior: attribute
+  attribute: bd01a4c5-0758-4453-8d71-5d2257aa23fd
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:1ded2bfa-094e-437f-a9ba-a6bdca947240: true
+  sourceguid: 1ded2bfa-094e-437f-a9ba-a6bdca947240
+  description: Until the start of your next turn, the area of your Null Field ability increases by 1.
+  source: Ongoing Effect
+  name: Null Field Radius
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetFilter: Enemy
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      damageType: psychic
+      roll: Intuition
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: Nullifying Aura Radius
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 0e2743d7-0794-4a55-9470-b1af229745b7
+    domains:
+      CharacterOngoingEffect:1ded2bfa-094e-437f-a9ba-a6bdca947240: true
+    targetType: all
+    name: Psychic Pulse
+    trigger: endturn
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: fe8f9d95-6c0e-4693-b62a-54bfe1f68dc0
+source: Ongoing Effect
+guid: 1ded2bfa-094e-437f-a9ba-a6bdca947240
+id: 1ded2bfa-094e-437f-a9ba-a6bdca947240
+ctime: 1742777319491
+domains:
+  CharacterOngoingEffect:1ded2bfa-094e-437f-a9ba-a6bdca947240: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Null Field Radius
+custom: true
+description: Until the start of your next turn, the area of your Null Field ability increases by 1.
+mtime: 1750384421154
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

@@ -1,0 +1,73 @@
+25263715-cef4-4e25-b4bd-ddedc3a87dea:
+  __typeName: CharacterTemplate
+  prerequisite: Self.Retainer
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      description: The retainer gains a +2 damage bonus to free strikes at level 3, at level 6, and at level 9.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 857b14e8-2961-425a-9cd6-3129e151e961
+        source: Creature Template
+        guid: a76ce8b1-8960-425b-9be8-64f480c83321
+        name: Free Strike Damage Bonus
+        behavior: attribute
+        description: The retainer gains a +2 damage bonus to free strikes at level 3, at level 6, and at level 9.
+        value:
+          __typeName: GoblinScriptTable
+          entries:
+          - script: "2"
+            threshold: 3
+          - script: "4"
+            threshold: 6
+          - script: "6"
+            threshold: 9
+          editableField: true
+          id: table
+          field: Level
+        attribute: 0c15efd6-bf73-47bb-aa60-7da385613f9a
+      source: Creature Template
+      canHavePrerequisites: true
+      guid: 857b14e8-2961-425a-9cd6-3129e151e961
+      name: Free Strike Damage Bonus
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: At each level, a retainer gains a +9 bonus to Stamina
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cc947d23-c0e8-41b2-aea5-281b5579933b
+        source: Creature Template
+        guid: c5f6dfa5-fcbc-4ac4-9841-b8d771bf9cdd
+        name: Stamina Bonus
+        behavior: attribute
+        description: At each level, a retainer gains a +9 bonus to Stamina
+        value: 9 * Level
+        attribute: hitpoints
+      - __typeName: CharacterModifier
+        sourceguid: cc947d23-c0e8-41b2-aea5-281b5579933b
+        source: Creature Template
+        guid: 9dfc59a7-255c-452c-9ea9-a451e6841480
+        name: Stamina Bonus
+        behavior: attribute
+        description: At each level, a retainer gains a +9 bonus to Stamina
+        value: 2
+        attribute: hitpoints
+      source: Creature Template
+      canHavePrerequisites: true
+      guid: cc947d23-c0e8-41b2-aea5-281b5579933b
+      name: Stamina Bonus
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: A retainer’s signature ability is unique in that it grows stronger as the retainer advances in level. Only the retainer’s signature ability improves this way! The table features two columns for a retainer’s signature ability damage bonus—one for a tier 1 power roll outcome and one for a tier 2 or tier 3 outcome. A retainer’s signature ability gains a +1 damage bonus every second level for a tier 1 outcome, and every level for a tier 2 or tier 3 outcome.
+      modifiers: []
+      source: Creature Template
+      canHavePrerequisites: true
+      guid: c9e06ca1-054b-41c1-ae5d-581bbed1d569
+      name: Signature Ability Damage Increase
+      implementation: 1
+  name: Retainer
+  tag: retainer
+  mtime: 1763952887667
+  id: 25263715-cef4-4e25-b4bd-ddedc3a87dea
+  ctime: 1763763075456

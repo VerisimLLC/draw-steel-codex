@@ -1,0 +1,20 @@
+__typeName: equipment
+id: 4353b4cc-8dee-4d2d-b876-69c714d1e7dd
+type: Gear
+category: Gear
+specialDescription: ""
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+ctime: 1775046606812
+itemPrerequisite: An ounce of the blood of Saint Elspeth
+keywords:
+  Potion: true
+  Magic: true
+projectGoal: "360"
+projectSource: Texts or lore in Caelian
+description: When you pour the elixir onto your forehead as a maneuver, it vanishes and you protect yourself against effects that might harm your body, mind, or soul. For a number of rounds equal to your current Victories, any enemy ability targeting you automatically obtains a tier 1 outcome against you. Additionally, the ability can only deal damage to you, letting you ignore its other effects.
+name: Elixir of Saint Elspeth
+flavor: This thick red liquid smells of cinnamon.
+mtime: 1775046606812
+weight: 1
+projectRollCharacteristic:
+  prs: true

@@ -1,0 +1,68 @@
+__typeName: ActivatedAbility
+insertAtStart: true
+invokeSurroundingAbility: false
+id: 39a21fc6-8ece-419c-8dca-209d40e91efe
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+testCases:
+- text: If the sniper doesn't use a move action this turn, the ability has an edge.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: a14133cc-1535-4680-afff-3758aea3c930
+importMatch: If <<monster>> doesn't use a move action this turn, the ability has an edge.
+ctime: 1711341326353
+repeatTargets: false
+numTargets: "1"
+description: ""
+name: Steady Aim
+behaviors:
+- __typeName: ActivatedAbilityModifyPowerRollBehavior
+  guid: cb2886c5-eb0e-4153-8ff6-b13b3c8cf102
+  modifier:
+    __typeName: CharacterModifier
+    sourceguid: cb2886c5-eb0e-4153-8ff6-b13b3c8cf102
+    modtype: edge
+    activationCondition: Moved This Turn = 0
+    keywords: []
+    hasCustomTrigger: true
+    customTrigger:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 2d38c1b3-cc48-44fe-881d-cf761fdb8492
+      repeatTargets: false
+      abilityType: none
+      trigger: d20roll
+      targetType: self
+      numTargets: "1"
+      name: Steady Aim
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 98bff601-1581-451e-96db-be88e063afaf
+        duration: 0
+        ongoingEffectCustom: false
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    domains: []
+    name: Steady Aim
+    rollType: ability_power_roll
+    description: If <<monster>> doesn't use a move action this turn, the ability has an edge.
+    guid: 2f0032f5-2514-42bb-91da-1484c136ef9d
+    behavior: power
+mtime: 1765540042436
+abilityType: none
+iconid: ui-icons/skills/1.png

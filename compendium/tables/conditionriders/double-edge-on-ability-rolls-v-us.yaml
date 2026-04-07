@@ -1,0 +1,28 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ca3c579a-295f-41c0-9e8a-80f06008a640
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Double Edge on Ability Rolls v Us
+  guid: 1eaeaa78-6ddc-4ee7-afd6-87b5cb62a851
+  description: Ability Rolls against the target do have a double edge.
+  modtype: double_edge
+  rollType: enemy_ability_power_roll
+source: Ongoing Effect
+guid: ca3c579a-295f-41c0-9e8a-80f06008a640
+id: ca3c579a-295f-41c0-9e8a-80f06008a640
+ctime: 1770049158507
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+name: Double Edge on Ability Rolls v Us
+description: Ability Rolls against the target have a double edge.
+mtime: 1770228135239
+iconid: bd44e33a-fb70-490c-acac-882da0d34642
+implementation: 3

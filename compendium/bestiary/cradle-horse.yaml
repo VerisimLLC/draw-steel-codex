@@ -1,0 +1,469 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: db262f92-c0bd-4a47-ae33-f04b6a63b9a1
+    offtokenPortraitId: 08325f28-707d-41f9-9b29-1971ace64b2f
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 471013b1-210c-47ae-ac82-49ef0e79bfbd
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.02
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions:
+    - x: -0.2579108
+      y: 0.2684754
+    - x: 0.18
+      y: -0.18
+    - x: 0.18
+      y: 0.18
+    - x: -0.18
+      y: 0.18
+    - x: -0.3
+      y: 0
+    - x: 0.3
+      y: 0
+    - x: 0
+      y: 0.3
+    - x: 0
+      y: -0.3
+    - x: -0.42
+      y: -0.42
+    - x: 0.42
+      y: -0.42
+    - x: 0.42
+      y: 0.42
+    - x: -0.42
+      y: 0.42
+    - x: -0.48
+      y: 0
+    - x: 0.48
+      y: 0
+    - x: 0
+      y: 0.48
+    - x: 0
+      y: -0.48
+    - x: 0
+      y: -0.6
+    saddles: 1
+    saddleSize: 3
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy:
+    1161cb0e-c061-4855-9277-8ebb8e5b19c5:
+      timestamp: 1770312514318
+      saddle: 0
+  updateid: a3affe06-003b-4ec6-ae7a-05dd1b43fc11
+  properties:
+    __typeName: monster
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    ev: 13
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 2
+    import:
+      type: mcdm
+      data: |
+        Cradle Horse	Level 1 Mount
+        Construct, High Elf	EV 13
+        <b>Stamina</b> 30
+        <b>Speed</b> 10	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>Free Strike</b> 3
+        Might +2	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Radiant Charge</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 fire damage
+        %E2%9C%B8	<b>17</b>	9 lightning damage; M<2 prone
+
+        <b>Stomp</b> (Action) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage
+        %E2%9C%B8	<b>17</b>	5 damage
+        <b>Effect</b> This attack deals an additional 3 damage to prone targets.
+
+        <b>Buck</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> The horse's rider
+        <b>Effect</b> Vertical slide 3; The rider can use a ranged ability at any point during the movement and then fall without taking damage.
+
+        <b>Shared Otherworldly Grace</b>
+        If the cradle horse's rider has the Otherworldly Grace trait, it also gains the Otherworldly Grace trait.
+
+        Retainer
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:964aade6-a926-4f7c-a2bf-d3e582677ebb: true
+        CharacterFeature:d5b476d1-467b-45d7-8e95-ef079b2bb390: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:964aade6-a926-4f7c-a2bf-d3e582677ebb: true
+          CharacterFeature:d5b476d1-467b-45d7-8e95-ef079b2bb390: true
+        sourceguid: 964aade6-a926-4f7c-a2bf-d3e582677ebb
+        behavior: activated
+        source: Trait
+        name: Buck
+        guid: 5235363b-98ff-431d-a558-f3ec1d5c6a26
+        description: The horse vertical slides the target up to 3 squares, ignoring stability. The target can use a ranged ability at any point during this forced movement, and takes no damage if they then fall.
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "2"
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 126
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: "0"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: bf336e62-f4d3-4a0b-9118-d9fff3864e1e
+          numTargets: "1"
+          iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+          domains:
+            CharacterFeature:964aade6-a926-4f7c-a2bf-d3e582677ebb: true
+            CharacterFeature:d5b476d1-467b-45d7-8e95-ef079b2bb390: true
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              reasonedFilters: []
+              behaviors:
+              - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                movementType: jump
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              forcedMovement: vertical_slide
+              range: "3"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 9117c675-bc03-446c-a47a-40cd16376f3a
+              targeting: straightline
+              numTargets: "1"
+              name: Invoked Ability
+              targetType: emptyspace
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: "Select the mount as a target to vertically slide them to an empty square within distance.\n\nYou will then be prompted to use a ranged ability. "
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbility: 225040eb-d1bd-402b-ba3f-28421d164356
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: d6e91428-6212-4de8-a637-b8c1e77c0b1e
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            promptText: Select a ranged ability to use then select the target.
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          name: Buck
+          categorization: Malice
+          description: ""
+          resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          implementation: 2
+      source: Trait
+      description: The horse vertical slides the target up to 3 squares, ignoring stability. The target can use a ranged ability at any point during this forced movement, and takes no damage if they then fall.
+      guid: 964aade6-a926-4f7c-a2bf-d3e582677ebb
+      name: Buck
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6bd92dd2-dca2-4407-a6e7-9682d2a30c76: true
+        CharacterFeature:ae8b2e7b-749c-4ba8-b2ca-1242b0539911: true
+        CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:6bd92dd2-dca2-4407-a6e7-9682d2a30c76: true
+          CharacterFeature:ae8b2e7b-749c-4ba8-b2ca-1242b0539911: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: 6bd92dd2-dca2-4407-a6e7-9682d2a30c76
+        behavior: trigger
+        source: Trait
+        name: Shared Otherworldly Grace
+        description: If the ceramic horse's rider has the Otherworldly Grace trait, the ceramic horse also has that trait.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            purgeType: one
+            targetDuration: save
+            chatMessage: Shared Otherworldly Grace - Change One Save Ends to EoT
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          targetType: self
+          conditionFormula: Count Riders("Otherworldly Grace") > 0 and Conditions has "Bleeding" or Count Riders("Otherworldly Grace") > 0 and Conditions has "Dazed" or Count Riders("Otherworldly Grace") > 0 and Conditions has "Frightened" or Count Riders("Otherworldly Grace") > 0 and Conditions has "Prone" or Count Riders("Otherworldly Grace") > 0 and Conditions has "Restrained" or Count Riders("Otherworldly Grace") > 0 and Conditions has "Slowed" or Count Riders("Otherworldly Grace") > 0 and Conditions has "Taunted" or Count Riders("Otherworldly Grace") > 0 and  Conditions has "Weakened"
+          domains:
+            CharacterFeature:6bd92dd2-dca2-4407-a6e7-9682d2a30c76: true
+            CharacterFeature:ae8b2e7b-749c-4ba8-b2ca-1242b0539911: true
+            CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+          guid: 013c7b32-eaef-452b-a07c-46da3aabb7a7
+          numTargets: "1"
+          trigger: endturn
+          name: Otherworldly Grace
+          description: |-
+            If the ceramic horse's rider has the Otherworldly Grace trait, the ceramic horse also has that trait.
+
+            Otherworldly Grace allows the Ceramic Horse - At the start of each of their turns - choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 97df29d7-fe9e-499d-820f-8a88e5eb4603
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:6bd92dd2-dca2-4407-a6e7-9682d2a30c76: true
+          CharacterFeature:ae8b2e7b-749c-4ba8-b2ca-1242b0539911: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: 6bd92dd2-dca2-4407-a6e7-9682d2a30c76
+        behavior: triggerdisplay
+        source: Trait
+        name: Shared Otherworldly Grace
+        description: If the ceramic horse's rider has the Otherworldly Grace trait, the ceramic horse also has that trait.
+        guid: 70359550-b741-42be-8134-8e362be384ff
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: Choose one Save Ends Effect which you can end at the end of your turn.
+          guid: 51209511-61d4-4e05-aa29-901dbcdbdce5
+          keywords: []
+      source: Trait
+      description: If the ceramic horse's rider has the Otherworldly Grace trait, the ceramic horse also has that trait.
+      guid: 6bd92dd2-dca2-4407-a6e7-9682d2a30c76
+      name: Shared Otherworldly Grace
+      implementation: 2
+    role: Mount
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: f4937c1e-3085-40f7-99ed-b57fc43f44ff
+    opportunityAttack: 3
+    damage_taken: 0
+    keywords:
+      Elf: true
+      High: true
+      Construct: true
+      High Elf: true
+    resources:
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-7
+        used: 1
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 fire damage
+        - 9 lightning damage; M<2 prone
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 126
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 9f9977a9-6af6-431a-989d-80763f897949
+      targetType: target
+      numTargets: 1
+      categorization: Signature Ability
+      implementation: 4
+      name: Elemental Charge
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 126
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: c5b37cd7-2d13-474b-be71-f0a3f246bf37
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 673a7260-b5af-43aa-b14a-49559e784652
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 673a7260-b5af-43aa-b14a-49559e784652
+          modtype: none
+          keywords: []
+          activationCondition: Target.Conditions has "prone"
+          description: Any target who is prone takes an extra 2 damage.
+          domains: []
+          name: Stomp Prone Bonus Damage
+          rollType: ability_power_roll
+          damageModifier: "2"
+          guid: 1d215aa8-3627-46f6-b702-d03c7154d7e0
+          behavior: power
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      numTargets: 1
+      implementation: 4
+      name: Stomp
+      displayOrder: 1
+      description: This attack deals an additional 3 damage to prone targets.
+      abilityType: none
+      iconid: d38cfd57-01a7-4bae-bc92-74689ddc4e92
+    monster_type: Ceramic Horse
+    walkingSpeed: 10
+    movementSpeeds: []
+    creatureSize: "2"
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        6c6be229-c1da-4262-972d-d82472b8cb1b:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-7
+          note: Buck
+          userid: steam-76561198767161997
+          set: 0/1
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: 50488c39-8fd3-452a-9fb2-a87dbd320e0b-11207
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: b73cb837-6856-4ce0-8af2-c55c431f7c29
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Cradle Horse
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590298875
+mtime: 1775201137032
+hidden: false

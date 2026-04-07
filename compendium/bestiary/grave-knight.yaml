@@ -1,0 +1,220 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Grave Knight
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 1
+    import: []
+    skillProficiencies: []
+    role: Minion Brute
+    inflictedConditions: []
+    keywords:
+      Summoner: true
+      Heroic: true
+      Undead: true
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: 'Zombie warriors that continue to fight after death. Any blood spilled at a grave knight’s hand runs pitch black. '
+      title: Monster Notes
+    opportunityAttack: 5
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a795262c-c976-4046-b147-9026d8f80572: true
+        CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a795262c-c976-4046-b147-9026d8f80572: true
+          CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+        sourceguid: 75924d49-b4ef-40a9-b484-fc878d6eaf4c
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: corruption
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: poison
+          apply: Damage Reduction
+        guid: cb78119f-6013-4e1a-9301-6d3a74d6c01e
+        name: Summoner Buffs
+        description: ""
+      name: Summoner Buffs
+      guid: a795262c-c976-4046-b147-9026d8f80572
+      description: ""
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3092bcdd-f657-4640-be7c-5130316c9bc8: true
+        CharacterFeature:86b9d1b6-3b5f-46c5-aaa0-3aafb77dd1dd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3092bcdd-f657-4640-be7c-5130316c9bc8: true
+          CharacterFeature:86b9d1b6-3b5f-46c5-aaa0-3aafb77dd1dd: true
+        sourceguid: 86b9d1b6-3b5f-46c5-aaa0-3aafb77dd1dd
+        description: When the Grave Knight is reduced to 0 Stamina, they make a free strike before dying.
+        source: Trait
+        name: To The Grave
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: ""
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Make a free strike before dying
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          persistence: []
+          modifiers: []
+          trigger: creaturedeath
+          strain: []
+          guid: ebc3d4f2-a344-4e6b-8bbd-afff070b3b3d
+          numTargets: "1"
+          despawnBehavior: corpse
+          domains:
+            CharacterFeature:3092bcdd-f657-4640-be7c-5130316c9bc8: true
+            CharacterFeature:86b9d1b6-3b5f-46c5-aaa0-3aafb77dd1dd: true
+          behaviors:
+          - __typeName: ActivatedAbilityRaiseCorpseBehavior
+            applyto: targets
+            restoreStamina: false
+          whenActive: always
+          name: Death Snap
+          selfTarget: false
+          description: ""
+          subject: self
+          iconid: ui-icons/skills/1.png
+        guid: 84476d5e-4e92-48f0-af53-88cb003eb7f7
+      source: Trait
+      description: When the Grave Knight is reduced to 0 Stamina, they make a free strike before dying.
+      guid: 3092bcdd-f657-4640-be7c-5130316c9bc8
+      name: To The Grave
+      implementation: 2
+    monster_type: Grave Knight
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    availableTriggers: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    levelChoices: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    resources: []
+    max_hitpoints: 6
+    minionSquad: Grave Knight Squad 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 corruption damage; m<w bleeding (EoT)
+        - 7 corruption damage; m<v bleeding (EoT)
+        - 9 corruption damage; m<s bleeding (Save Ends)
+        roll: 2d10 + summoner.Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 6f5b07bc-0b30-474e-a6f1-788c8452d76f
+      targetType: target
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Knight Strike
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    walkingSpeed: 6
+    initiativeGrouping: f89fe764-112e-4e5c-8e04-985c29cc3c5d
+    monster_category: Monster
+    minion: true
+    damage_taken: 0
+    notesRevision: f52e7050-68e0-43d8-b4a3-129cc160b023
+  tokenType: null
+  bestiaryId: eb385463-50f8-4c71-a477-cecb58287225
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1759617611386
+description: null
+parentFolder: c6766a48-8a7b-4417-987f-757cb10088bf
+artist: null
+ord: 1
+ctime: 1759617611386
+mtime: 1775167537148
+hidden: false

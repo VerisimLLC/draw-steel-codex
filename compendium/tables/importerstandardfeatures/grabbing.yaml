@@ -1,0 +1,41 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: f4b29244-3307-40be-9220-526a9fbdfe96
+  source: Character
+  value: Walking Speed/2
+  filterCondition: Full Speed Grabbing = 0
+  name: Grabbing
+  guid: 0dde9604-5d02-4e19-8375-abd3e2259a78
+  description: ""
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  text: You move half speed while grabbing another creature.
+  sourceguid: f4b29244-3307-40be-9220-526a9fbdfe96
+  source: Character
+  behavior: movementtext
+  filterCondition: Full Speed Grabbing = 0
+  name: Grabbing
+  description: ""
+  guid: 97dc5e2d-9223-478b-a7b0-0b314e1734af
+  color: red
+- __typeName: CharacterModifier
+  text: You can move full speed even while grabbing, no matter the grabbed creature's size.
+  sourceguid: f4b29244-3307-40be-9220-526a9fbdfe96
+  source: Character
+  behavior: movementtext
+  filterCondition: Full Speed Grabbing > 0
+  name: Grabbing
+  description: ""
+  guid: 01bbd0d6-15dc-4b3f-8533-a95b933a68af
+  color: green
+source: Character
+guid: f4b29244-3307-40be-9220-526a9fbdfe96
+id: a1b9daa7-34f3-4113-b4ed-bee452878652
+ctime: 1751138607635
+name: Grabbing
+description: ""
+mtime: 1752460413797
+implementation: 3

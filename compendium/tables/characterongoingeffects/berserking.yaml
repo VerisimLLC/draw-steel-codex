@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 92e3b8d0-937f-4d30-b850-fc4032a8fe01
+id: 92e3b8d0-937f-4d30-b850-fc4032a8fe01
+ctime: 1774582974187
+domains:
+  CharacterOngoingEffect:92e3b8d0-937f-4d30-b850-fc4032a8fe01: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Berserking
+statusEffect: false
+description: ""
+mtime: 1774583157895
+iconid: ui-icons/skills/1.png

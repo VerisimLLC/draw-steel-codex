@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 8a3794c0-adf0-4175-9b6a-96b0e5b2bc2e
+id: 8a3794c0-adf0-4175-9b6a-96b0e5b2bc2e
+ctime: 1757816187640
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+condition: 25bb844c-23af-4acc-ab39-c4656af87f6d
+name: Line of Sight
+description: ""
+mtime: 1757816187640
+custom: true
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,218 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0f7eeb02-40eb-44ec-9f70-c3315a9cb62c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Minotaur Bully	Level 8 Minion Brute
+        Accursed, Humanoid, Minotaur	EV 10 for four minions
+        <b>Stamina</b> 14
+        <b>Speed</b> 6	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>With Captain </b>Strike damage +3<b>Free Strike</b> 4
+        Might +4	Agility +2	Reason 0	Intuition +3	Presence -1
+        <b>Javelin and Bellow</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2 or Ranged 5<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12-16</b>	7 damage
+        %E2%9C%B8	<b>17</b>	9 damage; I<4 taunted (EoT) or frightened of all minotaurs (save ends)
+
+        <b>Minotaur Sense</b>
+        The bully cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b2bb3e5b-6197-4a9e-95c2-6fe62d5fb87d: true
+        CharacterFeature:0c007c70-9f61-4985-b665-0842d59b4d82: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b2bb3e5b-6197-4a9e-95c2-6fe62d5fb87d
+        source: Trait
+        modtype: nottierone
+        keywords: []
+        activationCondition: true
+        guid: 75baf201-e7bf-48be-9712-e26ad5ef03ed
+        domains:
+          CharacterFeature:b2bb3e5b-6197-4a9e-95c2-6fe62d5fb87d: true
+          CharacterFeature:0c007c70-9f61-4985-b665-0842d59b4d82: true
+        name: Minotaur Sense
+        rollType: test_power_roll
+        description: The minotaur cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+        behavior: power
+        skills:
+        - 0c7d0c53-2056-4579-8c83-1bec3098cc56
+        - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+      source: Trait
+      description: The minotaur cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+      guid: b2bb3e5b-6197-4a9e-95c2-6fe62d5fb87d
+      name: Minotaur Sense
+      implementation: 3
+    role: Minion Brute
+    inflictedConditions: []
+    ev: 10
+    max_hitpoints_roll: "14"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    keywords:
+      Minotaur: true
+      Accursed: true
+      Humanoid: true
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    monster_type: Minotaur Bully
+    equipment: []
+    withCaptain: +3 damage bonus to strikes
+    max_hitpoints: 14
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    levelChoices: []
+    walkingSpeed: 6
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage
+        - 9 damage; I<4 taunted (EoT) or frightened of all minotaurs (save ends)
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a1ae9977-262d-4777-9763-7e90df7194aa
+      meleeRange: 2
+      implementation: 4
+      targetType: target
+      name: Javelin and Bellow
+      numTargets: 1
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Charge: true
+        Weapon: true
+        Strike: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage
+        - 9 damage; I<4 taunted (EoT) or frightened of all minotaurs (Save Ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 4ef2f633-a5ba-433f-8129-0bfeb5bf83bb
+      meleeRange: 2
+      numTargets: 1
+      implementation: 4
+      sourceReference:
+        __typeName: SourceReference
+        page: 208
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Javelin & Bellow
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 6efceb1a-994d-411b-a006-923df38066a7
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: "2"
+    opportunityAttack: 4
+  tokenType: null
+  bestiaryId: b135ebe2-daaf-449d-887c-84b2f9b187d1
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969465
+description: Minotaur Bully
+parentFolder: 4e90b2cf-3242-46d6-9c01-ce1d199e1205
+artist: null
+ord: 0
+ctime: 1741590296517
+mtime: 1775201137032
+hidden: false

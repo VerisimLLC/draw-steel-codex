@@ -1,0 +1,64 @@
+__typeName: CharacterOngoingEffect
+association: []
+sustainFormula: ongoing effects has "Sticky Bomb"
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:deca6887-7c81-437a-a649-0c533e54b2ed: true
+  sourceguid: deca6887-7c81-437a-a649-0c533e54b2ed
+  description: ""
+  source: Ongoing Effect
+  name: Disable Sticky Bomb
+  behavior: activated
+  guid: 5f7ebb74-8790-40bb-99dd-995f694af1c4
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00166606903076
+        v: 1.00191044807434
+        a: 1
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: b93f5a11-59f0-47b2-85da-4fe8422cbdd7
+    iconid: 2742eef6-4b53-4a5b-a547-c41ce376c66a
+    domains:
+      CharacterOngoingEffect:deca6887-7c81-437a-a649-0c533e54b2ed: true
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 9988166e-a54b-4b26-b92d-d6faff5a4c6b
+      mode: effect
+      conditions: []
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    name: Disable Sticky Bomb
+    numTargets: "1"
+    description: Disable the Sticky Bomb attached to you.
+    abilityType: none
+    implementation: 3
+source: Ongoing Effect
+iconid: ui-icons/skills/1.png
+guid: deca6887-7c81-437a-a649-0c533e54b2ed
+id: deca6887-7c81-437a-a649-0c533e54b2ed
+ctime: 1753167729223
+domains:
+  CharacterOngoingEffect:deca6887-7c81-437a-a649-0c533e54b2ed: true
+description: ""
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Disable Sticky Bomb
+statusEffect: false
+custom: true
+mtime: 1763325069608
+implementation: 3

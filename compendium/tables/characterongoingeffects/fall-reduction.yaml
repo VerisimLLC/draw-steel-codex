@@ -1,0 +1,33 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+  source: Ongoing Effect
+  value: stacks
+  description: ""
+  name: Fall Reduction
+  guid: 12426e7b-989d-414d-a4f6-c356c1d3f8e9
+  displayIcon: false
+  behavior: attribute
+  attribute: 151ac2f1-5bd3-4070-8b16-e14896d6933b
+source: Ongoing Effect
+casterTracking: one
+guid: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+id: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+ctime: 1755412639033
+display:
+  brightness: 0.914285714285714
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.35699999332428
+    s: 1.00094842910767
+    v: 1.00108826160431
+    a: 1
+name: Fall Reduction
+stackable: true
+description: ""
+mtime: 1771169483638
+iconid: 4ed2da23-daf5-416c-bbc2-4e826483a00a

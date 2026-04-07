@@ -1,0 +1,307 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Crux of Ash
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0564bfd2-0d77-4479-9807-22d46677720f
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 6
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: 6
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    monster_category: Summoner Heroic
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 5 damage
+        - 5 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 fire damage
+        - 5 fire damage
+        - 5 fire damage
+        roll: "12"
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Target.Might < 1
+        duration: 1
+        ongoingEffectCustom: 47cc7aed-58df-454f-97a5-4f8bb825a968
+        ongoingEffect: 47cc7aed-58df-454f-97a5-4f8bb825a968
+        durationUntilEndOfTurn: false
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Fire
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+    opportunityAttack: 5
+    stability: 0
+    import:
+      type: mcdm
+      data: |
+        CRUX OF ASH Level 3 MINION AMBUSHER
+        Elemental EV 3 for two minions
+        1M 6 6 0 5
+        Size Speed Stamina Stability Free Strike
+        Immunity: Sonic 2, fire 2 Weakness: -
+        Movement: Fly With Captain:
+        M ight -2 A gility -2 R eason 0 I ntuition 0 P resence +1
+        t Soot Strike
+        The crux's melee free strikes automatically hide each
+        ally from the target until the start of the crux's next turn, the target
+        uses a maneuver to clear the soot, the crux takes damage, or the
+        crux is destroyed.
+        t Ashen Cloud 1 Essence
+        When the crux is reduced to 0 Stamina, the area within 1 square of
+        the crux is clouded by ash until it is dispersed by wind. You and any
+        ally are concealed while occupying an affected square. An enemy
+        can't establish line of effect beyond the ash while occupying an
+        affected square.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:acd4ed73-0764-42c3-b586-99770720a705: true
+      modifiers: []
+      name: Soot Strike
+      guid: acd4ed73-0764-42c3-b586-99770720a705
+      description: The crux's melee free strikes automatically hide each ally from the target until the start of the crux's next turn, the target uses a maneuver to clear the soot, the crux takes damage, or the crux is destroyed.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1aaa2637-e21e-4d4c-850d-22ca326c7134: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1aaa2637-e21e-4d4c-850d-22ca326c7134
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:1aaa2637-e21e-4d4c-850d-22ca326c7134: true
+        name: Ashen Cloud 1 Essence
+        resourceRefreshType: encounter
+        description: When the crux is reduced to 0 Stamina, the area within 1 square of the crux is clouded by ash until it is dispersed by wind. You and any ally are concealed while occupying an affected square. An enemy can't establish line of effect beyond the ash while occupying an affected square.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aliveafterdeath: true
+            aura:
+              __typeName: Aura
+              modifiers:
+              - __typeName: CharacterModifier
+                conditionid: 13275b73-cd4e-4d33-ada3-647d7474facf
+                sourceguid: c2ba9562-7949-44df-8aba-bc1e5346247f
+                description: When the crux is reduced to 0 Stamina, the area within 1 square of the crux is clouded by ash until it is dispersed by wind. You and any ally are concealed while occupying an affected square. An enemy can’t establish line of effect beyond the ash while occupying an affected square.
+                source: Ashen Cloud
+                filterCondition: not Enemy
+                guid: 89d167ec-a52b-4d69-b503-14b01cff26d1
+                name: Ashen Cloud
+                behavior: bestowcondition
+              - __typeName: CharacterModifier
+                sourceguid: c2ba9562-7949-44df-8aba-bc1e5346247f
+                source: Ashen Cloud
+                seq: dcc07f70-a3ea-486f-9e0c-7dba585593e6
+                aura:
+                  __typeName: Aura
+                  guid: de548ef3-ebd0-44b0-8643-c6af23ead80f
+                  modifiers: []
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                radius: "1"
+                guid: f94d3d7b-30da-4ba0-9af2-76bc44151c61
+                description: When the crux is reduced to 0 Stamina, the area within 1 square of the crux is clouded by ash until it is dispersed by wind. You and any ally are concealed while occupying an affected square. An enemy can’t establish line of effect beyond the ash while occupying an affected square.
+                behavior: aura
+                name: Ashen Cloud
+              source: Ashen Cloud
+              blocks_line_of_effect: true
+              guid: c2ba9562-7949-44df-8aba-bc1e5346247f
+              objectid: 70991c3a-cf22-4f06-a415-ade93d5bb311
+              name: Ashen Cloud
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              description: When the crux is reduced to 0 Stamina, the area within 1 square of the crux is clouded by ash until it is dispersed by wind. You and any ally are concealed while occupying an affected square. An enemy can’t establish line of effect beyond the ash while occupying an affected square.
+              difficult_terrain: false
+              iconid: d797b769-a0af-42bb-9ba9-c16c9c9de746
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: f32a07df-bd2b-432e-bb53-721acc89d966
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: f5d4d791-fdb8-4ddc-af23-be333ab61067
+          numTargets: "1"
+          targetType: self
+          trigger: creaturedeath
+          name: Ashen Cloud 1 Essence
+          description: ""
+          abilityType: none
+          iconid: d797b769-a0af-42bb-9ba9-c16c9c9de746
+        guid: f32a07df-bd2b-432e-bb53-721acc89d966
+      name: Ashen Cloud 1 Essence
+      guid: 1aaa2637-e21e-4d4c-850d-22ca326c7134
+      description: When the crux is reduced to 0 Stamina, the area within 1 square of the crux is clouded by ash until it is dispersed by wind. You and any ally are concealed while occupying an affected square. An enemy can't establish line of effect beyond the ash while occupying an affected square.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1495f57d-65b7-4bc5-86c8-636db7580bae: true
+        CharacterFeature:3ab54ae2-559f-42c5-8c99-6f43910da3a4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1495f57d-65b7-4bc5-86c8-636db7580bae: true
+          CharacterFeature:3ab54ae2-559f-42c5-8c99-6f43910da3a4: true
+        sourceguid: 1495f57d-65b7-4bc5-86c8-636db7580bae
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "2"
+          damageType: sonic
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: "2"
+          damageType: fire
+          apply: Damage Reduction
+        guid: 483bf585-8d61-4949-87b2-869bc0e40bf5
+        name: Sonic Immunity
+        description: ""
+      name: Sonic Immunity
+      guid: 3ab54ae2-559f-42c5-8c99-6f43910da3a4
+      description: ""
+      source: Character Feature
+    role: Ambusher Ambusher
+    equipment: []
+    skillRatings: []
+    availableTriggers: []
+    damage_taken: 0
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    resources: []
+    minion: true
+    minionSquad: Crux of Ash Squad 2
+    walkingSpeed: 6
+    movementSpeeds:
+      Fly: 6
+    name: Crux of Ash
+    creatureSize: 1M
+    initiativeGrouping: b084ae89-a7ca-4ad9-83fd-9a4986a28477
+    monster_type: Crux of Ash
+    keywords:
+      Summoner: true
+      Air: true
+      Heroic: true
+      Elemental: true
+      Fire: true
+  tokenType: null
+  bestiaryId: 87dc0c69-0462-4be6-8853-c3e2db994a5f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: 2
+  createdTimestamp: 1757331495444
+description: null
+parentFolder: 8505c8ec-8446-4e6b-bf74-a645343d7cf4
+artist: null
+ord: 1
+ctime: 1759502717059
+mtime: 1775167535161
+hidden: false

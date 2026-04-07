@@ -1,0 +1,29 @@
+__typeName: CharacterComplication
+drawback: Whenever you make a saving throw to end the frightened condition, you roll a d10 twice and take the lower roll.
+mtime: 1768220506058
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      text: "Coward: While you are frightened, you can move toward the source of your fear."
+      sourceguid: f61a84d2-4e4f-4db7-bf60-b57ea3a0b8cf
+      source: Feat
+      behavior: movementtext
+      filterCondition: Conditions has "Frightened"
+      name: Coward - Benefit
+      description: ""
+      guid: d89b196f-65a9-42c2-9229-d9ed971690ea
+      color: green
+    source: Feat
+    canHavePrerequisites: true
+    guid: f61a84d2-4e4f-4db7-bf60-b57ea3a0b8cf
+    name: Coward - Benefit
+    implementation: 2
+name: Coward
+ctime: 1755513379019
+description: Some call you a coward, just because you shriek and run when you encounter danger. Sure, you might not have the natural bravado of less-imaginative people. And sure, you’re always imagining the many horrible ways you could die, but you’re used to fear. When you run in terror, you run toward the enemy.
+id: 9fb4ce0e-c4ee-4f96-aa42-432645183da9
+benefit: While you are frightened, you can move toward the source of your fear.

@@ -1,0 +1,50 @@
+__typeName: ActivatedAbility
+targetFilter: not enemy
+id: 7d345683-87a2-436d-9816-981676c61d52
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: b6904e5b-626e-40a3-b8d6-84ed24970495
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  promptText: Choose ally to grant temporary stamina
+  filterTarget: ""
+  standardAbilityParams:
+    tempstamina: "<<tempstamina>>"
+  abilityType: standard
+  standardAbility: 60b012ab-dde8-4246-afc2-5a9b32e660ef
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+numTargets: "<<numtargets>>"
+modifiers: []
+source: Monster
+guid: d90e72d2-f6ac-4fb2-a729-4411b6f09ebe
+repeatTargets: false
+ctime: 1746075409562
+documentation: This will grant temporary stamina to an ally within range.
+mtime: 1747379284918
+name: Grant Temp Stamina to Ally
+selfTarget: true
+targetType: target
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

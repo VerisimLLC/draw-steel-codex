@@ -1,0 +1,174 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 36704167-8222-49a6-be6f-27168e17a863
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Soulraker Scout	Level 7 Minion Harrier
+        Abyssal, Demon, Soulraker	EV 9 for four minions
+        <b>Stamina</b> 12	<b>Weakness</b> Holy 5
+        <b>Speed</b> 7 (fly)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Edge on strikes	<b>Free Strike</b> 3
+        Might +2	Agility +4	Reason +1	Intuition +0	Presence -1
+        <b>Soul Stinger</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 poison damage
+        %E2%98%85	<b>12-16</b>	6 poison damage; shift 1
+        %E2%9C%B8	<b>17</b>	7 poison damage; shift 3
+
+        <b>Soulsight</b>
+        Each creature within 2 of the scout can't be hidden from them.
+
+        <b>Abyssal Buzzing</b>
+        A creature who starts their turn with 2 or more soulraker minions adjacent to them takes 3 sonic damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ef9f6e18-ebd1-4cd8-a4db-3f2c718879ce: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the scout can't be hidden from them.
+      guid: ef9f6e18-ebd1-4cd8-a4db-3f2c718879ce
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b0ad77b9-b447-4327-a368-241412da0bca: true
+      modifiers: []
+      name: Abyssal Buzzing
+      description: A creature who starts their turn with 2 or more soulraker minions adjacent to them takes 3 sonic damage.
+      guid: b0ad77b9-b447-4327-a368-241412da0bca
+      source: Trait
+    role: Minion Harrier
+    inflictedConditions: []
+    ev: 9
+    max_hitpoints_roll: "12"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 3
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    monster_type: Soulraker Scout
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    withCaptain: Gain an edge on strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 12
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d0d7f68d-bcda-4023-b6c6-d7cc39b387bb
+      implementation: 4
+      numTargets: 1
+      name: Soul Stinger
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 poison damage
+        - 6 poison damage; the scout can shift 1 square
+        - 7 poison damage; the scout can shift up to 3 squares
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Abyssal: true
+      Soulraker: true
+      Demon: true
+    movementSpeeds:
+      fly: 7
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: ed58c31a-920d-4049-8295-418af117ea83
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Soulraker Scout
+parentFolder: d28dbebc-b729-459f-858a-44e596d131e0
+artist: null
+ord: 1
+ctime: 1741590325536
+mtime: 1775201137032
+hidden: false

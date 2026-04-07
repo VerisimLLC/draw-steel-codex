@@ -1,0 +1,159 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 396323c0-f259-41fb-bbbe-d2adfa84dda0
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Blot	Level 4 Hexer Minion
+        Fey, Humanoid, Shadow Elf	EV 6
+        <b>Stamina</b> 9
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Edge on strikes<b>Free Strike</b> 2
+        Might +0	Agility +3	Reason +2	Intuition +0	Presence +0
+        <b>Gloom Strike</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12-16</b>	5 damage; A<2 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	6 damage; A<3 slowed (save ends)
+
+        <b>Of the Umbra</b>
+        The blot ignores concealment granted by darkness. While the blot is in direct sunlight, they have damage weakness 3. While the blot is concealed, they have damage immunity 3.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d8d6c73d-1856-459f-b673-16de6668b212: true
+      modifiers: []
+      name: Of the Umbra
+      description: The blot ignores concealment granted by darkness. While the blot is in direct sunlight, they have damage weakness 3. While the blot is concealed, they have damage immunity 3.
+      guid: d8d6c73d-1856-459f-b673-16de6668b212
+      source: Trait
+    role: Hexer Minion
+    keywords:
+      Humanoid: true
+      Shadow: true
+      Shadow Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "9"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    monster_type: Shadow Elf Blot
+    opportunityAttack: 2
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    levelChoices: []
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    walkingSpeed: 5
+    max_hitpoints: 9
+    traitNames:
+    - With Captain Edge on strikes
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e64c060f-cb7c-4fdf-bc52-bb4905096deb
+      implementation: 4
+      numTargets: 1
+      name: Gloom Strike
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 5 damage; A<2 slowed (save ends)
+        - 6 damage; A<3 slowed (save ends)
+        roll: 2d10 + 3
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds:
+      climb: 5
+    damage_taken: 0
+    minion: true
+    ev: 6
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: b7a0e882-a431-4054-ae16-0b35ddedca03
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962487105
+description: Shadow Elf Blot
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590299374
+mtime: 1775201137032
+hidden: false

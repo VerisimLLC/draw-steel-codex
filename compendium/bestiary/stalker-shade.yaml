@@ -1,0 +1,334 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Stalker Shade
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d3c4635b-b15e-4a21-acf7-4429992a8daf
+  properties:
+    __typeName: monster
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:29fbaaf6-391b-44a4-ac27-00bf41612ed1: true
+        CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:29fbaaf6-391b-44a4-ac27-00bf41612ed1: true
+          CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+        sourceguid: 75924d49-b4ef-40a9-b484-fc878d6eaf4c
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: corruption
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: poison
+          apply: Damage Reduction
+        guid: cb78119f-6013-4e1a-9301-6d3a74d6c01e
+        name: Summoner Buffs
+        description: ""
+      name: Summoner Buffs
+      guid: 29fbaaf6-391b-44a4-ac27-00bf41612ed1
+      description: ""
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:05d0f9b5-1459-4d2e-ad20-78043d0d23f6: true
+        CharacterFeature:a2fd1a92-83c0-4393-bdc0-cf3162dae13b: true
+        CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:05d0f9b5-1459-4d2e-ad20-78043d0d23f6: true
+          CharacterFeature:a2fd1a92-83c0-4393-bdc0-cf3162dae13b: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        guid: 550fa599-1539-4f97-af0d-aa97264d0476
+        description: The ghost can move through creatures and objects at their usual speed, but can’t end their turn inside a creature or object. The first time in a round that the ghost moves through a creature, that creature takes 2 corruption damage. The ghost doesn’t take damage from being force moved into objects.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:05d0f9b5-1459-4d2e-ad20-78043d0d23f6: true
+          CharacterFeature:a2fd1a92-83c0-4393-bdc0-cf3162dae13b: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        guid: d28a3667-bad4-4c2e-88e9-6f40ed7a4ec8
+        description: The ghost can move through creatures and objects at their usual speed, but can’t end their turn inside a creature or object. The first time in a round that the ghost moves through a creature, that creature takes 2 corruption damage. The ghost doesn’t take damage from being force moved into objects.
+        behavior: attribute
+        attribute: 9148519f-9fb4-4b2b-9d3e-98f88c56bab8
+      - __typeName: CharacterModifier
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:05d0f9b5-1459-4d2e-ad20-78043d0d23f6: true
+          CharacterFeature:a2fd1a92-83c0-4393-bdc0-cf3162dae13b: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        resourceRefreshType: round
+        description: The ghost can move through creatures and objects at their usual speed, but can’t end their turn inside a creature or object. The first time in a round that the ghost moves through a creature, that creature takes 2 corruption damage. The ghost doesn’t take damage from being force moved into objects.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "2"
+            damageType: corruption
+            chatMessage: Phased Through
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 91a78ee3-31d5-43bc-be05-1b765bee9979
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a189f7a6-044c-43fd-a66a-29e2b5a46d1b
+          domains:
+            CharacterFeature:05d0f9b5-1459-4d2e-ad20-78043d0d23f6: true
+            CharacterFeature:a2fd1a92-83c0-4393-bdc0-cf3162dae13b: true
+            CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+          targetType: target
+          name: Corruptive Phasing
+          trigger: movethrough
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 91a78ee3-31d5-43bc-be05-1b765bee9979
+      name: Corruptive Phasing
+      guid: 05d0f9b5-1459-4d2e-ad20-78043d0d23f6
+      description: The ghost can move through creatures and objects at their usual speed, but can’t end their turn inside a creature or object. The first time in a round that the ghost moves through a creature, that creature takes 2 corruption damage. The ghost doesn’t take damage from being force moved into objects.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:34b91285-f191-4982-966b-0be51566e7f3: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 34b91285-f191-4982-966b-0be51566e7f3
+        source: Character Feature
+        value: Walking Speed
+        domains:
+          CharacterFeature:34b91285-f191-4982-966b-0be51566e7f3: true
+        name: Fly & Hover
+        guid: 20471286-15a5-44cf-ae48-4433261f82a8
+        description: ""
+        behavior: attribute
+        attribute: fly
+      name: Fly & Hover
+      guid: 34b91285-f191-4982-966b-0be51566e7f3
+      description: ""
+      source: Character Feature
+    max_hitpoints: 6
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: 'An umbral stalker that floats free from any floor or surface. They can bend their appearance to completely vanish in the light. '
+      title: Monster Notes
+    monster_category: Monster
+    opportunityAttack: 5
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 5
+    keywords:
+      Summoner: true
+      Heroic: true
+      Undead: true
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 5 damage
+        - 5 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 corruption damage
+        - 5 corruption damage
+        - 5 corruption damage
+        roll: "12"
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 0dfbee98-9583-446e-9377-a2b22f17ed61
+          repeatTargets: false
+          abilityType: none
+          castImmediately: true
+          targetType: self
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            runOnController: true
+            applyto: caster
+            standardAbilityParams:
+              distance: "3"
+            abilityType: standard
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 23a53d0f-3484-46fe-9a81-1d13c15007fb
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+            mode: effect
+            conditions: []
+            applyto: caster
+          name: Shadow Strike
+          numTargets: "1"
+          description: The stalker shade turns invisible, shifts 3 squares, and reappears after making a strike
+          range: 1
+          iconid: ui-icons/skills/1.png
+        promptText: The stalker shade turns invisible, shifts 3 squares, and reappears after making a strike
+        abilityType: custom
+        invokeOnCaster: true
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Corruption
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: The husk’s melee free strikes inflict m<w slowed (EoT). The potency increases by 1 for each additional husk adjacent to the target (maximum +2).
+      abilityType: none
+      iconid: 6f538843-7dab-46ad-904e-e099607244dd
+    levelChoices: []
+    resources: []
+    monster_type: Stalker Shade
+    minion: true
+    role: Minion Ambusher
+    notesRevision: bc7bc971-bb9a-4908-952f-bf501780370f
+  tokenType: null
+  bestiaryId: dc6a13fd-ec77-4a06-8514-95d127287c71
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1759618051919
+description: null
+parentFolder: c6766a48-8a7b-4417-987f-757cb10088bf
+artist: null
+ord: 2
+ctime: 1759618051919
+mtime: 1775167536909
+hidden: false

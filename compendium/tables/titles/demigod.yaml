@@ -1,0 +1,74 @@
+__typeName: Title
+effect: "You gain the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    prefab: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+    modifiers: []
+    source: Feat
+    guid: fe2686e6-ab21-4b55-8034-08664e582d1e
+    description: Each of your characteristic scores increases by 1, to a maximum of 4.
+    name: Immortal Excellence
+    implementation: 2
+  - __typeName: CharacterFeature
+    description: Your natural lifespan doubles and you can appear to be any age.
+    modifiers: []
+    source: Feat
+    canHavePrerequisites: true
+    guid: b7b2b22f-a8d9-42d2-860b-4f547e93e34f
+    name: Longevity
+    implementation: 0
+  - __typeName: CharacterFeature
+    description: You magically hear prayers directed to you.
+    modifiers: []
+    source: Feat
+    canHavePrerequisites: true
+    guid: df1fec30-b414-433b-ae14-f3894b3fd103
+    name: Worshippers
+    implementation: 0
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Demigod Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 66e3fcca-594e-4451-a455-18d37ea8f819
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Acolytes
+      description: The number of followers you can recruit increases by two.
+      guid: 5ececb1a-c8ba-41e0-9168-20a2d1aa7c4d
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Divine Weapons
+      description: Whenever you use a damage-dealing weapon ability, that ability can deal corruption or holy damage instead of its usual damage type.
+      guid: c1001848-fea9-4576-a8c3-8165d8546cb7
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      description: You earn 2 Renown.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: affdec0a-d313-40ce-96f1-542455fcef44
+        sourceguid: d273d13d-cbb7-4c51-a135-3ac5f4244880
+        behavior: attribute
+        source: Feat
+        name: Missionaries
+        description: You earn 2 Renown.
+        value: 2
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      source: Feat
+      canHavePrerequisites: true
+      guid: d273d13d-cbb7-4c51-a135-3ac5f4244880
+      name: Missionaries
+      implementation: 4
+id: 297d492c-e210-40fa-85e2-fa4e594a04db
+ctime: 1762352219028
+name: Demigod
+description: The ritual is complete. I feel your power flow through me. I am become a god! Ah-ha-ha-ha-ha!
+mtime: 1775216412390
+echelon: "4"
+prerequisite: You have the Godsworn title, and hundreds of worshipful mortals complete a divine ritual in your name.

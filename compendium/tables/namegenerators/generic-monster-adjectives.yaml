@@ -1,0 +1,480 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 65a43052-7830-425d-8289-f20cc641e332
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Alert
+- __typeName: RollTableRow
+  id: 33d38a96-81c1-4739-8195-6ceb77c51560
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Annoyed
+- __typeName: RollTableRow
+  id: 0e0bca4e-bc25-4117-94b1-b1e1a6400469
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Anxious
+- __typeName: RollTableRow
+  id: 30b1dfb7-fcbf-4878-b094-c6695387ed5f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Awkward
+- __typeName: RollTableRow
+  id: ea4c79ad-3cb6-43ca-82f8-1f44f0e7aee7
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Bored
+- __typeName: RollTableRow
+  id: 0681c1f4-2f35-4165-bd55-83c8855e79dc
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Chirpy
+- __typeName: RollTableRow
+  id: d524787a-2335-44b1-a75d-9b96b591362a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Clever
+- __typeName: RollTableRow
+  id: 847df665-9efb-4c8b-8f8d-cdfec9b54cd1
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Confused
+- __typeName: RollTableRow
+  id: 17d547a4-fa51-422b-98a8-b470778071a8
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cowardly
+- __typeName: RollTableRow
+  id: 929e592f-ee1a-44a5-b9a6-af87071609a1
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cranky
+- __typeName: RollTableRow
+  id: db310ae2-b91e-413c-930f-805464405f1d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cruel
+- __typeName: RollTableRow
+  id: d121d598-dcbe-4513-8fa3-bf7a90bb62c6
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cunning
+- __typeName: RollTableRow
+  id: 0a07860d-caad-4ef5-b75d-6fba69894f60
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Curious
+- __typeName: RollTableRow
+  id: 67c78faf-92b0-4e28-8327-567cd4055a03
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Delighted
+- __typeName: RollTableRow
+  id: 3255b8ca-561c-4826-b9b5-103da74e3501
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dizzy
+- __typeName: RollTableRow
+  id: d80d07b9-bb54-4596-97f8-ab54e19dac20
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Eager
+- __typeName: RollTableRow
+  id: 1c0aa257-1759-49d8-a12b-0cd60108ca59
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Enraged
+- __typeName: RollTableRow
+  id: e372e00d-9af9-42d3-80f5-ca9b272ffa83
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Enraged
+- __typeName: RollTableRow
+  id: 42b6c598-e890-4520-a219-b20744be65c2
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Enwisened
+- __typeName: RollTableRow
+  id: 1b132bf7-5c40-46d4-9a98-01f05df78fba
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Excited
+- __typeName: RollTableRow
+  id: e218d0ad-ff19-43cc-ba42-90ca1aea34a4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Foolish
+- __typeName: RollTableRow
+  id: ad4a4ef9-b054-438b-9217-244c2a3006c1
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gaunt
+- __typeName: RollTableRow
+  id: 2330021b-5cc4-4218-96fc-401ef6de096a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Goofy
+- __typeName: RollTableRow
+  id: d1d05251-e94a-40bb-b7c2-966a7bce0f07
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Greedy
+- __typeName: RollTableRow
+  id: b8814786-6205-40fa-b38e-2ab611b2755a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Grumpy
+- __typeName: RollTableRow
+  id: 7e0cad16-3761-490c-8691-5b0dc6961dff
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Happy
+- __typeName: RollTableRow
+  id: 3c787d1d-2516-496a-803a-ea4eb41d1f6d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Hasty
+- __typeName: RollTableRow
+  id: 47880ae6-a108-4bbd-b46c-d39bb7e26f8d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Irritable
+- __typeName: RollTableRow
+  id: 08e6be68-1b52-42db-a5c6-f95a3fbd130a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Lanky
+- __typeName: RollTableRow
+  id: cd5f2fa4-92ae-4980-a291-a5b83dbc93df
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Lonely
+- __typeName: RollTableRow
+  id: dcb157ab-c503-4b2e-b671-8a51064dcce2
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Meek
+- __typeName: RollTableRow
+  id: d551fdf7-bc53-4a95-a14b-1a5d163e8c7c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Miserable
+- __typeName: RollTableRow
+  id: 4d38b1b4-4963-47cd-9317-6211a7dc610a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Moody
+- __typeName: RollTableRow
+  id: c42953b2-f6cb-4452-b5bc-5dfadbe1cbd3
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Mumbling
+- __typeName: RollTableRow
+  id: d0415f47-15ae-4bed-ba0e-7235848054d6
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Obsessed
+- __typeName: RollTableRow
+  id: 7dc6889a-2731-4368-8a46-b3fcded2bf00
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Savage
+- __typeName: RollTableRow
+  id: 0ba49e94-66c7-4b94-b6fb-5d68868fdb20
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Scheming
+- __typeName: RollTableRow
+  id: 22ee78ce-44a5-477e-b870-358460b08d64
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Sinister
+- __typeName: RollTableRow
+  id: 4ea0dd4f-d968-4a02-b837-9791229b3f86
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Sleepy
+- __typeName: RollTableRow
+  id: 0ee1bd22-fcf7-4820-8cb4-eaea0f9f44cd
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Smarmy
+- __typeName: RollTableRow
+  id: bcc146ea-5c12-4756-a582-0f3c417034ec
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Smart
+- __typeName: RollTableRow
+  id: 5d724789-7fbf-4cec-96db-9fe09128c543
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Sneaky
+- __typeName: RollTableRow
+  id: 649f453b-6a86-44ad-be53-9ed8a61db80a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Sneaky
+- __typeName: RollTableRow
+  id: f195d868-bcc2-49d9-8506-358fb8ff48ac
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Startled
+- __typeName: RollTableRow
+  id: 71eb7444-a07c-43cf-9824-bc99256f9bec
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Stout
+- __typeName: RollTableRow
+  id: 7c973175-f5a2-4791-b5fe-4913fd85272b
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Stupid
+- __typeName: RollTableRow
+  id: 36dc6b41-15d5-4fb2-9828-431859d409ae
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Surprised
+- __typeName: RollTableRow
+  id: 17784ac9-a76d-4f4c-87ee-5af884b75466
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Thoughtful
+- __typeName: RollTableRow
+  id: 755d1add-461a-40f8-8f06-8f552c4eb762
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Tired
+- __typeName: RollTableRow
+  id: 28e9cf7f-a43a-47ac-99ed-76d282aa8930
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Treacherous
+- __typeName: RollTableRow
+  id: cdeb3d73-5bfd-42a1-b62c-c98ce2b73cf4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vengeful
+- __typeName: RollTableRow
+  id: 7d27fc07-2c60-4e46-b9c1-602825c199f0
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vile
+- __typeName: RollTableRow
+  id: 6440528e-b03e-48a6-a51f-9d2d17c43368
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Wise
+- __typeName: RollTableRow
+  id: 3f9d410c-0793-4448-82be-97c77033ceab
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Wretched
+- __typeName: RollTableRow
+  id: 51acbb68-6e72-4a16-9f20-6d2a246ce0d5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Conniving
+- __typeName: RollTableRow
+  id: 687a615d-e882-43a9-8b0f-52ea4928fdb4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cackling
+- __typeName: RollTableRow
+  id: 51b0b39d-8aec-4808-9c01-543c4371505c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Wicked
+- __typeName: RollTableRow
+  id: ccfea9be-137b-44b0-a415-60fba4d050c1
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Devious
+- __typeName: RollTableRow
+  id: 7ecb29ca-73ac-4713-858a-5c06710ccfcd
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dastardly
+name: Generic Monster Adjectives
+id: f4d4a342-75f6-47da-92ad-b35188545113
+mtime: 1768101859385
+items: false
+ctime: 1751231403920

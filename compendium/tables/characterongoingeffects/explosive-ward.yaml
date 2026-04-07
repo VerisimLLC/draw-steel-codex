@@ -1,0 +1,114 @@
+__typeName: CharacterOngoingEffect
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:21796912-0055-472b-a86d-0664754251e9: true
+  sourceguid: 21796912-0055-472b-a86d-0664754251e9
+  description: Until the beginning of your next turn, any time an adjacent enemy damages you, you push them up to 3 squares.
+  source: Ongoing Effect
+  name: Explosive Ward
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.093851126730442
+        s: 0.990384638309479
+        v: 0.815686285495758
+        a: 1
+    domains:
+      CharacterOngoingEffect:21796912-0055-472b-a86d-0664754251e9: true
+    guid: 4dcf4888-bb7f-4513-a5d8-b0fbab7b919b
+    repeatTargets: false
+    abilityType: none
+    conditionFormula: Distance(=5)
+    targetType: attacker
+    trigger: hit
+    name: Explosive Ward
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      inheritRange: true
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 56328d31-76e9-49e8-8f51-61a02897c5ec
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: "15	"
+        behaviors:
+        - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          movementType: move
+        targeting: straightline
+        name: Invoked Ability
+        targetType: emptyspace
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    description: Until the beginning of your next turn, any time an adjacent enemy damages you, you push them up to 3 squares.
+    range: 5
+    iconid: f79718b0-827e-43c8-bb61-e14af36cb2d1
+  guid: de52168f-79d7-4d94-9140-7dc66939622d
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:21796912-0055-472b-a86d-0664754251e9: true
+  sourceguid: 21796912-0055-472b-a86d-0664754251e9
+  description: Until the beginning of your next turn, any time an adjacent enemy damages you, you push them up to 3 squares.
+  source: Ongoing Effect
+  name: Explosive Ward
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: ea2181f5-3b1d-42a5-b95b-ebf37c5d2e08
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 5
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      applyto: caster
+      mode: expend
+      resourceid: 724faff1-8f40-43e9-97df-c63e299f7af0
+    name: Explosive Ward
+    trigger: beginturn
+    description: Maintaining Explosive Ward costs 1 essence at the beginning of your turn.
+    abilityType: none
+    iconid: f79718b0-827e-43c8-bb61-e14af36cb2d1
+  guid: 28b4d107-4dda-40e1-bde9-d89662446b97
+source: Ongoing Effect
+guid: 21796912-0055-472b-a86d-0664754251e9
+id: 21796912-0055-472b-a86d-0664754251e9
+ctime: 1709573086143
+domains:
+  CharacterOngoingEffect:21796912-0055-472b-a86d-0664754251e9: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.093851126730442
+    s: 0.990384638309479
+    v: 0.815686285495758
+    a: 1
+name: Explosive Ward
+description: Until the beginning of your next turn, any time an adjacent enemy damages you, you push them up to 3 squares.
+custom: true
+mtime: 1711384750349
+iconid: f9a55ec7-e72f-45b3-acff-d07a91d91c77

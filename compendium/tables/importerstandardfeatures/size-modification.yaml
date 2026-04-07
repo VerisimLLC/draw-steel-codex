@@ -1,0 +1,19 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+  sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+  value: 1
+  source: Character
+  name: Stamina Modification
+  behavior: attribute
+  description: ""
+  attribute: creatureSize
+source: Character
+guid: 2359108d-cb7d-4a79-8a98-38f577168092
+id: 6450780b-d70f-4bf2-ae23-9620e047e693
+ctime: 1756099470349
+name: Size Modification
+description: ""
+mtime: 1756099470349
+implementation: 3

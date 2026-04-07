@@ -1,0 +1,234 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d2829c3f-f791-4cce-bd4a-dcc4b9fa9a97
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        War Dog Ballistite	Level 8 Horde Artillery
+        War Dog	EV 10
+        <b>Stamina</b> 72
+        <b>Speed</b> 0	<b>Size</b> 1L /<b> Stability</b> 5
+        <b>Free Strike</b> 4
+        Might +4	Agility -2	Reason +2	Intuition +3	Presence +2
+        <b>Biokinetic Ballista</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 15<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; push 1
+        %E2%98%85	<b>12-16</b>	10 damage; push 3
+        %E2%9C%B8	<b>17</b>	11 damage; push 5
+        <b>Effect</b> A target that is pushed into an obstacle is knocked prone and <b>M<3</b> restrained (save ends).
+
+        <b>Kill Zone </b>(Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 12<b>	Target</b> Special
+        <b>Effect</b> Until the start of the ballistite's next turn, the affected area becomes difficult terrain and ranged abilities targeting enemies occupying an affected square deal an additional 8 damage.
+
+        <b>Set Up and Tear Down</b>
+        At the start of the ballistite's turn, they can increase their speed by 4 until the end of their turn. They cannot use maneuvers or actions other than move while their speed is greater than 0.
+
+        <b>Loyalty Collar</b>
+        When the ballistite dies, they explode, dealing 3d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7796e9d6-b805-4c7a-8df8-a068979ed1b2: true
+      modifiers: []
+      name: Set Up and Tear Down
+      description: At the start of the ballistite's turn, they can increase their speed by 4 until the end of their turn. They cannot use maneuvers or actions other than move while their speed is greater than 0.
+      guid: 7796e9d6-b805-4c7a-8df8-a068979ed1b2
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f472e391-115e-4176-a4e9-a883097b4ef2: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 3d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the ballistite is reduced to 0 Stamina, their loyalty collar explodes, dealing 3d6 damage to each adjacent enemy and object.
+      guid: f472e391-115e-4176-a4e9-a883097b4ef2
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Artillery
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Soulless: true
+    max_hitpoints_roll: "72"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    monster_type: War Dog Ballistite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 0
+    resources: []
+    max_hitpoints: 72
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; push 1
+        - 10 damage; push 3
+        - 11 damage; push 5
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 1f14e444-9cb0-48a4-acd6-750444a7ea4c
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Biokinetic Ballista
+      numTargets: 2
+      description: A target that is pushed into an obstacle is knocked prone and M<3 restrained (save ends).
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: d555c4b3-9827-4d0d-81e3-0c55064732aa
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: 'Kill Zone '
+      implementation: 0
+      description: Until the start of the ballistite's next turn, the affected area becomes difficult terrain and ranged abilities targeting enemies occupying an affected square deal an additional 8 damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 10
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: 1d5e11e3-6c64-4074-85ca-89712aa93a19
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Ballistite
+parentFolder: dd2974a5-afe0-42da-8fb3-f9cb518106e0
+artist: null
+ord: 5
+ctime: 1749972307653
+mtime: 1775201137032
+hidden: false

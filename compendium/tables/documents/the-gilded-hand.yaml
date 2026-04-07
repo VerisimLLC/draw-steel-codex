@@ -1,0 +1,21 @@
+__typeName: MarkdownDocument
+description: The Gilded Hand
+parentFolder: 8e9d2508-af25-4e96-b407-46ac7ca3fc85
+updateid: 6bb6d954-dba7-43d4-8913-ce0a65522dbe
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups: []
+id: c135a473-50f8-46d0-baf2-78aa7ac12ef1
+mtime: 1763039990762
+content: |-
+  # The Gilded Hand
+
+  The Gilded Hand are a group of Rival adventurers who will recur throughout the adventure. 
+  You do not need to worry about them yet.
+
+
+  {(see The [Gilded Hand] in [Part 2])}
+ctime: 1760505232979

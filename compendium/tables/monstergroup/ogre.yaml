@@ -1,0 +1,166 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  targetFilter: Size < 5
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    resistanceAttr: mgt
+    roll: 2d10 + Might or Agility
+    tiers:
+    - 5 damage; vertical push 3
+    - 4 damage; vertical push 2
+    - Push 1
+    resistanceRoll: true
+    isTest: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.0562496930360794
+      s: 0.966210126876831
+      v: 0.521767318248749
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 209
+    docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+  range: "3"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: a199a200-cba7-4750-a1da-c4b30f3c0e1d
+  abilityType: none
+  iconid: 174384e2-ce22-49f3-b6ef-59269c491e1f
+  numTargets: "1"
+  name: Shockwave
+  targetType: all
+  description: One ogre acting this turn jumps and lands on their rear, causing a 3 burst shockwave. Each size 1 creature in the area makes a Might test or Agility test.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 2
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetFilter: type = "Ogre"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    standardAbilityParams:
+      distance: Movement Speed
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: afc500e4-cfbb-4c33-bcdf-e2428f46278f
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityType: none
+      behaviors: []
+      targetType: self
+      name: Invoked Ability
+      numTargets: "1"
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+    abilityType: standard
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 15d1122f-e040-442f-97e4-ea1f88af0d95
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+  display:
+    brightness: 2
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.0712497234344482
+      s: 0.985741674900055
+      v: 0.979560792446136
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 209
+    docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: d324f95e-3c53-4758-9bd1-da11745eedc9
+  abilityType: none
+  targetType: map
+  iconid: 92a6d94b-65ab-49b6-b33e-0dae78f3a332
+  numTargets: "1"
+  selfTarget: true
+  name: Bully
+  description: Each ogre in the encounter shifts up to their speed and can make a free strike. If they can, they gang up on the same target rather than picking different targets.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  targetFilter: type = "Ogre"
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1.24285714285714
+    saturation: 0.971428571428571
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.966210961341858
+      v: 0.878193736076355
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 209
+    docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: d29a0518-9623-4868-b713-9bf64bc12621
+  abilityType: none
+  channeledResource: none
+  iconid: de2d492d-2ea9-4023-9738-d0125cd31734
+  numTargets: "1"
+  selfTarget: true
+  name: Rampage
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 12798e7a-3f18-447a-983e-e54b5f692ef0
+    duration: endround
+    ongoingEffectCustom: 12798e7a-3f18-447a-983e-e54b5f692ef0
+  description: Until the end of the round, each ogre has damage immunity 5 and deals an extra 5 damage with abilities, and heroic abilities that target any ogre have their Heroic Resource cost reduced by 1 (to a minimum of 1).
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+mtime: 1768399044136
+name: Ogre
+traits: []
+attacks: []
+id: 83a948ff-8852-4626-adfc-f05ec9e2af22
+ctime: 1758091139543

@@ -1,0 +1,67 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 8c15103c-dbdd-466e-bcbe-899e92fa2061
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:8c15103c-dbdd-466e-bcbe-899e92fa2061: true
+  name: Bull Shot
+  guid: 72d54378-786b-4552-896a-fece95cc7730
+  description: You sprout 3-foot sharpened horns from your forehead. Whenever you use the Charge main action, the target of your strike is gored upon your horns and grabbed. While grabbed this way, the creature is bleeding. You can also grab another creature with your limbs. The horns harmlessly fall off your head at the end of the encounter.
+  behavior: attribute
+  attribute: 7a91dad1-97f4-4411-b326-425d58bb2bb2
+- __typeName: CharacterModifier
+  sourceguid: 8c15103c-dbdd-466e-bcbe-899e92fa2061
+  modifyDescription: Whenever you use the Charge main action, the target of your strike is gored upon your horns and grabbed. While grabbed this way, the creature is bleeding.
+  source: Ongoing Effect
+  behavior: modifyability
+  domains:
+    CharacterOngoingEffect:8c15103c-dbdd-466e-bcbe-899e92fa2061: true
+  attributes: []
+  guid: 78564649-9f9a-43e7-a9a4-5a86044517db
+  description: You sprout 3-foot sharpened horns from your forehead. Whenever you use the Charge main action, the target of your strike is gored upon your horns and grabbed. While grabbed this way, the creature is bleeding. You can also grab another creature with your limbs. The horns harmlessly fall off your head at the end of the encounter.
+  name: Bull Shot
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 357b3f8e-8fc2-4aa1-87da-4f9d75fcfa68
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: grabbed
+    - __typeName: ActivatedAbilityApplyRidersBehavior
+      conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+      riderid: f1c8e7cc-cf1d-417a-84ef-997bde94b5b4
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 8c15103c-dbdd-466e-bcbe-899e92fa2061
+id: 8c15103c-dbdd-466e-bcbe-899e92fa2061
+ctime: 1774789017847
+domains:
+  CharacterOngoingEffect:8c15103c-dbdd-466e-bcbe-899e92fa2061: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+buffType: buff
+name: Bull Shot
+custom: true
+mtime: 1774789462450
+description: You sprout 3-foot sharpened horns from your forehead. Whenever you use the Charge main action, the target of your strike is gored upon your horns and grabbed. While grabbed this way, the creature is bleeding. You can also grab another creature with your limbs. The horns harmlessly fall off your head at the end of the encounter.
+iconid: ui-icons/skills/1.png

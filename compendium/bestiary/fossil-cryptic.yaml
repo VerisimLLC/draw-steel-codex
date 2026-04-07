@@ -1,0 +1,1378 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e9ad14d7-0df1-45c2-972a-0859b95dc3d2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 250
+    inflictedConditions: []
+    ev: 48
+    max_hitpoints_roll: "250"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 3
+        id: mgt
+      rea:
+        baseValue: 1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Fossil Cryptic
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: fb3607b3-261b-4fd8-8d88-c13d1863f9e3
+        filterTarget: Target.Conditions has "prone"
+        duration: 0
+        ongoingEffectCustom: fb3607b3-261b-4fd8-8d88-c13d1863f9e3
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; A<1 prone
+        - 12 damage; A<2 slide 2, prone
+        - 15 damage; A<3 prone and can't stand (save ends)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        tiersSelected:
+        - 1
+        filterTarget: Target.Agility <1 and Target.Ongoing Effects has "already prone"
+        duration: end_of_next_turn
+        ongoingEffectCustom: false
+        ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        tiersSelected:
+        - 2
+        filterTarget: Target.Agility <2 and Target.Ongoing Effects has "already prone"
+        duration: end_of_next_turn
+        ongoingEffectCustom: false
+        ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+        filterTarget: target.Agility <2
+        riderid: 760cf637-4f7c-42e5-9153-835111c9d87c
+        tiersSelected:
+        - 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        tiersSelected:
+        - 3
+        filterTarget: Target.Agility <3 and Target.Ongoing Effects has "already prone"
+        duration: end_of_next_turn
+        ongoingEffectCustom: false
+        ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+        filterTarget: target.Agility <3
+        riderid: 760cf637-4f7c-42e5-9153-835111c9d87c
+        tiersSelected:
+        - 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: e7624a47-40c9-4d78-b094-b62315f0b283
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 2
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 144
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Sand Slam
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: If a target made prone this way is already prone, they are instead restrained (EoT).
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage; M<1 push 2
+        - 7 damage; M<2 prone
+        - 10 damage; M<3 prone
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        namedAbility: ""
+        invokeOnCaster: true
+        promptText: The cryptic reforms their body and appears in an unoccupied space within the target line.
+        standardAbilityParams:
+          range: "6"
+        abilityType: standard
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 862e7dd2-901a-4476-8737-2cd1644960be
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 144
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 6
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 725de198-e8b7-47ce-a21d-f1e5cc4d277f
+      targetType: line
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      name: Stone Bone Storm
+      radius: "1"
+      description: The cryptic reforms their body and appears in an unoccupied space within the line.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: true
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 4d34f790-9ef3-4edc-bfbf-04510985f404
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage; push 2
+        - 7 damage; prone; push 3
+        - 10 damage; prone; push 4
+        roll: 2d10 + Might
+      name: Shatterstone
+      implementation: 3
+      description: The cryptic burrows up to half their speed, then creates the burst when they breach the surface.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        movementType: move
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        targeting: prompt
+        promptText: Select the targets to slide up to 3 squares
+        standardAbilityParams:
+          range: "3"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 23edda8e-fe27-49ed-a19b-710dabb785b4
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+      - __typeName: ActivatedAbilityReplenishBehavior
+        applyto: caster
+        mode: expend
+        modesSelected:
+        - 2
+        quantity: "2"
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+        chatMessage: Stoneshift 2 Malice spent
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 144
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      preDescription: The cryptic slides the target up to 3 squares.
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      strain: []
+      guid: 55a3488c-5b5b-4f40-9c5d-7680213cbcbf
+      modeList:
+      - rules: Slide one target up to 3 squares
+        text: "Standard:"
+        condition: ""
+      - rules: Slide two targets up to 3 squares.
+        text: 2 Malice
+        condition: Heroic Resources Available to Spend >= 2
+      targetType: target
+      categorization: Ability
+      numTargets: 2 when mode = 2 else 1
+      range: 5
+      name: Stoneshift
+      implementation: 3
+      description: |-
+        The cryptic slides the target up to 3 squares.
+
+        **2 Malice**: The ability targets one additional target.
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      targetAllegiance: enemy
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'f0d141ef-8a63-4537-b65"
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 5af2c512-9aa3-4f95-85ac-b32fc4c92a1e
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: mgt
+        roll: 2d10 + Might
+        tiers:
+        - Prone and can't stand (EoT)
+        - Prone
+        - No Effect
+        attrid: mgt
+        resistanceRoll: true
+        isTest: false
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+        riderid: 760cf637-4f7c-42e5-9153-835111c9d87c
+        tiersSelected:
+        - 1
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 144
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      effectImplemented: false
+      name: First Warning Quake
+      implementation: 3
+      description: |+
+        Special: A target must be on the ground.Each target makes a Might test.
+        Prone and can't stand (EoT)
+
+        Prone
+
+        No effect.
+
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      implementationDetails: Tier 3 Agility result guides the player's to move into the nearest unoccupied space outside the affected area.
+      behaviors:
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        height: "-2	"
+        shape: square
+      - __typeName: ActivatedAbilityChangeTerrainBehavior
+        shape: square
+        tileid: "-MBVQqKrE73ix3K9-MjS"
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+            stacks: "2"
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 144
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: c0f52c62-de43-407f-b74d-7decece6abf6
+          numTargets: "1"
+          iconid: ui-icons/skills/1.png
+          name: Invoked Ability
+          selfTarget: true
+          targetType: all
+          description: ""
+          abilityType: none
+          implementation: 4
+        applyto: caster
+      - __typeName: ActivatedAbilityAuraBehavior
+        duration: eoe
+        aura:
+          __typeName: Aura
+          modifiers: []
+          guid: 81b00ed5-55e2-487c-9ad2-92dc306d1d7e
+          difficult_terrain: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: agl
+        roll: 2d10 + Might or Agility
+        tiers:
+        - 9 damage; prone
+        - 5 damage
+        - the target moves to the nearest unoccupied space outside the area
+        resistanceRoll: true
+        isTest: false
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 3
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 86df5eb2-a4de-4f2f-a747-148272c4be28
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          distance: "2"
+        promptText: You may move to the nearest unoccupied space outside the area.
+        namedAbility: move
+        abilityType: standard
+        standardAbility: 4a993863-896f-47d0-8449-74c1fe2279b0
+        promptWhenResolving: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 5
+      effectImplemented: false
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      implementation: 3
+      strain: []
+      guid: 809eca07-c52a-424c-b5fd-671ed1b8946a
+      targetAllegiance: enemy
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '6102556d-ac36-4e7b-853"
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 144
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: all
+      name: 'Final Warning Fissure '
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      description: The area drops 2 squares. Each enemy in the area falls, while allies of the fossil cryptic drop safely. The affected area then becomes difficult terrain.
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; vertical slide 2
+        - 3 damage; vertical slide 4
+        - 4 damage; vertical slide 8 or the target is restrained against the ceiling (save ends)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityCreateObjectBehavior
+        objectid: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 144
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: ad4079fd-0a63-4636-8c0e-7f2545d17a66
+        multicharge: false
+      villainAction: Villain Action 3
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      modifiers: []
+      strain: []
+      guid: 0639eea1-a1f8-4f5a-adfd-32826e97ca2a
+      persistence: []
+      targetType: target
+      numTargets: 2
+      effectImplemented: false
+      categorization: Villain Action
+      name: No Escape
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      description: The cryptic then makes a final power roll that raises stone pillars from the floor.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      strain: []
+      guid: 5e9b630d-7064-4106-ac81-aa817bf3081c
+      repeatTargets: false
+      abilityType: none
+      iconid: 63864356-6bf1-4516-8ef1-58a1436a99c1
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 3cfee38a-1af5-4558-8a03-82430f05a0ce
+        ongoingEffectCustom: false
+      persistence: []
+      name: Dig
+      targetType: self
+      description: It takes extra effort to dig vertically through the ground as opposed to tunneling horizontally, requiring a creature to use a special maneuver. To use the Dig maneuver, a creature must have "burrow" in their speed entry, they must have a speed that is equal to or greater than their size, and they must be touching terrain that can be burrowed through. When a creature uses the Dig maneuver, they can move vertically up to a number of squares equal to their size. If a burrowing creature has a creature who is not unconscious grabbed, they can't willingly move deeper into the ground. It's too difficult to dig with a flailing enemy in your claws.
+      range: 1
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 13d5a307-0bef-4f19-b4c5-cdcb41200f68
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: e9372358-4a04-47e0-9d54-2f6bdd296c57
+            sourceguid: c9b478bd-aa23-41ee-ac7b-13b24bd725e5
+            behavior: attribute
+            source: Ongoing Effect
+            name: Dissipate
+            value: 1
+            description: Damage is halved and ignore non damaging effects
+            attribute: e3a362d8-7a61-4aee-89fe-e1ba927a9184
+          source: Ongoing Effect
+          guid: c9b478bd-aa23-41ee-ac7b-13b24bd725e5
+          id: c9b478bd-aa23-41ee-ac7b-13b24bd725e5
+          name: Dissipate
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: Damage is halved and ignore non damaging effects
+          implementation: 3
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 87af79ce-bfa4-4dbf-874b-ddedb0a4e0b2
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: The cryptic shifts up to 3 squares
+        namedAbility: shift
+        standardAbilityParams:
+          distance: "3"
+        abilityType: standard
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 143
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Dissipate
+      numTargets: 1
+      description: |
+        The cryptic halves the damage, ignores any nondamaging effects associated with it, and shifts up to 3 squares
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 2
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 143
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: d0eba110-bcec-4435-b829-b7261090114d
+        multicharge: false
+      villainAction: Villain Action 3
+      numTargets: 2
+      modifiers: []
+      guid: 1df7bfbb-5e0c-4342-beac-231a2a53a9d0
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; prone; M<1 restrained (save ends)
+        - 9 damage; prone; M<2 restrained (save ends)
+        - 12 damage; prone; M<3 restrained (save ends)
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      name: No Escape (Power Roll 1)
+      categorization: Villain Action
+      description: |-
+        The cryptic makes an initial power roll that calls down stone pillars from the ceiling.
+        The cryptic then makes a second power roll that raises stone pillars from the floor.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 143
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 2690be2e-77bb-4469-80c3-ddef9b75ebc9
+        multicharge: false
+      villainAction: Villain Action 4
+      numTargets: 2
+      modifiers: []
+      guid: 2cb89912-760e-4307-9dc8-68597f7053fe
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; vertical slide 2
+        - 3 damage; vertical slide 4
+        - 4 damage; vertical slide 6; if this movement brings the target  into contact with the ceiling, they are restrained (save ends).
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      name: No Escape (Power Roll 2)
+      categorization: Villain Action
+      description: ""
+      abilityType: none
+      implementation: 4
+    minion: false
+    stability: 3
+    import:
+      type: mcdm
+      data: |+
+        Fossil Cryptic	Level 2 Solo
+        Elemental	EV 40
+        <b>Stamina</b> 250
+        <b>Speed</b> 8 (burrow)	<b>Size</b> 1L /<b> Stability</b> 3
+        <b>Free Strike</b> 5
+        Might +3	Agility +2	Reason +1	Intuition +1	Presence 0
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The cryptic takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the cryptic can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Churning Trunk</b>
+        The cryptic emits a 1 aura of swirling debris that obscures their form. Any enemy who enters the aura for the first time in a round or starts their turn there takes 5 damage. Ranged abilities that target the cryptic have a bane.
+
+        <b>Seismic Step</b>
+        The cryptic ignores difficult terrain. Additionally, they have line of effect to concealed creatures touching the ground.
+
+        <b>Sand Slam</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	8 damage; A<1 slide 2
+        %E2%98%85	12%E2%80%9316	12 damage; A<2 prone and can't stand (EoT)
+        %E2%9C%B8	17+	15 damage; A<3 slide 3, prone and can't stand (EoT)
+        <b>Effect</b> The ground beneath each target becomes difficult terrain.
+
+        <b>Stone Bone Storm</b> (Action) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 6 x 1 line within 1	<b>Target</b> Each enemy in the line
+        %E2%9C%A6	%E2%89%A411	4 damage; M<1 push 2
+        %E2%98%85	12%E2%80%9316	7 damage; M<2 prone
+        %E2%9C%B8	17+	10 damage; M<3 prone
+        <b>Effect</b> The cryptic reforms their body and appears in an unoccupied space within the line.
+
+        <b>Shatterstone</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 2 burst	<b>Target</b> Each enemy in the burst
+        <b>Effect</b> The cryptic burrows up to half their speed, then creates the burst when they breach the surface.
+        %E2%9C%A6	%E2%89%A411	4 damage; push 2
+        %E2%98%85	12%E2%80%9316	7 damage; push 3; prone
+        %E2%9C%B8	17+	10 damage; push 4; prone
+
+        <b>Stoneshift</b> (Maneuver)
+        <b>Keywords</b> Ranged
+        <b>Distance</b> Ranged 5	<b>Target</b> One creature or object on the ground
+        <b>Effect</b> Slide 3.
+        <b>2 Malice</b> The distance of the ability becomes Ranged 10 and the slide increases to slide 6.
+
+        <b>Dissipate</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Trigger</b> The cryptic takes damage
+        <b>Effect</b> The cryptic halves the damage, ignores any additional effects associated with it, and shifts up to 3 squares.
+
+        <b>First Warning Quake</b> (Villain Action 1)
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 5 burst	<b>Target</b> Each enemy on the ground in the burst
+        <b>Effect</b> Each target makes a <b>Might test.</b>
+        %E2%9C%B8	%E2%89%A411	The target is prone and can't stand (EoT)
+        %E2%98%85	12%E2%80%9316	Prone
+        %E2%9C%A6	17+	No effect
+        <b>Effect</b> The affected area becomes difficult terrain.
+
+        <b>Final Warning Fissure </b>(Villain Action 2)
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 5 burst	<b>Target</b> Each enemy on the ground in the burst
+        <b>Effect</b> Each target makes an <b>Agility test.</b>
+        %E2%9C%B8	%E2%89%A411	9 damage; prone
+        %E2%98%85	12%E2%80%9316	5 damage
+        %E2%9C%A6	17+	The target moves to the nearest unoccupied space outside the area.
+        <b>Effect</b> The area drops 2 squares. Each enemy in the area falls, while allies of the fossil cryptic drop safely. The affected area then becomes difficult terrain.
+
+        <b>No Escape</b> (Villain Action 3) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Ranged
+        <b>Effect</b> The cryptic makes an initial power roll that calls down stone pillars from the ceiling.
+        <b>Distance</b> Ranged 10	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	5 damage; prone; M<1 restrained (save ends)
+        %E2%98%85	12%E2%80%9316	9 damage; prone; M<2 restrained (save ends)
+        %E2%9C%B8	17+	12 damage; prone; M<3 restrained (save ends)
+        <b>Effect</b> The cryptic then makes a final power roll that raises stone pillars from the floor.
+        <b>Distance</b> Ranged 10
+        <b>Target</b> Two creatures or objects on the ground
+        %E2%9C%A6	%E2%89%A411	2 damage; vertical slide 2
+        %E2%98%85	12%E2%80%9316	3 damage; vertical slide 4
+        %E2%9C%B8	17+	4 damage; vertical slide 8 or the target is restrained against the ceiling (save ends)
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:064df40d-6f54-4e90-b7f7-a236e270f2d9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 064df40d-6f54-4e90-b7f7-a236e270f2d9
+        source: Trait
+        seq: 799e6d78-3f9e-48a5-a74e-8daea5104897
+        guid: 7dcce1d7-7e12-4746-a165-c9a3b2258487
+        domains:
+          CharacterFeature:064df40d-6f54-4e90-b7f7-a236e270f2d9: true
+        radius: "1"
+        behavior: aura
+        description: The cryptic emits a 1 aura of swirling debris that obscures their form. Any enemy who enters the aura for the first time in a round or starts their turn there takes 5 damage. Ranged abilities that target the cryptic have a bane.
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: "5"
+                chatMessage: Churning Trunk swirling debris
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: c338b115-f631-42eb-b1a2-cb07fc180eac
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Aura Trigger
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: 66e4222c-8e58-4168-a404-d88eba058885
+          objectid: dd682ea8-19d5-4c6c-840e-7fbac246e03f
+        name: Churning Trunk
+      - __typeName: CharacterModifier
+        sourceguid: 064df40d-6f54-4e90-b7f7-a236e270f2d9
+        source: Trait
+        modtype: bane
+        keywords:
+          Ranged: true
+        activationCondition: true
+        guid: 3a02699f-3b56-4f5c-b4b8-6078c8daf5f3
+        name: Churning Trunk
+        domains:
+          CharacterFeature:064df40d-6f54-4e90-b7f7-a236e270f2d9: true
+        description: The cryptic emits a 1 aura of swirling debris that obscures their form. Ranged abilities that target the cryptic have a bane.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: The cryptic emits a 1 aura of swirling debris that obscures their form. Any enemy who enters the aura for the first time in a round or starts their turn there takes 5 damage. Ranged abilities that target the cryptic have a bane.
+      guid: 064df40d-6f54-4e90-b7f7-a236e270f2d9
+      name: Churning Trunk
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8b02e33a-922f-4739-a157-12c42714e377: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8b02e33a-922f-4739-a157-12c42714e377
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:8b02e33a-922f-4739-a157-12c42714e377: true
+        name: Seismic Step
+        guid: 471970b8-3d08-4087-9cce-29fb95146e48
+        description: The cryptic ignores difficult terrain. Additionally, they have line of effect to concealed creatures touching the ground.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 8b02e33a-922f-4739-a157-12c42714e377
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:8b02e33a-922f-4739-a157-12c42714e377: true
+        name: Seismic Step
+        guid: aadf4d3d-b2a0-4106-aae2-9ce2ca725cd1
+        description: The cryptic ignores difficult terrain. Additionally, they have line of effect to concealed creatures touching the ground.
+        behavior: attribute
+        attribute: 16228928-9f29-4510-a703-65344f2356ef
+      - __typeName: CharacterModifier
+        sourceguid: 8b02e33a-922f-4739-a157-12c42714e377
+        displayCondition: Target.Ongoing Effects has "concealment" and not Movement Type is "walk"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:8b02e33a-922f-4739-a157-12c42714e377: true
+        name: Seismic Step- Concealed and not on ground
+        rollType: ability_power_roll
+        description: The cryptic has line of effect to concealed creatures touching the ground. However this target is not touching the ground and so the concealment prevents line of effect.
+        behavior: power
+        guid: 444e7958-55f5-4261-aa15-a9c42a5f7962
+      source: Trait
+      description: The cryptic ignores difficult terrain. Additionally, they have line of effect to concealed creatures touching the ground.
+      guid: 8b02e33a-922f-4739-a157-12c42714e377
+      name: Seismic Step
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f581f538-76ff-40a9-b7d5-7df285fe2360: true
+        CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+        CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:f581f538-76ff-40a9-b7d5-7df285fe2360: true
+          CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+          CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+        sourceguid: 58bdd65e-5a1b-4448-8a61-1b18d5171e7b
+        behavior: trigger
+        source: Trait
+        name: End Effect
+        description: At the end of their turn, the fossil cryptic can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "5"
+            conditions: []
+            purgeType: one
+            targetDuration: save
+          triggerPrompt: End one save ends effect on self, take 5 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 64a3c278-c1c7-481c-bfc7-e0bd53943fe5
+          domains:
+            CharacterFeature:f581f538-76ff-40a9-b7d5-7df285fe2360: true
+            CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+            CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+          conditionFormula: SaveEndsEffects
+          trigger: endturn
+          numTargets: "1"
+          name: End Effect
+          targetType: self
+          description: |
+            At the end of each of their turns, the arixx can take 5 damage to end one effect on them that can be ended by a saving throw. 
+            This damage can't be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f984915f-df12-4e9c-bcbc-d6cbe680ac2e
+      source: Trait
+      description: At the end of their turn, the fossil cryptic can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: f581f538-76ff-40a9-b7d5-7df285fe2360
+      name: End Effect
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b5732ce9-2228-4db9-8589-e4b5afc06f53: true
+        CharacterFeature:284c2c36-1ac1-4eb2-99e0-6a25d4673780: true
+        CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 284c2c36-1ac1-4eb2-99e0-6a25d4673780
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:b5732ce9-2228-4db9-8589-e4b5afc06f53: true
+          CharacterFeature:284c2c36-1ac1-4eb2-99e0-6a25d4673780: true
+          CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+        name: Solo Turn
+        guid: 25656cab-fa36-458e-b4e7-ad20778bd47a
+        description: The fossil cryptic can take two turns each round. They can't take turns consecutively.
+        behavior: attribute
+        attribute: extraturns
+      source: Character Feature
+      description: The fossil cryptic can take two turns each round. They can't take turns consecutively.
+      guid: 284c2c36-1ac1-4eb2-99e0-6a25d4673780
+      name: Solo Turn
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e431f98d-d00a-4352-87ee-1eea94553d92: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e431f98d-d00a-4352-87ee-1eea94553d92
+        source: Character Feature
+        behavior: powertableadditional
+        original: ""
+        domains:
+          CharacterFeature:e431f98d-d00a-4352-87ee-1eea94553d92: true
+        name: Dissipate
+        additionalModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          activationCondition: false
+          modtype: none
+          rollType: enemy_ability_power_roll
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 4f4854ed-f2b8-4171-b0da-5d6609b1c7ae
+            repeatTargets: false
+            trigger: d20roll
+            targetType: self
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                modifiers:
+                - __typeName: CharacterModifier
+                  guid: e9372358-4a04-47e0-9d54-2f6bdd296c57
+                  sourceguid: c9b478bd-aa23-41ee-ac7b-13b24bd725e5
+                  behavior: attribute
+                  source: Ongoing Effect
+                  name: Dissipate
+                  value: 1
+                  description: Damage is halved and ignore non damaging effects
+                  attribute: e3a362d8-7a61-4aee-89fe-e1ba927a9184
+                source: Ongoing Effect
+                guid: c9b478bd-aa23-41ee-ac7b-13b24bd725e5
+                id: c9b478bd-aa23-41ee-ac7b-13b24bd725e5
+                name: Dissipate
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                description: Damage is halved and ignore non damaging effects
+                implementation: 4
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 87af79ce-bfa4-4dbf-874b-ddedb0a4e0b2
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                targetType: self
+                range: 1
+                name: Invoked Ability
+                behaviors: []
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: The cryptic shifts up to 3 squares
+              namedAbility: shift
+              standardAbilityParams:
+                distance: "3"
+              abilityType: standard
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            numTargets: "1"
+            name: Dissipate
+            mandatory: true
+            description: This mkake
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Dissipate
+          rules: ""
+          description: The cryptic halves the damage, ignores any nondamaging effects associated with it, and shifts up to 3 squares.
+          behavior: power
+          guid: 17c49e99-df42-420d-b1b1-c564da4f09ba
+        description: |-
+          Trigger: The cryptic takes damage.
+
+          Effect: The cryptic halves the damage, ignoring any nondamaging effects associated with it, and shifts up to 3 squares.
+        guid: 6bd6a4ff-8779-467a-9af4-3e349c7170bc
+      source: Character Feature
+      description: |-
+        Trigger: The cryptic takes damage.
+
+        Effect: The cryptic halves the damage, ignoring any nondamaging effects associated with it, and shifts up to 3 squares.
+      guid: e431f98d-d00a-4352-87ee-1eea94553d92
+      name: Dissipate
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:584fd845-d1f2-425d-9912-c30f9e46583b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:584fd845-d1f2-425d-9912-c30f9e46583b: true
+        sourceguid: 584fd845-d1f2-425d-9912-c30f9e46583b
+        behavior: trigger
+        source: Character Feature
+        name: Shatterstone
+        description: |-
+          Trigger: The cryptic uses the Dig maneuver to resurface.
+
+          Effect: Before using the Dig maneuver, the cryptic moves up to their speed. They then create the burst when they breach the surface.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Before using dig, the Cryptic may move up to their speed. They then create the burst ability when they breach the surface.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: ec475f6b-501d-465a-9047-cf97ee17b289
+          conditionFormula: Used Ability.name is "Dig"
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 4f4a5d8e-cd47-491a-ae06-faa2a0946bf5
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            namedAbility: move speed
+            abilityType: named
+            promptText: The cryptic moves up to their speed.
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: fbeb0cac-15d9-4953-a715-9435139ee9b9
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              targetAllegiance: enemy
+              behaviors:
+              - __typeName: ActivatedAbilityPowerRollBehavior
+                tiers:
+                - 4 damage; push 2
+                - 7 damage; push 3, prone
+                - 10 damage; push 4, prone
+                roll: 2d10 + 3
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 144
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: "2"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 7af37e7d-60e6-4479-9bf0-ec4ca14c0e8e
+              iconid: ui-icons/skills/1.png
+              targetType: all
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              implementation: 4
+            promptText: The cryptic then creates a burst when they breach the surface.
+          trigger: useability
+          name: Shatterstone
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 24af69db-5e2e-41df-b130-365004afb9ae
+      source: Character Feature
+      description: |-
+        Trigger: The cryptic uses the Dig maneuver to resurface.
+
+        Effect: Before using the Dig maneuver, the cryptic moves up to their speed. They then create the burst when they breach the surface.
+      guid: 584fd845-d1f2-425d-9912-c30f9e46583b
+      name: Shatterstone
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bf3371c2-7a13-4a49-a695-9aa125b70b4e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "5"
+            purgeType: one
+          triggerPrompt: End effect for 5
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the cryptic can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.The cryptic can take two turns each round. They can't take turns consecutively.
+      guid: bf3371c2-7a13-4a49-a695-9aa125b70b4e
+      name: Solo Monster
+      implementation: 3
+    role: Solo
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    equipmentMeta:
+      offhand0: []
+    damage_taken: 0
+    opportunityAttack: 5
+    walkingSpeed: 8
+    keywords:
+      Elemental: true
+    groupid: 8bc67c04-316d-480d-9d17-44e8ce06d547
+    resources: []
+    traitNames: []
+    movementSpeeds:
+      burrow: 8
+    creatureSize: 1L
+    initiativeGrouping: 83376717-bb7b-4305-ac8a-088a1e86710a
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: dd4095f2-e8d3-4689-a0a9-b2599162ffaa
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1726301040866
+description: Fossil Cryptic
+parentFolder: 8e3de31c-8a1a-42a0-990a-75038c32ffa7
+artist: null
+ord: 0
+ctime: 1741590318301
+mtime: 1775201137032
+hidden: false

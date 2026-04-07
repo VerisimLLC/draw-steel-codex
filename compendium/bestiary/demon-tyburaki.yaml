@@ -1,0 +1,210 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: a529eb99-e5be-4dcc-869a-1e976caff5af
+    offtokenPortraitId: null
+    portraitFrameId: 9242a1db-25ff-403c-908c-010ef15dc821
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.047059
+    portraitOffset:
+      x: 0.01171899
+      y: -0.02343762
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5c71bf43-a2fa-4fe5-aced-50fddbc61ee9
+  properties:
+    __typeName: monster
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 5
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Demon Tyburaki	Level 10 Minion Harrier
+        Abyssal, Demon	EV 12 for four minions
+        <b>Stamina</b> 15	<b>Weakness</b> Holy 5
+        <b>Speed</b> 8 (swim)	<b>Size</b> 2 /<b> Stability</b> 0
+        <b>With Captain </b>Strike damage +4	<b>Free Strike</b> 4
+        Might +2	Agility +5	Reason +0	Intuition +3	Presence -1
+        <b>Tail Bite</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12-16</b>	7 damage
+        %E2%9C%B8	<b>17</b>	9 damage
+        <b>Effect</b> The tyburaki makes a free strike on each enemy adjacent to the target.
+
+        <b>Breacher</b>
+        The tyburaki can jump 5 squares while swimming as part of their movement.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the tyburaki can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b4131d7b-6e03-4d4e-a0dd-0465e2f55465: true
+      modifiers: []
+      name: Breacher
+      description: The tyburaki can jump 5 squares while swimming as part of their movement.
+      guid: b4131d7b-6e03-4d4e-a0dd-0465e2f55465
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:136e27d9-c46f-44cc-921a-6df56e913fb6: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the tyburaki can't be hidden from them.
+      guid: 136e27d9-c46f-44cc-921a-6df56e913fb6
+      source: Trait
+    role: Minion Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 4
+    withCaptain: Strike damage +4
+    keywords:
+      Demon: true
+      Abyssal: true
+    damage_taken: 0
+    notes:
+    - text: Tyburakis (tee-berr-AH-kees) appear as a horrifying cross between a thresher shark and a terror lizard, their tails lined with tiny shark maws that allow them to bite multiple foes at once.
+      title: Tyburakis
+    resources: []
+    savingThrowRatings: []
+    minionSquad: Demon Tyburaki Squad 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage
+        - 9 damage
+        roll: 2d10 + 5
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: cc078455-0b11-4602-9ea4-682db240fbf8
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: The tyburaki can make a free strike against each enemy adjacent to the target.
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+        abilityType: standard
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 683fbabb-3b86-4b5d-abb2-68cd5556b8c1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      name: Tail Bite
+      iconid: ui-icons/skills/1.png
+      description: The tyburaki makes a free strike on each enemy adjacent to the target.
+      abilityType: none
+      implementation: 4
+    walkingSpeed: 8
+    movementSpeeds:
+      swim: 8
+    creatureSize: "2"
+    monster_type: Demon Tyburaki
+    initiativeGrouping: ba384761-46de-4029-9902-a4785f45b0eb
+    notesRevision: 14e2a6b1-e044-4934-bbde-f5fae7a98905
+  tokenType: null
+  bestiaryId: 43a150d2-b635-4642-896d-71683e481724
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1737961965990
+description: Demon Tyburaki
+parentFolder: 481cfcf5-4411-44af-8316-d740deca8552
+artist: null
+ord: 2
+ctime: 1741590244806
+mtime: 1775201137032
+hidden: false

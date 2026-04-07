@@ -1,0 +1,30 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 549035ce-e960-4a19-8a65-d194f68deb16
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-Level"
+    damageType: fire
+    apply: Damage Reduction
+  description: You have fire weakness equal to your level.
+  name: Red Cloak
+  guid: ddbb6319-91de-4de0-ba61-70fd8c4a09bd
+source: Ongoing Effect
+guid: 549035ce-e960-4a19-8a65-d194f68deb16
+id: 549035ce-e960-4a19-8a65-d194f68deb16
+ctime: 1759039114802
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Red Cloak
+iconid: ui-icons/skills/1.png
+description: You have fire weakness equal to your level.
+mtime: 1759039125858
+implementation: 3

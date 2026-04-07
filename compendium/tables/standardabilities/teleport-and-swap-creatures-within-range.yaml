@@ -1,0 +1,51 @@
+__typeName: ActivatedAbility
+targetFilter: "<<targetfilter>>"
+id: fc0a431a-f572-4fbc-b2cc-f5ad58c7a76c
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 03a946fd-5989-4f32-bc45-f149a6f2873b
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: cc9bf794-a8d0-4c4f-a3e2-f8a976ac98c7
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  promptText: Choose teleport target
+  autoTarget: false
+  inheritRange: true
+  standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+  runOnController: true
+ctime: 1746593082306
+numTargets: "1"
+mtime: 1765298010127
+repeatTargets: false
+selfTarget: true
+name: Teleport and Swap creatures within range
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

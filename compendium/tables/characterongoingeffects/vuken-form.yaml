@@ -1,0 +1,61 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: c23a22b9-ef1b-4f7b-9da3-a834ceae97e8
+  source: Ongoing Effect
+  value: 4
+  domains:
+    CharacterOngoingEffect:c23a22b9-ef1b-4f7b-9da3-a834ceae97e8: true
+  name: Vuken Form
+  guid: 259e4a79-c8e1-4bca-9a60-fede9ed28cf6
+  description: 'When you are in your wolf form, your speed increases by 2, you ignore difficult terrain, and your size becomes 1M. '
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  sourceguid: c23a22b9-ef1b-4f7b-9da3-a834ceae97e8
+  source: Ongoing Effect
+  value: 2
+  domains:
+    CharacterOngoingEffect:c23a22b9-ef1b-4f7b-9da3-a834ceae97e8: true
+  name: Vuken Form
+  guid: 108f0cf9-555f-4d05-8e6c-48fad2cd7873
+  description: 'When you are in your wolf form, your speed increases by 2, you ignore difficult terrain, and your size becomes 1M. '
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: c23a22b9-ef1b-4f7b-9da3-a834ceae97e8
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:c23a22b9-ef1b-4f7b-9da3-a834ceae97e8: true
+  name: Vuken Form
+  guid: d9f11ab7-8542-4c29-8e31-66206149dbfd
+  description: 'When you are in your wolf form, your speed increases by 2, you ignore difficult terrain, and your size becomes 1M. '
+  behavior: attribute
+  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+- __typeName: CharacterModifier
+  guid: a288a67d-420d-4441-a779-cc7208615428
+  sourceguid: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+  value: 1
+  source: Ongoing Effect
+  name: Vuken Form
+  behavior: attribute
+  description: ""
+  attribute: disguised
+source: Ongoing Effect
+guid: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+id: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+ctime: 1770690948477
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Vuken Form
+iconid: 54d12486-b6eb-4290-b19c-ffdbab61d585
+description: ""
+mtime: 1771516057391
+implementation: 3

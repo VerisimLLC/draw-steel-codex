@@ -1,0 +1,45 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.343137264251709
+    s: 0.795321643352509
+    v: 0.670588254928589
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  modtype: edge
+  keywords:
+    Strike: true
+    Melee: true
+  surges: stacks
+  behavior: power
+  domains:
+    CharacterOngoingEffect:8e8520b4-cf41-42b4-8197-2e4fa038c5f7: true
+    CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+  name: Next Melee Strike Has Edge
+  rollType: ability_power_roll
+  description: The next melee strike this creature makes has an Edge
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  activationCondition: true
+source: Ongoing Effect
+endTrigger: attack
+stackable: true
+id: 8e8520b4-cf41-42b4-8197-2e4fa038c5f7
+ctime: 1742895515343
+domains:
+  CharacterOngoingEffect:8e8520b4-cf41-42b4-8197-2e4fa038c5f7: true
+  CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+implementation: 3
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+name: Next Melee Strike Has Edge
+categorization: common
+description: The next melee strike this creature makes has an Edge
+mtime: 1760065643557
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e

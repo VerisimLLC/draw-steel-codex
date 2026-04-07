@@ -1,0 +1,80 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    whenActive: combat
+    repeatTargets: false
+    trigger: beginround
+    numTargets: "1"
+    targetType: self
+    guid: 8c4e30c5-24e2-4cf8-b9d3-affd47c32da2
+    name: Choking Dust Might Test
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      attrid: mgt
+      roll: 2d10 + Might
+      isTest: true
+      resistanceRoll: false
+      tiers:
+      - Until the end of the enemy’s next turn, their stability is reduced to 0, and any forced movement effects targeting them gain a +2 bonus to the distance moved.
+      - The enemy’s stability is halved (EoT).
+      - No effect.
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      tiersSelected:
+      - 1
+      ongoingEffect: c0ec2fac-e6dd-4ade-a088-9e0519eea2f5
+      duration: end_of_next_turn
+      ongoingEffectCustom: false
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      tiersSelected:
+      - 1
+      duration: end_of_next_turn
+      ongoingEffectCustom: false
+      ongoingEffect: ef1858e7-4e73-4b1e-9a1c-58388a3c4921
+      stacks: "2"
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      tiersSelected:
+      - 2
+      ongoingEffect: 27b6adb4-0ce8-4a35-831e-00df2d4151f5
+      duration: 0
+      ongoingEffectCustom: false
+    description: At the end of each round, each creature in the dust makes a Might Test.
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: At the end of each round, each creature in the dust makes a Might Test.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: d98f78a0-fb66-4f3c-9b89-ad93efa5f25a
+  name: Choking Dust
+  sourceguid: 88db1ff1-5482-4bda-92f2-02acd2b26939
+source: Ongoing Effect
+guid: 88db1ff1-5482-4bda-92f2-02acd2b26939
+id: 88db1ff1-5482-4bda-92f2-02acd2b26939
+ctime: 1770912982945
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: -0.00112783908843994
+    v: 1.00129389762878
+    a: 1
+custom: true
+name: Choking Dust
+iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+description: At the end of each round, each creature in the dust makes a Might Test.
+mtime: 1771497715701
+implementation: 4

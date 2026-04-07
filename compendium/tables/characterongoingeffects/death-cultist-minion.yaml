@@ -1,0 +1,55 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 2c245ba5-75d9-4a19-8a3e-279ac36bd77d
+    repeatTargets: false
+    trigger: endcombat
+    castImmediately: true
+    behaviors:
+    - __typeName: ActivatedAbilityRemoveCreatureBehavior
+      applyto: caster
+      leavesCorpse: true
+    numTargets: "1"
+    name: Death Cultist Minion
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: fe016af7-ccdd-4aea-b575-0ac6aad3d7ff
+  name: Death Cultist Minion
+  sourceguid: d3b50284-a103-4a7f-8567-db5484d41c53
+source: Ongoing Effect
+casterTracking: one
+guid: d3b50284-a103-4a7f-8567-db5484d41c53
+id: d3b50284-a103-4a7f-8567-db5484d41c53
+ctime: 1769784774383
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00515365600586
+    v: 0.842630088329315
+    a: 1
+name: Death Cultist Minion
+description: ""
+custom: true
+mtime: 1769784893175
+iconid: 699cf8b4-6b8e-41cf-ba1f-c41f5b799cce

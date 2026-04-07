@@ -1,0 +1,24 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+id: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+ctime: 1755007333516
+domains:
+  CharacterOngoingEffect:bca3f902-ace6-4b39-9f6c-be4a86824e7d: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.65449994802475
+    s: 0.99023449420929
+    v: 0.828413307666779
+    a: 1
+name: Used Cackletongue
+custom: true
+description: This creature has used their Cackletongue maneuver this round
+mtime: 1765089234781
+iconid: 132173ee-030a-4c54-b2d3-0362443642c2

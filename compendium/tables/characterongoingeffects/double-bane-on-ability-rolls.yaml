@@ -1,0 +1,34 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c43a883d-d373-466e-9895-78b51a02f75d
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Double Bane on Ability Rolls
+  guid: 174065aa-cc29-4b0e-a225-9cd8d84b5bc4
+  description: The target has a double bane on ability rolls for the duration.
+  modtype: double_bane
+  rollType: ability_power_roll
+source: Ongoing Effect
+guid: c43a883d-d373-466e-9895-78b51a02f75d
+id: c43a883d-d373-466e-9895-78b51a02f75d
+ctime: 1773111543541
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.982421815395355
+    v: 0.786792933940887
+    a: 1
+custom: true
+name: Double Bane on Ability Rolls
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e
+description: The target has a double bane on ability rolls for the duration.
+mtime: 1773126819826
+implementation: 4

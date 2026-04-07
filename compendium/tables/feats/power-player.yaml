@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Interpersonal Perk
+name: Power Player
+description: Whenever you make a test that uses the Brag, Flirt, or Intimidate skills, you can use Might instead of any other characteristic the test calls for.
+mtime: 1755374046320
+id: 077a32d2-4447-434a-b624-1d57d2592f52
+ctime: 1730700719903

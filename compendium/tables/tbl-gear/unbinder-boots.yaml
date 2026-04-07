@@ -1,0 +1,22 @@
+__typeName: equipment
+itemPrerequisite: A pair of ornately embroidered leather boots are covered in images of broken chains.
+keywords:
+  Magic: true
+  Feet: true
+projectSource: Texts or lore in Caelian
+flavor: A pair of ornately embroidered leather boots are covered in images of broken chains.
+weight: 1
+category: Gear
+specialDescription: ""
+id: 09b0f9d9-4dad-4785-bc4e-466180cee6d3
+ctime: 1759193013880
+type: Gear
+projectGoal: "150"
+mtime: 1761706216502
+name: Unbinder Boots
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+description: These boots can temporarily unbind themselves from the chains of the earth, letting you move through the air as high as 3 squares above the ground from where you started. If you end your turn while you are still airborne, you fall.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: d453c41f-4163-40d5-8c62-6531dab0fd46

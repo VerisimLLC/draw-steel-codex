@@ -1,0 +1,125 @@
+14e4938b-b811-4356-adde-994bd417f0c7:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Lightning
+  ctime: 1699861784806
+  mtime: 1699861791430
+  id: 14e4938b-b811-4356-adde-994bd417f0c7
+  iconid: 7d43c722-94dc-4bce-bc01-6c34d8e8a4ac
+8044ff30-3d7a-4183-9c42-9dfd4b9e98cf:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Poison
+  ctime: 1699861824611
+  mtime: 1699861829724
+  id: 8044ff30-3d7a-4183-9c42-9dfd4b9e98cf
+  iconid: ec4447c3-b89a-4ae0-9b02-37d21993b497
+b3820a10-bf50-44c4-8135-2aa7eb6cfdaa:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Holy
+  ctime: 1699861671130
+  mtime: 1699861676369
+  id: b3820a10-bf50-44c4-8135-2aa7eb6cfdaa
+  iconid: d3b8e0dd-5379-44f4-8d3e-ec0437a2b85c
+20942663-ff30-45c8-8fd0-67992a6638c8:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Untyped
+  ctime: 1699689507604
+  mtime: 1742024295207
+  id: 20942663-ff30-45c8-8fd0-67992a6638c8
+  iconid: 250ddc07-460c-4f6c-8bf9-b691c3393649
+8fa72170-6b4c-43e2-b42d-1ba5cfbcb239:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Acid
+  ctime: 1699861561533
+  mtime: 1699861567218
+  id: 8fa72170-6b4c-43e2-b42d-1ba5cfbcb239
+  iconid: 66e5f994-0af2-4a29-a708-3c6d8643b5cd
+48a2c1ee-6092-4775-83c5-8dddfcfdd8e7:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 1.00141143798828
+      v: 0.997754156589508
+      a: 1
+  name: Fire
+  ctime: 1699861634590
+  mtime: 1704705274337
+  id: 48a2c1ee-6092-4775-83c5-8dddfcfdd8e7
+  iconid: 6be37af0-e113-46ca-aec3-e72d57abb185
+bbf31b90-9729-425b-b1c8-ded83455311e:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Psychic
+  ctime: 1699861837018
+  mtime: 1699861840603
+  id: bbf31b90-9729-425b-b1c8-ded83455311e
+  iconid: 827262ec-3ba1-4096-b723-4196da4c8aed
+69f209d1-4162-4515-a689-bf13f8f745af:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Sonic
+  ctime: 1699861870771
+  mtime: 1699861870771
+  id: 69f209d1-4162-4515-a689-bf13f8f745af
+  iconid: 4bb125e3-bea2-4f89-a8ca-6bd9456e484d
+0b12569b-658f-43fb-9134-6cf136d04e44:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Cold
+  ctime: 1699861583754
+  mtime: 1699861587801
+  id: 0b12569b-658f-43fb-9134-6cf136d04e44
+  iconid: 5ea7c996-1408-4045-8f81-0856e84896b1
+71a0742f-0a08-44f1-b66a-2280faf6b7b7:
+  __typeName: DamageType
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Corruption
+  ctime: 1699861588037
+  mtime: 1699861603262
+  id: 71a0742f-0a08-44f1-b66a-2280faf6b7b7
+  iconid: a12e7c07-575b-4184-b90d-fa750551b55d

@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+testCases:
+- text: Melee distance +2
+modifiers:
+- __typeName: CharacterModifier
+  guid: 7c720ca4-bf1d-423e-a8fa-0e6bc8ee6b39
+  sourceguid: f247b526-5767-48f3-984a-e453b6e1f123
+  value: "<<bonus>>"
+  source: Monster
+  name: Melee bonus
+  behavior: attribute
+  description: ""
+  attribute: reach
+source: Monster
+guid: f247b526-5767-48f3-984a-e453b6e1f123
+importMatch: Melee distance \+<<bonus>>
+ctime: 1738391377487
+name: Melee bonus
+id: c9d3dfa5-3c35-4d5d-8dd9-fa2aa66831a2
+description: ""
+mtime: 1756629569877
+implementation: 3

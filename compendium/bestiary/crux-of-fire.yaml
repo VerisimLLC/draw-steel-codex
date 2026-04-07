@@ -1,0 +1,277 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 959700de-3fe0-42f3-ab1b-089e0f32f33c
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.941177
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 07db8721-4f6c-4d35-8939-9b209dfa4842
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Crux of Fire	Level 3 Elite Artillery
+        Elemental	EV 20
+        <b>Stamina</b> 80	<b>Immunity</b> fire 5
+        <b>Speed</b> 6	<b>Size</b> 1T /<b> Stability</b> 0
+        <b>	Free Strike</b> 6
+        Might -1	Agility +2	Reason 0	Intuition +1	Presence +2
+        <b>Spitfire</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 12<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 fire damage
+        %E2%98%85	<b>12%E2%80%9316</b>	12 fire damage; A<1 burning (save ends)
+        %E2%9C%B8	<b>17</b>	15 fire damage; A<2 burning (save ends)
+        <b>Effect</b> A burning creature or object takes 1d6 fire damage at the start of each of their turns until the condition ends.
+
+        <b>Convocation of Flames</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5<b>	Target</b> Self or 1 elemental
+        <b>Effect</b> The target receives fire immunity 5 until the start of the crux's next turn if they don't already have it.
+        <b>3 Malice</b> The ground within 3 of the target is wreathed in fire until the end of the encounter. Whenever an enemy first enters the affected area on a turn or starts their turn within it, they take 3 fire damage.
+
+        <b>Flame Jet</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Trigger</b> The crux takes damage.
+        <b>Effect</b> The crux ignores any effects associated with the damage and flies up to their speed. If the crux doesn't end this movement on solid ground, they fall prone.
+
+        <b>Fickle and Free</b>
+        The crux can't be restrained, slowed, or knocked prone, and they ignore difficult terrain.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:dcabedbb-2fb4-48d0-a2e2-f6b8492aa939: true
+      modifiers: []
+      name: Fickle and Free
+      description: The crux can't be restrained, slowed, or knocked prone, and they ignore difficult terrain.
+      guid: dcabedbb-2fb4-48d0-a2e2-f6b8492aa939
+      source: Trait
+    role: Elite Artillery
+    inflictedConditions: []
+    ev: 20
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    titles: []
+    walkingSpeed: 6
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -1
+        id: mgt
+    monster_type: Crux of Fire
+    equipment: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 80
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    keywords:
+      Elemental: true
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 fire damage
+        - 12 fire damage; A<1 the target is burning (save ends)
+        - 15 fire damage; A<2 the target is burning (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 12
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: cd0e83c4-9b93-46c2-b95b-8e61735a992b
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Spitfire
+      numTargets: 2
+      description: A burning creature or object takes 1d6 fire damage at the start of each of their turns until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 114
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: Until the end of the encounter, the ground within 3 squares  of the target is wreathed in fire. Any enemy who enters that area for  the first time in a round or starts their turn there takes 3 fire damage.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 3d6e6508-47cc-4912-b483-7504f392894e
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "5"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: fire
+            roll: "3"
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: Until the end of the encounter, the ground within 3 squares  of the target is wreathed in fire. Any enemy who enters that area for  the first time in a round or starts their turn there takes 3 fire damage."
+        autoTarget: false
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      categorization: Signature Ability
+      name: Convocation of Flames
+      guid: 6f5b01f2-206a-4f6f-b187-4ba82ae66596
+      description: |-
+        Until the start of the crux's next turn, the target has fire immunity 5.
+
+        **3 Malice**: Until the end of the encounter, the ground within 3 squares  of the target is wreathed in fire. Any enemy who enters that area for  the first time in a round or starts their turn there takes 3 fire damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 1324580e-02ed-4a49-bd6d-ff7ccc525dcb
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Flame Jet
+      implementation: 0
+      description: The crux ignores any effects associated with the damage and flies up to their speed. If the crux doesn't end this movement on solid ground, they fall prone.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 49b3126a-b109-4534-95a4-925d621463aa
+    movementSpeeds: []
+    monster_category: Monster
+    minion: false
+    creatureSize: 1T
+    opportunityAttack: 6
+  tokenType: null
+  bestiaryId: dd4c51b7-7ef3-48fb-9bd2-e8c6514a484c
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 0
+  createdTimestamp: 1726301040866
+description: Crux of Fire
+parentFolder: 56d7eb0d-966a-478f-9cdf-a336d5fa9bb1
+artist: null
+ord: 0
+ctime: 1741590318525
+mtime: 1775201137032
+hidden: false

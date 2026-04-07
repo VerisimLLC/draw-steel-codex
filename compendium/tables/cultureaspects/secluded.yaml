@@ -1,0 +1,17 @@
+__typeName: CultureAspect
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      interpersonal: true
+      lore: true
+    name: Secluded Skill
+    description: Choose one skill from the interpersonal or lore skill groups. (*Quick Build:* Read Person)
+    guid: 49c14d4f-e212-4625-99f1-784854df9a02
+    source: Secluded Culture Feature
+name: Secluded
+description: "A secluded culture is based in one relatively close-quarters structure—a building, a cavern, and so forth—and interacts with other cultures only rarely. Such places are often buildings or complexes such as monasteries, castles, or prisons. Folk in a secluded culture have little or no reason to leave their home or interact with other cultures on the outside, but might have an awareness of those cultures and of events happening beyond their enclave. \n\nWhen people live together in close quarters, they typically learn to get along. They often spend much time in study or introspection, as there is not much else to do in seclusion. "
+mtime: 1756163900813
+id: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+ctime: 1730729463016

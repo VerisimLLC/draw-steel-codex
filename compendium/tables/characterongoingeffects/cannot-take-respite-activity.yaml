@@ -1,0 +1,22 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 306edb40-a97b-4c2e-aae8-5ec199693fb7
+id: 306edb40-a97b-4c2e-aae8-5ec199693fb7
+ctime: 1770106258854
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.812552094459534
+    s: 0.930094242095947
+    v: 0.834201395511627
+    a: 1
+name: Cannot take Respite activity
+description: This creature cannot take a respite activity during their next respite.
+custom: true
+mtime: 1770106461701
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

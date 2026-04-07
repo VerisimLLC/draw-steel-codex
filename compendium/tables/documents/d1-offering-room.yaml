@@ -1,0 +1,542 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:round2:
+    __typeName: RichEncounter
+    identifier: round2
+    encounter:
+      __typeName: Encounter
+  encounter:tomb1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-17,2,1"
+        - __usertype: LuaLoc
+          loc: "-16,3,1"
+        - __usertype: LuaLoc
+          loc: "-15,2,1"
+        - __usertype: LuaLoc
+          loc: "-13,2,1"
+        - __usertype: LuaLoc
+          loc: "-16,1,1"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-10,0,1"
+        - __usertype: LuaLoc
+          loc: "-9,1,1"
+        - __usertype: LuaLoc
+          loc: "-8,2,1"
+        - __usertype: LuaLoc
+          loc: "-10,2,1"
+        - __usertype: LuaLoc
+          loc: "-8,0,1"
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,-4,1"
+        - __usertype: LuaLoc
+          loc: "-10,-4,1"
+        - __usertype: LuaLoc
+          loc: "-6,-5,1"
+        - __usertype: LuaLoc
+          loc: "-6,-2,1"
+        - __usertype: LuaLoc
+          loc: "-8,-2,1"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          cd5f724b-4707-46d5-821e-a8d172c986f6: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          cd5f724b-4707-46d5-821e-a8d172c986f6: 4
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-12,-4,1"
+        - __usertype: LuaLoc
+          loc: "-13,-3,1"
+        - __usertype: LuaLoc
+          loc: "-14,-4,1"
+        - __usertype: LuaLoc
+          loc: "-16,-4,1"
+        - __usertype: LuaLoc
+          loc: "-12,-2,1"
+      - appearances: []
+        minHeroes: 5
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+        invisibleToPlayers: []
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-7,4,1"
+        - __usertype: LuaLoc
+          loc: "-16,4,1"
+      - appearances: []
+        minHeroes: 6
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+        invisibleToPlayers: []
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-11,-6,1"
+        - __usertype: LuaLoc
+          loc: "-12,-6,1"
+      name: D1 Goblins
+  encounter:d1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+      name: Goblins D1
+  encounter:room1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      name: Room 1 Goblins
+  encounter:f:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:room:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-12,-2,3"
+        - __usertype: LuaLoc
+          loc: "-11,-2,3"
+        - __usertype: LuaLoc
+          loc: "-11,-3,3"
+        - __usertype: LuaLoc
+          loc: "-12,-3,3"
+        - __usertype: LuaLoc
+          loc: "-13,-3,3"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+      - minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-14,-1,3"
+        - __usertype: LuaLoc
+          loc: "-14,0,3"
+        - __usertype: LuaLoc
+          loc: "-13,0,3"
+        - __usertype: LuaLoc
+          loc: "-12,0,3"
+        - __usertype: LuaLoc
+          loc: "-11,0,3"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+      - spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-15,-5,3"
+        - __usertype: LuaLoc
+          loc: "-15,-4,3"
+        - __usertype: LuaLoc
+          loc: "-15,-3,3"
+        - __usertype: LuaLoc
+          loc: "-14,-5,3"
+        - __usertype: LuaLoc
+          loc: "-13,-5,3"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          cd5f724b-4707-46d5-821e-a8d172c986f6: 4
+      - minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-11,-5,3"
+        - __usertype: LuaLoc
+          loc: "-10,-5,3"
+        - __usertype: LuaLoc
+          loc: "-9,-5,3"
+        - __usertype: LuaLoc
+          loc: "-9,-4,3"
+        - __usertype: LuaLoc
+          loc: "-9,-3,3"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          cd5f724b-4707-46d5-821e-a8d172c986f6: 4
+      - minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,-1,3"
+        - __usertype: LuaLoc
+          loc: "-9,0,3"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      - minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-14,2,3"
+        - __usertype: LuaLoc
+          loc: "-14,3,3"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: 0aa0cb62-1e37-47cd-a03c-4e16dce0bbf2
+ctime: 1757238905319
+textStorage:
+  __typeName: TextStorage
+  sections:
+    xR: |
+      [[//slowstartlevel 3; awardvp 1|Give Heroes 1 Victory and Level to Encounter 3]]
+    xSZ: |
+      [[//awardvp 1|Give Heroes 1 Victory]]
+    xSM: |
+      ???query slowstart = 0
+    k: |+
+      > * “A potency always appears as the single-letter abbreviation for the target’s characteristic. M for Might, A for Agility, R for Reason, I for Intuition, or P for Presence. That characteristic is followed by a “less than” sign and your potency value. For example, ‘M<2 dazed (save ends)’ means ‘if the target’s Might is less than 2, they are dazed (save ends).’”
+
+
+    l: |+
+      ## New Rules: Minions
+
+    yo: |
+      |{#The cup the warriors drink from is the Cup of Iulius, a legendary treasure said to have the power to transform even the weakest individuals into powerful warriors.}
+    j: |
+      > * “Ability effects that have a potency are applied to a target only if the effect’s potency value is higher than the target’s indicated characteristic score.”
+    g: |+
+      See [Malice] for more information on malice.
+
+
+    nB: |+
+      When a minion is killed you will see a pulsing red skull icon on the token. These can be clicked by the director or the players to remove the minion from combat. Generally the player who killed them clicks them, as they get to choose which minions to kill with overflow damage, but the codex will allow anyone to do it.  
+
+
+    e: |
+      > * “You also have your first heroic ability. Heroic abilities can’t be used without first spending some of your heroic resource. This new ability costs 3 of your resource.”
+    f: |+
+      > * “I also get my own resource now called Malice. It can be used to fuel the special abilities of creatures I control, so watch out!”
+
+    c: |+
+      > * “You can also now take the Disengage move action to shift 1 square. Some of you can shift more if you have the Disengage Bonus feature! To shift is to move without triggering an opportunity attack.”
+
+
+    d: |+
+      ## New Rules: Heroic Abilities and Malice
+
+    a: |
+      > * “Like free maneuvers, a free triggered action doesn’t count against the number of triggered actions you have.
+    b: |
+      > * “If you look in the Rules Reference, it has rules for a free triggered action that every creature can use called an opportunity attack.”
+    xSm: |+
+      ???
+
+    Y: |+
+      ## New Rules: Triggered Actions
+
+    Z: |
+      > * “Each of you has a new ability with an action type that is called a triggered action. These abilities can only be used in response to an event that is listed on your sheet. You can use one triggered action per round, and it can be used on your turn or another creature’s turn.”
+    W: |
+      * For four heroes, remove two **goblin warriors** who are not captains.
+    X: |+
+      * For three heroes, remove four **spinecleavers**, four **snipers**, and the two **goblin warriors** who are the captains of these squads.
+
+
+    U: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    V: |
+      * For six heroes, add two **goblin warriors**.
+    S: |+
+      |5|Two [goblin warrior]s |
+
+    T: |
+      **Encounter Adjustments**
+    Q: |
+      |3|One [goblin warrior] (captain, Four [goblin sniper]s (minion squad)|
+    yY: |+
+      A hero who has the History or Magic skill can make a Reason test, recalling the following information about images in the frescoes based on the outcome. A hero gains all the information earned for the result of their test and any results which are lower.
+
+    O: |
+      |1|One [goblin warrior] (captain, Four [goblin spinecleaver]s (minion squad)|
+    P: |
+      |2|One [goblin warrior] (captain, Four [goblin spinecleaver]s (minion squad)|
+    M: |
+      **D1 Groups**
+    N: |
+      |**Group**|**Creatures**|
+    K: |
+      *Even though The Codex can automatically adjust the combat difficulty for you with how the journals have been set up, the grouping table and encouner adjustments are still presented for you to have all the information on what it is doing. 
+    L: |+
+      You may also preview the stat blocks of various monsters by hovering over them below.*
+
+    yd: |
+      |Recall Lore About Frescoes: Reason Test
+    J: |+
+      :<>[[encounter:tomb1]]
+
+
+    G: |+
+      When the heroes enter this chamber, eight goblin spinecleavers, eight goblin snipers, and six goblin warriors are expecting them after the commotion outside and attack.
+
+
+    H: |+
+      [[/activateobjects d1zone.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects d1zone.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    E: |
+      > * “Many bedrolls lie scattered on the floor of this chamber, where two dozen goblins huddle, ready with their weapons drawn.”
+    F: |+
+      > * “For this battle, your heroes should gain any features or abilities on their sheet listed under ‘second encounter.’” 
+
+
+    C: |
+      > * “The stairs of the tomb descend into a chamber that glows orange thanks to a flickering brazier in the center of the floor.”
+    D: |
+      > * “The light illuminates faded frescoes on the wall that show starving, wounded humans drinking from an ornate silver chalice and turning into powerful, healthy warriors who battle a horde of demons.”
+    qE: |+
+      *You can also start combat from **Game** -> **Draw Steel!** at the top right of your screen.* 
+
+
+    B: |+
+      # D1. Offering Room
+
+
+    yT: |+
+      ## Frescoes
+
+    xPi: |+
+      [[/activateobjects moveable_sack.moveable activate|Make Bedrolls Moveable]] [[/activateobjects moveable_sack.moveable deactivate|Disable Moveable Bedrolls]]
+
+    yu: |+
+      |{#The cup was lost before the fall of the Caelian empire, more than a thousand years ago, though it is said to be magically sealed in the tomb of a Caelian knight who used the cup to turn back an incursion of demons.}
+
+    tH: |+
+      ## Tactics
+
+    yi: |
+      |{#The frescoes seem to depict human warriors from the Caelian empire.}
+    pD: |
+      When you are ready to start the combat, [Draw Steel!]. 
+    xL: |+
+      ## Rewards
+
+    xP: |+
+      *The coordinates are displayed at the top of the screen in the menu bar.*
+
+    xS: |
+      ???
+    xPQ: |+
+      You can allow your players to make a test to search the bedrolls, or if you prefer you can allow them to move around the map and discover how the bedrolls are moveable themselves.
+
+    uI: |+
+      The spinecleavers run at the heroes and try to push them into the brazier with their attacks while the snipers stay near the edges of the room, moving to find the best vantage points away from melee combatants. The warriors wade into the fray, targeting melee-focused characters first and using Bury the Point as often as Malice allows before retreating. The goblins use their ability to climb to get around their opponents, clawing up and over them on walls and ceilings.
+
+
+    xM: |
+      **Loot**
+    sG: |+
+      Each time a creature touches the heavy iron brazier or starts their turn touching it, they take 2 fire damage.
+
+
+    mA: |+
+      The spinecleavers and snipers are minions. If this is your first time using minions, review the [Minions] section before running the encounter.
+
+    I: |+
+      [[setting:Number of Heroes]]
+
+    R: |
+      |4|One [goblin warrior] (captain, Four [goblin sniper]s (minion squad)|
+    vJ: |+
+      ## Ending the Encounter
+
+    xQ: |
+      ???query slowstart = 1
+    h: |+
+      ## New Rules: Potency
+
+    oC: |
+      After you have reviewed these rules, play out the combat!
+    pDZ: |2
+
+    wK: |+
+      The goblins fight until they are outnumbered two to one then flee—at which point the encounter is over, and the heroes earn 1 Victory each.
+
+
+    xN: |+
+      If the heroes look through the bedrolls, they find a pouch that the Jagged Edge goblins stole from an alchemist long ago. It contains three [item:Healing Potion]s (see Treasure in Handouts), five ounces of [item:costmary leaves], and a recipe in Caelian that describes how to make a [item:Healing Potion] and counts as a project source for that item (see Downtime Projects in the [Starter Rules](Delian Tomb Starter Rules v1.02) for more information).
+
+    i: |
+      > * “Some of you gained a heroic ability that utilizes a mechanic called potency. An ability with a potency gives the target a chance to resist its effects. My monsters also have abilities with potencies.”
+    rF: |+
+      ## Brazier
+
+    xO: |
+      There is a bag item with three [item:Healing Potion]s hidden under the bedroll at 9W,1S. The players can move this bedroll and then click the bag to open it and claim the potions. 
+parentFolder: 8e307759-fe9b-408a-bb88-34f90e1fe01b
+updateid: 992f45a1-1ee7-4e05-b457-97d9b83f4a18
+description: D1. Offering Room
+content: |+
+  # D1. Offering Room
+
+
+  > * “The stairs of the tomb descend into a chamber that glows orange thanks to a flickering brazier in the center of the floor.”
+  > * “The light illuminates faded frescoes on the wall that show starving, wounded humans drinking from an ornate silver chalice and turning into powerful, healthy warriors who battle a horde of demons.”
+  > * “Many bedrolls lie scattered on the floor of this chamber, where two dozen goblins huddle, ready with their weapons drawn.”
+  > * “For this battle, your heroes should gain any features or abilities on their sheet listed under ‘second encounter.’” 
+
+
+  When the heroes enter this chamber, eight goblin spinecleavers, eight goblin snipers, and six goblin warriors are expecting them after the commotion outside and attack.
+
+
+  [[/activateobjects d1zone.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects d1zone.AreaTemplate deactivate|Hide Hero Start Area]]
+
+  [[setting:Number of Heroes]]
+
+  :<>[[encounter:tomb1]]
+
+
+  *Even though The Codex can automatically adjust the combat difficulty for you with how the journals have been set up, the grouping table and encouner adjustments are still presented for you to have all the information on what it is doing. 
+  You may also preview the stat blocks of various monsters by hovering over them below.*
+
+  **D1 Groups**
+  |**Group**|**Creatures**|
+  |1|One [goblin warrior] (captain, Four [goblin spinecleaver]s (minion squad)|
+  |2|One [goblin warrior] (captain, Four [goblin spinecleaver]s (minion squad)|
+  |3|One [goblin warrior] (captain, Four [goblin sniper]s (minion squad)|
+  |4|One [goblin warrior] (captain, Four [goblin sniper]s (minion squad)|
+  |5|Two [goblin warrior]s |
+
+  **Encounter Adjustments**
+  If this encounter has more or fewer than five heroes, make the following adjustments:
+  * For six heroes, add two **goblin warriors**.
+  * For four heroes, remove two **goblin warriors** who are not captains.
+  * For three heroes, remove four **spinecleavers**, four **snipers**, and the two **goblin warriors** who are the captains of these squads.
+
+
+  ## New Rules: Triggered Actions
+
+  > * “Each of you has a new ability with an action type that is called a triggered action. These abilities can only be used in response to an event that is listed on your sheet. You can use one triggered action per round, and it can be used on your turn or another creature’s turn.”
+  > * “Like free maneuvers, a free triggered action doesn’t count against the number of triggered actions you have.
+  > * “If you look in the Rules Reference, it has rules for a free triggered action that every creature can use called an opportunity attack.”
+  > * “You can also now take the Disengage move action to shift 1 square. Some of you can shift more if you have the Disengage Bonus feature! To shift is to move without triggering an opportunity attack.”
+
+
+  ## New Rules: Heroic Abilities and Malice
+
+  > * “You also have your first heroic ability. Heroic abilities can’t be used without first spending some of your heroic resource. This new ability costs 3 of your resource.”
+  > * “I also get my own resource now called Malice. It can be used to fuel the special abilities of creatures I control, so watch out!”
+
+  See [Malice] for more information on malice.
+
+
+  ## New Rules: Potency
+
+  > * “Some of you gained a heroic ability that utilizes a mechanic called potency. An ability with a potency gives the target a chance to resist its effects. My monsters also have abilities with potencies.”
+  > * “Ability effects that have a potency are applied to a target only if the effect’s potency value is higher than the target’s indicated characteristic score.”
+  > * “A potency always appears as the single-letter abbreviation for the target’s characteristic. M for Might, A for Agility, R for Reason, I for Intuition, or P for Presence. That characteristic is followed by a “less than” sign and your potency value. For example, ‘M<2 dazed (save ends)’ means ‘if the target’s Might is less than 2, they are dazed (save ends).’”
+
+
+  ## New Rules: Minions
+
+  The spinecleavers and snipers are minions. If this is your first time using minions, review the [Minions] section before running the encounter.
+
+
+  After you have reviewed these rules, play out the combat!
+  When you are ready to start the combat, [Draw Steel!]. 
+  *You can also start combat from **Game** -> **Draw Steel!** at the top right of your screen.* 
+
+
+  ## Brazier
+
+  Each time a creature touches the heavy iron brazier or starts their turn touching it, they take 2 fire damage.
+
+
+  ## Tactics
+
+  The spinecleavers run at the heroes and try to push them into the brazier with their attacks while the snipers stay near the edges of the room, moving to find the best vantage points away from melee combatants. The warriors wade into the fray, targeting melee-focused characters first and using Bury the Point as often as Malice allows before retreating. The goblins use their ability to climb to get around their opponents, clawing up and over them on walls and ceilings.
+
+
+  ## Ending the Encounter
+
+  The goblins fight until they are outnumbered two to one then flee—at which point the encounter is over, and the heroes earn 1 Victory each.
+
+
+  ## Rewards
+
+  **Loot**
+  If the heroes look through the bedrolls, they find a pouch that the Jagged Edge goblins stole from an alchemist long ago. It contains three [item:Healing Potion]s (see Treasure in Handouts), five ounces of [item:costmary leaves], and a recipe in Caelian that describes how to make a [item:Healing Potion] and counts as a project source for that item (see Downtime Projects in the [Starter Rules](Delian Tomb Starter Rules v1.02) for more information).
+
+  There is a bag item with three [item:Healing Potion]s hidden under the bedroll at 9W,1S. The players can move this bedroll and then click the bag to open it and claim the potions. 
+  *The coordinates are displayed at the top of the screen in the menu bar.*
+
+  [[/slowstartlevel 3; awardvp 1|Give Heroes 1 Victory and Level to Encounter 3]]
+
+
+  ## Frescoes
+
+  A hero who has the History or Magic skill can make a Reason test, recalling the following information about images in the frescoes based on the outcome. A hero gains all the information earned for the result of their test and any results which are lower.
+
+  |Recall Lore About Frescoes: Reason Test
+  |{#The frescoes seem to depict human warriors from the Caelian empire.}
+  |{#The cup the warriors drink from is the Cup of Iulius, a legendary treasure said to have the power to transform even the weakest individuals into powerful warriors.}
+  |{#The cup was lost before the fall of the Caelian empire, more than a thousand years ago, though it is said to be magically sealed in the tomb of a Caelian knight who used the cup to turn back an incursion of demons.}
+
+mtime: 1772546085711

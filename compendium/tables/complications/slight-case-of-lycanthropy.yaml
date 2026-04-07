@@ -1,0 +1,231 @@
+__typeName: CharacterComplication
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: Test Winded
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: true
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: ee3f8e0f-e924-4189-b889-d01e515caa1e
+        abilityType: none
+        conditionFormula: (not subject.Minion) and (Attacker = Self)
+        persistence: []
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          chatMessage: Wind a non-minion creature
+        - __typeName: ActivatedAbilityFloatTextBehavior
+          text: Slight Case of Lycanthropy
+          guid: e6f14a8f-6c4d-4c15-91b6-49a3509ccc9e
+          color:
+            __usertype: LuaColor
+            h: 0
+            s: 0.97753918170929
+            v: 0.966526389122009
+            a: 1
+        trigger: winded
+        name: Slight Case of Lycanthropy - Benefit
+        description: Whenever you make a non-minion creature winded or kill a non-minion creature, you gain 1 surge.
+        subject: enemy
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Feat
+      behavior: trigger
+      guid: 60940af2-ab52-40f2-a590-e2bc28448c46
+      name: Slight Case of Lycanthropy - Benefit
+      sourceguid: deed8da8-7967-406d-ad85-483722b7b12d
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: Test Death
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: true
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 3709a8f2-21ac-4513-a19e-c8ac1c127713
+        abilityType: none
+        trigger: dealdamage
+        castImmediately: true
+        persistence: []
+        conditionFormula: (not Target.minion) and target.Stamina < 1
+        name: Slight Case of Lycanthropy - Benefit
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          chatMessage: Kill a non-minion creature
+        - __typeName: ActivatedAbilityFloatTextBehavior
+          text: Slight Case of Lycanthropy
+          color:
+            __usertype: LuaColor
+            h: 0
+            s: 0.97753918170929
+            v: 0.966526389122009
+            a: 1
+        description: Whenever you make a non-minion creature winded or kill a non-minion creature, you gain 1 surge.
+        subject: self
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Feat
+      behavior: trigger
+      guid: c1046be0-f566-46e8-8e1e-06c5de7f0093
+      name: Slight Case of Lycanthropy - Benefit
+      sourceguid: deed8da8-7967-406d-ad85-483722b7b12d
+    source: Feat
+    canHavePrerequisites: true
+    guid: deed8da8-7967-406d-ad85-483722b7b12d
+    name: Slight Case of Lycanthropy - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: You have five or more surges (or one or more surges while in moonlight). You lose all your surges and become a wolfish hybrid until the end of your turn.
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        persistence:
+          enabled: false
+        modifiers: []
+        hasManualVersion: true
+        strain: []
+        guid: 98a0a6e6-3d66-4587-8018-b990d7325c0e
+        conditionFormula: Subject.Resources.Surges >= 5
+        castImmediately: true
+        trigger: beginturn
+        numTargets: "1"
+        name: Slight Case of Lycanthropy - Drawback
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          mode: expend
+          chatMessage: Slight Case of Lycanthropy - Drawback
+          quantity: Resources.Surges
+        - __typeName: ActivatedAbilityFloatTextBehavior
+          text: Slight Case of Lycanthropy
+          color:
+            __usertype: LuaColor
+            h: 0
+            s: 0.983398675918579
+            v: 0.964411318302155
+            a: 1
+        - __typeName: ActivatedAbilityDisguiseBehavior
+          monsterType: a704249e-ef65-4805-a3e8-4537b31371be
+          mode: bestiary
+          appearanceName: Wolfish Hybrid
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 085c357f-b4f9-4b61-bcd9-851251c825c4
+          duration: 0
+          ongoingEffectCustom: 085c357f-b4f9-4b61-bcd9-851251c825c4
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          runOnController: true
+          promptText: "You must make a melee free strike against the nearest creature. You can shift up to your speed toward that creature if necessary.\vIf allies and enemies are equally near, you target an ally."
+          standardAbilityParams:
+            distance: MovementSpeed
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 84a26865-9839-4ee0-9ecd-e11f8d5331c3
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: standard
+          standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          runOnController: true
+          promptText: You must make a melee free strike against the nearest creature. If allies and enemies are equally near, you target an ally.
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 6bedabe5-c293-4bd2-b8ef-3f13a58067d2
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: standard
+          standardAbility: 9b123334-6d7c-4848-8b17-db3255c4012c
+        description: You have five or more surges (or one or more surges while in moonlight). You lose all your surges and become a wolfish hybrid until the end of your turn.
+        abilityType: none
+        iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd
+      description: ""
+      source: Feat
+      behavior: trigger
+      guid: a84b4d30-3be8-4475-b60e-8d77e14adb7d
+      name: Slight Case of Lycanthropy - Drawback
+      sourceguid: 6637fc22-e6bd-4599-8238-cf915d9943f5
+    - __typeName: CharacterModifier
+      description: ""
+      sourceguid: 6637fc22-e6bd-4599-8238-cf915d9943f5
+      behavior: alternateappearance
+      name: Slight Case of Lycanthropy - Drawback
+      source: Feat
+      guid: e3760592-ceb0-4c78-b884-ae7d969ac800
+      monsterDefault: a704249e-ef65-4805-a3e8-4537b31371be
+      appearance: Wolfish Hybrid
+    source: Feat
+    canHavePrerequisites: true
+    guid: 6637fc22-e6bd-4599-8238-cf915d9943f5
+    name: Slight Case of Lycanthropy - Drawback
+    implementation: 3
+id: 5fb0486d-0a04-46c6-8b4f-a6d7fe111baf
+ctime: 1755517247542
+drawback: At the start of each of your turns, if you have five or more surges—or one or more surges while in moonlight—you lose all your surges and become a wolfish hybrid until the end of your turn. While in that form, you have your usual statistics, but you must make a melee free strike against the nearest creature if you can. You can shift up to your speed toward that creature if necessary. If allies and enemies are equally near, you target an ally.
+name: Slight Case of Lycanthropy
+mtime: 1770956027383
+description: |-
+  Maybe you were bitten as a child, or maybe it’s a family curse. Either way, you have a malady that is best not discussed in public, lest torches and pitchforks make an appearance. 
+
+  Special: You can’t take this complication if you are a fury with the stormwight primordial aspect.
+benefit: Whenever you make a non-minion creature winded or kill a non-minion creature, you gain 1 surge.
+prerequisite: ""

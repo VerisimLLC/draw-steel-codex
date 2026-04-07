@@ -1,0 +1,192 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: cc880ad4-3444-4560-94d2-2959fb27fed9
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Celstrike	Level 5 Harrier
+        Fey, Humanoid, Shadow Elf	EV 25
+        <b>Stamina</b> 70
+        <b>Speed</b> 7 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +1	Agility +3	Reason +1	Intuition +2	Presence +0
+        <b>Swift as Shadow</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12-16</b>	13 damage
+        %E2%9C%B8	<b>17</b>	16 damage
+        <b>Effect </b>The celstrike ignores opportunity attacks from the target until the end of their turn.
+
+        <b>Dip</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Special
+        <b>Trigger</b> The celstrike takes damage from a strike
+        <b>Effect </b>The celstrike teleports to a square in concealment granted by darkness within 10.
+
+        <b>Of the Umbra</b>
+        The celstrike ignores concealment granted by darkness. While the celstrike is in direct sunlight, they have damage weakness 3. While the celstrike is concealed, they have damage immunity 3.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b2bb8c3b-f784-4636-bf6d-8ab6de5aeb97: true
+      modifiers: []
+      name: Of the Umbra
+      description: The celstrike ignores concealment granted by darkness. While the celstrike is in direct sunlight, they have damage weakness 3. While the celstrike is concealed, they have damage immunity 3.
+      guid: b2bb8c3b-f784-4636-bf6d-8ab6de5aeb97
+      source: Trait
+    role: Harrier
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Shadow: true
+      Shadow Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 6
+    monster_type: Shadow Elf Celstrike
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 13 damage
+        - 16 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b27d5dd7-e8a5-4b15-bed6-d2b3a81d4852
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Swift as Shadow
+      numTargets: 1
+      description: The celstrike ignores opportunity attacks from the target until the end of their turn.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: c5f426a3-6d5c-416f-b865-1300f5abd0df
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Dip
+      numTargets: "1"
+      description: The celstrike teleports to a square in concealment granted by darkness within 10.
+      abilityType: none
+      implementation: 0
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 7
+    ev: 25
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 601e8c89-7918-4595-92ad-d0f81e586d00
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962489214
+description: Shadow Elf Celstrike
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590257674
+mtime: 1775201137032
+hidden: false

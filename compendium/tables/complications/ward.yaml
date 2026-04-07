@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: Your royal ward can be a burden. Whenever you take a respite, roll a d10. On a 1, your ward contacts you and requires your help during the respite, requiring you to spend your time helping them instead of undertaking a respite activity.
+mtime: 1755594862742
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Ward
+ctime: 1755518398578
+description: Your childhood sweetheart was royalty, and the two of you stayed close throughout the years. When your former sweetheart died, you swore an oath to dedicate your life to become a role model for their child, advising them in the ways of being a benevolent monarch.
+id: e63f56dc-6314-46cc-9785-c0e91a34a9b0
+benefit: You know how to talk to monarchs, aristocrats, and other wealthy leaders. When you engage with any such NPC during a negotiation, their patience increases by 1 (to a maximum of 5).

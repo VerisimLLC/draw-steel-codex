@@ -1,0 +1,437 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d55cbe59-be04-4070-8d8f-e5c060960e0f
+    offtokenPortraitId: null
+    portraitFrameId: 9242a1db-25ff-403c-908c-010ef15dc821
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.005603433
+      y: 0.07031247
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 023d47e5-6322-4c2b-832b-0a31e300a30c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries:
+        9a588fb3-62ac-4cbc-828f-dd3449480ae1:
+          refreshid: ""
+          note: Invoked Ability
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0
+        1f5b72ef-cd0b-42e6-99df-08876e1a351f:
+          refreshid: ""
+          note: Invoked Ability
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0
+    max_hitpoints: 25
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "25"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 3 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: decf1545-d557-47b9-ab55-0605fda1f692
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: The amalgamite deals an additional 3 damage to each creature they have grabbed and regains Stamina equal to the damage dealt.
+        text: Malice
+        condition: ""
+      numTargets: 2
+      description: |-
+        The amalgamite can have up to four targets grabbed.
+        **3 Malice**: The amalgamite deals an additional 3 damage to each creature they have grabbed and regains Stamina equal to the damage dealt.
+      implementation: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Several Arms
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 5 damage; A<1 grabbed
+        - 6 damage; A<2 grabbed
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: 3
+          targetFilter: ConditionCaster("Grabbed") = Caster
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityRememberBehavior
+            applyto: caster
+            memoryName: StartingDamage
+            calculation: Cast.DamageDealt
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "3"
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: Cast.Damage Dealt - Cast.Memory("StartingDamage")
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 80fcab10-339a-4b3e-b12d-837f829715af
+          resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          targetType: all
+          name: Invoked Ability
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: Damage Grabbed Creatures"
+        autoTarget: true
+        applyto: caster
+      channeledResource: none
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ff9d3c0f-03ad-4c65-bdb5-20305b727d52
+    - __typeName: ActivatedAbility
+      targetFilter: Target has "Loyalty Collar"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 0294d27d-0390-4b30-9c02-a30467b43104
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      implementation: 2
+      persistence: []
+      name: Posthumous Promotion
+      selfTarget: true
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      iconid: bfa58650-8ca7-4f3a-a714-0e0cb79bad4a
+    damageEntries:
+      f6921c3b-3844-4ef4-bd7f-7981b43b1aa9:
+        id: f6921c3b-3844-4ef4-bd7f-7981b43b1aa9
+        heal: 12
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        dd28f1cb-4e72-4bfc-82b0-02d6fd2e4435:
+          disposition: good
+          note: War Dog Amalgamite 3's Invoked Ability
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 25
+        927dc9a7-d4e0-487c-a22f-69300c2f3bca:
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 15
+        e94843af-477d-477d-b417-efa5095dc2e9:
+          disposition: good
+          note: War Dog Amalgamite 3's Invoked Ability
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 25
+    minion: false
+    stability: 2
+    import:
+      override: true
+      data: |+
+        War Dog Amalgamite	Level 2 Horde Brute
+        Humanoid, War Dog	EV 4
+        <b>Stamina</b> 25
+        <b>Speed</b> 5	<b>Size</b> 2 / <b>Stability</b> 2
+        	<b>Free Strike</b> 3
+        Might +2	Agility +0	Reason +0	Intuition +0	Presence +0
+        <b>Several Arms</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	4 damage
+        %E2%98%85	12%E2%80%9316	5 damage; A<1 grabbed
+        %E2%9C%B8	17+	6 damage; A<2 grabbed
+        <b>Effect </b>The amalgamite can have up to four targets grabbed.
+        <b>3 Malice </b>The amalgamite deals an additional 3 damage to each creature they have grabbed and regains Stamina equal to the damage dealt.
+
+        <b>Posthumous Promotion</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One war dog with a loyalty collar
+        <b>Effect </b>The target's loyalty collar detonates, killing them instantly.
+
+        <b>Loyalty Collar</b>
+        When the amalgamite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0b4851bf-0080-4241-8f6a-89122d2fe224: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: Enemy
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: true
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          numTargets: "1"
+          targetType: all
+          trigger: creaturedeath
+          name: Loyalty Collar
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: When the amalgamite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the amalgamite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      guid: 0b4851bf-0080-4241-8f6a-89122d2fe224
+      name: Loyalty Collar
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6b35613b-00f3-4dbe-9231-a04d4d8a647d: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 6b35613b-00f3-4dbe-9231-a04d4d8a647d
+        source: Character Feature
+        guid: b7e9bf4f-e470-4324-b628-2c80e484234e
+        domains:
+          CharacterFeature:6b35613b-00f3-4dbe-9231-a04d4d8a647d: true
+        name: Several Arms
+        value: 4
+        description: The amalgamite can have up to four targets grabbed
+        behavior: attribute
+        attribute: 7a91dad1-97f4-4411-b326-425d58bb2bb2
+      source: Character Feature
+      description: The amalgamite can have up to four targets grabbed
+      guid: 6b35613b-00f3-4dbe-9231-a04d4d8a647d
+      name: Several Arms
+      implementation: 3
+    role: Horde Brute
+    equipment: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: da58a896-f33d-41ab-ade6-668e53f21121
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    damage_taken: 0
+    deathSavingThrowFailures: 0
+    walkingSpeed: 5
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        663f979f-412d-447e-9407-f1ded6b2074c:
+          note: Posthumous Promotion
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        ec5c4bbf-3599-4d83-a3bf-e261238f185d:
+          note: Posthumous Promotion
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        d967535a-70ad-4956-be9c-dc523b5a71d6:
+          note: Posthumous Promotion
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        ba709f96-8945-44ec-aa51-bc3fb0d01992:
+          refreshid: b12558a6-043d-4654-a88e-85b006f7c305-1
+          note: Grab
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        a7f92d56-56f9-4c10-a0fe-3154e5e7f981:
+          note: Posthumous Promotion
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        48525ca4-5756-48cd-a2ff-0da61e964d92:
+          refreshid: f71a27d0-17f0-4652-a4d6-060918f8995b-1
+          note: Posthumous Promotion
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 0/1
+        64fb7ed9-dc9d-4301-82ee-0bbd55134300:
+          note: Posthumous Promotion
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        c0e77c8b-ff18-4ff3-966a-ab55369c853a:
+          note: Posthumous Promotion
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+    traitNames: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: b12558a6-043d-4654-a88e-85b006f7c305-3
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: b12558a6-043d-4654-a88e-85b006f7c305-1
+        used: 1
+    deathSavingThrowSuccesses: 0
+    movementSpeeds: []
+    creatureSize: "2"
+    monster_type: War Dog Amalgamite
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 41e343d2-119e-4102-a47c-1272fcb7b64a-839
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        95578f91-cad5-4dfa-af43-386bb6882718:
+          refreshid: b12558a6-043d-4654-a88e-85b006f7c305-3
+          note: Several Arms
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        2e3b05f8-5e35-4ed1-9721-e9c0095286c1:
+          note: Several Arms
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        4eabc1f2-3b61-4c0c-8af2-5e67a8305045:
+          note: Several Arms
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        018b007e-091b-4df3-bf9c-d49cd7533675:
+          refreshid: b12558a6-043d-4654-a88e-85b006f7c305-3
+          note: Several Arms
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        2c287e2d-c9e7-4945-b46b-ed311800eadc:
+          refreshid: b12558a6-043d-4654-a88e-85b006f7c305-2
+          note: Critical Hit!
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        7be524dc-be49-4524-aa1e-f82bc3ae2c66:
+          refreshid: b12558a6-043d-4654-a88e-85b006f7c305-2
+          note: Several Arms
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        89c12f28-65f1-483f-8127-23cc4b4b68d7:
+          refreshid: b12558a6-043d-4654-a88e-85b006f7c305-3
+          note: Critical Hit!
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        d3621570-78db-4539-ab4e-54b0d8a39fcb:
+          note: Several Arms
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+  tokenType: null
+  bestiaryId: b64eeb81-a0ea-480a-9506-37cbdfe7b5cc
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: War Dog Amalgamite
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 1
+ctime: 1749972314486
+mtime: 1775201137032
+hidden: false

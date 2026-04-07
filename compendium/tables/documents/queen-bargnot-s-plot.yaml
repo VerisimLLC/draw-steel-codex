@@ -1,0 +1,33 @@
+__typeName: MarkdownDocument
+annotations: []
+id: c7ba5c85-50b0-4547-a99a-0e9dc70b03bb
+ctime: 1761685268114
+textStorage:
+  __typeName: TextStorage
+  sections:
+    h: |2
+
+    Y: |
+      The heroes can uncover information in [Abbott Loric]’s library (see [B3. Church of Saint Gryffyn]) that says the [item:Amulet of the Delian Order] is needed to unseal the second level of the tomb (see [Tomb Second Level]) and that the [item:Delian Knight Commander's ring] is needed to unseal the third level (see [Tomb Third Level]). If the heroes talk to [Orson] (see [B9. Charcoal Burner]), they learn the amulet was taken during an arixx attack and could be recovered in the creature’s nest (see [Arixx Nest]). The ring is held by the [Gilded Hand] (see [B1. Feather Bed Inn]).
+    I: |+
+      # Queen Bargnot’s Plot
+
+
+    Q: |+
+      The heroes have likely figured out that [Queen Bargnot] is planning to use the [item:Cup of Iulius] to grow her ragtag band into a legendary legion, but if they haven’t, [Abbott Loric] meets them and pieces it together when they return to [Broadhurst] (see Arrival).
+
+    q: |
+      Depending on how long it takes the heroes to unseal the bottom level of the tomb, they might recover the cup themselves or find that the [Gilded Hand] has already brought it to the Jagged Edge. This quest resolves in [Part 3 The Jagged Edge] with either the heroes attacking the hideout of the Jagged Edge or the Jagged Edge assaulting Broadhurst.
+parentFolder: 423b20dc-f04b-44af-849e-7a7e01636bf4
+updateid: aecdcbe8-0d87-4b26-98cf-030694c2af69
+description: Queen Bargnot’s Plot
+content: |
+  # Queen Bargnot’s Plot
+
+
+  The heroes have likely figured out that [Queen Bargnot] is planning to use the [Cup of Iulius] to grow her ragtag band into a legendary legion, but if they haven’t, [Abbott Loric] meets them and pieces it together when they return to [Broadhurst] (see Arrival).
+
+  The heroes can uncover information in [Abbott Loric]’s library (see [B3. Church of Saint Gryffyn]) that says the [Amulet of the Delian Order] is needed to unseal the second level of the tomb (see [Tomb Second Level]) and that the [Delian Knight Commander’s ring] is needed to unseal the third level (see [Tomb Third Level]). If the heroes talk to [Orson] (see [B9. Charcoal Burner]), they learn the amulet was taken during an arixx attack and could be recovered in the creature’s nest (see [Arixx Nest]). The ring is held by the [Gilded Hand] (see [B1. Feather Bed Inn]).
+
+  Depending on how long it takes the heroes to unseal the bottom level of the tomb, they might recover the cup themselves or find that the [Gilded Hand] has already brought it to the Jagged Edge. This quest resolves in [Part 3: The Jagged Edge] with either the heroes attacking the hideout of the Jagged Edge or the Jagged Edge assaulting Broadhurst.
+mtime: 1766081200846

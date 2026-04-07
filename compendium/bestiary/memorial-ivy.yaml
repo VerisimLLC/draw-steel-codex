@@ -1,0 +1,225 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 223a6996-d20a-404a-b23e-42e8f7bfe122
+    offtokenPortraitId: 788368e3-dab2-4413-9e44-962ae23de300
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2254014
+    portraitOffset:
+      x: 0.09310519
+      y: 0.05807494
+    frameHueShift: 0.3654342
+    frameSaturation: 0.6637467
+    frameBrightness: 0.3514096
+    popoutScale: 0.5
+    characterName: Memorial Ivy
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 468ddece-f76a-4ada-ab5b-fd49e8ebde52
+  properties:
+    __typeName: monster
+    groupid: 651b548f-11c4-46ae-b4c6-1a093cf72847
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 4
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; pull 2
+        - 4 damage; pull 4
+        - 6 damage; pull 5
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "8"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: ac3b7de3-9a50-4c64-8b5c-a677a096ee03
+      targetType: target
+      numTargets: "1"
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      name: Grasping Ivy
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      implementation: 3
+    opportunityAttack: 3
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:badb6f1e-facb-473f-8580-1df14caebe1e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:badb6f1e-facb-473f-8580-1df14caebe1e: true
+        sourceguid: badb6f1e-facb-473f-8580-1df14caebe1e
+        description: If the memorial ivy is climbing a willing ally or an enemy who has I<1 , they can compel that creature to move up to their speed.
+        source: Character Feature
+        name: Creeper
+        behavior: activated
+        guid: c1fc97d8-d5fb-4673-a83d-25dabfdc521c
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: target.Intuition < 1 or not Enemy
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            targeting: prompt
+            promptText: If the memorial ivy is climbing a willing ally or an enemy who has I<1, they can compel that creature to move up to their speed.
+            filterTarget: ""
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: ed5d6410-d9a9-46d3-9512-4af71ac45664
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.356249809265137
+              s: -0.00136184692382813
+              v: 1.00002241134644
+              a: 1
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 83b0b90f-4815-4a1f-a6d5-3116cc947a27
+          domains:
+            CharacterFeature:badb6f1e-facb-473f-8580-1df14caebe1e: true
+          numTargets: "1"
+          name: Creeper
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+      source: Character Feature
+      description: If the memorial ivy is climbing a willing ally or an enemy who has I<1 , they can compel that creature to move up to their speed.
+      guid: badb6f1e-facb-473f-8580-1df14caebe1e
+      name: Creeper
+      implementation: 2
+    role: Minion Artillery
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: -3
+      damageType: fire
+      apply: Damage Reduction
+    initiativeGrouping: 73ddaf79-8d6f-4ef5-9209-682942188181
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    minion: true
+    minionSquad: Memorial Ivy Squad 3
+    keywords:
+      Undead: true
+      Ruinborn: true
+      Plant: true
+    savingThrowRatings: []
+    availableTriggers: []
+    creatureSize: 1S
+    monster_type: Memorial Ivy
+    withCaptain: Gain an edge on strikes
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 6907953a-efb6-4a9d-9b2a-c22b2262c946
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1758377563142
+description: null
+parentFolder: d889803f-b4db-46a1-b41a-58e71bd2b2fb
+artist: null
+ord: 3
+ctime: 1758377563142
+mtime: 1775167474252
+hidden: false

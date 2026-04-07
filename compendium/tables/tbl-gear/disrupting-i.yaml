@@ -1,0 +1,73 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 6f78b7f8-8d38-44b2-8291-1dd9b1a0ad94
+  description: Whenever you damage an undead using this weapon and leave that undead with 15 Stamina or less, they drop to 0 Stamina.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      targetType: subject
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: ""
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 8014d189-babd-4913-ac2d-cf8a724ffaea
+      abilityType: none
+      trigger: losehitpoints
+      conditionFormula: Attacker = Self and subject.type = "undead" and (subject.Stamina <= 15)
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityFloatTextBehavior
+        text: Disrupting I
+        color:
+          __usertype: LuaColor
+          h: 0
+          s: 0.99316418170929
+          v: 0.989623188972473
+          a: 1
+      - __typeName: ActivatedAbilitySetStaminaBehavior
+        roll: "0"
+      name: Disrupting I
+      selfTarget: false
+      description: ""
+      subject: other
+      iconid: ui-icons/skills/1.png
+    description: Whenever you damage an undead using this weapon and leave that undead with 15 Stamina or less, they drop to 0 Stamina.
+    source: Item
+    behavior: trigger
+    guid: 7852d4c9-225c-452b-a10a-ca26124b5091
+    name: Disrupting I
+    sourceguid: 6f78b7f8-8d38-44b2-8291-1dd9b1a0ad94
+  source: Item
+  name: Disrupting I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 6df3f816-553f-4e94-96cc-eb15fcf97dd5
+imbuePrereq: none
+projectSource: Anjali
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: A vial of blood from a living saint
+mtime: 1774497671701
+name: Disrupting I
+imbueTargetType: weapon
+description: Whenever you damage an undead using this weapon and leave that undead with 15 Stamina or less, they drop to 0 Stamina.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

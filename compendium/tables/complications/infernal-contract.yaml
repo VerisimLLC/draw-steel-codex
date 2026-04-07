@@ -1,0 +1,39 @@
+__typeName: CharacterComplication
+drawback: The archdevil occasionally asks you to defeat enemies on their behalf. If you refuse, your fiendish patron sends devils after you and those you care about.
+mtime: 1773977544575
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: Whenever you are present for a battle in which both sides have creatures who aren’t surprised, your side determines who goes first if the d10 roll is a 4 or higher.
+    modifiers:
+    - __typeName: CharacterModifier
+      operation: set
+      sourceguid: 05627d24-a3f0-46ff-a2cf-6af55e3c4835
+      source: Complication
+      value: 4
+      name: Infernal Contract - Benefit
+      guid: c764ad27-68fa-4d6c-a173-466cb356eac4
+      description: Whenever you are present for a battle in which both sides have creatures who aren’t surprised, your side determines who goes first if the d10 roll is a 4 or higher.
+      behavior: attribute
+      attribute: 702ec072-f5eb-42d0-89e2-fd71ced69064
+    - __typeName: CharacterModifier
+      text: Whenever you are present for a battle in which both sides have creatures who aren’t surprised, your side determines who goes first if the d10 roll is a 4 or higher.
+      sourceguid: 05627d24-a3f0-46ff-a2cf-6af55e3c4835
+      source: Complication
+      behavior: movementtext
+      name: Infernal Contract - Benefit
+      texttype: initiative
+      description: Whenever you are present for a battle in which both sides have creatures who aren’t surprised, your side determines who goes first if the d10 roll is a 4 or higher.
+      guid: c9ef7d95-0bc9-4043-b1db-5fca8e945742
+      color: white
+    source: Complication
+    canHavePrerequisites: true
+    guid: 05627d24-a3f0-46ff-a2cf-6af55e3c4835
+    name: Infernal Contract - Benefit
+    implementation: 4
+name: Infernal Contract
+ctime: 1755515529025
+description: You made a deal (perhaps unknowingly) with an archdevil that has tied you to that fiend’s service. When you first learned of this deal, you were taken to the Seven Cities of Hell, where some of the timescape’s best minds taught you the ways of battle. The archdevil allows you to use these gifts as you will… until they require a favor from you.
+id: 6ffbf527-6dd5-46f6-946d-66603b8b6b57
+benefit: "Whenever you are present for a battle in which both sides have creatures who aren’t surprised, your side determines who goes first if the d10 roll is a 4 or higher (see Combat Round in Chapter 10: Combat)."

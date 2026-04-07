@@ -1,0 +1,63 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityModifyPowerRollBehavior
+      guid: 68050b97-f02c-45d7-98e3-e2bab6376584
+      modifier:
+        __typeName: CharacterModifier
+        sourceguid: 68050b97-f02c-45d7-98e3-e2bab6376584
+        modtype: bane
+        keywords: []
+        activationCondition: false
+        guid: 3a6eb09d-9ef2-43a6-ae82-8100d2300204
+        rollType: enemy_ability_power_roll
+        domains: []
+        description: ""
+        name: Power Roll Modifier
+        behavior: power
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    targetType: self
+    strain: []
+    whenActive: combat
+    abilityType: none
+    numTargets: "1"
+    conditionFormula: HasAbility (Ability.Keywords has "Strike") and Subject.Keywords has "rival"
+    guid: 4bbabd71-692e-44d1-b364-acd6508dd872
+    name: Work as One
+    trigger: losehitpoints
+    actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+    description: Until the end of the round, each rival can impose a bane on a strike made against an adjacent rival as a free triggered action.
+    subject: selfandallies
+    iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+  description: Until the end of the round, each rival can impose a bane on a strike made against an adjacent rival as a free triggered action.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: c250b6e6-4b02-41b3-a59c-2c7313f76dc9
+  name: Work as One
+  sourceguid: 059bc702-00eb-425b-8e9b-93f6df9f6a5d
+source: Ongoing Effect
+guid: 059bc702-00eb-425b-8e9b-93f6df9f6a5d
+id: 059bc702-00eb-425b-8e9b-93f6df9f6a5d
+ctime: 1765038803564
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Work as One
+description: Until the end of the round, each rival can impose a bane on a strike made against an adjacent rival as a free triggered action.
+custom: true
+mtime: 1765039195955
+iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e

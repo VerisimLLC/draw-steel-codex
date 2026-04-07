@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 7d7e64a3-0b2b-41c3-a00d-15b48ee1d8d5
+  source: Ongoing Effect
+  value: 99
+  domains:
+    CharacterOngoingEffect:7d7e64a3-0b2b-41c3-a00d-15b48ee1d8d5: true
+  name: Oozen Grasp
+  guid: ac7045d1-e108-47f0-a54c-6928f30fe362
+  description: The creeping sludge can have an unlimited number of size 1 creatures grabbed at a time.
+  behavior: attribute
+  attribute: 7a91dad1-97f4-4411-b326-425d58bb2bb2
+source: Ongoing Effect
+guid: 7d7e64a3-0b2b-41c3-a00d-15b48ee1d8d5
+id: 7d7e64a3-0b2b-41c3-a00d-15b48ee1d8d5
+ctime: 1763463817230
+domains:
+  CharacterOngoingEffect:7d7e64a3-0b2b-41c3-a00d-15b48ee1d8d5: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Oozen Grasp
+statusEffect: false
+description: The creeping sludge can have an unlimited number of size 1 creatures grabbed at a time.
+mtime: 1763463928061
+iconid: ui-icons/skills/1.png

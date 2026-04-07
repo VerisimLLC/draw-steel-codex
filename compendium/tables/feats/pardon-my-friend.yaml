@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Interpersonal Perk
+name: Pardon My Friend
+description: When an ally within 5 squares fails a Presence test, you can step in and make a Presence test that takes a bane, with your roll replacing the ally’s roll. This perk can be used only once per test, even if more than one character has it.
+mtime: 1755078899175
+id: 7dd83084-1ea1-4e76-b1a4-833ba39d4cf5
+ctime: 1730700689855

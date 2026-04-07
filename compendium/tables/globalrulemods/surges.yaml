@@ -1,0 +1,46 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: f2360d05-10b7-4889-a571-5a585be5684a
+      source: Surges Global Rule Mod Feature
+      guid: 23edb243-90a1-4338-94ea-e1587fb5a390
+      filterCondition: Combat Round > 0
+      name: Surges
+      description: ""
+      num: 0
+      resourceType: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+      behavior: resource
+    name: Surges
+    guid: f2360d05-10b7-4889-a571-5a585be5684a
+    description: ""
+    source: Surges Global Rule Mod Feature
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: a151bcb9-bbe4-4dc3-8f04-fa5bc67fb04c
+      displayCondition: resources.surges >= 2 and Ability.haspotency
+      source: Surges Global Rule Mod Feature
+      guid: 4d78e4da-c021-455d-baa4-89461d77fba4
+      keywords: []
+      resourceCostAmount: 2
+      activationCondition: ""
+      description: When you use a power roll, you may spend two surges to add one to the potency.
+      rollType: ability_power_roll
+      name: Potency Surge
+      resourceCostType: surges
+      potencymod: "1"
+      behavior: power
+      modtype: none
+    name: Potency Surge
+    description: When you use a power roll, you may spend two surges to add one to the potency.
+    guid: a151bcb9-bbe4-4dc3-8f04-fa5bc67fb04c
+    source: Surges Global Rule Mod Feature
+    implementation: 3
+name: Surges
+mtime: 1762447173985
+id: c48b86ce-0da3-483c-b405-441630e7498d
+ctime: 1737441600992

@@ -1,0 +1,58 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+  source: Ongoing Effect
+  value: Walking Speed/2
+  filterCondition: Stacks = 1
+  guid: aebe0c65-ea31-4aff-a6cc-1f2e4165e01c
+  name: Slow
+  domains:
+    CharacterOngoingEffect:a270f4cf-5613-4844-9aa3-a7b70ffff8ba: true
+  description: Your speed is reduced from the Talents Slow
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+  source: Ongoing Effect
+  value: 0
+  filterCondition: Stacks > 1
+  guid: 97c33526-09f4-44cc-ab85-399588a99a1c
+  name: Slow
+  domains:
+    CharacterOngoingEffect:a270f4cf-5613-4844-9aa3-a7b70ffff8ba: true
+  description: Your speed is reduced from the Talents Slow
+  behavior: attribute
+  attribute: movementMultiplier
+- __typeName: CharacterModifier
+  sourceguid: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:a270f4cf-5613-4844-9aa3-a7b70ffff8ba: true
+  name: Slow
+  guid: 04ce39e5-3e8f-4345-80e2-b074728648d3
+  description: Your speed is reduced from the Talents Slow
+  behavior: attribute
+  attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+source: Ongoing Effect
+stackable: true
+id: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+ctime: 1757777023166
+domains:
+  CharacterOngoingEffect:a270f4cf-5613-4844-9aa3-a7b70ffff8ba: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Slow
+guid: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+description: Your speed is reduced from the Talents Slow
+mtime: 1758309831712
+iconid: ui-icons/skills/1.png

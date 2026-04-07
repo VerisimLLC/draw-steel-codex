@@ -1,0 +1,46 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ac40ba5e-fd52-4abf-a06f-456e2e0d800b
+  source: Ongoing Effect
+  seq: d76de737-b588-4479-a9c1-5e8970e493bc
+  aura:
+    __typeName: Aura
+    modifiers: []
+    guid: ceeb6c1e-f1f4-4d0a-89c6-02a4ffc35907
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+    applyto: enemies
+    blocks_movement: false
+    name: Blessing of the Fortress
+    triggers: []
+    description: Until the end of the encounter or until you are dying, no enemy can approach within 5 squares of you by moving or by being force moved by any enemy. Targets can be force moved closer to you by you or your allies, or can move closer because of your movement.
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flags: []
+  domains:
+    CharacterOngoingEffect:ac40ba5e-fd52-4abf-a06f-456e2e0d800b: true
+  radius: "5"
+  guid: 3fbb34f5-da08-45ad-ba39-3c01e649c809
+  description: Until the end of the encounter or until you are dying, no enemy can approach within 5 squares of you by moving or by being force moved by any enemy. Targets can be force moved closer to you by you or your allies, or can move closer because of your movement.
+  behavior: aura
+  name: Blessing of the Fortress
+source: Ongoing Effect
+guid: ac40ba5e-fd52-4abf-a06f-456e2e0d800b
+id: ac40ba5e-fd52-4abf-a06f-456e2e0d800b
+ctime: 1770278438501
+domains:
+  CharacterOngoingEffect:ac40ba5e-fd52-4abf-a06f-456e2e0d800b: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Blessing of the Fortress
+custom: true
+description: Until the end of the encounter or until you are dying, no enemy can approach within 5 squares of you by moving or by being force moved by any enemy. Targets can be force moved closer to you by you or your allies, or can move closer because of your movement.
+mtime: 1771047865150
+iconid: ui-icons/skills/1.png

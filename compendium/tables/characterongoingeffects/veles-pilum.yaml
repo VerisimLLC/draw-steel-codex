@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  description: Cannot make Opportunity Attacks against Kobolds.
+  sourceguid: 341250c0-f461-489e-a1ae-3fa8aaac1785
+  filterid: opportunityattack
+  source: Ongoing Effect
+  name: Veles Pilum
+  filter: not (Target is "Kobold")
+  behavior: filter
+  guid: 6839f584-1760-4bab-8f15-4fbe562bcda4
+source: Ongoing Effect
+guid: 341250c0-f461-489e-a1ae-3fa8aaac1785
+id: 341250c0-f461-489e-a1ae-3fa8aaac1785
+ctime: 1751442333729
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.362000226974487
+    s: 1.00208103656769
+    v: 0.948964416980743
+    a: 1
+custom: true
+name: Veles Pilum
+iconid: 595c51ea-d1fd-4c95-9500-aab9a78e5022
+description: Cannot make Opportunity Attacks against Kobolds.
+mtime: 1751496833952
+implementation: 2

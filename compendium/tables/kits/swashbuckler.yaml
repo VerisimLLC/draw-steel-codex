@@ -1,0 +1,102 @@
+__typeName: Kit
+armor: Light
+health: 3
+id: 50262518-b510-4469-ab0b-87286a097ae0
+weapons:
+  Medium: true
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+equipmentDescription: You wear light armor and wield a medium weapon.
+kitManeuver: false
+mtime: 1774535600027
+name: Swashbuckler
+type: martial
+speed: 3
+imported: 621407b2-fd91-4b41-998e-dbdc0674dba3
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  implementationDetails: Using this ability more than once in a turn doesn't correctly highlight the available squares you can shift into
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.497499823570251
+      s: 0.842675626277924
+      v: 0.695951282978058
+      a: 1
+  flavor: All combat is a dance-and you'll be the one leading.
+  sourceReference:
+    __typeName: SourceReference
+    page: 223
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  effectImplemented: false
+  numTargets: 1
+  modifiers: []
+  strain: []
+  guid: 14ba2978-ca93-40fb-82b6-a9fd8b067c14
+  categorization: Signature Ability
+  persistence: []
+  implementation: 3
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 + M or A damage
+    - 7 + M or A damage; push 1
+    - 10 + M or A damage; push 2
+    roll: 2d10 + Might or Agility
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    tiersSelected:
+    - 2
+    - 3
+    customAbility:
+      __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 1b2ea40b-a952-41fc-901a-9a294ab3f137
+      repeatTargets: false
+      numTargets: "1"
+      categorization: Hidden
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        movementType: shift
+      targeting: vacated
+      name: Invoked Ability
+      targetType: emptyspace
+      description: ""
+      range: Movement Speed
+      iconid: ui-icons/skills/1.png
+    promptText: Shift into a square the target left
+    autoTarget: false
+    guid: e71c6ad9-58ae-4766-bc1c-8bccb7a492d7
+    applyto: caster
+  name: Fancy Footwork
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  description: You can shift into any square your target leaves after you force move them with this ability.
+  abilityType: none
+  iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+description: If you want to be mobile and deal a lot of damage with melee attacks, then you should reach for the Swashbuckler kit. This is a great kit for heroes who want to be master duelists.
+portraitid: a17c9a6a-1ca1-4947-8623-2172a921259e
+disengage: 1

@@ -1,0 +1,31 @@
+__typeName: ActivatedAbility
+id: 6ebdc25d-188c-4165-a2fd-1c7415b20702
+behaviors:
+- __typeName: ActivatedAbilityDrawSteelCommandBehavior
+  rule: P3 Taunted (EoT)
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  applyto: caster
+  ongoingEffect: 228aed17-e6de-419b-a6ad-f25770d42e82
+  ongoingEffectCustom: 228aed17-e6de-419b-a6ad-f25770d42e82
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: |
+    Each target is P3 taunted (save ends). For the rest of the encounter the centurion has Weapon immunity 5. All allies within 10 of the centurion can make a free strike.
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: 0f7deb16-332e-4a10-84d9-9feafe1e2389
+importMatch: Each target is P3 taunted \(save ends\). For the rest of the encounter <<monster>> has Weapon immunity 5. All allies within 10 of the centurion can make a free strike.
+ctime: 1731827272764
+targetType: self
+mtime: 1743460280883
+name: Are you not entertained?
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

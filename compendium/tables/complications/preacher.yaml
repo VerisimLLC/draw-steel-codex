@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: If you fail in your conversion attempt, one of your existing followers of the Director’s choice (whether gained through this complication or your Renown or other means) leaves you, their faith in you shaken. If you have no followers, your Renown is reduced by 1. If you need to reduce your Renown and it’s already 0, you gain no benefits from the respite during which you make the conversion attempt.
+mtime: 1755603967699
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Preacher
+ctime: 1755516364159
+description: When you were young, you almost died in an accident or attack, but a vision of a god or saint showed you the way to save yourself and others you loved. That event drove you into the church and gave you a strong belief in a particular religion or cause—and you can’t wait to tell other people all about it
+id: 7bc4c72c-abe2-4b36-ab88-67bd9d9f06b2
+benefit: "As a respite activity, you can attempt to convert members of a community to your cause. Make a Presence test with a difficulty determined by the Director based on the community’s receptiveness to your ideas. On a success, you convert one NPC into a follower (see Renown in Chapter 13: Rewards), which you gain in addition to any followers acquired through Renown or other means. The Director determines the type of follower. Once you have converted an NPC into a follower this way, you can’t use this benefit again until you gain a level."

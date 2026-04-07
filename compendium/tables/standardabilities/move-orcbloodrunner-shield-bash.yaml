@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+id: dd666b48-1f8c-41b7-8156-10022b92c023
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: Stacks("Bloodrunner Shield Bash Movement")
+targetType: emptyspace
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: This allows a creature to move their speed.
+description: ""
+ctime: 1765968918135
+numTargets: "1"
+targeting: pathfind
+guid: 4934ea16-25d4-41d2-aec0-081a0903a8ea
+name: Move Orcbloodrunner Shield Bash
+repeatTargets: false
+mtime: 1774539213893
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,127 @@
+__typeName: Kit
+armor: Heavy
+stability: 2
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: attacker
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: a5af4a16-b3b4-439b-a479-44de41bab956
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          duration: end_of_next_turn
+          ongoingEffectCustom: false
+          ongoingEffect: 822aee05-801b-42a7-bea4-f9bbaaed388b
+          casteridFormula: cast.FirstTarget.id
+        conditionFormula: hasattacker
+        whenActive: combat
+        numTargets: "1"
+        trigger: losehitpoints
+        name: Pain for pain
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Mountain Kit Feature
+      behavior: trigger
+      guid: d4e59d93-1c8f-4eda-976b-71db3d58bea1
+      name: Pain for pain
+      sourceguid: aae2bd3c-8b45-4a3e-82e8-4e5a8f318e19
+    name: Pain for pain
+    description: ""
+    guid: aae2bd3c-8b45-4a3e-82e8-4e5a8f318e19
+    source: Mountain Kit Feature
+    implementation: 3
+description: The Mountain kit does exactly what it says on the tin. You don heavy armor and a heavy weapon to stand strong against your foes, quickly demolishing them when it's your turn to attack.
+health: 9
+damageBonuses:
+  melee:
+  - 0
+  - 0
+  - 4
+id: 6ead0613-c315-450b-83c9-d2ecce68f1ff
+kitManeuver: false
+type: martial
+portraitid: 342784d0-0c71-4ea2-ab8c-2b7861cf40dd
+imported: 99d83090-9093-4883-ad4c-5ba82d3b9dd5
+equipmentDescription: You wear heavy armor and wield a heavy weapon.
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: An enemy who tagged you will pay for that.
+  sourceReference:
+    __typeName: SourceReference
+    page: 220
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  effectImplemented: false
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: eddf9ca0-2927-4b00-b51a-7346da9009f5
+  numTargets: 1
+  categorization: Signature Ability
+  implementation: 3
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 3 + M or A damage
+    - 5 + M or A damage
+    - 13 + M or A damage
+    roll: 2d10 + Might or Agility
+  - __typeName: ActivatedAbilityModifyPowerRollBehavior
+    guid: 57ffff38-1897-45eb-8b9b-eaf43d13e33c
+    modifier:
+      __typeName: CharacterModifier
+      sourceguid: 57ffff38-1897-45eb-8b9b-eaf43d13e33c
+      displayCondition: ""
+      guid: 46806988-ce27-4275-bba9-e4221b4771d0
+      keywords: []
+      activationCondition: self.casterSet("Pain for Pain") has target
+      behavior: power
+      domains: []
+      name: Pain for pain
+      rollType: ability_power_roll
+      description: If the target dealt damage to you since the end of your last turn, this strike deals additional damage equal to your Might or Agility score.
+      modtype: none
+      damageModifier: Might or Agility
+  name: Pain for Pain
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  description: If the target dealt damage to you since the end of your last turn, this strike deals additional damage equal to your Might or Agility score (your choice).
+  abilityType: none
+  iconid: b9b738ea-7e4d-4289-9fc5-7e1182b6847f
+mtime: 1772099460226
+name: Mountain
+weapons:
+  Heavy: true

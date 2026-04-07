@@ -1,0 +1,46 @@
+__typeName: ActivatedAbility
+id: 34251e8f-331f-4ccf-9e30-754c9265143e
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 192aac29-a6af-46b0-8aca-c5ea0307a064
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  targeting: formula
+  abilityType: standard
+  standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: db37d983-0ce5-40b7-9a2d-9be8c3c82524
+ctime: 1749995080746
+targetType: self
+numTargets: "1"
+mtime: 1773922538842
+name: New Ability
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

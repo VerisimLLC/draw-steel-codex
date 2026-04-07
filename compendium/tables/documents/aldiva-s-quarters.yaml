@@ -1,0 +1,173 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        balancing:
+        - stamina: 40
+        - stamina: 80
+        - stamina: 40
+        - stamina: 80
+        - []
+        - []
+        - []
+        monsters:
+          8a14761e-c7d6-412f-8c25-2758e8bbfc73: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "5,16,3"
+      - appearances:
+        - false
+        balancing:
+        - stamina: 30
+        - []
+        - stamina: 30
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          d71d4deb-cafe-4859-ba16-988148d791ca: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "2,16,3"
+      saveAppearances: false
+  encounter-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "7,15,3"
+        invisibleToPlayers:
+        - false
+        monsters:
+          895f79ff-ba20-4f35-83d2-0784b3adf9ec: 1
+id: 470665ba-1bf3-4533-a27c-13b442b7949f
+ctime: 1761639984006
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: "[[/awardvp 1|Award Victories]]"
+    Y: |
+      ## Groups 
+    u: |+
+      [End Combat] The encounter ends when Aldiva and Laesi are reduced to 0 Stamina. If the heroes win the battle, they earn 1 Victory each.
+
+    W: |2+
+       If Brune is not here, they find his house circled on the Aldiva’s map with a note that says “Brune—Ally.”
+
+    s: |+
+      ## Ending the Encounter
+
+    U: |2
+       If **Brune** (see B8. Butcher) left Broadhurst to warn the Forsaken Wraiths about the heroes, he is also here, advising Aldiva about Broadhurst.
+    q: |2+
+       Once in a more comfortable place with some allies, **Aldiva** uses *Kneel, Peasant* before unleashing *Whip and Magic Longsword* to gain the benefit of striking a prone target. **Laesi** uses *Nimblestep* to deal as much damage as possible. If **Brune** is there, he uses *Butcher Knife* or the *Grab* maneuver to grab targets to use as humanoid shields. See Within the Palisade for more information
+
+    S: |
+      ## Brune
+    o: |
+      The enemies engage the heroes in melee, attempting to use abilities that force move heroes out of their way and allow them to shift so they can run out into the area surrounded by the palisade and get help from other bandits there. 
+    Q: |2
+       If the heroes try to warn her of a forthcoming mutiny, Aldiva brushes it off as overreacting if she believes the heroes are new recruits. If they press the issue, she attacks. 
+    m: |+
+      ## Tactics
+
+    O: |2+
+       Aldiva sees herself as the queen of the area, and she refuses to believe her reign is over, whether from a mutiny or from a group of meddling heroes. Similarly, Laesi defends her friend and mentor to the death.
+
+    k: |+
+      When you are ready, [Draw Steel!]
+
+    M: |+
+      ## Aldiva and Laesi
+
+    i: |+
+      [[encounter]]
+
+
+    K: |2+
+       Aldiva, a **human bandit chief**, plans a raid on Broadhurst in her quarters, assessing the situation with her personal null bodyguard named **Laesi**. The two are aware of Thurston’s displeasure, but they are unaware that the mutiny has grown to this level. 
+
+    g: |
+      [[encounter]]
+    I: |+
+      > * “Several crates and barrels are stacked around the room and a straw mattress lies on the ground in the corner.”
+
+    C: |+
+      # Aldiva’s Quarters
+
+    G: |
+      > * “Beside her stands an unarmed woman in plain robes, arms folded comfortably.”
+    e: |+
+      [[/activateobjects F2_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects F2_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    E: |
+      > * “A human in fine leather armor stands over a barrel, looking at roughly sketched map of Broadhurst, nodding as she mumbles to herself.”
+    f: |+
+      [[setting:Number of Heroes]]
+
+    c: |
+      ## Loot
+    d: |+
+      Aldiva uses a [item:Blade of the Luxurious Fop].
+
+    a: |2
+       Aldiva, Laesi, and Brune are each a group on their own.
+    b: |2
+
+parentFolder: 3869de06-287d-49b3-b58a-e783f2d757c0
+updateid: 9db36341-5d99-4b47-abcf-7d6b69644183
+mtime: 1768678866432
+content: |-
+  # Aldiva’s Quarters
+
+  > * “A human in fine leather armor stands over a barrel, looking at roughly sketched map of Broadhurst, nodding as she mumbles to herself.”
+  > * “Beside her stands an unarmed woman in plain robes, arms folded comfortably.”
+  > * “Several crates and barrels are stacked around the room and a straw mattress lies on the ground in the corner.”
+
+   Aldiva, a **human bandit chief**, plans a raid on Broadhurst in her quarters, assessing the situation with her personal null bodyguard named **Laesi**. The two are aware of Thurston’s displeasure, but they are unaware that the mutiny has grown to this level. 
+
+  ## Aldiva and Laesi
+
+   Aldiva sees herself as the queen of the area, and she refuses to believe her reign is over, whether from a mutiny or from a group of meddling heroes. Similarly, Laesi defends her friend and mentor to the death.
+
+   If the heroes try to warn her of a forthcoming mutiny, Aldiva brushes it off as overreacting if she believes the heroes are new recruits. If they press the issue, she attacks. 
+  ## Brune
+   If **Brune** (see B8. Butcher) left Broadhurst to warn the Forsaken Wraiths about the heroes, he is also here, advising Aldiva about Broadhurst.
+   If Brune is not here, they find his house circled on the Aldiva’s map with a note that says “Brune—Ally.”
+
+  ## Groups 
+   Aldiva, Laesi, and Brune are each a group on their own.
+  ## Loot
+  Aldiva uses a Blade of the Luxurious Fop (see Treasure in Handouts).
+
+  [[encounter]]
+
+  [[encounter]]
+
+  When you are ready, [Draw Steel!]
+
+  ## Tactics
+
+  The enemies engage the heroes in melee, attempting to use abilities that force move heroes out of their way and allow them to shift so they can run out into the area surrounded by the palisade and get help from other bandits there. 
+   Once in a more comfortable place with some allies, **Aldiva** uses *Kneel, Peasant* before unleashing *Whip and Magic Longsword* to gain the benefit of striking a prone target. **Laesi** uses *Nimblestep* to deal as much damage as possible. If **Brune** is there, he uses *Butcher Knife* or the *Grab* maneuver to grab targets to use as humanoid shields. See Within the Palisade for more information
+
+  ## Ending the Encounter
+
+  [End Combat] The encounter ends when Aldiva and Laesi are reduced to 0 Stamina. If the heroes win the battle, they earn 1 Victory each.
+
+  [[/awardvp 1|Award Victories]]
+description: Aldiva’s Quarters

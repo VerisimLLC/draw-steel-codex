@@ -1,0 +1,47 @@
+__typeName: CharacterFeature
+testCases:
+- text: "The goblin's melee attack gains the effect: push 2"
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 35a02ed8-a9a9-484c-b2a1-f6f0bbdf6d44
+  source: Monster
+  modtype: none
+  rollType: ability_power_roll
+  keywords:
+    Melee: true
+    Attack: true
+  hasCustomTrigger: false
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 00893710-f0d3-4b1e-b470-959b56c805fa
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 5
+    targetType: self
+    behaviors: []
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  behavior: power
+  name: Big Hit
+  description: ""
+  addText: Push 2
+  guid: 8e163979-64e5-4c16-9aa4-3a8cccbcf248
+  activationCondition: true
+source: Monster
+guid: 35a02ed8-a9a9-484c-b2a1-f6f0bbdf6d44
+importMatch: "<<monster>> melee attack gains the effect: push 2"
+ctime: 1715812890230
+name: Big Hit
+id: 95a0c240-1c57-479d-9c8a-64dc75a9ba44
+description: ""
+mtime: 1715815407834
+implementation: 3

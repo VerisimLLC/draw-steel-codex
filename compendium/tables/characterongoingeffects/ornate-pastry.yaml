@@ -1,0 +1,77 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e2bde2c-9ec6-4eee-8667-bc08086ff396
+  guid: 42fa7f82-e89d-4a27-beed-7483f71501d0
+  source: Ongoing Effect
+  behavior: activated
+  description: This creature has had an ornate pastry attached to it by the Hag.
+  name: Ornate Pastry
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    targetFilter: Target.Ongoing Effects has "ornate pastry"
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      applyto: targets
+      roll: 2d10 + Agility
+      tiers:
+      - The hag makes the power roll for all pastries.
+      - the pastry is not removed.
+      - the pastry is removed and no longer has an effect.
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      tiersSelected:
+      - 1
+      text: The hag makes the power roll for all pastries.
+      color: "#ffffffff"
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      applyto: targets
+      mode: effect
+      ongoingEffect: 1e2bde2c-9ec6-4eee-8667-bc08086ff396
+      conditions: []
+      tiersSelected:
+      - 3
+      purgeType: all
+      chatMessage: Ornate Pastry removed.
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    sourceReference:
+      __typeName: SourceReference
+      page: 170
+      docid: cc66844a-04d0-49a0-8687-65ef83b15363
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    strain: []
+    guid: 96424e12-a22e-4526-921e-9584331d4848
+    categorization: Ability
+    iconid: 4ffdbf18-c0a0-41a4-a4d1-6978c7ce0ab3
+    domains: []
+    targetType: target
+    persistence: []
+    name: Remove Pastry
+    selfTarget: true
+    description: ""
+    abilityType: none
+    implementation: 3
+source: Ongoing Effect
+guid: 1e2bde2c-9ec6-4eee-8667-bc08086ff396
+id: 1e2bde2c-9ec6-4eee-8667-bc08086ff396
+ctime: 1771599113413
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Ornate Pastry
+iconid: 4ffdbf18-c0a0-41a4-a4d1-6978c7ce0ab3
+description: This creature has had an ornate pastry attached to it by the Hag.
+mtime: 1771942046994
+implementation: 3

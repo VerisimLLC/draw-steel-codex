@@ -1,0 +1,104 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 3c0e261c-528b-4855-acff-1d29c25ec4ab
+  source: Ongoing Effect
+  rollType: all
+  guid: 582f960f-e5ab-4b73-aaf0-25827723ad0f
+  domains:
+    CharacterOngoingEffect:3c0e261c-528b-4855-acff-1d29c25ec4ab: true
+  keywords: []
+  hasCustomTrigger: false
+  customTrigger:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    reasonedFilters: []
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 781148fe-0883-4a27-864e-26c5195825aa
+      ongoingEffectCustom: 781148fe-0883-4a27-864e-26c5195825aa
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 42ccd1c7-dfdb-4756-8ead-6f85c3641baa
+    numTargets: "1"
+    name: Gnoll Dies
+    description: Whenever a gnoll is killed, the effect of Echoes of Laughter is supressed for a round
+    trigger: d20roll
+    targetType: self
+    abilityFilters:
+    - formula: ""
+      reason: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  activationCondition: Ongoing Effects has not "EoL Suppressed"
+  name: Echoes of Laughter
+  resourceRefreshType: round
+  description: 'Bane on the first power roll you make each round. Whenever a Gnoll is killed, this effect is suppressed until the start of the next round. '
+  modtype: bane
+  behavior: power
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:3c0e261c-528b-4855-acff-1d29c25ec4ab: true
+  sourceguid: 3c0e261c-528b-4855-acff-1d29c25ec4ab
+  description: 'Bane on the first power roll you make each round. Whenever a Gnoll is killed, this effect is suppressed until the start of the next round. '
+  source: Ongoing Effect
+  name: Echoes of Laughter
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    name: Echoes of Laughter
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: f82fe667-4524-4d8d-ad87-9c24e089758e
+      duration: endround
+      ongoingEffectCustom: f82fe667-4524-4d8d-ad87-9c24e089758e
+    conditionFormula: subject.type is Gnoll
+    subject: other
+    guid: ad41b841-3c2d-4b2b-8d1c-143113ee92f7
+    trigger: creaturedeath
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 49faaff9-d8d4-43bf-a99e-27632c5f7511
+source: Ongoing Effect
+guid: 3c0e261c-528b-4855-acff-1d29c25ec4ab
+id: 3c0e261c-528b-4855-acff-1d29c25ec4ab
+ctime: 1756038089534
+domains:
+  CharacterOngoingEffect:3c0e261c-528b-4855-acff-1d29c25ec4ab: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0945000648498535
+    s: 0.992187678813934
+    v: 0.751947641372681
+    a: 1
+name: Echoes of Laughter
+custom: true
+description: 'Bane on the first power roll you make each round. Whenever a Gnoll is killed, this effect is suppressed until the start of the next round. '
+mtime: 1761694230902
+iconid: 3a153d85-48d0-43d8-aca1-b1b688933477

@@ -1,0 +1,412 @@
+9468c018-e13d-453d-8ba7-d044366ab077:
+  __typeName: Language
+  id: 9468c018-e13d-453d-8ba7-d044366ab077
+  description: |-
+    Related to Hyrallic, Yllyric
+
+    Common topics: Rovion, the starmetal
+  group: Dead Languages
+  name: Ullorvic
+  mtime: 1770174865673
+  speakers: Star elf
+  dead: true
+  ctime: 1749245755148
+9f8bf21e-a483-46e7-aa12-dbe63591d928:
+  __typeName: Language
+  speakers: Orden denizens
+  group: Languages by Ancestry
+  name: Caelian
+  description: Common language of Orden.
+  mtime: 1770174464835
+  id: 9f8bf21e-a483-46e7-aa12-dbe63591d928
+  ctime: 1730439788195
+215f4e98-35d8-4129-841a-14fe5d5877a4:
+  __typeName: Language
+  group: Languages by Ancestry
+  name: Za’hariax
+  speakers: Overminds
+  mtime: 1770174595146
+  id: 215f4e98-35d8-4129-841a-14fe5d5877a4
+  ctime: 1749243843463
+265ba30f-5316-4a4b-a551-3c94834b23d4:
+  __typeName: Language
+  speakers: Humans
+  group: Vaslorian Human Languages
+  name: Higaran
+  description: "Region: Higara"
+  mtime: 1770174168277
+  id: 265ba30f-5316-4a4b-a551-3c94834b23d4
+  ctime: 1755297964045
+6c4dff23-863f-4a01-91d8-d7b569482bcd:
+  __typeName: Language
+  speakers: Goblins, Radenwights
+  group: Languages by Ancestry
+  name: Szetch
+  description: ""
+  mtime: 1770174557060
+  id: 6c4dff23-863f-4a01-91d8-d7b569482bcd
+  ctime: 1740679261121
+b2f50f8b-476e-4a4c-9741-5f4b568dae63:
+  __typeName: Language
+  id: b2f50f8b-476e-4a4c-9741-5f4b568dae63
+  description: |-
+    Related to Hyrallic
+
+    Common topics: Flying castles
+  group: Dead Languages
+  name: Low Rhyvian
+  mtime: 1770174856455
+  speakers: Sky elf
+  dead: true
+  ctime: 1749245565632
+5ed69b39-a712-43f5-b402-8416ead9047e:
+  __typeName: Language
+  speakers: Kobolds
+  group: Languages by Ancestry
+  name: Kethaic
+  description: Patois of Vastariax and Caelian.
+  mtime: 1770174491739
+  id: 5ed69b39-a712-43f5-b402-8416ead9047e
+  ctime: 1740676907892
+87989407-e69a-4b96-ab5a-4f2de73f9dd1:
+  __typeName: Language
+  id: 87989407-e69a-4b96-ab5a-4f2de73f9dd1
+  group: Languages by Ancestry
+  name: High Kuric
+  speakers: Bredbeddles, giants, ogres, trolls
+  mtime: 1770174539455
+  dead: false
+  ctime: 1749243460727
+ba8d6dd2-7a18-4b47-9c8e-c2e989f60765:
+  __typeName: Language
+  speakers: Elder dragons
+  group: Languages by Ancestry
+  name: The First Language
+  description: Language of magic.
+  mtime: 1770174471456
+  id: ba8d6dd2-7a18-4b47-9c8e-c2e989f60765
+  ctime: 1740682471197
+a7eb4785-677f-442d-bb09-7f4f0e948f0a:
+  __typeName: Language
+  id: a7eb4785-677f-442d-bb09-7f4f0e948f0a
+  description: |-
+    Related to Zaliac
+
+    Common topics: Valiar, the truemetal
+  group: Dead Languages
+  name: Rallarian
+  mtime: 1770174864525
+  speakers: Steel dwarf
+  dead: true
+  ctime: 1749245735102
+8cd81654-7ff7-4f0d-adc2-fadfe7a75599:
+  __typeName: Language
+  speakers: Humans
+  group: Vaslorian Human Languages
+  name: Khemharic
+  description: "Region: Khemhara"
+  mtime: 1770174191169
+  id: 8cd81654-7ff7-4f0d-adc2-fadfe7a75599
+  ctime: 1755298105092
+51483dff-15b3-4288-89c1-8321734beffa:
+  __typeName: Language
+  speakers: Humans
+  group: Vaslorian Human Languages
+  name: Oaxuatl
+  description: "Region: Ix"
+  mtime: 1770174172728
+  id: 51483dff-15b3-4288-89c1-8321734beffa
+  ctime: 1755298012163
+9e4c0914-2086-4bbe-9ff2-d5baa820fa69:
+  __typeName: Language
+  speakers: Olothec, trolls, voiceless talkers
+  group: Languages by Ancestry
+  name: Variac
+  description: Common language of the World Below.
+  mtime: 1770174570648
+  id: 9e4c0914-2086-4bbe-9ff2-d5baa820fa69
+  ctime: 1730439760343
+10b7a97c-65d7-4778-a007-9a1664119201:
+  __typeName: Language
+  id: 10b7a97c-65d7-4778-a007-9a1664119201
+  description: ""
+  group: Languages by Ancestry
+  name: Illyvric
+  mtime: 1770174480298
+  speakers: Shadow elves
+  dead: false
+  ctime: 1740676756062
+e14c1512-fc48-4cb6-945c-18b3eb0b808d:
+  __typeName: Language
+  speakers: Angulotls
+  group: Languages by Ancestry
+  name: Filliaric
+  description: ""
+  mtime: 1770174467829
+  id: e14c1512-fc48-4cb6-945c-18b3eb0b808d
+  ctime: 1740676599610
+2a4043d9-b8f2-4100-ab20-080c71441070:
+  __typeName: Language
+  speakers: Voiceless talkers
+  group: Languages by Ancestry
+  name: Mindspeech
+  description: A symbolic language shared among native telepaths.
+  mtime: 1770174549851
+  id: 2a4043d9-b8f2-4100-ab20-080c71441070
+  ctime: 1749243535979
+1f8983ec-eade-4a90-991d-f19fbb3eb890:
+  __typeName: Language
+  id: 1f8983ec-eade-4a90-991d-f19fbb3eb890
+  description: |-
+    Related to Khoursirian
+
+    Common topics: Beast Magic
+  group: Dead Languages
+  name: Khamish
+  mtime: 1770174849244
+  speakers: Beast lord
+  dead: true
+  ctime: 1749245420748
+a2eabfeb-312b-40c9-9952-5395cc42b796:
+  __typeName: Language
+  id: a2eabfeb-312b-40c9-9952-5395cc42b796
+  description: |-
+    Related to Low and High Kuric
+
+    Common topics: Moving between manifolds
+  group: Dead Languages
+  name: Phorialtic
+  mtime: 1770174862210
+  speakers: Old elemental
+  dead: true
+  ctime: 1749245647066
+e110c3b1-3799-4179-b542-f842079b77f1:
+  __typeName: Language
+  speakers: Dwarves
+  group: Languages by Ancestry
+  name: Zaliac
+  description: Language of engineering.
+  mtime: 1770174597248
+  id: e110c3b1-3799-4179-b542-f842079b77f1
+  ctime: 1749243858379
+ba97f286-6412-461e-b954-ae8fba88d0df:
+  __typeName: Language
+  speakers: Dragons, dragon knights
+  group: Languages by Ancestry
+  name: Vastariax
+  description: ""
+  mtime: 1770174575424
+  id: ba97f286-6412-461e-b954-ae8fba88d0df
+  ctime: 1740682863258
+b9f2674c-953b-457b-9b42-00b892ba2488:
+  __typeName: Language
+  speakers: Hakaan
+  group: Languages by Ancestry
+  name: Vhoric
+  description: Offshoot of the stone giant dialect of High Kuric.
+  mtime: 1770174580026
+  id: b9f2674c-953b-457b-9b42-00b892ba2488
+  ctime: 1749243787978
+36cfd691-17e8-4931-85ef-93db7e2741f5:
+  __typeName: Language
+  speakers: Bugbears, fey
+  group: Languages by Ancestry
+  name: Khelt
+  description: Offshoot of Kheltivari.
+  mtime: 1770174528289
+  id: 36cfd691-17e8-4931-85ef-93db7e2741f5
+  ctime: 1740677118125
+f8dbb2fc-2915-47ad-95ff-8a10cd73fbff:
+  __typeName: Language
+  speakers: Human
+  group: Vaslorian Human Languages
+  name: Uvalic
+  description: "Region: The Gol"
+  mtime: 1770174157014
+  id: f8dbb2fc-2915-47ad-95ff-8a10cd73fbff
+  ctime: 1755297940113
+2cc5b5ba-b472-4ca4-87fb-2129c17171d8:
+  __typeName: Language
+  speakers: Humans
+  group: Vaslorian Human Languages
+  name: Riojan
+  description: "Region: Rioja"
+  mtime: 1770174205660
+  id: 2cc5b5ba-b472-4ca4-87fb-2129c17171d8
+  ctime: 1755298196628
+ebc44aa6-305a-471e-843a-ef44a7c23810:
+  __typeName: Language
+  speakers: Higher demons, gnolls
+  group: Languages by Ancestry
+  name: Tholl
+  description: ""
+  mtime: 1770174561036
+  id: ebc44aa6-305a-471e-843a-ef44a7c23810
+  ctime: 1740682697618
+e286ca18-850e-42fa-aa70-dd73365215f0:
+  __typeName: Language
+  speakers: Humans
+  group: Vaslorian Human Languages
+  name: Vaniric
+  description: "Region: Vanigar"
+  mtime: 1770174209479
+  id: e286ca18-850e-42fa-aa70-dd73365215f0
+  ctime: 1755298269995
+d2821847-466a-4320-85d8-cabeb7835429:
+  __typeName: Language
+  speakers: Polder, humans
+  group: Vaslorian Human Languages
+  name: Khoursirian
+  description: Distant offshoot of Khamish.
+  mtime: 1770174196209
+  id: d2821847-466a-4320-85d8-cabeb7835429
+  ctime: 1730439681221
+75b9fb28-7e0a-4d3e-9e17-ead36fce7d84:
+  __typeName: Language
+  speakers: Humans
+  group: Vaslorian Human Languages
+  name: Phaedran
+  description: "Region: Phaedros"
+  mtime: 1770174201204
+  id: 75b9fb28-7e0a-4d3e-9e17-ead36fce7d84
+  ctime: 1755298134136
+5cd91d59-d0da-4672-9afc-d902c79d9f4f:
+  __typeName: Language
+  speakers: Olothec
+  group: Languages by Ancestry
+  name: Urollialic
+  description: ""
+  mtime: 1770174565652
+  id: 5cd91d59-d0da-4672-9afc-d902c79d9f4f
+  ctime: 1740682718699
+cd308e8f-918c-4b08-bf17-8fc6565f044d:
+  __typeName: Language
+  id: cd308e8f-918c-4b08-bf17-8fc6565f044d
+  description: |-
+    Related to Variac
+
+    Common topics: Kollar, the sinmetal
+  group: Dead Languages
+  name: Old Variac
+  mtime: 1770174859665
+  speakers: Olothec, voiceless talkers
+  dead: true
+  ctime: 1749245623216
+648e3016-4c43-484d-8cc7-f63877cb9a80:
+  __typeName: Language
+  speakers: Memonek
+  group: Languages by Ancestry
+  name: Axiomatic
+  description: Native language of Axiom, and the common language of the timescape by trade.
+  mtime: 1770174461751
+  id: 648e3016-4c43-484d-8cc7-f63877cb9a80
+  ctime: 1740676530379
+ad0606c8-559c-46e8-b578-553bf4016b1f:
+  __typeName: Language
+  id: ad0606c8-559c-46e8-b578-553bf4016b1f
+  description: |-
+    Related to Hyrallic, Yllyric
+
+    Common topics: Liannar, the sunmetal
+  group: Dead Languages
+  name: High Rhyvian
+  mtime: 1770174840945
+  speakers: Sun elf
+  dead: true
+  ctime: 1749245361865
+86a6b7cc-6569-48cc-8867-b184204ebfd2:
+  __typeName: Language
+  group: Languages by Ancestry
+  name: Voll
+  speakers: Time raiders
+  mtime: 1770174586143
+  id: 86a6b7cc-6569-48cc-8867-b184204ebfd2
+  ctime: 1749243803399
+5287d30a-3dff-404b-8e84-0087508a801b:
+  __typeName: Language
+  speakers: Devils, hobgoblins
+  group: Languages by Ancestry
+  name: Anjali
+  description: |
+    Language of contract law.
+  mtime: 1770174455191
+  id: 5287d30a-3dff-404b-8e84-0087508a801b
+  ctime: 1730439751091
+69e19c1a-9919-422c-a61f-ead6702360ed:
+  __typeName: Language
+  id: 69e19c1a-9919-422c-a61f-ead6702360ed
+  description: |-
+    Related to Yllyric, Khelt
+
+    Common topics: Using a wode to travel through time
+  group: Dead Languages
+  name: Kheltivari
+  mtime: 1770174852171
+  speakers: Old fae
+  dead: true
+  ctime: 1749245529166
+85fb494c-2f8d-4e2b-9887-d03a2949c4fa:
+  __typeName: Language
+  speakers: Elementals
+  group: Languages by Ancestry
+  name: Low Kuric
+  description: ""
+  mtime: 1770174543047
+  id: 85fb494c-2f8d-4e2b-9887-d03a2949c4fa
+  ctime: 1740678925743
+f3951673-4de6-42ad-be86-d3158c40365c:
+  __typeName: Language
+  speakers: High elves
+  group: Languages by Ancestry
+  name: Hyrallic
+  description: Language of interspecies diplomacy.
+  mtime: 1770174475884
+  id: f3951673-4de6-42ad-be86-d3158c40365c
+  ctime: 1730439704602
+cfcc8202-6df8-4bca-9916-ad8891e36357:
+  __typeName: Language
+  id: cfcc8202-6df8-4bca-9916-ad8891e36357
+  description: "Related to Anjali.\v\vCommon topics: Zodiakol, the bloodmetal"
+  group: Dead Languages
+  name: Ananjali
+  mtime: 1770174824978
+  speakers: Old hobgoblin
+  dead: true
+  ctime: 1749245334283
+7022a370-503a-4cfd-a711-4b6af889f3af:
+  __typeName: Language
+  speakers: Wode elves
+  group: Languages by Ancestry
+  name: Yllyric
+  description: Language of druids
+  mtime: 1770174593670
+  id: 7022a370-503a-4cfd-a711-4b6af889f3af
+  ctime: 1749243825329
+5961c0ed-6a39-48fa-ad94-0a4fb4d98b58:
+  __typeName: Language
+  id: 5961c0ed-6a39-48fa-ad94-0a4fb4d98b58
+  description: Offshoot of Zaliac.
+  group: Languages by Ancestry
+  name: Kalliak
+  mtime: 1770174483610
+  speakers: Orcs
+  dead: false
+  ctime: 1740676842917
+9275a711-ae6a-4d5f-a23c-8e218622a57f:
+  __typeName: Language
+  speakers: Lower demons
+  group: Languages by Ancestry
+  name: Proto-Ctholl
+  description: Incomplete precursor of Tholl.
+  mtime: 1770174550960
+  id: 9275a711-ae6a-4d5f-a23c-8e218622a57f
+  ctime: 1740679261053
+7e7efb1d-4627-44ab-9407-11daff1a15cf:
+  __typeName: Language
+  speakers: Humans
+  group: Vaslorian Human Languages
+  name: Vaslorian
+  description: "Region: Vasloria"
+  mtime: 1770174210684
+  id: 7e7efb1d-4627-44ab-9407-11daff1a15cf
+  ctime: 1750743067836

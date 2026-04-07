@@ -1,0 +1,276 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c2076273-9fd9-45ec-9916-d8ca1ec10bb8
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        War Dog Equivite	Level 4 Horde Brute
+        War Dog	EV 6
+        <b>Stamina</b> 53
+        <b>Speed</b> 8	<b>Size</b> 2 /<b>Stability</b> 2
+        <b>Free Strike</b> 3
+        Might +3	Agility +3	Reason -1	Intuition -2	Presence +0
+        <b>Fuse-Iron Lance</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage
+        %E2%98%85	<b>12-16</b>	8 damage
+        %E2%9C%B8	<b>17</b>	10 damage; I<3 frightened (save ends)
+        <b>Effect</b> The equivite has an edge on this ability while charging.
+        <b>2 Malice</b> The ability deals an additional 3 fire damage to the target and each enemy adjacent to the target.
+
+        <b>Blazing Charge</b> (Maneuver)%E2%97%86 2d10 + 3
+        <b>Keywords</b> Melee, Weapon
+        <b>Distance</b> Special<b>Target</b> Special
+        <b>Effect</b> The equivite moves up to their speed and can move through enemies and objects at normal speed. They make one power roll total against each enemy and object they pass through.
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage; push 1
+        %E2%98%85	<b>12-16</b>	4 damage; push 2
+        %E2%9C%B8	<b>17</b>	5 damage; push 3; M<3 prone
+
+        <b>Loyalty Collar</b>
+        When the equivite dies, they explode, dealing 2d6 damage to each adjacent enemy.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1490059a-0820-4951-8de7-99bdc1a777ae: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 2d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the equivite is reduced to 0 Stamina, their loyalty collar explodes, dealing 2d6 damage to each adjacent enemy and object.
+      guid: 1490059a-0820-4951-8de7-99bdc1a777ae
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Brute
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Soulless: true
+    max_hitpoints_roll: "53"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: War Dog Equivite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: -2
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 53
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 306
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: The ability deals an extra 3 fire damage to the target and  each enemy adjacent to the target.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 8 damage
+        - 10 damage; I<3 frightened (save ends)
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 414f6604-f134-4514-ab7c-a30b36097ac5
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "2"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: fire
+            roll: "3"
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: The ability deals an extra 3 fire damage to the target and  each enemy adjacent to the target."
+        autoTarget: false
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Fuse-Iron Lance
+      guid: 279fd1e2-cc96-48aa-8e7b-96323fdd4d58
+      description: |-
+        This ability gains an edge while charging.
+        **2 Malice**: The ability deals an extra 3 fire damage to the target and  each enemy adjacent to the target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; push 1
+        - 4 damage; push 2
+        - 5 damage; push 3; M<3 prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: c4ece09d-3870-4238-926c-22883d749fc1
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Blazing Charge
+      numTargets: 1
+      description: The equivite moves up to their speed and can move through enemies and objects at normal speed. They make one power roll total against each enemy and object they pass through.
+      abilityType: none
+      implementation: 3
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 6
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 098ae083-0c3f-4047-85a0-bb3e8a2232ae
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Equivite
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 6
+ctime: 1749972306803
+mtime: 1775201137032
+hidden: false

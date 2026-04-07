@@ -1,0 +1,218 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 52229a4f-c684-44cf-b6ef-6c563d4f1ac0
+    offtokenPortraitId: f5f092b7-ec0f-4f03-b8c4-a57363e538a9
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4252994
+    portraitOffset:
+      x: -0.05926485
+      y: 0.2157075
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.43
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ef18faa1-fa96-4747-a19b-ccbd7c0116dc
+  properties:
+    __typeName: follower
+    followerType: retainer
+    cr: 5
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    skillProficiencies: []
+    role: Follower Hexer
+    inflictedConditions: []
+    keywords:
+      Infernal: true
+      Devil: true
+    titles: []
+    innateAttacks: []
+    walkingSpeed: 5
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: mgt
+    availableRolls: 0
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_type: Devil Defector
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fcc33363-328e-44a1-b4b7-a60d0710943a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: fcc33363-328e-44a1-b4b7-a60d0710943a
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:fcc33363-328e-44a1-b4b7-a60d0710943a: true
+        name: Flying
+        guid: 57d3b874-a689-430c-95ec-928538b1a9a5
+        description: ""
+        behavior: attribute
+        attribute: fly
+      source: Character Feature
+      description: ""
+      guid: fcc33363-328e-44a1-b4b7-a60d0710943a
+      name: Flying
+      implementation: 3
+    initiativeGrouping: 5c27e3a6-5600-4ac3-8507-02cb5d5daba4
+    max_hitpoints: 10
+    damage_taken: 0
+    groupid: 2c4ebcaf-087b-4f0d-a94a-61e9b67fb70f
+    retainer: true
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+    monster_category: Monster
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 corruption damage
+        - 10 corruption damage
+        - 13 corruption damage
+        roll: 2d10 + Highest Characteristic
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 13cf844d-7fcd-428d-b24e-8e665bc2d5a5
+      targetType: target
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Black Flame (Corruption)
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 fire damage
+        - 10 fire damage
+        - 13 fire damage
+        roll: 2d10 + Highest Characteristic
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 13cf844d-7fcd-428d-b24e-8e665bc2d5a5
+      targetType: target
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Black Flame (Fire)
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d
+    savingThrowRatings: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        abdf6d47-3118-44e2-a7a6-bb937edf84d1:
+          timestamp: 1765189639082
+          note: Black Flame
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        6c75ca3e-f3ed-46b2-8386-c0af4f06a0e8:
+          timestamp: 1765189699161
+          note: Black Flame (Fire)
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+    levelChoices: []
+    minion: false
+    opportunityAttack: 5
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: a0580fc6-3af7-49e7-88f5-477818b814eb-36
+  tokenType: null
+  bestiaryId: d3436cc3-b6d4-4639-9c98-af70ebe32461
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1765189414713
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 16
+ctime: 1765189703075
+mtime: 1775167451424
+hidden: false

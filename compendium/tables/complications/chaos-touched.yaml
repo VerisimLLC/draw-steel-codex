@@ -1,0 +1,75 @@
+__typeName: CharacterComplication
+drawback: While dying, you grow and retract uncoordinated limbs at random, imposing a bane on your power rolls.
+mtime: 1764598596037
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You gain an edge on the Escape Grab, Grab, and Knockback maneuvers. Additionally, you can hold an additional item even when your hands are full.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 10d3d4f5-d210-45b8-9d65-2a3e41fd9f57
+      modifyDescription: ""
+      source: Feat
+      filterAbility: Ability.Name = "Escape Grab" or Ability.Name = "Knockback" or Ability.Name = "Grab"
+      behavior: modifyability
+      attributes: []
+      guid: 1ec90142-1c3c-4b95-b325-b8251e7ad288
+      description: You gain an edge on the Escape Grab, Grab, and Knockback maneuvers. Additionally, you can hold an additional item even when your hands are full.
+      name: Chaos Touched
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: ced5324a-7230-4be1-bd25-14e1ee716903
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: 0e331cb0-cd70-4d6f-81d6-5242aa2a709a
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: 0e331cb0-cd70-4d6f-81d6-5242aa2a709a
+            modtype: edge
+            keywords: []
+            activationCondition: true
+            guid: 2c6145e7-beff-40f9-82fc-45013e49b257
+            rollType: ability_power_roll
+            domains: []
+            description: You gain an edge on the Escape Grab, Grab, and Knockback maneuvers.
+            name: Chaos Touched
+            behavior: power
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+    - __typeName: CharacterModifier
+      sourceguid: 10d3d4f5-d210-45b8-9d65-2a3e41fd9f57
+      displayCondition: Dying
+      source: Feat
+      modtype: bane
+      keywords: []
+      activationCondition: Dying
+      rollType: all
+      guid: 17ae92f2-4c5a-4d81-804e-1114c039baf7
+      description: While dying, you grow and retract uncoordinated limbs at random, imposing a bane on your power rolls.
+      behavior: power
+      name: Chaos Touched
+    source: Feat
+    canHavePrerequisites: true
+    guid: 10d3d4f5-d210-45b8-9d65-2a3e41fd9f57
+    name: Chaos Touched
+    implementation: 3
+name: Chaos Touched
+ctime: 1755511194099
+description: You came into contact with a mote of pure chaos energy, or were subjected to a supernatural effect or object that fused chaos into your very being. Now you can sprout and retract your limbs in a way that horrifies unprepared onlookers.
+id: 345cd34c-bc9e-4555-b308-1a4f711f8f0f
+benefit: You gain an edge on the Escape Grab, Grab, and Knockback maneuvers. Additionally, you can hold an additional item even when your hands are full.

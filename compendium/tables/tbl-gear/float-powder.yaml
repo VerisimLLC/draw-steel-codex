@@ -1,0 +1,57 @@
+__typeName: equipment
+itemPrerequisite: Several strands of hag hair
+keywords:
+  Magic: true
+projectSource: Texts or lore in Khelt
+flavor: A glass vial holds translucent flakes that twinkle in the light.
+weight: 1
+echelon: 2
+specialDescription: ""
+type: Gear
+category: Gear
+id: 1740cbf1-16bb-4c38-941c-829e71fa3834
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: 90 (yields 1d3 vials)
+mtime: 1774792746494
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  implementationDetails: The effect must be manually removed.
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: a833c9a3-bb8a-4bb0-ae49-fc81ed49b7f3
+    ongoingEffectCustom: a833c9a3-bb8a-4bb0-ae49-fc81ed49b7f3
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Ability
+  range: 5
+  consumables:
+    1740cbf1-16bb-4c38-941c-829e71fa3834: 1
+  numTargets: "1"
+  modifiers: []
+  sourceReference:
+    __typeName: SourceReference
+    page: 318
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  strain: []
+  guid: 546b366d-4a47-471f-9518-9eb05d6b3802
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  description: Dousing yourself in this powder as a maneuver causes you to weightlessly float off the ground. For 1 hour, your stability is reduced to 0, and you can fly and hover. Additionally, the hag that the powder is sourced from knows exactly where and when you use it.
+  castImmediately: true
+  iconid: 3fdcad8f-eb5a-4201-939a-8df6e3d05c64
+  persistence: []
+  name: Float Powder
+  targetType: self
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 3
+name: Float Powder
+ctime: 1774792746494
+description: Dousing yourself in this powder as a maneuver causes you to weightlessly float off the ground. For 1 hour, your stability is reduced to 0, and you can fly and hover. Additionally, the hag that the powder is sourced from knows exactly where and when you use it.
+projectRollCharacteristic:
+  inu: true
+  prs: true
+iconid: 3fdcad8f-eb5a-4201-939a-8df6e3d05c64

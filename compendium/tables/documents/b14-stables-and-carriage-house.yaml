@@ -1,0 +1,162 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 08a8dd1b-1f31-4585-83e8-975c6e0fadcf
+ctime: 1761388643905
+textStorage:
+  __typeName: TextStorage
+  sections:
+    O: |
+      |{#Tubert allows the heroes to rob the carriage house but realizes what happens shortly after they leave and goes to tell [Murkik].}
+    G: |+
+      ## Stealing the Stone
+
+    E: |+
+      [Tubert] is the stablehand in charge of taking care of the horses and watching the carriage house. The work is hard and leaves her tired, but she enjoys her labor and always greets folks with a smile.
+
+    I: |
+      First, [Tubert] is there watching the doors and eager to report any thefts. 
+    B: |+
+      # B14. Stables and Carriage House
+
+
+    C: |
+      > * “The stables have a small yard and twelve stalls for horses where a weary attendant mucks out stalls.”
+    K: |+
+      ## Dealing with Tubert
+
+    Z: |+
+      |{#Tubert doesn’t notice the hero.}
+
+
+    w: |+
+      If the heroes get reported to [Murkik], the next time they’re in the tavern, the [Tavern Brawl] event (see [Events]) occurs.
+
+    X: |
+      |{#Tubert notices the hero, but doesn’t realize they’re up to no good, and so they stop to chat.}
+    u: |+
+      The next day, [Murkik] realizes that he’s been bested and with no options left to save his friends, asks the heroes to free his friends from [Vurkor] (see [Mage Tower]).
+
+    V: |
+      |{#Tubert notices the hero breaking in and runs off to find [Murkik].}
+    s: |+
+      If the heroes manage to steal the granite without [Tubert] or anyone else running to get [Murkik], [Dunquat] (see [B13. Mason]) accepts the stone, puts it in her Quantum Satchel, and has the wagons and any horses returned to the stable with the originally agreed payment for the stone. She also gives the heroes the source material for a [item:Quantum Satchel] as thanks so they can make their own. ([item:Quantum Satchel Recipe])
+
+    T: |
+      |Avoid Tubert’s Attention: Agility Test
+    q: |+
+      ## The Getaway
+
+    R: |+
+      If a hero wishes to avoid [Tubert]’s presence while breaking into the carriage house, they can make a hard Agility test.
+
+    o: |+
+      Once inside the carriage house, the heroes find three large wagons full of high-quality granite. A hero with a Might score of 1 or greater can move a wagon. Alternatively, if the heroes can distract or sneak by [Tubert] (see Dealing With Tubert), they can “borrow” some horses to move the granite.
+
+
+    P: |+
+      |{#Tubert allows the heroes to rob the carriage house and tells no one.}
+
+    m: |+
+      ## Inside the Carriage House
+
+    N: |
+      |{#Tubert doesn’t stop watching the carriage house.}
+    k: |+
+      |{#The hero gets the door open.}
+
+
+    L: |+
+      If a hero wishes to distract or convince [Tubert] into looking the other way while they check out the carriage house, they can make a moderate Presence test.
+
+    i: |
+      |{#The hero gets the carriage house open, but the noise attracts Tubert or another local, who runs to tell [Murkik].}
+    J: |+
+      Second, the carriage house is locked.
+
+
+    g: |
+      |{#The hero fails to open the carriage house.}
+    H: |
+      If the heroes try to enter the locked carriage house to recover the stone for [Dunquat], they have two obstacles to overcome. 
+    e: |
+      |Break Into the Carriage House: Might or Agility Test
+    F: |+
+      If she’s asked about the stables, she tells the heroes that the horses belong to [dwarf merchants] staying at the Feather Bed Inn (see [B1. Feather Bed Inn]), and that their wagons of stone are locked up in the carriage house.
+
+
+    c: |+
+      To get into the carriage house, the hero can make a moderate Might test to break the door open or a moderate Agility test to pick the lock.
+
+    D: |+
+      > * “A padlocked carriage house stands next to the stables.”
+
+
+    M: |
+      |Get Tubert to Look Away: Presence Test
+    b: |+
+      ## Breaking Into the Carriage House
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 42c474ce-c20e-4ed6-b48d-f6748a942a2a
+description: B14. Stables and Carriage House
+content: |+
+  # B14. Stables and Carriage House
+
+
+  > * “The stables have a small yard and twelve stalls for horses where a weary attendant mucks out stalls.”
+  > * “A padlocked carriage house stands next to the stables.”
+
+
+  [Tubert] is the stablehand in charge of taking care of the horses and watching the carriage house. The work is hard and leaves her tired, but she enjoys her labor and always greets folks with a smile.
+
+  If she’s asked about the stables, she tells the heroes that the horses belong to [dwarf merchants] staying at the Feather Bed Inn (see [B1. Feather Bed Inn]), and that their wagons of stone are locked up in the carriage house.
+
+
+  ## Stealing the Stone
+
+  If the heroes try to enter the locked carriage house to recover the stone for [Dunquat], they have two obstacles to overcome. 
+  First, [Tubert] is there watching the doors and eager to report any thefts. 
+  Second, the carriage house is locked.
+
+
+  ## Dealing with Tubert
+
+  If a hero wishes to distract or convince [Tubert] into looking the other way while they check out the carriage house, they can make a moderate Presence test.
+
+  |Get Tubert to Look Away: Presence Test
+  |{#Tubert doesn’t stop watching the carriage house.}
+  |{#Tubert allows the heroes to rob the carriage house but realizes what happens shortly after they leave and goes to tell [Murkik].}
+  |{#Tubert allows the heroes to rob the carriage house and tells no one.}
+
+  If a hero wishes to avoid [Tubert]’s presence while breaking into the carriage house, they can make a hard Agility test.
+
+  |Avoid Tubert’s Attention: Agility Test
+  |{#Tubert notices the hero breaking in and runs off to find [Murkik].}
+  |{#Tubert notices the hero, but doesn’t realize they’re up to no good, and so they stop to chat.}
+  |{#Tubert doesn’t notice the hero.}
+
+
+  ## Breaking Into the Carriage House
+
+  To get into the carriage house, the hero can make a moderate Might test to break the door open or a moderate Agility test to pick the lock.
+
+  |Break Into the Carriage House: Might or Agility Test
+  |{#The hero fails to open the carriage house.}
+  |{#The hero gets the carriage house open, but the noise attracts Tubert or another local, who runs to tell [Murkik].}
+  |{#The hero gets the door open.}
+
+
+  ## Inside the Carriage House
+
+  Once inside the carriage house, the heroes find three large wagons full of high-quality granite. A hero with a Might score of 1 or greater can move a wagon. Alternatively, if the heroes can distract or sneak by [Tubert] (see Dealing With Tubert), they can “borrow” some horses to move the granite.
+
+
+  ## The Getaway
+
+  If the heroes manage to steal the granite without [Tubert] or anyone else running to get [Murkik], [Dunquat] (see [B13. Mason]) accepts the stone, puts it in her Quantum Satchel, and has the wagons and any horses returned to the stable with the originally agreed payment for the stone. She also gives the heroes the source material for a [Quantum Satchel] as thanks so they can make their own.
+
+  The next day, [Murkik] realizes that he’s been bested and with no options left to save his friends, asks the heroes to free his friends from [Vurkor] (see [Mage Tower]).
+
+  If the heroes get reported to [Murkik], the next time they’re in the tavern, the [Tavern Brawl] event (see [Events]) occurs.
+
+mtime: 1766080065561

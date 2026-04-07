@@ -1,0 +1,77 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 52f265db-df49-4008-85fd-047e829ec1d3
+ctime: 1761388014815
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |+
+      If they didn’t save [Violet], [Ashleigh] is still willing to meet with them during normal hours.
+
+
+    M: |+
+      If the heroes saved [Violet], they are welcome here any time. They might come to visit [Ashleigh], since she is an artisan follower, or they might come seeking information about the town.
+
+    n: |+
+      > * *“You need an amulet to get into the second floor of the tomb? I know [Orson] the charcoal burner used to wear some brass sun on a chain.”*
+
+    V: |+
+      [Violet] and [Ashleigh] can give the heroes basic information about the village. They know who runs the various businesses and the different familial relationships folks have.
+
+    f: |+
+      > * *“It seems like Reeve Rosamund could use your help finding some food thieves.”* 
+
+    Y: |
+      If the heroes are stuck and don’t know what to do or where to go, [Ashleigh] or [Violet] can point them in the right direction. They can remind heroes of quests they have by making comments such as, 
+    j: |
+      They might also fill in gaps for the heroes and say, 
+    G: |
+      > * “This small house has a forge and anvil covered by an awning.”
+    b: "> * *“I know [Abbott Loric] has some old books that might have information about the tomb,”*\n \nor\n"
+    p: |2
+
+    v: |
+      [B1. Feather Bed Inn] that they know.
+    S: |+
+      ## Blacksmith Broadhurst Information
+
+    D: |+
+      # B2. Blacksmith
+
+
+    J: |+
+      > * “A signpost in the ground holds up a carving of a hammer and tongs crossed over each other.”
+
+
+    r: |
+      If the heroes ask if [Violet] or [Ashleigh] have heard any rumors, you can choose or roll a rumor on the **Tavern Rumors** table in
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 2c9fba5c-b57b-4db2-bf04-916219ac6954
+description: B2. Blacksmith
+content: |
+  # B2. Blacksmith
+
+
+  > * “This small house has a forge and anvil covered by an awning.”
+  > * “A signpost in the ground holds up a carving of a hammer and tongs crossed over each other.”
+
+
+  If the heroes saved [Violet], they are welcome here any time. They might come to visit [Ashleigh], since she is an artisan follower, or they might come seeking information about the town.
+
+  If they didn’t save [Violet], [Ashleigh] is still willing to meet with them during normal hours.
+
+
+  ## Blacksmith Broadhurst Information
+
+  [Violet] and [Ashleigh] can give the heroes basic information about the village. They know who runs the various businesses and the different familial relationships folks have.
+
+  If the heroes are stuck and don’t know what to do or where to go, [Ashleigh] or [Violet] can point them in the right direction. They can remind heroes of quests they have by making comments such as, 
+  > * *“I know [Abbott Loric] has some old books that might have information about the tomb,”* 
+  or
+  > * *“It seems like Reeve Rosamund could use your help finding some food thieves.”* 
+  They might also fill in gaps for the heroes and say, 
+  > * *“You need an amulet to get into the second floor of the tomb? I know [Orson] the charcoal burner used to wear some brass sun on a chain.”*
+
+  If the heroes ask if [Violet] or [Ashleigh] have heard any rumors, you can choose or roll a rumor on the **Tavern Rumors** table in
+  [B1. Feather Bed Inn] that they know.
+mtime: 1764323306111

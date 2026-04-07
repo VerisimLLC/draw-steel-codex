@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: one
+guid: c63900b0-34a5-48d5-a419-67fc66b82a68
+id: c63900b0-34a5-48d5-a419-67fc66b82a68
+ctime: 1748698119407
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: The Voice - Targets
+description: ""
+custom: true
+mtime: 1748698475281
+iconid: ui-icons/skills/1.png

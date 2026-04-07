@@ -1,0 +1,467 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0efe930e-f477-4d32-a99f-15324a0f08b3
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Xorannox the Tyract	Level 6 Solo
+        Horror, Overmind	EV 80
+        <b>Stamina</b> 450
+        <b>Speed</b> 5 (fly, hover)	<b>Size</b> 3 /<b> Stability</b> 2
+        <b>Free Strike</b> 7
+        Might +4	Agility +2	Reason +4	Intuition +3	Presence +3
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> Xorannox takes up to two turns each round. He can't take turns consecutively.
+        <b>End Effect</b> At the end of his turn, Xorannox can take 10 damage to end one save ends effect affecting him. This damage can't be reduced in any way.
+
+        <b>Eyes of the Tyract</b>
+        Six unique eyestalks float around Xorannox and act on his turn at his command. On each of Xorannox's turns, he directs one eyestalk to move and use a signature action. When an eyestalk is destroyed, Xorannox can't use that eyestalk's ability.
+
+        <b>Toothful Thrashing</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	12 damage; slide 2; M<2 bleeding (EoT)
+        %E2%98%85	<b>12-16</b>	20 damage; slide 3; M<3 bleeding (EoT)
+        %E2%9C%B8	<b>17</b>	23 damage; vertical slide 3; M<4 bleeding (EoT)
+
+        <b>Grav Spike</b> (Action) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Psionic, Ranged
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	Vertical push 3
+        %E2%98%85	<b>12-16</b>	Vertical push 5
+        %E2%9C%B8	<b>17</b>	Vertical push 7
+        <b>Effect</b> Xorannox shifts up to his speed before or after using this ability.
+
+        <b>Optical Collusion</b> (Maneuver)
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> Self <b>	Target</b> Self
+        <b>Effect</b> Xorannox commands all eyestalks to move up to their speed.
+
+        <b>Shutout</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> 5 x 2 line within 1<b>	Target</b> Special
+        <b>Effect</b> Xorannox ends all ongoing supernatural effects and suppresses supernatural effects from equipment in the affected area. New supernatural effects cannot activate in the affected area until the end of Xorannox's next turn.
+
+        <b>Cower!</b> (Triggered Action)
+        <b>Keywords</b> Psionic, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> Special
+        <b>Trigger</b> A creature deals damage to Xorannox.
+        <b>Effect</b> The triggering creature is <b>I<3</b> frightened (save ends).
+
+        <b>Above It All</b>
+        Xorannox can't be flanked, frightened, or knocked prone.
+
+        <b>Natural Enemies</b>
+        If Xorannox perceives another overmind or voiceless talker on the battlefield, he targets that threat at least once every turn.
+
+        <b>Disruption Beam</b> (Villain Action 1) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Psionic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> Three creatures
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 psychic damage; R<2 dazed (save ends)
+        %E2%98%85	<b>12-16</b>	17 psychic damage; R<3 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	20 psychic damage; R<4 dazed (save ends)
+
+        <b>All Eyes, All Rise </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> Xorannox reforms all destroyed eyestalks and raises them at full Stamina.
+
+        <b>Panoptibeam </b>(Villain Action 3)
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        <b>Effect</b> Xorannox directs each remaining eyestalk to use a signature action, targeting each creature in the area.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:99189c07-9420-48a9-b1f6-f0780d62360c: true
+      modifiers: []
+      name: Eyes of the Tyract
+      description: Six unique eyestalks float around Xorannox and act on his turn at his command. On each of Xorannox's turns, he directs one eyestalk to move and use a signature action. When an eyestalk is destroyed, Xorannox can't use that eyestalk's ability.
+      guid: 99189c07-9420-48a9-b1f6-f0780d62360c
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:31ccc3e6-edde-4241-826a-176c38221821: true
+      modifiers: []
+      name: Above It All
+      description: Xorannox can't be flanked, frightened, or knocked prone.
+      guid: 31ccc3e6-edde-4241-826a-176c38221821
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5880a8e1-942b-4a28-b662-8ab59a81d2fe: true
+      modifiers: []
+      name: Natural Enemies
+      description: If Xorannox perceives another overmind or voiceless talker on the battlefield, he targets that threat at least once every turn.
+      guid: 5880a8e1-942b-4a28-b662-8ab59a81d2fe
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:168ea7d5-e9d0-4ea8-8f89-ff4739469f15: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: "End Effect: At the end of each of his turns, Xorannox can take 10 damage to end one effect on him that can be ended by a saving throw. This damage can't be reduced in any way.Solo Turns: Xorannox can take two turns each round. He can't take turns consecutively."
+      guid: 168ea7d5-e9d0-4ea8-8f89-ff4739469f15
+      name: Solo Monster
+      implementation: 3
+    role: Solo
+    inflictedConditions: []
+    keywords:
+      Overmind: true
+      Horror: true
+    max_hitpoints_roll: "450"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 7
+    monster_type: Xorannox the Tyract
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 4
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 450
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 26e262cd-8a74-4910-9f9b-0c37aa084de2
+      implementation: 4
+      numTargets: 1
+      name: Toothful Thrashing
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 12 damage; M<2 bleeding (EoT); slide 2
+        - 20 damage; M<3 bleeding (EoT); slide 3
+        - 23 damage; M<4 bleeding (EoT); vertical slide 3
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Psionic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - vertical push 3
+        - vertical push 5
+        - vertical push 7
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b5f81c38-ab04-4bc5-95c1-60014f4df439
+      numTargets: 1
+      targetType: all
+      name: Grav Spike
+      iconid: ui-icons/skills/1.png
+      description: Xorannox shifts up to his speed before or after using this ability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 5e6fc6d0-220d-4d0d-b840-2fa5c9412aa1
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Optical Collusion
+      numTargets: 1
+      description: Xorannox commands all eyestalks to move up to their speed.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: d8fdae0e-60df-4b20-ae4a-b414891831a4
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Shutout
+      implementation: 0
+      description: Xorannox ends all ongoing supernatural effects and suppresses supernatural effects from equipment in the affected area. New supernatural effects cannot activate in the affected area until the end of Xorannox's next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 1f3223e7-e124-455e-9cb6-5703b90189a3
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Cower!
+      numTargets: 1
+      description: The triggering creature is I<3 frightened (save ends).
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '6f36ac5f-c540-4709-863"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 7d810f66-29eb-4ea1-9706-6d4c31c45876
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 psychic damage; R<2 dazed (save ends)
+        - 17 psychic damage; R<3 dazed (save ends)
+        - 20 psychic damage; R<4 dazed (save ends)
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      name: Disruption Beam
+      numTargets: 3
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0c658cc7-419e-43b8-9457-319fb47ecb10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'e2899c12-57df-40b2-88f"
+      implementation: 0
+      behaviors: []
+      name: 'All Eyes, All Rise '
+      numTargets: 1
+      description: Xorannox reforms all destroyed eyestalks and raises them at full Stamina.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '262ea6bb-450b-4db1-828"
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 4b06b19e-a3b8-4ce5-b5f0-e2cdefd410d9
+      numTargets: 1
+      targetType: all
+      implementation: 0
+      name: 'Panoptibeam '
+      effectImplemented: false
+      description: Xorannox directs each remaining eyestalk to use a signature action, targeting each creature in the area.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: d1e36d93-7385-4b05-945c-c34168535d88
+    movementSpeeds:
+      fly: 5
+    ev: 96
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 3a7edf06-1484-4325-bf31-588ae871954d
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: Xorannox the Tyract
+parentFolder: f618eabd-1b1b-4d07-93df-59aecbd8de52
+artist: null
+ord: 1
+ctime: 1741590240083
+mtime: 1775201137032
+hidden: false

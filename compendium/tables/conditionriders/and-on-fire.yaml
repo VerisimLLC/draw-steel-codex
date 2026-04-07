@@ -1,0 +1,54 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: d712003b-20e2-4ba1-835a-ba93e26f9ae3
+    repeatTargets: false
+    abilityType: none
+    trigger: beginturn
+    targetType: self
+    numTargets: "1"
+    name: With Net On Fire
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      damageType: fire
+      roll: "2"
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: While weakened, you take 2 fire damage at the start of each of your turns.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: d7577c4f-84fd-4bd2-9f2d-5f8335ff4c80
+  name: and On Fire
+  sourceguid: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+source: Ongoing Effect
+guid: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+id: 70accbd2-fd49-4e17-a737-b6c61db3a783
+ctime: 1751783083830
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+description: While weakened, you take 2 fire damage at the start of each of your turns.
+name: and On Fire
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+mtime: 1751783083830
+powerTableText: Weakened and on fire
+implementation: 3

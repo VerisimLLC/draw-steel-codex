@@ -1,0 +1,127 @@
+__typeName: MarkdownDocument
+annotations:
+  follower:mik:
+    __typeName: RichFollower
+    identifier: mik
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 6c7e912e-cb73-4142-b0a1-a6d1d370eb5f
+      skills: []
+  follower:Mikael:
+    __typeName: RichFollower
+    identifier: Mikael
+    follower:
+      __typeName: Follower
+      languages:
+        9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+        36cfd691-17e8-4931-85ef-93db7e2741f5: true
+        7e7efb1d-4627-44ab-9407-11daff1a15cf: true
+      ancestry: 6f995f3d-a4e3-456a-9294-ff2c9ec5cb95
+      portrait: 79130d15-cff3-43de-b278-f1472e9f65cc
+      name: Mikael
+      guid: 73163a6c-817f-46c2-933e-37f907513caa
+      characteristic: mgt
+      skills:
+        078b501f-e549-4725-993f-7ed8d57fc2ae: true
+        436ea6c1-6386-43b2-b074-020992cc73fd: true
+        8b5a4de7-badf-4e23-8ff2-0f7a832ff754: true
+        becbc5ec-de63-481b-8247-e62c2a6fd8cb: true
+  follower:
+    __typeName: RichFollower
+    identifier: false
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: c27157c0-e3b0-4d7c-a167-4538ddff1137
+      skills: []
+  follower:ikael:
+    __typeName: RichFollower
+    identifier: ikael
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: c4fde413-0f04-47b5-a00d-2055f845cf4d
+      skills: []
+  follower:mike:
+    __typeName: RichFollower
+    identifier: mike
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: a8a534b3-f821-41d5-bb46-c5e84f2b8ba6
+      skills: []
+  follower:mikael:
+    __typeName: RichFollower
+    identifier: mikael
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: f44584ca-9895-4d67-b537-1d5fa129b2fe
+      skills: []
+id: 13a1e22b-fc30-4b7b-9b80-0d47cc877624
+ctime: 1761388395575
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |+
+      A hero who wants to know more about the creature [Mikael] is describing can make an easy Reason test.
+
+
+    W: |
+      If the heroes ask to see [Mikael]’s wound, he tells them that it already healed and quite quickly.
+    U: |+
+      > * “I think you need to do something about that thing before it tears a villager’s head off.”
+
+
+    S: |
+      > * “While I was cutting down a tree, I heard a howl. A huge wolf was upon me! I ran screaming. That thing came after me, even bit my leg twice, but I eventually lost it.”
+    t: |+
+      If a hero has enough Renown to gain a follower and doesn’t have one after ending [Mikael]’s curse, they can recruit him as an artisan. If he is recruited, give the players the Mikael Follower.
+
+    q: |
+      ## Follower: Mikael
+    O: |
+      > * “I went out into the forest to collect some wood. Normally, I get it from [Vaughn], but he was too scared to go out there because of bandits to the north. So instead, I followed the Dunn River south to avoid any unsavory types.”
+    M: |+
+      If the heroes ask [Mikael] about the creature who attacked him, he shares his tale:
+
+
+    n: |+
+      If the heroes wish to hunt the werewolf, they can follow the Dunn River south into the Silver Wood until they find the [Wolf Den].
+
+    K: |+
+      ## Mysterious Attack
+
+    E: |
+      > * “Cheerful whistling and the rhythmic sound of a saw blade cutting back and forth through wood hits your ears as you come upon a small house.”
+    I: "[Mikael] the carpenter is friendly when he sees the heroes, putting down his saw, introducing himself, and thanking them for their deeds done to help the community.\n \n\n"
+    C: |+
+      # B10. Carpenter
+
+
+    G: |+
+      > * “In front of the house, a smiling man works a blade across a piece of timber balanced between two sawhorses.”
+
+
+    h: |+
+      |{#As Tier 2, and the hero knows that creatures with a strong sense of self (who have a high Presence score) have a better chance of resisting a werewolf’s curse from their bite.}
+
+
+    e: |
+      |{#As Tier 1, except the hero realizes that Mikael is cursed with the same affliction through the werewolf’s bite.}
+    w: |
+      [[follower:Mikael]]
+    c: |
+      |{#The hero knows that Mikael speaks of a werewolf—a human cursed to turn into a wolf creature whenever the moon is full or when provoked with violence. (What they don’t know is that Mikael has been cursed with the same affliction.)}
+    Q: |
+      > * “I had to go a decent distance to find birches mature enough for making strong buildings and furniture. It took me until nightfall, but the moon was full and providing plenty of light when I came upon a nice copse outside a cave on the riverbank.”
+    a: |
+      |Recall Wolf Lore: Reason Test
+    k: |
+      If the heroes wish to cure [Mikael] of his curse, they can undertake the Find a Cure downtime project. But first they need the remains of a werewolf. [Mikael] reacts with shock if told he’s cursed to become a werewolf and asks the heroes to help him find a way to end the curse.
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: fbdd362d-f9de-4bb9-ac61-d42d2c52d3bc
+description: B10. Carpenter
+content: "# B10. Carpenter\n\n\n> * “Cheerful whistling and the rhythmic sound of a saw blade cutting back and forth through wood hits your ears as you come upon a small house.”\n> * “In front of the house, a smiling man works a blade across a piece of timber balanced between two sawhorses.”\n\n\n[Mikael] the carpenter is friendly when he sees the heroes, putting down his saw, introducing himself, and thanking them for their deeds done to help the community.\n \n\n## Mysterious Attack\n\nIf the heroes ask [Mikael] about the creature who attacked him, he shares his tale:\n\n\n> * “I went out into the forest to collect some wood. Normally, I get it from [Vaughn], but he was too scared to go out there because of bandits to the north. So instead, I followed the Dunn River south to avoid any unsavory types.”\n> * “I had to go a decent distance to find birches mature enough for making strong buildings and furniture. It took me until nightfall, but the moon was full and providing plenty of light when I came upon a nice copse outside a cave on the riverbank.”\n> * “While I was cutting down a tree, I heard a howl. A huge wolf was upon me! I ran screaming. That thing came after me, even bit my leg twice, but I eventually lost it.”\n> * “I think you need to do something about that thing before it tears a villager’s head off.”\n\n\nIf the heroes ask to see [Mikael]’s wound, he tells them that it already healed and quite quickly.\nA hero who wants to know more about the creature [Mikael] is describing can make an easy Reason test.\n\n\n|Recall Wolf Lore: Reason Test\n|{#The hero knows that Mikael speaks of a werewolf—a human cursed to turn into a wolf creature whenever the moon is full or when provoked with violence. (What they don’t know is that Mikael has been cursed with the same affliction.)}\n|{#As Tier 1, except the hero realizes that Mikael is cursed with the same affliction through the werewolf’s bite.}\n|{#As Tier 2, and the hero knows that creatures with a strong sense of self (who have a high Presence score) have a better chance of resisting a werewolf’s curse from their bite.}\n\n\nIf the heroes wish to cure [Mikael] of his curse, they can undertake the Find a Cure downtime project. But first they need the remains of a werewolf. [Mikael] reacts with shock if told he’s cursed to become a werewolf and asks the heroes to help him find a way to end the curse.\nIf the heroes wish to hunt the werewolf, they can follow the Dunn River south into the Silver Wood until they find the [Wolf Den].\n\n## Follower: Mikael\nIf a hero has enough Renown to gain a follower and doesn’t have one after ending [Mikael]’s curse, they can recruit him as an artisan. If he is recruited, give the players the [Mikael Follower Card].\n"
+mtime: 1764324155787

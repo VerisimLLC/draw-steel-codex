@@ -1,0 +1,64 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e73d4215-ce3c-41db-992e-2634bca22c26
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Dust Cloud
+  guid: 0463a8d6-fe57-4c49-8465-cfad673d5348
+  description: The ground around the ankheg becomes difficult terrain. As long as the ankheg remains in this space, attacks against them have a bane until the start of their next turn.
+  modtype: double_bane
+  rollType: enemy_ability_power_roll
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: dceb4d57-8535-4b89-92c9-31decb257de8
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: e73d4215-ce3c-41db-992e-2634bca22c26
+      mode: effect
+      conditions: []
+      applyto: targets
+    name: Dust Cloud
+    trigger: move
+    description: This Trigger removes the Dust Cloud Effect if the Ankheg moves.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: The ground around the ankheg becomes difficult terrain. As long as the ankheg remains in this space, attacks against them have a bane until the start of their next turn.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 720f0e5a-5845-4f2c-a283-8d1ec463ab6b
+  name: Dust Cloud
+  sourceguid: e73d4215-ce3c-41db-992e-2634bca22c26
+source: Ongoing Effect
+guid: e73d4215-ce3c-41db-992e-2634bca22c26
+id: e73d4215-ce3c-41db-992e-2634bca22c26
+ctime: 1727975777884
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0801251232624054
+    s: 0.900390863418579
+    v: 0.563128590583801
+    a: 1
+name: Dust Cloud
+description: The ground around the ankheg becomes difficult terrain. As long as the ankheg remains in this space, attacks against them have a bane until the start of their next turn.
+custom: true
+mtime: 1766161462198
+iconid: 68eecff7-6407-4fde-adbe-ee829a72b1ad

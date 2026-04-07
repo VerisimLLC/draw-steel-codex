@@ -1,0 +1,28 @@
+__typeName: CharacterFeature
+testCases:
+- text: The gorer can't obtain less than a tier 2 outcome when making tests to navigate, search, or seek.
+- text: The lackey can't obtain less than a tier 2 outcome when making tests to navigate, search, or seek.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 9431624a-f91d-49f3-86a3-c52767c014b5
+  source: Monster
+  modtype: nottierone
+  keywords: []
+  activationCondition: false
+  guid: 87a3e17f-8c08-4f4d-97e8-adebbcd9e06a
+  name: Minotaur Sense
+  behavior: power
+  description: The {shortname} can't obtain less than a tier 2 outcome when making tests to navigate, search, or seek.
+  rollType: test_power_roll
+  skills:
+  - 0c7d0c53-2056-4579-8c83-1bec3098cc56
+  - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+source: Monster
+guid: 9431624a-f91d-49f3-86a3-c52767c014b5
+importMatch: "<<monster>> can't obtain less than a tier 2 outcome when making tests to navigate, search, or seek"
+ctime: 1775012588533
+name: Minotaur Sense
+id: a6bb6845-bdf1-440b-ac1e-b2be80d58b42
+description: ""
+mtime: 1775012588533
+implementation: 3

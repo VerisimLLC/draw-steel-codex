@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "0"
+category: Forced Movement
+name: Stop Fall Damage
+documentation: When number is positive, Fall Damage trigger will not happen
+mtime: 1770325156869
+id: 452b89e8-70cb-467e-a71a-33bd2d137388
+ctime: 1770325156869

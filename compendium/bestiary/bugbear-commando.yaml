@@ -1,0 +1,374 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 351d241e-6490-43eb-a884-e12fa560e994
+    offtokenPortraitId: 54a2a13a-f978-4528-9ae6-ca362f4da274
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.6689216
+    portraitOffset:
+      x: 0.04740614
+      y: 0.3069692
+    frameHueShift: 0
+    frameSaturation: 0.3857671
+    frameBrightness: 0.2139812
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5a9a131a-ce59-43f9-be17-76cee029f710
+  properties:
+    __typeName: follower
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Goblin: true
+      Bugbear: true
+      Humanoid: true
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    monster_type: Bugbear Commando
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 6 damage
+        - 11 damage
+        roll: 2d10 + Highest Characteristic
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 89396c14-e887-4c2c-8073-7804e6018e5d
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 89396c14-e887-4c2c-8073-7804e6018e5d
+          filterCondition: self has "concealed" or self has "hidden"
+          guid: 2fafd679-e4d0-4b89-994c-c5f647bcd12f
+          domains: []
+          keywords: []
+          surges: "1"
+          surgesCanBeKept: true
+          modtype: none
+          rollType: ability_power_roll
+          activationCondition: false
+          description: If the commando started their turn with concealment from the target or hidden from them, they gain 1 surge that can be used immediately.
+          behavior: power
+          name: Concealed or Hidden
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 357
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: d50fb0a5-a7b7-4334-8240-943bbe2b5317
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Bear Hug
+      persistence: []
+      description: If the commando started their turn with concealment from the target or hidden from them, they gain 1 surge that can be used immediately.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetFilter: Target.ConditionCaster("grabbed") = caster
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 357
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 413e2a6a-4195-4cdc-a1d5-8bc76e1fc437
+      persistence: []
+      categorization: Ability
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      iconid: ui-icons/skills/1.png
+      preDescription: "*Special:* The target must be grabbed by the commando."
+      name: Throw
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        targeting: inherit
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: b9bdba1b-3940-4892-8fce-c432d9ba6633
+          repeatTargets: false
+          abilityType: none
+          categorization: Hidden
+          behaviors:
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              guid: 0c741d0c-0b74-4218-8844-41a74706f5f2
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              modifiers:
+              - __typeName: CharacterModifier
+                guid: 66406b96-9fc0-4cfd-8ef8-6df7608c8693
+                sourceguid: 0c741d0c-0b74-4218-8844-41a74706f5f2
+                value: 1
+                source: Ongoing Effect
+                name: NoDamage
+                behavior: attribute
+                description: Allies do not take forced movement damage
+                attribute: f97461b9-3424-4479-8c46-e48c835c5d68
+              source: Ongoing Effect
+              name: NoDamage
+              description: Allies do not take forced movement damage
+              id: 0c741d0c-0b74-4218-8844-41a74706f5f2
+              iconid: ui-icons/skills/1.png
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: vertical push 5
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          range: ""
+          iconid: ui-icons/skills/1.png
+        promptText: Vertical Push
+      description: The target is vertical pushed up to 5 squares. An ally doesn’t take damage from being force moved this way.
+      abilityType: none
+      implementation: 3
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    minion: false
+    followerType: retainer
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2d5182ef-04c0-46f8-b680-5e2831444d68
+        source: Custom
+        value: 1
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: Custom Modification
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: ""
+        behavior: attribute
+        attribute: creatureSize
+      source: Custom
+      guid: 2d5182ef-04c0-46f8-b680-5e2831444d68
+      id: 6450780b-d70f-4bf2-ae23-9620e047e693
+      ctime: 1756099470349
+      domains:
+        CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+      name: Custom Modification
+      description: ""
+      mtime: 1756099470349
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5952213f-0e3e-4db5-a101-862e06842c6b: true
+        CharacterFeature:296d82a3-1278-4dc9-851b-a24532eada05: true
+        CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:5952213f-0e3e-4db5-a101-862e06842c6b: true
+          CharacterFeature:296d82a3-1278-4dc9-851b-a24532eada05: true
+          CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+        sourceguid: 46e1891f-8463-4676-978f-4685cb36d5ef
+        description: ""
+        source: Character Feature
+        name: Catcher
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          trigger: finishmove
+          persistence: []
+          modifiers: []
+          subjectRange: "20"
+          strain: []
+          guid: 2b11cf4f-6079-4cf1-abec-7776c0a0f170
+          conditionFormula: ((Not Friends(self, Subject)) and Path.DistanceToCreature(Self) <= 1 and path.Forced) or (Friends(self, subject) and Path.DistanceToCreature(Self) <= 1)
+          hasManualVersion: true
+          domains:
+            CharacterFeature:5952213f-0e3e-4db5-a101-862e06842c6b: true
+            CharacterFeature:296d82a3-1278-4dc9-851b-a24532eada05: true
+            CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+          numTargets: "1"
+          whenActive: combat
+          name: Catcher
+          behaviors:
+          - __typeName: ActivatedAbilityRevertLocBehavior
+            distance: 1
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: grabbed
+          description: |-
+            Trigger: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+            Effect: The target is grabbed by the channeler.
+          subject: other
+          iconid: ui-icons/skills/1.png
+        guid: 9fc4bb35-16f5-44ff-bea7-c2c247300f33
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:5952213f-0e3e-4db5-a101-862e06842c6b: true
+          CharacterFeature:296d82a3-1278-4dc9-851b-a24532eada05: true
+          CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+        sourceguid: 5952213f-0e3e-4db5-a101-862e06842c6b
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Catcher
+        description: ""
+        guid: 5372a423-f18a-410b-b643-e74b7ac43625
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: free
+          effect: The target is grabbed by the commando.
+          target: The triggering creature or objec
+          trigger: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+          name: Catcher
+          guid: 7b623c1d-a490-4b86-90ca-c1d1f2b02af7
+          distance: Melee 1
+          keywords:
+            Melee: true
+      source: Character Feature
+      description: ""
+      guid: 5952213f-0e3e-4db5-a101-862e06842c6b
+      name: Catcher
+      implementation: 3
+    role: Follower Ambusher
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    availableRolls: 0
+    availableTriggers: []
+    damage_taken: 0
+    walkingSpeed: 5
+    opportunityAttack: 2
+    animations:
+      anim:
+      - resources:
+          5bd90f9b-46be-4cf2-8ca6-a96430d62949: 0
+        animType: consumeResource
+      guid: ba61cb62-57c2-43b0-ae09-d92f6ccb74ba-128
+    groupid: ad734f83-9fbe-4f7d-b0f9-7a6b67917513
+    retainer: true
+    ev: 1
+    resources:
+      5bd90f9b-46be-4cf2-8ca6-a96430d62949:
+        __typeName: CharacterResource
+        used: 0
+        refreshid: none
+    initiativeGrouping: 212b7d62-70a4-42fb-9e4f-0949b4581baa
+    monster_category: Monster
+    5bd90f9b-46be-4cf2-8ca6-a96430d62949_history:
+      __typeName: StatHistory
+      entries:
+        ca13422f-f773-4d0e-b9d3-9999ec255e52:
+          note: Manually Set
+          timestamp: 1763735409236
+          refreshid: none
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 6/6
+  tokenType: null
+  bestiaryId: d6bb146c-0b10-46c0-a936-ec02aed4aca1
+  summonerid: null
+  ownerId: ""
+  partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+  size: 2
+  createdTimestamp: 1763735308367
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 2
+ctime: 1763735308367
+mtime: 1775167451657
+hidden: false

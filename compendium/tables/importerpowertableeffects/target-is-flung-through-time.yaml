@@ -1,0 +1,32 @@
+__typeName: ActivatedAbility
+id: 1ed2c92f-1173-408c-8490-0daee37c0cdc
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: bc169a75-6bbd-4c54-b9f0-35ba4daf21ed
+  duration: 0
+  ongoingEffectCustom: bc169a75-6bbd-4c54-b9f0-35ba4daf21ed
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 28badbd4-0680-42d2-9ada-111dd342741a
+testCases:
+- text: the target is flung through time
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: A target who is flung through time is removed from theencounter map until the end of their next turn, reappearing in theiroriginal space or the nearest unoccupied space.
+importMatch: "<<monster>> is flung through time"
+ctime: 1757727459474
+repeatTargets: false
+numTargets: "1"
+mtime: 1773926389348
+name: Target is flung through time
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

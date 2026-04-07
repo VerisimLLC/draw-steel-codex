@@ -1,0 +1,61 @@
+__typeName: CharacterComplication
+drawback: Your rival has similar statistics to yours, but always had one skill they excelled at, as determined by the Director. Intimidated by their prowess, you take a bane on tests using that skill.
+mtime: 1768220451618
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: |-
+      Choose one of your skills. That skill grants a +3 bonus to tests instead of +2.
+
+      DIRECTOR INSTRUCTIONS
+      As we cannot determine what skill a player will choose, we have provided a Modify Power Roll template below which will turn the chosen skill into a +3 instead of a +2.
+      In the below 'Modify Power Rolls 'behaviour, click the 'Add Skill' dropdown and select the skill the player has nominated. Then scroll down and in the 'Activation' dropdown, select 'Always' and click Confirm. This will activate the Edge on all tests that use the skill the player has chosen.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: d8fffd2e-3430-4559-80b7-8462644d7b5e
+      source: Feat
+      modtype: plusone
+      keywords: []
+      activationCondition: false
+      guid: 98320a95-5450-463a-a471-89daf909c585
+      name: Rival - Benefit
+      behavior: power
+      description: Your chosen skill grants a +3 bonus to tests instead of +2.
+      rollType: test_power_roll
+      skills: []
+    source: Feat
+    canHavePrerequisites: true
+    guid: d8fffd2e-3430-4559-80b7-8462644d7b5e
+    name: Rival - Benefit
+    implementation: 2
+  - __typeName: CharacterFeature
+    description: |-
+      Your rival has similar statistics to yours, but always had one skill they excelled at, as determined by the Director. Intimidated by their prowess, you take a bane on tests using that skill.
+
+      DIRECTOR INSTRUCTIONS
+      As we cannot determine what skill you will choose for the rival, we have provided a Modify Power Roll template below which will give the chosen skill a Bane.
+      In the below 'Modify Power Rolls' behaviour, click the 'Add Skill' dropdown and select the skill you have nominated. Then scroll down and in the 'Activation' dropdown, select 'Always' and click Confirm. This will activate the Bane on all tests that use the skill you have chosen.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: d8fffd2e-3430-4559-80b7-8462644d7b5e
+      source: Feat
+      modtype: bane
+      keywords: []
+      activationCondition: false
+      guid: 98320a95-5450-463a-a471-89daf909c585
+      name: Rival - Drawback
+      behavior: power
+      description: You are intimidated by your Rival's prowess. You take a bane on this skill.
+      rollType: test_power_roll
+      skills: []
+    source: Feat
+    canHavePrerequisites: true
+    guid: 706d5b94-b829-4854-9fbf-f52ee8bd70a3
+    name: Rival - Drawback
+    implementation: 2
+name: Rival
+ctime: 1755516689091
+description: Whatever your accomplishments, you’ll forever measure yourself against a former companion who always seemed to stay one step ahead of you.
+id: 98229a32-9f16-44dd-8b80-ef2d498d391c
+benefit: Choose one of your skills. That skill grants a +3 bonus to tests instead of +2.

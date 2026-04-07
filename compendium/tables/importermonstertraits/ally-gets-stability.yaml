@@ -1,0 +1,23 @@
+__typeName: CharacterFeature
+testCases:
+- text: Each ally within 5 squares of the subcommander adds 3 to their stability.
+modifiers:
+- __typeName: CharacterModifier
+  operation: add
+  sourceguid: f4bf8d6d-dce4-4afc-bc97-9b53740d25ea
+  source: Monster
+  value: "<<num>>"
+  name: Ally gets Stability
+  guid: 532470a1-fdae-4dea-83ad-672464086044
+  description: ""
+  behavior: attribute
+  attribute: forcedmoveresistance
+source: Monster
+guid: f4bf8d6d-dce4-4afc-bc97-9b53740d25ea
+importMatch: Each ally within <<distance>> squares of the subcommander adds <<num>> to their stability
+ctime: 1747680151544
+name: Ally gets Stability
+id: 6eb8968f-4699-44fa-b698-f71ae6d10c0e
+description: ""
+mtime: 1747680423546
+implementation: 3

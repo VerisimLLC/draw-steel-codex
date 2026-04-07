@@ -1,0 +1,88 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: f6a7b8c9-d0e1-2346-fabc-456789013fab
+  description: While you wield this weapon, you have the following ability.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: f6a7b8c9-d0e1-2346-fabc-456789013fab
+    guid: 27493c64-a2e3-4b09-801c-93b6a86d14b0
+    source: Item
+    behavior: triggerdisplay
+    description: While you wield this weapon, you have the following ability.
+    name: Chargebreaker
+    ability:
+      __typeName: TriggeredAbilityDisplay
+      effect: The target takes 5 damage.
+      guid: 499ccb47-7548-4888-9d4a-407bbb12deb8
+      distance: Melee 1
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      target: One enemy
+      name: Stop Right There
+      flavor: Their momentum, your impact.
+      trigger: The target willingly moves adjacent to you.
+      type: free
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityCharacterSpeechBehavior
+        applyto: caster
+        variations:
+        - Stop Right There!
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "5"
+        chatMessage: Stop Right There
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: b340cf25-c7d1-4dc3-9397-e26e195d3291
+      persistence: []
+      conditionFormula: path.Distance to Creature(Self) = 1
+      subject: other
+      targetType: subject
+      trigger: finishmove
+      name: Chargebreaker
+      description: The target takes 5 damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: While you wield this weapon, you have the following ability.
+    source: Item
+    behavior: trigger
+    guid: 2d58a055-2a06-42b0-8e91-28be2e488e65
+    name: Chargebreaker
+    sourceguid: f6a7b8c9-d0e1-2346-fabc-456789013fab
+  source: Item
+  name: Chargebreaker
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 12f006cf-8121-4722-ae65-d4c6cf77c6dd
+imbuePrereq: none
+projectSource: Zaliac
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: An adamantine spearhead
+mtime: 1774704141986
+name: Chargebreaker
+imbueTargetType: weapon
+description: "While you wield this weapon, you have the following ability. Stop Right There - Their momentum, your impact. Melee, Strike, Weapon Free triggered o Melee 1 x One enemy Trigger: The target willingly moves adjacent to you. Effect: The target takes 5 damage."
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

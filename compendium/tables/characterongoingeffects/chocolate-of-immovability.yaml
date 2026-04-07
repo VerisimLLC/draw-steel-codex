@@ -1,0 +1,44 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 6d8f57f9-0088-409c-bb3a-1e4922a84bfe
+  displayCondition: Moved This Turn = 0
+  source: Ongoing Effect
+  modtype: none
+  keywords: []
+  activationCondition: "1"
+  behavior: power
+  activationAfterRoll: false
+  name: Chocolate of Immovability
+  description: When you consume this delicious piece of candy as a maneuver, you gain 15 temporary Stamina and a +10 bonus to stability. Additionally, if you don’t use your movement during your turn, any strikes you make on that turn deal an extra 5 damage, and any strikes against you take a bane until the start of your next turn. This effect and the bonus to stability lasts until the end of the encounter, after which you are sleepy. If not reduced beforehand, the temporary Stamina lasts until the end of your next respite.
+  damageModifier: "5"
+  rollType: ability_power_roll
+  guid: edcfa7c9-78cb-4f7c-b7b1-436b70d1ad64
+- __typeName: CharacterModifier
+  sourceguid: 6d8f57f9-0088-409c-bb3a-1e4922a84bfe
+  displayCondition: Moved This Turn = 0
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  activationCondition: "1"
+  activationAfterRoll: false
+  name: Chocolate of Immovability
+  rollType: enemy_ability_power_roll
+  description: When you consume this delicious piece of candy as a maneuver, you gain 15 temporary Stamina and a +10 bonus to stability. Additionally, if you don’t use your movement during your turn, any strikes you make on that turn deal an extra 5 damage, and any strikes against you take a bane until the start of your next turn. This effect and the bonus to stability lasts until the end of the encounter, after which you are sleepy. If not reduced beforehand, the temporary Stamina lasts until the end of your next respite.
+  guid: 4ea044d2-4ad6-484b-9b2c-08d1d83968ed
+  behavior: power
+source: Ongoing Effect
+guid: 6d8f57f9-0088-409c-bb3a-1e4922a84bfe
+id: 6d8f57f9-0088-409c-bb3a-1e4922a84bfe
+ctime: 1774791750357
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Chocolate of Immovability
+description: When you consume this delicious piece of candy as a maneuver, you gain 15 temporary Stamina and a +10 bonus to stability. Additionally, if you don’t use your movement during your turn, any strikes you make on that turn deal an extra 5 damage, and any strikes against you take a bane until the start of your next turn. This effect and the bonus to stability lasts until the end of the encounter, after which you are sleepy. If not reduced beforehand, the temporary Stamina lasts until the end of your next respite.
+custom: true
+mtime: 1774791750357
+iconid: ui-icons/skills/1.png

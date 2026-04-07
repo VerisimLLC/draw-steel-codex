@@ -1,0 +1,407 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9f6f0eb8-2811-4789-889f-c139b4806823
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 2b02a5ab-38ce-4406-b4a5-3889b80ab574
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0.1078545
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ace1ee7a-5446-45d0-9154-10faabc6135e
+  properties:
+    __typeName: monster
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    cr: 1
+    max_hitpoints: 40
+    inflictedConditions: []
+    keywords:
+      Ooze: true
+      Kobold: true
+      Soulless: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: -3
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        3146abdc-69e4-41b1-97a9-901515030b4a:
+          note: You Didn’t Pay Attention!
+          abilityid: bd95c310-b465-434a-b7f9-b510af130f43
+          refreshid: 197a826b-5e97-41ba-85a7-c59fe08bafad-2
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        148525ee-9510-4c04-912d-6de9bf20644b:
+          note: You Didn’t Pay Attention!
+          abilityid: bd95c310-b465-434a-b7f9-b510af130f43
+          refreshid: 197a826b-5e97-41ba-85a7-c59fe08bafad-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        acf45523-4a93-442f-9d9d-df34f57185eb:
+          note: You Didn’t Pay Attention!
+          abilityid: bd95c310-b465-434a-b7f9-b510af130f43
+          refreshid: 197a826b-5e97-41ba-85a7-c59fe08bafad-3
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    levelChoices: []
+    traitNames: []
+    ongoingEffects: []
+    minion: false
+    stability: 2
+    import:
+      type: mcdm
+      data: |+
+        Trained Gelatinous Cube    Level 1 Hexer
+        Animal, Kobold    EV 16
+        <b>Stamina</b> 20    <b>Immunity</b> Acid 3 Weapon 3
+        <b>Speed</b> 5    <b>Size</b> 2 / <b>Stability</b> 2
+        <b>Free Strike</b> 4
+        Might +2    Agility -1    Reason -3    Intuition 0    Presence -2
+        <b>Engulf</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> 1 creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    3 acid damage; A1 dazed (save ends)
+        %E2%98%85    <b>12%E2%80%9316</b>    5 acid damage; A2 dazed (save ends)
+        %E2%9C%B8    <b>17</b>    7 acid damage; A3 restrained (save ends)
+        <b>    Effect </b>A size 2 or smaller creature restrained by this attack is pulled into one of the cube's squares and moves with the cube. The creature takes 3 acid damage at the start of each of their turn while restrained. When restrained ends, the creature moves to the nearest unoccupied square adjacent to the cube.
+        <b>    3 Malice</b> The cube attacks 1 additional target.
+
+        <b>You Didn't Pay Attention!</b> (Free Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger </b>A creature moves or is force moved into the cube.
+        <b>Distance</b> Self<b>Target</b> Self
+        <b>Effect</b> The cube uses Engulf with a double edge.
+
+        <b>Translucent Cube</b>
+        The cube completely occupies their space, blocking line of effect on enemy attacks and abilities. The cube is hidden until they act.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6ea396c9-ea82-48cb-9b92-fb870bde84ee: true
+      modifiers: []
+      name: Translucent Brick
+      guid: 6ea396c9-ea82-48cb-9b92-fb870bde84ee
+      description: The brick completely occupies their space, blocking line of effect for enemies. The brick is hidden until they act.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3423ce33-0f14-43f1-883f-572ba7f2c581: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3423ce33-0f14-43f1-883f-572ba7f2c581: true
+        sourceguid: 3423ce33-0f14-43f1-883f-572ba7f2c581
+        description: ""
+        source: Character Feature
+        name: You Didn’t Pay Attention!
+        behavior: triggerdisplay
+        guid: cef47fd2-5159-42a9-b8ed-57752368608c
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The brick uses Engulf against the triggering creature and has a double edge.
+          name: You Didn’t Pay Attention!
+          trigger: A creature moves or is force moved adjacent to the brick.
+          guid: 2264b49d-c4d2-496d-ae26-3cc4c9cf955a
+          distance: Ranged 1
+          keywords: []
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3423ce33-0f14-43f1-883f-572ba7f2c581: true
+        sourceguid: 3423ce33-0f14-43f1-883f-572ba7f2c581
+        description: ""
+        source: Character Feature
+        name: You Didn’t Pay Attention!
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: 410bfa3d-661c-4942-a80a-3ba23998db8a
+            duration: 0
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            runOnController: false
+            namedAbility: Engulf
+            applyto: caster
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: dfddd605-cee2-4702-af6b-8ebba044ff13
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          triggerPrompt: A creature moves or is force moved adjacent to the brick.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: bd95c310-b465-434a-b7f9-b510af130f43
+          numTargets: "1"
+          castImmediately: true
+          trigger: custom
+          persistence: []
+          name: You Didn’t Pay Attention!
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: bb7439d9-ef89-49eb-bd07-9fc6bf92776b
+      source: Character Feature
+      description: ""
+      guid: 3423ce33-0f14-43f1-883f-572ba7f2c581
+      name: You Didn’t Pay Attention!
+      implementation: 3
+    role: Elite Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: acid
+      apply: Damage Reduction
+    opportunityAttack: 4
+    initiativeGrouping: 8ca66262-64fd-44d9-8f30-62d69c0b71a7
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        3dee6495-9881-41b1-92dd-41c1dc3fb54f:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 197a826b-5e97-41ba-85a7-c59fe08bafad-2
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        06fa6c6a-b0b8-442b-8d55-5b5bd9d2be7e:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 197a826b-5e97-41ba-85a7-c59fe08bafad-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    damage_taken: 0
+    notes:
+    - text: ""
+      title: Monster Notes
+    walkingSpeed: 5
+    ev: 12
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: ""
+      objectTarget: true
+      channelIncrement: 2
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 acid damage; A<0 dazed (save ends)
+        - 10 acid damage; A<1 dazed (save ends)
+        - 14 acid damage; A<2 restrained (save ends)
+        roll: 2d10 + Might
+        modesSelected:
+        - 1
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      description: |-
+        A size 2 or smaller creature restrained this way is pulled into
+        the brick’s space, moves with the brick, and takes 4 acid damage at the start of each of their turns. An engulfed creature who is no longer restrained moves to the nearest unoccupied space adtjacent to the brick. The brick can have as many creatures or objects engulfed as will fit within their space.  **2 Malice:** This ability targets one additional target.
+      persistence: []
+      modifiers: []
+      guid: 48f95f5b-2867-48be-9667-925d326022ad
+      strain: []
+      modeList: []
+      numTargets: 1 + Charges
+      targetType: target
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      maxChannel: "2"
+      channelDescription: "2 Malice: This ability targets one additional target."
+      name: Engulf
+      implementation: 3
+      channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      resourceCost: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 859abff7-b270-4f09-a144-a6c1a1522606
+      numTargets: 1
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        namedAbility: Engulf
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: ff213fc0-3d2a-4fac-99e7-dbcdb6b57295
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: named
+        promptText: |-
+          The brick uses Engulf against the triggering creature and has a
+          double edge.
+      name: You Didn't Pay Attention!
+      implementation: 3
+      description: |-
+        The brick uses Engulf against the triggering creature and has a
+        double edge.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_type: Trained Gummy Brick
+    movementSpeeds: []
+    creatureSize: "2"
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 197a826b-5e97-41ba-85a7-c59fe08bafad-2
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 197a826b-5e97-41ba-85a7-c59fe08bafad-3
+    availableTriggers: []
+    animations:
+      anim:
+      - resources:
+          b9bc06dd-80f1-4f33-bc55-25c114e3300c: 1
+        animType: consumeResource
+      guid: 117af0ab-e842-488f-bcf1-8f0458517247-533
+  tokenType: null
+  bestiaryId: d9a1bf69-e47e-450c-a1d8-d15bf60b0abd
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1730266376535
+description: Trained Gummy Brick
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590316403
+mtime: 1775184669617
+hidden: false

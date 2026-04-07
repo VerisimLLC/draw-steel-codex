@@ -1,0 +1,46 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 0690a1a9-79c0-4fdd-a705-73fda214c2a8
+ctime: 1764246275619
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |
+      * Select the **Followers tab** on the lower right,
+    M: |
+      * Open the **Character Sheet** for the hero, on the **Character Tab**,
+    n: |
+      [Mikael Follower Card], 
+    k: |
+      [Harim Follower Card], 
+    G: |+
+      # How To Add A Follower
+
+    Y: |
+      For convenience here are the followers included in the Delian Tomb Adventure:
+    J: |+
+      *Followers are in active development and this document may become redundant soon. But until then, here are the steps to adding a follower to a character*
+
+    w: |
+      The retainer included in this adventure is: [Illwyth Follower Card]. 
+    h: |
+      [Dunquat Follower Card], 
+    e: |
+      [Ashleigh Follower Card], 
+    V: |+
+      * Fill in the fields with the information of the follower,
+
+    S: |
+      * Click the **+** icon to **Add** a follower,
+    t: |+
+      For Retainers, the Director needs to drop a token on the map and assign it to the player before they can select a retainer token.
+
+    q: |
+      [Tansy Follower Card].
+    b: |
+      [Abbott Loric Follower Card], 
+parentFolder: private
+updateid: c8f0ab0e-afe0-4d37-bacf-90ad81995f45
+mtime: 1764248234168
+content: ""
+description: How To Add A Follower

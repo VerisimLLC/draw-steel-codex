@@ -1,0 +1,282 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 06252ef2-5552-4216-aadc-2ed2f3bea248
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 59bf34b9-f4b7-47f3-9dea-9605961fc950
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_type: War Dog Eviscerite
+    levelChoices: []
+    traitNames: []
+    ongoingEffects: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        War Dog Eviscerite	Level 1 Horde Harrier
+        Humanoid, War Dog	EV 3
+        <b>Stamina</b> 15
+        <b>Speed</b> 7	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 1
+        Might +1	Agility +2	Reason +0	Intuition +0	Presence +0
+        <b>Chainsaw Whip</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	3 damage
+        %E2%98%85	12%E2%80%9316	4 damage; pull 1
+        %E2%9C%B8	17+	5 damage; pull 2
+        <b>Effect </b>The eviscerite can grab a target pulled adjacent to them by this ability.
+
+        <b>Posthumous Promotion</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One war dog with a loyalty collar
+        <b>Effect </b>The target's loyalty collar detonates, killing them instantly.
+
+        <b>Loyalty Collar</b>
+        When the eviscerite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cee55e6c-cd26-4c56-9eec-b3c2497db35e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetFilter: Enemy
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          persistence: []
+          name: Loyalty Collar
+          targetType: all
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: When the eviscerite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the eviscerite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      guid: cee55e6c-cd26-4c56-9eec-b3c2497db35e
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Harrier
+    equipment: []
+    skillRatings: []
+    resistances: []
+    availableTriggers:
+      b7352e60-8992-41c9-b7f5-2791e550926c:
+        __typeName: ActiveTrigger
+        rules: Make a Free Strike against the moving creature
+        text: Opportunity Attack
+        id: b7352e60-8992-41c9-b7f5-2791e550926c
+        targets: []
+      e860ce5e-4152-413e-84ee-6b87cef124a3:
+        __typeName: ActiveTrigger
+        rules: Make a Free Strike against the moving creature
+        text: Opportunity Attack
+        id: e860ce5e-4152-413e-84ee-6b87cef124a3
+        targets: []
+    opportunityAttack: 1
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        dfc8aca5-5b46-4a0b-94ba-ffc6fec3abbe:
+          note: Chainsaw Whip
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        8e3d4ee2-d278-4ba0-89b7-c6c6828f5f15:
+          refreshid: a13f063a-ce72-48a2-84de-788c9841f1ed-2
+          note: Chainsaw Whip
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        ce9c4cfa-5514-4b89-838d-286fcb5e604a:
+          note: Chainsaw Whip
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        75643b86-5c6f-4eab-bb1c-360d7f104372:
+          note: Chainsaw Whip
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    walkingSpeed: 7
+    creatureSize: 1M
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 9ff6f917-ec47-4076-a672-d74505808e07
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage; pull 1
+        - 5 damage; pull 2
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        tiersSelected:
+        - 2
+        - 3
+        filterTarget: Distance(Caster, Target) = 1
+        rule: grabbed
+      name: Chainsaw Whip
+      iconid: ui-icons/skills/1.png
+      description: The eviscerite can grab a target pulled adjacent to them by this ability.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      targetFilter: Target has "Loyalty Collar"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: true
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: f3a41f02-0e85-4131-982c-19fd6ceaa6d5
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      implementation: 2
+      persistence: []
+      name: Posthumous Promotion
+      selfTarget: true
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    movementSpeeds: []
+    monster_category: Monster
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 989c7ec8-653c-4105-b619-5855cba8a5c8-933
+    notes: []
+  tokenType: null
+  bestiaryId: 045bbb06-7ed4-413b-9e04-c8b7cb4450bd
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: War Dog Eviscerite
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 5
+ctime: 1749972306118
+mtime: 1775201137032
+hidden: false

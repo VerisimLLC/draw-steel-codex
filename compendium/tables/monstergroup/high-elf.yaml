@@ -1,0 +1,117 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: 9b9c5010-0365-422d-a4f2-057268367193
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Chaincast
+  range: 1
+  description: Until the end of the round, whenever a high elf uses a magic ability, they can use it as if they were occupying the square of another high elf on the encounter map to whom they have line of effect.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  repeatTargets: false
+  targetAllegiance: enemy
+  targetType: line
+  multipleModes: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 120
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "5"
+  persistence: []
+  modifiers: []
+  strain: []
+  modeList:
+  - text: Cold and Slowed
+  - text: Poison and Weakened
+  - text: Corruption and Frightened
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+  numTargets: "1"
+  guid: cac4d5e7-28be-4e15-a200-798003fac9eb
+  radius: "1"
+  name: Gift From an Accursed Tome
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 damage; R<1 Slowed (Save Ends)
+    - 9 Damage; R<2 Slowed (Save Ends)
+    - 12 Damager R<3 Slowed (Save Ends)
+    roll: 2d10 + 2
+    modesSelected:
+    - 1
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 damage; R<1 Poisoned (Save Ends)
+    - 9 Damage; R<2 Poisoned (Save Ends)
+    - 12 Damager R<3 Poisoned (Save Ends)
+    roll: 2d10 + 2
+    modesSelected:
+    - 1
+    - 2
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 damage; R<1 Frightened (Save Ends)
+    - 9 Damage; R<2 Frightened (Save Ends)
+    - 12 Damager R<3 Frightened (Save Ends)
+    roll: 2d10 + 2
+    modesSelected:
+    - 3
+  description: |-
+    The high elf chooses a damage type and condition from one of the following combinations: cold damage and slowed, poison damage and weakened, or corruption damage and frightened.
+
+    Special: This ability can’t be used by a minion.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  targetFilter: Target.Keywords has "High"
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 12041044-4b67-4e17-93da-bb3d07ecb14c
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: e7948297-1906-4281-b852-af81fe2a3b8b
+    duration: endround
+    ongoingEffectCustom: e7948297-1906-4281-b852-af81fe2a3b8b
+  name: In Defiance of Time
+  numTargets: "1"
+  description: Until the end of the round, each high elf in the encounter gains a +4 bonus to speed, and whenever a high elf uses an ability against an enemy, each high elf adjacent to that enemy can make a free strike against them.
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1769772884261
+name: High Elf
+traits: []
+attacks: []
+id: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+ctime: 1758524657665

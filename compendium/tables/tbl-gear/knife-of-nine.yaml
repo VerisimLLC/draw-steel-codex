@@ -1,0 +1,89 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 6b794f1b-6860-43d0-8fd0-34448dbe4de6
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 6b794f1b-6860-43d0-8fd0-34448dbe4de6
+    source: Item
+    behavior: modifyability
+    keywords:
+      Weapon: true
+    attributes: []
+    guid: b0642bb9-3234-46d0-9731-67bacdc14b50
+    description: ""
+    name: Knife of Nine
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: d24a5efa-b6ef-4992-98bd-a54ff093d51b
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors:
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 04e607e0-5c70-4d5a-a79a-249e78762b85
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 04e607e0-5c70-4d5a-a79a-249e78762b85
+          modtype: none
+          domains: []
+          keywords:
+            Weapon: true
+          activationCondition: Ability.doesdamage
+          description: ""
+          rollType: ability_power_roll
+          name: Knife of Nine
+          behavior: power
+          damageModifier: 1 + Target.Stacks("Knife of Nine")
+          damageModifierType: psychic
+          guid: c42ffd4e-4979-44e6-b908-bcbb8823bf80
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Stacks("Knife of Nine") < 2
+        duration: eoe
+        ongoingEffectCustom: 8e2ca005-8456-461f-b3e0-521d1d7d7e1a
+        ongoingEffect: 8e2ca005-8456-461f-b3e0-521d1d7d7e1a
+        stacks: "1"
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Item
+  name: Knife of Nine
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+itemPrerequisite: Eighteen daggers—nine taken from personal enemies and nine gifted by friends
+keywords:
+  Light Weapon: true
+  Psionic: true
+projectSource: Texts or lore in Variac
+flavor: This ivory dagger features nine faintly glowing indentations along the blade.
+level9: If you make a weapon strike using this weapon against a target after dropping down on them from a height of 2 squares or more, the attack deals an extra 10 psychic damage. You can distribute all extra psychic damage dealt by the attack between the target and any enemies adjacent to them.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+projectGoal: "450"
+ctime: 1759283535551
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+domains:
+  item:3cc6178c-ff64-4c19-aa07-3a9ccf64f528: true
+level5: Whenever you reduce a creature to 0 Stamina with an ability using this weapon, one of its indentations glows brighter. When you use a signature ability using the weapon, you can use a triggered action to expend any number of bright-glowing indentations, with the ability dealing extra psychic damage equal to the number of indentations. The expended indentations then return to a dim glow.
+id: 3cc6178c-ff64-4c19-aa07-3a9ccf64f528
+name: Knife of Nine
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 psychic damage. This extra damage increases by 1 each time you deal rolled damage using the weapon to the same target during the same encounter (to a maximum of 3).
+mtime: 1768413835681
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 09462bf3-7c2f-4774-ba7b-cfa2a6497d16

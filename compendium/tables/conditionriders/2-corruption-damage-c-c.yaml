@@ -1,0 +1,63 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 8489e1aa-46dd-4b10-841a-b87b6ea5588c
+    repeatTargets: false
+    abilityType: none
+    trigger: beginturn
+    targetType: self
+    numTargets: "1"
+    name: 2 Corruption Damage
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Grab Damage
+      roll: "2"
+      damageType: corruption
+      chatMessage: Corruption damage while grabbed
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 18a4f0d3-f9c3-4e44-ad3e-350001008f6d
+      stacks: "+2"
+      ongoingEffectCustom: false
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 5cf5ebd4-7048-4875-80af-ac78e42fb769
+      filterTarget: Stacks("Hungry For Flesh") > 4
+      ongoingEffectCustom: false
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: "Zombie's Clobber & Clutch. \vA Target who starts their turn grabbed by the zombie takes 2 corruption damage. A creature who takes 5 or more corruption damage this way becomes insatiably hungry for flesh. "
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 52036eca-e008-4308-bf1e-ced5701a5bb7
+  name: 2 corruption damage (C&C)
+  sourceguid: b996a5ca-d7b9-4410-8ee5-85fcddef5ec0
+source: Ongoing Effect
+guid: f3f37a75-d325-4d2e-9505-857e399a284e
+id: c77e1440-ab4a-4cea-9330-452f241a8a7d
+ctime: 1757253566761
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+name: 2 corruption damage (C&C)
+description: "Zombie's Clobber & Clutch. \vA Target who starts their turn grabbed by the zombie takes 2 corruption damage. A creature who takes 5 or more corruption damage this way becomes insatiably hungry for flesh. "
+mtime: 1757257825179
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+implementation: 3

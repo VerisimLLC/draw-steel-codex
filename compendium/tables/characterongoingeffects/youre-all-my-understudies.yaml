@@ -1,0 +1,123 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1148cc36-88f2-41a4-ac4b-e8e051691292
+  source: Ongoing Effect
+  value: Ongoing Effect.Caster.Kit.Speed
+  domains:
+    CharacterOngoingEffect:1148cc36-88f2-41a4-ac4b-e8e051691292: true
+  name: You’re All My Understudies
+  guid: 127fa9f8-ee2a-449d-982d-9aa3ad16102e
+  description: You gain a speed bonus, weapon distance bonus, disengage bonus, and stability bonus equal to {Caster.name} kit bonus
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: 1148cc36-88f2-41a4-ac4b-e8e051691292
+  source: Ongoing Effect
+  value: Ongoing Effect.Caster.Kit.Disengage
+  domains:
+    CharacterOngoingEffect:1148cc36-88f2-41a4-ac4b-e8e051691292: true
+  name: You’re All My Understudies
+  guid: d82f3e15-c213-44f4-917f-04cb56b35651
+  description: You gain a speed bonus, weapon distance bonus, disengage bonus, and stability bonus equal to {Caster.name} kit bonus
+  behavior: attribute
+  attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+- __typeName: CharacterModifier
+  sourceguid: 1148cc36-88f2-41a4-ac4b-e8e051691292
+  source: Ongoing Effect
+  value: Ongoing Effect.Caster.Kit.Stability
+  domains:
+    CharacterOngoingEffect:1148cc36-88f2-41a4-ac4b-e8e051691292: true
+  name: You’re All My Understudies
+  guid: f39e18c8-f9f7-4338-a92d-c0f17f25979d
+  description: You gain a speed bonus, weapon distance bonus, disengage bonus, and stability bonus equal to {Caster.name} kit bonus
+  behavior: attribute
+  attribute: forcedmoveresistance
+- __typeName: CharacterModifier
+  sourceguid: 1148cc36-88f2-41a4-ac4b-e8e051691292
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Melee: true
+    Weapon: true
+  domains:
+    CharacterOngoingEffect:1148cc36-88f2-41a4-ac4b-e8e051691292: true
+  attributes:
+  - operation: Add
+    value: ConditionCaster("Youre All My Understudies").Kit.Reach
+    id: range
+  guid: 2cc99fae-87b5-4a09-b745-6233dbc050ff
+  description: You gain a speed bonus, weapon distance bonus, disengage bonus, and stability bonus equal to the Caster's kit bonuses
+  name: Youre All My Understudies
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 9719537a-9cd1-42f0-ac69-14d5456bdddb
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: 1148cc36-88f2-41a4-ac4b-e8e051691292
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Ranged: true
+    Weapon: true
+  domains:
+    CharacterOngoingEffect:1148cc36-88f2-41a4-ac4b-e8e051691292: true
+  attributes:
+  - operation: Add
+    value: ConditionCaster("Youre All My Understudies").Kit.Distance
+    id: range
+  guid: 1e0d7e67-9ba2-4ef9-bc21-a116fd7a066d
+  description: You gain a speed bonus, weapon distance bonus, disengage bonus, and stability bonus equal to the Caster's kit bonuses
+  name: Youre All My Understudies
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 1ebccaaa-6d75-4bfe-91e9-95f34e0a4e11
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+casterTracking: one
+guid: 1148cc36-88f2-41a4-ac4b-e8e051691292
+id: 1148cc36-88f2-41a4-ac4b-e8e051691292
+ctime: 1767329280822
+domains:
+  CharacterOngoingEffect:1148cc36-88f2-41a4-ac4b-e8e051691292: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Youre All My Understudies
+custom: true
+description: You gain a speed bonus, weapon distance bonus, disengage bonus, and stability bonus equal to the Caster's kit bonuses
+mtime: 1769057888270
+iconid: ui-icons/skills/1.png

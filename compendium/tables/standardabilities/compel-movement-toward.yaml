@@ -1,0 +1,56 @@
+__typeName: ActivatedAbility
+id: 2ed70c5e-6494-47e3-bf84-3dd30e9e8b9c
+behaviors:
+- __typeName: ActivatedAbilityApplyAbilityDurationEffect
+  instant: false
+  momentaryEffect:
+    __typeName: CharacterOngoingEffect
+    modifiers:
+    - __typeName: CharacterModifier
+      operation: set
+      sourceguid: e74c1f88-6430-4e93-a9cd-28c607919709
+      source: Ongoing Effect
+      value: "<<targetid>>"
+      name: Compelled Movement
+      guid: 412285f2-5630-4562-9899-15aeb4376480
+      description: ""
+      behavior: attribute
+      attribute: 983f5281-f0c1-420b-abb9-6257717bf59c
+    source: Ongoing Effect
+    guid: e74c1f88-6430-4e93-a9cd-28c607919709
+    id: e74c1f88-6430-4e93-a9cd-28c607919709
+    name: Compelled Movement
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: ""
+    implementation: 3
+    iconid: ui-icons/skills/1.png
+  name: Ability Duration Effect
+  lingerTime: 3
+  applyto: caster
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: da4e22fd-6861-4d19-95f8-395a71493df8
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: Use this to compel movement toward a creature with a specific ID.
+repeatTargets: false
+ctime: 1756802921093
+castImmediately: true
+persistence: []
+description: ""
+name: Compel Movement Toward
+targetType: self
+mtime: 1762306850190
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,55 @@
+__typeName: Title
+effect: |-
+  You gain membership in a faction. You’re regarded as a promising but untested agent, and you’re allowed to operate independently. You
+  can be assigned tasks to further your faction’s goals, and you can expect rewards and promotion if you succeed. When engaged in a negotiation
+  with any member of your faction, their patience increases by 2 (to a maximum of 5).
+
+  Additionally, the Director assigns you one of the following benefits, as appropriate to the faction in question. The Director can also create a custom benefit for a type of faction not noted here. You can use this benefit only in a settlement where your faction has a presence, and once you use this benefit, you can’t use it again until you complete a task for your faction.
+prerequisite: You join an army, guild, or similar organization
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Faction Member Benefit
+    numChoices: 1
+    guid: a47246df-80d3-47af-8372-17bc7353afd2
+    description: "Your Director assigns you one of the following benefits: "
+    options:
+    - __typeName: CharacterFeature
+      description: "You find a sage who can make up to three Reason tests to recall lore or make project rolls for research projects on your behalf. The sage has a +5 bonus to these tests. These project rolls take 10 minutes each and don’t need to be made during a respite.\v\v**DIRECTOR INSTRUCTIONS**\nOpen your player's character sheet, click the Follower tab on the right hand side and select Add New Follower. Name the Follower and select Sage from the Follower Type dropdown. This will assign a follower to the player. You can then go to the Panels Menu, select Downtime Panel and use Give Rolls to give 3 rolls to the newly created Follower. The +5 bonus can be added when making the Project Roll. "
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: bbe37f90-1973-4d60-b39e-38cdd908ab3d
+      name: Academic Faction
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: "You find an expert crafter who can make up to three project rolls for crafting projects on your behalf. The crafter has a +5 bonus to these tests. These project rolls take 10 uninterrupted minutes each and don’t need to be made during a respite.\n\n**DIRECTOR INSTRUCTIONS**\nOpen your player's character sheet, click the Follower tab on the right hand side and select Add New Follower. Name the Follower and select Artisan from the Follower Type dropdown. This will assign a follower to the player. You can then go to the Panels Menu, select Downtime Panel and use Give Rolls to give 3 rolls to the newly created Follower. The +5 bonus can be added when making the Project Roll. "
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: e9e04cbe-9acc-461d-ac12-576df5049e39
+      name: Guild Faction
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: "You recruit up to three minions with levels no greater than your own, of a type appropriate for the faction (such as human guards). These minions follow your orders for a day.\v\v**DIRECTOR INSTRUCTIONS**\vGo to the Bestiary and select a group of minions appropriate for the faction. Place these on the map and as these spawn in groups of 4 you should delete one. Then select the group of minions, right click and click Assign to and select the Player with this title benefit. They can then control the minions in combat."
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: 6a843ae8-c498-4472-86ca-a946d6459bf3
+      name: Martial Faction
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: You find an agent who can provide you with three pieces of information about the settlement you’re in, such as the location of a hidden person, a secret entrance into a guarded area, or the negotiation motivation or pitfall of an important person.
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: 1f81c256-1bde-4af4-9af9-baa37b6c8d68
+      name: Spy Faction
+      implementation: 4
+name: Faction Member
+mtime: 1773772077629
+description: In six months, I’ll be running this place.
+id: 720e7abf-6acc-44ae-be3f-f2ed54935162
+ctime: 1762349639559

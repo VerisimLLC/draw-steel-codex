@@ -1,0 +1,270 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 0bd4f23f-8236-45cc-815f-2ba331eb0763
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 6a4e89e5-5be3-45e5-83d9-b448cef04c77
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    max_hitpoints: 7
+    inflictedConditions: []
+    keywords:
+      Animal: true
+      Gnoll: true
+      Abyssal: true
+    max_hitpoints_roll: "7"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        060627ee-51ac-433b-86f9-aaffe8010474:
+          set: 1/1
+          note: Snapjaw
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 4bc2de26-62dd-4e6d-9967-c338248c4b1a
+        f3851f44-be6c-4ddd-aec4-6351b23f47cf:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 2689353d-9204-48fc-a4e5-71c18dfe571e
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        2ce88ce2-72b4-4cbd-b039-020e361f6b09:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 5f32d7bf-8ec4-4684-ac2c-f0b816140291
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        68244107-7fd7-4241-9c79-95a4119b06f9:
+          set: 1/1
+          note: Snapjaw
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 4bc2de26-62dd-4e6d-9967-c338248c4b1a
+        f3204703-17ff-4115-a085-b4eb8130e8de:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 2df34bae-b781-43cf-bf74-0db32c9da378
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        d11744e3-bfbd-4672-9c98-c0eef280df26:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 06840704-4f12-480d-aa45-1bff8a8064fb
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: -3
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    damage_taken_minion_count: 4
+    creatureSize: 1M
+    levelChoices: []
+    damage_taken_seq: 49
+    traitNames: []
+    ongoingEffects: []
+    stamina_history:
+      __typeName: StatHistory
+      entries: []
+    minion: true
+    stability: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:86b9d1b6-3b5f-46c5-aaa0-3aafb77dd1dd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:86b9d1b6-3b5f-46c5-aaa0-3aafb77dd1dd: true
+        sourceguid: 86b9d1b6-3b5f-46c5-aaa0-3aafb77dd1dd
+        behavior: trigger
+        source: Trait
+        name: Death Snap
+        description: When the abyssal hyena is reduced to 0 Stamina, they make a free strike before dying.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: ""
+          despawnBehavior: corpse
+          behaviors:
+          - __typeName: ActivatedAbilityRaiseCorpseBehavior
+            applyto: targets
+            restoreStamina: false
+          triggerPrompt: Make a free strike before dying
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          whenActive: always
+          trigger: creaturedeath
+          targetType: self
+          persistence: []
+          repeatTargets: false
+          name: Death Snap
+          selfTarget: false
+          guid: ebc3d4f2-a344-4e6b-8bbd-afff070b3b3d
+          description: ""
+          subject: self
+          iconid: ui-icons/skills/1.png
+        guid: 84476d5e-4e92-48f0-af53-88cb003eb7f7
+      source: Trait
+      description: When the abyssal hyena is reduced to 0 Stamina, they make a free strike before dying.
+      guid: 86b9d1b6-3b5f-46c5-aaa0-3aafb77dd1dd
+      name: Death Snap
+      implementation: 2
+    role: Minion Brute
+    equipment: []
+    titles: []
+    opportunityAttack: 3
+    skillRatings: []
+    resistances: []
+    activeOngoingEffects: []
+    notes: []
+    initiativeGrouping: f56958bd-ec5b-451c-a40b-96d16a7da1d2
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: d3ea79bf-e349-4d1b-8640-729d7fad5976-187
+    monster_category: Gnoll
+    availableTriggers: []
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    damage_taken: 7
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage
+        - 6 damage; grabbed
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 154
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4bc2de26-62dd-4e6d-9967-c338248c4b1a
+      targetType: target
+      numTargets: 1
+      categorization: Signature Ability
+      implementation: 4
+      name: Snapjaw
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    walkingSpeed: 8
+    innateAttacks: []
+    minionSquad: Abyssal Hyena Squad 1
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+    damageEntries:
+      523a1e56-3e2d-4237-9830-fbfe6a1e0359:
+        damage: 7
+        id: 523a1e56-3e2d-4237-9830-fbfe6a1e0359
+    movementSpeeds: []
+    withCaptain: +2 bonus to speed
+    ev: 4
+    equipmentMeta:
+      offhand0: []
+    monster_type: Abyssal Hyena
+  tokenType: null
+  bestiaryId: 3267ab98-0772-452d-afe4-0256b7b66f35
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Abyssal Hyena
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1741590235573
+mtime: 1775201137032
+hidden: false

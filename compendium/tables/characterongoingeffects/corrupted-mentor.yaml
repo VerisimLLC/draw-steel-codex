@@ -1,0 +1,90 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.184500098228455
+    s: 0.974609375
+    v: 0.984935283660889
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:2f382efa-d9d1-48eb-89a6-a60f74b0079d: true
+  sourceguid: 2f382efa-d9d1-48eb-89a6-a60f74b0079d
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-Corrupted Mentor when Corrupted Mentor < Recovery Value else (-Recovery Value+1)"
+    stacks: true
+    damageType: holy
+    apply: Damage Reduction
+  guid: 04f065fe-9931-4b2c-b8b5-5f318d5d3727
+  name: Corrupted Mentor
+  description: You have holy weakness 1. Each time you use Corrupt Spirit, your holy weakness increases by 1, to a maximum equal to your recovery value. Whenever you take holy damage, this weakness resets to 1
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:2f382efa-d9d1-48eb-89a6-a60f74b0079d: true
+  sourceguid: 2f382efa-d9d1-48eb-89a6-a60f74b0079d
+  description: You have holy weakness 1. Each time you use Corrupt Spirit, your holy weakness increases by 1, to a maximum equal to your recovery value. Whenever you take holy damage, this weakness resets to 1
+  source: Ongoing Effect
+  name: Corrupted Mentor
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 2f382efa-d9d1-48eb-89a6-a60f74b0079d
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 0a081eac-1d4b-491b-ac7f-2b6d73c7496a
+    persistence: []
+    conditionFormula: Damage Type = "holy"
+    targetType: self
+    castImmediately: true
+    trigger: losehitpoints
+    name: Corrupted Mentor
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 8d966c90-1d3f-4eb9-b5d1-7aac1855747b
+- __typeName: CharacterModifier
+  operation: add
+  sourceguid: 2f382efa-d9d1-48eb-89a6-a60f74b0079d
+  source: Ongoing Effect
+  value: Stacks
+  domains:
+    CharacterOngoingEffect:2f382efa-d9d1-48eb-89a6-a60f74b0079d: true
+  name: Corrupted Mentor
+  guid: 8b1a2e94-7552-46a2-a340-8ddb45743e1d
+  description: You have holy weakness 1. Each time you use Corrupt Spirit, your holy weakness increases by 1, to a maximum equal to your recovery value. Whenever you take holy damage, this weakness resets to 1
+  behavior: attribute
+  attribute: 1ab05ee9-6600-4102-84f9-9eeda514f8d5
+source: Ongoing Effect
+guid: 2f382efa-d9d1-48eb-89a6-a60f74b0079d
+stackable: true
+id: 2f382efa-d9d1-48eb-89a6-a60f74b0079d
+ctime: 1764588557059
+domains:
+  CharacterOngoingEffect:2f382efa-d9d1-48eb-89a6-a60f74b0079d: true
+implementation: 3
+description: You have holy weakness 1. Each time you use Corrupt Spirit, your holy weakness increases by 1, to a maximum equal to your recovery value. Whenever you take holy damage, this weakness resets to 1
+endTrigger: none
+mtime: 1764598510967
+custom: true
+name: Corrupted Mentor
+iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80

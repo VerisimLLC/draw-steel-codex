@@ -1,0 +1,15 @@
+__typeName: CharacterComplication
+drawback: Out of combat, you use your Stone Eyes ability on anyone who meets your gaze, whether you intend to or not. Your companions know not to make eye contact, but strangers are likely to trigger the ability unless you cover your eyes.
+mtime: 1755516131090
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Medusa Blood
+ctime: 1755516075774
+description: |+
+  Your mother and father never saw eye to eye. You know this because your father is still alive and your mother is a medusa. This made your childhood difficult, and now it’s making your adulthood complicated as well.
+
+id: f5b14d27-cde7-48f3-8bb5-bbbc993d3b16
+benefit: |-
+  You have the following ability:
+  Stone Eyes

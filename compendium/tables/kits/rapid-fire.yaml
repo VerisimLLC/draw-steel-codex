@@ -1,0 +1,65 @@
+__typeName: Kit
+armor: Light
+health: 3
+id: f6495f4e-6bf7-4764-b6ae-508c12e77318
+weapons:
+  Bow: true
+range: 7
+disengage: 1
+name: Rapid-Fire
+portraitid: 5aea8d99-7529-4762-b04e-13b9b14849eb
+kitManeuver: false
+description: The Rapid-Fire kit is for archers who want to deal maximum damage by shooting as many arrows as possible into nearby enemies. With this kit, your fighting technique focuses on peppering foes at medium range.
+type: martial
+speed: 1
+imported: 20727625-6f88-4853-b335-666424fa3a0d
+damageBonuses:
+  ranged:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Kit: true
+    Strike: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 4 damage
+    - 6 damage
+    - 8 damage
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: When you fire two arrows back to back, both hit their mark.
+  sourceReference:
+    __typeName: SourceReference
+    page: 222
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 12
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 90c6e524-247c-4759-9896-3d912a76cecd
+  categorization: Signature Ability
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  targetType: target
+  implementation: 4
+  name: Two Shot
+  numTargets: 2
+  description: ""
+  abilityType: none
+  iconid: 5aea8d99-7529-4762-b04e-13b9b14849eb
+mtime: 1770565435183
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+equipmentDescription: You wear light armor and wield a bow.

@@ -1,0 +1,231 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"2c1e3bfe-46fd-4b12-aa5b-10aa95122da7\",\"offtokenPortraitId\": \"fd88a0f1-078d-479c-bc1d-877161e3e955\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4565293,\"portraitOffset\": {\"x\": 0.07052017,\"y\": 0.1549125},\"frameHueShift\": 0.1530458,\"frameSaturation\": 0.6325132,\"frameBrightness\": 0.5107015,\"characterName\": \"Arixx\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        balancing:
+        - disableSolo: true
+          stamina: 80
+        - stamina: 120
+        - disableSolo: true
+          stamina: 80
+        - stamina: 120
+        - []
+        - []
+        - []
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,4,3"
+        monsters:
+          22f45493-ced6-4eb4-bfe8-05c1c83b5e31: 1
+      name: Arixx
+id: c518ce90-20b4-4315-a79a-ee37577912ae
+ctime: 1761664746220
+textStorage:
+  __typeName: TextStorage
+  sections:
+    UQ: |+
+      ## Animal Remains
+
+    w: |
+      With the [item:Amulet of the Delian Order] in hand, the heroes can now enter the second level of the [Delian Tomb], as [Orson] (see [B9. Charcoal Burner]) can explain to them.
+
+
+      }
+    u: |+
+      If the heroes defeat the arixx, they earn the thanks of [Ellery], who not only delivers on the promise of bacon for life, she also gives them an old journal in Kalliak with a vial of red honey her grandmother gave to her. The journal is a project source for [item:Buzz Balm] ([item:Buzz Balm Recipe]), and the vial is 4 ounces of [item:demon honey].
+
+    s: |+
+      ## Arixx Nest Aftermath
+
+    q: |+
+      The hero who reduces the arixx to 0 Stamina earns the [title:Monster Bane] title.
+
+
+    o: |
+      Title: [title:Monster Bane]
+    m: |+
+      A search of the nest after the arixx is defeated reveals various bits of useless trash as well as [Orson]’s [item:Amulet of the Delian Order]. *Note: The item description reveals what it is used for, so if you don't want the players to know what the amulet does yet, don't give it to them until they return it to Orson.* 
+
+    k: |+
+      ## Loot
+
+    i: |+
+      If the heroes leave the nest, the arixx doesn't pursue them, wanting to defend their home
+
+
+    g: |+
+      [[/awardvp 2|Give Heroes 2 Victories]]
+
+
+    e: |+
+      The arixx fights until reduced to 0 Stamina, and the heroes earn 2 Victories each.
+
+
+    c: |+
+      ## Ending the Encounter
+
+    a: |+
+      The arixx starts combat by targeting as many creatures as possible with Claw Swing and remains on the surface to use Acid Spew. Then the arixx attempts to grab the nearest creature and take them underground with the Dig Maneuver to feast upon them. The arixx reemerges at the end of the second round, using Sinkhole. During the third round of combat, the arixx moves into position to use Acid and Claws.
+
+    b: |+
+      When they aren't burrowed, the arixx uses Malice to use Solo Action and Dirt Devil or Geyser to gain extra actions on their turn, targeting hard-to-reach foes.
+
+
+    YZ: |+
+      *When a token moves onto the weakened floor the game will automatically freeze, allowing you time to open the pit! Once a pit is opened the game will no longer freeze when tokens move over it*
+
+
+
+    Y: |+
+      *See [Pit 1], [Pit 2], [Pit 3], [Pit 4], [Pit 5], [Pit 6].*
+
+    Z: |
+      ## Tactics
+    W: |
+      A creature who moves onto a weakened square falls into a 4-square- deep pit. Climbing the walls of the pit doesn't require a test.
+    X: |
+      *The Map Pins contain buttons to automatically open the pits.*
+    U: |+
+      * For three heroes, the arixx has 80 Stamina and can't use the Solo Action Malice feature.
+
+
+    V: |+
+      ## Weakened Floor
+
+    S: |+
+      If this encounter has four or three heroes, make the following adjustments:
+
+    T: |
+      * For four heroes, the arixx has 120 Stamina.
+    Q: |+
+      |2|Arixx (Second Turn)|
+
+    R: |+
+      **Encounter Adjustments**
+
+    O: |
+      |Group|Creatures|
+    P: |
+      |1|Arixx (First Turn)|
+    M: |+
+      [[encounter]]
+
+    N: |
+      **Arixx Nest Groups**
+    K: |+
+      The heroes face an arixx beneath the ground.
+
+    L: |+
+      [[setting:Number of Heroes]]
+
+    I: |
+      {Secret: The floor is weakened in several places.}
+
+      {
+    J: |+
+      # Arixx Encounter
+
+    G: |
+      {If the heroes achieve a total success on their montage test, the arixx is out in the open and not hidden. Add: }
+    H: |
+      > * “A giant insect, like a horse-sized praying mantis, clacks their mandibles with excitement as you enter the cave.”
+    E: |
+      > * “At the far end of the chamber, a pile of debris obscures the chamber wall. Glints of metal and other objects are strewn within the debris.”
+    F: |+
+      > * “The ribs of several bovine carcasses line sections of the wall. Corpses of other creatures are impaled on the ribs.”
+
+    C: |+
+      The heroes arrive at the arixx lair, and the creature attacks when disturbed. The arixx lair has a ceiling that is 4 squares high and uses the Arixx Lair map.
+
+
+    D: |
+      > * “The tunnel ends in a large chamber, which is littered with bones and half-eaten, rotting carcasses of animals, intermingled with humanoid remains.”
+    Ui: |+
+      The sharp ribs of the cattle carcasses can be used as a weapon. Any creature force moved into a wall containing cattle ribs takes 3 damage. 
+
+
+    B: |+
+      # Arixx Lair
+
+parentFolder: 5b13b0ba-6e2b-456e-9409-80e65cf0b199
+updateid: affa5e90-a854-4c1b-97c5-a1bc934253cd
+mtime: 1775200246328
+content: |-
+  # Arixx Lair
+
+  The heroes arrive at the arixx lair, and the creature attacks when disturbed. The arixx lair has a ceiling that is 4 squares high and uses the Arixx Lair map.
+
+
+  > * “The tunnel ends in a large chamber, which is littered with bones and half-eaten, rotting carcasses of animals, intermingled with humanoid remains.”
+  > * “At the far end of the chamber, a pile of debris obscures the chamber wall. Glints of metal and other objects are strewn within the debris.”
+  > * “The ribs of several bovine carcasses line sections of the wall. Corpses of other creatures are impaled on the ribs.”
+
+  {If the heroes achieve a total success on their montage test, the arixx is out in the open and not hidden. Add: }
+  > * “A giant insect, like a horse-sized praying mantis, clacks their mandibles with excitement as you enter the cave.”
+  {Secret: The floor is weakened in several places.}
+
+  {
+  # Arixx Encounter
+
+  The heroes face an arixx beneath the ground.
+
+  [[encounter]]
+
+  **Arixx Nest Groups**
+  |Group|Creatures|
+  |1|Arixx (First Turn)|
+  |2|Arixx (Second Turn)|
+
+  **Encounter Adjustments**
+
+  If this encounter has four or three heroes, make the following adjustments:
+
+  * For four heroes, the arixx has 120 Stamina.
+  * For three heroes, the arixx has 80 Stamina and can't use the Solo Action Malice feature.
+
+
+  ## Weakened Floor
+
+  A creature who moves onto a weakened square falls into a 4-square- deep pit. Climbing the walls of the pit doesn't require a test.
+  *The Map Pins contain buttons to automatically open the pits.*
+  *See [Pit 1], [Pit 2], [Pit 3], [Pit 4], [Pit 5], [Pit 6].*
+
+  ## Tactics
+  The arixx starts combat by targeting as many creatures as possible with Claw Swing and remains on the surface to use Acid Spew. Then the arixx attempts to grab the nearest creature and take them underground with the Dig Maneuver to feast upon them. The arixx reemerges at the end of the second round, using Sinkhole. During the third round of combat, the arixx moves into position to use Acid and Claws.
+
+  When they aren't burrowed, the arixx uses Malice to use Solo Action and Dirt Devil or Geyser to gain extra actions on their turn, targeting hard-to-reach foes.
+
+
+  ## Ending the Encounter
+
+  The arixx fights until reduced to 0 Stamina, and the heroes earn 2 Victories each.
+
+
+  [[/awardvp 2|Give Heroes 2 Victories]]
+
+
+  If the heroes leave the nest, the arixx doesn't pursue them, wanting to defend their home
+
+
+  ## Loot
+
+  A search of the nest after the arixx is defeated reveals various bits of useless trash as well as [Orson]’s [Amulet of the Delian Order].
+
+  Title: [Monster Bane]
+  The hero who reduces the arixx to 0 Stamina earns the [Monster Bane] title (see Titles in Handouts).
+
+
+  ## Arixx Nest Aftermath
+
+  If the heroes defeat the arixx, they earn the thanks of [Ellery], who not only delivers on the promise of bacon for life, she also gives them an old journal in Kalliak with a vial of red honey her grandmother gave to her. The journal is a project source for [Buzz Balm] (see Treasure in Handouts), and the vial is 4 ounces of demon honey.
+
+  With the [Amulet of the Delian Order] in hand, the heroes can now enter the second level of the [Delian Tomb], as [Orson] (see [B9. Charcoal Burner]) can explain to them.
+
+
+  }
+description: Arixx Lair Encounter

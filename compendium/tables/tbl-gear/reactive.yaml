@@ -1,0 +1,67 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: subject
+        filterTarget: ""
+        duration: end_of_next_turn
+        ongoingEffectCustom: false
+        ongoingEffect: 48cb6d1e-23c0-4165-924f-fd1337b36670
+        stacks: "2"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: true
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      whenActive: combat
+      numTargets: "1"
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      guid: 97bc2d2b-66e0-4173-956c-d1524eb71c7b
+      name: Reactive
+      trigger: losehitpoints
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Reactive Imbuement
+    behavior: trigger
+    guid: 531dd798-56c9-43ed-beb8-34d8ceb43797
+    name: Reactive
+    sourceguid: f6be3b9f-8eb8-4fbb-b40e-a71ec14ea9f8
+  source: Reactive Imbuement
+  name: Reactive
+  addText: Add Magical Property
+  itemAttached: true
+  guid: f6be3b9f-8eb8-4fbb-b40e-a71ec14ea9f8
+id: b4451719-acf9-4f9a-a2a8-faf7fce2e821
+imbuePrereq: none
+projectSource: Zaliac
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: A complex, hand-engineered set of brass gears inscribed with runes in silver dust
+mtime: 1774275746623
+name: Reactive
+imbueTargetType: armor
+description: "Reactive: Whenever you take damage, you have damage immunity 2 until the end of your next turn after the triggering damage is resolved."
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

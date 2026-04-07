@@ -1,0 +1,52 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 22baf20e-e8c9-4c46-a10a-7b581e6585ae
+ctime: 1761388234874
+textStorage:
+  __typeName: TextStorage
+  sections:
+    V: |+
+      [Saberna], a 17-year-old, tends to the smokehouse. She stands watch outside it and goes in to stoke the fire every so often. When the heroes approach, she’s nervous and standoffish with them.
+
+
+    h: |
+      If the heroes ask [Saberna] about the stolen meat, she responds that there are some villagers who think the meat is being stolen, but they just don’t understand that it shrinks throughout the smoking process. Any hero can tell that this immediate defensive reaction is a lie without the need for a test.
+    F: |+
+      # B7. Smokehouse
+
+    n: |+
+      If accused of lying or if a hero attempts to get the truth out of [Saberna], she panics and starts running off. If the heroes wish to chase her, they must engage in a montage test.
+
+
+    K: |
+      > * “A squat stone building with a chimney pipes smoke into the air.”
+    t: |
+      ## [Montage Test: Chase Saberna]
+    P: |+
+      > * “Outside the smokehouse, a young woman with a soot-covered face watches your approach with apprehension as she stacks wood outside the house.”
+
+
+    b: |+
+      ## Stolen Meat
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: fba513ba-0d49-4839-94cd-4be4d3801ec1
+description: B7. Smokehouse
+content: |
+  # B7. Smokehouse
+
+  > * “A squat stone building with a chimney pipes smoke into the air.”
+  > * “Outside the smokehouse, a young woman with a soot-covered face watches your approach with apprehension as she stacks wood outside the house.”
+
+
+  Saberna, a 17-year-old, tends to the smokehouse. She stands watch outside it and goes in to stoke the fire every so often. When the heroes approach, she’s nervous and standoffish with them.
+
+
+  ## Stolen Meat
+
+  If the heroes ask Saberna about the stolen meat, she responds that there are some villagers who think the meat is being stolen, but they just don’t understand that it shrinks throughout the smoking process. Any hero can tell that this immediate defensive reaction is a lie without the need for a test.
+  If accused of lying or if a hero attempts to get the truth out of Saberna, she panics and starts running off. If the heroes wish to chase her, they must engage in a montage test.
+
+
+  ## [Montage Test: Chase Saberna]
+mtime: 1764326019835

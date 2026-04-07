@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 4541c7c3-8798-41f3-8f83-de9a56e046b5
+id: 4541c7c3-8798-41f3-8f83-de9a56e046b5
+ctime: 1760077420018
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1760077420018
+name: Pack Formation
+custom: true
+description: ""
+endTrigger: useability
+iconid: ui-icons/skills/1.png

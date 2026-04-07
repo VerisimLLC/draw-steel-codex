@@ -1,0 +1,77 @@
+__typeName: ActivatedAbility
+targetFilter: ""
+id: 1de59429-fcf1-4404-9d8e-671cb76dadc3
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  namedAbility: Melee Free Strike
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 9959a5d2-9f4d-41a7-931a-e71fd56a92fa
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: named
+  targetingFormula: Target.id = <<targetid>>
+  targeting: formula
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  target_proximity_range: "5"
+  runOnController: true
+  abilityType: standard
+  standardAbilityParams:
+    targetid: "<<self.id>>"
+  filterTarget: target.id = <<targetid>>
+  applyto: proximity_only
+  standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 8a22bdd2-1e89-477c-b5f2-9a2a735b50ec
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: This will invite a melee free strike against a specific target. If the free strike is made then the target gets to retaliate.
+description: ""
+ctime: 1754031058925
+castImmediately: true
+persistence: []
+guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+name: Melee Free Strike Against Specific Target With Retaliation
+repeatTargets: false
+mtime: 1763079246408
+abilityType: none
+iconid: ui-icons/skills/1.png

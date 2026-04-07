@@ -1,0 +1,76 @@
+__typeName: Kit
+armor: Light
+health: 6
+id: 7a6878a3-5362-4614-ba9b-7920daad8fcf
+weapons:
+  Shield: true
+  Light: true
+range: 5
+disengage: 1
+name: Raider
+portraitid: "-MSvyAKWyO_hgyuGjVB2"
+kitManeuver: false
+description: The Raider kit keeps you protected while granting you full mobility, providing a boost to speed and distance that lets you run around the battlefield like a Viking warrior.
+type: martial
+speed: 1
+imported: 5063ab61-f3c3-450c-9306-b2eea1fab0c0
+damageBonuses:
+  ranged:
+  - 1
+  - 1
+  - 1
+  melee:
+  - 1
+  - 1
+  - 1
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Weapon: true
+    Kit: true
+    Melee: true
+    Strike: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 3 + M or A damage
+    - 6 + M or A damage
+    - 8 + M or A damage
+    roll: 2d10 + Might or Agility
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: db4a514a-7380-47d7-a842-e5f09309d372
+    duration: end_of_next_turn
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: You execute a brutal strike that leaves your foe reeling.
+  sourceReference:
+    __typeName: SourceReference
+    page: 221
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 10
+  effectImplemented: false
+  numTargets: 1
+  modifiers: []
+  strain: []
+  guid: b42ffe2a-61bd-4b84-9565-ba7b2712010d
+  meleeRange: 1
+  persistence: []
+  categorization: Signature Ability
+  targetType: target
+  iconid: ui-icons/skills/1.png
+  name: Shock and Awe
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  description: The target has a bane on their next power roll made before the end of their next turn.
+  abilityType: none
+  implementation: 4
+mtime: 1770565359740
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+equipmentDescription: You wear light armor, and wield a shield and a light weapon.

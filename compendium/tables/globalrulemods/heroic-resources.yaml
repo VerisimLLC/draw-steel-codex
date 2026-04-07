@@ -1,0 +1,82 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    prefab: afc40f8a-ff4a-4ac0-b05c-b46c321f8f04
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: addc46eb-dc0f-4900-8cd1-adfefffb46dc
+      source: Heroic Resources Global Rule Mod Feature
+      guid: ced99e8d-2b44-4e18-93a7-e5d91db79e09
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      name: Heroic Resources Basic Rules
+      description: ""
+      num: 0
+      resourceType: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      behavior: resource
+    source: Heroic Resources Global Rule Mod Feature
+    guid: bd0e9888-522e-4bea-955b-151ebc1353e9
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+    name: Heroic Resources Basic Rules
+    classid: a58112e5-6466-4189-b810-5d0d93adc075
+    description: ""
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityHealBehavior
+          roll: Recovery Value
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 2166c5fe-260e-4691-9743-06cf097a59f3
+          filterTarget: ""
+          quantity: "2"
+          mode: expend
+          chatMessage: Hero Tokens Spent on Recovery
+        triggerPrompt: You can spend 2 hero tokens on your turn or when you take damage (no action required) to regain Stamina equal to your recovery value before taking the damage.
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        whenActive: always
+        guid: 7a883c18-c43a-4472-921d-7cd7612a4639
+        conditionFormula: HeroTokens >= 2
+        numTargets: "1"
+        targetType: self
+        trigger: creaturedeath
+        name: Recovery on Death
+        description: You can spend 2 hero tokens on your turn or when you take damage (no action required) to regain Stamina equal to your recovery value before taking the damage.
+        abilityType: none
+        iconid: 12cdef25-2e5b-47e0-bccf-758198de8442
+      description: ""
+      source: Heroic Resources Global Rule Mod Feature
+      behavior: trigger
+      guid: ff0601cb-c013-49bb-9404-5059c4bf17d2
+      name: Hero Tokens
+      sourceguid: 99ded6d9-5dd7-4a9c-a92e-e2d05849844c
+    source: Heroic Resources Global Rule Mod Feature
+    canHavePrerequisites: true
+    guid: 99ded6d9-5dd7-4a9c-a92e-e2d05849844c
+    name: Hero Tokens
+    implementation: 3
+applyRetainers: false
+applyMonsters: false
+ctime: 1740200721348
+name: Heroic Resources
+id: 883c2fb1-c987-4954-8a05-d90b3412a8af
+mtime: 1775067701618
+applyCharacters: true
+applyCompanions: false

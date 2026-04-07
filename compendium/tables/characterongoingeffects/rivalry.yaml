@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+hiddenOnToken: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e349e64f-4422-4fa9-995b-130c492a473a
+  source: Ongoing Effect
+  modtype: appendroll
+  keywords: []
+  replaceText: 1d3
+  domains:
+    CharacterOngoingEffect:e349e64f-4422-4fa9-995b-130c492a473a: true
+  guid: 97dc4849-e7b3-43c7-8363-615653736ff5
+  name: Rivalry
+  rollType: ability_power_roll
+  description: |-
+    At the start of an encounter, the caster marks one creature within their line of effect as Rival.
+
+    Both the caster and the target creature can add a d3 roll to power rolls they make against each other.
+  behavior: power
+  activationCondition: Target.ConditionCaster("Rivalry") = Caster or ConditionCaster("Rivalry") = Target
+source: Ongoing Effect
+mtime: 1772157295308
+guid: e349e64f-4422-4fa9-995b-130c492a473a
+implementation: 3
+ctime: 1762394645441
+domains:
+  CharacterOngoingEffect:e349e64f-4422-4fa9-995b-130c492a473a: true
+custom: true
+name: Rivalry
+hiddenFromEnemies: true
+description: |-
+  At the start of an encounter, the caster marks one creature within their line of effect as Rival.
+
+  Both the caster and the target creature can add a d3 roll to power rolls they make against each other.
+id: e349e64f-4422-4fa9-995b-130c492a473a
+iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e

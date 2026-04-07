@@ -1,0 +1,366 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:Hail:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Hail
+  encounter:Hail to the Queen:
+    __typeName: RichEncounter
+    identifier: Hail to the Queen
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"205d6241-1f3c-4deb-aee3-789b100fba76\",\"offtokenPortraitId\": \"ac15d9d8-0943-4f09-8050-c323a1c97008\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3940681,\"portraitOffset\": {\"x\": -0.02006245,\"y\": -0.1563273},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Cruel War Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": [{\"x\": -0.1323547,\"y\": 0.3134448},{\"x\": 0.3103254,\"y\": 0.1367177},{\"x\": 0.0169756,\"y\": -0.182604},{\"x\": 0.006482152,\"y\": 0.08534515},{\"x\": -0.3013583,\"y\": 0.1291616},{\"x\": 0.2634579,\"y\": -0.1109835},{\"x\": 0.1238798,\"y\": 0.304261},{\"x\": -0.2286432,\"y\": -0.1086904}],\"saddles\": 8,\"saddleSize\": 1}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 4,-8,2
+        monsters:
+          d1c7c29a-c008-4bf7-86cc-db363aefd1ce: 1
+      - appearances:
+        - "{\"portraitId\": \"205d6241-1f3c-4deb-aee3-789b100fba76\",\"offtokenPortraitId\": \"ac15d9d8-0943-4f09-8050-c323a1c97008\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3940681,\"portraitOffset\": {\"x\": -0.02006245,\"y\": -0.1563273},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Sneaky War Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": [{\"x\": -0.1323547,\"y\": 0.3134448},{\"x\": 0.3103254,\"y\": 0.1367177},{\"x\": 0.0169756,\"y\": -0.182604},{\"x\": 0.006482152,\"y\": 0.08534515},{\"x\": -0.3013583,\"y\": 0.1291616},{\"x\": 0.2634579,\"y\": -0.1109835},{\"x\": 0.1238798,\"y\": 0.304261},{\"x\": -0.2286432,\"y\": -0.1086904}],\"saddles\": 8,\"saddleSize\": 1}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,3,2"
+        monsters:
+          d1c7c29a-c008-4bf7-86cc-db363aefd1ce: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-7,6,2"
+        - __usertype: LuaLoc
+          loc: "-10,7,2"
+        - __usertype: LuaLoc
+          loc: "-8,6,2"
+        - __usertype: LuaLoc
+          loc: "-8,7,2"
+        - __usertype: LuaLoc
+          loc: "-7,7,2"
+        - __usertype: LuaLoc
+          loc: "-10,6,2"
+        - __usertype: LuaLoc
+          loc: "-9,6,2"
+        - __usertype: LuaLoc
+          loc: "-9,7,2"
+        monsters:
+          cd5f724b-4707-46d5-821e-a8d172c986f6: 8
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 4,-10,2
+        - __usertype: LuaLoc
+          loc: 4,-9,2
+        - __usertype: LuaLoc
+          loc: 5,-9,2
+        - __usertype: LuaLoc
+          loc: 6,-9,2
+        - __usertype: LuaLoc
+          loc: 7,-9,2
+        - __usertype: LuaLoc
+          loc: 5,-10,2
+        - __usertype: LuaLoc
+          loc: 6,-10,2
+        - __usertype: LuaLoc
+          loc: 7,-10,2
+        monsters:
+          cd5f724b-4707-46d5-821e-a8d172c986f6: 8
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,2,2"
+        - __usertype: LuaLoc
+          loc: "-8,2,2"
+        - __usertype: LuaLoc
+          loc: "-7,2,2"
+        - __usertype: LuaLoc
+          loc: "-6,2,2"
+        - __usertype: LuaLoc
+          loc: "-6,1,2"
+        - __usertype: LuaLoc
+          loc: "-7,1,2"
+        - __usertype: LuaLoc
+          loc: "-8,1,2"
+        - __usertype: LuaLoc
+          loc: "-9,1,2"
+        monsters:
+          bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83: 8
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 7,-5,2
+        - __usertype: LuaLoc
+          loc: 6,-5,2
+        - __usertype: LuaLoc
+          loc: 4,-5,2
+        - __usertype: LuaLoc
+          loc: 4,-4,2
+        - __usertype: LuaLoc
+          loc: 5,-4,2
+        - __usertype: LuaLoc
+          loc: 6,-4,2
+        - __usertype: LuaLoc
+          loc: 7,-4,2
+        - __usertype: LuaLoc
+          loc: 5,-5,2
+        monsters:
+          bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83: 8
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "4,3,2"
+        - __usertype: LuaLoc
+          loc: "6,4,2"
+        - __usertype: LuaLoc
+          loc: "3,4,2"
+        - __usertype: LuaLoc
+          loc: "4,6,2"
+        - __usertype: LuaLoc
+          loc: "3,5,2"
+        - __usertype: LuaLoc
+          loc: "5,4,2"
+        - __usertype: LuaLoc
+          loc: "6,6,2"
+        - __usertype: LuaLoc
+          loc: "5,6,2"
+        monsters:
+          bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83: 8
+      name: Hail to the Queen
+  encounter:Hail to the Mystic Queen QB:
+    __typeName: RichEncounter
+    identifier: Hail to the Mystic Queen QB
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-6,3,2"
+        monsters:
+          85809da7-eae3-4365-b388-f1f678e91ab3: 1
+      name: Mystic Queen Bargnot
+  encounter:Hail to the Queen QB:
+    __typeName: RichEncounter
+    identifier: Hail to the Queen QB
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-6,3,2"
+        monsters:
+          5d7331fb-2d45-4a80-8eee-57036a625d1a: 1
+      name: Queen Bargnot
+  encounter:The Cavalry QB:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: The Cavalry QB
+  'encounter:Hail to the ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'Hail to the '
+  encounter:The Cavalry:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: The Cavalry
+  encounter:Hail to the MyQueen QB:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Hail to the MyQueen QB
+  encounter:Hail to the MytQueen QB:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Hail to the MytQueen QB
+  encounter:Hail to the Queen QB-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Hail to the Queen QB
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: ""
+id: 3f3f1762-dd94-43f5-8328-15ec49472a62
+ctime: 1764024718166
+textStorage:
+  __typeName: TextStorage
+  sections:
+    NGT: |+
+      [[encounter:Hail to the Queen QB]]
+
+    ed: |+
+      Queen Bargnot uses her Handaxe ability to allow the spiders to make free strikes. She and the snipers remain atop the spiders to maintain high ground, gaining an edge on strikes against creatures below them.
+
+    "on": |+
+      ## Ending the Encounter
+
+    kj: |
+      The spiders target clusters of heroes with Web. If they have sufficient Malice, they use Trample to harm as
+    ih: |
+      The goblin runners leap from the backs of the war spiders to get the benefit of the war spiders’ Ride Launcher trait. They spread out to attack as many heroes as possible. 
+    cb: |+
+      ## Tactics
+
+    qp: |
+      The goblins fight until Queen Bargnot and one of the war spiders are reduced to 0 Stamina, then they flee. The heroes earn 2 Victories each for winning the day.
+    PI: |
+      |**Group** |**Creatures**|
+    sr: |+
+      [[/awardvp 2|Award Heroes 2 Victories]]
+
+
+    aY: |+
+      ## Well
+
+    VO: |
+      |6 |Eight [goblin runners] (riders; minion squad)|
+    NGe: |
+      ## Queen Bargnot has the Cup of Iulius
+    LE: |+
+      The heroes battle Queen Bargnot and her giant war spiders in the village square of Broadhurst.
+
+    JC: |
+      > *  “Goblins ride atop platforms on each giant arachnid. One goblin with long white hair wears a gold crown upon her head.”
+    NG: |+
+      [[encounter:Hail to the Queen]]
+
+    HA: |2
+
+    YV: |
+      * For four heroes, remove a group of eight goblin snipers.
+    XT: |
+      * For six heroes, add a group of eight goblin runners not riding a war spider.
+    yz: |2+
+
+
+    ww: If Queen Bargnot has the [item:Cup of Iulius], she brings it with her to the battle. She wears [item:Shrouded Memory] armor.
+    yzZ: See [Part 3 Conclusion]
+    G: |
+      # Encounter 3: Hail to the Queen
+    SL: |
+      |3 |One [war spider] (mount)|
+    IB: |
+      > * “Two enormous spiders, their legs covered in blades, trample their way into the eastern and western sides of the square.”
+    NGp: |+
+      [[encounter:Hail to the Mystic Queen QB]]
+
+    ZX: |+
+      * For three heroes, remove a group of eight goblin snipers and a group of eight goblin runners.
+
+
+    ut: |+
+      ## Loot
+
+    NGJ: |
+      ## The Heroes have the Cup of Iulius
+    gf: |+
+      Queen Bargnot stays adjacent to an ally so she can continue to use Meat Shield. She also spends Malice on each of her turns to use Get in Here.
+
+    RK: |
+      |2 |One [war spider] (mount)|
+    QJ: |
+      |1 |One [goblin monarch] (Queen Bargnot; rider)|
+    NGu: |+
+      *Place down the relevant Monsters, and then mount up the goblins by dragging them into the mount slots*
+
+    TM: |
+      |4 |Eight [goblin snipers] (riders; minion squad)|
+    ml: |+
+      many creatures as possible.
+
+
+    LEZ: |+
+      [[/activateobjects e23_start.AreaTemplate activate|Show Hero Start Area]][[/activateobjects e23_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+
+    bZ: |+
+      The well at the center of the town is 4 squares deep and has less than 1 square of water in it.
+
+
+    VP: |+
+      |7 |Eight [goblin runners] (riders; minion squad)|
+
+    UN: |
+      |5 |Eight [goblin snipers] (riders; minion squad)|
+    WR: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    MF: |+
+      [[setting:Number of Heroes]]
+
+    KD: |+
+      > *  “She stands up and cries out, ‘Let me meet the so-called heroes of Broadhurst! I’d like to introduce them to their doom.’”
+
+
+    VQ: |
+      **Encounter Adjustments**
+    yzm: |2+
+
+
+
+
+
+
+    OH: |
+      **Hail to the Queen Groups**
+parentFolder: 3c68a98c-720a-433b-977c-dee19e9fcaf4
+updateid: c691759e-8bf8-455e-95be-b59e1f0314db
+description: "Encounter 3: Hail to the Queen"
+content: "# Room 3"
+mtime: 1766078367012

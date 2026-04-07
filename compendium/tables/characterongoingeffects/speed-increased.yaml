@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 7c516a4f-b49e-4f66-b688-645436f8a673
+  sourceguid: 18db6893-4788-44ca-8a84-d3e0eb56452d
+  value: Stacks	
+  source: Ongoing Effect
+  name: Speed Increased
+  behavior: attribute
+  description: Your speed is increased.
+  attribute: speed
+source: Ongoing Effect
+guid: 18db6893-4788-44ca-8a84-d3e0eb56452d
+id: 18db6893-4788-44ca-8a84-d3e0eb56452d
+ctime: 1731824425708
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.318249702453613
+    s: 0.96191418170929
+    v: 0.611122846603394
+    a: 1
+name: Speed Increased
+description: Your speed is increased.
+custom: true
+mtime: 1740870692568
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd

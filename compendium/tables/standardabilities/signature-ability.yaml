@@ -1,0 +1,57 @@
+__typeName: ActivatedAbility
+id: 7b19698f-5fe2-4eea-9ef8-7621a7974073
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: Ability.Usable as Signature Ability
+    behavior: modifyability
+    guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+    cannotModifyAction: true
+    attributes: []
+    mustPayResourceCost: true
+    description: ""
+    name: Modify Attack
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+importMatch: ""
+ctime: 1751061958408
+repeatTargets: false
+targetType: self
+numTargets: "1"
+name: Signature Ability
+mtime: 1770287092125
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,56 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d9703a62-564a-42ee-8317-8886a473a6f8
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: bb68dbd3-c946-4619-9bbb-5b1be2784881
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: Remove effect
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 641ff88c-6fb7-412c-953f-ab2394fb3d7e
+      mode: effect
+      conditions: []
+      applyto: caster
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  activationCondition: true
+  name: Bane on next ability roll
+  rollType: ability_power_roll
+  description: You have a bane on your next ability power roll.
+  guid: 90a2165b-e4d6-412a-bcd4-2e382129f209
+  behavior: power
+source: Ongoing Effect
+guid: d9703a62-564a-42ee-8317-8886a473a6f8
+id: 641ff88c-6fb7-412c-953f-ab2394fb3d7e
+ctime: 1755033511931
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Bane on next ability roll
+iconid: ui-icons/skills/1.png
+description: You have a bane on your next ability power roll.
+mtime: 1757920966890
+implementation: 3

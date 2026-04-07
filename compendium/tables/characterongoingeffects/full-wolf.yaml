@@ -1,0 +1,145 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+  source: Ongoing Effect
+  value: 6
+  domains:
+    CharacterOngoingEffect:9a559d30-82d6-441b-99d5-a17cf24c54a3: true
+  name: Full Wolf
+  guid: 244e5a86-f439-40a9-a50d-1d2ed38d6d62
+  description: ""
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  sourceguid: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+  source: Ongoing Effect
+  value: 3
+  domains:
+    CharacterOngoingEffect:9a559d30-82d6-441b-99d5-a17cf24c54a3: true
+  name: Full Wolf
+  guid: d13d5f41-c210-47dd-85ed-25f20768d308
+  description: ""
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+  source: Ongoing Effect
+  value: 2
+  domains:
+    CharacterOngoingEffect:9a559d30-82d6-441b-99d5-a17cf24c54a3: true
+  name: Full Wolf
+  guid: 8d108e41-6dee-4e79-aa6c-8836530d7e72
+  description: ""
+  behavior: attribute
+  attribute: forcedmoveresistance
+- __typeName: CharacterModifier
+  sourceguid: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Strike: true
+  domains:
+    CharacterOngoingEffect:9a559d30-82d6-441b-99d5-a17cf24c54a3: true
+  attributes: []
+  guid: 76476c2e-7f72-46ea-bb70-ef7169ecce9d
+  description: ""
+  name: Full Wolf
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: d9b33966-df02-4ada-a178-4195c512dd09
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      applyto: caster
+      ongoingEffect: bf68d026-4fd0-4280-9dba-5756f2e45b51
+      ongoingEffectCustom: false
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+  source: Ongoing Effect
+  description: ""
+  guid: 3c66da72-de2d-4087-96d8-c3eb6d4adac0
+  domains:
+    CharacterOngoingEffect:9a559d30-82d6-441b-99d5-a17cf24c54a3: true
+  keywords:
+    Strike: true
+  hasCustomTrigger: false
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 1938d275-1acf-4650-bc35-323d6ffc6665
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: bf68d026-4fd0-4280-9dba-5756f2e45b51
+      ongoingEffectCustom: false
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  activationCondition: true
+  name: Full Wolf
+  rollType: ability_power_roll
+  damageModifier: "2"
+  behavior: power
+  modtype: none
+- __typeName: CharacterModifier
+  sourceguid: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+  source: Ongoing Effect
+  value: 2
+  domains:
+    CharacterOngoingEffect:9a559d30-82d6-441b-99d5-a17cf24c54a3: true
+  name: Full Wolf
+  guid: f64800e7-0ac5-4760-93ad-54356161c7f4
+  description: ""
+  behavior: attribute
+  attribute: 0c15efd6-bf73-47bb-aa60-7da385613f9a
+source: Ongoing Effect
+guid: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+id: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+ctime: 1760273315225
+domains:
+  CharacterOngoingEffect:9a559d30-82d6-441b-99d5-a17cf24c54a3: true
+display:
+  brightness: 1.54285627092634
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.037109375
+    v: 0.602462351322174
+    a: 1
+name: Full Wolf
+custom: true
+description: ""
+mtime: 1763078752677
+iconid: abf66472-df3a-4990-bf35-a1d1e8c9522c

@@ -1,0 +1,65 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+    halign: center
+    image: dea16f7b-417a-4ef8-9f7d-a273f2f7c790
+id: 91e6da75-f673-4776-b9f4-badaf692eb27
+ctime: 1761309215557
+textStorage:
+  __typeName: TextStorage
+  sections:
+    p: |
+      Roleplaying notes, such as the voice/mannerisms you gave the character, if any.
+    M: |
+      *The 18-year-old daughter and apprentice of [Ashleigh], the village's blacksmith. She is kind, but has a short temper.*
+      {
+    k: |
+      *Use this area to make notes for yourself about the NPC. Suggested information would be:
+    Y: |
+      The Jagged Edge goblins captured her and are performing a wicked blood ritual to break the seals in the Delian Tomb.
+    g: |+
+      Director Notes: 
+
+    u: |-
+      How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+      }
+    U: |
+      Part 1:
+    c: |
+      The Hero who saves her can get a title: [title:Violet's Savior]
+      }
+
+      {
+    E: |+
+      # Violet
+
+    Q: |
+      Secret: 
+    I: |+
+      [[image]]
+
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 51517451-dc78-4875-a8c4-064f65b753df
+mtime: 1763396111276
+content: |-
+  # Violet
+
+  [[image]]
+
+  *The 18-year-old daughter and apprentice of [Ashleigh], the village's blacksmith. She is kind, but has a short temper.*
+  {
+  Secret: 
+  Part 1:
+  The Jagged Edge goblins captured her and are performing a wicked blood ritual to break the seals in the Delian Tomb.
+  The Hero who saves her can get a title: [Violet's Savior]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.
+  How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+description: Violet

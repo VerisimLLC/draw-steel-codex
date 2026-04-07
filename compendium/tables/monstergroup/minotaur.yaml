@@ -1,0 +1,127 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  objectTarget: false
+  targetFilter: target.keywords has "Minotaur"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 5f404222-50d8-4777-8754-5e2eccd2d43a
+    ongoingEffectCustom: 5f404222-50d8-4777-8754-5e2eccd2d43a
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 207
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 2251528c-0dd5-4ec4-8694-a9a297d9a47c
+  abilityType: none
+  description: For each 3 Malice spent, one minotaur acting this turn gains a +4 bonus to speed and ignores difficult terrain until the start of their next turn.
+  numTargets: 1 * Charges
+  implementation: 3
+  name: Bull Rush
+  targetType: target
+  channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetFilter: target.keywords has "Minotaur"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: a842e886-569c-4753-b8b3-a3281151f4da
+    duration: end_of_next_turn
+    ongoingEffectCustom: a842e886-569c-4753-b8b3-a3281151f4da
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 207
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: c444f678-c2e5-4b28-9bae-4ae60ffaca1d
+  abilityType: none
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+  numTargets: "1"
+  name: Cut the … Nonsense!
+  targetType: self
+  description: One minotaur acting this turn halves any damage they take, and can use the Knockback maneuver as a free triggered action whenever an enemy comes adjacent to them, all until the start of their next turn.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 2
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: false
+  targetFilter: target.keywords has "Minotaur"
+  repeatTargets: false
+  targetAllegiance: enemy
+  targetType: all
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: All minotaurs in the encounter fill the area around them with psychic impressions of feeling lost and isolated.
+  range: "5"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 33577946-3c22-48c5-b010-8e22afa1dd40
+  abilityType: none
+  implementation: 3
+  numTargets: "1"
+  name: Bullseye
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - The target has line of effect only within 3 squares and is frightened of all minotaurs (save ends).
+    - The target has line of effect only within 3 squares (EoT).
+    - No effect.
+    filterTarget: dist
+    roll: 2d10 + Might or Agility
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    standardAbilityParams:
+      range: "5"
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 788b34e6-5e32-4826-a24f-896b2632ece5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+    abilityType: standard
+  description: Each enemy within 5 squares of a minotaur is teleported up to 5 squares and makes an Intuition test.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1765451680350
+name: Minotaur
+traits: []
+attacks: []
+id: 6efceb1a-994d-411b-a006-923df38066a7
+ctime: 1758524902932

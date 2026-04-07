@@ -1,0 +1,18 @@
+__typeName: CharacterComplication
+drawback: The Director chooses one of the skills you have from this complication. You lose that skill and can’t ever learn it again. Additionally, you take a bane on any test to which that skill would apply.
+mtime: 1775137548702
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories: []
+    name: Ivory Tower - Skills
+    numChoices: 3
+    guid: b992412e-8a44-4ba1-9bd1-df65b7911e2b
+    description: Choose three skills of your choice
+    source: Feat
+name: Ivory Tower
+ctime: 1755515631421
+description: You studied in an academy or other educational institution. Your training was thorough and your reading list was wide-ranging. But when you left school, you discovered there were serious gaps in your education. Maybe some of those books were a little out of date.
+id: e113653c-3466-411b-b28b-52ff70bc3456
+benefit: "You have three skills of your choice, and you know one dead language of your choice (see Languages in Orden in Chapter 4: Background)."

@@ -1,0 +1,37 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 26d996e2-6b31-466e-9813-10f0eaaeab5e
+  guid: ef8a3a62-6713-452c-9c33-57bf0b590475
+  source: Monster
+  behavior: activated
+  description: ""
+  name: Testudo
+  activatedAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: c5e5063c-85df-4db9-ba6e-ad22be2a0c78
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    domains: []
+    behaviors: []
+    abilityType: none
+    name: Testudo
+    targetType: self
+    description: ""
+    range: 5
+    iconid: ui-icons/skills/1.png
+source: Monster
+guid: 26d996e2-6b31-466e-9813-10f0eaaeab5e
+importMatch: At the start of a combat encounter, <<monster>> picks a creature to be their commander. That creature cumulatively reduces the damage of Weapon attacks made against them by 1 (up to a maximum reduction of 4) while the tiro remains within 1 square of the commander and isn’t dazed or prone.
+ctime: 1709477018064
+name: Testudo
+id: bdfcea46-7c6f-4a34-9e11-b9f8d5b3117d
+description: ""
+mtime: 1709536491633
+importMatchType: rules

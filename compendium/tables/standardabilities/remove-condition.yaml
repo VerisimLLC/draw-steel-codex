@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+id: 62d8c42b-c4af-4941-aa73-658bdbe80c9d
+behaviors:
+- __typeName: ActivatedAbilitySaveBehavior
+  applyto: caster
+  conditionsMode: one
+  rollMode: purge
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 5
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 3e1a20e9-f5c8-4074-8389-f565d6bda3f3
+ctime: 1711323781931
+targetType: self
+numTargets: "1"
+mtime: 1772733608812
+name: Remove Condition
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

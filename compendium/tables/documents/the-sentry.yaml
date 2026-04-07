@@ -1,0 +1,29 @@
+__typeName: MarkdownDocument
+annotations: []
+id: a5b3998b-fd68-4a23-a2bb-14e23e30addd
+ctime: 1769096055225
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: ":<> [[/hidetoken Skewra|Hide Skewra]][[/showtoken Skewra|Show Skewra]] "
+    h: |+
+      She continues peppering the heroes with arrows until at least two of them make it to the shore, then she runs toward the gate to try to raise the alarm.
+
+    n: If the heroes make it to shore without waking [Skewra], they find her unconscious on the beach with her bow and an empty wine bottle next to her. If woken up surrounded by heroes, she immediately surrenders. She is loyal to [Thurston] and would like him to take control of the camp.
+    Q: |+
+      [Skewra], a Forsaken Wraith and [human archer], is drunkenly asleep on the shore when the heroes approach. The sound of combat with the clawfish or the heroes making a lot of noise wakes her up (as does taking damage or being touched). 
+
+    t: |2+
+
+
+    Y: |+
+      If she wakes and sees the heroes approaching on a raft, she lights a torch, lights an arrow, and shoots it toward the raft, hoping to ignite it. 
+
+    I: |+
+      # The Sentry
+
+parentFolder: 3869de06-287d-49b3-b58a-e783f2d757c0
+updateid: 3bf88fad-36b3-4896-8486-51a71d6c36b9
+mtime: 1769096504340
+content: "# Room 1"
+description: The Sentry

@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: f9d17c68-2bdd-4b94-a671-16e13d280499
+  sourceguid: 0e12f40e-2488-44cd-a96d-d4f0515fb443
+  value: 1
+  source: Ongoing Effect
+  name: Rappelling Barrage
+  behavior: attribute
+  description: Each dwarf can climb at full speed
+  attribute: climb
+source: Ongoing Effect
+guid: 0e12f40e-2488-44cd-a96d-d4f0515fb443
+id: 0e12f40e-2488-44cd-a96d-d4f0515fb443
+ctime: 1763156523389
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Rappelling Barrage
+description: Each dwarf can climb at full speed
+custom: true
+mtime: 1768249362247
+iconid: ui-icons/skills/1.png

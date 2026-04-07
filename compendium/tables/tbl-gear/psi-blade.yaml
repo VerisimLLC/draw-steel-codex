@@ -1,0 +1,22 @@
+__typeName: equipment
+itemPrerequisite: Steel alloy, one fine-cut topaz
+keywords:
+  Arms: true
+  Psionic: true
+projectSource: Texts or lore in Mindspeech
+flavor: This wide metal bracer is set with a glowing gemstone.
+weight: 1
+echelon: 4
+specialDescription: ""
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+ctime: 1775049552748
+type: Gear
+projectGoal: "600"
+mtime: 1775049552748
+name: Psi Blade
+category: Gear
+description: While wearing this metallic band, you can use a maneuver to project a glowing blade of rippling psychic energy that extends parallel to your arm. While the blade is active, you can use a maneuver once per turn to make a melee weapon free strike that deals an extra 3 psychic damage.
+projectRollCharacteristic:
+  agl: true
+  prs: true
+id: e2f08433-c527-4c68-aaef-dbfc0cfc19bd

@@ -1,0 +1,75 @@
+__typeName: CharacterOngoingEffect
+association: []
+hiddenOnToken: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00208103656769
+    v: 0.774358510971069
+    a: 1
+recoverySharing: true
+implementation: 3
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:d9102445-20e7-4a87-866c-de62fda4c8e7: true
+  sourceguid: d9102445-20e7-4a87-866c-de62fda4c8e7
+  description: You are bound to some allies with a Bloodbound Band. When they take damage you take 1 damage. You can use the highest Recovery Value of any of you and may spend each other's recoveries.
+  source: Ongoing Effect
+  name: Bloodbound
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Bloodbound
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00208079814911
+        v: 0.749969184398651
+        a: 1
+    - __typeName: ActivatedAbilityDamageBehavior
+      cannotBeReduced: true
+      roll: "1"
+      chatMessage: Bloodbound
+      doesNotTrigger: true
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 91208af4-6623-4306-9a6a-8bfc9db3e631
+    persistence: []
+    conditionFormula: BoundOngoingEffect(Subject, "Bloodbound")
+    subject: allies
+    targetType: self
+    trigger: losehitpoints
+    name: Bloodbound
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 32b5212d-7476-4a40-90d7-5ac232dc3b54
+source: Ongoing Effect
+casterTracking: bond
+guid: d9102445-20e7-4a87-866c-de62fda4c8e7
+description: You are bound to some allies with a Bloodbound Band. When they take damage you take 1 damage. You can use the highest Recovery Value of any of you and may spend each other's recoveries.
+ctime: 1759979699064
+domains:
+  CharacterOngoingEffect:d9102445-20e7-4a87-866c-de62fda4c8e7: true
+mtime: 1760740442187
+id: d9102445-20e7-4a87-866c-de62fda4c8e7
+sustainFormula: (self has "Bloodbound Band") and (not dead)
+name: Bloodbound
+custom: true
+hiddenFromEnemies: false
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

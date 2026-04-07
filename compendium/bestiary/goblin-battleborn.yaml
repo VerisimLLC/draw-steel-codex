@@ -1,0 +1,348 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: c7e76834-9ec6-442e-aa6c-96baeecff5f3
+    offtokenPortraitId: 2775c45b-26c8-478f-b99c-eb4c9d35e957
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.262882
+    portraitOffset:
+      x: 0.1955131
+      y: -0.01531382
+    frameHueShift: 0.26
+    frameSaturation: 0.6
+    frameBrightness: 0.2
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 4e7463ee-0130-410f-8a3c-5237306fb4eb
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 25
+    inflictedConditions: []
+    keywords:
+      Mystic Goblin: true
+      Goblin: true
+      Humanoid: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+        baseValue: 1
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+        baseValue: 0
+      rea:
+        id: rea
+        baseValue: 0
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+        baseValue: 1
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+        baseValue: 2
+    monster_category: Monster
+    levelChoices: []
+    deathSavingThrowFailures: 0
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        d31c48c3-4367-4853-90c6-847ce9fc2ce0:
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 15
+    minion: false
+    stability: 2
+    import:
+      override: true
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        behavior: attribute
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        name: Cunning
+        source: Trait
+        description: The battleborn doesn’t provoke opportunity attacks by moving. Whenever the battleborn is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the battleborn can use a triggered action to make an opportunity attack against the enemy.
+        value: 1
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 415e5fe2-a956-4f74-a0ac-619d0cba684c
+              repeatTargets: false
+              behaviors: []
+              targetType: self
+              range: 1
+              display:
+                brightness: 1
+                bgcolor: "#ffffffff"
+                hueshift: 0
+                saturation: 1
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+            abilityType: standard
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: bbaa0031-bfe4-4a85-a9a5-6de2f8bdf92f
+          persistence: []
+          name: Cunning
+          conditionFormula: 0 {Should this always be manual?}
+          abilityType: none
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          trigger: finishmove
+          targetType: self
+          description: Whenever the battleborn is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the battleborn can use a triggered action to make an opportunity attack against the enemy.
+          subject: self
+          iconid: ui-icons/skills/1.png
+        behavior: trigger
+        source: Trait
+        name: Cunning
+        guid: 24eaa045-059a-4a39-8482-d2c22e47175e
+        sourceguid: e89248a7-dfeb-4824-96c0-b3e10bb9baf9
+        description: The battleborn doesn’t provoke opportunity attacks by moving. Whenever the battleborn is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the battleborn can use a triggered action to make an opportunity attack against the enemy.
+      source: Trait
+      description: The battleborn doesn’t provoke opportunity attacks by moving. Whenever the battleborn is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the battleborn can use a triggered action to make an opportunity attack against the enemy.
+      guid: e89248a7-dfeb-4824-96c0-b3e10bb9baf9
+      name: Cunning
+      implementation: 2
+    role: Horde Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - title: Monster Notes
+      text: ""
+    ev: 4
+    opportunityAttack: 5
+    initiativeGrouping: f3124d3d-2bf4-435e-a61b-7484ff3f6e57
+    resistances: []
+    damage_taken: 0
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    walkingSpeed: 6
+    creatureSize: 1L
+    resources: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: c70d3d3f-60a4-4852-9fad-cc10649b1078
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 6 damage
+        - 8 damage; prone; if using this ability with the Charge main action, the battleborn continues charging up to their speed, and can end their charge by making a fr
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          abilityType: none
+          persistence: []
+          modifiers: []
+          numTargets: "1"
+          strain: []
+          guid: c83f2599-ead4-47ea-a44f-1203f2dab127
+          repeatTargets: false
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 962b2b54-6f75-4d7d-96ae-f5c5334b0b58
+              repeatTargets: false
+              behaviors: []
+              targetType: self
+              range: 1
+              display:
+                brightness: 1
+                bgcolor: "#ffffffff"
+                hueshift: 0
+                saturation: 1
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+            abilityType: standard
+          targetType: emptyspace
+          categorization: Hidden
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          targeting: pathfind
+          description: ""
+          range: Movement Speed - Moved This Turn
+          iconid: ui-icons/skills/1.png
+        promptText: Keep Charging Up to Your Speed and Make a Free Strike
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 96
+      name: Spear Charge
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: true
+      targetTextOverride: Each creature and object in the area
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Strike: true
+        Weapon: true
+      targetType: all
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 96
+      range: 1
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: c7a077fe-a953-4837-9b72-a537f78656d4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; M<0 bleeding (save ends)
+        - 4 damage; M<1 bleeding (save ends)
+        - 5 damage; M<2 bleeding (save ends)
+        roll: 2d10 + 2
+      persistence: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      iconid: ui-icons/skills/1.png
+      categorization: Malice
+      name: Battle Flurry
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      description: ""
+      abilityType: none
+      implementation: 3
+    traitNames: []
+    movementSpeeds:
+      climb: 6
+    deathSavingThrowSuccesses: 0
+    monster_type: Goblin Battleborn
+    availableTriggers: []
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+  tokenType: null
+  bestiaryId: 635b92cb-992b-4710-b2b2-c768dfd85942
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1726301040866
+description: null
+parentFolder: 116486c1-2208-4bb6-a244-b13ffe9d7ead
+artist: null
+ord: 1
+ctime: 1763582337101
+mtime: 1763628740643
+hidden: false

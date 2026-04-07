@@ -1,0 +1,39 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 35799c8b-a969-4053-932e-bccba5f951e8
+  source: Ongoing Effect
+  guid: 0afdb0ef-1829-4dfd-b2c0-41788eada462
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:35799c8b-a969-4053-932e-bccba5f951e8: true
+  filterCondition: Count Nearby Friends("Shield? Shield!") > 0
+  rollType: enemy_ability_power_roll
+  modtype: bane
+  description: Until the end of the round, Shield? Shield! also imposes a bane on strikes and abilities.
+  behavior: power
+  name: Shield Wall
+source: Ongoing Effect
+guid: 35799c8b-a969-4053-932e-bccba5f951e8
+id: 35799c8b-a969-4053-932e-bccba5f951e8
+ctime: 1751441531489
+domains:
+  CharacterOngoingEffect:35799c8b-a969-4053-932e-bccba5f951e8: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.839499890804291
+    s: 1.00267481803894
+    v: 1.00306534767151
+    a: 1
+custom: true
+name: Shield Wall
+iconid: 20c26bc2-3c3b-498c-af59-f29874538b13
+description: Until the end of the round, Shield? Shield! also imposes a bane on strikes and abilities.
+mtime: 1751441615453
+implementation: 3

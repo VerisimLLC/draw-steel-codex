@@ -1,0 +1,14 @@
+__typeName: CharacterComplication
+drawback: If any NPC from your homeland recognizes you, whether in your homeland or elsewhere, they attempt to harm you at the Director’s discretion.
+mtime: 1765804292778
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterLanguageChoice
+    guid: 0a0584d5-c030-4574-9474-5106797e041a
+    source: Feat
+name: Exile
+ctime: 1755514046621
+description: Whether you’re a convicted criminal, a noble stripped of their title, or a person who made one too many enemies, you’ve been cast forth from your homeland, never to return. At least not until you’re strong enough to set things right.
+id: 58e0e6fa-5235-4513-879c-3242610bf046
+benefit: "You know one extant language of your choice (see Languages in Orden in Chapter 4: Background)."

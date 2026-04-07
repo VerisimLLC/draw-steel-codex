@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "19"
+category: Custom
+name: Critical Threshold
+documentation: When a creature rolls this number or higher on their natural Power Roll, they will receive a critical hit.
+mtime: 1771950862378
+id: f383ffc8-817d-4965-ae92-2e839f27e063
+ctime: 1771950795068

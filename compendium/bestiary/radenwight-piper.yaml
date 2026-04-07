@@ -1,0 +1,411 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8889053f-7b10-4a7f-a850-74cd99a533e6
+    offtokenPortraitId: 02d3b743-4754-4cad-8239-83ae4d227d59
+    portraitFrameId: 9242a1db-25ff-403c-908c-010ef15dc821
+    portraitRibbon: null
+    backgroundId: 066a8500-4e20-4ae4-a8e7-d39c5aa84fa0
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.372201
+    portraitOffset:
+      x: 0.009014189
+      y: 0.1601563
+    frameHueShift: 0.5340971
+    frameSaturation: 0.3920133
+    frameBrightness: 0.3514096
+    popoutScale: 0.43
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 50757a10-cd84-40ae-84a6-ee386f7e7cf0
+  properties:
+    __typeName: monster
+    groupid: 763027dd-bc4d-485c-9bfc-6888f41a1b35
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Radenwight: true
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Radenwight Piper    Level 1 Platoon Support
+        Humanoid, Radenwight    EV 6
+        <b>Stamina</b> 30
+        <b>Speed</b> 5 (climb)    <b>Size</b> 1S / <b>Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +0    Agility +0    Reason +0    Intuition +2    Presence +1
+        <b>Piercing Trill</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Ranged, Strike
+        <b>Distance</b> Melee 1 or Ranged 10    <b>Target</b> One creature or object
+        %E2%9C%A6    %E2%89%A411    5 sonic damage; push 1
+        %E2%98%85    12%E2%80%9316    7 sonic damage; push 3
+        %E2%9C%B8    17+    9 sonic damage; push 4
+        <b>Effect</b> The piper or an ally within distance regains Stamina equal to half the damage dealt.
+
+        <b>Vivace Vivace!</b> (Maneuver)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst    <b>Target</b> Each ally in the burst
+        <b>Effect</b> Each target who has used their Ready Rodent ability since their last turn regains the use of their triggered action.
+        <b>2 Malice</b> The area increases to 6 burst.
+
+        <b>Ready Rodent </b>(Triggered Action)
+        <b>Keywords</b> Melee, Weapon
+        <b>Distance</b> Melee 1    <b>Target</b> One creature
+        <b>Trigger</b> An ally deals damage to the target.
+        <b>Effect</b> The piper makes a free strike against the target.
+
+        <b>Musical Suggestion</b>
+        At the end of the piper's turn, they can choose an adjacent creature and slide them 2, ignoring stability.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bacd6a2c-8a8d-486f-8d61-1cc1d6f8e229: true
+      modifiers: []
+      name: Musical Suggestion
+      description: At the end of the piper's turn, they can choose an adjacent creature and slide them 2, ignoring stability.
+      guid: bacd6a2c-8a8d-486f-8d61-1cc1d6f8e229
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+        CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+        CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+        CharacterFeature:162d38ba-1031-4e63-95d5-c8ade3229c5e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+          CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+          CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+          CharacterFeature:162d38ba-1031-4e63-95d5-c8ade3229c5e: true
+        sourceguid: 162d38ba-1031-4e63-95d5-c8ade3229c5e
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Ready Rodent
+        description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+        guid: f28bfc82-05f0-406c-8ea8-3c5ed85b9f73
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The bruxer makes a free strike against the target.
+          name: Ready Rodent
+          trigger: An ally deals damage to the target.
+          guid: ead20895-dcf7-436e-9a8d-507c50746e2b
+          distance: Melee 1
+          keywords:
+            Melee: true
+            Weapon: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+          CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+          CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+          CharacterFeature:162d38ba-1031-4e63-95d5-c8ade3229c5e: true
+        sourceguid: 162d38ba-1031-4e63-95d5-c8ade3229c5e
+        behavior: trigger
+        source: Character Feature
+        name: Ready Rodent
+        description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Make a free strike aganst the target.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          trigger: losehitpoints
+          persistence: []
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          whenActive: combat
+          conditionFormula: HasAttacker and Friends(self, Attacker) and Attacker != self
+          numTargets: "1"
+          domains:
+            CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+            CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+            CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+            CharacterFeature:162d38ba-1031-4e63-95d5-c8ade3229c5e: true
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          guid: f6599838-c0f4-49f9-a99a-3ab6a9b8dd9d
+          name: Ready Rodent
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 85aa44f3-89a8-48a8-aab7-2305d3869f9d
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            autoTarget: true
+            abilityType: standard
+            standardAbilityParams:
+              targetid: "<<subject.id>>"
+            standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 28130fe4-0eeb-4813-9a13-dbe775037fe0
+      source: Character Feature
+      description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+      guid: 162d38ba-1031-4e63-95d5-c8ade3229c5e
+      name: Ready Rodent
+      implementation: 3
+    role: Platoon Support
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: eec000aa-7d6e-4d53-94b7-29508ec83ac2
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 3
+    ev: 6
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 sonic damage; push 1
+        - 7 sonic damage; push 3
+        - 9 sonic damage; push 4
+        roll: 2d10 + Intuition
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 3ccb58e6-48b7-426a-a8d3-5089279a4a7e
+      meleeRange: 1
+      numTargets: 1
+      implementation: 3
+      targetType: target
+      name: Piercing Trill
+      persistence: []
+      description: The piper or an ally within distance regains Stamina equal to half the damage dealt.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 389d20f4-484b-4378-9bf8-9f4b9c1c863a
+      modeList:
+      - rules: Each target who has used their Ready Rodent ability this round regains the use of their triggered action.
+        text: No Malice
+      - rules: The area increases to a 6 burst.
+        text: 2 Malice
+      persistence: []
+      implementation: 3
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Vivace Vivace!
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: target.Keywords has "Radenwight"
+          repeatTargets: false
+          targetAllegiance: ally
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "3"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a8ba0d52-1a16-4557-9e0b-6297cb660ac5
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          name: Invoked Ability
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: custom
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "2"
+          objectTarget: false
+          targetFilter: target.Keywords has "Radenwight"
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "6"
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: a8ba0d52-1a16-4557-9e0b-6297cb660ac5
+          abilityType: none
+          persistence: []
+          name: Invoked Ability
+          targetType: all
+          description: ""
+          resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 1
+        - 2
+        guid: 8cdaf758-4aea-45ac-98d7-5b3a00347cca
+        abilityType: custom
+      description: Each target who has used their Ready Rodent ability since their last turn regains the use of their triggered action.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 55bae23b-22ef-436d-aeec-ea20db0faf43
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: 'Ready Rodent '
+      numTargets: 1
+      description: The piper makes a free strike against the target.
+      abilityType: none
+      implementation: 0
+    movementSpeeds:
+      climb: 5
+    walkingSpeed: 5
+    monster_type: Radenwight Piper
+    creatureSize: 1S
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 9afc3449-b8c9-4945-9baa-1cfc396c3b78
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Radenwight Piper
+parentFolder: 17706a52-3552-4044-86fe-e77c1e5f00dd
+artist: null
+ord: 0
+ctime: 1741590286696
+mtime: 1775201137032
+hidden: false

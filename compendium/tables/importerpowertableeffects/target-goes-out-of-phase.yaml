@@ -1,0 +1,33 @@
+__typeName: ActivatedAbility
+id: 13cdd3d2-4caa-46a4-bf55-3a048acde804
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: b04cd4f8-d8c0-41dd-9906-ef8a50612cfa
+  stacks: "2"
+  duration: save_ends
+  ongoingEffectCustom: b04cd4f8-d8c0-41dd-9906-ef8a50612cfa
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 37091e7a-81b4-499a-ac60-7f8fc5730c69
+testCases:
+- text: the target goes out of phase
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: A target who goes out of phase is slowed, has their stability reduced by 2, and can’t achieve results higher than tier 2 on ability power rolls.
+importMatch: "<<monster>> goes out of phase"
+ctime: 1749493260765
+repeatTargets: false
+numTargets: "1"
+mtime: 1772545062604
+name: Target goes out of phase
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

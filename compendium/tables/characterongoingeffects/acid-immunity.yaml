@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: cab68885-44a9-4dc7-bd64-c944b9c5cb0d
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "100"
+    damageType: acid
+    apply: Damage Reduction
+  description: You have immunity all to acid
+  name: Acid Immunity
+  guid: 092650dd-77e2-4207-827a-9090574f7228
+source: Ongoing Effect
+guid: cab68885-44a9-4dc7-bd64-c944b9c5cb0d
+id: cab68885-44a9-4dc7-bd64-c944b9c5cb0d
+ctime: 1772836463159
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Acid Immunity
+description: You have immunity all to acid
+custom: true
+mtime: 1772836463159
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

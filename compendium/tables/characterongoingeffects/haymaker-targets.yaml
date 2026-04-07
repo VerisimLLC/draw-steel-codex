@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 09804333-635a-4691-915f-2bb0884de63e
+id: 09804333-635a-4691-915f-2bb0884de63e
+ctime: 1765332930762
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Haymaker Targets
+statusEffect: false
+mtime: 1765332930762
+description: ""
+iconid: ui-icons/skills/1.png

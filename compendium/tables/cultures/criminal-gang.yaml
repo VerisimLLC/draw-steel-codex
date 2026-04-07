@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Criminal Gang
+id: 477bceb2-94c8-4035-9bcc-701b68263c67
+mtime: 1769349249562
+aspects:
+  upbringing: b791f023-6852-426e-aeef-7eac5d04aa7b
+  environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+  organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+ctime: 1768796323734

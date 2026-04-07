@@ -1,0 +1,27 @@
+__typeName: ActivatedAbility
+id: 0f7dbccb-506c-48cb-9307-7036c5a7dab2
+behaviors: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: This ability ignores cover and concealment.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 7aa802cd-54f5-48ed-a4d5-580d20f07ac5
+importMatch: This ability ignores cover and concealment.
+ctime: 1747458125547
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Ignore cover and concealment
+targetType: self
+mtime: 1760057480183
+abilityType: none
+iconid: ui-icons/skills/1.png

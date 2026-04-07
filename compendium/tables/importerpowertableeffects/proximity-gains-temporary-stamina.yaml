@@ -1,0 +1,27 @@
+__typeName: ActivatedAbility
+id: f074b455-5115-4a5d-a956-85be156be137
+behaviors: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: you and each ally adjacent to you gain 10 temporary Stamina
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 7d60b704-ee94-4852-abc4-485022f5d74a
+importMatch: you and each ally adjacent to you gain <<amount>> temporary Stamina
+ctime: 1751137506241
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Proximity Gains Temporary Stamina
+targetType: self
+mtime: 1765298034301
+abilityType: none
+iconid: ui-icons/skills/1.png

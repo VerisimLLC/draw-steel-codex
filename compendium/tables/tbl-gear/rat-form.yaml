@@ -1,0 +1,77 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 46043e54-8dd4-4329-969b-7b1428ebc4eb
+  description: As a maneuver, you transform into a rat. Your equipment transforms with you. As a rat, you have speed 5 and can automatically climb at full speed while moving, your size is 1T, and you can see in the dark. You can speak and keep your skills while in rat form, but your Might is -5 and you lose all your regular abilities, features, and benefits. You can revert to your natural form as a maneuver, and do so automatically if you take any damage.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 46043e54-8dd4-4329-969b-7b1428ebc4eb
+    guid: b4a7090b-c5b3-42f0-af63-17d23c205d2a
+    source: Item
+    behavior: activated
+    description: As a maneuver, you transform into a rat. Your equipment transforms with you. As a rat, you have speed 5 and can automatically climb at full speed while moving, your size is 1T, and you can see in the dark. You can speak and keep your skills while in rat form, but your Might is -5 and you lose all your regular abilities, features, and benefits. You can revert to your natural form as a maneuver, and do so automatically if you take any damage.
+    name: Rat Form
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      implementationDetails: ""
+      behaviors:
+      - __typeName: ActivatedAbilityTransformBehavior
+        ongoingEffectCustom: 3cb60610-25f0-4108-9398-e524320c062d
+        monsterType: f482c9d6-8157-4b73-bdda-eba0624ecc23
+        bestiaryFilter: ""
+        casterChoosesCreatures: false
+        ongoingEffect: 3cb60610-25f0-4108-9398-e524320c062d
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 299
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      persistence: []
+      modifiers: []
+      domains: []
+      strain: []
+      guid: 6b59578f-a8fa-4f36-bd44-cd935c870788
+      targetType: self
+      numTargets: "1"
+      castImmediately: true
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Rat Form
+      categorization: Ability
+      description: |-
+        As a maneuver, you transform into a rat. Your equipment transforms with you. As a rat, you have speed 5 and can automatically climb at full speed while moving, your size is 1T, and you can see in the dark. You can speak and keep your skills while in rat form, but your Might is -5 and you lose all your regular abilities, features, and benefits.
+        You can revert to your natural form as a maneuver, and do so automatically
+        if you take any damage.
+      abilityType: none
+      implementation: 4
+  source: Item
+  name: Rat Form
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: One hundred rat pelts
+imbuePrereq: none
+projectSource: Khamish
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: b8d45e36-9fa6-432c-8f55-a64f1cff38f5
+mtime: 1774568846977
+name: Rat Form
+imbueTargetType: implement
+description: As a maneuver, you transform into a rat. Your equipment transforms with you. As a rat, you have speed 5 and can automatically climb at full speed while moving, your size is 1T, and you can see in the dark. You can speak and keep your skills while in rat form, but your Might is -5 and you lose all your regular abilities, features, and benefits. You can revert to your natural form as a maneuver, and do so automatically if you take any damage.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: fc3d0bfd-c80a-42a2-9f31-f92a02efe648

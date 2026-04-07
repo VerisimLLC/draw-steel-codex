@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 96af4c26-d4ea-4098-83d1-b6b14c79b658
+id: 96af4c26-d4ea-4098-83d1-b6b14c79b658
+ctime: 1727832974404
+domains:
+  CharacterOngoingEffect:96af4c26-d4ea-4098-83d1-b6b14c79b658: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: |
+  If a judged creature uses an action and you have line of 
+  effect to them, you can use a free triggered action to deal 
+  holy damage equal to twice your Presence score to them.
+  When the judged creature is reduced to 0 Stamina, you can 
+  use a free triggered action to use this ability against a new 
+  target within distance.
+condition: 5d091cca-ecb7-4cd0-a2b5-6081de20332a
+iconid: 47dfb08a-7a22-4856-86a4-57502f236f4e
+mtime: 1745129529986
+name: Judged
+implementation: 3

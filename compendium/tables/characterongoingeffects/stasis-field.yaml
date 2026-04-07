@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 37c21e5e-65a8-4622-8968-0327ecf36083
+id: 37c21e5e-65a8-4622-8968-0327ecf36083
+ctime: 1769647095165
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Stasis Field
+description: ""
+custom: true
+mtime: 1769647095165
+iconid: ui-icons/skills/1.png

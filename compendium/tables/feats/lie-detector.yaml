@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Interpersonal Perk
+name: Lie Detector
+description: In response to another creature communicating information to you, you can spend a hero token to determine whether that information contained any knowing lies. If so, you know what the lies are, but not what the truth is.
+mtime: 1755078907420
+id: 4dbc36a4-0505-483b-b77e-cd85edb9bb67
+ctime: 1730700671735

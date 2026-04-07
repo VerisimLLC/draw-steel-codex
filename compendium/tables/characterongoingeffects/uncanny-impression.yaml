@@ -1,0 +1,63 @@
+__typeName: CharacterOngoingEffect
+association: []
+stackable: true
+id: 223a2c8a-ca4e-45f5-a93b-eb5e768f1d43
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.402000069618225
+    s: 0.86523449420929
+    v: 0.876967787742615
+    a: 1
+emoji: b04453ad-9d60-490e-a423-93dccc504d25
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 223a2c8a-ca4e-45f5-a93b-eb5e768f1d43
+  source: Ongoing Effect
+  value: Stacks
+  domains:
+    CharacterOngoingEffect:223a2c8a-ca4e-45f5-a93b-eb5e768f1d43: true
+  name: Uncanny Impression
+  guid: a27fb903-ee92-48d1-b58c-9f1f01365e10
+  description: Until the end of the encounter or until they use this ability again, the imit putty changes their size to match the target and replaces their signature ability with one of the target's signature abilities. If the ability has a power roll, the putty uses their highest characteristic for the roll.
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  sourceguid: 223a2c8a-ca4e-45f5-a93b-eb5e768f1d43
+  source: Ongoing Effect
+  guid: 4e3d4673-76a8-40db-921d-ef4e7cc4171a
+  domains:
+    CharacterOngoingEffect:223a2c8a-ca4e-45f5-a93b-eb5e768f1d43: true
+  abilityFilter: not Ability.name is Sputter	
+  name: Uncanny Impression
+  description: Until the end of the encounter or until they use this ability again, the imit putty changes their size to match the target and replaces their signature ability with one of the target's signature abilities. If the ability has a power roll, the putty uses their highest characteristic for the roll.
+  explanation: You've used Uncanny Impression to replace Sputter with another creature's Signature Ability.
+  behavior: suppressabilities
+- __typeName: CharacterModifier
+  sourceguid: 5bfdee00-2ff7-441c-b377-1dead683352b
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:5bfdee00-2ff7-441c-b377-1dead683352b: true
+  name: Uncanny Impression
+  guid: bae55c98-333d-474c-8a03-3f7b8efab3fa
+  description: Until the end of the encounter or until they use this ability again, the imit putty changes their size to match the target and replaces their signature ability with one of the target's signature abilities. If the ability has a power roll, the putty uses their highest characteristic for the roll.
+  behavior: attribute
+  attribute: disguised
+source: Ongoing Effect
+casterTracking: none
+guid: 223a2c8a-ca4e-45f5-a93b-eb5e768f1d43
+ctime: 1763544491976
+domains:
+  CharacterOngoingEffect:223a2c8a-ca4e-45f5-a93b-eb5e768f1d43: true
+implementation: 3
+description: Until the end of the encounter or until they use this ability again, the imit putty changes their size to match the target and replaces their signature ability with one of the target's signature abilities. If the ability has a power roll, the putty uses their highest characteristic for the roll.
+sustainFormula: ""
+custom: true
+mtime: 1764848285057
+name: Uncanny Impression
+iconid: f3ca1e31-fa85-4a4f-aa5d-36d4a551310f

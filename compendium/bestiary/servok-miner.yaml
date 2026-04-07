@@ -1,0 +1,304 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: cc54840c-a98b-464f-914a-55cda7113405
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 6
+    cr: 9
+    import:
+      type: mcdm
+      data: |+
+        Servok Miner	Level 9 Elite Controller
+        Construct, Servok, Valok	EV 44
+        <b>Stamina</b> 200
+        <b>Speed</b> 5 (burrow, climb)	<b>Size</b> 2 /<b> Stability</b> 6
+        <b>Free Strike</b> 9
+        Might +4	Agility -2	Reason -4	Intuition -1	Presence -5
+        <b>Drill Press</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	13 damage; M<2 restrained (save ends) and prone
+        %E2%98%85	<b>12%E2%80%9316</b>	18 damage; M<3 restrained (save ends) and prone
+        %E2%9C%B8	<b>17</b>	22 damage; prone; M<4 restrained (save ends)
+        <b>Effect</b> Restrained targets become entrenched in a 1 square deep hole in the ground.
+
+        <b>Unload Rocks</b> (Action)%E2%97%86 3 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 4 cube within 1<b>	Target</b> All enemies and objects
+        <b>Effect</b> Each target makes an <b>Agility test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	14 damage; slide 4; each ally is concealed from the target (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; slide 2
+        %E2%9C%A6	<b>17</b>	7 damage
+        <b>Effect</b> The affected area becomes difficult terrain.
+
+        <b>Break Ground</b> (Maneuver) %E2%97%86 5 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 20 x 1 line within 1<b>	Target</b> All enemies and objects
+        <b>Effect</b> A fissure along the ground is created that falls 5 squares deep. Each ally in the area can shift into the nearest unoccupied square outside of the fissure. Each target makes an <b>Agility test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	14 damage; target falls; prone can't stand (EoT)
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; target is prone hanging on the edge
+        %E2%9C%A6	<b>17+</b>	7 damage; target can shift into the nearest unoccupied square outside of the fissure
+
+        <b>Miner Inconvenience</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> 2 burst<b>	Target</b> Special
+        <b>Trigger</b> The miner is targeted by a strike.
+        <b>Effect</b> Dust and dirt billows around the affected area until the end of the round. As long as the miner remains in this space, the miner does not suffer any additional effects associated with strikes.
+
+        <b>Tunneler</b>
+        When the miner burrows, they create a stable, size 2 tunnel.
+
+        <b>Servok Siege Machine</b>
+        The miner ignores difficult terrain and deals an additional 15 damage with abilities used against objects.
+
+        <b>Crafted to Perfection</b>
+        The miner's shape can't change via any external effects.
+
+        <b>Valiar Might</b>
+        Each power roll made against the miner can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:844a2526-2c0c-482e-ac59-597f1d1f1194: true
+      modifiers: []
+      name: Tunneler
+      description: When the miner burrows, they create a stable, size 2 tunnel.
+      guid: 844a2526-2c0c-482e-ac59-597f1d1f1194
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8b491075-752f-449b-b4f5-3971f63346b8: true
+      modifiers: []
+      name: Servok Siege Machine
+      description: The miner ignores difficult terrain and deals an additional 15 damage with abilities used against objects.
+      guid: 8b491075-752f-449b-b4f5-3971f63346b8
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d5d010a9-18e4-47d4-a54c-82596ce08cd7: true
+      modifiers: []
+      name: Crafted to Perfection
+      description: The miner's shape can't change via any external effects.
+      guid: d5d010a9-18e4-47d4-a54c-82596ce08cd7
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:43e7ca55-2016-44dc-8777-266595f3eeef: true
+      modifiers: []
+      name: Valiar Might
+      description: Each power roll made against the miner can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+      guid: 43e7ca55-2016-44dc-8777-266595f3eeef
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:558dec52-654a-42e7-9e88-468d2630cf98: true
+      modifiers: []
+      name: Valiar Tunneler
+      description: The miner can burrow through stone and metal. When the miner burrows, they create a stable size 2 tunnel in their wake.
+      guid: 558dec52-654a-42e7-9e88-468d2630cf98
+      source: Trait
+    role: Elite Controller
+    inflictedConditions: []
+    keywords:
+      Servok: true
+      Valok: true
+      Construct: true
+      Soulless: true
+    max_hitpoints_roll: "200"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 9
+    monster_type: Servok Miner
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: -5
+        id: prs
+      rea:
+        baseValue: -4
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 200
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 13 damage; M<2 restrained (save ends) and prone
+        - 18 damage; M<3 restrained (save ends) and prone
+        - 22 damage; M<4 restrained (save ends); prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: eef7696f-3213-4119-9785-5a979335ba0f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Drill Press
+      numTargets: 2
+      description: Restrained targets become entrenched in a 1 square deep hole in the ground.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: de59116c-1bf9-4a5a-9f7e-a3b21df7385b
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Unload Rocks
+      implementation: 0
+      description: The affected area becomes difficult terrain.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 27491e26-e671-4b55-b729-50e5a742732b
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Break Ground
+      implementation: 0
+      description: A fissure along the ground is created that falls 5 squares deep. Each ally in the area can shift into the nearest unoccupied square outside of the fissure. Each target makes an Agility test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 2689d839-87c9-4172-bed6-1e1ebfe2a806
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Miner Inconvenience
+      implementation: 0
+      description: Dust and dirt billows around the affected area until the end of the round. As long as the miner remains in this space, the miner does not suffer any additional effects associated with strikes.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 4be02076-a110-4dc3-85d3-144d9391430e
+    movementSpeeds:
+      burrow: 5
+      climb: 5
+    ev: 44
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 5e75a32d-e3f3-4199-ad1d-0ffc400d4e7b
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Servok Miner
+parentFolder: 5d7591f8-2289-4a26-8fd5-14dcd72e6285
+artist: null
+ord: 0
+ctime: 1741590256917
+mtime: 1775201137032
+hidden: false

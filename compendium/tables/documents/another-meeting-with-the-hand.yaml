@@ -1,0 +1,48 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 932eb394-ae94-4503-a386-595a64d4c100
+ctime: 1761428174946
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |
+      |Lying to the Gilded Hand: Presence Test
+    M: |
+      If the heroes lie and say the second level of the tomb remains sealed, they must make a moderate Presence test.
+    n: |
+      *“I left the village. The others got the cup already.
+    f: "If the heroes tell someone else that they unsealed the second level, word eventually gets to the [Gilded Hand] and they unseal the tomb’s third level and obtain the cup after the heroes reveal their truth and then finish two respites.\n \n"
+    T: |
+      |{#The Gilded Hand doesn’t buy the lie. The next day they open the third level of the tomb and obtain the cup (see Tomb Third Level). }
+    b: |+
+      |{#The members of the Gilded Hand believe the lie and take no action in unsealing the third level of the tomb for now.}
+
+    J: |+
+      [Boddorff] greets them with a smile and buys them a round of drinks and asks about their experiences and luck so far in the tomb. If the heroes say they’ve unsealed the second level of the tomb, the [Gilded Hand] congratulates them and raises a glass in their honor.
+
+    G: |+
+      If the heroes return from the Delian Tomb after unsealing the entrance to the second level but leaving the third level sealed, the [Gilded Hand] is waiting for the heroes when they enter the inn’s common room.
+
+    X: |
+      |{#The Gilded Hand buy the lie, but they assume the heroes are close to unsealing the tomb. When the heroes finish their next respite, the mercenaries open the third level of the tomb and obtain the cup.}
+    E: |
+      Use the [Gilded Hand Encounters Map].
+    F: |+
+      :<>[[/spawn Mara 1 4; spawn Targon 0 5; showtoken Mara; showtoken Targon; spawn "Boddorff Buckfeather" 0 3; spawn Gorek 3 2; spawn Illwyth 3 4|Spawn Gilded Hand]]
+
+
+    j: |
+      If the heroes finish a respite after the [Gilded Hand] unseals the third level of the tomb and retrieve the [item:Cup of Iulius] and the heroes don’t know that this has occurred yet, [Gweldyr] gives the heroes a note from [Illwyth] that reads: 
+    D: |+
+      # Another Meeting With the Hand
+
+    v: |
+      Note any applicable events on the [Respite Tracker].
+    r: |+
+      They’re in the tomb. —I.”*
+
+parentFolder: eaf490ac-5c37-4c4b-9843-f2c26f95ec52
+updateid: ad59907a-efa1-4164-8a0a-d13b9200c691
+mtime: 1775163746595
+content: "# Another Meeting With the Hand\n\nIf the heroes return from the Delian Tomb after unsealing the entrance to the second level but leaving the third level sealed, the [Gilded Hand] is waiting for the heroes when they enter the inn’s common room.\n\n[Boddorff] greets them with a smile and buys them a round of drinks and asks about their experiences and luck so far in the tomb. If the heroes say they’ve unsealed the second level of the tomb, the [Gilded Hand] congratulates them and raises a glass in their honor.\n\nIf the heroes lie and say the second level of the tomb remains sealed, they must make a moderate Presence test.\n|Lying to the Gilded Hand: Presence Test\n|{#The Gilded Hand doesn’t buy the lie. The next day they open the third level of the tomb and obtain the cup (see Tomb Third Level). }\n|{#The Gilded Hand buy the lie, but they assume the heroes are close to unsealing the tomb. When the heroes finish their next respite, the mercenaries open the third level of the tomb and obtain the cup.}\n|{#The members of the Gilded Hand believe the lie and take no action in unsealing the third level of the tomb for now.}\n\nIf the heroes tell someone else that they unsealed the second level, word eventually gets to the [Gilded Hand] and they unseal the tomb’s third level and obtain the cup after the heroes reveal their truth and then finish two respites.\n \nIf the heroes finish a respite after the [Gilded Hand] unseals the third level of the tomb and retrieve the [Cup of Iulius] and the heroes don’t know that this has occurred yet, [Gweldyr] gives the heroes a note from [Illwyth] that reads: \n*“I left the village. The others got the cup already.\nThey’re in the tomb. —I.”*\n\nNote any applicable events on the [Respite Tracker].\n"
+description: Another Meeting With the Hand

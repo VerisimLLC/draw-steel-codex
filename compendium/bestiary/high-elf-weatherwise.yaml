@@ -1,0 +1,268 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcac1449-c28a-4ad7-8b4d-becf7fe3800e
+    offtokenPortraitId: 48a93c2a-0ae4-4bd8-8c83-fc3d37fd43f3
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 2b02a5ab-38ce-4406-b4a5-3889b80ab574
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3128583
+    portraitOffset:
+      x: 0.02414906
+      y: 0.1534837
+    frameHueShift: 0.3654351
+    frameSaturation: 0.2951887
+    frameBrightness: 0.4638509
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 81ff6837-6e5b-433f-8a8c-3699607a4ce2
+  properties:
+    __typeName: follower
+    followerType: retainer
+    cr: 1
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4eb7be9d-bdd0-4d50-a844-074deb141f1a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:4eb7be9d-bdd0-4d50-a844-074deb141f1a: true
+        sourceguid: 4eb7be9d-bdd0-4d50-a844-074deb141f1a
+        description: At the start of each of their turns, the weatherwise can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        source: Character Feature
+        name: Otherworldly Grace
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          reasonedFilters: []
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          whenActive: combat
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            mode: conditions
+            targetDuration: save
+            purgeType: one
+          guid: c5de6143-c2e3-433c-86dd-f4e26ffaa788
+          trigger: beginturn
+          name: Otherworldly Grace
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: adf52e7b-4c93-420f-85ca-3ad7249d4c73
+      source: Character Feature
+      description: At the start of each of their turns, the weatherwise can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+      guid: 4eb7be9d-bdd0-4d50-a844-074deb141f1a
+      name: Otherworldly Grace
+      implementation: 3
+    role: Follower Controller
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      High Elf: true
+    titles: []
+    innateAttacks: []
+    skillProficiencies: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: mgt
+    availableRolls: 0
+    max_hitpoints: 10
+    monster_type: High Elf Weatherwise
+    walkingSpeed: 5
+    initiativeGrouping: 46cb8afd-e61c-4e96-9e69-3e91cec20ca1
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    damage_taken: 0
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+    retainer: true
+    monster_category: Monster
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: Self = Caster.Mentor
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          guid: a7cf6738-b0a8-4895-b262-a92131402b0c
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: a7cf6738-b0a8-4895-b262-a92131402b0c
+            behavior: resistance
+            source: Ongoing Effect
+            resistances:
+            - __typeName: ResistanceEntry
+              dr: "50"
+              damageType: all
+              apply: Damage Reduction
+            description: ""
+            name: Immune to Damage
+            guid: cabeaf5e-458f-4c5f-9e04-dcbf06f03858
+          source: Ongoing Effect
+          name: Immune to Damage
+          description: ""
+          id: a7cf6738-b0a8-4895-b262-a92131402b0c
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + Highest Characteristic
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        hasTemporaryHitpoints: true
+        filterTarget: Self = Caster.Mentor
+        duration: eoe
+        ongoingEffectCustom: 8d47002f-f6d3-47f2-b6ee-cb2977d17fa0
+        ongoingEffect: 8d47002f-f6d3-47f2-b6ee-cb2977d17fa0
+        stacks: "1"
+        temporaryHitpoints: Cast.Damage Raw * 0.5
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: edf01c05-9cca-410d-abe7-b41b1fb4dec4
+      targetType: target
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Summer’s Bolt
+      numTargets: "1"
+      description: If the weatherwise targets their mentor, the mentor ignores the damage and instead gains temporary Stamina equal to the damage dealt.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        4559354b-a6c7-4985-b3b8-c7967c28c075:
+          timestamp: 1763833889000
+          note: Summer’s Bolt
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        6b3d158e-ae9d-44d7-9e9a-68cbce28edb2:
+          timestamp: 1763833848686
+          note: Summer’s Bolt
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+    levelChoices: []
+    minion: false
+    opportunityAttack: 2
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 7f1e8901-d39b-4e7c-99f7-1984768926a8-361
+  tokenType: null
+  bestiaryId: a76a7d7a-d8ae-4fee-a51d-75522c733a8f
+  summonerid: null
+  ownerId: ""
+  partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+  size: 2
+  createdTimestamp: 1763765886611
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 4
+ctime: 1763766332459
+mtime: 1775167450646
+hidden: false

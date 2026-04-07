@@ -1,0 +1,74 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 9ed8605d-a866-4fbd-979c-58e18a03c354
+  sourceguid: a533b080-eb30-4f7a-934c-5a58a18ca143
+  value: 5
+  source: Ongoing Effect
+  name: Speed +3
+  behavior: attribute
+  description: Your speed is increased by 3.
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: a533b080-eb30-4f7a-934c-5a58a18ca143
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Kiss of Death
+  guid: 816464d2-86b7-4b80-80c4-56a68b2bb150
+  description: This creature automatically obtains a tier 3 outcome on power rolls. They can still roll to determine if they score a critical hit.
+  modtype: tier3
+  rollType: all
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    whenActive: combat
+    repeatTargets: false
+    trigger: endturn
+    numTargets: "1"
+    targetType: self
+    guid: 5273a083-0247-4e51-8e2a-4ddb21ba7f2b
+    name: Kiss of Death
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "99"
+      chatMessage: Kiss of Death; die immediately at end of turn
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: This creature has a +5 bonus to speed and automatically obtains a tier 3 outcome on power rolls. They can still roll to determine if they score a critical hit. At the end of their next turn, the target immediately dies.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 47ee7d8b-c8dc-47d0-a8ac-ce80a95591e9
+  name: Kiss of Death
+  sourceguid: a533b080-eb30-4f7a-934c-5a58a18ca143
+source: Ongoing Effect
+guid: a533b080-eb30-4f7a-934c-5a58a18ca143
+id: 9fa4e5cb-fbe8-4f55-8e34-6d0b7af51447
+ctime: 1770047789057
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.360580682754517
+    s: 0.954616189002991
+    v: 0.988200485706329
+    a: 1
+name: Kiss of Death
+description: This creature has a +5 bonus to speed and automatically obtains a tier 3 outcome on power rolls. They can still roll to determine if they score a critical hit. At the end of their next turn, the target immediately dies.
+mtime: 1770048352211
+iconid: 462bede3-f1fc-42e4-8cc0-a72602b4ca95
+implementation: 3

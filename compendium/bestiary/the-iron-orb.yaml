@@ -1,0 +1,297 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 599a1ea1-3fde-4e43-8d69-5b46f2b67e80
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: The Iron Orb
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 639492ef-c6b1-49f6-851b-4dd747052ab6
+  properties:
+    __typeName: monster
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: d6b174c0-9ae8-4924-9b4c-7bce9fea07cf
+        source: Custom
+        value: 6
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: The Iron Orb
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: A black-iron ball that serves as a gateway to the Abyssal Wasteland.
+        behavior: attribute
+        attribute: creatureSize
+      source: Custom
+      guid: d6b174c0-9ae8-4924-9b4c-7bce9fea07cf
+      id: 6450780b-d70f-4bf2-ae23-9620e047e693
+      ctime: 1756099470349
+      domains:
+        CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+      name: The Iron Orb
+      description: A black-iron ball that serves as a gateway to the Abyssal Wasteland.
+      mtime: 1756099470349
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:012cf42a-c29a-4895-a4f1-ed175e512b30: true
+        CharacterFeature:1202f0a9-a0c2-4821-8344-0a5dc42a4ba9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:012cf42a-c29a-4895-a4f1-ed175e512b30: true
+          CharacterFeature:1202f0a9-a0c2-4821-8344-0a5dc42a4ba9: true
+        sourceguid: 012cf42a-c29a-4895-a4f1-ed175e512b30
+        description: |
+          <=11 Each demon within 5 squares of the orb gains an edge on power rolls until the start of the next combat round.
+          12-16 Each demon within 10 squares of the orb gains an edge on power rolls until the start of the next combat round.
+          17+ Each demon within 10 squares of the orb gains an edge on power rolls until the start of the next combat round; the orb summons four frenzied into unoccupied spaces within 5 squares of it. 
+        source: Character Feature
+        name: Abyssal Aura
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            applyto: caster
+            roll: 2d10
+            tiers:
+            - Each demon within 5 squares of the orb gains an edge on power rolls until the start of the next combat round.
+            - Each demon within 10 squares of the orb gains an edge on power rolls until the start of the next combat round.
+            - Each demon within 10 squares of the orb gains an edge on power rolls until the start of the next combat round; the orb summons four frenzied within 5
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            tiersSelected:
+            - 1
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Target.Keywords has "Demon"
+              repeatTargets: false
+              targetAllegiance: ally
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: b0fa1d80-d549-4ec0-a1c5-f93538095084
+                durationUntilEndOfTurn: false
+                duration: endround
+                ongoingEffectCustom: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: "5"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 1b7f354f-37db-492d-b40f-6870aa55ad02
+              targetType: all
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            applyto: caster
+            invokeOnCaster: true
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            tiersSelected:
+            - 2
+            - 3
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Target.Keywords has "Demon"
+              repeatTargets: false
+              targetAllegiance: ally
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: b0fa1d80-d549-4ec0-a1c5-f93538095084
+                durationUntilEndOfTurn: false
+                duration: endround
+                ongoingEffectCustom: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: "10"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 1b7f354f-37db-492d-b40f-6870aa55ad02
+              targetType: all
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            guid: 651d1331-d2f6-45df-8e64-40c190802dda
+            applyto: caster
+            invokeOnCaster: true
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            tiersSelected:
+            - 3
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 60a83c01-47ac-4fef-8b00-96a6fa8580a6
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityType: none
+              behaviors:
+              - __typeName: ActivatedAbilitySummonBehavior
+                monsterType: 77f0f1e0-e31e-4b2f-b9f8-c0c704c60c57
+                allCreaturesTheSame: true
+                groupInitiativeWithCaster: false
+              targetType: anyspace
+              name: Invoked Ability
+              numTargets: "4"
+              description: ""
+              range: "5"
+              iconid: ui-icons/skills/1.png
+            applyto: caster
+          triggerPrompt: At the start of a round the Abyssal Aura ability happens
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: ""
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: d207f846-b94c-4011-aacf-125e0712f235
+          domains:
+            CharacterFeature:012cf42a-c29a-4895-a4f1-ed175e512b30: true
+            CharacterFeature:1202f0a9-a0c2-4821-8344-0a5dc42a4ba9: true
+          targetType: self
+          name: Abyssal Aura
+          trigger: beginround
+          numTargets: "1"
+          description: A black-iron ball that serves as a gateway to the Abyssal Wasteland.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 8a717098-4f26-4581-8a11-6186e21424f6
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:012cf42a-c29a-4895-a4f1-ed175e512b30: true
+          CharacterFeature:1202f0a9-a0c2-4821-8344-0a5dc42a4ba9: true
+        sourceguid: 012cf42a-c29a-4895-a4f1-ed175e512b30
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Abyssal Aura
+        description: |
+          <=11 Each demon within 5 squares of the orb gains an edge on power rolls until the start of the next combat round.
+          12-16 Each demon within 10 squares of the orb gains an edge on power rolls until the start of the next combat round.
+          17+ Each demon within 10 squares of the orb gains an edge on power rolls until the start of the next combat round; the orb summons four frenzied into unoccupied spaces within 5 squares of it. 
+        guid: 7e0b1dd7-bd7b-4523-83bb-0f7b0df9ba9a
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: passive
+          effect: The Abyssal Aura ability
+          target: Each Demon
+          trigger: A combat round starts
+          name: Abyssal Aura
+          guid: aa486f55-ef92-4641-9970-e7029cca072d
+          distance: 5-10 squares
+          keywords: []
+      name: Abyssal Aura
+      guid: 1202f0a9-a0c2-4821-8344-0a5dc42a4ba9
+      description: |
+        <=11 Each demon within 5 squares of the orb gains an edge on power rolls until the start of the next combat round.
+        12-16 Each demon within 10 squares of the orb gains an edge on power rolls until the start of the next combat round.
+        17+ Each demon within 10 squares of the orb gains an edge on power rolls until the start of the next combat round; the orb summons four frenzied into unoccupied spaces within 5 squares of it. 
+      source: Character Feature
+    role: Leader
+    inflictedConditions: []
+    keywords:
+      Demon: true
+      Abyssal: true
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: A black-iron ball that serves as a gateway to the Abyssal Wasteland.
+      title: Monster Notes
+    monster_category: Monster
+    levelChoices: []
+    max_hitpoints: 50
+    resources: []
+    walkingSpeed: 5
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    damage_taken: 0
+    ev: 20
+    monster_type: The Iron Orb
+    minion: false
+    savingThrowRatings: []
+    notesRevision: 74ab56fe-f8c8-4ace-9434-021db8bd98e2
+  tokenType: null
+  bestiaryId: 5b9fecb3-b986-4c89-b8af-5cd8a9a5a43c
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1760563314596
+description: null
+parentFolder: 082f6b74-a48e-4d83-bcdb-725c4c2f097e
+artist: null
+ord: 7
+ctime: 1760563314596
+mtime: 1775167531720
+hidden: false

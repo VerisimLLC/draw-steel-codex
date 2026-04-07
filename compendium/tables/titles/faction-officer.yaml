@@ -1,0 +1,38 @@
+__typeName: Title
+effect: "You are given a position of great authority in your faction. Additionally, you gain the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers: []
+    name: Requisition
+    description: When you gain this title, you gain a 1st- or 2nd-echelon magic trinket of your choice from your faction (see Treasures earlier in this chapter). Whenever you gain a level, you can swap the trinket out for another one.
+    guid: b9fb5692-d2c6-42fe-ac22-6295bc961ba0
+    canHavePrerequisites: true
+    source: Feat
+  - __typeName: CharacterFeature
+    description: Lower-ranking members of your faction follow your routine orders. In nonroutine matters, you gain an edge on tests made to influence those characters’ behavior.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 4483283e-df5f-4faa-9f38-999e07702107
+      source: Feat
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: You’re the Boss
+      guid: 9286731c-7c20-4af4-9acf-c94800d85b93
+      description: Lower-ranking members of your faction follow your routine orders. In nonroutine matters, you gain an edge on tests made to influence those characters’ behavior.
+      modtype: edge
+      rollType: test_power_roll
+    source: Feat
+    canHavePrerequisites: true
+    guid: 3fd0e611-c068-4541-a556-6fc0efb85aa2
+    name: You’re the Boss
+    implementation: 3
+id: 2a263492-048a-4a7f-92ca-7e8a96aad0f3
+ctime: 1762351467847
+name: Faction Officer
+description: If you want or need something, talk to me. I have a certain … influence in these parts.
+mtime: 1775089529253
+echelon: "2"
+prerequisite: You have the Faction Member title, and you greatly advance the faction’s goals.

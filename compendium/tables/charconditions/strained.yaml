@@ -1,0 +1,22 @@
+__typeName: CharacterCondition
+guid: 13c6155f-af89-46f5-8d27-98408e52342d
+id: 609c216d-482d-41ea-9014-1e16a7f2f306
+ctime: 1741332890533
+domains:
+  CharacterCondition:609c216d-482d-41ea-9014-1e16a7f2f306: true
+powertable: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.506545543670654
+    s: 1.00208115577698
+    v: 1.00238537788391
+    a: 1
+name: Strained
+iconid: 903ef403-92f5-4480-a958-b53c0f30c17f
+description: A Talent becomes strained when they have negative Clarity.
+mtime: 1768208538017
+implementation: 3

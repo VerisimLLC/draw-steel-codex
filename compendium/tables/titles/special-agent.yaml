@@ -1,0 +1,45 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Special Agent Benefit
+    numChoices: 1
+    guid: afa09a07-4851-49d8-9bd0-6d8e25d4c3ee
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Boffin
+      description: |-
+        You gain a small magic spy device called a boffin. Once per encounter, you can activate a boffin property as a maneuver (see below).Taking the Boffin benefit lets you use the following boffin properties as a maneuver:
+        - Make a test that uses the Disguise skill. You gain an edge on the test.
+        - One mundane lock you touch is unlocked.
+        - Choose a square within 10 squares, even if you don’t have line of effect to it. You can observe the area around that square as if you were in it.
+        - You throw the boffin up to 10 squares, where it explodes in a 5 cube. Each creature in the area takes fire damage equal to 2d10 + your level. The boffin is permanently destroyed but can be replaced by your spymaster … though they don’t like doing so too often.
+      guid: 22b436a8-312e-4c37-8672-f8218d205f91
+      canHavePrerequisites: true
+      source: Title
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Caustic Alchemy
+      description: "You have your choice of the 1st-level shadow college features Coat the Blade or Smoke Bomb (see Chapter 5: Classes). When you use that feature, you can’t spend insight unless you have the Insight class feature"
+      guid: 8c3eef1a-3009-48c9-a5bf-eed8a70861e3
+      canHavePrerequisites: true
+      source: Title
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Spy Ring
+      description: You gain a piece of magic jewelry, such as a ring. As a main action while wearing the jewelry, you can take on the illusory appearance of an individual within 10 squares who you have line of effect to. This disguise lets you automatically succeed on tests made using the Disguise skill based solely on visual identification.
+      guid: 662906de-fba1-4b0f-9bb0-b89d0f3755f0
+      canHavePrerequisites: true
+      source: Feat
+id: 0d1dd5d2-8216-4fee-9e5e-d460c1137e35
+ctime: 1762351697632
+name: Special Agent
+description: And this is interesting… if you twist the third button on your overcoat—no, don’t do it now!
+mtime: 1775111208344
+echelon: "2"
+prerequisite: A spymaster gives you an important secret mission

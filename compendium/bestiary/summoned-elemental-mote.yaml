@@ -1,0 +1,332 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Summoned Elemental Mote
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: aea0091e-5a69-460d-a722-7d07e5a0a752
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 1
+    inflictedConditions: []
+    ev: 1
+    max_hitpoints_roll: 1
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Summoner Signature
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |
+        ELEMENTAL MOTE Level 1 MINION HEXER
+        Elemental EV 1 for four minions
+        1T 5 1 0 1
+        Size Speed Stamina Stability Free Strike
+        Immunity: - Weakness: -
+        Movement: Fly With Captain:
+        M ight 0 A gility 0 R eason 0 I ntuition 0 P resence +2
+        t Dwoemer Burst
+        When the mote is reduced to 0 Stamina, each enemy adjacent to the
+        mote has a bane on their next strike.
+        t Catalyst
+        Once per turn, the mote can transform into an adjacent allied
+        signature minion, maintaining their current Stamina. Instead, you
+        can spend 1 essence to transform the mote into any signature
+        minion in the elemental portfolio you don't have. The minion must
+        be reassigned to a new squad if their new name differs from the
+        other squad members.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bc6d47d1-ad0e-460c-9728-7af06cb6a818: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: bc6d47d1-ad0e-460c-9728-7af06cb6a818
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:bc6d47d1-ad0e-460c-9728-7af06cb6a818: true
+        name: Dwoemer Burst
+        resourceRefreshType: encounter
+        description: When the mote is reduced to 0 Stamina, each enemy adjacent to the mote has a bane on their next strike.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          targetFilter: ""
+          repeatTargets: false
+          reasonedFilters: []
+          targetAllegiance: enemy
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 069fda2c-95d1-4241-9b1c-68ad5404d4e0
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 06f8709c-1c2d-4d2b-b9ac-eaee65f99f0a
+          castImmediately: true
+          behaviors:
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            applyto: caster
+            text: Dwoemer Burst
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: targets
+            filterTarget: ""
+            ongoingEffectCustom: false
+            ongoingEffect: d9703a62-564a-42ee-8317-8886a473a6f8
+            guid: 7c4470c0-d73c-43d6-8f91-2c25d65a2eb8
+          trigger: creaturedeath
+          name: Dwoemer Burst
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 069fda2c-95d1-4241-9b1c-68ad5404d4e0
+      name: Dwoemer Burst
+      guid: bc6d47d1-ad0e-460c-9728-7af06cb6a818
+      description: When the mote is reduced to 0 Stamina, each enemy adjacent to the mote has a bane on their next strike.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0123fb90-e875-4300-b3f2-593896b7aea4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a2d4d201-2792-4e47-a60b-ed0b1e8c5af4
+        source: Trait
+        behavior: activated
+        domains:
+          class:4fb87ea4-79db-4550-89d2-e69024f5121c: true
+          class:66e417f4-b6aa-41d6-90b5-7b6a68ee2404: true
+        name: Call Forth Signature
+        resourceRefreshType: turn
+        description: ""
+        guid: d5d6c00a-2495-4ca3-a949-879cc84fa020
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilitySummonBehavior
+            modesSelected:
+            - 1
+            monsterType: a8324f5f-8854-4931-84c9-1fb158a7c404
+            guid: d0ee9fbf-ea9a-4b0b-a010-8c9d63b9acb0
+            allCreaturesTheSame: false
+            bestiaryFilter: beast.name = "Brisk Gale"
+          - __typeName: ActivatedAbilitySummonBehavior
+            modesSelected:
+            - 3
+            monsterType: 0f4b156f-3268-4e8a-9eff-72f7034425f7
+            guid: 9f86f348-4361-467f-8844-a4f5f25e2ef4
+            allCreaturesTheSame: false
+            bestiaryFilter: beast.name = "Walking Boulder"
+          - __typeName: ActivatedAbilitySummonBehavior
+            monsterType: 98b0b022-7812-429f-b191-4675318ea3de
+            bestiaryFilter: beast.name = "Fire Plume"
+            modesSelected:
+            - 2
+          - __typeName: ActivatedAbilityDestroyBehavior
+            applyto: caster
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.772476553916931
+              s: 0.211116075515747
+              v: 0.966529965400696
+              a: 1
+          persistence: []
+          categorization: Heroic Ability
+          range: "7"
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: d5d6c00a-2495-4ca3-a949-879cc84fa020
+            multicharge: false
+          abilityType: none
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          modifiers: []
+          modeList:
+          - text: Brisk Gale
+          - text: Fire Plume
+          - text: Walking Boulder
+          strain: []
+          guid: 38d86055-de2e-4d81-aca0-080c9c84d2ef
+          numTargets: "1"
+          maxChannel: "8"
+          domains:
+            class:4fb87ea4-79db-4550-89d2-e69024f5121c: true
+            class:66e417f4-b6aa-41d6-90b5-7b6a68ee2404: true
+          description: |-
+            Once per turn, the mote can transform into an adjacent allied signature minion, maintaining their current Stamina. 
+            Instead, you can spend 1 essence to transform the mote into any signature minion in the elemental portfolio you don’t have. The minion must be reassigned to a new squad if their new name differs from the
+            other squad members.
+          channelDescription: You summon one signature minion for each essence you spend on this ability.
+          name: Catalyst
+          targetType: emptyspace
+          channeledResource: none
+          resourceCost: none
+          iconid: fbfb413b-5378-48cc-9a8d-44af9bddd71c
+      name: Catalyst
+      guid: 0123fb90-e875-4300-b3f2-593896b7aea4
+      description: Once per turn, the mote can transform into an adjacent allied signature minion, maintaining their current Stamina. Instead, you can spend 1 essence to transform the mote into any signature minion in the elemental portfolio you don't have. The minion must be reassigned to a new squad if their new name differs from the other squad members.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:88b51030-68a3-49ec-a7c0-9c10e7f163ad: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 88b51030-68a3-49ec-a7c0-9c10e7f163ad
+        source: Character Feature
+        value: Movement Speed
+        domains:
+          CharacterFeature:88b51030-68a3-49ec-a7c0-9c10e7f163ad: true
+        name: Fly Speed
+        guid: 68aef1b6-382a-4abf-96c5-7c625a79d831
+        description: ""
+        behavior: attribute
+        attribute: fly
+      source: Character Feature
+      description: ""
+      guid: 88b51030-68a3-49ec-a7c0-9c10e7f163ad
+      name: Fly Speed
+      implementation: 3
+    role: Hexer Hexer
+    equipment: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 5ffb0654-7745-4f71-aaa2-49ac3ea6101b
+    damage_taken: 0
+    opportunityAttack: 1
+    resources: []
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    minionSquad: Elemental Mote Squad 2
+    walkingSpeed: 5
+    name: Elemental Mote
+    movementSpeeds:
+      Fly: 5
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 1 damage
+        - 1 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+    creatureSize: 1T
+    monster_type: Summoned Elemental Mote
+    keywords:
+      Summoner: true
+      Signature: true
+      Elemental: true
+  tokenType: null
+  bestiaryId: 0544e196-72af-45a7-845d-0aabbe177bdb
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: 0
+  createdTimestamp: 1726301040866
+description: null
+parentFolder: ab335af6-6b6f-4e77-9295-060f8ee787ab
+artist: null
+ord: 3
+ctime: 1759358045639
+mtime: 1775167532534
+hidden: false

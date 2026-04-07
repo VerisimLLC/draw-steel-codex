@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  conditionid: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+  sourceguid: 43c645e0-97fe-40f0-ba45-e6efdf46b6c9
+  source: Ongoing Effect
+  guid: 3dd00e09-97b6-4ed7-821b-abbd3ad5657b
+  description: The target is invisible until the start of their next turn. They can then move up to 3 squares and attempt to hide.
+  behavior: bestowcondition
+  name: Vanish
+source: Ongoing Effect
+id: 43c645e0-97fe-40f0-ba45-e6efdf46b6c9
+guid: 43c645e0-97fe-40f0-ba45-e6efdf46b6c9
+hiddenOnToken: true
+ctime: 1760534027236
+iconid: ui-icons/skills/1.png
+description: The target is invisible until the start of their next turn. They can then move up to 3 squares and attempt to hide.
+endTrigger: beginturn
+name: Vanish
+statusEffect: true
+custom: true
+mtime: 1760534027236
+implementation: 2

@@ -1,0 +1,41 @@
+__typeName: ActivatedAbility
+targetFilter: Target.ID = <<casterid>>
+id: 565c5395-13d3-458c-8adf-c8ba712d42ed
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+  filterTarget: ""
+  duration: eoe
+  ongoingEffectCustom: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+- __typeName: ActivatedAbilityTransformBehavior
+  duration: eoe
+  ongoingEffectCustom: false
+  replaceCaster: false
+  filterTarget: ""
+  bestiaryFilter: Beast.Name = Self.name
+  ongoingEffect: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+  ongoingEffectSource: specific
+  casterChoosesCreatures: false
+  monsterType: custom
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "100"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: ad2138ea-df3c-4636-b59b-89aa29ff469f
+repeatTargets: false
+ctime: 1772111376226
+targetType: all
+implementation: 3
+description: ""
+name: Apply I Am You
+numTargets: "1"
+mtime: 1773819807740
+abilityType: none
+iconid: ui-icons/skills/1.png

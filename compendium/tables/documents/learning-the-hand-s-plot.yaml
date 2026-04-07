@@ -1,0 +1,44 @@
+__typeName: MarkdownDocument
+annotations: []
+id: ba118314-ac22-4618-9cf2-7d4c9eaf4b03
+ctime: 1761428177458
+textStorage:
+  __typeName: TextStorage
+  sections:
+    V: |
+      |{# The hero can’t make out anything the Gilded Hand is talking about.}
+    h: |+
+      |{# As 12–16, except Targon doesn’t notice the eavesdropper.}
+
+    F: |+
+      # Learning the Hand’s Plot
+
+    n: |+
+      (see [Gilded Showdown] in [Events])
+
+    K: |+
+      If the heroes become suspicious of the [Gilded Hand] and want to learn more about what the mercenaries are up to, they can attempt to eavesdrop on the group. The eavesdropping hero might listen in at the doors of the hand’s room at the inn or during their whispered conversation in the common room and must make a moderate Intuition test.
+
+    t: |
+      If the heroes approach [Illwyth] about this privately, the wode elf reluctantly acknowledges that her group is thinking about getting the [item:Cup of Iulius] for [Queen Bargnot] and warns the heroes to stay out of it. If they don’t negotiate for the ring during the same conversation, then [Illwyth] mumbles, “Wish we never found this cursed ring,” as she walks away from the heroes.
+    P: |
+      |Eavesdrop on the Gilded Hand: Intuition Test
+    b: |
+      |{# The hero hears Targon saying to the others, “If we, or those other bastard Heroes of Broadhurst, can get the second level unsealed, we’ve got the ring. That gets us into the third level. We grab the cup, get it to the goblin, and get paid.” After speaking, Targon notices the eavesdropping hero and notes they need to be dealt with later (see Gilded Showdown in Events).}
+parentFolder: eaf490ac-5c37-4c4b-9843-f2c26f95ec52
+updateid: ac7a6eb4-f26e-4d18-91b5-e1ed807881d3
+description: Learning the Hand's Plot
+content: |
+  # Learning the Hand’s Plot
+
+  If the heroes become suspicious of the [Gilded Hand] and want to learn more about what the mercenaries are up to, they can attempt to eavesdrop on the group. The eavesdropping hero might listen in at the doors of the hand’s room at the inn or during their whispered conversation in the common room and must make a moderate Intuition test.
+
+  |Eavesdrop on the Gilded Hand: Intuition Test
+  |{# The hero can’t make out anything the Gilded Hand is talking about.}
+  |{# The hero hears Targon saying to the others, “If we, or those other bastard Heroes of Broadhurst, can get the second level unsealed, we’ve got the ring. That gets us into the third level. We grab the cup, get it to the goblin, and get paid.” After speaking, Targon notices the eavesdropping hero and notes they need to be dealt with later (see Gilded Showdown in Events).}
+  |{# As 12–16, except Targon doesn’t notice the eavesdropper.}
+
+  (see [Gilded Showdown] in [Events])
+
+  If the heroes approach [Illwyth] about this privately, the wode elf reluctantly acknowledges that her group is thinking about getting the [Cup of Iulius] for [Queen Bargnot] and warns the heroes to stay out of it. If they don’t negotiate for the ring during the same conversation, then [Illwyth] mumbles, “Wish we never found this cursed ring,” as she walks away from the heroes.
+mtime: 1767205222007

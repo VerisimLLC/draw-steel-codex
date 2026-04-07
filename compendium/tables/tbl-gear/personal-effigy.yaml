@@ -1,0 +1,21 @@
+__typeName: equipment
+itemPrerequisite: A brief period of contact with the creature the effigy is tied to
+keywords:
+  Magic: true
+projectSource: Texts or lore in Khemharic
+flavor: This tiny humanoid effigy appears unnervingly lifelike and is always warm to the touch.
+weight: 1
+echelon: 3
+specialDescription: ""
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+ctime: 1775045429789
+type: Gear
+projectGoal: "120"
+mtime: 1775045429789
+name: Personal Effigy
+category: Gear
+description: The Personal Effigy is crafted to depict a specific humanoid creature it is tied to, and activates only for the first minute after the creature dies. While you are within 5 squares of the remains of the creature the effigy is tied to, you can use a maneuver to manually light and burn the effigy and bring the creature back to life. The creature returns to life with Stamina equal to their winded value and 10 temporary Stamina that lasts until the end of their next respite. If the creature has been dead for more than 1 minute, they remain dead and the effigy dissolves into dust.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+id: cfb5d4be-c4b4-4aa9-aa63-9e637860100e

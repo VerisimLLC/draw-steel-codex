@@ -1,0 +1,111 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 32a9eaba-cbe3-4b37-ab08-097f7c275de6
+ctime: 1761402935845
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      |Discern Murkik's Honesty: Intuition Test
+    W: |+
+      While talking with [Murkik] about the journey to Broadhurst or [Dunquat], a hero who is suspicious of the merchant’s honesty can make a moderate Intuition test to attempt to discern his level of honesty.
+
+    U: |+
+      **Dunquat’s Fee:** “[Dunquat]’s saying we changed the deal, but we didn’t— she’s just forgetful and didn’t write anything down. We’re not leaving until we get what we’re owed. It’s just a magic bag in addition to the normal fee.”
+
+
+    S: |+
+      **Dunquat:** “A fine mason who used our stone to make a lot of buildings in town. So now she has to use it to make repairs or if she wants anything to match. She knows masonry isn’t just job. It’s art. Too bad she refuses to pay the fee.”
+
+    t: |+
+      |{#As 12–16, except Murkik isn’t worried and his starting interest remains unchanged.}
+
+
+    q: |
+      |{#Murkik reveals the truth to the heroes about his friends being taken captive and ransomed. He’s worried that just revealing this fact puts their lives at risk. If the heroes attempt to negotiate with him, his starting interest is reduced by 1.}
+    O: |+
+      **Journey to Broadhurst:** “It was fine. Uneventful. Pastoral, even.”
+
+    M: |+
+      **Kal Kalavar:** “Ah! A wonderful city. You should stop by sometime and experience our halls—songs, mead, and crafts beyond anything you experience here. That’s why [Dunquat] needs our stone. The good stuff is deep in the earth.”
+
+    n: |
+      |{#Murkik reveals nothing to the heroes.}
+    K: |+
+      The heroes might notice the group of five dwarves gathered together in the common room during meals. If they approach, [Murkik] speaks with them. The dwarf’s muscles ripple under his stone skin, his left hand is missing three fingers, and he’s happy to chat with anyone. He introduces himself, asks the heroes if they have need for special stone from the depths of the Granite Mountains, and then hears what they have to say. [Murkik] freely offers the following information:
+
+    E: |+
+      A group of dwarf merchants from Kal Kalavar, the city under the Granite Mountains, are here to sell stone to [Dunquat] (see [B13. Mason]). However, the merchants ran into the evil elementalist [Vurkor] and his ogre lackeys, Gruul and Forg, on the road (see Mage Tower). The villains took some of the merchants captive and told them they could have them back if they returned with treasures of magic power.
+
+    I: |+
+      ## Chatting With Murkik
+
+    C: |+
+      # Dwarf Merchants
+
+    G: |+
+      [Murkik], the leader of the merchants, is now demanding that [Dunquat] hand over the [item:Quantum Satchel] she uses to easily move stone about. [Dunquat] refuses to part with the rare treasure. [Murkik] assumes that as [Dunquat]’s supplies run out, she’ll eventually relent, so he and the other merchants are waiting at the inn until then.
+
+
+    h: |+
+      If a hero who knows [Murkik] is lying presses him for the truth, they must make a moderate Presence test.
+
+    e: |+
+      |{#The hero can tell Murkik is lying.}
+
+
+    w: |
+      ## [Negotiating With Murkik]
+    c: |
+      |{#The hero can tell Murkik is lying, however Murkik can tell he’s being scrutinized and gets defensive. Any attempt to get him to reveal the truth takes a bane.}
+    Q: |+
+      **Broadhurst:** “Ah, it’s a sleepy village. Most people are friendly enough but tend avoid us. They think we’re made of stone, which is true and not. Sure, our skin is thick, but if you pierce it, we bleed like the rest.”
+
+    a: |
+      |{#The hero can’t discern if Murkik is lying about anything.}
+    k: |
+      |Press Murkik for Information: Presence Test
+parentFolder: 423b20dc-f04b-44af-849e-7a7e01636bf4
+updateid: 32a2b4d5-9181-47e7-8e06-559c5c31da5e
+description: Dwarf Merchants
+content: |
+  # Dwarf Merchants
+
+  A group of dwarf merchants from Kal Kalavar, the city under the Granite Mountains, are here to sell stone to [Dunquat] (see [B13. Mason]). However, the merchants ran into the evil elementalist [Vurkor] and his ogre lackeys, Gruul and Forg, on the road (see Mage Tower). The villains took some of the merchants captive and told them they could have them back if they returned with treasures of magic power.
+
+  [Murkik], the leader of the merchants, is now demanding that [Dunquat] hand over the [Quantum Satchel] she uses to easily move stone about. [Dunquat] refuses to part with the rare treasure. [Murkik] assumes that as [Dunquat]’s supplies run out, she’ll eventually relent, so he and the other merchants are waiting at the inn until then.
+
+
+  ## Chatting With Murkik
+
+  The heroes might notice the group of five dwarves gathered together in the common room during meals. If they approach, [Murkik] speaks with them. The dwarf’s muscles ripple under his stone skin, his left hand is missing three fingers, and he’s happy to chat with anyone. He introduces himself, asks the heroes if they have need for special stone from the depths of the Granite Mountains, and then hears what they have to say. [Murkik] freely offers the following information:
+
+  **Kal Kalavar:** “Ah! A wonderful city. You should stop by sometime and experience our halls—songs, mead, and crafts beyond anything you experience here. That’s why [Dunquat] needs our stone. The good stuff is deep in the earth.”
+
+  **Journey to Broadhurst:** “It was fine. Uneventful. Pastoral, even.”
+
+  **Broadhurst:** “Ah, it’s a sleepy village. Most people are friendly enough but tend avoid us. They think we’re made of stone, which is true and not. Sure, our skin is thick, but if you pierce it, we bleed like the rest.”
+
+  **Dunquat:** “A fine mason who used our stone to make a lot of buildings in town. So now she has to use it to make repairs or if she wants anything to match. She knows masonry isn’t just job. It’s art. Too bad she refuses to pay the fee.”
+
+  **Dunquat’s Fee:** “[Dunquat]’s saying we changed the deal, but we didn’t— she’s just forgetful and didn’t write anything down. We’re not leaving until we get what we’re owed. It’s just a magic bag in addition to the normal fee.”
+
+
+  While talking with [Murkik] about the journey to Broadhurst or [Dunquat], a hero who is suspicious of the merchant’s honesty can make a moderate Intuition test to attempt to discern his level of honesty.
+
+  |Discern Murkik's Honesty: Intuition Test
+  |{#The hero can’t discern if Murkik is lying about anything.}
+  |{#The hero can tell Murkik is lying, however Murkik can tell he’s being scrutinized and gets defensive. Any attempt to get him to reveal the truth takes a bane.}
+  |{#The hero can tell Murkik is lying.}
+
+
+  If a hero who knows [Murkik] is lying presses him for the truth, they must make a moderate Presence test.
+
+  |Press Murkik for Information: Presence Test
+  |{#Murkik reveals nothing to the heroes.}
+  |{#Murkik reveals the truth to the heroes about his friends being taken captive and ransomed. He’s worried that just revealing this fact puts their lives at risk. If the heroes attempt to negotiate with him, his starting interest is reduced by 1.}
+  |{#As 12–16, except Murkik isn’t worried and his starting interest remains unchanged.}
+
+
+  ## [Negotiating With Murkik]
+mtime: 1764326210346

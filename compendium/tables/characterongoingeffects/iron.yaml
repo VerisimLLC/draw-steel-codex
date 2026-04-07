@@ -1,0 +1,64 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 61867b47-363e-401a-8580-f7ecfa4384ac
+  sourceguid: 36d44f08-9d1e-445f-ace8-a2ce0fddaed2
+  value: Stacks
+  source: Ongoing Effect
+  name: Iron
+  behavior: attribute
+  description: You have 5 Stability. This lasts as long as you have Temporary Stamina from this effect.
+  attribute: forcedmoveresistance
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    targetFilter: not has temporary stamina
+    guid: 62058f0e-f8f4-4b07-b7f1-e0f4e750f34f
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityType: none
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 36d44f08-9d1e-445f-ace8-a2ce0fddaed2
+      mode: effect
+      purgeType: one
+      conditions: []
+    trigger: losehitpoints
+    name: Iron
+    targetType: self
+    description: The stability increase lasts as long as the target has temporary Stamina from this ability.
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You have 5 Stability. This lasts as long as you have Temporary Stamina from this effect.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: d8c5fef1-20a4-4fe0-b1a4-e1bcf58fec45
+  name: Iron
+  sourceguid: 36d44f08-9d1e-445f-ace8-a2ce0fddaed2
+source: Ongoing Effect
+guid: 36d44f08-9d1e-445f-ace8-a2ce0fddaed2
+id: 36d44f08-9d1e-445f-ace8-a2ce0fddaed2
+ctime: 1744651582646
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.488925576210022
+    s: 0.868566274642944
+    v: 1.00306558609009
+    a: 1
+custom: true
+name: Iron
+iconid: 20c26bc2-3c3b-498c-af59-f29874538b13
+description: You have 5 Stability. This lasts as long as you have Temporary Stamina from this effect.
+mtime: 1746115674902
+implementation: 3

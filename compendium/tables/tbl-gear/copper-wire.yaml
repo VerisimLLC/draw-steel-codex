@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 0c8f8d2a-0c65-4fc5-9587-fe7b481fe3ba
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1763107043611
+ctime: 1761784301489
+name: Copper Wire
+flavor: A spool of copper wire
+description: ""
+weight: 1
+iconid: b427a444-e1a0-4a08-a21c-a75dd5a0156b

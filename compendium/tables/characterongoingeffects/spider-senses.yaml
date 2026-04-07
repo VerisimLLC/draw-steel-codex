@@ -1,0 +1,34 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ec9bfe3f-f2ba-42a7-ba71-5115ffe4fd98
+  source: Ongoing Effect
+  behavior: power
+  keywords:
+    Strike: true
+  activationCondition: true
+  name: Spider Senses
+  guid: c9618f7d-3c70-4d14-9e4f-12cdffb9336a
+  description: Strikes made against the spider take a bane until the end of the round.
+  modtype: bane
+  rollType: enemy_ability_power_roll
+source: Ongoing Effect
+guid: ec9bfe3f-f2ba-42a7-ba71-5115ffe4fd98
+id: ec9bfe3f-f2ba-42a7-ba71-5115ffe4fd98
+ctime: 1757912510246
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.392000198364258
+    s: 0.974609553813934
+    v: 0.970282733440399
+    a: 1
+name: Spider Senses
+description: Strikes made against the spider take a bane until the end of the round.
+custom: true
+mtime: 1757912510246
+iconid: 34d10db6-f875-471b-8278-f67914e73685

@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 3cc61ad4-03d5-4db9-af58-bf59318c9d5a
+id: 3cc61ad4-03d5-4db9-af58-bf59318c9d5a
+ctime: 1751719499519
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+condition: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+name: Frightened
+description: ""
+mtime: 1751719499519
+custom: true
+iconid: 6cda6156-84cb-4c95-9973-de54b30a6815

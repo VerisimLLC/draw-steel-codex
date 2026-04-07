@@ -1,0 +1,205 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+id: f4384355-cbdb-4a88-b735-a041d2e48889
+ctime: 1761475785565
+textStorage:
+  __typeName: TextStorage
+  sections:
+    x: |
+      |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+    v: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls.
+    t: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+    r: |
+      |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+    p: |+
+      If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+    n: |
+      |Interest increases by 1, Patience decreases by 1
+    k: |
+      |Interest decreases by 1, Patience decreases by 1
+    l: |
+      |Patience decreases by 1
+    i: |+
+      |Interest increases by 1, Patience does not change.
+
+    j: |
+      |No Motivation or Pitfall: Reason, Intuition, or Presence
+    g: |
+      |Patience decreases by 1
+    h: |
+      |Interest increases by 1, Patience decreases by 1
+    e: |2+
+       Both Interest and Patience decrease by 1.**
+
+    f: |
+      |Appeal to Motivation: Reason, Intuition, or Presence
+    c: |+
+      [[/awardvp 1|Award Heroes 1 Victory]]
+
+
+      }
+
+
+    d: |
+      **Pitfall Used: Automatic failure:
+    a: |+
+      |Interest 0 | No, and… |[Murkik] won’t change the current terms of the deal offered to [Dunquat]. [Murkik] also believes the heroes could be foolish enough to confront [Vurkor] and put his captured friends in jeopardy. He attacks the heroes (see [Tavern Brawl] in [Events]).|
+
+
+    b: |
+      If the heroes end the negotiation with [Murkik]’s interest at 4 or higher and make a deal with him, they each gain 1 Victory.
+    Y: |
+      |Interest 2 | No, but… |[Murkik] won’t honor the original deal with [Dunquat], but does agree to take only the [item:Quantum Satchel] and require no money of [Dunquat]. If this deal is taken to [Dunquat], she begrudgingly agrees.|
+    Z: |
+      |Interest 1 | No. |[Murkik] won’t change the current terms of the deal offered to [Dunquat].|
+    W: |
+      |Interest 4 | Yes.|[Murkik] agrees to honor the original deal with [Dunquat].|
+    X: |
+      |Interest 3 | Yes, but… |[Murkik] agrees to honor the original deal with [Dunquat] if the heroes first free his friends from [Vurkor] (see [Mage Tower]).|
+    U: |+
+      **Negotiation outcomes**
+
+
+    V: |
+      |Interest 5 |Yes, and... |[Murkik] agrees to honor the original deal with [Dunquat]. He encourages the heroes to confront [Vurkor] and gives them a pair of [item:Unbinder Boots] that he planned on giving to [Vurkor] with the bag. |
+    S: |
+      {**Greed**}
+    T: |
+      {Murkik is interested in making money honestly, and he hates the idea of turning a bad situation to his advantage financially. If the heroes make an argument that he’ll make more money if he works with them, they invoke this pitfall.}
+
+
+
+      {
+    Q: |+
+      {Murkik wants to protect all of the merchants in his employ. If the heroes point out that Vurkor holds all the power in this relationship and that giving him the bag doesn’t guarantee their safety and just robs Dunquat of what’s hers, they appeal to this motivation.}
+
+    R: |
+      & Pitfalls 
+    O: |+
+      {Murkik just wants to do business as normal. He’s hoping that giving Vurkor the bag will be the end of it, but if the heroes point out that this might just be the start, or that doing dirty business with Dunquat could mean word gets out that the merchants renege on deals, they appeal to this motivation.}
+
+    P: |
+      {**Protection**}
+    M: |
+      Murkik's Motivations
+    N: |
+      {**Peace**}
+    K: |
+      All Motivations & Pitfalls:
+    L: |+
+      *Benevolence, Discovery, Freedom, Greed, Higher Authority, Justice, Legacy, Peace, Power, Protection, Revelry, Vengeance*
+
+
+
+    I: |+
+      PATIENCE:  [[###--]]
+
+    J: |+
+      [[image]]
+
+    G: |+
+      Native Language: Zaliac
+      }
+
+
+
+    H: |
+      INTEREST:  [[##---]] 
+    E: |
+      ## Murkik Negotiation Stats 
+
+      {
+    F: |
+      Impression: 2
+    C: |
+      {If the heroes know the truth of [Murkik]’s friends being held captive and ask [Murkik] to sell [Dunquat] the stone without handing over the [item:Quantum Satchel], he is willing to negotiate.}
+    D: |+
+      *(see Negotiation on page 283 in [pdf:Draw Steel Heroes:283])*
+
+    B: |+
+      # Negotiation 
+
+parentFolder: 423b20dc-f04b-44af-849e-7a7e01636bf4
+updateid: 07296fd9-5078-41a4-b61b-5d3050cbfc3d
+description: Negotiating With Murkik
+content: |
+  # Negotiation 
+
+  {If the heroes know the truth of [Murkik]’s friends being held captive and ask [Murkik] to sell [Dunquat] the stone without handing over the [Quantum Satchel], he is willing to negotiate.}
+  *(see Negotiation on page 298 in [Draw Steel Heroes])*
+
+  ## Murkik Negotiation Stats 
+
+  {
+  Impression: 2
+  Native Language: Zaliac
+  }
+
+
+
+  INTEREST:  [[##---]] 
+  PATIENCE:  [[###--]]
+
+  [[image]]
+
+  All Motivations & Pitfalls:
+  *Benevolence, Discovery, Freedom, Greed, Higher Authority, Justice, Legacy, Peace, Power, Protection, Revelry, Vengeance*
+
+
+
+  Murkik's Motivations
+  {**Peace**}
+  {Murkik just wants to do business as normal. He’s hoping that giving Vurkor the bag will be the end of it, but if the heroes point out that this might just be the start, or that doing dirty business with Dunquat could mean word gets out that the merchants renege on deals, they appeal to this motivation.}
+
+  {**Protection**}
+  {Murkik wants to protect all of the merchants in his employ. If the heroes point out that Vurkor holds all the power in this relationship and that giving him the bag doesn’t guarantee their safety and just robs Dunquat of what’s hers, they appeal to this motivation.}
+
+  & Pitfalls 
+  {**Greed**}
+  {Murkik is interested in making money honestly, and he hates the idea of turning a bad situation to his advantage financially. If the heroes make an argument that he’ll make more money if he works with them, they invoke this pitfall.}
+
+
+
+  {
+  **Negotiation outcomes**
+
+
+  |Interest 5 |Yes, and... |[Murkik] agrees to honor the original deal with [Dunquat]. He encourages the heroes to confront [Vurkor] and gives them a pair of [Unbinder Boots] that he planned on giving to [Vurkor] with the bag. |
+  |Interest 4 | Yes.|[Murkik] agrees to honor the original deal with [Dunquat].|
+  |Interest 3 | Yes, but… |[Murkik] agrees to honor the original deal with [Dunquat] if the heroes first free his friends from [Vurkor] (see [Mage Tower]).|
+  |Interest 2 | No, but… |[Murkik] won’t honor the original deal with [Dunquat], but does agree to take only the [Quantum Satchel] and require no money of [Dunquat]. If this deal is taken to [Dunquat], she begrudgingly agrees.|
+  |Interest 1 | No. |[Murkik] won’t change the current terms of the deal offered to [Dunquat].|
+  |Interest 0 | No, and… |[Murkik] won’t change the current terms of the deal offered to [Dunquat]. [Murkik] also believes the heroes could be foolish enough to confront [Vurkor] and put his captured friends in jeopardy. He attacks the heroes (see [Tavern Brawl] in [Events]).|
+
+
+  If the heroes end the negotiation with [Murkik]’s interest at 4 or higher and make a deal with him, they each gain 1 Victory.
+  [[/awardvp 1|Award Heroes 1 Victory]]
+
+
+  }
+
+
+  **Pitfall Used: Automatic failure:
+   Both Interest and Patience decrease by 1.**
+
+  |Appeal to Motivation: Reason, Intuition, or Presence
+  |Patience decreases by 1
+  |Interest increases by 1, Patience decreases by 1
+  |Interest increases by 1, Patience does not change.
+
+  |No Motivation or Pitfall: Reason, Intuition, or Presence
+  |Interest decreases by 1, Patience decreases by 1
+  |Patience decreases by 1
+  |Interest increases by 1, Patience decreases by 1
+  If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+  |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+  |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+  |The hero learns no information regarding the NPC’s motivations or pitfalls.
+  |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+mtime: 1766234287427

@@ -1,0 +1,477 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: b47ea797-35f5-40b7-9b76-7b859c68e81a
+    offtokenPortraitId: e78ed9c1-ede6-4de6-bf4f-036509d77c6d
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 60bd1a9d-dcc2-4ff2-8234-22e87742ad7c
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.6028103
+    frameSaturation: 0.8313383
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9b66f29d-7c96-4cfe-a595-4fd58ae2a626
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 40
+    inflictedConditions: []
+    ev: 10
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: -1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: cube
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 124
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: ce8149fa-f506-4b1c-8d88-14f4d3783951
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - vertical push 3
+        - vertical push 5
+        - vertical push 6
+        roll: 2d10 + Reason
+      radius: 1 + Count Nearby Creatures(1, "Elemental Mote")
+      name: Twystrd
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      description: The area of the cube increases by 1 for each elemental mote adjacent to the wyrd.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilitySummonBehavior
+        modesSelected:
+        - 2
+        numSummons: "2"
+        monsterType: custom
+        bestiaryFilter: beast.name = "soot crow"
+        casterControls: true
+        casterChoosesCreatures: false
+      - __typeName: ActivatedAbilitySummonBehavior
+        modesSelected:
+        - 1
+        numSummons: "2"
+        casterChoosesCreatures: false
+        bestiaryFilter: beast.name = "elemental mote"
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: acbbfde3-fe10-45c1-ac16-a458c714fdea
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1
+      targetType: emptyspace
+      sourceReference:
+        __typeName: SourceReference
+        page: 124
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      implementation: 3
+      name: Summon Elemental
+      modeList:
+      - rules: You summon 2 elemental motes.
+        text: Summon Elemental Motes
+        condition: Heroic Resources Available to Spend >= 2
+      - rules: You summon 2 soot crows.
+        text: Summon Soot Crows
+        condition: Heroic Resources Available to Spend >= 2
+      description: The wyrd summons 2 elemental motes or 2 soot crows into unoccupied squares within distance.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        height: "1"
+        modesSelected:
+        - 1
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        height: "-1"
+        modesSelected:
+        - 2
+        shape: square
+      - __typeName: ActivatedAbilityChangeTerrainBehavior
+        shape: square
+        tileid: "-MBVQqKrE73ix3K9-MjS"
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 8
+      effectImplemented: true
+      abilityType: none
+      persistence: []
+      modifiers: []
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      strain: []
+      guid: 7e8f4811-3edb-466d-ad74-52ab9404008d
+      iconid: ui-icons/skills/1.png
+      numTargets: 8
+      sourceReference:
+        __typeName: SourceReference
+        page: 124
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targeting: direct
+      targetType: emptyspace
+      name: Wyrd Warp
+      modeList:
+      - text: Raise the Ground
+      - text: Create a Trench
+      description: The wyrd shapes the land as if it were loose clay. Each wall segment takes up the entire square. A segment can also be used to push a square of the terrain further into the ground. An enemy on top of an affected square moves with the elevation of the terrain.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 2
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        High Elf Wyrd	Level 3 Platoon Controller
+        Fey, High Elf, Humanoid	EV 10
+        <b>Stamina</b> 40
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might 0	Agility +1	Reason +2	Intuition -1	Presence +2
+        <b>Twystrd</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 1 cube within 5<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	vertical push 3
+        %E2%98%85	<b>12%E2%80%9316</b>	vertical push 5
+        %E2%9C%B8	<b>17</b>	vertical push 6
+        <b>Effect</b> The area of the cube increases by 1 for each elemental mote adjacent to the wyrd.
+
+        <b>Summon Elemental</b> (Maneuver)%E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 5<b>	Target</b> Special
+        <b>Effect</b> The wyrd summons 2 <b>elemental motes</b> or 2 <b>soot crows</b> into unoccupied squares within distance.
+
+        <b>Wyrd Warp</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 8 wall within 8<b>	Target</b> Special
+        <b>Effect</b> The wyrd shapes the land as if it were loose clay. Each wall segment takes up the entire square. A segment can also be used to push a square of the terrain further into the ground. An enemy on top of an affected square moves with the elevation of the terrain.
+
+        <b>Otherworldly Grace</b>
+        At the start of their turn, the wyrd can turn the duration of one save ends effect they suffer from into EoT.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:96d2e7eb-41da-4260-b8b3-30568816196a: true
+        CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:96d2e7eb-41da-4260-b8b3-30568816196a: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: 96d2e7eb-41da-4260-b8b3-30568816196a
+        behavior: trigger
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the wyrd can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            purgeType: one
+            targetDuration: save
+            chatMessage: Otherworldly Grace - Change One Save Ends to EoT
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          targetType: self
+          conditionFormula: Conditions has "Bleeding" or Conditions has "Dazed" or Conditions has "Frightened" or Conditions has "Prone" or Conditions has "Restrained" or Conditions has "Slowed" or Conditions has "Taunted" or Conditions has "Weakened"
+          domains:
+            CharacterFeature:96d2e7eb-41da-4260-b8b3-30568816196a: true
+            CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+          guid: ac0a9e91-4625-415d-ba38-358fa439cab1
+          numTargets: "1"
+          trigger: endturn
+          name: Otherworldly Grace
+          description: At the start of each of their turns, the wyrd can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 180a8907-b486-4ba1-b210-5084a0db8d74
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:96d2e7eb-41da-4260-b8b3-30568816196a: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: 96d2e7eb-41da-4260-b8b3-30568816196a
+        behavior: triggerdisplay
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the wyrd can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        guid: e0d1ac3e-ea64-4a7d-ae35-b46d19cd92eb
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: Choose one Save Ends Effect which you can end at the end of your turn.
+          guid: 2a341e0d-7914-4408-ac83-0b1b5474a340
+          keywords: []
+      source: Trait
+      description: At the start of each of their turns, the wyrd can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+      guid: 96d2e7eb-41da-4260-b8b3-30568816196a
+      name: Otherworldly Grace
+      implementation: 2
+    role: Platoon Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        cf12f509-1b2a-45e4-8dfc-6f85c96a957d:
+          note: Summon Elemental
+          userid: steam-76561198767161997
+          set: 1/1
+        9de14bd3-e8e3-40bb-b271-25d2bdd76c4e:
+          note: Summon Elemental
+          userid: steam-76561198767161997
+          set: 1/1
+        911d52cc-e043-4274-913b-a7749ea49675:
+          note: Summon Elemental
+          userid: steam-76561198767161997
+          set: 1/1
+        d53f62f0-878c-43ea-8d15-b40e9dffeeff:
+          note: Summon Elemental
+          userid: steam-76561198767161997
+          set: 1/1
+        ae6c9cd0-978e-479c-b920-9bb189374181:
+          note: Summon Elemental
+          userid: steam-76561198767161997
+          set: 1/1
+        da331964-219b-4590-88b5-f49f1d12394f:
+          note: Summon Elemental
+          userid: steam-76561198767161997
+          set: 1/1
+        1ee4ff29-8f9c-4047-9b18-fb53a0c7a238:
+          note: Summon Elemental
+          userid: steam-76561198767161997
+          set: 1/1
+        909b905e-4fca-4b49-a375-78f565a82415:
+          refreshid: 0f019483-64a5-4711-9611-743c209502ad-2
+          note: Wyrd Warp
+          userid: steam-76561198767161997
+          set: 0/1
+    keywords:
+      Fey: true
+      Humanoid: true
+      High Elf: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 1d629753-068c-49b3-963b-1950a914e263
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    damage_taken: 0
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 260697be-8d51-48f9-b36e-9172b41b8bf3-1
+        used: 0
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 0f019483-64a5-4711-9611-743c209502ad-2
+        used: 1
+    walkingSpeed: 5
+    creatureSize: 1M
+    traitNames: []
+    inventory: []
+    availableTriggers: []
+    movementSpeeds: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        032fc3f3-4cd9-443a-a6d8-a103d9c35aba:
+          refreshid: 260697be-8d51-48f9-b36e-9172b41b8bf3-1
+          note: Critical Hit!
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 1/1
+        60cd9189-613a-4330-863d-18d9deb51b24:
+          refreshid: 260697be-8d51-48f9-b36e-9172b41b8bf3-1
+          note: Twystrd
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket6: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      trinket9: []
+      trinket3: []
+      leveled4: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: refreshResource
+      - animType: floatlabel
+        text: Critical Hit!
+        color:
+          __usertype: LuaColor
+          h: 0.135749965906143
+          s: 0.28417956829071
+          v: 0.989622592926025
+          a: 1
+      guid: da581da5-0776-4f4c-9810-e72bb1250628-2811
+    monster_type: High Elf Wyrd
+  tokenType: null
+  bestiaryId: 3a609af6-130c-4914-a70e-f616eb66eea5
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: High Elf Wyrd
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590239815
+mtime: 1775201137032
+hidden: false

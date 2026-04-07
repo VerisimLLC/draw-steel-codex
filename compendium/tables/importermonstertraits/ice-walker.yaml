@@ -1,0 +1,13 @@
+__typeName: CharacterFeature
+testCases:
+- text: Uraxxinoth can walk and climb on ice as if it were normal terrain.
+modifiers: []
+source: Monster
+importMatchType: rules
+importMatch: "<<monster>> can walk and climb on ice as if it were normal terrain."
+ctime: 1709486216388
+name: Ice Walker
+id: b24762dd-833e-4e5e-9f19-2316a161687b
+mtime: 1709535272425
+description: ""
+guid: bc960f50-42cb-4857-bd6f-3f7c438bfc71

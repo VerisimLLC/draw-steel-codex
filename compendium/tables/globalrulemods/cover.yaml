@@ -1,0 +1,26 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 2c77cb3b-a35d-43a2-b7b1-ef657936f4fe
+      source: Draw Steel Heroes
+      behavior: power
+      keywords: []
+      activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1) or (Target.MovementType = "Burrow" and Target.DistanceBelowGround >= 1) or (Caster.MovementType = "Burrow" and Caster.DistanceBelowGround >= 1)) and Self.Ignore Cover <= 0 '
+      name: Cover
+      guid: e77d603e-01da-40a0-8253-002677d0273e
+      description: When you have line of effect to a creature or object but that target has at least half their form blocked by a solid object such as a tree, wall, or overturned table, the target has cover. You take a bane on damage-dealing abilities used against creatures or objects that have cover from you.
+      modtype: bane
+      rollType: ability_power_roll
+    name: Cover
+    description: When you have line of effect to a creature or object but that target has at least half their form blocked by a solid object such as a tree, wall, or overturned table, the target has cover. You take a bane on damage-dealing abilities used against creatures or objects that have cover from you.
+    guid: 2c77cb3b-a35d-43a2-b7b1-ef657936f4fe
+    source: Draw Steel Heroes
+    implementation: 3
+name: Cover
+mtime: 1774512345759
+id: 534cbec8-5c03-4919-9aa4-b34f5db5e3a0
+ctime: 1704299082329

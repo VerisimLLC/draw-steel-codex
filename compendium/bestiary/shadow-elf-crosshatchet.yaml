@@ -1,0 +1,205 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 092d095c-adeb-4700-befc-5d7705fd5802
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Crosshatchet	Level 4 Brute
+        Fey, Humanoid, Shadow Elf	EV 25
+        <b>Stamina</b> 70
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +3	Agility +2	Reason -1	Intuition +1	Presence +1
+        <b>Dusk Cleave</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12-16</b>	13 damage
+        %E2%9C%B8	<b>17</b>	16 damage; I<3 bleeding (save ends)
+        <b>Effect</b> The crosshatchet makes a free strike against a creature or object adjacent to the target.
+
+        <b>Manifold Multihit</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Ranged, Weapon
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 corruption damage
+        %E2%98%85	<b>12-16</b>	7 corruption damage; I<2 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	10 corruption damage; I<3 dazed (save ends)
+        <b>Effect</b> The crosshatchet has a double edge on strikes against targets dazed by this ability.
+
+        <b>Of the Umbra</b>
+        The crosshatchet ignores concealment granted by darkness. While the crosshatchet is in direct sunlight, they have damage weakness 3. While the crosshatchet is concealed, they have damage immunity 3.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:561dda06-a185-45f4-85de-3383de973a82: true
+      modifiers: []
+      name: Of the Umbra
+      description: The crosshatchet ignores concealment granted by darkness. While the crosshatchet is in direct sunlight, they have damage weakness 3. While the crosshatchet is concealed, they have damage immunity 3.
+      guid: 561dda06-a185-45f4-85de-3383de973a82
+      source: Trait
+    role: Brute
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Shadow: true
+      Shadow Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 6
+    monster_type: Shadow Elf Crosshatchet
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 13 damage
+        - 16 damage; I<3 bleeding (save ends)
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 75b46661-71fc-4326-9c90-b2335160bb1b
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Dusk Cleave
+      numTargets: 1
+      description: The crosshatchet makes a free strike against a creature or object adjacent to the target.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 4317f36c-2c8c-4ef0-af35-a30639c9b249
+      abilityType: none
+      numTargets: 1
+      implementation: 3
+      name: Manifold Multihit
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 corruption damage
+        - 7 corruption damage; I<2 dazed (save ends)
+        - 10 corruption damage; I<3 dazed (save ends)
+        roll: 2d10 + 3
+      description: The crosshatchet has a double edge on strikes against targets dazed by this ability.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 5
+    ev: 25
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 2626a864-178f-4521-bffb-0f6d6b28da95
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962490480
+description: Shadow Elf Crosshatchet
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590231561
+mtime: 1775201137032
+hidden: false

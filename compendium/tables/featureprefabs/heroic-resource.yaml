@@ -1,0 +1,66 @@
+__typeName: CharacterFeaturePrefabs
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+    guid: afc40f8a-ff4a-4ac0-b05c-b46c321f8f04
+    modifiers:
+    - __typeName: CharacterModifier
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      sourceguid: addc46eb-dc0f-4900-8cd1-adfefffb46dc
+      description: ""
+      source: Character Feature
+      name: Heroic Resource
+      behavior: trigger
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        numTargets: "1"
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        guid: bb792d84-d40a-4aad-b221-4f33f3086a83
+        repeatTargets: false
+        abilityType: none
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceOptions:
+          - c4b95efd-aac6-4624-98f2-860e618e6a96
+          - 8e7d5857-a80e-4a45-a1cd-865048715531
+          resourceid: 12ed51af-66b8-479f-a588-2edbce0db381
+          chooseResourceFromList: false
+          quantity: Victories
+        trigger: rollinitiative
+        name: Insight
+        targetType: self
+        description: ""
+        range: 5
+        iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+      guid: 228524bb-1185-4167-977e-8ea43082deb9
+    - __typeName: CharacterModifier
+      sourceguid: addc46eb-dc0f-4900-8cd1-adfefffb46dc
+      source: Character Feature
+      guid: ced99e8d-2b44-4e18-93a7-e5d91db79e09
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      name: Heroic Resource
+      description: ""
+      num: 0
+      resourceType: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      behavior: resource
+    name: Heroic Resource
+    classid: a58112e5-6466-4189-b810-5d0d93adc075
+    description: ""
+    source: Character Feature
+    implementation: 3
+name: Heroic Resource
+mtime: 1740127321640
+id: 955fc1d9-af18-438b-b983-7ae723df283e
+ctime: 1740126994597

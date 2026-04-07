@@ -1,0 +1,65 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:e42504bd-9018-4ca5-97e0-f38b03dadf17: true
+  sourceguid: e42504bd-9018-4ca5-97e0-f38b03dadf17
+  description: |-
+    A burning creature takes 1d6 fire damage at the start of each
+    of their turns. A burning object takes 1d6 fire damage at the end of each round.
+  source: Ongoing Effect
+  name: Burning
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: 1d6
+      damageType: fire
+      titleText: Burning Damage
+    multipleModes: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: ac8fbdae-0a99-47f9-a195-957c306c6495
+    trigger: beginturn
+    whenActive: combat
+    modeList: []
+    targetType: self
+    name: Burn Damage
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: fe30dcd2-f140-46c1-b7b4-5337153e5004
+source: Ongoing Effect
+guid: e42504bd-9018-4ca5-97e0-f38b03dadf17
+id: e42504bd-9018-4ca5-97e0-f38b03dadf17
+ctime: 1755089811311
+domains:
+  CharacterOngoingEffect:e42504bd-9018-4ca5-97e0-f38b03dadf17: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0570004284381866
+    s: 0.962891101837158
+    v: 0.632213294506073
+    a: 1
+name: Burning
+custom: true
+description: |-
+  A burning creature takes 1d6 fire damage at the start of each
+  of their turns. A burning object takes 1d6 fire damage at the end of each round.
+mtime: 1755091320649
+iconid: 5493b9ce-db86-4bfe-8900-b3a72c1c7cf1

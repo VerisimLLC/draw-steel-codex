@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 7c9f52be-3491-4ad7-8f7c-d16fb33801ab
+id: 7c9f52be-3491-4ad7-8f7c-d16fb33801ab
+ctime: 1772973471875
+domains:
+  CharacterOngoingEffect:7c9f52be-3491-4ad7-8f7c-d16fb33801ab: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+name: Dramatic Reveal Target
+custom: true
+description: ""
+mtime: 1772974122903
+iconid: ui-icons/skills/1.png

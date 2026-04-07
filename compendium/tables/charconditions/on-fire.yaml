@@ -1,0 +1,58 @@
+__typeName: CharacterCondition
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:c95a5d2d-6069-4434-b5d4-29796ec90f51: true
+  sourceguid: 285c4f3a-dfa2-4748-9ad8-36ceeb2eb049
+  description: You take fire damage equal to the condition’s value at the start of every round. If you submerge yourself in water or another liquid that isn’t flammable, the condition ends.
+  source: Condition
+  name: On Fire
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 1c02ee7e-b415-4897-8f6e-e2905dffbc52
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterCondition:c95a5d2d-6069-4434-b5d4-29796ec90f51: true
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      damageType: fire
+      roll: ConditionStacks("On Fire")
+    trigger: beginturn
+    name: On Fire
+    targetType: self
+    description: ""
+    range: 5
+    iconid: ui-icons/skills/1.png
+  guid: 2886eaec-2d93-4d2f-b8ad-5008f32c3879
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+description: You take fire damage equal to the condition’s value at the start of every round. If you submerge yourself in water or another liquid that isn’t flammable, the condition ends.
+guid: 285c4f3a-dfa2-4748-9ad8-36ceeb2eb049
+id: c95a5d2d-6069-4434-b5d4-29796ec90f51
+ctime: 1699758307979
+domains:
+  CharacterCondition:c95a5d2d-6069-4434-b5d4-29796ec90f51: true
+powertable: true
+iconid: 3617c071-3c3d-4348-bcaf-f90a35e4ff62
+name: On Fire
+emoji: 6cf40923-6435-409a-89d1-28f8a1aa2c8c
+mtime: 1768208529865
+stackable: true
+implementation: 3

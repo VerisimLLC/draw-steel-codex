@@ -1,0 +1,33 @@
+__typeName: ActivatedAbility
+id: 6a693f34-0932-468b-b09f-2be488b82337
+behaviors:
+- __typeName: ActivatedAbilityReplenishBehavior
+  applyto: caster
+  resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  quantity: "<<amount>>"
+  chatMessage: Director Gains Malice
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: The Director gains 1d3 Malice
+- text: The Director gains 1 Malice
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 6ce2f843-a101-43c9-a008-76fad2568c35
+importMatch: The Director gains <<amount>> Malice
+ctime: 1753669720785
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Director Gains Malice
+targetType: self
+mtime: 1773922773178
+abilityType: none
+iconid: ui-icons/skills/1.png

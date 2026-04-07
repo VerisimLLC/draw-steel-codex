@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Lore Perks
+name: Expert Sage
+description: Whenever you make a test as part of a crafting or research project using a skill from the lore skill group, you can make the power roll twice and use either roll.
+mtime: 1755079524101
+id: 2398c18c-fb9c-4dc0-b95e-c2118378bc68
+ctime: 1730700825330

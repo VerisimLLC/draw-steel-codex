@@ -1,0 +1,317 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fe268a13-21a9-4835-86bf-e6a9fc897874
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Firerunner    Level 5 Platoon Harrier
+        Goblin, Hobgoblin, Humanoid, Infernal    EV 14
+        <b>Stamina</b> 70    <b>Immunity</b> fire 5
+        <b>Speed</b> 8    <b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +2    Agility +3    Reason +1    Intuition +1    Presence 0
+        <b>Flaming Kick</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Magic, Strike, Melee
+        <b>Distance</b> Melee 1<b>    Target</b> 1 creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    9 fire damage
+        %E2%98%85    <b>12%E2%80%9316</b>    13 fire damage
+        %E2%9C%B8    <b>17</b>    16 fire damage; A<3 dazed (EoT)
+
+        <b>Blazing Trail</b> (Maneuver)
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self<b>    Target</b> Self
+        <b>Effect</b> The firerunner moves up to their speed and creates a 8 wall of fire. Each segment must include one of the squares the firerunner touched. Creatures can enter and pass through the wall. Any enemy who enters the wall for the first time in a round or starts their turn there takes 5 fire damage.
+
+        <b>Hot to Go</b>
+        The firerunner ignores difficult terrain. Whenever the firerunner takes fire damage, their speed and the wall they can create with Blazing Trail increases by 4 until the end of their next turn.
+
+        <b>Infernal Ichor</b>
+        If the firerunner's Stamina drops to 0, they spray burning blood. Each creature within 1 of the firerunner takes 3 fire damage.
+        Hobgoblin Incendiarist    Level 5 Platoon Artillery
+        Goblin, Hobgoblin, Humanoid, Infernal    EV 14
+        <b>Stamina</b> 60    <b>Immunity</b> fire 5
+        <b>Speed</b> 5    <b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +1    Agility +3    Reason 0    Intuition +2    Presence +1
+        <b>Fire Crossbow</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10<b>    Target</b> 1 creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    9 fire damage
+        %E2%98%85    <b>12%E2%80%9316</b>    14 fire damage
+        %E2%9C%B8    <b>17</b>    17 fire damage; A<3 burning (save ends)
+        <b>Effect</b> A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+
+        <b>Fire Ball Volley</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Ranged
+        <b>Distance</b> 4 Cube within 10    <b>Target</b> All enemies and objects
+        %E2%9C%A6    <b>%E2%89%A411</b>    5 fire damage; A<1 burning (save ends)
+        %E2%98%85    <b>12%E2%80%9316</b>    9 fire damage; A<2 burning (save ends)
+        %E2%9C%B8    <b>17</b>    11 fire damage; prone; A<3 burning (save ends)
+
+        <b>Raining Cinders</b>
+        The ranged free strike of each ally within 3 of the incendiarist has a distance of 10 and it now deals fire damage.
+
+        <b>Infernal Ichor</b>
+        If the incendiarist's Stamina drops to 0, they spray burning blood. Each creature within 1 of the incendiarist takes 3 fire damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:65fd09b2-a462-4ab3-a2ae-8e9d0eaea8be: true
+      modifiers: []
+      name: Hot to Go
+      description: The firerunner ignores difficult terrain. Whenever the firerunner takes fire damage, their speed and the wall they can create with Blazing Trail increases by 4 until the end of their next turn.
+      guid: 65fd09b2-a462-4ab3-a2ae-8e9d0eaea8be
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:87069040-2461-47aa-afa1-7dccd8f93c67: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the firerunner's Stamina drops to 0, they spray burning blood. Each creature within 1 of the firerunner takes 3 fire damage.Hobgoblin Incendiarist    Level 5 Platoon ArtilleryGoblin, Hobgoblin, Humanoid, Infernal    EV 14
+      guid: 87069040-2461-47aa-afa1-7dccd8f93c67
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:085f8ace-5770-4153-a2c9-7c4c29de4d03: true
+      modifiers: []
+      name: Raining Cinders
+      description: The ranged free strike of each ally within 3 of the incendiarist has a distance of 10 and it now deals fire damage.
+      guid: 085f8ace-5770-4153-a2c9-7c4c29de4d03
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3da8c9b5-8aaf-45c0-9dd7-c14feb441948: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the incendiarist's Stamina drops to 0, they spray burning blood. Each creature within 1 of the incendiarist takes 3 fire damage.
+      guid: 3da8c9b5-8aaf-45c0-9dd7-c14feb441948
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:66a0d44e-4763-49d2-b986-655d461508ba: true
+      modifiers: []
+      name: Kindlestep
+      description: The firerunner ignores difficult terrain.
+      guid: 66a0d44e-4763-49d2-b986-655d461508ba
+      source: Trait
+    role: Platoon Harrier
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Hobgoblin Firerunner
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Magic: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 56b061ed-6a71-4c87-a3ab-bc0db908704f
+      implementation: 4
+      numTargets: 1
+      name: Flaming Kick
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 fire damage
+        - 13 fire damage
+        - 16 fire damage; A<3 dazed (EoT)
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: c1ee900d-4e4e-4dd8-a2dd-b66f4dd9d844
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Blazing Trail
+      numTargets: 1
+      description: The firerunner moves up to their speed and creates a 8 wall of fire. Each segment must include one of the squares the firerunner touched. Creatures can enter and pass through the wall. Any enemy who enters the wall for the first time in a round or starts their turn there takes 5 fire damage.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 fire damage
+        - 14 fire damage
+        - 17 fire damage; A<3 burning (save ends)
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: fd74ac45-38dc-4607-adf0-52b3c60daf8e
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Fire Crossbow
+      numTargets: 1
+      description: A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 33a7fcae-a800-4068-b721-dd15d1ffde55
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 fire damage; A<1 burning (save ends)
+        - 9 fire damage; A<2 burning (save ends)
+        - 11 fire damage; prone; A<3 burning (save ends)
+        roll: 2d10 + 3
+      name: Fire Ball Volley
+      numTargets: "1"
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds: []
+    ev: 14
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 7c7730d5-f8db-490d-b2ba-b6ea91b6e55c
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin Firerunner
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590270687
+mtime: 1775201137032
+hidden: false

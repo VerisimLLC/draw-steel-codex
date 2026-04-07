@@ -1,0 +1,412 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ff41c74c-2271-499e-a0af-f0d6c7fd73c6
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |
+        Hobgoblin Bloodlord	Level 6 Leader
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 32
+        <b>Stamina</b> 180	<b>Immunity</b> fire 6
+        <b>Speed</b> 6 (teleport)	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 7
+        Might +4	Agility +2	Reason +2	Intuition +3	Presence +3
+        <b>Soul Sword</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 corruption damage; P<2 bleeding (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	16 corruption damage; P<3 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	19 corruption damage; P<4 bleeding (save ends)
+        <b>2 Malice</b> Each target is marked until they die or the end of the encounter. Allies have an edge on strikes against marked targets. The bloodlord can only have up to 3 targets marked this way, removing the oldest mark first.
+
+        <b>Take Point!</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 ally
+        <b>Effect</b> The target moves up to their speed and uses a signature action.
+
+        <b>An Army From Blood</b> (Triggered Action) %E2%97%86 3 Malice
+        <b>Keywords</b> -
+        <b>Trigger</b> The target takes damage
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 non-minion hobgoblin
+        <b>Effect</b> 3 <b>hobgoblin recruits</b> crawl out of the target's blood and appear in unoccupied spaces adjacent to the target.
+
+        <b>Infernal Ichor</b>
+        If the bloodlord's Stamina drops to 0, they spray burning blood. Each creature within 1 of the bloodlord takes 3 fire damage.
+
+        <b>End Effect</b>
+        At the end of their turn, the bloodlord can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Advance!</b> (Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> Self and 10 burst<b>	Target</b> Self and all allies
+        <b>Effect</b> Each target gains 10 temporary Stamina, moves up to their speed, and makes a free strike.
+
+        <b>Skulls Abound </b>(Villain Action 2)
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 3 aura<b>	Target</b> Self
+        <b>Effect</b> The bloodlord surrounds themselves with a storm of flying skulls until the end of the encounter. An enemy that first enters the aura or starts their turn there takes 8 corruption damage and has a bane on their next power roll until the start of their next turn.
+
+        <b>I am Fire! I am Death!</b> (Villain Action 3) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 fire damage; P<2 2 fire damage; push 2, prone
+        %E2%98%85	<b>12%E2%80%9316</b>	5 fire damage; P<3 7 fire damage; push 3, prone
+        %E2%9C%B8	<b>17</b>	5 fire damage; P<4 10 fire damage; push 5, prone
+        <b>Effect</b> The bloodlord is wreathed in black flames until the end of the encounter. When an adjacent enemy touches or uses a melee ability against the bloodlord, they take 5 corruption damage.
+        Retainer
+        Hobgoblin Flameslinger	Level 4 Controller Retainer
+        Goblin, Hobgoblin, Humanoid, Infernal
+        <b>Stamina</b> 48	<b>Immunity</b> fire 4
+        <b>Speed</b> 5	<b>Size</b> 1M/<b>Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +1	Agility 0	Reason +2	Intuition +1	Presence +3
+        <b>Fire Curse</b> (Action) - 2d10 + highest characteristic - Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10 	<b>Target </b>One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>		5 fire damage
+        %E2%98%85	<b>12%E2%80%9316</b>	9 fire damage
+        %E2%9C%B8	<b>17</b>		12 fire damage; A (strong) burning (save ends)
+        <b>Effect </b>A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+
+        <b>Fuel for the Fire</b> (Action)
+        <b>Keywords</b> %E2%80%93
+        <b>Distance</b> Ranged 10	<b>Target</b> 1 creature
+        <b>Effect</b> The target gains fire weakness 10 until the end of the flameslinger's next turn. If the target is the flameslinger's mentor, they instead gain fire immunity 10.
+
+        <b>Infernal Ichor</b>
+        If the flameslinger's Stamina drops to 0, they spray burning blood. Each creature within 1 of the flameslinger takes 3 fire damage.
+
+        Level 7 Retainer Advancement Ability
+        <b>Unholy Attraction</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 10	<b>Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>		8 damage; pull 1
+        %E2%98%85	<b>12%E2%80%9316</b>		12 damage; pull 2
+        %E2%9C%B8	<b>17</b>		16 damage; pull 4
+        <b>Effect </b>A creature pulled adjacent to the flameslinger is P (medium) prone.
+
+        Level 10 Retainer Advancement Ability
+        <b>Fire Spiral</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst	<b>Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>		8 fire damage; push 2
+        %E2%98%85	<b>12%E2%80%9316</b>		12 fire damage; push 3
+        %E2%9C%B8	<b>17</b>		16 fire damage; push 5
+        <b>Effect </b>If the fireslinger's mentor is within 10, the mentor can be the source of the burst instead of the fireslinger.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1d7ce9c7-a8e8-453f-af3d-440a56d6130c: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the bloodlord's Stamina drops to 0, they spray burning blood. Each creature within 1 of the bloodlord takes 3 fire damage.
+      guid: 1d7ce9c7-a8e8-453f-af3d-440a56d6130c
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:12f148f8-1b5e-48ee-ae1c-80238b7d1996: true
+      modifiers: []
+      name: End Effect
+      description: At the end of their turn, the bloodlord can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: 12f148f8-1b5e-48ee-ae1c-80238b7d1996
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:11850cc2-c726-424c-a04f-aaf962d1695b: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the flameslinger's Stamina drops to 0, they spray burning blood. Each creature within 1 of the flameslinger takes 3 fire damage.
+      guid: 11850cc2-c726-424c-a04f-aaf962d1695b
+      source: Trait
+    role: Leader
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    max_hitpoints_roll: "180"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: fire
+      apply: Damage Reduction
+    monster_type: Hobgoblin Bloodlord
+    opportunityAttack: 7
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    levelChoices: []
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    walkingSpeed: 6
+    max_hitpoints: 180
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 966a32da-ddfa-40cc-9a1a-998ff38bbfdd
+      implementation: 3
+      numTargets: 2
+      name: Soul Sword
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 corruption damage; P<2 bleeding (save ends)
+        - 16 corruption damage; P<3 bleeding (save ends)
+        - 19 corruption damage; P<4 bleeding (save ends)
+        roll: 2d10 + Might
+      description: |2-
+
+        **2 Malice**: Each target is marked until the end of the encounter or until they die. The bloodlord's allies gain an edge on strikes against any target marked this way. The bloodlord can have up to three targets marked this way. If they mark a new target who would exceed the limit, the oldest mark ends.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 597a0e3a-14ea-4bd5-9bc3-0cb9b12c39d0
+      numTargets: 1
+      targetType: target
+      name: Take Point!
+      iconid: ui-icons/skills/1.png
+      description: The target moves up to their speed and uses a signature action.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: e13cce77-09f0-4f21-8a91-922595dbe431
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: An Army From Blood
+      implementation: 0
+      description: 3 hobgoblin recruits crawl out of the target's blood and appear in unoccupied spaces adjacent to the target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: f7d8fdfb-547c-40d2-9601-c42a0d389c92
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'f1e4ef48-07d2-44c9-a44"
+      implementation: 0
+      behaviors: []
+      name: Advance!
+      numTargets: 1
+      description: Each target gains 10 temporary Stamina, moves up to their speed, and makes a free strike.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b37c0a2a-6cea-4f15-979a-8d1d6f668372
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '0c1a3486-1996-4f02-89c"
+      implementation: 0
+      behaviors: []
+      name: 'Skulls Abound '
+      numTargets: 1
+      description: The bloodlord surrounds themselves with a storm of flying skulls until the end of the encounter. An enemy that first enters the aura or starts their turn there takes 8 corruption damage and has a bane on their next power roll until the start of their next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 81c54625-e164-4bee-936a-4bff2a461bd9
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'ab20ad66-9274-4c69-9f5"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 fire damage; P<2 2 fire damage, push 2, prone
+        - 5 fire damage; P<3 7 fire damage, push 3, prone
+        - 5 fire damage; P<4 10 fire damage, push 5, prone
+        roll: 2d10 + Might
+      name: I am Fire! I am Death!
+      numTargets: 1
+      description: A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        "%E2%80%93": true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8b71c50a-6237-4e2f-a377-fe1de262ec4f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Fuel for the Fire
+      numTargets: 1
+      description: The target gains fire weakness 10 until the end of the flameslinger's next turn. If the target is the flameslinger's mentor, they instead gain fire immunity 10.
+      abilityType: none
+      implementation: 0
+    monster_category: Monster
+    movementSpeeds:
+      teleport: 6
+    damage_taken: 0
+    minion: false
+    ev: 32
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 41c866d6-f7be-43ca-b843-b04c7c4cefa9
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin Bloodlord
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590243580
+mtime: 1775201137032
+hidden: false

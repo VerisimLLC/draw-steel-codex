@@ -1,0 +1,279 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 12842297-5512-48e3-9102-f44a983fb41b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin War Mage	Level 5 Elite Controller
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 28
+        <b>Stamina</b> 120	<b>Immunity</b> fire 5
+        <b>Speed</b> 5 (teleport, hover)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might 0	Agility +2	Reason +3	Intuition +2	Presence +2
+        <b>Hellfire</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 10<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 fire damage; M<1 weakened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	9 fire damage; M<2 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	11 fire damage; M<3 weakened (save ends)
+        <b>Effect</b> The war mage can teleport a creature within 10 up to 2 squares before using this ability.
+
+        <b>Enchantments of War</b> (Action)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> 2 allies
+        <b>Effect</b> Each target gains 10 temporary Stamina and has a double edge on their next power roll. The war mage can spend any amount of their Stamina to increase the temporary Stamina each target gains by an equivalent amount.
+
+        <b>Unhallowed Ground</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 cube within 10<b>	Target</b> Special
+        <b>Effect</b> The war mage consecrates the affected area and causes it to smolder. Until the end of the encounter, the affected area is considered difficult terrain and enemies have fire weakness 10 while occupying an affected square.
+
+        <b>Magic Siphon</b> (Triggered Action)
+        <b>Keywords</b> Magic
+        <b>Trigger</b> A creature within distance uses a strike or ability with the magic keyword
+        <b>Distance</b> Ranged 10	<b>Target</b> Triggering creature
+        <b>Effect</b> Any damage dealt or Stamina regained by the attack or ability is halved. The war mage regains Stamina equal to the remainder.
+
+        <b>Infernal Ichor</b>
+        If the war mage's Stamina drops to 0, they spray burning blood. Each creature within 1 of the war mage takes 3 fire damage.
+
+        <b>Despair, You Who Faces Death</b>
+        Each enemy has -2 on saving throws while within 2 squares of the war mage.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c563e204-b1de-4a3d-ab7b-fd549d1513c1: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the war mage's Stamina drops to 0, they spray burning blood. Each creature within 1 of the war mage takes 3 fire damage.
+      guid: c563e204-b1de-4a3d-ab7b-fd549d1513c1
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5199f2a1-4819-4c98-b31b-ff77edb04358: true
+      modifiers: []
+      name: Despair, You Who Faces Death
+      description: Each enemy has -2 on saving throws while within 2 squares of the war mage.
+      guid: 5199f2a1-4819-4c98-b31b-ff77edb04358
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f8733fc0-fb25-45d7-a3d6-b61e4ce239f8: true
+      modifiers: []
+      name: Despair, You Who Face Death
+      description: Any enemy within 2 squares of the war mage has a -2 penalty to saving throws.
+      guid: f8733fc0-fb25-45d7-a3d6-b61e4ce239f8
+      source: Trait
+    role: Elite Controller
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    max_hitpoints_roll: "120"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Hobgoblin War Mage
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 120
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 fire damage; M<1 weakened (save ends)
+        - 9 fire damage; M<2 weakened (save ends)
+        - 11 fire damage; M<3 weakened (save ends)
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e62fbcdf-5329-4ea3-9064-5f29851f4a07
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Hellfire
+      numTargets: 1
+      description: The war mage can teleport a creature within 10 up to 2 squares before using this ability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 90f282e4-911b-4963-8da4-af610bc3d8e0
+      numTargets: 2
+      targetType: target
+      name: Enchantments of War
+      iconid: ui-icons/skills/1.png
+      description: Each target gains 10 temporary Stamina and has a double edge on their next power roll. The war mage can spend any amount of their Stamina to increase the temporary Stamina each target gains by an equivalent amount.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 6c07e1f9-2536-4a84-93c2-7571828da4ca
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Unhallowed Ground
+      implementation: 0
+      description: The war mage consecrates the affected area and causes it to smolder. Until the end of the encounter, the affected area is considered difficult terrain and enemies have fire weakness 10 while occupying an affected square.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 6b803d63-b63e-4ed4-ad53-1f9c4fe0d22d
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Magic Siphon
+      numTargets: 1
+      description: Any damage dealt or Stamina regained by the attack or ability is halved. The war mage regains Stamina equal to the remainder.
+      abilityType: none
+      implementation: 0
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds:
+      teleport: 5
+    ev: 28
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 1622aa8d-1cb2-44e4-a720-6f51aac2a949
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin War Mage
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590222436
+mtime: 1775201137032
+hidden: false

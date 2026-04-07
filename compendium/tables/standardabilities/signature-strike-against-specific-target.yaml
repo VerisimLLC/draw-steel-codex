@@ -1,0 +1,73 @@
+__typeName: ActivatedAbility
+id: 1d55d541-6a64-4717-9a0e-08babceab7ef
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  filterAbilityTargets: target.id = <<targetid>>
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: (ability.keywords has "Strike") and Ability.Usable as Signature Ability
+    behavior: modifyability
+    guid: e62929ba-ea86-4b33-95d2-1b72eda6f8a6
+    cannotModifyAction: true
+    attributes: []
+    mustPayResourceCost: true
+    description: ""
+    name: Modify Attack
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 39bc8e2c-8609-4bfe-9522-28daa9bd4dd3
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors:
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 621a9ab8-9541-4040-9bc0-7da7a9081780
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 621a9ab8-9541-4040-9bc0-7da7a9081780
+          modtype: edge
+          keywords: []
+          activationCondition: true
+          guid: 68e468db-3909-475d-a1d2-d65eb03c7212
+          filterCondition: "<<hasedge>>"
+          name: Edge
+          behavior: power
+          description: 'You have an edge on the strike '
+          rollType: ability_power_roll
+          domains: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+ctime: 1746341758415
+targetType: self
+numTargets: "1"
+mtime: 1765298002557
+name: Signature Strike Against Specific Target
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

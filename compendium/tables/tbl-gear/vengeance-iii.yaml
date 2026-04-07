@@ -1,0 +1,104 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: eea2506d-3e88-454d-b486-026f25789019
+  description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 6 damage. This replaces the benefit of Vengeance II.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 1dbd3b20-882a-4734-bd28-3f6874fccc07
+      repeatTargets: false
+      abilityType: none
+      trigger: losehitpoints
+      targetType: attacker
+      numTargets: "1"
+      name: Vengeance I
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: targets
+        targeting: formula
+        targetingFormula: Target.id = Self.id
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 4024ae68-fcdb-4ba1-9057-4a697f151602
+          repeatTargets: false
+          abilityType: none
+          categorization: Hidden
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            durationUntilEndOfTurn: true
+            duration: end_of_next_turn
+            ongoingEffectCustom: 4de0e2b7-a460-4af9-b32a-e990edb90d12
+            ongoingEffect: 4de0e2b7-a460-4af9-b32a-e990edb90d12
+            guid: 476889b0-dc29-48c9-9ceb-0dc52de519bb
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 2 damage.
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 6 damage. This replaces the benefit of Vengeance II.
+    source: Vengeance III Imbuement
+    behavior: trigger
+    guid: e1051e81-812d-4a50-ace6-bcbaabff7f66
+    name: Vengeance III
+    sourceguid: eea2506d-3e88-454d-b486-026f25789019
+  - __typeName: CharacterModifier
+    sourceguid: eea2506d-3e88-454d-b486-026f25789019
+    displayCondition: ability.doesdamage and ConditionCaster("Vengeance").id = Target.id
+    source: Vengeance III Imbuement
+    modtype: none
+    keywords: []
+    activationCondition: "1"
+    behavior: power
+    activationAfterRoll: false
+    name: Vengeance III
+    description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 6 damage. This replaces the benefit of Vengeance II.
+    damageModifier: "6"
+    rollType: ability_power_roll
+    guid: bcc70341-5bc4-43fb-bf7c-63161348264c
+  source: Vengeance III Imbuement
+  name: Vengeance III
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: da1e1457-f1e6-47d9-a97a-cdd6ece0aa4a
+imbuePrereq: 23380f89-c58f-48a2-905a-ec670990d0b7
+projectSource: Kalliak
+imbueLevel: 9
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1774584827487
+type: Gear
+ctime: 1770699205313
+projectGoal: "150"
+itemPrerequisite: The true name of a devil who hunts other devils
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Vengeance III
+imbueTargetType: weapon
+description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 6 damage. This replaces the benefit of Vengeance II.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

@@ -1,0 +1,367 @@
+__typeName: MarkdownDocument
+annotations:
+  "encounter: ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: r":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: D*":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: D":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: D8":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 3,9,1:-3
+        invisibleToPlayers:
+        - false
+        monsters:
+          9cd9baa6-8399-42a7-9573-b6ebd6369a47: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-3,7,1:-2"
+        - __usertype: LuaLoc
+          loc: "-3,9,1:-2"
+        - __usertype: LuaLoc
+          loc: "-3,11,1:-2"
+        - __usertype: LuaLoc
+          loc: "-3,13,1:-2"
+        - __usertype: LuaLoc
+          loc: "-2,8,1:-2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          eb1dd295-16cf-4e44-9e1b-622c0c029297: 1
+          6907953a-efb6-4a9d-9b2a-c22b2262c946: 4
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 9,9,1:-2
+        invisibleToPlayers:
+        - false
+        monsters:
+          eb1dd295-16cf-4e44-9e1b-622c0c029297: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          6907953a-efb6-4a9d-9b2a-c22b2262c946: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 10,8,1:-2
+        - __usertype: LuaLoc
+          loc: 10,12,1:-2
+        - __usertype: LuaLoc
+          loc: 10,10,1:-2
+        - __usertype: LuaLoc
+          loc: 10,6,1:-2
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 5
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          6907953a-efb6-4a9d-9b2a-c22b2262c946: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 7,15,1:-2
+        - __usertype: LuaLoc
+          loc: 5,15,1:-2
+        - __usertype: LuaLoc
+          loc: 2,15,1:-2
+        - __usertype: LuaLoc
+          loc: 0,15,1:-2
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 6
+      name: Encounter D8
+  "encounter: re":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: D8 Reinforcements":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"be442ec6-bcbd-4056-b101-c622542b3521\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Awkward Ghoul\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          9584f1f7-037a-42eb-aeed-e68c51a30ebd: 1
+          53bb2329-398d-4e45-872b-6924ae5d70d2: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 6,13,1:-3
+        - __usertype: LuaLoc
+          loc: 1,6,1:-3
+        - __usertype: LuaLoc
+          loc: 6,6,1:-3
+        - __usertype: LuaLoc
+          loc: 4,6,1:-3
+        - __usertype: LuaLoc
+          loc: 3,6,1:-3
+        minHeroes: 4
+      - appearances:
+        - "{\"portraitId\": \"be442ec6-bcbd-4056-b101-c622542b3521\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Smart Ghoul\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          9584f1f7-037a-42eb-aeed-e68c51a30ebd: 1
+          53bb2329-398d-4e45-872b-6924ae5d70d2: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 1,13,1:-3
+        - __usertype: LuaLoc
+          loc: 0,8,1:-3
+        - __usertype: LuaLoc
+          loc: 0,10,1:-3
+        - __usertype: LuaLoc
+          loc: 0,12,1:-3
+        - __usertype: LuaLoc
+          loc: 3,13,1:-3
+        minHeroes: 5
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          53bb2329-398d-4e45-872b-6924ae5d70d2: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 7,8,1:-3
+        - __usertype: LuaLoc
+          loc: 4,13,1:-3
+        - __usertype: LuaLoc
+          loc: 7,10,1:-3
+        - __usertype: LuaLoc
+          loc: 7,12,1:-3
+        minHeroes: 6
+      name: D8 Reinforcements
+  Encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: 72e4d287-9c3b-44af-8280-52b69cff2179
+ctime: 1761691748265
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Ci: |+
+      [[/activateobjects E8_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects E8_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    w: |
+      [[/awardvp 1; |Award Heroes 1 Victory]]
+    u: |+
+      When the tomb horror and at least half the other creatures in the encounter have been dispatched, the remaining monsters crumble to dust. Finishing this encounter earns the heroes 1 Victory each.
+
+    s: |
+      ## Ending the Encounter
+    q: |+
+      If a hero tries to rush through the room and down the corridor ahead, the tomb horror uses a main action and their vine-like appendages to grasp and tear down the northern balcony, either blocking the way, or trapping the hero inside.
+
+
+    o: |+
+      The tomb horror tries to stay in the center of the room, pulling creatures into the difficult terrain there to make it harder for them to reach the memorial ivies on the balcony. The memorial ivies spread out and use their favorable vantage point combined with their pull to disrupt the heroes' positioning. Meanwhile, the ghouls and zombies target anyone who tries to reach the balcony, or who targets the memorial ivies with ranged attacks. If all the ivies fall, they defend the tomb horror.
+
+    m: |+
+      ## Tactics
+
+    k: |+
+      If the northern balcony collapses, a hero can move up the pile of rubble to the exit to the north, treating the rubble as difficult terrain.
+
+
+    i: |+
+      |{#The creature can immediately shift up to 2 spaces, after which they take 2 damage. If the creature doesn't move out of the area of the balcony, they take 5 damage instead.}
+
+    g: |
+      |{#5 damage; M<2 prone}
+    e: |
+      |{#9 damage; M<2 restrained (save ends) and prone}
+    c: |
+      |Balcony Collapse!: Agility Test
+    b: |+
+      If a creature is on or underneath a balcony when it collapses, they must make an Agility test, suffering the following effects for being on the balcony when it collapses. If the creature is under the balcony, they suffer the same effect but take an extra 3 damage.
+
+    Y: |+
+      **Tangled Roots:** An area that is 6 squares on a side in the center of the room is difficult terrain. The heroes' enemies in this room ignore this difficult terrain.
+
+    Z: |+
+      ## Collapse!
+
+    W: |+
+      **Ceiling:** The ceiling in this chamber is 6 squares high.
+
+    X: |+
+      **Balcony:** A horseshoe-shaped balcony rings part of this room. It's 2 squares high, and accessible by stairs on its south side. Each side of the balcony (north, west, and east) has six supporting pillars. If three or more of these pillars are destroyed, that side of the balcony collapses (see Collapse!).
+
+    U: |+
+      * For three heroes, remove the reinforcements.
+
+
+    V: |+
+      ## Obelisk Chamber Features
+
+    S: |
+      * For six heroes, add four memorial ivies to the start of the encounter and four rotting zombies to the reinforcements.
+    T: |
+      * For four heroes, remove four memorial ivies from the start of the encounter and four rotting zombies and a ghoul from the reinforcements.
+    Q: |
+      **Encounter Adjustments**
+    R: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    O: |
+      |4 (Reinforcements)|One [ghoul] (captain), Four [rotting zombie]s (minion squad)|
+    P: |+
+      |5 (Reinforcements)|One [ghoul] (captain), Four [rotting zombie]s (minion squad)|
+
+    M: |
+      |2|One [soulwight] (captain), Four [memorial ivies](memorial ivy) (minion squad)|
+    N: |
+      |3|One [soulwight] (captain), Four [memorial ivies](memorial ivy) (minion squad)|
+    K: |
+      |Group	|Creatures|
+    L: |
+      |1|One [tomb horror]|
+    I: |+
+      [[encounter: D8 Reinforcements]]
+
+
+    J: |
+      **D8 Groups**
+    G: |
+      At the start of the second round, eight rotting zombies and two ghouls
+    H: |+
+      emerge from the tangled roots in the center of the room.
+
+    E: |+
+      [[encounter: D8]]
+
+    F: |
+      ## Reinforcements
+    C: |+
+      The heroes battle undead and ruinborn in the obelisk chamber of the Delian Tomb.
+
+    D: |+
+      [[setting:numheroes]]
+
+    CQ: |2
+
+    B: |+
+      # Encounter D8	
+
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: a9a29f1c-3d55-4278-9fb3-841ef19ea642
+mtime: 1768580662292
+content: |
+  # Encounter D8	
+
+  The heroes battle undead and ruinborn in the obelisk chamber of the Delian Tomb.
+
+  [[setting:numheroes]]
+
+  [[encounter: D8]]
+
+  ## Reinforcements
+  At the start of the second round, eight rotting zombies and two ghouls
+  emerge from the tangled roots in the center of the room.
+
+  [[encounter: D8 Reinforcements]]
+
+
+  **D8 Groups**
+  |Group	|Creatures|
+  |1|One tomb horror|
+  |2|One soulwight (captain), Four memorial ivies (minion squad)|
+  |3|One soulwight (captain), Four memorial ivies (minion squad)|
+  |4 (Reinforcements)|One ghoul (captain), Four rotting zombies (minion squad)|
+  |5 (Reinforcements)|One ghoul (captain), Four rotting zombies (minion squad)|
+
+  **Encounter Adjustments**
+  If this encounter has more or fewer than five heroes, make the following adjustments:
+  * For six heroes, add four memorial ivies to the start of the encounter and four rotting zombies to the reinforcements.
+  * For four heroes, remove four memorial ivies from the start of the encounter and four rotting zombies and a ghoul from the reinforcements.
+  * For three heroes, remove the reinforcements.
+
+
+  ## Obelisk Chamber Features
+
+  **Ceiling:** The ceiling in this chamber is 6 squares high.
+
+  **Balcony:** A horseshoe-shaped balcony rings part of this room. It's 2 squares high, and accessible by stairs on its south side. Each side of the balcony (north, west, and east) has six supporting pillars. If three or more of these pillars are destroyed, that side of the balcony collapses (see Collapse!).
+
+  **Tangled Roots:** An area that is 6 squares on a side in the center of the room is difficult terrain. The heroes' enemies in this room ignore this difficult terrain.
+
+  ## Collapse!
+
+  If a creature is on or underneath a balcony when it collapses, they must make an Agility test, suffering the following effects for being on the balcony when it collapses. If the creature is under the balcony, they suffer the same effect but take an extra 3 damage.
+
+  |Balcony Collapse!: Agility Test
+  |{#9 damage; M<2 restrained (save ends) and prone}
+  |{#5 damage; M<2 prone}
+  |{#The creature can immediately shift up to 2 spaces, after which they take 2 damage. If the creature doesn't move out of the area of the balcony, they take 5 damage instead.}
+
+  If the northern balcony collapses, a hero can move up the pile of rubble to the exit to the north, treating the rubble as difficult terrain.
+
+
+  ## Tactics
+
+  The tomb horror tries to stay in the center of the room, pulling creatures into the difficult terrain there to make it harder for them to reach the memorial ivies on the balcony. The memorial ivies spread out and use their favorable vantage point combined with their pull to disrupt the heroes' positioning. Meanwhile, the ghouls and zombies target anyone who tries to reach the balcony, or who targets the memorial ivies with ranged attacks. If all the ivies fall, they defend the tomb horror.
+
+  If a hero tries to rush through the room and down the corridor ahead, the tomb horror uses a main action and their vine-like appendages to grasp and tear down the northern balcony, either blocking the way, or trapping the hero inside.
+
+
+  ## Ending the Encounter
+  When the tomb horror and at least half the other creatures in the encounter have been dispatched, the remaining monsters crumble to dust. Finishing this encounter earns the heroes 1 Victory each.
+
+  [[/awardvp 1; |Award Heroes 1 Victory]]
+description: Encounter D8

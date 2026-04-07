@@ -1,0 +1,47 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 98bff601-1581-451e-96db-be88e063afaf
+  source: Ongoing Effect
+  value: 0
+  domains:
+    CharacterOngoingEffect:98bff601-1581-451e-96db-be88e063afaf: true
+  name: Immobilized
+  guid: 5138314c-1a73-460d-ba05-3a37744af7e4
+  description: This creature cannot use movement.
+  behavior: attribute
+  attribute: movementMultiplier
+- __typeName: CharacterModifier
+  text: This creature cannot move.
+  sourceguid: 98bff601-1581-451e-96db-be88e063afaf
+  source: Ongoing Effect
+  guid: fae2dc29-6c22-4a1c-ac0d-273d2e523b5c
+  domains:
+    CharacterOngoingEffect:98bff601-1581-451e-96db-be88e063afaf: true
+  name: Immobilized
+  description: This creature cannot use movement.
+  behavior: movementtext
+  color: red
+source: Ongoing Effect
+guid: 98bff601-1581-451e-96db-be88e063afaf
+id: 98bff601-1581-451e-96db-be88e063afaf
+ctime: 1740882923713
+domains:
+  CharacterOngoingEffect:98bff601-1581-451e-96db-be88e063afaf: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: -0.00267481803894043
+    v: 0.413951992988586
+    a: 1
+name: Immobilized
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd
+description: This creature cannot use movement.
+mtime: 1765680430062
+implementation: 3

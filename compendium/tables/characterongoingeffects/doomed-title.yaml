@@ -1,0 +1,89 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 72c61a8d-23e2-4573-b505-19c2a2ba356b
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:72c61a8d-23e2-4573-b505-19c2a2ba356b: true
+  name: Doomed Title
+  guid: 4178cb9c-afc9-44e4-979d-e25fb5a25895
+  description: You can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+  behavior: attribute
+  attribute: 96b930c8-846a-4221-991a-5ded3c9e9b39
+- __typeName: CharacterModifier
+  sourceguid: 72c61a8d-23e2-4573-b505-19c2a2ba356b
+  source: Ongoing Effect
+  modtype: tier3
+  keywords: []
+  activationCondition: true
+  guid: 4d79b8c7-7286-48ba-b16a-985504bbba1f
+  rollType: all
+  domains:
+    CharacterOngoingEffect:72c61a8d-23e2-4573-b505-19c2a2ba356b: true
+  description: You can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+  behavior: power
+  name: Doomed Title
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 72c61a8d-23e2-4573-b505-19c2a2ba356b
+  source: Ongoing Effect
+  value: Maximum Stamina
+  domains:
+    CharacterOngoingEffect:72c61a8d-23e2-4573-b505-19c2a2ba356b: true
+  name: Doomed Title
+  guid: 6d3dd899-5f83-4839-857c-9ce98f5b1475
+  description: You can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+  behavior: attribute
+  attribute: 9248b479-12c2-4d1f-a1d2-7416fd63f244
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: e869045e-a5c6-4a95-a2a6-421cc3b4e747
+    repeatTargets: false
+    abilityType: none
+    trigger: endcombat
+    targetType: self
+    numTargets: "1"
+    name: Doomed
+    behaviors:
+    - __typeName: ActivatedAbilityDestroyBehavior
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: d660b722-36db-4825-bd7b-a9e334cbf0de
+  name: Doomed Title
+  sourceguid: e8cdab8b-7417-4ed8-957c-3ddf027dc425
+source: Ongoing Effect
+guid: 72c61a8d-23e2-4573-b505-19c2a2ba356b
+id: 72c61a8d-23e2-4573-b505-19c2a2ba356b
+ctime: 1768482635408
+domains:
+  CharacterOngoingEffect:72c61a8d-23e2-4573-b505-19c2a2ba356b: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.80949991941452
+    s: 0.99218738079071
+    v: 0.9498051404953
+    a: 1
+name: Doomed Title
+custom: true
+description: You can’t regain Stamina, you automatically obtain a tier 3 outcome on tests and power rolls, and you don’t die until your Stamina reaches the negative of your Stamina maximum. At the end of the encounter, you die.
+mtime: 1769646573322
+iconid: a3e35db5-3c79-491b-93f5-fe7678665e9d

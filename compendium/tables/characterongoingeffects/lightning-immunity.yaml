@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 05da4a3e-36a7-4bd7-827e-7b34d77a4de7
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "100"
+    damageType: lightning
+    apply: Damage Reduction
+  description: You have immunity all to lightngin damage
+  name: Lightning Immunity
+  guid: afb530d5-197c-4f3f-a933-9aa63268e9bc
+source: Ongoing Effect
+guid: 05da4a3e-36a7-4bd7-827e-7b34d77a4de7
+id: 05da4a3e-36a7-4bd7-827e-7b34d77a4de7
+ctime: 1772837533379
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Lightning Immunity
+description: You have immunity all to lightngin damage
+custom: true
+mtime: 1772837533379
+iconid: 02f20f27-3b1e-40bd-af32-b5bad7158b6c

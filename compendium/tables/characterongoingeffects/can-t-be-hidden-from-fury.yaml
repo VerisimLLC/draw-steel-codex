@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: db12fe24-0663-4602-a7ca-53793c85973c
+id: db12fe24-0663-4602-a7ca-53793c85973c
+ctime: 1758202544847
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Can't be Hidden from Fury
+description: ""
+custom: true
+mtime: 1758202544847
+iconid: ui-icons/skills/1.png

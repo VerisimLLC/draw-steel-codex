@@ -1,0 +1,60 @@
+__typeName: equipment
+id: 0a37a00e-a508-4a7e-92c5-6814aafb2d12
+keywords:
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: This decadent-looking treat feels strangely heavy in the hand.
+weight: 1
+echelon: 2
+specialDescription: ""
+itemPrerequisite: chocolate made by a gnome confectioner
+implementation: 3
+category: Gear
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+type: Gear
+description: When you consume this delicious piece of candy as a maneuver, you gain 15 temporary Stamina and a +10 bonus to stability. Additionally, if you don’t use your movement during your turn, any strikes you make on that turn deal an extra 5 damage, and any strikes against you take a bane until the start of your next turn. This effect and the bonus to stability lasts until the end of the encounter, after which you are sleepy. If not reduced beforehand, the temporary Stamina lasts until the end of your next respite.
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  implementationDetails: Temporary Stamina ends at the end of an encounter currently.
+  behaviors:
+  - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+    stamina: "15"
+    chatMessage: Chocolate of Immovability
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 6d8f57f9-0088-409c-bb3a-1e4922a84bfe
+    ongoingEffectCustom: 6d8f57f9-0088-409c-bb3a-1e4922a84bfe
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Ability
+  range: 5
+  consumables:
+    0a37a00e-a508-4a7e-92c5-6814aafb2d12: 1
+  numTargets: "1"
+  modifiers: []
+  sourceReference:
+    __typeName: SourceReference
+    page: 318
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  strain: []
+  guid: b09211b9-2566-497c-a531-631925b94277
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  description: When you consume this delicious piece of candy as a maneuver, you gain 15 temporary Stamina and a +10 bonus to stability. Additionally, if you don’t use your movement during your turn, any strikes you make on that turn deal an extra 5 damage, and any strikes against you take a bane until the start of your next turn. This effect and the bonus to stability lasts until the end of the encounter, after which you are sleepy. If not reduced beforehand, the temporary Stamina lasts until the end of your next respite.
+  castImmediately: true
+  iconid: 5ec82504-ab17-4da4-b93c-af1897fb1b27
+  persistence: []
+  name: Chocolate of Immovability
+  targetType: self
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 3
+name: Chocolate of Immovability
+ctime: 1774791756730
+mtime: 1774792538364
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 5ec82504-ab17-4da4-b93c-af1897fb1b27

@@ -1,0 +1,266 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: 72f0634e-8d6a-4afc-884b-b9c824746cc8
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 57cca7eb-abb3-4591-9a4f-dc2b5e1094d8
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        War Dog Prismite	Level 8 Horde Defender
+        War Dog	EV 32
+        <b>Stamina</b> 82	<b>Immunity</b> Psychic 8
+        <b>Speed</b> 5 (fly, hover)	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>Free Strike</b> 3
+        Might +4	Agility +0	Reason +4	Intuition +2	Presence +3
+        <b>Grasping Toungtacles</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Area, Psionic, Weapon
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 psychic damage
+        %E2%98%85	<b>12-16</b>	6 psychic damage; R<3 grabbed
+        %E2%9C%B8	<b>17</b>	8 psychic damage; R<4 grabbed, target has a bane on escaping the grab
+        <b>Effect </b>The prismite can use a maneuver to pull each target they have grabbed into squares adjacent to them.
+
+        <b>Hard Light Field</b> (Maneuver)
+        <b>Keywords</b> Area, Psionic, Ranged
+        <b>Distance</b> 4 cube within 10<b>	Target</b> All allies
+        <b>Effect</b> Each target has cover and their stability increases by 2 until the start of the prismite's next turn.
+
+        <b>Tractor Beam</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> Psionic, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> One enemy
+        <b>Trigger</b> The target uses a melee ability against an ally.
+        <b>Effect</b> Pull 5. The damage is halved and the ally ignores any additional effects.
+
+        <b>Prismacore Detonation</b>
+        When the prisimite dies, they explode, dealing 3d6 psychic damage to each enemy within 2 squares of them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bef68bd1-f089-45ea-b048-5044af9595dd: true
+      modifiers: []
+      name: Prismacore Detonation
+      description: When the prisimite dies, they explode, dealing 3d6 psychic damage to each enemy within 2 squares of them.
+      guid: bef68bd1-f089-45ea-b048-5044af9595dd
+      source: Trait
+    role: Horde Defender
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Soulless: true
+    max_hitpoints_roll: "82"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: War Dog Prismite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 4
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 82
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 psychic damage
+        - 6 psychic damage; R<3 grabbed
+        - 8 psychic damage; R<4 grabbed, target has a bane on escaping the grab
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 1b650424-1939-4957-b586-442826715060
+      numTargets: 1
+      targetType: all
+      name: Grasping Toungtacles
+      iconid: ui-icons/skills/1.png
+      description: The prismite can use a maneuver to pull each target they have grabbed into squares adjacent to them.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Psionic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      guid: c7a773d6-1ef9-4ff1-ac11-2a80b000563b
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: cube
+      implementation: 0
+      name: Hard Light Field
+      radius: 4
+      description: Each target has cover and their stability increases by 2 until the start of the prismite's next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 8ff9c2cf-0631-4279-9809-1633ecc3fadd
+      abilityType: none
+      numTargets: 1
+      implementation: 0
+      name: Tractor Beam
+      behaviors: []
+      description: Pull 5. The damage is halved and the ally ignores any additional effects.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+        Weapon: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0cb07e2a-c96e-4b04-9462-5d9e94f54ce3
+      sourceReference:
+        __typeName: SourceReference
+        page: 313
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: ui-icons/skills/1.png
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 psychic damage
+        - 6 psychic damage; pull 2; R<3 grabbed
+        - 8 psychic damage; pull 2; R<4 grabbed and the target takes a bane on the Escape Grab maneuver
+        roll: 2d10 + Might
+      name: Grasping Tonguetacles
+      numTargets: 1
+      description: The prisimite can have an unlimited number of creatures grabbed.
+      abilityType: none
+      implementation: 3
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds:
+      fly: 5
+    ev: 10
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 0034e3f7-2336-44e9-a138-cd3e682d14f1
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Prismite
+parentFolder: dd2974a5-afe0-42da-8fb3-f9cb518106e0
+artist: null
+ord: 8
+ctime: 1749972305776
+mtime: 1775201137032
+hidden: false

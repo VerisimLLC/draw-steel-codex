@@ -1,0 +1,90 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 80c9a179-f166-4e1e-afe0-b875ff14e488
+ctime: 1761691732025
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |
+      > * “With a bone-crawling growl, the misshapen cluster of roots, vines, leaves, and flowers rises as if on legs, the obelisk protruding from it like a horn.”
+    M: |
+      > * “Suddenly, the many vines wending along the ground pull away from the brick, and the flowerbed undulates, rising up around the obelisk until, with a thunderous crunch, it is torn from its foundation.”
+    n: |+
+      See [Encounter D8].
+
+
+    f: |+
+      **Tangled Roots:** An area that is 6 squares on a side in the center of the room is difficult terrain. The heroes’ enemies in this room ignore this difficult terrain.
+
+    Y: |+
+      **Ceiling:** The ceiling in this chamber is 6 squares high.
+
+    j: |+
+      A **tomb horror** awaits the heroes, accompanied by two **soulwights** and eight **memorial ivies**. At the start of the second round, eight **rotting zombies** and two **ghouls** emerge from the tangled roots in the center of the room.
+
+    G: |
+      > * “Stairs slope deep into the earth, and a rumbling grows more and more palpable the farther you descend.”
+    v: |+
+      The tomb horror’s body contains a [item:Lachomp Tooth] and four [item:Snapdragon]s.
+
+
+
+
+
+
+    r: |+
+      ## Loot
+
+    V: |+
+      ## Obelisk Chamber Features
+
+    S: |+
+      > * “As the ground shifts, bodies rise from the cracked stonework underfoot, clawing from the exposed earth with vengeance in their eyes. At the same time, lurching humanoid figures emerge from the ivy upon the balcony overhead, ripe with malice.”
+
+
+    D: |+
+      # D8. Obelisk Chamber
+
+
+    J: |
+      > * “The tunnel gradually widens into a chamber, revealing a large obelisk in the center of the room surrounded by a flowerbed. The walls are laced with ivy winding up through the brickwork in elaborate patterns, climbing a balcony which juts from the west, north, and east walls.”
+    b: |+
+      **Balcony:** A horseshoe-shaped balcony rings part of this room. It’s 2 squares up from the floor, and accessible by stairs on its south side. Each side of the balcony (north, west, and east) has six supporting pillars. If three or more of these pillars are destroyed, that side of the balcony collapses.
+
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: 7facccba-ac18-452d-93af-903e4b8d1cf5
+mtime: 1764104054538
+content: |+
+  # D8. Obelisk Chamber
+
+
+  > * “Stairs slope deep into the earth, and a rumbling grows more and more palpable the farther you descend.”
+  > * “The tunnel gradually widens into a chamber, revealing a large obelisk in the center of the room surrounded by a flowerbed. The walls are laced with ivy winding up through the brickwork in elaborate patterns, climbing a balcony which juts from the west, north, and east walls.”
+  > * “Suddenly, the many vines wending along the ground pull away from the brick, and the flowerbed undulates, rising up around the obelisk until, with a thunderous crunch, it is torn from its foundation.”
+  > * “With a bone-crawling growl, the misshapen cluster of roots, vines, leaves, and flowers rises as if on legs, the obelisk protruding from it like a horn.”
+  > * “As the ground shifts, bodies rise from the cracked stonework underfoot, clawing from the exposed earth with vengeance in their eyes. At the same time, lurching humanoid figures emerge from the ivy upon the balcony overhead, ripe with malice.”
+
+
+  ## Obelisk Chamber Features
+
+  **Ceiling:** The ceiling in this chamber is 6 squares high.
+
+  **Balcony:** A horseshoe-shaped balcony rings part of this room. It’s 2 squares up from the floor, and accessible by stairs on its south side. Each side of the balcony (north, west, and east) has six supporting pillars. If three or more of these pillars are destroyed, that side of the balcony collapses.
+
+  **Tangled Roots:** An area that is 6 squares on a side in the center of the room is difficult terrain. The heroes’ enemies in this room ignore this difficult terrain.
+
+  A **tomb horror** awaits the heroes, accompanied by two **soulwights** and eight **memorial ivies**. At the start of the second round, eight **rotting zombies** and two **ghouls** emerge from the tangled roots in the center of the room.
+
+  See [Encounter D8].
+
+
+  ## Loot
+
+  The tomb horror’s body contains a [Lachomp Tooth] and four [Snapdragon]s (see Treasure in Handouts).
+
+
+
+
+
+
+description: D8. Obelisk Chamber

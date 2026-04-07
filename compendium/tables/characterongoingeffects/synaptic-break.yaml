@@ -1,0 +1,53 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d967d214-6617-43ee-93bc-c619a684ab9d
+  source: Ongoing Effect
+  seq: 77ada004-2c01-46d8-aa7e-813e88fd27c5
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 5704d228-04f6-4a73-bc25-3914665e7ffa
+      source: Aura
+      modtype: none
+      keywords: []
+      activationCondition: Ability.Has Potency
+      description: ""
+      name: Synaptic Break
+      behavior: power
+      potencymod: "1"
+      rollType: enemy_ability_power_roll
+      guid: eb89e8e5-2155-4894-8240-ec2f758495fd
+    name: Synaptic Break
+    guid: 5704d228-04f6-4a73-bc25-3914665e7ffa
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+  radius: Nullifying Aura Radius
+  guid: c06d1030-6a80-4526-86a3-584cf391c16c
+  description: |-
+    When a target is subjected to a
+    potency, the potency is increased by 1
+  behavior: aura
+  name: Synaptic Break
+source: Ongoing Effect
+guid: d967d214-6617-43ee-93bc-c619a684ab9d
+id: d967d214-6617-43ee-93bc-c619a684ab9d
+ctime: 1749492258314
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Synaptic Break
+description: |-
+  When a target is subjected to a
+  potency, the potency is increased by 1
+custom: true
+mtime: 1749492288957
+iconid: ui-icons/skills/1.png

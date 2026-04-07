@@ -1,0 +1,385 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 931683b9-17bb-42d5-a572-edbe938e0896
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    aurasEntered:
+      8c755036-dccb-4786-a6cb-9e01701f8df9: true
+      2c18a4b0-a2c0-4d6e-9cdc-6b1c7655a307: true
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    aurasEnteredTurnId: 9e98f47f-27be-432d-8609-837eba5dec84-2-fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+    levelChoices: []
+    moveDistance: 2
+    deathSavingThrowFailures: 0
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        3ff963f0-3332-45d3-ab98-392df1ffd5c1:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 10
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c044e000-299a-4876-bab7-f39e3acc8f62: true
+        CharacterFeature:ddd34a3e-3541-48b9-967c-e352b14566eb: true
+        CharacterFeature:99e7a0d7-1cd4-4f24-8543-91bb4d66f0d5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ddd34a3e-3541-48b9-967c-e352b14566eb
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:c044e000-299a-4876-bab7-f39e3acc8f62: true
+          CharacterFeature:ddd34a3e-3541-48b9-967c-e352b14566eb: true
+          CharacterFeature:99e7a0d7-1cd4-4f24-8543-91bb4d66f0d5: true
+        name: Great Tree Splinter
+        guid: a1f6c6ac-99a4-4189-b981-352b4f3d7bed
+        description: The tree has 100 Stamina and can’t be force moved. You and any ally can touch the tree to use the Catch Breath maneuver as a free maneuver. Additionally, when you start your turn with line of effect to the tree, you can end one effect on yourself that is ended by a saving throw or that ends at the end of your turn, or you can stand up if you are prone. Each ally within distance also gains this benefit. Each enemy who ends their turn within 3 squares of the tree is restrained until the end of their next turn. A creature restrained this way can use a main action to end the effect early.
+        behavior: attribute
+        attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+      - __typeName: CharacterModifier
+        sourceguid: ddd34a3e-3541-48b9-967c-e352b14566eb
+        source: Character Feature
+        seq: 2c18a4b0-a2c0-4d6e-9cdc-6b1c7655a307
+        aura:
+          __typeName: Aura
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          guid: bce39b39-7141-4028-b5d1-1ec5c7d97094
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: bce39b39-7141-4028-b5d1-1ec5c7d97094
+            source: Aura
+            guid: 4362be39-6f1c-4593-a2c3-0f9d05165f43
+            filterCondition: (Hero or Retainer) and (Distance(Aura.Caster, Self) < 2)
+            name: Heart of the Wode
+            behavior: activated
+            description: ""
+            suppressOthers: true
+            activatedAbility:
+              __typeName: ActivatedAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                runOnController: true
+                promptText: Use Catch Breath as a free maneuver.
+                namedAbility: Catch Breath
+                abilityType: named
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 79601f1c-87c1-4c7f-9085-713883c04865
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor:
+                  __usertype: LuaColor
+                  h: 0.363250017166138
+                  s: 0.9814453125
+                  v: 0.984156787395477
+                  a: 1
+              categorization: Ability
+              range: 1
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 9a4a20f8-49ac-447e-ad89-2d8108f49d28
+              targetType: self
+              castImmediately: false
+              domains: []
+              iconid: 0365fb61-0d93-42bb-9ce5-61ccca6773f9
+              actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+              name: Touch Tree
+              numTargets: "1"
+              description: You can touch the tree to use the Catch Breath maneuver as a free maneuver.
+              abilityType: none
+              implementation: 3
+          - __typeName: CharacterModifier
+            filterCondition: (Friends(aura.caster, self)) and (Line of Sight(aura.caster, aura.caster.summoner))
+            sourceguid: bce39b39-7141-4028-b5d1-1ec5c7d97094
+            description: ""
+            source: Aura
+            name: Heart of the Wode
+            behavior: trigger
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              targetType: self
+              triggerPrompt: End one effect on yourself that is ended by a saving throw or that ends at the end of your turn, or you can stand up if you are prone.
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              mandatory: false
+              range: 1
+              persistence: []
+              modifiers: []
+              hasManualVersion: true
+              strain: []
+              guid: 790a9f92-c0c9-4075-aaea-6a26783c998a
+              conditionFormula: Effects Count > 0
+              castImmediately: true
+              trigger: beginturn
+              numTargets: "1"
+              name: Heart of the Wode
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                filterTarget: Conditions has "Prone"
+                promptText: You can stand up from Prone.
+                namedAbility: Stand Up
+                runOnController: true
+                abilityType: named
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 349a8fef-6082-4326-9922-22e7e69b5755
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+              - __typeName: ActivatedAbilityPurgeEffectsBehavior
+                mode: conditions
+                targetDuration: save|eot
+                conditions: []
+                purgeType: one
+                chatMessage: Heart of the Wode
+              description: End one effect on yourself that is ended by a saving throw or that ends at the end of your turn, or you can stand up if you are prone.
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            guid: 5e5b57f4-f13f-457c-90d1-ccfd5269df1e
+          - __typeName: CharacterModifier
+            filterCondition: (not Friends(aura.caster, self)) and (Distance(aura.caster) < 4)
+            sourceguid: bce39b39-7141-4028-b5d1-1ec5c7d97094
+            description: ""
+            source: Aura
+            name: Heart of the Wode
+            behavior: trigger
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityFloatTextBehavior
+                text: Heart of the Wode!
+                color:
+                  __usertype: LuaColor
+                  h: 0
+                  s: 0.983398377895355
+                  v: 0.987824201583862
+                  a: 1
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: restrained (EoT)
+              - __typeName: ActivatedAbilityApplyRidersBehavior
+                conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+                riderid: 93d793cd-6683-4626-b505-907cf3f426f3
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: 1
+              numTargets: "1"
+              modifiers: []
+              strain: []
+              guid: 9c28b605-07dd-4a16-b6ba-f18fd03d15a5
+              persistence: []
+              conditionFormula: (not Friends(self, AurasCaster("Heart of the Wode")) and (Distance(AurasCaster("Heart of the Wode") < 4)
+              targetType: self
+              castImmediately: true
+              trigger: endturn
+              name: Heart of the Wode
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            guid: 9915e05c-6e1c-41f3-9c88-4be6711a070f
+          name: Heart of the Wode
+        domains:
+          CharacterFeature:c044e000-299a-4876-bab7-f39e3acc8f62: true
+          CharacterFeature:ddd34a3e-3541-48b9-967c-e352b14566eb: true
+          CharacterFeature:99e7a0d7-1cd4-4f24-8543-91bb4d66f0d5: true
+        radius: "100"
+        guid: 1518a89e-ade7-4b4f-8816-814918dd9a30
+        description: The tree has 100 Stamina and can’t be force moved. You and any ally can touch the tree to use the Catch Breath maneuver as a free maneuver. Additionally, when you start your turn with line of effect to the tree, you can end one effect on yourself that is ended by a saving throw or that ends at the end of your turn, or you can stand up if you are prone. Each ally within distance also gains this benefit. Each enemy who ends their turn within 3 squares of the tree is restrained until the end of their next turn. A creature restrained this way can use a main action to end the effect early.
+        behavior: aura
+        name: Great Tree Splinter
+      - __typeName: CharacterModifier
+        sourceguid: ddd34a3e-3541-48b9-967c-e352b14566eb
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:c044e000-299a-4876-bab7-f39e3acc8f62: true
+          CharacterFeature:ddd34a3e-3541-48b9-967c-e352b14566eb: true
+          CharacterFeature:99e7a0d7-1cd4-4f24-8543-91bb4d66f0d5: true
+        name: Great Tree Splinter
+        guid: 7a19c0e2-217e-41af-a20a-316bf27d9463
+        description: The tree has 100 Stamina and can’t be force moved. You and any ally can touch the tree to use the Catch Breath maneuver as a free maneuver. Additionally, when you start your turn with line of effect to the tree, you can end one effect on yourself that is ended by a saving throw or that ends at the end of your turn, or you can stand up if you are prone. Each ally within distance also gains this benefit. Each enemy who ends their turn within 3 squares of the tree is restrained until the end of their next turn. A creature restrained this way can use a main action to end the effect early.
+        behavior: attribute
+        attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+      name: Great Tree Splinter
+      guid: ddd34a3e-3541-48b9-967c-e352b14566eb
+      description: The tree has 100 Stamina and can’t be force moved. You and any ally can touch the tree to use the Catch Breath maneuver as a free maneuver. Additionally, when you start your turn with line of effect to the tree, you can end one effect on yourself that is ended by a saving throw or that ends at the end of your turn, or you can stand up if you are prone. Each ally within distance also gains this benefit. Each enemy who ends their turn within 3 squares of the tree is restrained until the end of their next turn. A creature restrained this way can use a main action to end the effect early.
+      source: Character Feature
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 0bbba448-ded5-4cbe-8b6c-1aa783b0f703
+    damage_taken: 0
+    innateAttacks: []
+    retainer: false
+    treatAsObject: true
+    walkingSpeed: 5
+    resources: []
+    availableTriggers:
+      c920c29f-b222-46d1-b0bd-95304c12ddf8:
+        __typeName: ActiveTrigger
+        text: Heart of the Wode
+        rules: End one effect on yourself that is ended by a saving throw or that ends at the end of your turn, or you can stand up if you are prone.
+        timestamp: 1771934934271
+        clearOnDismiss: true
+        id: c920c29f-b222-46d1-b0bd-95304c12ddf8
+        targets: []
+    creatureSize: "5"
+    equipmentMeta:
+      offhand0: []
+    monster_type: Great Tree Splinter
+    max_hitpoints: 100
+    moveDistanceRoundId: 9e98f47f-27be-432d-8609-837eba5dec84-1
+  tokenType: null
+  bestiaryId: 34310466-a1c3-41b9-a53f-e2c024a2ab02
+  summonerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+  ownerId: PARTY
+  partyid: null
+  size: 7
+  createdTimestamp: 1771933666473
+description: null
+parentFolder: a5ae2d3c-3124-40c1-a172-e59be545591d
+artist: null
+ord: 2
+ctime: 1771933776048
+mtime: 1775167419523
+hidden: false

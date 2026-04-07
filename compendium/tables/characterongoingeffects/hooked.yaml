@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  text: You cannot move more than 3 squares away from Orc Chainlock's Hook object
+  sourceguid: 969f6b0b-316d-4ec9-8ca7-c02c8a714236
+  source: Ongoing Effect
+  guid: bf560788-eca3-4a93-a8b2-7d8693a4c6d7
+  domains:
+    CharacterOngoingEffect:969f6b0b-316d-4ec9-8ca7-c02c8a714236: true
+  name: Hooked
+  description: "Effect: A hooked target can’t move more than 3 squares away from the chainlock’s position when this ability is used."
+  behavior: movementtext
+  color: white
+source: Ongoing Effect
+guid: 969f6b0b-316d-4ec9-8ca7-c02c8a714236
+id: 969f6b0b-316d-4ec9-8ca7-c02c8a714236
+ctime: 1767535145642
+domains:
+  CharacterOngoingEffect:969f6b0b-316d-4ec9-8ca7-c02c8a714236: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Hooked
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+description: "Effect: A hooked target can’t move more than 3 squares away from the chainlock’s position when this ability is used."
+mtime: 1770040190373
+implementation: 2

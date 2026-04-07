@@ -1,0 +1,69 @@
+__typeName: equipment
+itemPrerequisite: A cup of rainwater from a sacred fey grove, plus an optional prerequisite (see below)
+keywords:
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: This thin glass sphere holds a tiny roiling cloud.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+iconid: 329d5c6e-7ec4-4666-9cfe-04653bdadba2
+id: 229966c5-e4d5-419d-94e6-18dc9aba8159
+ctime: 1759151359149
+projectGoal: 30 or 45 (see below)
+mtime: 1761705298345
+consumable:
+  __typeName: ActivatedAbility
+  targetTextOverride: Special
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityAuraBehavior
+    aura:
+      __typeName: Aura
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: 70df2db3-f4b9-4da2-944e-b6e555deb907
+      modifiers: []
+      objectid: b864db19-9020-43e3-9dda-1c28f6cc1ae4
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  consumables:
+    229966c5-e4d5-419d-94e6-18dc9aba8159: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 0024c583-1a2d-43a3-9250-6fcd17125891
+  numTargets: "1"
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  description: |-
+    As a maneuver, you throw this delicate glass sphere up to 5 squares, breaking it and creating a 4 cube of fog. The fog dissipates after 10 minutes or if a strong gust of wind created by a storm or magic passes through the area.
+
+    Enterprising mages within various thieves’ guilds have developed variations of the Portable Cloud.
+  targetType: cube
+  name: Portable Cloud
+  radius: "4"
+  attributeOverride: no_attribute
+  abilityType: none
+  iconid: 329d5c6e-7ec4-4666-9cfe-04653bdadba2
+name: Portable Cloud
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+description: |-
+  As a maneuver, you throw this delicate glass sphere up to 5 squares, breaking it and creating a 4 cube of fog. The fog dissipates after 10 minutes or if a strong gust of wind created by a storm or magic passes through the area.
+
+  Enterprising mages within various thieves’ guilds have developed variations of the Portable Cloud. Each variation has a secondary item prerequisite and a project goal of 45.
+
+  Noxious Cloud: Filled with a green or putrid yellow haze, this sphere spreads a choking, foul-smelling mist when broken. Each creature who enters the cloud for the first time in a combat round or starts their turn there takes 5 poison damage. Additionally, any creature is weakened while in the fog. Additional Item Prerequisite: An ounce of undead flesh.
+
+  Thunderhead Cloud: Small lightning bolts arc around the black cloud in this sphere, which creates a 3 cube of cloud and lightning when broken. Each creature who enters the cloud for the first time in a combat round or starts their turn there takes 5 lightning damage. Additionally, any creature is slowed while in the cloud. Additional Item Prerequisite: A spool of copper wire.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 2

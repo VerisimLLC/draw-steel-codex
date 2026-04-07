@@ -1,0 +1,141 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+    guid: 8c5108d9-0c52-46bd-8d30-d0c59d92848e
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: b417d403-c35e-46dd-8b1d-885394eabafe
+      source: Free Strikes Global Rule Mod Feature
+      behavior: activated
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      name: Melee Free Strike
+      description: ""
+      guid: 7b0c5900-4d4f-40da-a71c-8f43e182d8a8
+      activatedAbility:
+        __typeName: ActivatedAbility
+        objectTarget: true
+        repeatTargets: false
+        keywords:
+          Strike: true
+          Melee: true
+          Weapon: true
+        targetType: target
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0
+            s: 0.10884352773428
+            v: 0.576470613479614
+            a: 1
+        sourceReference:
+          __typeName: SourceReference
+          page: 274
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: "1"
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        modifiers: []
+        strain: []
+        guid: c9c0cae5-3426-474c-9770-640d79c43788
+        numTargets: "1"
+        iconid: 391aec7f-87ba-4b36-9c2b-2b478ff823d8
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - 2 + M or A damage
+          - 5 + M or A damage
+          - 7 + M or A damage
+          roll: 2d10 + Might or Agility
+        persistence: []
+        name: Melee Free Strike
+        categorization: Basic Attack
+        description: ""
+        abilityType: none
+        implementation: 4
+    name: Melee Free Strike
+    classid: a58112e5-6466-4189-b810-5d0d93adc075
+    description: ""
+    source: Free Strikes Global Rule Mod Feature
+    implementation: 4
+  - __typeName: CharacterFeature
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+    guid: 726636fa-7979-4e92-8bc3-f0596ca01be8
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: b417d403-c35e-46dd-8b1d-885394eabafe
+      source: Opportunity Attacks Global Rule Mod Feature
+      behavior: activated
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      name: Ranged Free Strike
+      description: ""
+      guid: 7b0c5900-4d4f-40da-a71c-8f43e182d8a8
+      activatedAbility:
+        __typeName: ActivatedAbility
+        objectTarget: true
+        repeatTargets: false
+        keywords:
+          Ranged: true
+          Strike: true
+          Weapon: true
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - 2 + M or A damage
+          - 4 + M or A damage
+          - 6 + M or A damage
+          roll: 2d10 + Might or Agility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0
+            s: 0.10884352773428
+            v: 0.576470613479614
+            a: 1
+        sourceReference:
+          __typeName: SourceReference
+          page: 274
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: "5	"
+        numTargets: "1"
+        modifiers: []
+        categorization: Basic Attack
+        strain: []
+        guid: c9c0cae5-3426-474c-9770-640d79c43788
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        persistence: []
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        implementation: 4
+        targetType: target
+        name: Ranged Free Strike
+        displayOrder: 2
+        description: ""
+        abilityType: none
+        iconid: 8a3caccc-e8f7-401e-84f3-78287c2e2624
+    name: Ranged Free Strike
+    classid: a58112e5-6466-4189-b810-5d0d93adc075
+    description: ""
+    source: Opportunity Attacks Global Rule Mod Feature
+    implementation: 4
+applyRetainers: false
+applyMonsters: false
+ctime: 1715756666451
+name: Free Strikes
+id: a2352c5c-a2d9-4c30-92c2-cba115bfbb72
+mtime: 1770807557900
+applyCharacters: true
+applyCompanions: false

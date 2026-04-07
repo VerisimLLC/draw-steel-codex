@@ -1,0 +1,539 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: b0550bb6-7fd8-4982-bc1b-bf84c0c3d38e
+    offtokenPortraitId: null
+    portraitFrameId: 71c0292f-2ff6-412f-a76b-9975d3f229ed
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.317646
+    portraitOffset:
+      x: -0.007812141
+      y: -0.01171878
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0c34f1b3-8b0e-42c1-b862-9588b5ccc004
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 1
+    import:
+      override: true
+      data: |
+        Radenwight Maestro	Level 1 Leader
+        Humanoid, Radenwight	EV 12
+        <b>Stamina</b> 80
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1S / <b>Stability</b> 1
+        <b>Free Strike</b> 4
+        Might -2	Agility +2	Reason +0	Intuition +0	Presence +3
+        <b>Cacophony</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst	<b>Target</b> All enemies in the burst
+        %E2%9C%A6	%E2%89%A411	3 sonic damage; slide 1; shift 1
+        %E2%98%85	12%E2%80%9316	6 sonic damage; slide 3; shift 3
+        %E2%9C%B8	17+	8 sonic damage; slide 5; shift 5
+        <b>Effect</b> Each ally within distance can use Ready Rodent as a free triggered action once before the end of the round.
+
+        <b>Tempo Change</b> (Maneuver) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> Two enemies
+        %E2%9C%A6	%E2%89%A411	P<1 Slowed (save ends)
+        %E2%98%85	12%E2%80%9316	P<2 Slowed (save ends)
+        %E2%9C%B8	17+	P<3 Slowed (save ends)
+        <b>3 Malice</b> Each ally within 3 of a target has their speed increased by 2 until the end of their next turn.
+
+        <b>Ever Ready Rodent </b>(Free Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> Magic, Melee, Ranged
+        <b>Distance</b> Ranged 5	<b>Target</b> One creature
+        <b>Trigger</b> The target deals damage to an ally or takes damage from an ally.
+        <b>Effect</b> The maestro makes a free strike against the target.
+
+        <b>End Effect</b>
+        At the end of their turn, the maestro can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Overture</b> (Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst	<b>Target</b> All allies in the burst
+        <b>Effect</b> Each target shifts up to their speed or takes the Defend action.
+
+        <b>Solo Act</b> (Villain Action 2)
+        <b>Keywords</b> Ranged
+        <b>Distance</b> Ranged 15	<b>Target</b> One creature
+        <b>Effect</b> Until the end of their next turn, the target halves incoming damage, deals an additional 4 damage on strikes, and their speed is doubled.
+
+        <b>Rondo of Rat</b> (Villain Action 3)
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst	<b>Target</b> All dead allies in the burst
+        <b>Effect</b> Each target stands, makes a free strike, then collapses again. Allies of the targets can use Ready Rodent as a free triggered action once in conjunction with these free strikes.
+
+
+        Retainer
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:83cacad9-735d-4bd2-ab4d-8ed0adaeacc4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:83cacad9-735d-4bd2-ab4d-8ed0adaeacc4: true
+        sourceguid: 83cacad9-735d-4bd2-ab4d-8ed0adaeacc4
+        behavior: trigger
+        source: Trait
+        name: End Effect
+        description: At the end of their turn, the maestro can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            applyto: caster
+            filterTarget: ""
+            damageToSelf: "5"
+            conditions: []
+            purgeType: one
+            mode: conditions
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: 6a346ac3-9116-4214-94aa-3886356fe9a3
+          numTargets: "1"
+          targetType: self
+          trigger: endturn
+          name: End Effect Trigger
+          description: At the end of each of their turns, the maestro can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: ba43a7ef-7305-4269-8a74-70605219a2dc
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:83cacad9-735d-4bd2-ab4d-8ed0adaeacc4: true
+        sourceguid: 83cacad9-735d-4bd2-ab4d-8ed0adaeacc4
+        behavior: triggerdisplay
+        source: Trait
+        name: End Effect
+        description: At the end of their turn, the maestro can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        guid: 9b77fad4-479d-493d-bfd0-41339626dea4
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The maestro can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+          guid: 4f94dff4-ce65-4002-b60f-6ac216e6627f
+          keywords: []
+          trigger: End of Maestro's Turn
+      source: Trait
+      description: At the end of their turn, the maestro can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: 83cacad9-735d-4bd2-ab4d-8ed0adaeacc4
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3dfe7592-6237-4e93-a619-14100287ac21: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3dfe7592-6237-4e93-a619-14100287ac21: true
+        sourceguid: 3dfe7592-6237-4e93-a619-14100287ac21
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Ever Ready Rodent
+        description: ""
+        guid: d2b9616e-88d9-42cd-98b2-eecfc07d6928
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: free
+          effect: The maestro makes a free strike against the target.
+          name: Ever Ready Rodent
+          trigger: The target deals damage to an ally or takes damage from an ally.
+          cost: 2 Malice
+          guid: b570e16e-bc9a-42fe-9c76-a29d20dad5c6
+          distance: Ranged 5
+          keywords:
+            Ranged: true
+            Magic: true
+            Melee: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3dfe7592-6237-4e93-a619-14100287ac21: true
+        sourceguid: 3dfe7592-6237-4e93-a619-14100287ac21
+        behavior: trigger
+        source: Character Feature
+        name: Ever Ready Rodent
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 3
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "5"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: losehitpoints
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbilityParams:
+              targetid: "<<Subject.id>>"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 732abfa7-1e55-4430-a056-69df9376418a
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 49180e7f-0337-4a80-a98f-1543c67550bb
+            abilityType: standard
+          name: Ever Ready Rodent
+          guid: dd06ca62-1b9d-4b58-bef3-fe7ac0ed67ac
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 917efde0-cfc3-47cd-9beb-e80b44ad1b2d
+      source: Character Feature
+      description: ""
+      guid: 3dfe7592-6237-4e93-a619-14100287ac21
+      name: Ever Ready Rodent
+      implementation: 3
+    role: Leader
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    walkingSpeed: 5
+    monster_type: Radenwight Maestro
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    equipment: []
+    monster_category: Monster
+    damage_taken: 0
+    max_hitpoints: 80
+    resources: []
+    traitNames: []
+    keywords:
+      Humanoid: true
+      Radenwight: true
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 sonic damage; slide 1; the maestro can shift 1 square
+        - 6 sonic damage; slide 3; the maestro can shift up to 3 squares
+        - 8 sonic damage; slide 5; the maestro can shift up to 5 squares
+        roll: 2d10 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.506249904632568
+          s: 0.647851705551147
+          v: 1.00410771369934
+          a: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 196a51cf-d170-433b-bf2c-38095c575579
+      numTargets: 1
+      targetType: all
+      implementation: 3
+      name: Cacophony
+      persistence: []
+      description: Each ally within distance can use Ready Rodent as a free triggered action once before the end of the round.
+      abilityType: none
+      iconid: e20efbfa-a14c-4426-9db7-6b1241d01254
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      numTargets: 2
+      modifiers: []
+      strain: []
+      modeList:
+      - text: No Malice
+      - rules: Each ally within 3 of a target has their speed increased by 2 until the end of their next turn.
+        text: 3 Malice
+        condition: Resources.malice >= 3
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      guid: 605f69aa-b06f-489a-b0e8-a77ba260aa5a
+      implementation: 4
+      persistence: []
+      name: Tempo Change
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - P<1 Slowed (save ends)
+        - P<2 Slowed (save ends)
+        - P<3 Slowed (save ends)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: proximity_only
+        filterTarget: Friends(caster, target)
+        modesSelected:
+        - 2
+        ongoingEffectCustom: 452d2a85-5b9b-42b3-89cc-621a742ac6ac
+        ongoingEffect: 452d2a85-5b9b-42b3-89cc-621a742ac6ac
+        duration: end_of_next_turn
+        target_proximity_range: "3"
+      - __typeName: ActivatedAbilityReplenishBehavior
+        applyto: caster
+        mode: expend
+        modesSelected:
+        - 2
+        quantity: "3"
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      description: "3 Malice: Each ally within 3 squares of any target has a +2 bonus to speed until the end of their next turn."
+      abilityType: none
+      iconid: 1d47f01f-bfb7-4700-a40b-ef87378ad787
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: true
+      numTargets: 1
+      modifiers: []
+      guid: 2c844c24-dd89-40df-b303-b0c8739bfba5
+      abilityType: none
+      behaviors: []
+      name: 'Ever Ready Rodent '
+      implementation: 0
+      description: The maestro makes a free strike against the target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 93438ade-d443-4615-9d44-79ea17234ed3
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '114fec3a-0c9e-451c-85c"
+      implementation: 0
+      behaviors: []
+      name: Overture
+      numTargets: 1
+      description: Each target shifts up to their speed or takes the Defend action.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 15
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'c97d3b98-d175-497a-a7f"
+      villainAction: Villain Action 2
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 0f8710b8-210c-42e9-ba51-fbd6f60d3c44
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      effectImplemented: false
+      persistence: []
+      name: Solo Act
+      iconid: ui-icons/skills/1.png
+      description: Until the end of their next turn, the target halves incoming damage, deals an additional 4 damage on strikes, and their speed is doubled.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: f28df68f-86ee-4bca-9d1a-e25af8e003cb
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'a2dc55f4-0a70-4c43-8c9"
+      implementation: 0
+      behaviors: []
+      name: Rondo of Rat
+      numTargets: 1
+      description: Each target stands, makes a free strike, then collapses again. Allies of the targets can use Ready Rodent as a free triggered action once in conjunction with these free strikes.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 5
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 8cda6745-3b16-4b65-99c0-a28b1cb41ff6
+      abilityType: none
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 228
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Ever-Ready Rodent
+      numTargets: 1
+      description: |
+        The maestro makes a free strike against the target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    groupid: 763027dd-bc4d-485c-9bfc-6888f41a1b35
+    movementSpeeds:
+      climb: 5
+    creatureSize: 1S
+    opportunityAttack: 4
+    levelChoices: []
+    minion: false
+  tokenType: null
+  bestiaryId: f561760d-599a-482f-aa39-c442ed921c22
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Radenwight Maestro
+parentFolder: 17706a52-3552-4044-86fe-e77c1e5f00dd
+artist: null
+ord: 0
+ctime: 1741590328166
+mtime: 1775201137032
+hidden: false

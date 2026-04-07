@@ -1,0 +1,77 @@
+__typeName: CharacterComplication
+drawback: People aware of the origin of your mount are afraid to interact with you, since they worry the Hawklords will come after them by association. You take a bane on any test made to influence anyone who knows of the Hawklords and who has observed you with your giant hawk. Such people might also report you to the Hawklords, who come looking for you at the Director’s discretion.
+mtime: 1765961504156
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: "As long as you are not in a building or other structure, you can spend 1 uninterrupted minute to summon your giant hawk (see the Humans entry in Draw Steel: Monsters), which acts as your mount. Youcan dismiss the hawk at any time (no action required). The hawk won’t go inside buildings, dungeons, or other structures, and it won’t acceptanyone but you as a rider. If the hawk takes damage or dies, you can restore them to full Stamina as a respite activity."
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 5c6ddf02-0654-4324-a94a-727b416b5f1a
+      guid: 9ff9b92c-fc17-4879-ab2b-19e45f52b33f
+      source: Feat
+      behavior: activated
+      description: "As long as you are not in a building or other structure, you can spend 1 uninterrupted minute to summon your giant hawk (see the Humans entry in Draw Steel: Monsters), which acts as your mount. Youcan dismiss the hawk at any time (no action required). The hawk won’t go inside buildings, dungeons, or other structures, and it won’t acceptanyone but you as a rider. If the hawk takes damage or dies, you can restore them to full Stamina as a respite activity."
+      name: Hawk Rider - Benefit
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        reasonedFilters: []
+        behaviors:
+        - __typeName: ActivatedAbilitySummonBehavior
+          monsterType: d018bbd5-4571-4ea5-bf17-46c653c33774
+          bestiaryFilter: ""
+          casterChoosesCreatures: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: a3d9e72a-a6ec-4949-be8d-7a13137d8d95
+        numTargets: "1"
+        implementation: 3
+        domains: []
+        abilityFilters:
+        - formula: Combat Round = 0
+          reason: You are in Combat. Summoning time is 1 uninterrupted minute.
+        targetType: emptyspace
+        name: Summon Hawk
+        actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+        description: As long as you are not in a building or other structure, you can spend 1 uninterrupted minute to summon your giant hawk  which acts as your mount. You can dismiss the hawk at any time(no action required). The hawk won’t go inside buildings, dungeons, or other structures, and it won’t accept anyone but you as a rider. If the hawk takes damage or dies, you can restore them to full Stamina as a respite activity.
+        abilityType: none
+        iconid: 0c70dfdf-4b29-436e-9ebb-86b861361382
+    source: Feat
+    canHavePrerequisites: true
+    guid: 5c6ddf02-0654-4324-a94a-727b416b5f1a
+    name: Hawk Rider - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 5c13e8c6-ba81-4704-955a-798a2dc8a804
+      source: Feat
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: Hawk Rider - Drawback
+      guid: df23b33b-78fe-451a-9c29-040af245ddf9
+      description: You take a bane on any test made to influence anyone who knows of the Hawklords and who has observed you with your giant hawk.
+      modtype: bane
+      rollType: test_power_roll
+    source: Feat
+    canHavePrerequisites: true
+    guid: 5c13e8c6-ba81-4704-955a-798a2dc8a804
+    name: Hawk Rider - Drawback
+    implementation: 3
+name: Hawk Rider
+ctime: 1755515260324
+description: "You travel with a giant hawk who you stole from the Hawklords (see Vasloria in Chapter 1: The Basics). You might once have been a Hawklord yourself, or perhaps you escaped their captivity. Having a giant hawk companion comes with its share of inconveniences and dangers, but those are a small price to pay for the freedom of the open sky."
+id: 514cfcd6-1ea1-493c-85b5-afdd5d2e6fe5
+benefit: "As long as you are not in a building or other structure, you can spend 1 uninterrupted minute to summon your giant hawk (see the Humans entry in Draw Steel: Monsters), which acts as your mount. You can dismiss the hawk at any time (no action required). The hawk won’t go inside buildings, dungeons, or other structures, and it won’t accept anyone but you as a rider. If the hawk takes damage or dies, you can restore them to full Stamina as a respite activity."

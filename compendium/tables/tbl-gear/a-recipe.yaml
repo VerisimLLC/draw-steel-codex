@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 70a0b636-65dc-483b-9059-0c974f0d9dfc
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+mtime: 1774268886186
+ctime: 1765471571324
+name: A Recipe
+flavor: Text or lore
+description: The project source necessary to craft an Item
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

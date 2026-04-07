@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Mercenary Band
+id: 99a58a8a-db60-4db6-b6df-df45fe4b6046
+mtime: 1769349260272
+aspects:
+  upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+  environment: 184b0626-5e2d-48bd-8877-2072df0f374f
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796395603

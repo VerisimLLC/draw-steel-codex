@@ -1,0 +1,397 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: cea43fa9-986d-46e2-93e0-117587493711
+  properties:
+    __typeName: monster
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    cr: 3
+    max_hitpoints: 20
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: abb87881-1bbc-461e-8348-d468eacd3ef5-702
+    ev: 5
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    creatureSize: 1M
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: cube
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 68dafbac-4498-4b5d-8432-1c97e7d524bd
+      numTargets: 1
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 poison damage; I<0 frightened (save ends)
+        - 4 poison damage; I<1 frightened (save ends)
+        - 5 poison damage; I<2 frightened (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityAuraBehavior
+        duration: nextturn
+        aura:
+          __typeName: Aura
+          display:
+            brightness: 1.44505484444754
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          guid: 2f702b48-7740-4a20-ab10-03e68b0b2707
+          modifiers: []
+          name: Pestilite Aura
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                damageType: poison
+                roll: "2	"
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: bd5a0f2b-389b-4cec-8eeb-8353aa100730
+              trigger: losehitpoints
+              numTargets: "1"
+              targetType: self
+              name: Pestilite Aura Trigger
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          description: The area is covered in a cloud of pestilence that lasts until the start of the pestilite's next turn. Any creature who enters the area for the first time in a round or starts their turn there takes 2 poison damage.
+          objectid: 201f81ca-3c31-4153-b19e-8a3c4d050824
+          implementation: 4
+      radius: 3
+      name: Plaguecaster
+      persistence: []
+      description: The area is covered in a cloud of pestilence that lasts until the start of the pestilite's next turn. Any creature who enters the area for the first time in a round or starts their turn there takes 2 poison damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Target has "Loyalty Collar"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: f3a41f02-0e85-4131-982c-19fd6ceaa6d5
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      implementation: 2
+      persistence: []
+      name: Posthumous Promotion
+      selfTarget: true
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    damageEntries:
+      32380199-e21e-44d0-8433-26c7926ef23c:
+        id: 32380199-e21e-44d0-8433-26c7926ef23c
+        heal: 55
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        630b0b39-0d12-471e-bb75-8b53c79ddb71:
+          disposition: good
+          note: 55 Healing
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 20
+        0a93d9e0-8b7b-4a91-970f-850bb7d339af:
+          disposition: good
+          note: 55 Healing
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 20
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        War Dog Pestilite	Level 3 Horde Controller
+        Humanoid, War Dog	EV 5
+        <b>Stamina</b> 20	<b>Immunity</b> Poison 3
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 2
+        Might +0	Agility +1	Reason +0	Intuition +0	Presence +2
+        <b>Plaguecaster</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 10	<b>Target</b> Each creature in the cube
+        %E2%9C%A6	%E2%89%A411	2 poison damage; I<0 frightened (save ends)
+        %E2%98%85	12%E2%80%9316	4 poison damage; I<1 frightened (save ends)
+        %E2%9C%B8	17+	5 poison damage; I<2 frightened (save ends)
+        <b>Effect </b>The area is covered in a cloud of pestilence that lasts until the start of the pestilite's next turn. Any creature who enters the area for the first time in a round or starts their turn there takes 2 poison damage.
+
+        <b>Posthumous Promotion</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One war dog with a loyalty collar
+        <b>Effect </b>The target's loyalty collar detonates, killing them instantly.
+
+        <b>Loyalty Collar</b>
+        When the pestilite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7c60aefb-bb5f-4eb7-9a66-23e077bcf066: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetFilter: Enemy
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          persistence: []
+          name: Loyalty Collar
+          targetType: all
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: When the pestilite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the pestilite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      guid: 7c60aefb-bb5f-4eb7-9a66-23e077bcf066
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Controller
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    deathSavingThrowFailures: 0
+    monster_type: War Dog Pestilite
+    auras:
+    - __typeName: AuraInstance
+      casterid: 24d073c4-3b6e-493f-842f-e79ddc53bac1
+      duration: nextturn
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 0.5
+        queueguid: 07e920aa-844e-4aeb-afc4-6170219268b5
+        initiativeid: 24d073c4-3b6e-493f-842f-e79ddc53bac1
+        round: 1
+      aura:
+        __typeName: Aura
+        display:
+          brightness: 1.44505484444754
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        guid: 2f702b48-7740-4a20-ab10-03e68b0b2707
+        modifiers: []
+        name: Pestilite Aura
+        triggers:
+        - ability:
+            __typeName: TriggeredAbility
+            repeatTargets: false
+            behaviors:
+            - __typeName: ActivatedAbilityDamageBehavior
+              damageType: poison
+              roll: "2	"
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            silent: true
+            range: 5
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: bd5a0f2b-389b-4cec-8eeb-8353aa100730
+            trigger: losehitpoints
+            numTargets: "1"
+            targetType: self
+            name: Pestilite Aura Trigger
+            radius: 0
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          trigger: onenter
+        description: The area is covered in a cloud of pestilence that lasts until the start of the pestilite's next turn. Any creature who enters the area for the first time in a round or starts their turn there takes 2 poison damage.
+        objectid: 201f81ca-3c31-4153-b19e-8a3c4d050824
+        implementation: 3
+      area:
+        __usertype: LuaShape
+        data: "null"
+      object:
+        objid: af8717b9-a9b3-4a0f-8e8c-758738250098
+        floorid: 974a6f3d-852c-420d-8c3e-0de41b8ad759
+      name: Plaguecaster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: 466ee6e3-edcd-4bd1-8890-12cc3d96b416
+      symbols:
+        charges: 1
+        spellname: Plaguecaster
+        upcast: 0
+        mode: 1
+        numberoftargets: 3
+        dicefaces: 0
+        range: 10
+      iconid: ui-icons/skills/1.png
+    traitNames: []
+    walkingSpeed: 5
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 07e920aa-844e-4aeb-afc4-6170219268b5-1
+        used: 1
+    damage_taken: 0
+    deathSavingThrowSuccesses: 0
+    savingThrowRatings: []
+    movementSpeeds: []
+    monster_category: Monster
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        b6888d0e-7b30-4fb8-b892-b29d6f613b30:
+          refreshid: 07e920aa-844e-4aeb-afc4-6170219268b5-1
+          note: Plaguecaster
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 0/1
+        85bcab03-4a51-48aa-bed7-5c468a1bc53b:
+          note: Plaguecaster
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+    notes:
+    - text: ""
+      title: Monster Notes
+    inflictedConditions: []
+  tokenType: null
+  bestiaryId: 70b31ae3-0023-4c94-a563-923f5f119bc0
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: War Dog Pestilite
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 9
+ctime: 1749972310788
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,102 @@
+__typeName: Title
+effect: "Your choice of your Might or Agility increases by 1 (to a maximum of 6). Additionally, choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    numChoices: 1
+    options:
+    - __typeName: CharacterFeature
+      description: ""
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: ce031b52-6c2b-4e5f-b42f-86142dfb3737
+        sourceguid: 64cac9c8-44cb-4d28-bfe8-b9ffc1ffa42c
+        behavior: attribute
+        source: Feat
+        name: Might Increase
+        description: ""
+        value: 1
+        attribute: mgt
+      source: Feat
+      name: Might Increase
+      guid: 4b9537f3-44dd-4ee6-8329-772ce3de62c4
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 6d4e1fc7-423a-4b54-8deb-de6a4e1aa2d7
+        filter: Might < 6
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: ""
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 9c162430-c566-4fbd-9ba9-ead8f692ad6c
+        sourceguid: 65c0186e-a967-4176-80ee-3e603069d413
+        behavior: attribute
+        source: Feat
+        name: Agility Increase
+        description: ""
+        value: 1
+        attribute: agl
+      source: Feat
+      name: Agility Increase
+      guid: ea891612-137b-4bfc-9b0e-b4c2051f7ac2
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 5cd8820b-b30a-43d9-8033-3f94b1236f4f
+        filter: Agility < 6
+      implementation: 4
+    guid: fdd599ea-0917-4f3d-9e39-f497f23c1666
+    description: Your choice of your Might or Agility increases by 1 (to a maximum of 6).
+    name: Characteristic Increase
+    source: Feat
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Tireless Benefit
+    numChoices: 1
+    description: Choose one of the following benefits
+    guid: 655fc68b-6384-4d56-bf04-1c05ec58b2ce
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Bounce Back Fast
+      description: Whenever you rest for 8 hours or more, you can gain the benefit of a respite. Once you use this benefit, you can’t use it again until you have taken a regular respite.
+      guid: baa0586f-8fc5-4024-bf3e-bc3655b436b5
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Reserves of Strength
+      description: Your recovery value is half your Stamina.
+      guid: 6a2080b9-b174-4ba5-ab71-9be00ee2e8fa
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      description: You can’t be affected by the bleeding condition.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7cec93df-a579-4c8a-b6e0-cf01865dbf4c
+        behavior: conditionimmunity
+        source: Feat
+        conditions:
+        - 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+        guid: ba7e57c7-6d3a-49e3-89ba-fdf917a5a315
+        name: Undying
+        description: You can’t be affected by the bleeding condition.
+      source: Feat
+      canHavePrerequisites: true
+      guid: 7cec93df-a579-4c8a-b6e0-cf01865dbf4c
+      name: Undying
+      implementation: 4
+id: 5955ec24-f1fc-46c7-a38e-3840e9c99edf
+ctime: 1762352422618
+name: Tireless
+description: To reach Giant’s Foot by dawn, we’ll have to run every step of the way. Let’s get moving.
+mtime: 1775219046008
+echelon: "4"
+prerequisite: You have the Unstoppable title, and you make or assist on a test as part of a montage test that obtains a full success.

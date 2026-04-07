@@ -1,0 +1,49 @@
+__typeName: ActivatedAbility
+id: a0cde3eb-493e-41ac-bfe0-b0ec583431af
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 06ba221f-4462-4a01-b92e-735ecca9de1a
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  promptText: "<<prompt>>"
+  autoTarget: false
+  abilityType: named
+  namedAbility: Disengage
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: Allows the target creature to choose to either move their speed, or make a free strike.
+repeatTargets: false
+ctime: 1747030973907
+castImmediately: true
+persistence: []
+description: ""
+name: Disengage
+targetType: self
+mtime: 1770658380266
+abilityType: none
+iconid: ui-icons/skills/1.png

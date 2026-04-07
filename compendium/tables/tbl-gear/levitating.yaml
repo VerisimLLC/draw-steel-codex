@@ -1,0 +1,70 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: b92a4f05-7190-499b-92a3-a15d0a8b9fbc
+  description: On your turn, you can treat up to 5 consecutive squares of movement as flying movement. If you are still in midair at the end of your turn, you fall prone.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: b92a4f05-7190-499b-92a3-a15d0a8b9fbc
+    guid: 978d088e-95c1-481d-8b1c-3d158090a5a3
+    source: Item
+    behavior: activated
+    description: On your turn, you can treat up to 5 consecutive squares of movement as flying movement. If you are still in midair at the end of your turn, you fall prone.
+    name: Levitating
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      implementationDetails: There is an ability to activate the Levitating feature in the Maneuever drawer in the action log.
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 61b65335-d62c-4bea-87c0-e6b81ddc9dc3
+        ongoingEffectCustom: 61b65335-d62c-4bea-87c0-e6b81ddc9dc3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4002728e-b2ea-489e-b683-c35d04549e94
+      domains: []
+      numTargets: "1"
+      castImmediately: true
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 298
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      name: Levitating
+      targetType: self
+      description: On your turn, you can treat up to 5 consecutive squares of movement as flying movement. If you are still in midair at the end of your turn, you fall prone.
+      abilityType: none
+      implementation: 4
+  source: Item
+  name: Levitating
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A palm-sized crystal grown in the subterranean lair of an overmind
+imbuePrereq: none
+projectSource: Zaliac
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770698928353
+projectGoal: "150"
+id: ada8808a-6624-4a0f-9f3e-3da343033e45
+mtime: 1774489825623
+name: Levitating
+imbueTargetType: armor
+description: On your turn, you can treat up to 5 consecutive squares of movement as flying movement. If you are still in midair at the end of your turn, you fall prone.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: cdc77aff-0ab4-43ce-97cc-2f3c863ddadd

@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 9ed8605d-a866-4fbd-979c-58e18a03c354
+  sourceguid: a533b080-eb30-4f7a-934c-5a58a18ca143
+  value: 3
+  source: Ongoing Effect
+  name: Speed +3
+  behavior: attribute
+  description: Your speed is increased by 3.
+  attribute: speed
+source: Ongoing Effect
+guid: a533b080-eb30-4f7a-934c-5a58a18ca143
+id: a533b080-eb30-4f7a-934c-5a58a18ca143
+ctime: 1754551763350
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Speed +3
+description: Your speed is increased by 3.
+mtime: 1754551763350
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd
+implementation: 3

@@ -1,0 +1,263 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:bargnor:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: bargnor
+  encounter:bargnot:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          5d7331fb-2d45-4a80-8eee-57036a625d1a: 1
+      name: Queen Bargnot
+    identifier: bargnot
+  encounter:a6 spindlegoth:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: a6 spindlegoth
+  encounter:a6:
+    __typeName: RichEncounter
+    identifier: a6
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"205d6241-1f3c-4deb-aee3-789b100fba76\",\"offtokenPortraitId\": \"ac15d9d8-0943-4f09-8050-c323a1c97008\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3940681,\"portraitOffset\": {\"x\": -0.02006245,\"y\": -0.1563273},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Surprised War Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [{\"x\": -0.1323547,\"y\": 0.3134448},{\"x\": 0.3103254,\"y\": 0.1367177},{\"x\": 0.0169756,\"y\": -0.182604},{\"x\": 0.006482152,\"y\": 0.08534515},{\"x\": -0.3013583,\"y\": 0.1291616},{\"x\": 0.2634579,\"y\": -0.1109835},{\"x\": 0.1238798,\"y\": 0.304261},{\"x\": -0.2286432,\"y\": -0.1086904}],\"saddles\": 8,\"saddleSize\": 1}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 61,-2,1
+        monsters:
+          d1c7c29a-c008-4bf7-86cc-db363aefd1ce: 1
+      - appearances:
+        - "{\"portraitId\": \"205d6241-1f3c-4deb-aee3-789b100fba76\",\"offtokenPortraitId\": \"ac15d9d8-0943-4f09-8050-c323a1c97008\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3940681,\"portraitOffset\": {\"x\": -0.02006245,\"y\": -0.1563273},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Tired War Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [{\"x\": -0.1323547,\"y\": 0.3134448},{\"x\": 0.3103254,\"y\": 0.1367177},{\"x\": 0.0169756,\"y\": -0.182604},{\"x\": 0.006482152,\"y\": 0.08534515},{\"x\": -0.3013583,\"y\": 0.1291616},{\"x\": 0.2634579,\"y\": -0.1109835},{\"x\": 0.1238798,\"y\": 0.304261},{\"x\": -0.2286432,\"y\": -0.1086904}],\"saddles\": 8,\"saddleSize\": 1}"
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 50,-12,1
+        monsters:
+          d1c7c29a-c008-4bf7-86cc-db363aefd1ce: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 47,-2,1
+        - __usertype: LuaLoc
+          loc: 60,-14,1
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 2
+      name: A6
+  'encounter:a6 ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'a6 '
+  'encounter:mythic ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'mythic '
+  encounter:a6 spindlegoths:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: a6 spindlegoths
+  encounter:a:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: a
+  encounter:a6 spindle:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: a6 spindle
+  encounter:mythic bargnot:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          85809da7-eae3-4365-b388-f1f678e91ab3: 1
+    identifier: mythic bargnot
+  encounter:A6 Spindlegoth:
+    __typeName: RichEncounter
+    identifier: A6 Spindlegoth
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        minHeroes: 3
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 60,-14,1
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 1
+      name: Spindlegoth
+  "encounter: my":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: " my"
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: ""
+id: a414b6e7-48c2-4fa9-88d2-df0fd30bc31d
+ctime: 1761037019101
+textStorage:
+  __typeName: TextStorage
+  sections:
+    xKQ: |
+      If the heroes are especially nimble, the war spiders focus on trampling whomever they can.
+    NIK: |
+      |Feed the Monsters: Intuition Test
+    tJT: |+
+      ???
+
+    HEE: |
+      * “Remnants of spoiled food and silk-bound carcasses lay under a hole in the back part of the cavern ceiling.”
+    DAA: |+
+      Heroes chasing Queen Bargnot into the cavern from [A5. War Room] appear near the hole in the ceiling. The queen has an opportunity to hide before her pursuers arrive. When the encounter continues, any goblins who didn’t retreat from the war room come down from the ceiling one per turn at a time but are reduced to 1 Stamina.
+
+    QIN: |+
+      |{#The creatures won’t attack unless harmed first. This effect lasts for 10 minutes outside of combat or until the end of the next round in combat.}
+
+
+
+    RIN: |+
+      # Encounter A6
+
+    tJO: |
+      [[encounter:A6 Spindlegoth]]
+    JGG: |
+      {Secret: The south end of the cavern hides a wooden flap door that leads out into the courtyard in area [A1. Courtyard Barricade]}
+    FCC: |
+      * “This place is dark, damp, and covered in silk.”
+    SINZ: |+
+      [[/activateobjects a6_start.AreaTemplate activate|Show Hero Start Area]][[/activateobjects a6_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+
+    ym: |+
+      ## Loot
+
+    yL: |+
+      ## Ending the Encounter
+
+    OIL: |
+      |{#The spiders and spindlegoths take the meat! They’re eating it—oh no, wait—they’re attacking. The heroes are surprised at the start of combat.}
+    tJo: |
+      **Queen Bargnot Has The Cup Of Iulius**
+    yt: |+
+      If [Queen Bargnot] has the [item:Cup of Iulius], she carries it. She wears [item:Shrouded Memory] armor.
+
+
+
+    iIN: |
+      * For six heroes, add two spindlegoths as their own group.
+    WIN: |
+      |1 |One [war spider]|
+    EBB: |+
+      The chute delivers any creatures who come down it safely to the ground.
+
+    gIN: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    xKi: |+
+      Queen Bargnot might have fled from Encounter A5 to here. She can't use her Get In Here maneuver down here. She focuses on survival and clings to the walls where possible. If any other goblins make it down into the cavern, she yells at them in Szetch to “*Kill! Kill! Kill!*”
+
+
+    tJY: |
+      #### Optional Queen Bargnot
+    B: |
+      # A6. Spider Nest
+    cIN: |+
+      |4 |One [goblin monarch] (Queen Bargnot; optional)|
+
+    IFF: |+
+      * “Tiny spiders and spindlegoths skitter out of the way of the two giant arachnids investigating the new arrivals.”
+
+    eIN: |
+      **Encounter Adjustments**
+    KHH: |+
+      {Secret: The hole in the ceiling can be climbed up into area [A5. War Room]}
+
+    oIN: |+
+      [[encounter:a6]]
+
+    aIN: |
+      |3 |Two [spindlegoth]s|
+    qIN: |
+      ???query numheroes = 3
+    C: |2
+
+    kIN: |
+      * For four heroes, remove two spindlegoths.
+    tJi: |+
+      [[encounter:bargnot]] 
+
+    mIN: |+
+      * For three heroes, remove one war spider and one spindlegoth.
+
+
+    yY: |
+      If the heroes defeat the war spiders and spindlegoths, they earn 1 Victory each. If Queen Bargnot is also defeated, they earn 2 Victories each.
+    PIM: |
+      |{#The creatures reject the food and attack.}
+    yR: |+
+      The arachnoids fight until the heroes leave or all the war spiders are reduced to 0 Stamina. If Queen Bargnot is defeated here, she fights until reduced to 0 Stamina, making a desperate last stand. Any remaining goblins flee or surrender when Queen Bargnot falls.
+
+    YIN: |
+      |2 |One [war spider]|
+    tJu: |+
+      [[encounter:mythic bargnot]]
+
+
+    SIN: |+
+      The heroes battle war spiders, spindlegoths, and possibly Queen Bargnot beneath Castle Andreas.
+
+    TIN: |
+      **A6 Groups**
+    MIJ: |+
+      Two **war spiders** and two **spindlegoths** immediately attack the heroes unless they are given food. A hero who has meat can attempt to feed the creatures and make a hard Intuition test as a maneuver.
+
+    VIN: |
+      |**Group** |**Creatures**|
+    LII: |
+      ## Enemies
+    GDD: |
+      * “Piles of spider eggs nestle into every cranny of the cave.”
+    xK: |
+      The arachnoids want to restrain their prey to feed on them over time.
+    wK: |+
+      ## Tactics
+
+    vK: |+
+      Large patches of the floor are covered in webs and are considered difficult terrain. The spindlegoths have concealment while occupying a webbed square.
+
+
+    uK: |+
+      ## Webbing
+
+    tJd: |
+      **The Heroes Have The Cup Of Iulius**
+    yf: |+
+      [[//awardvp 1|Award Heroes 1 Victory]] or [[//awardvp 2|Award Heroes 2 Victories]]
+
+
+parentFolder: 3f6f50d2-bd00-4fb5-a3ba-b6089e65ec79
+updateid: cb0a6628-168a-4629-89f9-51846db7b2e8
+description: A6. Spider Nest
+content: "# Room 1"
+mtime: 1766077902528

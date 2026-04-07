@@ -1,0 +1,19 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+  sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+  value: 1
+  source: Character
+  name: Stamina Modification
+  behavior: attribute
+  description: ""
+  attribute: hitpoints
+source: Character
+guid: 2359108d-cb7d-4a79-8a98-38f577168092
+id: 8e07fe5b-064a-4642-85c2-55b9970fa154
+ctime: 1752128933555
+name: Stamina Modification
+description: ""
+mtime: 1752128933555
+implementation: 3

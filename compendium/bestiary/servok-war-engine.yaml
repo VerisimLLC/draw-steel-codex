@@ -1,0 +1,359 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8d43f938-a102-4da7-8d70-b314af6eae01
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 8
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Servok War Engine	Level 10 Elite Brute
+        Construct, Servok, Valok	EV 48
+        <b>Stamina</b> 260
+        <b>Speed</b> 5	<b>Size</b> 3 /<b> Stability</b> 8
+        <b>Free Strike</b> 10
+        Might +5	Agility -2	Reason -4	Intuition -1	Presence -5
+        <b>Blade Rake</b> (Action)%E2%97%86 2d10 + 5 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	15 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	21 damage; pull 3
+        %E2%9C%B8	<b>17</b>	25 damage; pull 6
+
+        <b>Prismacore Cannon</b> (Action)%E2%97%86 2d10 + 5
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 20<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	22 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	29 damage; I<4 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	34 damage; I<5 dazed (save ends)
+        <b>Effect</b> The damage can't be reduced in any way. The prismacore cannon cannot be used again until the start of the next round.
+
+        <b>Burning Oil</b> (Action)%E2%97%86 3 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 x 3 line within 1<b>	Target</b> All enemies and objects
+        <b>Effect</b> Each target makes an <b>Agility test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	16 fire damage; burning (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	12 fire damage; burning (EoT)
+        %E2%9C%A6	<b>17</b>	8 fire damage
+        <b>Effect</b> A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends. The affected area becomes difficult terrain. An enemy takes 3 fire damage when they leave an affected square.
+
+        <b>Destructive Rollout</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The war engine moves up to their speed in a straight line, automatically destroying unattended, mundane size 1 objects or walls in their path. A creature can choose to fall prone or take 10 damage the first time the war engine passes through their space during this movement.
+
+        <b>Quickshot</b> (Free Triggered Action) %E2%97%86 2d10 + 5%E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Trigger</b> The target deals damage to the war engine.
+        <b>Distance</b> Ranged 20<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; push 2
+        %E2%98%85	<b>12%E2%80%9316</b>	12 damage; push 5
+        %E2%9C%B8	<b>17</b>	16 damage; push 8
+        <b>Effect</b> The damage can't be reduced in any way.
+
+        <b>Servok Siege Machine</b>
+        The war engine ignores difficult terrain and deals an additional 15 damage with abilities used against objects.
+
+        <b>Crafted to Perfection</b>
+        The war engine's shape can't change via any external effects.
+
+        <b>Valiar Might</b>
+        Each power roll made against the war engine can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ee7166c6-68a7-4b89-b838-417639515c48: true
+      modifiers: []
+      name: Servok Siege Machine
+      description: The war engine ignores difficult terrain and deals an additional 15 damage with abilities used against objects.
+      guid: ee7166c6-68a7-4b89-b838-417639515c48
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:83e32416-c79e-4057-8749-5ff5d7fe7cb2: true
+      modifiers: []
+      name: Crafted to Perfection
+      description: The war engine's shape can't change via any external effects.
+      guid: 83e32416-c79e-4057-8749-5ff5d7fe7cb2
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2a87c609-bb55-4a2d-ad70-6ccaecd2148f: true
+      modifiers: []
+      name: Valiar Might
+      description: Each power roll made against the war engine can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+      guid: 2a87c609-bb55-4a2d-ad70-6ccaecd2148f
+      source: Trait
+    role: Elite Brute
+    inflictedConditions: []
+    keywords:
+      Servok: true
+      Valok: true
+      Construct: true
+      Soulless: true
+    max_hitpoints_roll: "260"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 10
+    monster_type: Servok War Engine
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: -5
+        id: prs
+      rea:
+        baseValue: -4
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 260
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 92c689a1-dce4-4bd1-9d86-484c72494de7
+      implementation: 4
+      numTargets: 2
+      name: Blade Rake
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage
+        - 21 damage; pull 3
+        - 25 damage; pull 6
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 22 damage
+        - 29 damage; I<4 dazed (save ends)
+        - 34 damage; I<5 dazed (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 20
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 66c59adb-fce8-45cb-b19a-ea24c57daaa7
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Prismacore Cannon
+      numTargets: 1
+      description: The damage can't be reduced in any way. The prismacore cannon cannot be used again until the start of the next round.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 1a54e967-0e1f-41a1-9aec-a32c4655b34a
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Burning Oil
+      implementation: 0
+      description: A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends. The affected area becomes difficult terrain. An enemy takes 3 fire damage when they leave an affected square.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 8c3231a5-8824-4138-8acf-1d28619d6dd9
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Destructive Rollout
+      numTargets: 1
+      description: The war engine moves up to their speed in a straight line, automatically destroying unattended, mundane size 1 objects or walls in their path. A creature can choose to fall prone or take 10 damage the first time the war engine passes through their space during this movement.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 20
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      guid: 1d63eac8-d989-484a-9dfb-0aab3a79e40e
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; push 2
+        - 12 damage; push 5
+        - 16 damage; push 8
+        roll: 2d10 + 5
+      name: Quickshot
+      implementation: 3
+      description: The damage can't be reduced in any way.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 20
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 69c31f2e-9724-4bba-9715-f1f18dec18ea
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; push 2
+        - 12 damage; push 5
+        - 16 damage; push 8
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 285
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Quick Blast
+      numTargets: 1
+      description: This damage can't be reduced in any way.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 3
+    groupid: 4be02076-a110-4dc3-85d3-144d9391430e
+    movementSpeeds: []
+    ev: 48
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 164a2477-79d4-4905-89c8-d81a143801c5
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Servok War Engine
+parentFolder: 5d7591f8-2289-4a26-8fd5-14dcd72e6285
+artist: null
+ord: 0
+ctime: 1741590222650
+mtime: 1775201137032
+hidden: false

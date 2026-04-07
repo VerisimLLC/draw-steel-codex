@@ -1,0 +1,34 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 6906316a-26fe-4101-9a4b-60192b77c270
+  displayCondition: ability.name = "Escape Grab"
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  activationCondition: ability.name = "Escape Grab"
+  rollType: ability_power_roll
+  guid: 822471a2-8df7-40bb-ae94-ecdc4a0665dc
+  description: ""
+  behavior: power
+  name: Bane on Escape Grab
+source: Ongoing Effect
+guid: 6906316a-26fe-4101-9a4b-60192b77c270
+id: 6906316a-26fe-4101-9a4b-60192b77c270
+ctime: 1755181243344
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+name: Bane on Escape Grab
+description: ""
+mtime: 1770882792981
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+implementation: 3

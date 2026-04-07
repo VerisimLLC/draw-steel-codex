@@ -1,0 +1,94 @@
+__typeName: MarkdownDocument
+annotations: []
+id: bab294f9-3de9-485f-b271-31de4a2aed7d
+ctime: 1759469066696
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      * “With these new features and abilities, you now have a fully fleshed out 1st-level hero that you can use in future parts of the adventure.”
+    x: |+
+      Take this time to check out Game [Settings] to adjust some things to your preference, such as displaying monster stamina to players, keeping hero health bars on outside of combat, hiding monster names by default, or turning off the popup document when you enter the game world. 
+
+
+
+
+    v: |+
+      When the heroes make it back to Broadhurst, proceed with [Part 2 Broadhurst and Environs] and go to the [Broadhurst Region] map.
+
+    S: |
+      When part 1 concludes, give the players the following information:
+    t: |2
+
+    r: |
+      [[/setadventuredocument 1 "Delian Tomb Welcome"; setadventuredocument 2 "Kicking Things Off"; setadventuredocument 3 "A Mother's Plea"; setadventuredocument 4 "Arrival"; setadventuredocument 5 "Goblin Guards Combat"; setadventuredocument 6 "Tomb First Level"; setadventuredocument 7 "Part 1 Conclusion"; setadventuredocument off "Part 2 Broadhurst and Environs"; setadventuredocument off "Respite Tracker";setadventuredocument 3 "Part 2";setadventuredocument off "Broadhurst";setadventuredocument off "Events"|Revert to Adventure Part 1 Active]]
+    o: |+
+      ## Continuing the Story
+
+    P: |
+      ## Hero Update
+    M: |+
+      In any case, Ashleigh asks the heroes for an escort back to Broadhurst, since there could be more trouble on the road.
+
+    n: |+
+      If this is your first time running a game of Draw Steel, this is a good spot to stop the session if you’ve been playing for a few hours. If you haven’t yet, review the Rule books: [Draw Steel Heroes] & [Draw Steel Monsters] before continuing the game.
+
+
+    k: |+
+      # Call for a Break
+
+    J: |+
+      If the heroes manage to rescue Violet, a grateful Ashleigh and her daughter thank the heroes, showering them with praise. If the goblins are defeated, but Violet doesn’t survive the ordeal, Ashleigh thanks the heroes for their efforts with blame aimed only at the Jagged Edge. 
+
+    h: |+
+      ---
+
+
+    e: |+
+      [Part 1 Rewards]
+
+    E: |+
+      # Part 1 Conclusion
+
+    p: "[[/setadventuredocument off \"Delian Tomb Welcome\"; setadventuredocument off \"Kicking Things Off\"; setadventuredocument off \"A Mother's Plea\"; setadventuredocument off \"Arrival\"; setadventuredocument off \"Goblin Guards Combat\"; setadventuredocument off \"Tomb First Level\"; setadventuredocument off \"Part 1 Conclusion\"; setadventuredocument 1 \"Part 2 Broadhurst and Environs\"; setadventuredocument 2 \"Respite Tracker\";setadventuredocument 0 \"Part 2\";setadventuredocument 4 \"Broadhurst\";setadventuredocument 5 \"Events\"|Make Adventure Part 2 Active]] "
+    V: |
+      * “Now that we’ve finished part 1 of the adventure, take a look at your sheet and your end of part 1 updates that should be made to your hero.”
+    b: |+
+      * “The tutorial section of this adventure is over. There are more rules to this game, which can be reviewed in the Starter Rules document that comes with this adventure.”
+
+parentFolder: 8e307759-fe9b-408a-bb88-34f90e1fe01b
+updateid: b2d2f3a3-0163-4216-8f9b-4818f29fd9e9
+description: Part 1 Conclusion
+content: |-
+  # Conclusion
+
+  ## Loot
+
+  Vorgosh wears a [item:Bloodbound Band] and carries a second [item:Bloodbound Band] in her robes that she planned to give to a worthy apprentice (once she found one). She also carries [Lenses carved from Volcanic Glass](item:Lenses carved from Volcanic Glass) two clear lenses carved from volcanic glass and a recipe in Caelian that describes how to make [Foesense Lenses] and counts as a project source for that item.
+
+  ## Part 1 Conclusion
+
+  If the heroes manage to rescue Violet, a grateful Ashleigh and her daughter thank the heroes, showering them with praise. If the goblins are defeated, but Violet doesn’t survive the ordeal, Ashleigh thanks the heroes for their efforts with blame aimed only at the Jagged Edge. 
+
+  In any case, Ashleigh asks the heroes for an escort back to Broadhurst, since there could be more trouble on the road.
+
+  ## Hero Update
+  When part 1 concludes, give the players the following information:
+  * “Now that we’ve finished part 1 of the adventure, take a look at your sheet and your end of part 1 updates that should be made to your hero.”
+  * “With these new features and abilities, you now have a fully fleshed out 1st-level hero that you can use in future parts of the adventure.”
+  * “The tutorial section of this adventure is over. There are more rules to this game, which can be reviewed in the Starter Rules document that comes with this adventure.”
+
+  [Part 1 Rewards]
+
+  ---
+
+
+  # Call for a Break
+
+  If this is your first time running a game of Draw Steel, this is a good spot to stop the session if you’ve been playing for a few hours. If you haven’t yet, review the Starter Rules book ([Delian Tomb Starter Rules v1.02]) before continuing the game.
+
+
+  ## Continuing the Story 
+
+  When the heroes make it back to Broadhurst, proceed with [Part 2: Broadhurst and Environs].
+mtime: 1774521810598

@@ -1,0 +1,23 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 20a2502b-1f73-4e64-9e9a-6ec4e1bf66c4
+  source: Monster
+  behavior: power
+  keywords:
+    Strike: true
+  activationCondition: true
+  name: Double edge on strikes
+  guid: 6baad2be-19e2-40a1-9642-fd5843353c21
+  description: ""
+  modtype: double_edge
+  rollType: ability_power_roll
+source: Monster
+guid: 20a2502b-1f73-4e64-9e9a-6ec4e1bf66c4
+importMatch: Double edge on strikes
+ctime: 1738391426483
+name: Double edge on strikes
+id: 962093b4-4f20-43e3-ad82-7c72d21c3e46
+description: ""
+mtime: 1738391426483
+implementation: 3

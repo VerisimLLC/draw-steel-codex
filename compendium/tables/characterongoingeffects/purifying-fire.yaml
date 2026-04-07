@@ -1,0 +1,39 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f7657b36-b90d-4ea7-93fb-7bdccc728c83
+  displayCondition: Target.conditionCaster("Purifying Fire") = Caster
+  resourceCostType: none
+  source: Ongoing Effect
+  modtype: none
+  domains:
+    CharacterOngoingEffect:f7657b36-b90d-4ea7-93fb-7bdccc728c83: true
+  keywords: []
+  activationCondition: ability.damagetypes has "Holy"
+  name: Purifying Fire
+  guid: e8d91375-ad8e-498b-a202-d1adc221264a
+  rollType: enemy_ability_power_roll
+  resourceRefreshType: none
+  description: When this creature takes holy damage, fire damage may be inflicted instead.
+  damageTypeMappings:
+    holy: fire
+  behavior: power
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: f7657b36-b90d-4ea7-93fb-7bdccc728c83
+id: f7657b36-b90d-4ea7-93fb-7bdccc728c83
+ctime: 1744995450469
+domains:
+  CharacterOngoingEffect:f7657b36-b90d-4ea7-93fb-7bdccc728c83: true
+sustainFormula: OngoingEffects has "Damage Weakness - Fire"
+description: When this creature takes holy damage, fire damage may be inflicted instead.
+name: Purifying Fire
+custom: true
+mtime: 1770387002661
+iconid: 3617c071-3c3d-4348-bcaf-f90a35e4ff62
+implementation: 3

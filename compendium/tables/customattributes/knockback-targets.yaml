@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "1"
+category: Forced Movement
+name: Knockback Targets
+documentation: The number of targets a creature knockback
+mtime: 1764263261090
+id: f438be18-6fc0-46d5-9a68-fed0fe61f418
+ctime: 1764263261090

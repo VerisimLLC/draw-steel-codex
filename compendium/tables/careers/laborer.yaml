@@ -1,0 +1,51 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: ed37eda8-3394-40f4-8771-95a12106cfe6
+projectpoints: "120"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Laborer Career Feature
+      behavior: proficiency
+      description: ""
+      equate: false
+      name: Endurance Skill
+      sourceguid: ac5599dc-10c4-4af6-8f11-5c0e9f183e15
+      proficiency: proficient
+      guid: 7486ad23-2026-4376-877a-7aaa046d276c
+      skills:
+        a1a8f269-3223-476c-bae6-2f8904680e7f: true
+    name: Endurance Skill
+    description: ""
+    guid: ac5599dc-10c4-4af6-8f11-5c0e9f183e15
+    source: Laborer Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      crafting: true
+      exploration: true
+    numChoices: 2
+    source: Laborer Career Feature
+    description: Choose two skills from either the crafting group or the exploration group.
+    guid: d0c739b2-6653-4c23-b794-98907161f6c4
+    name: Laborer Crafting or Exploration Skills
+    individualSkills: []
+  - __typeName: CharacterLanguageChoice
+    guid: 0be4d049-f66e-4b1d-b40c-11eb81b0a089
+    source: Laborer Career Feature
+    name: Laborer Language
+  - __typeName: CharacterFeatChoice
+    guid: dd6296b3-4ccb-4996-a696-92566f538480
+    description: "Choose one exploration perk. (Quick Build: Brawny)"
+    tag: exploration perks
+    name: Laborer Exploration Perk
+name: Laborer
+mtime: 1768796315071
+description: "You worked as a farmer, builder, clothes washer, forester, miner, or some other profession engaged in hard manual labor. In defining your career, think about the following questions: \n\nWhat type of manual labor did you do? \n\nWhat important friendship did you make on the job? \n\nWhere did you go with your coworkers to blow off steam when the job was done? \n\nWhat aspect of the job was most difficult for you? \n\nYou gain the following career benefits: \n\nSkills: The Endurance skill (from the exploration skill group), plus two skills from either the crafting group or the exploration group (Quick Build: Blacksmithing, Endurance, Lift) \n\nLanguages: One language \n\nProject Points: 120 \n\nPerk: One exploration perk (Quick Build: Brawny) "
+id: 3f61fd9d-456d-4053-8f5c-d9628817ed94
+ctime: 1730560508456

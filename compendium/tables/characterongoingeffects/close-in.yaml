@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: f5bd3f0d-e7b6-435e-8899-57a15eab15ba
+id: f5bd3f0d-e7b6-435e-8899-57a15eab15ba
+ctime: 1768321077032
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Close In
+description: You will be prompted to roll an <b>Intuition Test</b> because you are adjacent to an Orc Warleader ally.
+custom: true
+mtime: 1768321531991
+iconid: ebc8b529-f450-4bee-9466-86374c26dc13

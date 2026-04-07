@@ -1,0 +1,27 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: c60eed11-3dfc-48c6-86b3-33d1a03d18a9
+  sourceguid: 6bf98ca3-bd78-48ac-a7aa-1b08b89f7051
+  value: 1
+  source: Ongoing Effect
+  name: Order
+  behavior: attribute
+  description: At the start of a combat encounter, you can spend 1 order to increase the size of your Null Field by 1 until the end of the encounter.
+  attribute: bd01a4c5-0758-4453-8d71-5d2257aa23fd
+source: Ongoing Effect
+guid: 6bf98ca3-bd78-48ac-a7aa-1b08b89f7051
+id: 6bf98ca3-bd78-48ac-a7aa-1b08b89f7051
+ctime: 1773299725406
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: At the start of a combat encounter, you can spend 1 order to increase the size of your Null Field by 1 until the end of the encounter.
+name: Order
+hiddenOnToken: true
+mtime: 1773299879163
+custom: true
+iconid: ui-icons/skills/1.png

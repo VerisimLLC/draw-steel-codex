@@ -1,0 +1,63 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 573add23-769b-4003-baae-c4982901b13b
+      source: Monster Death Global Rule Mod Feature
+      guid: fffe0f4a-d924-4b47-ae7a-9a13c471318e
+      filterCondition: not retainer
+      name: Monster Death
+      description: ""
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        persistence: []
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: 1e4d8ac3-6ad6-4d1c-8ddf-e1cf6968434e
+        repeatTargets: false
+        trigger: creaturedeath
+        behaviors:
+        - __typeName: ActivatedAbilityDelayBehavior
+          delay: (1 when not minion) + DelayDeath
+          proceedCondition: Cannot be Removed = 0
+        - __typeName: ActivatedAbilityRemoveCreatureBehavior
+          leavesCorpse: true
+          filterTarget: (target.dead or target.minion) and not Summoned
+          applyto: targets
+          dropsLoot: true
+        - __typeName: ActivatedAbilityRemoveCreatureBehavior
+          applyto: targets
+          filterTarget: (target.dead or target.minion) and Summoned
+          leavesCorpse: false
+          dropsLoot: true
+          guid: be116b74-5899-4a7d-a46d-b07d5cefcec0
+        targetType: self
+        numTargets: "1"
+        name: Monster Death
+        mandatory: local
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      behavior: trigger
+    name: Monster Death
+    description: ""
+    guid: 573add23-769b-4003-baae-c4982901b13b
+    source: Monster Death Global Rule Mod Feature
+    implementation: 3
+applyRetainers: false
+applyMonsters: true
+ctime: 1752027308859
+name: Monster Death
+id: 42a8dd10-c3a1-4d69-b03a-2e18095c2a49
+mtime: 1775187601073
+applyCharacters: false
+applyCompanions: false

@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: a27a3ecc-d7d6-4413-875d-ca9fd7d76434
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765470020375
+ctime: 1765470020375
+name: Brittlebreaker Recipe
+flavor: Text or lore in Caelian
+description: The project source necessary to craft Brittlebreaker
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

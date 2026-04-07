@@ -1,0 +1,265 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: e84cf977-125c-4895-b956-51f7f4d13f55
+    offtokenPortraitId: 1339bff9-3553-406c-96bf-568216fcf420
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 8b4ceb69-af16-4cc1-9f34-1f2cc9d9584c
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.01811457
+      y: 0.07881647
+    frameHueShift: 0
+    frameSaturation: 0.6762404
+    frameBrightness: 0.3732735
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d819e089-cc74-4a55-854d-5c772b7d12aa
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 damage
+        - 9 damage
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: eb3968d1-990e-42bd-a775-0fdc5ce0ff24
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 142
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Gore
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: The wodenelg's rider can make a free strike at any point during the charge.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 3c9d6026-5370-4d22-ae39-74607f6ea4b9
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Where I End the Woods Begin
+      implementation: 0
+      description: The wodenelg and their rider become invisible until the start of their next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |
+        Wodenelg	Level 1 Platoon Mount
+        Plant, Wode Elf	EV 6
+        <b>Stamina</b> 30
+        <b>Speed</b> 10	<b>Size</b> 2 / <b>Stability</b> 1
+        <b>Free Strike</b> 3
+        Might +2	Agility +1	Reason -1	Intuition 0	Presence -1
+        <b>Gore</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage
+        %E2%9C%B8	<b>17</b>	9 damage
+        <b>Effect</b> The wodenelg's rider can make a free strike at any point during the charge.
+
+        <b>Sure Footed</b>
+        The wodenelg ignores all difficult terrain, including enemy squares, and doesn't provoke opportunity attacks by moving.
+
+        <b>Where I End the Woods Begin</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>Target</b> Self
+        <b>Effect</b> The wodenelg and their rider become invisible until the start of their next turn.
+
+        <b>Mounted Stability</b>
+        The wodenelg's rider has damage immunity 2.
+
+        <b>Shared Glamor</b>
+        If the wodenelg's rider has the Masking Glamor or Hunter's Galamor trait, they also gain the trait's benefits.
+
+        Retainer
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:90996d04-380e-4ba6-af9e-9f723941212e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 90996d04-380e-4ba6-af9e-9f723941212e
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:90996d04-380e-4ba6-af9e-9f723941212e: true
+        name: Sure Footed
+        guid: 637f277b-88fc-4300-a218-4de31d5c3753
+        description: The wodenelg ignores all difficult terrain, and doesn't provoke opportunity attacks by moving.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 90996d04-380e-4ba6-af9e-9f723941212e
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:90996d04-380e-4ba6-af9e-9f723941212e: true
+        name: Sure Footed
+        guid: 844053d7-1f18-400b-826d-eba42cf8194d
+        description: The wodenelg ignores all difficult terrain, and doesn't provoke opportunity attacks by moving.
+        behavior: attribute
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Sure Footed: Wodenelg's do not provoke opportunity attacks by moving."
+        sourceguid: 90996d04-380e-4ba6-af9e-9f723941212e
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:90996d04-380e-4ba6-af9e-9f723941212e: true
+        name: Sure Footed
+        description: The wodenelg ignores all difficult terrain, and doesn't provoke opportunity attacks by moving.
+        guid: a208b7c4-fe6d-469a-a907-71458ec27cae
+        color: green
+      source: Trait
+      description: The wodenelg ignores all difficult terrain, and doesn't provoke opportunity attacks by moving.
+      guid: 90996d04-380e-4ba6-af9e-9f723941212e
+      name: Sure Footed
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:37b276e1-b917-4d63-ab3f-6925d4d1b594: true
+      modifiers: []
+      name: Mounted Stability
+      description: The wodenelg's rider has damage immunity 2.
+      guid: 37b276e1-b917-4d63-ab3f-6925d4d1b594
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:98e07092-1c98-4ca9-9798-da03537f213b: true
+      modifiers: []
+      name: Shared Glamor
+      description: If the wodenelg's rider has the Masking Glamor or Hunter's Galamor trait, they also gain the trait's benefits.
+      guid: 98e07092-1c98-4ca9-9798-da03537f213b
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5d787d58-6dcd-4c22-8428-8ab01c67f11b: true
+      modifiers: []
+      name: Sure-Footed
+      description: The wodenelg ignores difficult terrain and doesn't provoke oppotunity attacks by moving.
+      guid: 5d787d58-6dcd-4c22-8428-8ab01c67f11b
+      source: Trait
+    role: Platoon Mount
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    availableTriggers: []
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 3
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    walkingSpeed: 10
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: "2"
+    initiativeGrouping: 65daafa9-d0cb-46b1-948c-55ea7a53da0c
+    keywords:
+      Plant: true
+      Wode Elf: true
+    monster_type: Wodenelg
+  tokenType: null
+  bestiaryId: 66c0e8a6-307f-4c6f-8dc0-f04fd94b403a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Wodenelg
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590260099
+mtime: 1775201137032
+hidden: false

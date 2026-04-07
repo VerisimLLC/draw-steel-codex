@@ -1,0 +1,30 @@
+__typeName: MarkdownDocument
+annotations: []
+id: da4d8c49-363f-49a7-8bdc-9eecbaec3551
+ctime: 1761751580520
+textStorage:
+  __typeName: TextStorage
+  sections:
+    K: |
+      # Third Level Cleared
+    o: |
+      If a hero survives exploring every level of the Delian Tomb, they gain the [title:Delian Delver] title.
+    U: |+
+      When the heroes finish exploring the third level of the Delian Tomb, they should either have the [item:Cup of Iulius] or they should know where to find it—in the ruins of [Castle Andreas]. See [Part 3 The Jagged Edge] for continuing the adventure.
+
+
+    e: |+
+      ## Title: Delian Delver
+
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 0dc9cff2-c7ef-46c9-875f-4f27561996cd
+description: Third Level Cleared
+content: |
+  # Third Level Cleared
+  When the heroes finish exploring the third level of the Delian Tomb, they should either have the [Cup of Iulius] or they should know where to find it—in the ruins of [Castle Andreas]. See [Part 3: The Jagged Edge] for continuing the adventure.
+
+
+  ## Title: Delian Delver
+
+  If a hero survives exploring every level of the Delian Tomb, they gain the [Delian Delver] title (see Titles in Handouts).
+mtime: 1764290830785

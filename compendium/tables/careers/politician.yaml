@@ -1,0 +1,63 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 1da00bec-b97e-4e37-b5a5-02bcc52a220e
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      interpersonal: true
+    name: Politician Interpersonal Skill
+    numChoices: 2
+    guid: 5a64479b-57ee-4ad1-a296-1ab7f3bc4cf4
+    description: "Choose two skills from the interpersonal skill group. (Quick Build: Lead, Lie)"
+    source: Politician Career Feature
+  - __typeName: CharacterLanguageChoice
+    guid: fc949022-fb00-4add-a6f2-68b5e4ff671b
+    source: Politician Career Feature
+    name: Politician Language
+  - __typeName: CharacterFeatChoice
+    guid: a3af2c62-0c99-4783-ba46-586d7ca871eb
+    description: "Choose one Interpersonal perk. (Quick Build: Engrossing Monologue)"
+    tag: interpersonal perk
+    name: Politician Interpersonal Perk
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: 30b57377-c2ea-4038-a778-6fd5c3ed0371
+      sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+      value: 1
+      source: Politician Career Feature
+      name: Politician's Renown and Wealth
+      behavior: attribute
+      description: ""
+      attribute: d97c2794-cb70-420f-b078-e260b43e154b
+    - __typeName: CharacterModifier
+      guid: 5573cf4e-b220-4633-adff-74a3cf9b3efe
+      sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+      value: 1
+      source: Politician Career Feature
+      name: Politician's Renown and Wealth
+      behavior: attribute
+      description: ""
+      attribute: 036da4db-4406-4038-ae7d-cf0b37890f5f
+    name: Politician's Renown and Wealth
+    guid: 99bc1d29-c045-430d-b9d5-91e0142dbd82
+    description: ""
+    source: Politician Career Feature
+name: Politician
+mtime: 1768796379742
+description: |-
+  You worked as a leader within a formal, bureaucratic organization or government. You might have been appointed, born, or elected into your position, but getting people to agree and making decisions for the people you serve (or who served you) was your job. In defining your career, think about the following questions: 
+
+  Who were you responsible for ruling or representing? 
+
+  What was your official title and how did you earn it? 
+
+  Who was your greatest political rival? 
+
+  What secret do you know that could tear apart the entire system you worked within?
+id: 959e38ca-fef7-4468-9de7-410d4ef8ea54
+ctime: 1730561339107

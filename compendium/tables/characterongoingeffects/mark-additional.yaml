@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  blend: add
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.499500155448914
+    s: 0.40039050579071
+    v: 1.00410783290863
+    a: 1
+  brightness: 1
+modifiers: []
+source: Ongoing Effect
+condition: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+guid: 319e19ac-4f15-4c16-be71-96d448241c10
+id: dbbf46a4-45da-47a7-8d85-51b150fe3d07
+ctime: 1746434349609
+domains:
+  CharacterOngoingEffect:319e19ac-4f15-4c16-be71-96d448241c10: true
+  CharacterOngoingEffect:dbbf46a4-45da-47a7-8d85-51b150fe3d07: true
+description: This creature has been marked by a Tactician.
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+name: Mark (additional)
+countsTowardInstanceLimit: false
+custom: true
+mtime: 1746504411249
+implementation: 3

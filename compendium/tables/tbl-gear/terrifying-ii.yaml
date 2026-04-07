@@ -1,0 +1,44 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 4 psychic damage and is frightened (save ends). This replaces the benefit of Terrifying I.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: d0e1f2a3-b4c5-6789-defa-890123456789
+    displayCondition: ability.doesdamage
+    source: Item
+    modtype: none
+    keywords:
+      Weapon: true
+    activationCondition: ability.doesdamage
+    guid: c9d0e1f2-a3b4-5678-cdef-789012345678
+    name: Terrifying II
+    description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 4 psychic damage and is frightened (save ends). This replaces the benefit of Terrifying I.
+    addText: // // 4 psychic damage; frightened (save ends)
+    rollType: ability_power_roll
+    behavior: power
+  source: Item
+  name: Terrifying II
+  addText: Add Magical Property
+  itemAttached: true
+  guid: d0e1f2a3-b4c5-6789-defa-890123456789
+itemPrerequisite: Riverbed silt harvested from the Abyssal Wasteland
+imbuePrereq: f113d3fe-dc26-401d-9d4e-10b8f8082b3e
+projectSource: Variac
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: 63a876a6-5a2a-4209-9f64-6b01dcc1ef81
+mtime: 1773922080095
+name: Terrifying II
+imbueTargetType: weapon
+description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 4 psychic damage and is frightened (save ends). This replaces the benefit of Terrifying I.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 4bee38a0-06a6-4065-a173-3246d300508f

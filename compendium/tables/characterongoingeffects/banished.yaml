@@ -1,0 +1,67 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72: true
+  sourceguid: 81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72
+  description: You are untargetable as you are sent to another manifold in the timescape. Each turn you can only make saving throws and take 10 holy damage each time you do so.
+  source: Ongoing Effect
+  name: Banished
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "10"
+      damageType: holy
+      chatMessage: Banished Save Damage
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 52d653a9-240f-4e51-82dd-b7ae5be4fb33
+    persistence: []
+    domains:
+      CharacterOngoingEffect:81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72: true
+    conditionFormula: Trigger Name is madesave
+    targetType: self
+    trigger: custom
+    name: Banished
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: be65fa8f-cc63-4951-8b88-489c61b10e7a
+- __typeName: CharacterModifier
+  sourceguid: 81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72: true
+  name: Banished
+  guid: 1b5774c8-afb5-4cc8-b651-6152f7f69668
+  description: You are untargetable as you are sent to another manifold in the timescape. Each turn you can only make saving throws and take 10 holy damage each time you do so.
+  behavior: attribute
+  attribute: e8a97ea6-d2e2-4d59-a1d3-11124a104147
+source: Ongoing Effect
+guid: 81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72
+id: 81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72
+ctime: 1768520427360
+domains:
+  CharacterOngoingEffect:81de9ebd-c45f-4ea0-acd6-9cd8a8f5bb72: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Banished
+custom: true
+description: You are untargetable as you are sent to another manifold in the timescape. Each turn you can only make saving throws and take 10 holy damage each time you do so.
+mtime: 1768521321520
+iconid: ui-icons/skills/1.png

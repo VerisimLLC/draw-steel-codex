@@ -1,0 +1,358 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 47a15b13-e16d-4951-9e37-8d1395ffb8c6
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.3748052
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.8407135
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 33b8e7a8-fed1-4c63-8e82-9d47136bc237
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 1
+    import:
+      type: mcdm
+      data: |
+        Lizardfolk Deathrex	Level 1 Leader
+        Humanoid, Lizardfolk	EV 12
+        <b>Stamina</b> 80
+        <b>Speed</b> 5 (climb, swim)	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>Free Strike</b> 4
+        Might +3	Agility +2	Reason 0	Intuition +1	Presence +2
+        <b>Ripper Spear</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; pull 1; A<1 bleeding (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; pull 1; A<2 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	13 damage; pull 2; A<3 bleeding (save ends)
+        <b>1 Malice</b> One target that is adjacent to the deathrex is grabbed by the deathrex's mouth.
+
+        <b>Death Roll</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 3 Malice
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 grabbed creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; M<1 dazed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	12 damage; M<2 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	15 damage; M<3 dazed (save ends)
+        <b>Effect</b> The target is released from the grab and slides 5.
+
+        <b>Trundle</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The deathrex moves up to their speed. The deathrex can make a free strike on each creature that makes an opportunity attack against them during this movement.
+
+        <b>Swat The Fly</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger</b> The target moves or shifts away from the deathrex.
+        <b>Distance</b> Melee 1<b>	Target</b> 1 adjacent creature or object
+        <b>Effect</b> Slide 5.
+
+        <b>Snack Attack</b> (Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> Self and 10 burst<b>	Target</b> Self and all allies in the burst
+        <b>Effect</b> Each target moves up to their speed and makes a free strike. A target receives temporary Stamina equal to the amount of damage they dealt during this action.
+
+        <b>Shed Some Skin </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The deathrex shifts up to their speed, leaving behind a skin shed duplicate in the space that they started in. The duplicate has 10 Stamina, has no villain actions, shares the rest of the deathrex's characteristics, and takes their turn at the same time as the deathrex.
+
+        <b>Thresher Thrasher</b> (Villain Action 3)
+        <b>Keywords</b> Area
+        <b>Distance</b> Self and 10 burst<b>	Target</b> Self and all allies in the burst
+        <b>Effect</b> Each target moves up to their speed. Until the end of the encounter, when a creature enters or starts their turn adjacent to a target, the target can make a free strike against them.
+
+        <b>Rex Reptilian Escape</b>
+        While the deathrex still has a tail, whenever the deathrex is inflicted with an EoT or save ends effect, the deathrex can lose their tail to immediately end the effect and shift 2.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c7378ee5-76c3-41c2-82f6-d267e06a8dcc: true
+      modifiers: []
+      name: Rex Reptilian Escape
+      description: While the deathrex still has a tail, whenever the deathrex is inflicted with an EoT or save ends effect, the deathrex can lose their tail to immediately end the effect and shift 2.
+      guid: c7378ee5-76c3-41c2-82f6-d267e06a8dcc
+      source: Trait
+    role: Leader
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    walkingSpeed: 5
+    monster_type: Lizardfolk Deathrex
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    monster_category: Monster
+    damage_taken: 0
+    max_hitpoints: 80
+    resources: []
+    traitNames: []
+    keywords:
+      Humanoid: true
+      Lizardfolk: true
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: c9fcc8b5-ba9b-463a-9719-673eec8a4f2f
+      numTargets: 2
+      implementation: 3
+      persistence: []
+      name: Ripper Spear
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; pull 1; A<1 bleeding (save ends)
+        - 10 damage; pull 1; A<2 bleeding (save ends)
+        - 12 damage; pull 2; A<3 bleeding (save ends)
+        roll: 2d10 + Might
+      description: |2-
+
+        **1 Malice**: One target adjacent to the deathrex is grabbed in the deathrex's mouth.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e1d54c1c-acc9-422b-aa02-4bb3476e2d42
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; M<1 dazed (save ends)
+        - 12 damage; M<2 dazed (save ends)
+        - 15 damage; M<3 dazed (save ends)
+        roll: 2d10 + Might
+      name: Death Roll
+      implementation: 3
+      description: The target is released from the grab and slides 5.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: e80e5d59-4e33-40bd-8289-5e88d807dd40
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Trundle
+      numTargets: 1
+      description: The deathrex moves up to their speed. The deathrex can make a free strike on each creature that makes an opportunity attack against them during this movement.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 1045833b-7738-4213-9516-20cb27c53217
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Swat The Fly
+      numTargets: 1
+      description: Slide 5.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 63928e80-2335-448f-9179-0fe35dc93894
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '8fd14749-04a2-4343-86b"
+      implementation: 0
+      behaviors: []
+      name: Snack Attack
+      numTargets: 1
+      description: Each target moves up to their speed and makes a free strike. A target receives temporary Stamina equal to the amount of damage they dealt during this action.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 57738a1d-a466-4aa7-b906-6b16fb99ee5a
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'f3a803af-9e46-47ae-ba1"
+      implementation: 0
+      behaviors: []
+      name: 'Shed Some Skin '
+      numTargets: 1
+      description: The deathrex shifts up to their speed, leaving behind a skin shed duplicate in the space that they started in. The duplicate has 10 Stamina, has no villain actions, shares the rest of the deathrex's characteristics, and takes their turn at the same time as the deathrex.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6c35709c-d299-4be2-885c-73a5934661d8
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '18f010d6-4acb-4e2a-a2d"
+      implementation: 0
+      behaviors: []
+      name: Thresher Thrasher
+      numTargets: 1
+      description: Each target moves up to their speed. Until the end of the encounter, when a creature enters or starts their turn adjacent to a target, the target can make a free strike against them.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: d3456343-2a59-400e-af7d-dbb4bd9c8347
+    movementSpeeds:
+      climb: 5
+      swim: 5
+    creatureSize: "2"
+    opportunityAttack: 4
+    levelChoices: []
+    minion: false
+  tokenType: null
+  bestiaryId: 8b5f7d45-1446-4bd1-bef0-84f73d44dd15
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Lizardfolk Deathrex
+parentFolder: 40714605-54b3-4a20-b782-f427973a5a25
+artist: null
+ord: 0
+ctime: 1741590279435
+mtime: 1775201137032
+hidden: false

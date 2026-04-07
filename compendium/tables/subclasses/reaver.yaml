@@ -1,0 +1,1638 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727142622378
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 72987e92-8ccb-412b-892a-3f8a7346e161
+        source: Reaver Class Feature
+        guid: 404a8ed2-fcfa-4572-acbc-e9a2ce155bcf
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        keywords: []
+        replaceText: 3d10k2 + Agility
+        rollType: test_power_roll
+        modtype: replaceroll
+        name: A Step Ahead
+        activationCondition: true
+        description: You move with legendary grace. Whenever you make an Agility test, you can roll three dice and choose which two to use.
+        behavior: power
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 72987e92-8ccb-412b-892a-3f8a7346e161
+        source: Reaver Class Feature
+        value: Agility
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        name: A Step Ahead
+        guid: f63ab536-967c-419a-a074-74dba380fb8c
+        description: You move with legendary grace. Whenever you make an Agility test, you can roll three dice and choose which two to use. Additionally, whenever you use the Disengage move action, the distance you can shift gains a bonus equal to your Agility score.
+        behavior: attribute
+        attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+      - __typeName: CharacterModifier
+        sourceguid: 72987e92-8ccb-412b-892a-3f8a7346e161
+        modifyDescription: Whenever you use the Disengage move action, the distance you can shift gains a bonus equal to your Agility score.
+        source: Reaver Class Feature
+        filterAbility: Ability.name = "Disengage"
+        behavior: modifyability
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        attributes: []
+        guid: e4342161-8d12-4581-a45b-49ff5f521301
+        description: You move with legendary grace. Whenever you make an Agility test, you can roll three dice and choose which two to use. Additionally, whenever you use the Disengage move action, the distance you can shift gains a bonus equal to your Agility score.
+        name: A Step Ahead
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 74dc0b2c-b8b0-4bba-bb13-8f82533c793f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors: []
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Reaver Class Feature
+      guid: 72987e92-8ccb-412b-892a-3f8a7346e161
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      canHavePrerequisites: true
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: You move with legendary grace. Whenever you make an Agility test, you can roll three dice and choose which two to use. Additionally, whenever you use the Disengage move action, the distance you can shift gains a bonus equal to your Agility score.
+      name: A Step Ahead
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      guid: ab0392c5-fe20-479e-b0a4-9853f289689a
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ef1f6512-84dd-44ac-9f25-181e51a9fe60
+        source: Reaver Class Feature
+        behavior: proficiency
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        guid: 78889544-1143-46d3-82bd-321f0957444a
+        equate: false
+        name: Primordial Aspect
+        proficiency: proficient
+        description: You channel your ferocity into instinct and cunning, challenging the order of civilization. You have the Hide skill.
+        subtype: skill
+        skills:
+          fdd43bde-6062-484d-aea6-3803d396ea8e: true
+      name: Primordial Aspect
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: You channel your ferocity into instinct and cunning, challenging the order of civilization. You have the Hide skill.
+      source: Reaver Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      guid: 1999d2f6-e3a7-4546-a774-e03a61d719f3
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 1a366d77-edd0-49f2-8767-33c2602ecea5
+        behavior: conditionimmunity
+        source: Reaver Class Feature
+        conditions:
+        - ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+        guid: b4789992-cbb9-459e-90b9-a195315d3c54
+        name: Primordial Cunning
+        description: |-
+          You are never surprised. Additionally, whenever you would push a target with forced movement, you can slide them instead. 
+
+          As your rage grows, your primordial cunning intensifies, granting benefits from the Primordial Cunning Growing Rage table. Benefits are cumulative except where an improved benefit replaces a lesser benefit
+      - __typeName: CharacterModifier
+        movementTypes:
+        - from: push
+          to: slide
+        sourceguid: 1999d2f6-e3a7-4546-a774-e03a61d719f3
+        behavior: forcedmovement
+        source: Reaver Class Feature
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        guid: 2bebaee4-9250-4126-a45d-27f5ba7edb22
+        name: Primordial Cunning
+        description: |-
+          You are never surprised. Additionally, whenever you would push a target with forced movement, you can slide them instead. 
+
+          As your rage grows, your primordial cunning intensifies, granting benefits from the Primordial Cunning Growing Rage table. Benefits are cumulative except where an improved benefit replaces a lesser benefit
+      name: Primordial Cunning
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: |-
+        You are never surprised. Additionally, whenever you would push a target with forced movement, you can slide them instead. 
+
+        As your rage grows, your primordial cunning intensifies, granting benefits from the Primordial Cunning Growing Rage table. Benefits are cumulative except where an improved benefit replaces a lesser benefit
+      source: Reaver Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      prefab: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+        behavior: kitaccess
+        source: Reaver Class Feature
+        name: Kit
+        description: You can use and gain the benefits of a kit.
+        kitType: martial
+        guid: ecf1b910-775f-418e-9bb2-65622277e378
+      source: Reaver Class Feature
+      guid: f2cf0d3c-29ed-48c0-a709-cbabccd7c975
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      name: Kit
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: You can use and gain the benefits of a kit.
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      guid: 04d58e7a-356d-401e-90c3-29feafa536c5
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        progression:
+        - level: 0
+          description: Knockback pushes +{Agility} squares.
+          resources: 2
+          tooltip: 'Whenever you use the Knockback maneuver, the forced movement distance gains a bonus equal to your Agility score. '
+        - level: 0
+          description: When you slide a creature, you gain 1 surge (1/turn).
+          resources: 4
+          tooltip: The first time you slide a creature on a turn, you gain 1 surge.
+        - level: 0
+          description: Edge on Agility tests and Knockback.
+          resources: 6
+          tooltip: You gain an edge on Agility tests and the Knockback maneuver.
+        - level: 4
+          description: When you slide a creature, you gain 2 surges (1/turn).
+          resources: 8
+          tooltip: The first time you slide a creature on a turn, you gain 2 surges.
+        - level: 7
+          description: Double Edge on Agility tests and Knockback.
+          resources: 10
+          tooltip: You have a double edge on Agility tests and the Knockback maneuver.
+        - level: 10
+          description: When you use a heroic ability gain 10 temporary Stamina. Forced movement from power rolls +{Agility}.
+          resources: 12
+          tooltip: Whenever you use a heroic ability, you gain 10 temporary Stamina. Additionally, whenever you make a power roll that imposes forced movement on a target, the forced movement distance gains a bonus equal to your Agility score.
+        source: Reaver Class Feature
+        description: ""
+        behavior: growingresources
+        name: Reaver Growing Ferocity
+        guid: ca34a449-c14c-4d7a-9afd-de99f424a0c7
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: Heroic Resources This Turn >= 2 and ability.name = "Knockback"
+        source: Reaver Class Feature
+        modtype: none
+        adjustments:
+        - type: push
+          value: Agility
+        - type: pull
+          value: Agility
+        - type: slide
+          value: Agility
+        keywords: []
+        activationCondition: "1"
+        behavior: power
+        name: Growing Ferocity
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        description: |
+          When you have 2 or more Ferocity, whenever you use the Knockback maneuver, the forced movement distance gains a bonus equal to your Agility score. 
+        rollType: ability_power_roll
+        guid: 7e1890d8-cbc9-4948-925d-2c4dd25da02f
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        source: Reaver Class Feature
+        behavior: trigger
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        filterCondition: Heroic Resources This Turn >= 4
+        name: Growing Ferocity
+        resourceRefreshType: turn
+        description: ""
+        guid: f5bcae3d-94d9-4014-b93c-6662234ed37f
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: 2 When Level >= 4 and Heroic Resources This Turn >= 8 else 1
+            chatMessage: You slide a creature.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: 16ff7ce1-495d-4cb9-b810-3332b7f0198f
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 3f882e4a-5877-4a0e-bb20-a83eec1ee7bd
+          targetType: self
+          abilityType: none
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          persistence: []
+          conditionFormula: type = "Slide" and HasAttacker and Attacker = self
+          trigger: forcemove
+          name: Growing Ferocity
+          description: ""
+          subject: other
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        source: Reaver Class Feature
+        guid: 98f89f78-a4d5-4afe-81e6-2d27919c2791
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        keywords: []
+        activationCondition: true
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or level < 7)
+        behavior: power
+        rollType: test_power_roll
+        name: Growing Ferocity
+        description: When you have 6 or more Ferocity, you gain an edge on Agility tests and the Knockback maneuver.
+        modtype: edge
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        source: Reaver Class Feature
+        guid: 983f0e37-746c-4684-921b-fa548fcefae7
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        keywords: []
+        activationCondition: true
+        filterCondition: Heroic Resources This Turn >= 10 and level >= 7
+        behavior: power
+        rollType: test_power_roll
+        name: Growing Ferocity
+        description: When you have 10 or more Ferocity, you gain a double edge on Agility tests and the Knockback maneuver.
+        modtype: double_edge
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: ability.name = "Knockback"
+        source: Reaver Class Feature
+        guid: 2c886b81-de19-4784-b11a-ff3a675d0a39
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or level < 7)
+        keywords: []
+        activationCondition: "1"
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        behavior: power
+        name: Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 6 or more Ferocity, you gain an edge on Agility tests and the Knockback maneuver.
+        modtype: edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: ability.name = "Knockback"
+        source: Reaver Class Feature
+        guid: e8341a93-1a64-4101-bf28-f73301e1c45e
+        filterCondition: Heroic Resources This Turn >= 10 and level >= 7
+        keywords: []
+        activationCondition: "1"
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        behavior: power
+        name: Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 10 or more Ferocity, you gain a double edge on Agility tests and the Knockback maneuver.
+        modtype: double_edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+        source: Reaver Class Feature
+        guid: fe10b002-41df-4aec-a78c-3756222a7508
+        adjustments:
+        - type: push
+          value: Agility
+        - type: pull
+          value: Agility
+        - type: slide
+          value: Agility
+        keywords: []
+        activationCondition: false
+        behavior: power
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        rollType: ability_power_roll
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        description: |-
+          When you have 12 or more Ferocity, whenever you
+          make a power roll that imposes forced movement 
+          on a target, the forced movement distance gains a 
+          bonus equal to your Agility score.
+        modtype: none
+        name: Vuken Growing Ferocity
+      - __typeName: CharacterModifier
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        source: Reaver Class Feature
+        guid: 03e699d6-9102-4912-8479-3bed77e0783d
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        name: Boren Growing Ferocity
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: "10"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: ae447302-faac-4610-8843-40262637abd5
+          persistence: []
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+          targetType: self
+          trigger: useability
+          name: Boren Growing Ferocity
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        behavior: trigger
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      name: Growing Ferocity
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: ""
+      source: Reaver Class Feature
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 6a01d8a6-df39-4ca2-81fa-e11e7b9db917
+        description: At the start of your turn, you can end any restrained condition on you. Additionally, you have a double edge on tests made to escape being confined or imprisoned.
+        source: Reaver Class Feature
+        name: Unfettered
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: End any restrained condition on you
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 07c59f99-e322-4ef6-9566-b1639cce619f
+          conditionFormula: Conditions has "Restrained"
+          trigger: beginturn
+          castImmediately: true
+          numTargets: "1"
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          name: Unfettered
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: restrained immediately ends
+          description: At the start of your turn, you can end any restrained condition on you. Additionally, you have a double edge on tests made to escape being confined or imprisoned.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 98a112ca-a61d-40f4-8f72-c63dc95bf1d9
+      - __typeName: CharacterModifier
+        sourceguid: 6a01d8a6-df39-4ca2-81fa-e11e7b9db917
+        source: Reaver Class Feature
+        modtype: double_edge
+        keywords: []
+        activationCondition: false
+        guid: 5750e026-ed7f-4dec-98fe-2fd98a9c7a61
+        rollType: test_power_roll
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        description: At the start of your turn, you can end any restrained condition on you. Additionally, you have a double edge on tests made to escape being confined or imprisoned.
+        behavior: power
+        name: Unfettered
+      source: Reaver Class Feature
+      guid: 6a01d8a6-df39-4ca2-81fa-e11e7b9db917
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      canHavePrerequisites: true
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: At the start of your turn, you can end any restrained condition on you. Additionally, you have a double edge on tests made to escape being confined or imprisoned.
+      name: Unfettered
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: c7c4793e-e22d-497d-81ae-ac788f4dd8dd
+        behavior: resistance
+        source: Reaver Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: acid
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: cold
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: corruption
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: fire
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: lightning
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: poison
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: sonic
+          apply: Damage Reduction
+        guid: 53ea9741-b9de-4e8b-a1cc-8977cf0cab92
+        name: Elemental Form
+        description: |-
+          You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+          Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      source: Reaver Class Feature
+      guid: 03eac956-4ba0-4799-b29f-2c782862379a
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      canHavePrerequisites: true
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      name: Elemental Form
+      implementation: 4
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  level-10:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Reaver Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: acid
+          apply: Damage Reduction
+        guid: e942f9a5-1a21-4040-a1d7-d9ff3c72f275
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Reaver Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: cold
+          apply: Damage Reduction
+        guid: bde22c7c-e28b-47a2-9a04-c150afd38e4b
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Reaver Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: corruption
+          apply: Damage Reduction
+        guid: 01b87769-a933-4e42-a52e-91ca1f9af196
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Reaver Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: fire
+          apply: Damage Reduction
+        guid: 6b74f35b-c015-4a5d-839c-f6fd553cbab1
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Reaver Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: lightning
+          apply: Damage Reduction
+        guid: 846ce7c2-65ae-451c-9ae7-2c1bc238ceac
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Reaver Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: poison
+          apply: Damage Reduction
+        guid: 7fda5c3e-d1d7-4cf7-b933-cd91ebc4df4d
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Reaver Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: sonic
+          apply: Damage Reduction
+        guid: 4e87bfc6-96e0-4ee6-8a15-82830cbc4d59
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      source: Reaver Class Feature
+      guid: 1dbb58c9-0c7b-4719-93ef-814321a6f692
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      canHavePrerequisites: true
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      name: Chaos Incarnate
+      implementation: 4
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: b17f9bd1-6e90-4e20-b5cb-57b2661457bf
+      name: Reaver Heroic Abilities
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      guid: a39c5ef2-ffe6-4b62-9c9f-fbd400b3945f
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          sourceguid: 14c79599-58bd-4f29-8c49-26aef1f13a64
+          description: ""
+          source: Character
+          name: Death Strike
+          behavior: trigger
+          triggeredAbility:
+            __typeName: TriggeredAbility
+            resourceNumber: 9
+            repeatTargets: false
+            targetType: self
+            triggerPrompt: Target a creature adjacent to you with the same strike
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            range: 1
+            numTargets: "1"
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 2fae2911-e8cc-4fee-8e36-3253c9d90385
+            trigger: dealdamage
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+            conditionFormula: Target.Stamina <= 0
+            behaviors:
+            - __typeName: ActivatedAbilityRecastBehavior
+              abilityFilter: Ability.name = Used Ability.name
+            persistence: []
+            name: Death Strike
+            actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+          guid: d3f3c295-bb6c-4eb8-a319-289bccf4816c
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          sourceguid: 14c79599-58bd-4f29-8c49-26aef1f13a64
+          behavior: triggerdisplay
+          source: Character
+          name: Death Strike
+          description: ""
+          guid: 1309f95a-8279-4e06-bd73-02e0f4e6be49
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: You target a creature adjacent to you with the same strike, using the same power roll as the triggering strike.
+            guid: 58ecfdbd-841b-42df-b087-1d64df2e7cdc
+            distance: Melee 1
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            target: Self
+            trigger: You reduce a creature to 0 Stamina with a strike.
+            cost: "9"
+            flavor: Once you taste your foe’s blood, you become more efficient and turn every killing blow into an opportunity.
+            type: free
+            name: Death Strike
+        source: Character
+        guid: 14c79599-58bd-4f29-8c49-26aef1f13a64
+        id: 14c79599-58bd-4f29-8c49-26aef1f13a64
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        imported: b17f9bd1-6e90-4e20-b5cb-57b2661457bf
+        name: Death Strike
+        classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+        mtime: 1715748063870
+        description: ""
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You break through the enemy lines to make an example.
+            sourceReference:
+              __typeName: SourceReference
+              page: 138
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 4cc5080d-929a-4c66-974e-64474827778d
+            abilityType: none
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+            numTargets: 1
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              applyto: caster
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 6ca64784-8823-4571-9ccc-01de2010ea34
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    repeatTargets: false
+                    targetType: self
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    range: 1
+                    numTargets: "1"
+                    modifiers: []
+                    subjectRange: "1"
+                    strain: []
+                    whenActive: combat
+                    persistence: []
+                    abilityType: none
+                    conditionFormula: not (Subject.Leader or Subject.Solo)
+                    guid: 523f75a0-c212-4a65-be78-cb07948ec9a4
+                    behaviors:
+                    - __typeName: ActivatedAbilityDestroyBehavior
+                      applyto: subject
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      applyto: caster
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        persistence: []
+                        objectTarget: false
+                        abilityType: none
+                        strain: []
+                        guid: 40076ef3-6003-4769-9d4d-d64b6bbf48bb
+                        repeatTargets: false
+                        modifiers: []
+                        numTargets: "1"
+                        targetType: target
+                        categorization: Hidden
+                        name: Seek and Destroy
+                        behaviors:
+                        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                          rule: P < Average, frightened (save ends)
+                        description: ""
+                        range: "5"
+                        iconid: ui-icons/skills/1.png
+                      promptText: Choose and Enemy within 5 Squares to become frightened of you
+                    trigger: winded
+                    name: Seek and Destroy
+                    description: ""
+                    subject: enemy
+                    iconid: ui-icons/skills/1.png
+                  description: If a non-leader or solo creature is winded, they are reduced to 0 stamina
+                  source: Ongoing Effect
+                  behavior: trigger
+                  guid: bf607f19-04ed-45a1-88ee-051ed73613c7
+                  name: Seek and Destroy
+                  sourceguid: 6ca64784-8823-4571-9ccc-01de2010ea34
+                source: Ongoing Effect
+                name: Seek and Destroy
+                description: If a non-leader or solo creature is winded, they are reduced to 0 stamina
+                id: 6ca64784-8823-4571-9ccc-01de2010ea34
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 4 + M damage; P < Weak, frightened (save ends)
+              - 6 + M damage; P < Average, frightened (save ends)
+              - 10 + M damage; P < Strong, frightened (save ends)
+              roll: 2d10 + Might
+            name: Seek and Destroy
+            categorization: Heroic Ability
+            description: If a target who is not a leader or solo creature is winded by this strike they are reduced to 0 Stamina and you choose an enemy within 5 squares of you If that enemy has P < Average they are frightened of you save ends
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: 320c9b2c-e4c1-47b3-b662-4620ef9a52b9
+        id: 320c9b2c-e4c1-47b3-b662-4620ef9a52b9
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        imported: b17f9bd1-6e90-4e20-b5cb-57b2661457bf
+        name: Seek and Destroy
+        classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      description: Choose one of the following abilities.
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      guid: e01373a0-b0bc-43f9-8b72-44a7f5ff5c4d
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e01373a0-b0bc-43f9-8b72-44a7f5ff5c4d
+        source: Reaver Class Feature
+        value: Agility
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        name: Inescapable Wrath
+        guid: 899456a7-9309-4134-acfa-b39462e41039
+        description: 'You have a bonus to speed equal to your Agility score, and you ignore difficult terrain. '
+        behavior: attribute
+        attribute: speed
+      - __typeName: CharacterModifier
+        sourceguid: e01373a0-b0bc-43f9-8b72-44a7f5ff5c4d
+        source: Reaver Class Feature
+        value: 1
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        name: Inescapable Wrath
+        guid: ed83b913-cadc-4e5c-ab5a-7e22b211c798
+        description: 'You have a bonus to speed equal to your Agility score, and you ignore difficult terrain. '
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      name: Inescapable Wrath
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: 'You have a bonus to speed equal to your Agility score, and you ignore difficult terrain. '
+      source: Reaver Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: b17f9bd1-6e90-4e20-b5cb-57b2661457bf
+      name: Reaver Heroic Abilities
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      guid: 3ec09606-29d3-412f-861f-be6d6fdc3b48
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              targetMoveVicinity: true
+              vicinity: 1
+              movementType: shift
+              vicinityFilter: enemy
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: dc95f09c-41c3-4cb7-81fd-b921c9b28183
+              duration: 0
+              ongoingEffectCustom: dc95f09c-41c3-4cb7-81fd-b921c9b28183
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              guid: fbc78917-ebc3-47cb-a59c-2923866d2367
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: c83a9b8f-adee-4bab-b363-83b51143d546
+                repeatTargets: false
+                targetFilter: target.Ongoing Effects has "Phalanx Breaker Target"
+                abilityType: none
+                targetType: target
+                numTargets: "3"
+                name: Phalanx Breaker
+                behaviors:
+                - __typeName: ActivatedAbilityPowerRollBehavior
+                  tiers:
+                  - 2 damage; A < weak, dazed (save ends)
+                  - 4 damage; A < average, dazed (save ends)
+                  - 6 damage; A < strong, dazed (save ends)
+                  roll: 2d10 + Might
+                description: ""
+                range: Walking Speed*2
+                iconid: ui-icons/skills/1.png
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Organizing your forces like feckless creatures of Law. Pitiful.
+            categorization: Heroic Ability
+            range: Walking Speed
+            effectImplemented: false
+            sourceReference:
+              __typeName: SourceReference
+              page: 150
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            persistence: []
+            modifiers: []
+            targetType: emptyspace
+            strain: []
+            guid: 3ce4f0d0-f21b-4bcb-bc8d-d7185a397a4e
+            numTargets: "1"
+            implementation: 3
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+            targeting: pathfind
+            preDescription: You shift up to your speed. You make one power roll that targets up to three enemies you come adjacent to during the shift.
+            name: Phalanx Breaker
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: ce1d77df-ebec-4d2d-b89e-d5e534624046
+        id: ce1d77df-ebec-4d2d-b89e-d5e534624046
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        imported: b17f9bd1-6e90-4e20-b5cb-57b2661457bf
+        name: Phalanx Breaker
+        classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Death ... Death!
+          name: Death ... Death!
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + M damage; P < weak, dazed and frightened (save ends)
+              - 5 + M damage; P < average, dazed and frightened (save ends)
+              - 8 + M damage; P < strong, dazed and frightened (save ends)
+              roll: 2d10 + Might
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your unbridled rage strikes terror in their hearts
+            sourceReference:
+              __typeName: SourceReference
+              page: 150
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 9418ffa6-25a8-49e2-9361-65a40ff08496
+            numTargets: 1
+            categorization: Heroic Ability
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+            implementation: 3
+            persistence: []
+            name: Death ... Death!
+            targetType: target
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Death ... Death!
+        guid: 8169ca1b-bcec-4ee9-9e55-256f2b5cf8ba
+        id: 8169ca1b-bcec-4ee9-9e55-256f2b5cf8ba
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        imported: b17f9bd1-6e90-4e20-b5cb-57b2661457bf
+        name: Death ... Death!
+        classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      description: Choose one of the following abilities.
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      guid: c81caca9-161e-492f-a97f-5abaf0610025
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f1dd6a48-72c2-431d-8aa3-18b7ab2389f1
+        source: Reaver Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          guid: 0705df4f-ea6e-4fb1-9e69-9e247d521bd3
+          activationCondition: false
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: d454232e-72b1-42fa-8511-524b8f8b92d7
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: c7cb02e1-7524-4b30-b123-df8b81ef3439
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              promptText: Choose where to shift
+              autoTarget: true
+              standardAbilityParams:
+                distance: Agility
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              runOnController: true
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Unearthly Reflexes
+          rules: ""
+          behavior: power
+          rollType: ability_power_roll
+          modtype: none
+        guid: f8c6969b-7132-45ae-b0d3-a178cd82eec7
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        targetType: self
+        trigger: takedamage
+        name: Unearthly Reflexes
+        rules: You take half damage and shift {Agility}.
+        description: ""
+        range: 10
+        additionalCostModifiers:
+        - __typeName: CharacterModifier
+          source: Trigger
+          guid: bee7fa28-d5e1-44a1-a990-7462f8cf584c
+          behavior: power
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          resourceCostType: cost
+          name: Unearthly Reflexes+
+          rules: ""
+          potencymod: "-1"
+          modtype: none
+          rulesText: Reduce potency by 1.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        sourceguid: f1dd6a48-72c2-431d-8aa3-18b7ab2389f1
+        behavior: triggerdisplay
+        source: Reaver Class Feature
+        name: Unearthly Reflexes
+        description: ""
+        guid: 0d5f6642-12e1-49c0-8bef-61d82c4170d9
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: |
+            You take half damage from the attack and can shift up to a number of squares equal to your Agility score.
+            **Spend 1 Rage:** You reduce the potency of any effect associated with the damage for you by 1.
+          name: Unearthly Reflexes
+          trigger: You take damage.
+          flavor: Elusive as a hummingbird.
+          guid: 0b7a7140-a8fd-4a29-8098-606cd28672af
+          distance: Self
+          keywords: []
+      name: Unearthly Reflexes
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: ""
+      source: Reaver Class Feature
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: b17f9bd1-6e90-4e20-b5cb-57b2661457bf
+      name: 9th Level Reaver Heroic Abilities
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      guid: e1867d4f-3c59-4992-b927-fe2658e0a87b
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: You attune the target to be weaker to a specific element.
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 11 + M damage
+              - 16 + M damage
+              - 21 + M damage
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  duration: save_ends
+                  ongoingEffectCustom: false
+                  ongoingEffect: 61ced55f-0a64-4c52-889f-441d2d7ac199
+                  ongoingEffectSource: specific
+                  stacks: Immunities("acid") + 10
+                  modesSelected:
+                  - 1
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  stacks: Immunities("cold") + 10
+                  modesSelected:
+                  - 2
+                  ongoingEffectCustom: false
+                  ongoingEffect: 0a4cd4c7-c4d3-4ca0-80d2-dd32addeaab3
+                  ongoingEffectSource: specific
+                  duration: save_ends
+                  guid: d55a6fc5-d1a2-4734-9c63-606adcdebf4b
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  stacks: Immunities("corruption") + 10
+                  modesSelected:
+                  - 3
+                  ongoingEffectCustom: false
+                  ongoingEffect: fff07343-f44a-42cf-bb95-dbec6413f352
+                  ongoingEffectSource: specific
+                  duration: save_ends
+                  guid: a020fbd1-b2c1-45b1-bfff-97420eb9998e
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  stacks: Immunities("fire") + 10
+                  modesSelected:
+                  - 4
+                  ongoingEffectCustom: false
+                  ongoingEffect: c7e6ec1c-5d74-4248-957d-e6a4eddcfaac
+                  ongoingEffectSource: specific
+                  duration: save_ends
+                  guid: 049f7581-45d1-4f28-9369-1475f31dba9d
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  stacks: Immunities("lightning") + 10
+                  modesSelected:
+                  - 5
+                  ongoingEffectCustom: false
+                  ongoingEffect: 513d888c-b5c3-4854-bf9e-9a08f8d7d97e
+                  ongoingEffectSource: specific
+                  duration: save_ends
+                  guid: d4e883bb-2a9d-4936-9382-d0cdd7e79689
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  stacks: Immunities("poison") + 10
+                  modesSelected:
+                  - 6
+                  ongoingEffectCustom: false
+                  ongoingEffect: 0bfd296e-8fbe-403e-843e-2569910ba8b7
+                  ongoingEffectSource: specific
+                  duration: save_ends
+                  guid: 6864a598-0a05-4526-861e-853f1a758cf7
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  stacks: Immunities("sonic") + 10
+                  modesSelected:
+                  - 7
+                  ongoingEffectCustom: false
+                  ongoingEffect: 8d29ad0b-4e85-4d91-bcc7-cc540d02e2ec
+                  ongoingEffectSource: specific
+                  duration: save_ends
+                  guid: 737f6e69-4000-4c36-86cd-8eed5afca9be
+                multipleModes: true
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                modeList:
+                - text: Acid
+                - text: Cold
+                - text: Corruption
+                - text: Fire
+                - text: Lightning
+                - text: Poison
+                - text: Sonic
+                numTargets: "1"
+                guid: 8f33f649-cc47-491a-ba55-c3d0730b1974
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Select Damage Weakness
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 0
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You attune the target to be weaker to a specific element.
+            sourceReference:
+              __typeName: SourceReference
+              page: 141
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            effectImplemented: false
+            abilityType: none
+            persistence: []
+            modifiers: []
+            categorization: Heroic Ability
+            strain:
+              enabled: false
+            guid: 250725f9-3eb5-48ae-9ad8-b2ea9773b00d
+            iconid: c1073f37-1ce1-40e6-9d8b-bce0e56f7746
+            numTargets: 1
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            targetType: target
+            name: Primordial Bane
+            modeList: []
+            description: Choose either acid, cold, corruption, fire, lightning, poison, or sonic damage. The target loses any damage immunity it has to that type and gains weakness 10 to that damage type(save ends).
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Character
+        guid: 3714e8ef-bf55-4648-b97a-665414478ef2
+        id: 3714e8ef-bf55-4648-b97a-665414478ef2
+        ctime: 1715748063870
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        imported: b17f9bd1-6e90-4e20-b5cb-57b2661457bf
+        name: Primordial Bane
+        classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+        mtime: 1715748063870
+        description: You attune the target to be weaker to a specific element.
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 12 + M damage
+              - 18 + M damage
+              - 24 + M damage
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: enemy
+                targetType: all
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "3"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 269a9cbf-5e6a-47b9-b1f0-942fd18c91af
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: e32ea406-5e35-4a31-8e08-249c6effde8b
+                  duration: endround
+                  ongoingEffectCustom: e32ea406-5e35-4a31-8e08-249c6effde8b
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You shock your foes with the brutality of your strike, resetting the pace of combat.
+            sourceReference:
+              __typeName: SourceReference
+              page: 141
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 45f4ce83-abac-4e1f-a6c0-eb5db790d3dc
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            categorization: Heroic Ability
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+            numTargets: 1
+            targetType: target
+            name: Shower of Blood
+            implementation: 4
+            description: Each enemy within 5 squares of you is distracted until the end of the round. While a creature is distracted this way, they can’t take triggered actions or free triggered actions, ability rolls made against them gain an edge, and their characteristic scores are considered 1 lower for the purpose of resisting potencies.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: f9e22adb-e691-4f29-a7e6-45beda2ed4bc
+        id: f9e22adb-e691-4f29-a7e6-45beda2ed4bc
+        ctime: 1715748063870
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        imported: b17f9bd1-6e90-4e20-b5cb-57b2661457bf
+        name: Shower of Blood
+        classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      description: Choose one of the following abilities.
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+      guid: 1d46d5b4-bce8-4a6a-98a8-0508a4a670d8
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1d46d5b4-bce8-4a6a-98a8-0508a4a670d8
+        source: Reaver Class Feature
+        guid: bb011867-6c44-436a-82d4-0525be5185e3
+        keywords: []
+        activationCondition: false
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+        behavior: power
+        rollType: test_power_roll
+        name: See Through Your Tricks
+        description: You have a double edge on tests made to search for hidden creatures, discern hidden motives, or detect lies. You also have a double edge on tests made to gamble!
+        modtype: double_edge
+        skills:
+        - 81442e8b-10cb-41f5-8aa9-110a2256b663
+        - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+        - 4f4b7168-8702-469d-b001-65d250fd4082
+      name: See Through Your Tricks
+      classid: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+      description: You have a double edge on tests made to search for hidden creatures, discern hidden motives, or detect lies. You also have a double edge on tests made to gamble!
+      source: Reaver Class Feature
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:b690c2dc-13e7-4ee0-a508-f4c8aa401cf5: true
+details: You channel your ferocity into instinct and cunning, challenging the order of civilization. You have the Hide skill.
+name: Reaver
+mtime: 1774545625320
+id: b690c2dc-13e7-4ee0-a508-f4c8aa401cf5
+primaryClassId: ce18b1ba-363b-4403-945b-34a3ce08a465

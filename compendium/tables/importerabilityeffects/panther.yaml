@@ -1,0 +1,36 @@
+__typeName: ActivatedAbility
+insertAtStart: true
+invokeSurroundingAbility: true
+repeatTargets: false
+targetType: emptyspace
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: "<<distance>>"
+testCases:
+- text: You can move up to 3 squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+modifiers: []
+source: Monster
+id: dabe24bd-75ed-467c-94cc-2e61e8af8e6a
+guid: 70b08a6d-3a34-4efb-b31b-051de40f8997
+importMatch: You can move up to <<distance>> squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+ctime: 1711337404474
+numTargets: "1"
+targeting: straightpath
+mtime: 1743392538472
+name: Panther
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+- __typeName: ActivatedAbilityModifyCastBehavior
+  applyto: caster
+  name: Rush Bonus Damage
+  description: You gain one extra damage for each space you rushed toward your enemy.
+  paramid: ability_damage
+  value: cast.Spaces Moved
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

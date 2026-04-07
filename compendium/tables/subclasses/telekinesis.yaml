@@ -1,0 +1,1405 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1741589813231
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: 779900ca-748f-4dad-ad84-afa33306e351
+        description: You have the following ability.
+        source: Telekinesis Class Feature
+        name: Levitation Field
+        behavior: activated
+        guid: 24aa280a-54d9-4879-8854-199b8e08fd53
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          targetTextOverride: Each ally in the area
+          repeatTargets: false
+          keywords:
+            Area: true
+            Psionic: true
+          implementationDetails: The Codex does not track time in minutes or hours.
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            durationUntilEndOfTurn: false
+            duration: 1
+            ongoingEffectCustom: 8692d63d-e197-4ae2-abe3-09707bdc9f21
+            ongoingEffect: 8692d63d-e197-4ae2-abe3-09707bdc9f21
+            modesSelected:
+            - 1
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            durationUntilEndOfTurn: false
+            modesSelected:
+            - 2
+            ongoingEffectCustom: 8692d63d-e197-4ae2-abe3-09707bdc9f21
+            ongoingEffect: 8692d63d-e197-4ae2-abe3-09707bdc9f21
+            guid: ab3d6683-4374-4665-a70d-e25f43bac364
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster_and_targets
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 6b4941d7-f295-4714-98df-09e116b52887
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Shift up to your speed
+            standardAbilityParams:
+              distance: walking speed
+            abilityType: standard
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            runOnController: true
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 0
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You manipulate the air around your allies so they can move as freely through the sky as you can.
+          sourceReference:
+            __typeName: SourceReference
+            page: 198
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "3"
+          targetAllegiance: ally
+          categorization: Ability
+          persistence: []
+          modifiers: []
+          guid: 09ce7139-d808-41c3-a22a-f25a28896fad
+          strain: []
+          modeList:
+          - rules: The effects last until the start of your next turn
+            text: Normal
+          - rules: The effects last for 1 hour.
+            text: Spend 5 Clarity
+          rangeTextOverride: ""
+          name: Levitation Field
+          domains:
+            class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          implementation: 3
+          numTargets: "1"
+          selfTarget: false
+          targetType: all
+          description: |-
+            Each target can fly until the start of your next turn, and can immediately shift up to their speed. You can also shift up to your speed. While flying, a target’s stability is reduced to 0 and can’t be increased. 
+            **Spend 5 Clarity:** The effects last for 1 hour instead.
+          abilityType: none
+          iconid: 92b2b114-d1a9-48da-bc72-d7b561b5432f
+      source: Telekinesis Class Feature
+      guid: 2fd8e5a4-53b5-40d7-bafc-b0391d580fd8
+      domains:
+        class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      description: You have the following ability.
+      name: Levitation Field
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f61b7974-9c57-4732-b626-6d6b282cd788
+        source: Telekinesis Class Feature
+        value: 1
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        name: Low Gravity
+        guid: 9496e14c-ddd4-41c7-bfc8-7c291ce2934a
+        description: Your mind can carry your body through tough times. You ignore difficult terrain and don’t need to spend additional movement while prone.
+        behavior: attribute
+        attribute: a265631b-a8e5-4518-9762-7f85a5ec96cc
+      - __typeName: CharacterModifier
+        sourceguid: f61b7974-9c57-4732-b626-6d6b282cd788
+        source: Telekinesis Class Feature
+        value: 1
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        name: Low Gravity
+        guid: c74c7700-0c12-4f3f-9b6f-6fdc8f334283
+        description: Your mind can carry your body through tough times. You ignore difficult terrain and don’t need to spend additional movement while prone.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      source: Telekinesis Class Feature
+      guid: f61b7974-9c57-4732-b626-6d6b282cd788
+      domains:
+        class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      description: Your mind can carry your body through tough times. You ignore difficult terrain and don’t need to spend additional movement while prone.
+      name: Low Gravity
+      implementation: 4
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: e92c7219-149e-43b7-9093-4e1cc9352944
+        description: Whenever an ally uses a ranged ability while you are within the ability’s distance, you can spend 1 clarity as a free triggered action to allow them to use the ability as if they were in your space.
+        source: Telekinesis Class Feature
+        name: Triangulate
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 1
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: 'Spent 1 clarity for Ally to use the ability as if they were in your space. '
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          trigger: attack
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: de4d6fbf-80d5-497f-b791-100790f6f175
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            targeting: formula
+            targetingFormula: Target.id = Invoker.id
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              objectTarget: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 5f46fae0-c61c-4ea0-a1a9-0c9d92ebb327
+              repeatTargets: false
+              abilityType: none
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: 40848fff-2b54-45f6-b116-a7428e34c19d
+                ongoingEffectSource: specific
+                duration: 0
+                ongoingEffectCustom: false
+              targetType: self
+              modifiers: []
+              name: Invoked Ability
+              persistence: []
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          conditionFormula: 0 {Too many pings. Keep manual}
+          domains:
+            class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          name: Triangulate
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          description: ""
+          subject: otherheroes
+          iconid: ui-icons/skills/1.png
+        guid: f68a391d-48d6-4b5a-9dc5-ad48fa692cf7
+      - __typeName: CharacterModifier
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: e92c7219-149e-43b7-9093-4e1cc9352944
+        behavior: triggerdisplay
+        source: Telekinesis Class Feature
+        name: Triangulate
+        description: Whenever an ally uses a ranged ability while you are within the ability’s distance, you can spend 1 clarity as a free triggered action to allow them to use the ability as if they were in your space.
+        guid: 951c2b28-e115-42a8-a762-b44bc2785251
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: passive
+          name: Triangulate
+          guid: 2fbef556-36e7-44af-a303-b345bb516df7
+          effect: Whenever an ally uses a ranged ability while you are within the ability’s distance, you can spend 1 clarity as a free triggered action to allow them to use the ability as if they were in your space.
+          keywords: []
+      source: Telekinesis Class Feature
+      guid: a97f100d-7c4c-40f8-a5f1-cf74d6b5c7e2
+      domains:
+        class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      description: Whenever an ally uses a ranged ability while you are within the ability’s distance, you can spend 1 clarity as a free triggered action to allow them to use the ability as if they were in your space.
+      name: Triangulate
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 9f8357f7-4779-40b8-9c03-44544b999f9a
+        source: Telekinesis Class Feature
+        guid: 93d43d1b-667b-41be-aa75-f0f7234c8871
+        adjustments:
+        - type: push
+          value: Reason
+        - type: pull
+          value: Reason
+        - type: slide
+          value: Reason
+        keywords: []
+        activationCondition: false
+        resourceCostType: surges
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        rollType: ability_power_roll
+        behavior: power
+        description: Whenever you force move a creature, you can spend up to 2 surges. For each surge spent, the forced movement distance gains a bonus equal to your Reason score.
+        modtype: none
+        name: Kinetic Amplifier
+      - __typeName: CharacterModifier
+        sourceguid: 9f8357f7-4779-40b8-9c03-44544b999f9a
+        resourceCostType: surges
+        behavior: power
+        guid: 9133fb27-a08c-4529-93c9-13a05bdba1b0
+        adjustments:
+        - type: push
+          value: Reason*2
+        - type: pull
+          value: Reason*2
+        - type: slide
+          value: Reason*2
+        keywords: []
+        activationCondition: false
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        modtype: none
+        rollType: ability_power_roll
+        resourceCostAmount: "2"
+        description: Whenever you force move a creature, you can spend up to 2 surges. For each surge spent, the forced movement distance gains a bonus equal to your Reason score.
+        source: Telekinesis Class Feature
+        name: Kinetic Amplifier
+      source: Telekinesis Class Feature
+      guid: 9f8357f7-4779-40b8-9c03-44544b999f9a
+      domains:
+        class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      description: Whenever you force move a creature, you can spend up to 2 surges. For each surge spent, the forced movement distance gains a bonus equal to your Reason score.
+      name: Kinetic Amplifier
+      implementation: 3
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 5b19a3c5-69ed-4496-8e21-c8837820bb30
+          description: ""
+          source: Telekinesis Class Feature
+          name: Gravitic Well
+          behavior: activated
+          guid: c845ab69-9353-4889-b49a-28ab8743e8c1
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetFilter: Enemy when not Strained
+            targetTextOverride: Each enemy and object in the area
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Psionic: true
+              Telekinesis: true
+              Area: true
+            implementationDetails: ""
+            behaviors:
+            - __typeName: ActivatedAbilityForcedMovementLocBehavior
+              type: aura
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 damage; vertical pull 5 toward the center of the area
+              - 9 damage; vertical pull 7 toward the center of the area
+              - 13 damage; vertical pull 10 toward the center of the area
+              roll: 2d10 + Reason
+              promptWhenResolvingText: Select Target Order
+              promptWhenResolving: true
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You bend gravity into a fine point and pull your foes toward it.
+            categorization: Heroic Ability
+            range: "10"
+            abilityType: none
+            rangeTextOverride: 4 cube within 10
+            persistence: []
+            modifiers: []
+            radius: 6 when Strained else 4
+            strain:
+              enabled: true
+            guid: 5a3dc406-78a7-47c2-aad4-d233d63b6fe0
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            sourceReference:
+              __typeName: SourceReference
+              page: 197
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            implementation: 3
+            targetType: cube
+            name: Gravitic Well
+            numTargets: "1"
+            description: |-
+              Targets closest to the center of the area are pulled first.
+
+              **Strained:** The size of the area increases by 2. You also target yourself and each ally within distance.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Telekinesis Class Feature
+        guid: 5b19a3c5-69ed-4496-8e21-c8837820bb30
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: b66464fe-d3eb-419c-9b1c-748022081c72
+        description: ""
+        name: Gravitic Well
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 4a514851-a29f-455d-b30b-d576104a9dda
+          description: ""
+          source: Telekinesis Class Feature
+          name: Greater Kinetic Grip
+          behavior: activated
+          guid: f54960a3-230d-4dd5-a69d-6ad370bd2388
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Psionic: true
+              Telekinesis: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You raise the target into the air without breaking a sweat.
+            sourceReference:
+              __typeName: SourceReference
+              page: 197
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain:
+              enabled: true
+            guid: 719684bd-7e89-46ba-b00e-ec1893442186
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "#Slide 4 + R; M < Weak, the forced movement is vertical"
+              - "#Slide 8 + R; M < Average, the forced movement is vertical"
+              - "#Slide 12 + R; prone, M < Strong, the forced movement is vertical"
+              roll: 2d10 + Might or Agility
+              promptWhenResolvingText: Select Target Order
+              promptWhenResolving: false
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 1
+              rule: slide 4 + R
+              filterTarget: Cast.PassesPotency(target, "M")
+              strainSelection: unstrained
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 1
+              filterTarget: not Cast.PassesPotency(target, "M")
+              strainSelection: unstrained
+              rule: vertical slide 4 + R
+              guid: c9f747b4-7aaa-4961-968b-bc884161b42e
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 1
+              filterTarget: Cast.PassesPotency(target, "M")
+              strainSelection: strained
+              rule: slide 4 + R, ignore stability
+              guid: b7326eda-c5e4-4418-aa62-f9fe4c5179e7
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 1
+              filterTarget: not Cast.PassesPotency(target, "M")
+              strainSelection: strained
+              rule: vertical slide 4 + R, ignore stability
+              guid: 3c485ea6-b4e5-4055-a077-91ce6c78ec64
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 2
+              filterTarget: Cast.PassesPotency(target, "M")
+              strainSelection: unstrained
+              rule: slide 8 + R
+              guid: bc4f4903-3987-46cc-b819-bf0ad2af96a8
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 2
+              filterTarget: not Cast.PassesPotency(target, "M")
+              strainSelection: unstrained
+              rule: vertical slide 8 + R
+              guid: 5733e361-8cfd-4eae-b699-852d6e6213f6
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 2
+              filterTarget: Cast.PassesPotency(target, "M")
+              strainSelection: strained
+              rule: slide 8 + R, ignore stabilty
+              guid: e669fb56-0c9d-45a3-9cd3-756bf65430d5
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 2
+              filterTarget: not Cast.PassesPotency(target, "M")
+              strainSelection: strained
+              rule: vertical slide 8 + R, ignore stability
+              guid: 48aa5afb-c929-46e7-9d7d-9f7e2b0fd17c
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 3
+              filterTarget: Cast.PassesPotency(target, "M")
+              strainSelection: unstrained
+              rule: slide 12 + R; prone
+              guid: 5c396d86-cfbc-46ab-8645-26b4a55510ec
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 3
+              filterTarget: not Cast.PassesPotency(target, "M")
+              strainSelection: unstrained
+              rule: vertical slide 12 + R
+              guid: 3bb8da8d-1db8-4b8f-9d18-56dfbf0fc55a
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 3
+              filterTarget: Cast.PassesPotency(target, "M")
+              strainSelection: strained
+              rule: slide 12 + R, ignore stability; prone
+              guid: 24686dcc-90a5-475a-b0d4-74c1f7cc26c5
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 3
+              filterTarget: not Cast.PassesPotency(target, "M")
+              strainSelection: strained
+              rule: vertical slide 12 + R, ignore stability
+              guid: 0f98f602-cd6c-4977-991a-87ce97ca1632
+            - __typeName: ActivatedAbilityDamageBehavior
+              applyto: caster
+              roll: 2d6
+              strainSelection: strained
+              titleText: Greater Kinetic Grip Damage Roll
+              chatMessage: Greater Kinetic Grip Strained
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              applyto: caster
+              rule: weakened (save ends)
+              strainSelection: strained
+            domains:
+              class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Greater Kinetic Grip
+            categorization: Heroic Ability
+            description: "**Strained:** The forced movement ignores stability. You take 2d6 damage and are weakened (save ends)"
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Telekinesis Class Feature
+        guid: 4a514851-a29f-455d-b30b-d576104a9dda
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: b66464fe-d3eb-419c-9b1c-748022081c72
+        description: ""
+        name: Greater Kinetic Grip
+        implementation: 3
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      guid: aeb9a956-c382-4fa0-8192-7bda71ab1467
+      description: Choose one of the following abilities.
+      name: 6th-Level Telekinesis Abilities
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      guid: fad4d463-4060-4868-bdd8-e1edb7aaf7f3
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: fad4d463-4060-4868-bdd8-e1edb7aaf7f3
+        source: Telekinesis Class Feature
+        seq: 82f1a4ba-41a6-485c-a100-b27b4357009b
+        guid: 7e63baad-34e8-46d0-bcc5-536b74835b8e
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        radius: "2"
+        behavior: aura
+        description: 'Whenever you land after a fall, or if any falling creature lands within 2 squares of you, you can use a free triggered action to reduce the falling damage by an amount equal to 2 + your Reason score. '
+        aura:
+          __typeName: Aura
+          applyto: selfandfriends
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: 3cdd81dd-c080-44df-8672-5ba7b6837686
+            sourceguid: d2deb594-5779-4a80-8c8a-906fcb3b7f79
+            behavior: attribute
+            source: Aura
+            name: Ease Their Fall
+            description: ""
+            value: (2 + Caster.Reason) When not Caster.Cannot Use Triggered Abilities
+            attribute: 151ac2f1-5bd3-4070-8b16-e14896d6933b
+          name: Ease Their Fall
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          guid: d2deb594-5779-4a80-8c8a-906fcb3b7f79
+          creatureFilter: ""
+          implementation: 3
+        name: Ease their Fall
+      name: Ease their Fall
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      description: 'Whenever you land after a fall, or if any falling creature lands within 2 squares of you, you can use a free triggered action to reduce the falling damage by an amount equal to 2 + your Reason score. '
+      source: Telekinesis Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 0c230074-c6ed-45bd-89ca-5097d393c1d3
+          description: ""
+          source: Telekinesis Class Feature
+          name: Gravitic Burst
+          behavior: activated
+          guid: c8689bca-922e-49e6-8199-27a4eebd38b7
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Area: true
+              Psionic: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 damage; vertical push 2
+              - 6 damage; vertical push 4
+              - 9 damage; vertical push 6
+              roll: 2d10 + Reason
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              applyto: caster
+              rule: weakened (EoT)
+              strainSelection: strained
+            display:
+              brightness: 1
+              saturation: 0
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Everyone get away from me!
+            categorization: Heroic Ability
+            range: 2 when (Strained > 0) or 2 when ((Heroic Resources Available to Spend-3) < 5) else 1
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain:
+              enabled: true
+            guid: a90a0776-4d54-4f92-9863-1d3a76c0da9a
+            sourceReference:
+              __typeName: SourceReference
+              page: 192
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            numTargets: "1"
+            domains:
+              class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            targetType: all
+            implementation: 4
+            name: Gravitic Burst
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: "*Strained:* The size of the burst increases by 1, and you are weakened until the end of your turn."
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 6d932456-37bd-4483-8252-a5b1dc792e10
+        source: Telekinesis Class Feature
+        guid: 0c230074-c6ed-45bd-89ca-5097d393c1d3
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: b66464fe-d3eb-419c-9b1c-748022081c72
+        description: ""
+        name: Gravitic Burst
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 5bce6664-fb41-4fcc-80be-0f838129ebb3
+          description: ""
+          source: Telekinesis Class Feature
+          name: Levity and Gravity
+          behavior: activated
+          guid: d7cd0935-9aa5-4763-9798-7ddfeecdd0c5
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Psionic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You raise the target slightly into the air, then smother them against the ground.
+            sourceReference:
+              __typeName: SourceReference
+              page: 207
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain:
+              enabled: true
+            guid: d5ad3bbb-cf28-4d4e-8cec-b7f0206cd74f
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + R damage; M < weak, prone
+              - 10 + R damage; M < average, prone
+              - 14 + R damage; M < strong, prone and can't stand (save ends)
+              roll: 2d10 + Reason
+            - __typeName: ActivatedAbilityDamageBehavior
+              applyto: caster
+              roll: Cast.Damage Dealt * 0.5
+              strainSelection: strained
+              titleText: "Strained: Levity and Gravity"
+              chatMessage: "Strained: Levity and Gravity"
+            domains:
+              class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Levity and Gravity
+            categorization: Heroic Ability
+            description: "*Strained:* You take half the damage the target takes"
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Telekinesis Class Feature
+        guid: 5bce6664-fb41-4fcc-80be-0f838129ebb3
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: b66464fe-d3eb-419c-9b1c-748022081c72
+        description: ""
+        name: Levity and Gravity
+        implementation: 3
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      guid: 989dda56-f3b3-4e54-8931-1d58b5894857
+      description: Choose one of the following abilities.
+      name: 2nd-Level Telekinesis Ability
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      guid: 9536a785-1069-42a6-af4d-32e61a4b9e61
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: b53ae03d-db70-4906-b82c-7dd16b3f6c5e
+        description: You gain the following ability.
+        source: Telekinesis Class Feature
+        name: Minor Telekinesis
+        behavior: activated
+        guid: 2c2da8db-2da8-4aa2-955d-c5879c3356b7
+        activatedAbility:
+          __typeName: ActivatedAbility
+          description: |-
+            You slide the target up to a number of squares equal to your Reason score. 
+
+            Spend 2+ Clarity: The size of the creature or object you can target increases by 1 for every 2 clarity you spend. 
+
+            Spend 3 Clarity: You can vertical slide the target.
+          resourceNumber: 3 when Mode = 2 else 0
+          objectTarget: true
+          abilityType: none
+          targetFilter: target.TileSize <= (1 + Charges)
+          targetTextOverride: Self or one size 1 creature or object
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Psionic: true
+          channelIncrement: 2
+          targetType: target
+          multipleModes: true
+          display:
+            brightness: 1.34892578125
+            saturation: 0.908973911830357
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.081316351890564
+              s: 1.00072383880615
+              v: 0.859915435314178
+              a: 1
+          flavor: Wisps of psychic energy ripple visibly from your brain as you force the target to move using only your mind.
+          categorization: Heroic Ability
+          range: "10"
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          numTargets: "1"
+          persistence: []
+          modifiers: []
+          iconid: 6ed7bff0-8d17-4f1d-9494-531883f754ab
+          strain: []
+          modeList:
+          - text: Normal Slide
+          - text: Vertical Slide
+            condition: (Heroic Resources Available to Spend) >= 3
+          sourceReference:
+            __typeName: SourceReference
+            page: 189
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          name: Minor Telekinesis
+          domains:
+            class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: slide {reason}
+            guid: ef502dd8-771b-43fd-a5f8-5afdcc582b7a
+            modesSelected:
+            - 1
+            filterTarget: ""
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: vertical slide {reason}
+            guid: 4ceea38c-18b1-40cc-b764-0ededbc2c538
+            modesSelected:
+            - 2
+            filterTarget: ""
+          channelDescription: Increase size you can target
+          selfTarget: true
+          guid: a8d2c5a6-de5d-4f59-adba-649886ef9be4
+          channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          implementation: 3
+      name: Minor Telekinesis
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      description: You gain the following ability.
+      source: Telekinesis Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      guid: b4317349-57c6-42a0-b5e6-6031a5460602
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 429fcf40-bde4-461b-b367-e4052d6cc4c7
+        multitarget: one
+        source: Telekinesis Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          modtype: none
+          keywords:
+            Ranged: true
+            Psionic: true
+          activationCondition: false
+          guid: 482ae21d-27ba-4519-ba84-b19facce9d25
+          damageMultiplier: half
+          name: Repel
+          rules: ""
+          description: The damage is halved.
+          rollType: ability_power_roll
+          behavior: power
+        guid: d67493bc-8764-49b0-b6f0-ad1f2adc4bcd
+        type: trigger
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        targetType: selforally
+        behavior: powertabletrigger
+        name: Repel
+        rules: The damage is halved.
+        description: ""
+        range: 10
+        trigger: takedamage
+      - __typeName: CharacterModifier
+        sourceguid: 429fcf40-bde4-461b-b367-e4052d6cc4c7
+        source: Telekinesis Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          activationCondition: false
+          guid: 50bd5890-3fb0-4f96-b22e-98fe65369c34
+          adjustments:
+          - type: push
+            value: "-Triggerer.Reason"
+          - type: pull
+            value: "-Triggerer.Reason"
+          - type: slide
+            value: "-Triggerer.Reason"
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            numTargets: "1"
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            targetFilter: AbilityTarget = Target and tier.IncludesForcedMovement and tier.Push = 0 and tier.Pull = 0 and tier.Slide = 0
+            guid: c339a13c-df6f-4b80-96e3-a66a0cd3e67c
+            repeatTargets: false
+            range: "100"
+            selfTarget: true
+            targetType: all
+            trigger: d20roll
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 56a0a69b-9184-4b58-9309-70bc3945701d
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                prompt: "Repel: Push the creature back"
+                distance: "<<Reason>>"
+                targetid: "<<AbilityCaster.id>>"
+              promptText: Repel!
+              autoTarget: true
+              filterTarget: ""
+              abilityType: standard
+              standardAbility: 75946ad2-cfe5-4d05-9e2a-5a70ed5173a6
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          modtype: none
+          rollType: ability_power_roll
+          rules: ""
+          description: The forced movement is reduced by {Reason}. If the forced movement is reduced to 0, the target uses push {Reason} on the attacker.
+          behavior: power
+          name: Repel
+        guid: 97af4330-bec9-4f38-a631-823df23c4073
+        type: trigger
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        targetType: selforally
+        behavior: powertabletrigger
+        name: Repel
+        rules: The forced movement is reduced by {Reason}. If the forced movement is reduced to 0, the target uses push {Reason} on the attacker.
+        description: ""
+        range: 10
+        trigger: forcemoved
+      - __typeName: CharacterModifier
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: 429fcf40-bde4-461b-b367-e4052d6cc4c7
+        behavior: triggerdisplay
+        source: Telekinesis Class Feature
+        name: Repel
+        description: ""
+        guid: 777dc7f3-de5b-45db-9470-992b7fc50abb
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or one ally
+          effect: The triggering damage is halved or distance of the triggering forced movement is reduced by a number of squares equal to your Reason score. If the target was damaged and force moved, you choose the effect. If the triggering forced movement is reduced to 0 squares, the target pushes the source of the forced movement a number of squares equal to your Reason score.
+          trigger: The target takes damage or is force moved.
+          flavor: They aren’t going anywhere, but you might!
+          guid: 66bd8289-96f1-4748-a2df-2dfdbcf3f620
+          name: Repel
+          keywords:
+            Ranged: true
+            Psionic: true
+      name: Repel
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      description: ""
+      source: Telekinesis Class Feature
+      implementation: 3
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th-Level Telekinesis Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 14cce6a7-5bca-4483-af49-f97aafff357c
+          description: You precisely manipulate the creatures around you.
+          source: Telekinesis Class Feature
+          name: Fulcrum
+          behavior: activated
+          guid: 94b3ed95-6e14-4a62-b2ed-6e4810355358
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: true
+            targetTextOverride: Each enemy and object in the area
+            repeatTargets: false
+            keywords:
+              Psionic: true
+              Telekinesis: true
+              Area: true
+            implementationDetails: ""
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "#2 burst"
+              - "#3 burst"
+              - "#4 burst"
+              roll: 2d10 + Reason
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: false
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                targetFilter: ""
+                repeatTargets: false
+                targetType: self
+                multipleModes: variations
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: ""
+                persistence: []
+                modifiers: []
+                strain:
+                  enabled: false
+                modeList:
+                - variation:
+                    __typeName: ActivatedAbility
+                    objectTarget: false
+                    repeatTargets: false
+                    targetAllegiance: enemy
+                    behaviors:
+                    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                      rule: vertical push 6
+                      promptWhenResolving: true
+                    - __typeName: ActivatedAbilityDamageBehavior
+                      applyto: caster
+                      roll: Cast.Damage Dealt * 0.5
+                      strainSelection: strained
+                      titleText: Fulcrum Strained Damage
+                      chatMessage: Fulcrum Strained Damage
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    categorization: Hidden
+                    range: "<<tierresult>> + 1"
+                    persistence: []
+                    modifiers: []
+                    strain:
+                      enabled: true
+                    guid: d25bf244-5936-4b3f-9ca3-7d3f66375aaa
+                    domains: []
+                    numTargets: "1"
+                    name: Invoked Ability
+                    targetType: all
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  hasAbility: true
+                  text: Normal
+                - text: Reduce Size
+                  hasAbility: true
+                  condition: Strained
+                  rules: Reduce burst size by 2 to add +2 to forced movement. You take half the total damage all targets take.
+                  variation:
+                    __typeName: ActivatedAbility
+                    objectTarget: false
+                    repeatTargets: false
+                    targetAllegiance: enemy
+                    behaviors:
+                    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                      rule: vertical push 8
+                      promptWhenResolving: true
+                    - __typeName: ActivatedAbilityDamageBehavior
+                      applyto: caster
+                      roll: Cast.Forced Movement Damage Dealt * 0.5
+                      strainSelection: strained
+                      guid: 76bd5a46-a8c8-4f66-8443-2a11af5ce3ac
+                      titleText: Fulcrum Strained Damage
+                      chatMessage: Fulcrum Strained Damage
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    categorization: Hidden
+                    range: 2 when <<tierresult>> = 3 else 1
+                    persistence: []
+                    modifiers: []
+                    strain: []
+                    guid: dd51716e-1f73-4923-8c7b-3f08bbffa9c7
+                    domains: []
+                    targetType: all
+                    iconid: ui-icons/skills/1.png
+                    name: Invoked Ability
+                    numTargets: "1"
+                    description: Reduce burst size by 2 to add +2 to forced movement. You take half the total damage all targets take.
+                    abilityType: none
+                    implementation: 3
+                behaviors: []
+                iconid: ui-icons/skills/1.png
+                numTargets: "1"
+                name: Invoked Ability
+                guid: c406169e-8447-484b-bbcc-0a13c0acb30c
+                description: ""
+                abilityType: none
+                implementation: 3
+              standardAbilityParams:
+                tierresult: "<<Cast.Tier>>"
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 0
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You precisely manipulate the creatures around you.
+            categorization: Heroic Ability
+            preDescription: Make a power roll to determine the area of this ability. Each target is vertical pushed 6 squares. You can target only objects of size   1L or smaller.
+            domains:
+              class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            range: ""
+            persistence: []
+            modifiers: []
+            rangeTextOverride: Special
+            strain:
+              enabled: true
+            guid: 864053b0-1b54-4c7b-a826-1258b0048dec
+            sourceReference:
+              __typeName: SourceReference
+              page: 200
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            numTargets: "1"
+            castImmediately: true
+            implementation: 4
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Fulcrum
+            targetType: self
+            description: "**Strained:** You can choose to reduce the size of the burst by 2 (to a minimum of 1 burst) to give the forced movement distance a +2 bonus. You take half the total damage all targets take from forced movement"
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 915bbb28-301c-4337-9db1-b30fa481b2ef
+        source: Telekinesis Class Feature
+        guid: 14cce6a7-5bca-4483-af49-f97aafff357c
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: b66464fe-d3eb-419c-9b1c-748022081c72
+        description: You precisely manipulate the creatures around you.
+        name: Fulcrum
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 2ea06154-3f40-4410-a962-fba0cd020295
+          description: Unbridled psionic energy erupts from your body and flashes outward, hurling your foes back.
+          source: Telekinesis Class Feature
+          name: Gravitic Nova
+          behavior: activated
+          guid: 53161af6-7b39-4e64-b7b3-2d8fbe1447ac
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: true
+            targetFilter: Enemy or object
+            targetTextOverride: Each enemy and object in the area
+            repeatTargets: false
+            keywords:
+              Psionic: true
+              Telekinesis: true
+              Area: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "#6 damage; push 7"
+              - "#9 damage; push 10"
+              - "#13 damage; push 15"
+              roll: 2d10 + Reason
+              promptWhenResolving: false
+            - __typeName: ActivatedAbilityAddNewTargetsBehavior
+              applyto: caster
+              filterTarget: Cast.High Roll + Cast.Low Roll >= Critical Threshold
+              targetingAbility:
+                __typeName: ActivatedAbility
+                objectTarget: true
+                targetFilter: Enemy or object
+                repeatTargets: false
+                targetType: all
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "6"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: ee558dce-fb5f-4bb0-a815-d7e0d07f93b3
+                behaviors: []
+                name: Choose Additional Targets
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: On Critical Size Increases by 3
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 1
+              rule: 6 damage; push 7
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 3
+              rule: 13 damage; push 15
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 2
+              guid: fb6a5358-4715-44c0-a0e5-2adccdf44aa6
+              rule: 9 damage; push 10
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityModifyCastBehavior
+              value: "10"
+              filterTarget: Cast.High Roll + Cast.Low Roll >= Critical Threshold
+              paramid: ability_damage
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              applyto: caster
+              rule: weakened (save ends)
+              strainSelection: strained
+            - __typeName: ActivatedAbilityDestroyBehavior
+              applyto: caster
+              filterTarget: Cast.High Roll + Cast.Low Roll >= Critical Threshold
+              strainSelection: strained
+            display:
+              brightness: 1
+              saturation: 0
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Unbridled psionic energy erupts from your body and flashes outward, hurling your foes back.
+            sourceReference:
+              __typeName: SourceReference
+              page: 200
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "3"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            targetType: all
+            strain:
+              enabled: true
+            guid: 2f20f3d9-5630-4dd1-adab-65fafa724758
+            rangeTextOverride: ""
+            categorization: Heroic Ability
+            domains:
+              class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            numTargets: "1"
+            implementation: 3
+            name: Gravitic Nova
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: |-
+              On a critical hit, the size of the area increases by 3, and this ability deals an extra 10 damage. 
+              **Strained:** You are weakened (save ends). If you scored a critical hit with this ability, you die
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ea31d2d9-7401-4f45-88c9-1200b0dc4466
+        source: Telekinesis Class Feature
+        guid: 2ea06154-3f40-4410-a962-fba0cd020295
+        domains:
+          class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: b66464fe-d3eb-419c-9b1c-748022081c72
+        description: Unbridled psionic energy erupts from your body and flashes outward, hurling your foes back.
+        name: Gravitic Nova
+        implementation: 3
+      classid: b66464fe-d3eb-419c-9b1c-748022081c72
+      guid: 0abca4fa-b793-4744-95cf-edf57d6da5f9
+      source: Telekinesis Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b66464fe-d3eb-419c-9b1c-748022081c72: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+details: "**Telekinesis** abilities allow you to physically manipulate creatures and objects."
+name: Telekinesis
+mtime: 1773891581069
+id: b66464fe-d3eb-419c-9b1c-748022081c72
+primaryClassId: 58b82a67-8b93-468b-99c5-2ac452033071

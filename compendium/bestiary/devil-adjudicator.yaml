@@ -1,0 +1,276 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5110cab4-95fb-4037-9060-c20d89adbe2f
+    offtokenPortraitId: a24586a6-a0d7-4850-8a97-a66600018af8
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3191047
+    portraitOffset:
+      x: -0.01694524
+      y: 0.2530418
+    frameHueShift: 0
+    frameSaturation: 0.9042466
+    frameBrightness: 0.5107014
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 64d486e1-8384-44a7-a7ae-9dbc756a9a23
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 6
+    skillProficiencies: []
+    max_hitpoints: 140
+    inflictedConditions: []
+    ev: 32
+    max_hitpoints_roll: "140"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: Devil Adjudicator
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 fire damage; I<1 frightened (save ends)
+        - 15 fire damage; I<1 frightened (save ends)
+        - 18 fire damage; I<1 frightened (save ends)
+        roll: 2d10 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 970a9f37-09c1-4657-ac95-01141e08f098
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Infernal Injunction
+      numTargets: 2
+      description: The adjudicator can slide a target frightened by this ability 2 squares.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ce6e032b-5a77-4895-9ae7-530bc1776d17
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Adjudicator's Interdiction
+      numTargets: 1
+      description: The target makes a Presence test.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 6119ccd1-7b38-48e2-9159-4d0dab82a6fa
+      numTargets: 1
+      targetType: target
+      name: Quid Pro Quo
+      iconid: ui-icons/skills/1.png
+      description: The adjudicator switches places with the target.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: d3cbb2ea-03d2-4154-9c89-72fe4cbfc40a
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Devilish Charm
+      implementation: 0
+      description: The target makes a Presence test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    opportunityAttack: 7
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Devil Adjudicator	Level 6 Elite Controller
+        Devil, Infernal	EV 32
+        <b>Stamina</b> 140	<b>Immunity</b> Fire 5
+        <b>Speed</b> 6 (fly)	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 7
+        Might 0	Agility +1	Reason +2	Intuition +1	Presence +3
+        <b>Infernal Injunction</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	10 fire damage; I<1 frightened (save ends)
+        %E2%98%85	12%E2%80%9316	15 fire damage; I<2 frightened (save ends)
+        %E2%9C%B8	17	18 fire damage; I<3 frightened (save ends)
+        <b>Effect</b> The adjudicator can slide a target frightened by this ability 2 squares.
+
+        <b>Adjudicator's Interdiction</b> (Action)
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature
+        <b>Effect</b> The target makes a <b>Presence test.</b>
+        %E2%9C%B8	%E2%89%A411	Slowed, bane on power rolls, can't regain Stamina (save ends)
+        %E2%98%85	12%E2%80%9316	Slowed, bane on power rolls (save ends)
+        %E2%9C%A6	17	Slowed (save ends)
+
+        <b>Quid Pro Quo</b> (Maneuver)
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 ally or 1 frightened creature
+        <b>Effect</b> The adjudicator switches places with the target.
+
+        <b>Devilish Charm</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 5<b>	Target</b> Triggering creature
+        <b>Trigger</b> A creature targets the adjudicator with a strike.
+        <b>Effect</b> The target makes a <b>Presence test.</b>
+        %E2%9C%B8	%E2%89%A411	The adjudicator chooses a new target for the strike
+        %E2%98%85	12%E2%80%9316	The adjudicator halves the incoming damage
+        %E2%9C%A6	17	The target has a bane on the strike
+
+        <b>Vexatious Litigation</b>
+        A creature has -2 on saving throws while within 10 of the adjudicator if their Presence score is lower than the adjudicator's.
+
+        <b>True Name</b>
+        If a creature within 10 squares of the adjudicator speaks the adjudicator's true name aloud, the adjudicator loses their immunities, the additional effects on their signature action, and their Devilish Charm ability.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ae101e5f-9b56-4421-b5c3-fd21d5b15504: true
+      modifiers: []
+      name: Vexatious Litigation
+      description: A creature has -2 on saving throws while within 10 of the adjudicator if their Presence score is lower than the adjudicator's.
+      guid: ae101e5f-9b56-4421-b5c3-fd21d5b15504
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7a284a8e-468a-45b1-b0d5-2ea56702a903: true
+      modifiers: []
+      name: True Name
+      description: If a creature within 10 squares of the adjudicator speaks the adjudicator's true name aloud, the adjudicator loses their immunities, the additional effects on their signature action, and their Devilish Charm ability.
+      guid: 7a284a8e-468a-45b1-b0d5-2ea56702a903
+      source: Trait
+    role: Elite Controller
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    resources: []
+    groupid: 2c4ebcaf-087b-4f0d-a94a-61e9b67fb70f
+    minion: false
+    walkingSpeed: 6
+    traitNames: []
+    movementSpeeds:
+      fly: 6
+    creatureSize: 1M
+    initiativeGrouping: a131c5bb-e355-4f2d-b7df-e78330a73575
+    monster_category: Monster
+    keywords:
+      Infernal: true
+      Devil: true
+  tokenType: null
+  bestiaryId: 258ea21e-a5e5-4fbe-9e38-351af87fd8d8
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: Devil Adjudicator
+parentFolder: f202e578-675b-4891-ad36-09c24f35518b
+artist: null
+ord: 0
+ctime: 1741590231289
+mtime: 1775201137032
+hidden: false

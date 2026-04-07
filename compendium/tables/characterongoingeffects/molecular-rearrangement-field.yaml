@@ -1,0 +1,86 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c68b9ef9-a813-40e9-a23c-e6453b470233
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:4e6d3575-3b91-4143-8202-500414c62546: true
+  name: Molecular Rearrangement Field
+  guid: 50eba321-8b1e-42ff-ad1b-05aecbbcf8ae
+  description: Null Field ability inscrease by 1. Enemies in the area with I<A bleed. Allies gain tempoary hit points {Intuition}
+  behavior: attribute
+  attribute: bd01a4c5-0758-4453-8d71-5d2257aa23fd
+- __typeName: CharacterModifier
+  sourceguid: 4e6d3575-3b91-4143-8202-500414c62546
+  source: Ongoing Effect
+  seq: f65271cc-742a-404c-8087-0b018e4b9f04
+  aura:
+    __typeName: Aura
+    applyto: allother
+    modifiers: []
+    name: Molecular Rearrangement Field
+    triggers:
+    - ability:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          filterTarget: not Friends(Caster, Target) and not Target.Passes Potency("I", Caster.Average)
+          rule: bleeding (save ends)
+        - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+          stamina: Caster.Intuition
+          filterTarget: Friends(Caster, Target)
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        silent: true
+        range: 5
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 5d1baed8-837d-4807-98bd-86385fe41053
+        trigger: onenter
+        conditionFormula: ""
+        numTargets: "1"
+        targetType: self
+        name: Molecular Rearrangement Field
+        radius: 0
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      trigger: onenter
+    guid: 96756f43-a9b7-4577-96eb-1019998568c1
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+  domains:
+    CharacterOngoingEffect:4e6d3575-3b91-4143-8202-500414c62546: true
+  radius: Nullifying Aura Radius
+  guid: 9d82c852-3835-4dfb-a809-9c82055795e8
+  description: Null Field ability inscrease by 1. Enemies in the area with I<A bleed. Allies gain tempoary hit points {Intuition}
+  behavior: aura
+  name: Molecular Rearrangement Field
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 4e6d3575-3b91-4143-8202-500414c62546
+id: 4e6d3575-3b91-4143-8202-500414c62546
+ctime: 1757980512183
+domains:
+  CharacterOngoingEffect:4e6d3575-3b91-4143-8202-500414c62546: true
+sustainFormula: Ongoing Effects has "Null Field"
+description: Null Field ability inscrease by 1. Enemies in the area with I<A bleed. Allies gain tempoary hit points {Intuition}
+name: Molecular Rearrangement Field
+statusEffect: false
+mtime: 1763302984089
+custom: true
+iconid: ui-icons/skills/1.png

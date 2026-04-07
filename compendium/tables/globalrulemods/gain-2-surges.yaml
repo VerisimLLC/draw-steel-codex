@@ -1,0 +1,33 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: c1c62a43-057d-4c88-b7d1-1fd5c549ce14
+      displayCondition: Resources.Hero Tokens >=2
+      source: Gain 2 Surges Global Rule Mod Feature
+      modtype: none
+      keywords: []
+      surges: "2"
+      surgesCanBeKept: true
+      activationCondition: ""
+      name: "Spend 1 Hero Token: Gain 2 Surges"
+      rollType: ability_power_roll
+      description: You can spend a Hero Token to gain 2 surges. Surges allow you to increase the damage or potency of an ability.	
+      guid: cdef7c24-c10a-4728-af89-cac2fcff8692
+      behavior: power
+    name: "Spend 1 Hero Token: Gain 2 Surges"
+    description: You can spend a Hero Token to gain 2 surges. Surges allow you to increase the damage or potency of an ability.	
+    guid: c1c62a43-057d-4c88-b7d1-1fd5c549ce14
+    canHavePrerequisites: true
+    source: Gain 2 Surges Global Rule Mod Feature
+applyRetainers: false
+applyMonsters: false
+ctime: 1773217721889
+name: Gain 2 Surges
+id: db1b8c72-1571-48cb-a598-ed18f4eb59c5
+mtime: 1773218204376
+applyCharacters: true
+applyCompanions: false

@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 781148fe-0883-4a27-864e-26c5195825aa
+id: 781148fe-0883-4a27-864e-26c5195825aa
+ctime: 1756039101327
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Supress EoL
+description: Gnoll died and Echoes of Laughter is suppressed for one round
+custom: true
+mtime: 1756039101327
+iconid: ui-icons/skills/1.png

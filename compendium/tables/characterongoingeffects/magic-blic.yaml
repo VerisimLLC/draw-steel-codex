@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: e88f387e-ce8e-4f65-ab10-4a66462e549c
+id: e88f387e-ce8e-4f65-ab10-4a66462e549c
+ctime: 1754930320750
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Magic Blic
+description: ""
+custom: true
+mtime: 1754930320750
+iconid: ui-icons/skills/1.png

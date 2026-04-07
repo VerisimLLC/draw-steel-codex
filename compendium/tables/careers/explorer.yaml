@@ -1,0 +1,52 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 6c8e3b5f-d9d4-488b-b587-cd8f95eca2f3
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Explorer Career Feature
+      behavior: proficiency
+      description: ""
+      equate: false
+      name: Navigate Skill
+      sourceguid: fe348222-87cf-4f2a-b913-5c0777819622
+      proficiency: proficient
+      guid: 57201ba1-0ab1-4b0d-ae9e-a41e33d78ea4
+      skills:
+        0c7d0c53-2056-4579-8c83-1bec3098cc56: true
+    name: Navigate Skill
+    description: ""
+    guid: fe348222-87cf-4f2a-b913-5c0777819622
+    source: Explorer Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      exploration: true
+    numChoices: 2
+    source: Explorer Career Feature
+    description: "Choose two skills from the exploration skill group. (Quick Build: Climb, Heal)"
+    guid: 909d9cd7-6d0f-4ee5-b00b-39bce306003d
+    name: Explorer Exploration Skills
+    individualSkills: []
+  - __typeName: CharacterLanguageChoice
+    name: Explorer Languages
+    numChoices: 2
+    description: Choose two Languages.
+    source: Explorer Career Feature
+    guid: 78a0621d-5922-40f9-b221-b458b2cc052c
+  - __typeName: CharacterFeatChoice
+    guid: 344648d4-0074-41ef-ad64-79b50b8961eb
+    description: "Choose one perk from the exploration perk type. (Quick build: Wood Wise)"
+    tag: exploration perks
+    name: Explorer Exploration Perk
+name: Explorer
+mtime: 1768796526647
+description: "You ventured into uncharted areas and made your living as a cartographer, researcher, or resource or treasure hunter. In defining your career, think about the following questions: \n\nFor what purpose did you explore the unknown? \n\nWho else was part of your exploration team? \n\nWhat types of environments did you explore? \n\nWhat legend or rumor did you search for but never found? \n\nWhat is your greatest discovery? \n\n\nYou gain the following career benefits:  "
+id: 388bbd0f-7ed1-413e-b2e9-53ecd1d278f2
+ctime: 1730559204002

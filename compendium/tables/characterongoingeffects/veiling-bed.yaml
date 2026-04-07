@@ -1,0 +1,131 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: cb3859c6-ed31-4c59-942e-3342f7236239
+  source: Ongoing Effect
+  seq: dd1ca1e4-53a1-4c91-99a4-2385492da384
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    modifiers:
+    - __typeName: CharacterModifier
+      text: Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation.  If you have 5 or more Victories, the bonus to patience increases to 2.
+      sourceguid: 544f68a8-3fc3-46da-a90f-1fc532474925
+      source: Aura
+      behavior: movementtext
+      name: Veiling Bed
+      texttype: negotiation
+      description: ""
+      guid: f9985b4d-69d8-4e23-ab02-ccd281ec7fbc
+      color: white
+    - __typeName: CharacterModifier
+      sourceguid: 544f68a8-3fc3-46da-a90f-1fc532474925
+      source: Aura
+      guid: 29f5654a-70cb-4271-8f28-4ca62c210982
+      keywords: []
+      activationCondition: true
+      filterCondition: Victories < 5
+      behavior: power
+      rollType: test_power_roll
+      name: Veiling Bed
+      description: While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, tests that use the Handle Animals skill have a double edge.
+      modtype: edge
+      skills:
+      - ff54a691-e0a0-4246-8ceb-7975b8826e92
+    - __typeName: CharacterModifier
+      sourceguid: 544f68a8-3fc3-46da-a90f-1fc532474925
+      source: Aura
+      guid: f458c747-e2a9-49e9-8105-b998194f9f5b
+      keywords: []
+      activationCondition: true
+      filterCondition: Victories >= 5
+      behavior: power
+      rollType: test_power_roll
+      name: Veiling Bed
+      description: While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, tests that use the Handle Animals skill have a double edge.
+      modtype: double_edge
+      skills:
+      - ff54a691-e0a0-4246-8ceb-7975b8826e92
+    name: Veiling Bed
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+    guid: 544f68a8-3fc3-46da-a90f-1fc532474925
+    concealment: true
+    implementation: 3
+  domains:
+    CharacterOngoingEffect:cfbbd0e7-dc44-40e2-b526-b5d619def4d6: true
+    CharacterOngoingEffect:cb3859c6-ed31-4c59-942e-3342f7236239: true
+    CharacterOngoingEffect:38cca8bc-b6dc-4a2e-b356-123f897d3986: true
+    CharacterOngoingEffect:2cb02af3-cb36-4a1c-9fc7-14d0348b28c4: true
+  radius: Reason
+  guid: 66bf86a0-0608-452f-a91f-7058dfc1d19e
+  description: ""
+  behavior: aura
+  name: Quaking Earth
+- __typeName: CharacterModifier
+  sourceguid: 38cca8bc-b6dc-4a2e-b356-123f897d3986
+  source: Ongoing Effect
+  seq: bf6434c6-b3bf-4516-b9da-526291c14a48
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    modifiers:
+    - __typeName: CharacterModifier
+      operation: add
+      sourceguid: 1e96288a-5c05-4816-b9f5-f58e5f03b8b9
+      source: Aura
+      value: "-Aura.Caster.Level"
+      name: Black Hole Star
+      guid: 49ab08bc-3d02-46fc-ab71-301d3222732b
+      description: While in the area of the aura, enemies and objects have their stability reduced by an amount equal to your level.
+      behavior: attribute
+      attribute: forcedmoveresistance
+    name: Black Hole Star
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 1e96288a-5c05-4816-b9f5-f58e5f03b8b9
+    description: While in the area of the aura, enemies and objects have their stability reduced by an amount equal to your level.
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  conditionFormula: Level >=8
+  guid: a0269c6a-b627-4bd6-8829-00d8e7860341
+  radius: Reason
+  domains:
+    CharacterOngoingEffect:38cca8bc-b6dc-4a2e-b356-123f897d3986: true
+  description: ""
+  behavior: aura
+  name: Veiling Bed
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 38cca8bc-b6dc-4a2e-b356-123f897d3986
+id: 38cca8bc-b6dc-4a2e-b356-123f897d3986
+ctime: 1767217367874
+domains:
+  CharacterOngoingEffect:38cca8bc-b6dc-4a2e-b356-123f897d3986: true
+canEndWithAction: true
+description: ""
+sustainFormula:
+  __typeName: GoblinScriptTable
+  entries:
+  - script: Heroic Resources Available to Spend >=3
+    threshold: 1
+  - script: Heroic Resources Available to Spend >=0
+    threshold: 7
+  editableField: true
+  id: table
+  field: Level
+custom: true
+mtime: 1771839799298
+name: Veiling Bed
+iconid: ui-icons/skills/1.png

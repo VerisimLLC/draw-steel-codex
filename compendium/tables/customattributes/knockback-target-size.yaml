@@ -1,0 +1,11 @@
+__typeName: CustomAttribute
+baseValue: SizeWhenForceMoved
+category: Forced Movement
+name: Knockback Target Size
+documentation: |-
+  This is the size of the creature specifically when considering the Knockback maneuver and if the creature can be knocked back -- specifically you cannot knockback creatures larger than you.
+
+  It does NOT affect other forced movement.
+mtime: 1758038461200
+id: 922f5030-fb6f-440f-99e3-71ce2cc1b568
+ctime: 1754868671581

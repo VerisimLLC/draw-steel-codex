@@ -1,0 +1,86 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: b3fd9d3d-4104-447c-a25c-abca09a31585
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Guarding Gale
+  range: 1
+  description: A draconian acting this turn flaps their wings and creates a mighty gale. Each creature adjacent to the draconian is pushed up to 4 squares, and if they have M<2, they are knocked prone.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 6 damage
+    - 10 damage
+    - 13 damage
+    roll: 2d10 + 3
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "4"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 23975531-d183-4c4b-ad66-2d08679e8e37
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: line
+  numTargets: "1"
+  radius: "2"
+  name: Breath Weapon
+  description: The damage dealt by this ability matches a damage type the draconian has immunity to.
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: false
+  repeatTargets: false
+  targetAllegiance: enemy
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 7 damage
+    - 13 damage
+    - 16 damage
+    roll: 2d10 + 3
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "2"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: a26af109-bdf9-42b5-92e3-ec6f3e16a68d
+  numTargets: "1"
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Scaleshatter Burst
+  targetType: all
+  description: The draconian’s scales shatter from battle damage. The draconian has damage weakness 5 but can take two turns per round until the end of the encounter.
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762942744098
+name: Draconian
+traits: []
+attacks: []
+id: 30f074ad-8a42-413f-a987-fb1a491e8ac7
+ctime: 1758524632340

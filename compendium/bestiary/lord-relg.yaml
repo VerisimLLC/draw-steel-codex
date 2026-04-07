@@ -1,0 +1,670 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 33cb6efa-8544-4bcd-ab20-b18caf6055cd
+    offtokenPortraitId: 12502319-b0d6-49d2-b18b-947eb98a5bb9
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2128046
+    portraitOffset:
+      x: -0.02074135
+      y: 0.2784925
+    frameHueShift: 0
+    frameSaturation: 0.5325651
+    frameBrightness: 0.38889
+    popoutScale: 0.42
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 33647423-ffa7-4ea2-8173-265915ffb25d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 650
+    inflictedConditions: []
+    keywords:
+      Relg: true
+      Abyssal: true
+      Demon: true
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: "5"
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 corruption damage; P<4 restrained (save ends)
+        - 16 corruption damage; P<5 restrained (save ends)
+        - 20 corruption damage; P<6 restrained (save ends)
+        roll: 2d10 + Might or Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 502dc90a-5208-44d8-b5e1-e8fae1537a10
+      abilityType: none
+      numTargets: "1"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Weight of Your Sins
+      targetType: all
+      description: Each restrained target immediately falls to the ground (if airborne) and is pulled within distance of Relg’s Aura of Lethe.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      targetTextOverride: Up to two grabbed creatures
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 58f0f186-33d8-41bc-9206-e428fc29251f
+      abilityType: none
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: Each target is swallowed (see Swallowed).
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 9a089375-38e4-4bd2-96ec-24c90b6405f1
+        ongoingEffectCustom: 9a089375-38e4-4bd2-96ec-24c90b6405f1
+      name: Feast
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetTextOverride: Melee 5 or ranged 10
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "15"
+        chatMessage: Relg slams a grabbed creature or object against the target, dealing 15 damage to both. If this ability is used at range, the grabbed creature or object is released.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 9e97622e-286b-4113-9e1b-a58963a53070
+      targetType: target
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: "2"
+      name: Slam Whip
+      preDescription: Another creature or object must be grabbed by Relg.
+      description: Relg slams a grabbed creature or object against the target, dealing 15 damage to both. If this ability is used at range, the grabbed creature or object is released.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetTextOverride: Two 3 × 1 lines within 2
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage; A<4 the target is buried
+        - 16 damage; bleeding (save ends); A<5 the target is buried
+        - 20 damage; bleeding (save ends); prone or A<6 the target is buried
+        roll: 2d10 + Might or Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 67d174db-bd3b-494c-932e-2862dab9b84f
+      targetType: target
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "6"
+      name: World Splitting Axe
+      preDescription: Two 3 × 1 lines within 2
+      description: The ground beneath the area is split open 2 squares deep and becomes difficult terrain.
+      abilityType: none
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetTextOverride: One creature or object per available intestine
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage; M<4 grabbed
+        - 13 damage; M<5 grabbed
+        - 15 damage; M<6 grabbed and the target takes a bane when using the Escape Grab maneuver
+        roll: 2d10 + Might or Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 16b935f9-0e21-4f4e-9bc0-95fc43849b90
+      targetType: target
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "6"
+      name: Latch Grasp
+      preDescription: One creature or object per available intestine
+      description: Relg must have one or more intestines with nothing grabbed available to use this ability. As a maneuver, Relg can pull up to two targets grabbed this way adjacent to him.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; M<5 restrained (save ends)
+        - 21 damage; M<6 restrained (save ends)
+        - 25 damage; restrained (save ends)
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 08d6e8e7-5209-43e9-9eba-cd124aa81d51
+        duration: save_ends
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Villain Action
+      range: "2"
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 2be10f03-2255-4fd7-86b6-aad2c47cca84
+      targetType: target
+      name: Crown of the Corpulent Lord
+      numTargets: "2"
+      description: Each target is bleeding (save ends). Restrained targets move with Relg, impaled on his horns.
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      villainAction: Villain Action 2
+      numTargets: "1"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 6a08d402-ca25-46fd-a6b2-1d46ebcf1810
+      repeatTargets: false
+      abilityType: none
+      behaviors: []
+      targetType: self
+      persistence: []
+      name: 'Unravel Innards '
+      categorization: Villain Action
+      description: |-
+        Relg reaches into his stomach and pulls out six more intestines. 
+
+        On each of Relg’s turns, he can use his Latch Grasp ability with up to five intestines as a free action.
+      range: 1
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 sonic damage
+        - 8 sonic damage
+        - 10 sonic damage
+        roll: 2d10 + Might or Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Villain Action
+      range: "5"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: e43f017a-d15f-484e-8c9f-67f99137f7bd
+      targetType: all
+      name: Wails of the Damned
+      numTargets: "1"
+      description: Screams emanate from Relg’s stomach. If a target is not dying after hearing the wails and has I<5, they are reduced to 0 Stamina. If the target is dying after hearing the wails and has I<5, they are reduced to 1 Stamina away from death.
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    opportunityAttack: 10
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+      2a4043d9-b8f2-4100-ab20-080c71441070: true
+    role: Solo
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      trinket10: []
+      trinket6: []
+      leveled3: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      trinket9: []
+      trinket3: []
+      leveled4: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    groupid: cd4c4f85-6eeb-4d49-9c38-8e4168fb24df
+    damage_taken: 0
+    retainer: false
+    resources: []
+    minion: false
+    walkingSpeed: 5
+    inventory: []
+    availableTriggers: []
+    creatureSize: "5"
+    initiativeGrouping: 73cb879e-3847-4f64-8e1b-091f112036bb
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b6fc65b1-0430-4355-b4c6-90af2a9ff3cb: true
+        CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b6fc65b1-0430-4355-b4c6-90af2a9ff3cb
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:b6fc65b1-0430-4355-b4c6-90af2a9ff3cb: true
+          CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+        name: Solo Turns
+        guid: 18c86628-5bb1-4289-8806-994a988557af
+        description: Relg can take two turns each round. They can’t take turns consecutively.
+        behavior: attribute
+        attribute: extraturns
+      source: Character Feature
+      description: Relg can take two turns each round. They can’t take turns consecutively.
+      guid: b6fc65b1-0430-4355-b4c6-90af2a9ff3cb
+      name: Solo Turns
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a072dadf-f32f-4aa4-b9cd-4fcb13ef46ca: true
+        CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+        CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a072dadf-f32f-4aa4-b9cd-4fcb13ef46ca: true
+          CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+          CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+        sourceguid: 58bdd65e-5a1b-4448-8a61-1b18d5171e7b
+        description: At the end of each of his turns, Relg can take 20 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        source: Trait
+        name: End Effect
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: End one save ends effect on self, take 5 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: a180f919-0e11-4993-9079-eb7e76daaae0
+          conditionFormula: SaveEndsEffects
+          domains:
+            CharacterFeature:a072dadf-f32f-4aa4-b9cd-4fcb13ef46ca: true
+            CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+            CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+          trigger: endturn
+          numTargets: "1"
+          name: End Effect
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "20"
+            conditions: []
+            purgeType: one
+            targetDuration: save
+          description: |
+            At the end of each of their turns, the arixx can take 5 damage to end one effect on them that can be ended by a saving throw. 
+            This damage can’t be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 3a76d351-0ff6-4442-bf22-3fc0790cc57d
+      source: Trait
+      description: At the end of each of his turns, Relg can take 20 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: a072dadf-f32f-4aa4-b9cd-4fcb13ef46ca
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:dcb14045-8254-475d-852a-c4598d498483: true
+      modifiers: []
+      name: Aura of Lethe
+      guid: dcb14045-8254-475d-852a-c4598d498483
+      description: 'The area within 3 squares of Relg causes creatures to lose their memories and turn violently hungry. An enemy that starts their turn in an affected square must roll a d3 and subtract the result from each of their power rolls. Each new d3 roll is cumulative and the effects last until the creature starts their turn outside of the aura. '
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:91464234-5f23-43cc-8d3e-d0f33a296b9d: true
+      modifiers: []
+      name: Writhing Intestines
+      guid: 91464234-5f23-43cc-8d3e-d0f33a296b9d
+      description: Six lamprey-like intestines extend from Relg’s open stomach. Each intestine is a 5 × 1 line within 1 square of Relg, has 50 Stamina and psychic immunity all, and can’t be force moved. Each intestine enables Relg to grab one size 3 or smaller creature or object. An intestine can be targeted by abilities only while it has a target grabbed. On each of Relg’s turns, he can use his Latch Grasp ability with up to three intestines as a free action.
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bebc304f-2837-4db2-a70b-b4882f0039c5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:bebc304f-2837-4db2-a70b-b4882f0039c5: true
+        sourceguid: bebc304f-2837-4db2-a70b-b4882f0039c5
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Puss-Filled Soul Boil
+        description: |-
+          Trigger: Relg takes damage from an enemy. 
+          Effect: Each enemy in the area takes 1d10 acid damage. If a demon is in the area, they  make a free strike against a creature of Relg’s choice.
+        guid: a0ac513c-23a7-41f6-bc10-1ab27a7ca048
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: Each enemy in the area takes 1d10 acid damage. If a demon is in the area, they  make a free strike against a creature of Relg’s choice.
+          guid: 4c4803c5-c1d2-4508-beae-2480dede2be8
+          distance: 1 Burst
+          keywords:
+            Ranged: true
+            Magic: true
+          target: 'Each creature and object in the '
+          name: Puss-Filled Soul Boil
+          cost: 3 Malice
+          trigger: " Relg takes damage from an enemy."
+          type: free
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:bebc304f-2837-4db2-a70b-b4882f0039c5: true
+        sourceguid: bebc304f-2837-4db2-a70b-b4882f0039c5
+        description: |-
+          Trigger: Relg takes damage from an enemy. 
+          Effect: Each enemy in the area takes 1d10 acid damage. If a demon is in the area, they  make a free strike against a creature of Relg’s choice.
+        source: Character Feature
+        name: Puss-Filled Soul Boil
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          strain: []
+          guid: 8497a635-9791-471b-a9c3-c76ea382aca8
+          repeatTargets: false
+          abilityType: none
+          trigger: losehitpoints
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            filterTarget: not Friends(caster, target)
+            damageType: acid
+            roll: 1d10
+            titleText: 'Puss-Filled Soul Boils '
+            chatMessage: 'Puss-Filled Soul Boils '
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            filterTarget: Target.Keywords has "Demon"
+            promptText: " If a demon is in the area, they  make a free strike against a creature of Relg’s choice."
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 90656395-abe4-431d-a102-e1366bc36bfb
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+            runOnController: true
+          targetType: all
+          name: Puss-Filled Soul Boil
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: e7d55d80-630d-432d-8d3d-33051478bcd9
+        guid: bf5b4b84-5572-4881-8291-0c04544d6541
+      name: Puss-Filled Soul Boil
+      guid: bebc304f-2837-4db2-a70b-b4882f0039c5
+      description: |-
+        Trigger: Relg takes damage from an enemy. 
+        Effect: Each enemy in the area takes 1d10 acid damage. If a demon is in the area, they  make a free strike against a creature of Relg’s choice.
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:42a1d610-5f14-4b72-b055-69b11d53ac6c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:42a1d610-5f14-4b72-b055-69b11d53ac6c: true
+        sourceguid: 42a1d610-5f14-4b72-b055-69b11d53ac6c
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Siphon Memory
+        description: "Trigger: Relg is the target of the triggering creature’s ability. \vEffect: The target makes a Reason test."
+        guid: 7507c00e-c097-457d-a612-d96b2a17ab48
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The target makes a Reason test.
+          name: Tiphon Memory
+          cost: 3 Malice
+          guid: e12748e2-edeb-4086-818c-a6e0c46c4c9f
+          trigger: Relg is the target of the triggering creature’s ability.
+          keywords:
+            Ranged: true
+            Magic: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:42a1d610-5f14-4b72-b055-69b11d53ac6c: true
+        sourceguid: 42a1d610-5f14-4b72-b055-69b11d53ac6c
+        description: "Trigger: Relg is the target of the triggering creature’s ability. \vEffect: The target makes a Reason test."
+        source: Character Feature
+        name: Siphon Memory
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 3
+          repeatTargets: false
+          targetType: attacker
+          triggerPrompt: Siphon Memory
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b117416c-1724-49e0-aa1b-92b3ed283e18
+          abilityType: none
+          trigger: losehitpoints
+          numTargets: "1"
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          name: Siphon Memory
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            attrid: rea
+            roll: 2d10 + Reason
+            isTest: true
+            resistanceRoll: false
+            tiers:
+            - The target forgets how to use the ability until they finish a respite
+            - The target forgets how to use the ability (save ends)
+            - The target forgets how to use the ability (EoT)
+          description: The target doesn’t waste the used action and regains half of any heroic resources spent on the forgotten ability.
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: e7d55d80-630d-432d-8d3d-33051478bcd9
+        guid: 9fdc09d9-2a48-4e17-8d7e-1cd6ddeaf031
+      name: Siphon Memory
+      guid: 42a1d610-5f14-4b72-b055-69b11d53ac6c
+      description: "Trigger: Relg is the target of the triggering creature’s ability. \vEffect: The target makes a Reason test."
+      source: Character Feature
+    monster_type: Lord Relg
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: d058a50c-0724-4844-895c-f32aedbcffc8
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 7
+  createdTimestamp: 1765277450732
+description: null
+parentFolder: 481cfcf5-4411-44af-8316-d740deca8552
+artist: null
+ord: 6
+ctime: 1765277576223
+mtime: 1775167457810
+hidden: false

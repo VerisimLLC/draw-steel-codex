@@ -1,0 +1,334 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 82660d50-5478-4d46-8f1b-603317a62bb8
+    offtokenPortraitId: c57ae9fe-432b-45ae-aa0d-12111fad3bdb
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4636676
+    portraitOffset:
+      x: 0.0940925
+      y: 0.2197115
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 3393f3fd-f20d-4cb4-8167-bd589ce62ac3
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    keywords:
+      Goblin: true
+      Humanoid: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    attackNames:
+    - Medium Melee
+    monster_type: Goblin Assassin
+    levelChoices: []
+    pr: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage
+        - 7 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 926a376a-c180-4e2b-abc8-db73f344bf46
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 926a376a-c180-4e2b-abc8-db73f344bf46
+          modtype: none
+          behavior: power
+          keywords: []
+          rollRequirement: edge
+          domains: []
+          description: This ability deals an additional 2 damage if the scoundrel has an edge on the power roll.
+          name: Bonus Edge Damage
+          rollType: ability_power_roll
+          damageModifier: "2"
+          guid: 30ec9c41-0ace-4aca-97a2-2cede97a246d
+          activationCondition: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: true
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 2f3805aa-e41e-4952-94d9-37b0a978ca5b
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 163
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      implementation: 4
+      name: Sword Stab
+      persistence: []
+      description: If this ability gains an edge or a double edge, it deals an extra 2 damage.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 161
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      numTargets: 3
+      modifiers: []
+      strain: []
+      guid: ecbd9eae-44d0-42e4-b0d3-8ef1c4c76a2a
+      abilityType: none
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      implementation: 4
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage; A<0 restrained (save ends)
+        - 4 corruption damage; A<1 restrained (save ends)
+        - 5 corruption damage; A<2 restrained (save ends)
+        roll: 2d10 + Agility
+      name: Shadow Chains
+      categorization: Heroic Ability
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Goblin Assassin	Level 1 Horde Ambusher
+        Goblin, Humanoid	EV 3
+        <b>Stamina</b> 15
+        <b>Speed</b> 6 (climb)	<b>Size</b> 1S / <b>Stability</b> 0
+        <b>Free Strike</b> 2
+        Might -2	Agility +2	Reason +0	Intuition +0	Presence -2
+        <b>Sword Stab</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	4 damage
+        %E2%98%85	12%E2%80%9316	6 damage
+        %E2%9C%B8	17+	7 damage
+        <b>Effect</b> This ability deals an additional 2 damage if the scoundrel has an edge on the power roll.
+
+        <b>Shadow Chains</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> Three creatures
+        %E2%9C%A6	%E2%89%A411	2 corruption damage; A<0 restrained (save ends)
+        %E2%98%85	12%E2%80%9316	4 corruption damage; A<1 restrained (save ends)
+        %E2%9C%B8	17+	5 corruption damage; A<2 restrained (save ends)
+
+        <b>Crafty</b>
+        The assassin doesn't provoke opportunity attacks by moving.
+
+        <b>Hide While Observed</b>
+        The assassin can take the Hide maneuver even while observed, though they still must have cover or concealment.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2c3b4e5d-f2c8-48f2-a890-9a9a97362cb5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2c3b4e5d-f2c8-48f2-a890-9a9a97362cb5
+        modifyDescription: The assassin can take the Hide maneuver even while observed.
+        source: Trait
+        filterAbility: Ability.name = "Hide"
+        behavior: modifyability
+        domains:
+          CharacterFeature:2c3b4e5d-f2c8-48f2-a890-9a9a97362cb5: true
+        attributes: []
+        guid: ca849174-12f4-4874-8129-4740d484165b
+        description: The assassin can attempt to hide even while observed.
+        name: Slip Away
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 2bb95468-f929-432c-b879-1c4e606754b7
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          targetType: self
+          abilityType: none
+          name: New Ability
+          behaviors: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Trait
+      description: The assassin can attempt to hide even while observed.
+      guid: 2c3b4e5d-f2c8-48f2-a890-9a9a97362cb5
+      name: Slip Away
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+        CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        description: The assassin doesn't provoke opportunity attacks by moving.
+        behavior: attribute
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Crafty: you do not provoke opportunity attacks while moving."
+        sourceguid: eae4d953-c53f-41d8-aae3-cc9de122b1f8
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        description: The assassin doesn't provoke opportunity attacks by moving.
+        guid: ac99e4c0-619c-46cb-9da9-cfd6d5792736
+        color: green
+      source: Trait
+      description: The assassin doesn't provoke opportunity attacks by moving.
+      guid: eae4d953-c53f-41d8-aae3-cc9de122b1f8
+      name: Crafty
+      implementation: 4
+    role: Horde Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    initiativeGrouping: e9e19065-5102-4e6a-84b0-04d944990316
+    notes:
+    - text: ""
+      title: Monster Notes
+    auras: []
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    walkingSpeed: 6
+    traitNames: []
+    ev: 3
+    damage_taken: 0
+    resources: []
+    movementSpeeds:
+      climb: 6
+    fmr: 0
+    creatureSize: 1S
+    availableTriggers: []
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: 9fd8f529-4635-452a-b90c-4dc1ff74a891
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1715748088616
+description: Goblin Assassin
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590288833
+mtime: 1775201137032
+hidden: false

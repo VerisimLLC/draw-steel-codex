@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 649cbea9-b3eb-4621-ab52-42c9de3f4441
+  source: Ongoing Effect
+  guid: 512a06c1-c338-4342-a0ff-a2956faf48b3
+  domains:
+    CharacterOngoingEffect:649cbea9-b3eb-4621-ab52-42c9de3f4441: true
+  abilityFilter: not Ability.Name = "Blood In Their Eyes"
+  name: Holy Damage Taken
+  description: Tracks that the creature has taken holy damage since ending their last turn
+  explanation: You have taken Holy Damage since the end of your last turn
+  behavior: suppressabilities
+source: Ongoing Effect
+guid: 649cbea9-b3eb-4621-ab52-42c9de3f4441
+id: 649cbea9-b3eb-4621-ab52-42c9de3f4441
+ctime: 1760357975606
+domains:
+  CharacterOngoingEffect:649cbea9-b3eb-4621-ab52-42c9de3f4441: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.154499888420105
+    s: 0.941406011581421
+    v: 0.848229587078094
+    a: 1
+endTrigger: beginturn
+name: Holy Damage Taken
+custom: true
+mtime: 1760358642748
+description: Tracks that the creature has taken holy damage since ending their last turn
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

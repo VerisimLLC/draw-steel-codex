@@ -1,0 +1,123 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  targetTextOverride: ""
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: ""
+  sourceReference:
+    __typeName: SourceReference
+    page: 56
+    docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 5e9714e6-fe23-47bb-87ab-43d1b1b6d286
+  abilityType: none
+  implementation: 3
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: ec9bfe3f-f2ba-42a7-ba71-5115ffe4fd98
+    duration: endround
+    ongoingEffectCustom: ec9bfe3f-f2ba-42a7-ba71-5115ffe4fd98
+  name: Spider Senses
+  numTargets: "1"
+  description: Strikes made against the spider take a bane until the end of the round.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ui-icons/skills/1.png
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  targetFilter: ""
+  targetTextOverride: ""
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 56
+    docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 490e3c9c-ab2c-4be3-a799-d89f4516708c
+  abilityType: none
+  behaviors:
+  - __typeName: ActivatedAbilityDamageBehavior
+    roll: 2*target.Count Nearby Creatures(1, "enemy", "glass spider")
+    separateRolls: true
+  iconid: ui-icons/skills/1.png
+  name: Burst of Glass
+  numTargets: "1"
+  description: Each enemy in the encounter takes 2 damage for each spider adjacent to them.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  targetFilter: ""
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    resistanceAttr: mgt
+    filterTarget: not type="glass spider"
+    tiers:
+    - Target has a double bane on all power rolls (EoT)
+    - Target takes a bane on all power rolls (EoT)
+    - No effect
+    roll: 2d10 + Might or Agility
+    resistanceRoll: true
+    isTest: false
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    tiersSelected:
+    - 1
+    ongoingEffect: 2378b77e-dc66-4f7b-9851-ba4365a4d969
+    duration: end_of_next_turn
+    ongoingEffectCustom: ab34a187-8442-4650-a4c8-fdaf83472359
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    tiersSelected:
+    - 2
+    ongoingEffect: 54455d3b-5abe-46a3-90db-20ada18c4e95
+    duration: end_of_next_turn
+    ongoingEffectCustom: efd8bb7c-0e1e-4aa5-ba66-b3b5667400c3
+  multipleModes: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 56
+    docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+  range: "5"
+  persistence: []
+  modifiers: []
+  strain: []
+  modeList: []
+  abilityType: none
+  guid: 0cc7e24f-a2ce-4d30-8a12-9f8bd974d4ca
+  iconid: ui-icons/skills/1.png
+  targetType: all
+  name: Stained Glass Brilliance
+  numTargets: "1"
+  description: The spider glows with a brilliant light. Each non-glass spider within 5 squares of that spider must make a Might test.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+mtime: 1759183001075
+name: Glass Spider
+traits: []
+attacks: []
+id: 85a01bf7-57e6-47dd-9888-fff079fa1b25
+ctime: 1757912743121

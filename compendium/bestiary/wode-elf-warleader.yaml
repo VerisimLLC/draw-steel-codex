@@ -1,0 +1,1225 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 022853ab-fbc6-48af-8f61-5a6ed2f25a6c
+    offtokenPortraitId: 7036bba8-5d8a-4a46-a81c-6d2f55b2b8c1
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 8cb10975-3537-45c1-bf2f-275e4238addc
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.006036758
+      y: 0.2779321
+    frameHueShift: 0.5684541
+    frameSaturation: 0.7251431
+    frameBrightness: 0.7313896
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9fee53d9-2f45-4a1e-9ee3-fb7f98c5eb60
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 3
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 20
+    max_hitpoints_roll: "120"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Wode Elf Warleader
+    levelChoices: []
+    moveDistance: 7
+    traitNames: []
+    ongoingEffects: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        2af0bacc-1f57-49bc-8b5b-5c245cfe61ff:
+          note: 5 damage from Wode Elf Warleader's Collision
+          disposition: bad
+          attackerid: f7970ad8-81b6-498c-a9bd-a3ae1a5b6b7b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 115
+        5c3b98ba-f261-43d9-b838-a6f0e87d18ce:
+          note: 5 damage from Wode Elf Warleader's Collision
+          disposition: bad
+          attackerid: f7970ad8-81b6-498c-a9bd-a3ae1a5b6b7b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 78
+        83b605b2-434b-481a-93e0-41396efe63e2:
+          note: 4 damage from Wode Elf Warleader's Collision
+          disposition: bad
+          attackerid: f7970ad8-81b6-498c-a9bd-a3ae1a5b6b7b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 101
+        eb52b19f-adcd-4ff1-9932-1dee4677c82f:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 120
+        368e5df8-78c8-4aa8-b240-71f3c3a2334a:
+          note: 6 damage from Wode Elf Warleader's Collision
+          disposition: bad
+          attackerid: f7970ad8-81b6-498c-a9bd-a3ae1a5b6b7b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 105
+        c79d01bc-04e6-4902-ac87-75b535498367:
+          note: 4 damage from Wode Elf Warleader's Collision
+          disposition: bad
+          attackerid: f7970ad8-81b6-498c-a9bd-a3ae1a5b6b7b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 111
+        a0f12343-c130-4e9c-9edb-050efc963402:
+          note: 10 damage from Wode Elf Warleader's Collision
+          disposition: bad
+          attackerid: f7970ad8-81b6-498c-a9bd-a3ae1a5b6b7b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 91
+        243ddea1-71c2-47d6-9d27-c3c996300faf:
+          note: 8 damage from Wode Elf Warleader's Collision
+          disposition: bad
+          attackerid: f7970ad8-81b6-498c-a9bd-a3ae1a5b6b7b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 83
+    minion: false
+    stability: 2
+    opportunityAttack: 5
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Warleader	Level 3 Leader
+        Fey, Humanoid. Wode Elf	EV 20
+        <b>Stamina</b> 120
+        <b>Speed</b> 7 (teleport)	<b>Size</b> 1M / <b>Stability</b> 2
+        	<b>Free Strike</b> 5
+        Might +2	Agility +3	Reason +2	Intuition +2	Presence +2
+        <b>Wodeblade</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; M<1 restrained (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	12 damage; M<2 restrained (save ends)
+        %E2%9C%B8	<b>17</b>	15 damage; M<3 restrained (save ends)
+        <b>	Effect</b> The warleader strikes each target one at a time and can teleport 3 squares between each strike.
+        <b>2 Malice</b> A target restrained by this ability takes an additional 3 damage.
+
+        <b>Fairness is a Human Concept</b> (Maneuver) %E2%97%86 5 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst<b>Target</b> All allies in the burst
+        <b>Effect</b> Each target can make a free strike and then shifts 3. A target immediately hides at the end of the warleader's turn while in cover or concealment.
+
+        <b>Wode Sickness</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger</b> An ally ends their turn.
+        <b>	Distance</b> Ranged 10	<b>Target</b> 1 enemy
+        <b>Effect</b> The target must take their turn now, if they have not already taken it. <b>P<2</b> the target is bleeding and has a bane on their strikes until the end of their turn.
+
+        <b>End Effect</b>
+        At the end of their turn, the warleader can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Hunter's Glamor</b>
+        The warleader immediately hides at the end of their turn, even if they are observed.
+
+        <b>You Will ALL Witness my Blade </b>(Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> 5 burst<b>Target</b> All enemies in the burst
+        <b>Effect</b> The warleader uses Wodeblade against each target with an edge.
+
+        <b>Suppressing Volley </b>(Villain Action 2)
+        <b>Keywords</b> Area
+        <b>Distance</b> 5 burst<b>Target</b> All allies in the burst
+        <b>Effect</b> The warleader uses Wodeblade against a single creature or object. Each target then makes a free strike.
+
+        <b>Is it Now or is it Then? Where are We? </b>(Villain Action 3)
+        <b>Keywords</b> Area
+        <b>Distance</b> Self and 5 burst<b>Target</b> Self and all allies in the burst
+        <b>Effect</b> Each target becomes invisible until the start of the next round. The warleader then uses Wodeblade.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:605fcc32-628a-431a-ad4e-93de8affe3b7: true
+      modifiers: []
+      name: Hunter's Glamor
+      description: The warleader immediately hides at the end of their turn, even if they are observed.
+      guid: 605fcc32-628a-431a-ad4e-93de8affe3b7
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:523f0d05-1058-42e2-b775-437c5ffdf3c7: true
+        CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+        CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+        CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 523f0d05-1058-42e2-b775-437c5ffdf3c7
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1)) and Self.Ignore Cover <= 0 '
+        guid: 418df390-6217-4e5b-b963-912823ae84fb
+        name: Masking Glamor
+        domains:
+          CharacterFeature:523f0d05-1058-42e2-b775-437c5ffdf3c7: true
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        description: Abilities targeting the warleader that would take a bane from cover have a double bane instead.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 523f0d05-1058-42e2-b775-437c5ffdf3c7
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Target.Conditions has "concealment"
+        domains:
+          CharacterFeature:523f0d05-1058-42e2-b775-437c5ffdf3c7: true
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the warleader that would take a bane from concealment have a double bane instead.
+        behavior: power
+        guid: 3e8abadd-c57c-4461-8fc3-260c722b3c69
+      source: Trait
+      description: Abilities targeting the warleader that would take a bane from cover or concealment have a double bane instead.
+      guid: 523f0d05-1058-42e2-b775-437c5ffdf3c7
+      name: Masking Glamor
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:10174c6a-ffb5-4a23-9708-90dba1a0332a: true
+        CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+        CharacterFeature:21198158-23ed-4bd3-9610-435c50805d7c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:10174c6a-ffb5-4a23-9708-90dba1a0332a: true
+          CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+          CharacterFeature:21198158-23ed-4bd3-9610-435c50805d7c: true
+        sourceguid: 10174c6a-ffb5-4a23-9708-90dba1a0332a
+        behavior: trigger
+        source: Trait
+        name: Into the Green
+        description: The warleader can attempt to hide at the end of each of their turns.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 0aa81848-85f7-4c0a-915c-146de14eb8aa
+            ongoingEffectCustom: false
+          triggerPrompt: The warleader can attempt to hide at the end of each of their turns.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          targetType: self
+          domains:
+            CharacterFeature:10174c6a-ffb5-4a23-9708-90dba1a0332a: true
+            CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+            CharacterFeature:21198158-23ed-4bd3-9610-435c50805d7c: true
+          guid: 02353c28-50ef-479f-a8a3-294ddde0e33a
+          numTargets: "1"
+          trigger: endturn
+          name: Into the Green
+          description: The warleader can attempt to hide at the end of each of their turns.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 1adbae17-c949-43f9-803e-875e96613800
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:10174c6a-ffb5-4a23-9708-90dba1a0332a: true
+          CharacterFeature:ef33fb6b-21fb-4b32-9939-63af62f3d3a5: true
+          CharacterFeature:21198158-23ed-4bd3-9610-435c50805d7c: true
+        sourceguid: 10174c6a-ffb5-4a23-9708-90dba1a0332a
+        behavior: triggerdisplay
+        source: Trait
+        name: Into the Green
+        description: The warleader can attempt to hide at the end of each of their turns.
+        guid: ebab9122-a705-4187-9d26-26d7a2d73d94
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: The warleader can attempt to hide.
+          trigger: When the warleader ends their turn
+          type: free
+          guid: 3180efa4-2fee-4fa1-b3da-da285980f162
+          name: Into the Green
+          keywords: []
+      source: Trait
+      description: The warleader can attempt to hide at the end of each of their turns.
+      guid: 10174c6a-ffb5-4a23-9708-90dba1a0332a
+      name: Into the Green
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:45790cc3-fa79-4b21-b79c-d06cbe4e116d: true
+        CharacterFeature:37e8b0eb-89f6-453f-914c-82b82278cc26: true
+        CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:45790cc3-fa79-4b21-b79c-d06cbe4e116d: true
+          CharacterFeature:37e8b0eb-89f6-453f-914c-82b82278cc26: true
+          CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+        sourceguid: 37e8b0eb-89f6-453f-914c-82b82278cc26
+        behavior: trigger
+        source: Trait
+        name: End Effect
+        description: At the end of their turn, the warleader can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          guid: e32b2a15-f6f6-405e-bd9b-fdcb78163c0c
+          repeatTargets: false
+          abilityType: none
+          domains:
+            CharacterFeature:45790cc3-fa79-4b21-b79c-d06cbe4e116d: true
+            CharacterFeature:37e8b0eb-89f6-453f-914c-82b82278cc26: true
+            CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "5"
+            purgeType: one
+          trigger: endturn
+          name: End Effect
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: b79bee05-e884-4509-a920-f88a6b924465
+      source: Trait
+      description: At the end of their turn, the warleader can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: 37e8b0eb-89f6-453f-914c-82b82278cc26
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fd81e724-ce59-4d01-9ddd-cc43670cbd37: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:fd81e724-ce59-4d01-9ddd-cc43670cbd37: true
+        sourceguid: fd81e724-ce59-4d01-9ddd-cc43670cbd37
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Wode Sickness
+        description: ""
+        guid: 792906b8-5c84-4445-9fd4-c94caa641cc6
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One enemy
+          trigger: An ally ends their turn.
+          guid: 8900458a-bae6-45fc-a4d1-5aa6b176105a
+          effect: The target takes their turn immediately, and if they have P<2 they are bleeding and take a bane on strikes until the end of their turn.
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: fd81e724-ce59-4d01-9ddd-cc43670cbd37
+        source: Character Feature
+        behavior: trigger
+        domains:
+          CharacterFeature:fd81e724-ce59-4d01-9ddd-cc43670cbd37: true
+        name: Wode Sickness
+        resourceRefreshType: round
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: d097c821-422a-4ba9-8412-75a3836b1077
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 40ff1d82-fa0f-4b5e-86d1-f769062dd707
+          persistence: []
+          abilityType: none
+          whenActive: combat
+          behaviors:
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            text: Wode Sickness
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            autoTarget: false
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: not Taken Turn
+              targetTextOverride: 1 enemy creature
+              repeatTargets: false
+              rangeTextOverride: "10"
+              targetAllegiance: enemy
+              targetType: target
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 141
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: "10"
+              numTargets: "1"
+              modifiers: []
+              strain: []
+              guid: ab0c58b4-0922-4c89-baf8-c46f0a996196
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: 08d6e8e7-5209-43e9-9eba-cd124aa81d51
+                filterTarget: Target.Presence < 2
+                duration: end_of_next_turn
+                ongoingEffectCustom: false
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: 67f10517-edfe-455f-a837-ae4e9699593a
+                filterTarget: Target.Presence < 2
+                duration: end_of_next_turn
+                ongoingEffectCustom: false
+              - __typeName: ActivatedAbilityInitiativeBehavior
+                filterTarget: ""
+              name: Invoked Ability
+              persistence: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            applyto: targets
+            invokeOnCaster: false
+          trigger: endturn
+          name: Wode Sickness
+          description: ""
+          subject: allies
+          iconid: e7d55d80-630d-432d-8d3d-33051478bcd9
+        guid: d097c821-422a-4ba9-8412-75a3836b1077
+      name: Wode Sickness
+      description: ""
+      guid: fd81e724-ce59-4d01-9ddd-cc43670cbd37
+      source: Character Feature
+    role: Leader
+    7c9c70f9-8eb8-46c1-804f-22fff75668a7_history:
+      __typeName: StatHistory
+      entries:
+        c3f0c707-4b58-439d-94ce-6ff391feb5a0:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d
+          note: Is it Now or is it Then?
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/0"
+    equipment: []
+    titles: []
+    deathSavingThrowFailures: 0
+    notes:
+    - text: ""
+      title: Monster Notes
+    moveDistanceRoundId: f964c75a-5251-4a3e-974f-beccf9e4877d-8
+    resistances: []
+    max_hitpoints: 120
+    keywords:
+      Fey: true
+      Humanoid: true
+      Wode Elf: true
+    initiativeGrouping: 838f49b1-0118-45e0-bfaf-16d9fd540ec0
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+          7c9c70f9-8eb8-46c1-804f-22fff75668a7: 1
+        animType: consumeResource
+      guid: 87bc628e-d86b-45ea-9f17-6640040459f6-867
+    creatureSize: 1M
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        80077a6b-f081-498d-b113-267880a2469a:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-10
+          note: Fairness is a Human Concept
+          userid: steam-76561198767161997
+          set: 0/1
+    availableTriggers: []
+    damage_taken: 0
+    monster_category: Monster
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-11
+        used: 2
+      bf256803-fa12-45ab-80b9-88c6257bd963:
+        __typeName: CharacterResource
+        refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-10
+        used: 1
+      d097c821-422a-4ba9-8412-75a3836b1077:
+        __typeName: CharacterResource
+        refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-7
+        used: 1
+      7c9c70f9-8eb8-46c1-804f-22fff75668a7:
+        __typeName: CharacterResource
+        refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d
+        used: 1
+    d097c821-422a-4ba9-8412-75a3836b1077_history:
+      __typeName: StatHistory
+      entries:
+        3feb1197-599e-4339-aabd-19726e2f9788:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-7
+          note: Wode Sickness
+          userid: steam-76561198767161997
+          set: "-1/0"
+        f2bfcedb-f552-4aac-875b-9df598915f65:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-6
+          note: Wode Sickness
+          userid: steam-76561198767161997
+          set: "-1/0"
+        ca57c3ac-5d3d-4dfa-8963-fadab92bdae6:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-1
+          note: Wode Sickness
+          userid: steam-76561198767161997
+          set: "-1/0"
+        a42aa90d-f812-4e93-9663-64b760005627:
+          refreshid: 954c5dc1-cae9-454e-9ea0-4d786385f6a2-1
+          note: Wode Sickness
+          userid: steam-76561198767161997
+          set: "-1/0"
+        6c62fefa-3c53-430a-b657-8b128c63031a:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-3
+          note: Wode Sickness
+          userid: steam-76561198767161997
+          set: "-1/0"
+        aa83ffd0-1c11-4040-b2b5-a585ebb2c9b9:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-2
+          note: Wode Sickness
+          userid: steam-76561198767161997
+          set: "-1/0"
+        e6ed4e95-34ec-4ef6-bd55-a4e3fb724e10:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-4
+          note: Wode Sickness
+          userid: steam-76561198767161997
+          set: "-1/0"
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetTextOverride: ""
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              cannotModifyAction: true
+              filterAbility: ability.name is "Wodeblade"
+              behavior: modifyability
+              guid: c02d6c36-4150-4447-8757-e1be24e8ebf1
+              attributes: []
+              source: ""
+              description: ""
+              name: Modify Attack
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                strain: []
+                guid: aa823bba-6d58-48ac-baaf-009a3e1b41b8
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                behaviors: []
+                abilityType: none
+                name: New Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: f8e05ce3-cb1e-4c2d-9b19-5675b9b3f075
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: The warleader can use Wodeblade.
+        namedAbility: Wodeblade
+        abilityType: named
+        applyto: caster
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 30b63d4d-6d43-486f-98c9-41718093cf2c
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              attributes: []
+              behavior: modifyability
+              cannotModifyAction: true
+              name: Modify Attack
+              source: ""
+              description: ""
+              guid: c8231ded-23bd-4d72-8a8f-bd5b918bd7c6
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 58fccad8-eab8-41b0-a4dc-6ac144370fc8
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                targetType: self
+                abilityType: none
+                name: New Ability
+                behaviors: []
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          targetType: self
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        promptText: Each ally within 5 burst of the Warleader can make a free strike.
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      numTargets: 2
+      modifiers: []
+      actionResourceId: none
+      strain: []
+      modeList:
+      - text: Standard
+      - text: 2 Malice
+        condition: Heroic Resources Available to Spend >= 2
+      rangeTextOverride: "5"
+      sourceReference:
+        __typeName: SourceReference
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: all
+      guid: 2d3d65bc-40ac-45f3-9f62-365519d5d518
+      implementation: 4
+      name: Suppressing Volley
+      persistence: []
+      description: The warleader strikes each target one at a time and can teleport 3 squares between each strike.
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      objectTarget: false
+      targetFilter: not Target.Minion
+      repeatTargets: false
+      keywords:
+        Area: true
+      implementationDetails: ""
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 0d9bbeaf-907a-4575-a1b6-009c4975ddb7
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        promptText: Each non-minion allied target in the area can make a free strike.
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 41671a60-18aa-43f9-9621-f0931152c625
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Then, each non-minion allied target in the area may shift up to 3 squares.
+        abilityType: standard
+        standardAbilityParams:
+          distance: "3"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 419b4595-05a3-4b89-b1a2-b00472a1f284
+        duration: 0
+        ongoingEffectCustom: 419b4595-05a3-4b89-b1a2-b00472a1f284
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: ba9c0816-4294-47b4-bf3d-856cf698a60d
+      targetAllegiance: ally
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 141
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: all
+      name: Fairness is a Human Concept
+      iconid: d38cfd57-01a7-4bae-bc92-74689ddc4e92
+      description: Each target can make a free strike and then shifts 3. A target immediately hides at the end of the warleader's turn while in cover or concealment.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+        duration: endround
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 43007892-79e0-47d0-8d8e-165f21a30081
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        abilityType: named
+        namedAbility: Wodeblade
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '7c9c70f9-8eb8-46c1-804"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      numTargets: 1
+      strain: []
+      guid: be174185-355c-4f11-8c0a-7e01f8c1abe7
+      actionResourceId: none
+      rangeTextOverride: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 141
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: all
+      effectImplemented: true
+      name: Is it Now or is it Then?
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      description: Each target becomes invisible until the start of the next round. The warleader then uses Wodeblade.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; M<1 restrained (save ends)
+        - 12 damage; M<2 restrained (save ends)
+        - 15 damage; M<3 restrained (save ends)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 774572b1-d705-412a-b1f2-9192addde4e4
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 774572b1-d705-412a-b1f2-9192addde4e4
+          modtype: edge
+          keywords: []
+          activationCondition: Ability.name is "You Will All Witness my Blade"
+          guid: 81817c0e-2602-4b52-90c4-742ecc8a8c53
+          rollType: ability_power_roll
+          domains: []
+          description: The Warleader gains an edge on the power roll.
+          name: You Will All Witness My Blade
+          behavior: power
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 5
+      effectImplemented: true
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain:
+        enabled: false
+      modeList:
+      - text: Standard
+      - text: 2 Malice
+        condition: Heroic Resources Available to Spend >= 2
+      actionResourceId: none
+      numTargets: 2
+      sourceReference:
+        __typeName: SourceReference
+        page: 141
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: all
+      implementation: 3
+      name: You Will All Witness my Blade
+      guid: 2d3d65bc-40ac-45f3-9f62-365519d5d518
+      description: |-
+        The warleader uses Wodeblade against each target and gains
+        an edge on the power roll.
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          objectTarget: false
+          abilityType: none
+          strain: []
+          guid: f8e05ce3-cb1e-4c2d-9b19-5675b9b3f075
+          repeatTargets: false
+          targetTextOverride: Select the First target of your Wodeblade ability.
+          modifiers: []
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 7f39357e-8f7d-4304-a3fd-8c5c954fb768
+            duration: 0
+            ongoingEffectCustom: false
+          persistence: []
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        promptText: Select the First target of your Wodeblade ability.
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: e95e300d-1fee-41ff-a7d2-dbf019e11f44
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: The warleader can teleport up to 3 squares and select a second target.
+        standardAbilityParams:
+          range: "3"
+        abilityType: standard
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetTextOverride: Select the Second target of your Wodeblade ability.
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 7f39357e-8f7d-4304-a3fd-8c5c954fb768
+            duration: 0
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 141
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 441ece31-a7d4-4916-9d0c-cb7c8e058678
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        promptText: Select the Second target of your Wodeblade ability.
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        filterTarget: ""
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          strain: []
+          targetFilter: Ongoing Effects has "Wodeblade Target"
+          guid: a959bb76-2f14-4199-8e3a-d78e42a21cc7
+          repeatTargets: false
+          abilityType: none
+          targetType: map
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 8 damage; M<1 restrained (save ends)
+            - 12 damage; M<2 restrained (save ends)
+            - 15 damage; M<3 restrained (save ends)
+            roll: 2d10 + 3
+          numTargets: "1"
+          name: Wodeblade Power Roll
+          description: ""
+          sourceReference:
+            __typeName: SourceReference
+            page: 141
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: 1
+          iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+        promptText: Wodeblade Power Roll against both targets
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "2"
+          targetFilter: Ongoing Effects has "Wodeblade Target" and Conditions has "Restrained"
+          repeatTargets: false
+          implementationDetails: Additional 3 damage is a separate instance of damage, so if for example the target has damage immunity they will receive the damage immunity bonus a second time from the wodeblade ability.
+          targetType: map
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 141
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: e6886699-8422-4ec5-96ed-4b6f6e690f8e
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            filterTarget: ""
+            roll: "3"
+            chatMessage: Wodeblade 2 Malice Spent
+          description: ""
+          resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          implementation: 2
+        promptText: "Spend 2 Malice: A target restrained by this ability takes an extra 3 damage."
+        invokeOnCaster: true
+        filterTarget: ""
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Standard
+      - text: 2 Malice
+        condition: Heroic Resources Available to Spend >= 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      guid: 2d3d65bc-40ac-45f3-9f62-365519d5d518
+      targetType: self
+      numTargets: 2
+      implementation: 3
+      name: Wodeblade
+      categorization: Signature Ability
+      description: The warleader strikes each target one at a time and can teleport 3 squares between each strike.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 1feeaaad-97d4-40d3-b53d-fa95825015ba
+      sourceReference:
+        __typeName: SourceReference
+        page: 140
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Wode Sickness
+      numTargets: 1
+      description: |
+        The target must not have taken their turn this round. The target takes their turn immediately, and if they have P<2 they are bleeding (EoT) and take a bane on strikes until the end of their turn.
+      abilityType: none
+      implementation: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        7876b92a-a369-4e05-afa9-32e3121c0fa5:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-9
+          note: Wodeblade
+          userid: steam-76561198767161997
+          set: 0/1
+        4e9a771b-4113-4f37-b614-d30d30cf3d05:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-11
+          note: Is it Now or is it Then?
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/1"
+        c4fe5550-d464-4e99-9c9d-9baed82dc12d:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-11
+          note: Wodeblade
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        1cc5af70-6002-41c7-ad21-4c91f4d07042:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-8
+          note: Wodeblade
+          userid: steam-76561198767161997
+          set: 0/1
+    damageEntries:
+      6fd740e0-7d21-4d71-b7e6-7e1794ad2015:
+        damage: 5
+        seq: 1
+        id: 6fd740e0-7d21-4d71-b7e6-7e1794ad2015
+        damage_type: collide
+    movementSpeeds:
+      teleport: 7
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    walkingSpeed: 7
+    bf256803-fa12-45ab-80b9-88c6257bd963_history:
+      __typeName: StatHistory
+      entries:
+        5522186b-cc5b-4397-be35-e375ce1ed642:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d
+          note: 'Suppressing Volley '
+          userid: steam-76561198767161997
+          set: "-1/0"
+    skillRatings: []
+  tokenType: null
+  bestiaryId: 6e7966e0-788c-450c-ade4-6e9950a60f11
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: Wode Elf Warleader
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590264844
+mtime: 1775201137032
+hidden: false

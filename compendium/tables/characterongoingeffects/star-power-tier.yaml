@@ -1,0 +1,63 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 22cbcd26-16eb-4ad7-ad5e-17e9d903041b
+  source: Ongoing Effect
+  guid: bbb35c0e-4a1a-43d7-a155-d90b07c29ad6
+  behavior: power
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 9dbb089b-cf54-4713-b7c4-5f1753d6c409
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 22cbcd26-16eb-4ad7-ad5e-17e9d903041b
+      mode: effect
+      conditions: []
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  domains:
+    CharacterOngoingEffect:22cbcd26-16eb-4ad7-ad5e-17e9d903041b: true
+  rollType: ability_power_roll
+  activationCondition: true
+  description: Your next Power Roll this turn cannot have a result lower than tier 2.
+  modtype: nottierone
+  name: "Star Power: Tier"
+source: Ongoing Effect
+display:
+  brightness: 1.5999991280692
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.184499859809875
+    s: 0.496093392372131
+    v: 1.00238621234894
+    a: 1
+guid: 22cbcd26-16eb-4ad7-ad5e-17e9d903041b
+id: 22cbcd26-16eb-4ad7-ad5e-17e9d903041b
+ctime: 1746174596545
+domains:
+  CharacterOngoingEffect:22cbcd26-16eb-4ad7-ad5e-17e9d903041b: true
+description: Your next Power Roll this turn cannot have a result lower than tier 2.
+custom: true
+name: "Star Power: Tier"
+statusEffect: false
+mtime: 1756608257550
+iconid: 23d764ac-bf69-4d44-b0c7-3769c6b02ac7
+implementation: 3

@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: a85bd0a5-1e4a-4a17-b3d6-eb55c9f24c66
+behaviors:
+- __typeName: ActivatedAbilityPurgeEffectsBehavior
+  mode: conditions
+  targetDuration: all
+  conditions: []
+  purgeType: one
+  chatMessage: Fountains Roar, Now Free From the Earth
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 990f2487-a588-47b6-bf44-a753f52732bd
+ctime: 1770290539164
+targetType: self
+numTargets: "1"
+mtime: 1770290644183
+name: Purge One Chosen Effect
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

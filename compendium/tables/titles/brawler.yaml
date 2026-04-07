@@ -1,0 +1,125 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+prerequisite: You triumph in battle without killing any of your foes.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Brawler Benefits
+    numChoices: 1
+    guid: b1c88ae6-e1c1-4527-82a8-859a5c1fd0be
+    description: Choose one of the following benefits
+    options:
+    - __typeName: CharacterFeature
+      description: When an enemy strikes you while a second creature is flanking you, you can use a triggered action to redirect the strike against the second creature. Once you use this benefit, you can’t use it again until you earn 1 or more Victories.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 93a2141b-f7af-438f-aadc-32d87fc5ada2
+        multitarget: one
+        source: Feat
+        powerRollModifier:
+          __typeName: CharacterModifier
+          changeTargetRange: distance
+          modtype: none
+          triggerBefore:
+            __typeName: TriggeredAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 3f619701-b2a6-4c14-8954-a5e940918e2d
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            range: 1
+            targetType: self
+            behaviors: []
+            name: New Ability
+            trigger: d20roll
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          keywords: []
+          activationCondition: false
+          changeTargetDistance: 1
+          rollType: ability_power_roll
+          changeTarget: true
+          changeTargetFilter: Flanked By(target) and not Caster
+          hasTriggerBefore: false
+          guid: e919d70c-1ce4-4cd1-b9b5-8503e0ec2e66
+          resourceRefreshType: encounter
+          name: Duck!
+          rules: ""
+          description: When an enemy strikes you while a second creature is flanking you, you can use a triggered action to redirect the strike against the second creature. Once you use this benefit, you can’t use it again until you earn 1 or more Victories.
+          behavior: power
+          source: Trigger
+        guid: b5c1a9e9-c320-4f9c-b222-7fa388ebee65
+        behavior: powertabletrigger
+        filterCondition: Flanked
+        targetType: self
+        type: trigger
+        name: Duck!
+        rules: When an enemy strikes you while a second creature is flanking you, you can use a triggered action to redirect the strike against the second creature. Once you use this benefit, you can’t use it again until you earn 1 or more Victories.
+        description: When an enemy strikes you while a second creature is flanking you, you can use a triggered action to redirect the strike against the second creature. Once you use this benefit, you can’t use it again until you earn 1 or more Victories.
+        range: 10
+        trigger: strike
+      source: Feat
+      canHavePrerequisites: true
+      guid: 93a2141b-f7af-438f-aadc-32d87fc5ada2
+      name: Duck!
+      implementation: 2
+    - __typeName: CharacterFeature
+      description: When you use a weapon ability with an improvised weapon or a weapon that isn’t part of your kit, the ability benefits from your kit’s melee weapon damage bonus.
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: 051e914f-157f-4422-93aa-2b5126c51414
+      name: Furniture Fighter
+      implementation: 2
+    - __typeName: CharacterFeature
+      description: While you are grabbed or restrained, your free strikes don’t take a bane when those conditions would impose one.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c9e20a29-8811-4bd5-a95e-ec3176420d2e
+        displayCondition: Ability.Free Strike
+        source: Feat
+        modtype: remove_bane
+        keywords: []
+        activationCondition: Ability.Free Strike
+        filterCondition: Conditions has "Grabbed" or "Restrained"
+        name: Headbutt
+        rollType: ability_power_roll
+        description: While you are grabbed or restrained, your free strikes don’t take a bane when those conditions would impose one.
+        guid: 036f07bd-3d42-4b03-b8e6-c944cdb06a5e
+        behavior: power
+      source: Feat
+      canHavePrerequisites: true
+      guid: c9e20a29-8811-4bd5-a95e-ec3176420d2e
+      name: Headbutt
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Whenever you defeat foes without killing any of them (including the foes you defeat to meet the prerequisite for this title), you gain an edge on tests during negotiations with those foes.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a638ab4f-ecf4-4328-9bbc-b1a2e0800a7a
+        source: Feat
+        behavior: power
+        keywords: []
+        activationCondition: false
+        name: If I Wanted You Dead, You’d Be Dead
+        guid: d922b58b-30a2-4de6-9ad6-b466dba91539
+        description: Whenever you defeat foes without killing any of them (including the foes you defeat to meet the prerequisite for this title), you gain an edge on tests during negotiations with those foes.
+        modtype: edge
+        rollType: test_power_roll
+      source: Feat
+      canHavePrerequisites: true
+      guid: a638ab4f-ecf4-4328-9bbc-b1a2e0800a7a
+      name: If I Wanted You Dead, You’d Be Dead
+      implementation: 2
+name: Brawler
+mtime: 1773772029286
+description: We won’t kill you. But you might wish we had.
+id: 6557df19-9f76-42d1-a38a-b28f63c9dcfd
+ctime: 1762349432123

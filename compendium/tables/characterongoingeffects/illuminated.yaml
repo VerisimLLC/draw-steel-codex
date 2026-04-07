@@ -1,0 +1,39 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f905e96c-6b89-4d88-9688-71fabc39c9c2
+  guid: a70a827a-0327-4254-a586-bb367fe96129
+  source: Ongoing Effect
+  conditions:
+  - 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+  - 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+  description: You cannot hide or become invisible. Any strike made against you gains an edge.
+  behavior: conditionimmunity
+  name: Illuminated
+- __typeName: CharacterModifier
+  sourceguid: f905e96c-6b89-4d88-9688-71fabc39c9c2
+  source: Ongoing Effect
+  behavior: power
+  keywords:
+    Strike: true
+  activationCondition: true
+  name: Illuminated
+  guid: 4b37bc17-8a1e-4564-9918-ba79bc7a0752
+  description: You cannot hide or become invisible. Any strike made against you gains an edge.
+  modtype: edge
+  rollType: enemy_ability_power_roll
+source: Ongoing Effect
+guid: f905e96c-6b89-4d88-9688-71fabc39c9c2
+id: f905e96c-6b89-4d88-9688-71fabc39c9c2
+ctime: 1754549435395
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Illuminated
+description: You cannot hide or become invisible. Any strike made against you gains an edge.
+mtime: 1754549435395
+iconid: 83dacfb8-2ff3-4e31-8bc9-37cc9f3b566e
+implementation: 3

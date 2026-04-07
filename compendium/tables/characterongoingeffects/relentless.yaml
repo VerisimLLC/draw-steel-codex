@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 7d421a50-c1ad-441d-8133-5e7c0ed090b2
+id: 7d421a50-c1ad-441d-8133-5e7c0ed090b2
+ctime: 1711266639973
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Relentless
+description: Whenever a creature deals damage to you that leaves you dying, you can make a free strike against any creature. If the creature is reduced to 0 Stamina by your strike, you can spend a Recovery.
+custom: true
+mtime: 1756172415859
+iconid: 6410c878-aa94-4ac6-9af1-c96c4a1f62a9

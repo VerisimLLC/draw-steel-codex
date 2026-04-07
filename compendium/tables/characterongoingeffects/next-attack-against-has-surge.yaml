@@ -1,0 +1,65 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 43d0bce9-9f35-473c-be69-3d6f44de5709
+  source: Ongoing Effect
+  behavior: power
+  guid: 5fd28430-e1fe-4d7a-9591-b6a5e84efce6
+  domains:
+    CharacterOngoingEffect:43d0bce9-9f35-473c-be69-3d6f44de5709: true
+  keywords:
+    Attack: true
+  activationCondition: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 45c89c78-8112-4b81-bdf1-2e54febdb233
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 43d0bce9-9f35-473c-be69-3d6f44de5709
+      mode: effect
+      conditions: []
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  surges: stacks
+  name: Next Attack Against Has Surge
+  rollType: ability_power_roll
+  description: The next attack against this creature has a surge.
+  modtype: none
+  hasCustomTrigger: false
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00208103656769
+    v: 0.640078723430634
+    a: 1
+stackable: true
+id: 43d0bce9-9f35-473c-be69-3d6f44de5709
+ctime: 1730096753188
+domains:
+  CharacterOngoingEffect:43d0bce9-9f35-473c-be69-3d6f44de5709: true
+iconid: b4aea8ec-f73e-4bdd-8a32-686ad2fd961b
+guid: 43d0bce9-9f35-473c-be69-3d6f44de5709
+endTrigger: attacked
+mtime: 1742490913757
+description: The next attack against this creature has a surge.
+name: Next Attack Against Has Surge
+implementation: 3

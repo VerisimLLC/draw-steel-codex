@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 7e8a9d5f-3928-4a7d-b1cb-b6a2b5c90016
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Acerbic
+- __typeName: RollTableRow
+  id: 6b7e4e13-7cbc-46c0-af61-f0995e33b299
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Cynic
+- __typeName: RollTableRow
+  id: 0755a1dc-af32-423e-8361-d6f7f9d74670
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Heretic
+- __typeName: RollTableRow
+  id: 4b31bccb-9ab5-4f99-8f70-7206d73947b9
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Impious
+- __typeName: RollTableRow
+  id: 0ec026f3-5dff-4c4a-973a-01a9f6116b14
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Irritant
+- __typeName: RollTableRow
+  id: 43524bd8-7804-4f6b-ae56-32aafbcd32d4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Skeptical
+- __typeName: RollTableRow
+  id: 381fd9e9-2711-4460-8b08-a16843e85df4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Sneering
+- __typeName: RollTableRow
+  id: f1ed3d44-3e56-48a4-873a-191e6e7c58e5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Surly
+- __typeName: RollTableRow
+  id: b69897ad-0e97-49a3-bb32-cfbe62e2ecf4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Unbeliever
+- __typeName: RollTableRow
+  id: e3512c3b-1097-4d7a-8bf6-a52f018a91a5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: 'The Unruly '
+id: bd08d273-526b-4a99-8879-928e33ba6716
+name: Time Raiders Epithet Names
+subtable: true
+mtime: 1743456118692
+items: false
+ctime: 1743447579952

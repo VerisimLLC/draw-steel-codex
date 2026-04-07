@@ -1,0 +1,242 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9c66ef04-a401-45b7-8af3-0b62d1f5b883
+  properties:
+    __typeName: monster
+    groupid: eab02bc2-fd64-44cc-a27e-51df24fe02f7
+    cr: 3
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bdc4165a-6fd8-4b60-a59f-477d9617770f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: bdc4165a-6fd8-4b60-a59f-477d9617770f
+        source: Character Feature
+        guid: c9c3208f-f131-47f4-b34f-14431195e0f1
+        keywords:
+          Melee: true
+        activationCondition: true
+        domains:
+          CharacterFeature:bdc4165a-6fd8-4b60-a59f-477d9617770f: true
+        rollType: ability_power_roll
+        name: Great Cat Melee Damage Bonus
+        modtype: none
+        description: You gain +1 melee damage bonus.
+        damageModifier: "1"
+        behavior: power
+      source: Character Feature
+      description: You gain +1 melee damage bonus.
+      guid: bdc4165a-6fd8-4b60-a59f-477d9617770f
+      name: Great Cat Melee Damage Bonus
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3e33bd6a-97df-4a34-8f3b-ca1e1c8a26c9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3e33bd6a-97df-4a34-8f3b-ca1e1c8a26c9: true
+        sourceguid: 3e33bd6a-97df-4a34-8f3b-ca1e1c8a26c9
+        description: As a maneuver, you can jump up to 3 squares in any direction. If you land on an enemy of your size or smaller, that enemy is knocked prone, and you can make a melee free strike against them (no action required).
+        source: Character Feature
+        name: Great Cat Special
+        behavior: activated
+        guid: 4dd79d75-be21-4876-a5fd-f31b728632dc
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: anyspace
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Heroic Ability
+          range: "3"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 3d46ed65-8589-42b2-811f-6b8dd27deb09
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          domains:
+            CharacterFeature:3e33bd6a-97df-4a34-8f3b-ca1e1c8a26c9: true
+          targeting: direct
+          numTargets: "1"
+          name: Great Cat Special
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: jump
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            target_proximity_range: "0"
+            rule: prone
+            applyto: proximity_only
+            filterTarget: not Target
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: b674f741-11bb-4916-b4cf-a596f0703bc3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: ""
+            abilityType: named
+            namedAbility: Melee Free Strike
+          description: As a maneuver, you can jump up to 3 squares in any direction. If you land on an enemy of your size or smaller, that enemy is knocked prone, and you can make a melee free strike against them (no action required).
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      source: Character Feature
+      description: As a maneuver, you can jump up to 3 squares in any direction. If you land on an enemy of your size or smaller, that enemy is knocked prone, and you can make a melee free strike against them (no action required).
+      guid: 3e33bd6a-97df-4a34-8f3b-ca1e1c8a26c9
+      name: Great Cat Special
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6fcda5c1-4706-42f6-a7d9-9dcae4648592
+        source: Custom
+        value: 2
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: Custom Modification
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: ""
+        behavior: attribute
+        attribute: creatureSize
+      source: Custom
+      guid: 6fcda5c1-4706-42f6-a7d9-9dcae4648592
+      id: 6450780b-d70f-4bf2-ae23-9620e047e693
+      ctime: 1756099470349
+      domains:
+        CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+      name: Custom Modification
+      description: ""
+      mtime: 1756099470349
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:318fd7b5-df21-4cb8-8d9c-1c7f834e5b17: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 318fd7b5-df21-4cb8-8d9c-1c7f834e5b17
+        source: Character Feature
+        value: 6
+        domains:
+          CharacterFeature:318fd7b5-df21-4cb8-8d9c-1c7f834e5b17: true
+        name: Climbing Speed
+        guid: e878c7ba-2892-4a04-8dab-f56cc0c41b77
+        description: 6 is added to your Climbing Speed
+        behavior: attribute
+        attribute: climb
+      source: Character Feature
+      description: 6 is added to your Climbing Speed
+      guid: 318fd7b5-df21-4cb8-8d9c-1c7f834e5b17
+      name: Climbing Speed
+      implementation: 3
+    max_hitpoints: 10
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    temporary_stamina_history:
+      __typeName: StatHistory
+      entries:
+        dd0ae2f5-5d4f-451d-b531-98e9cb75a2fa:
+          timestamp: 1759688537570
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 5
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Canine
+    temporary_hitpoints: 5
+    damage_taken: 0
+    resources: []
+    keywords:
+      Green Animal Forms: true
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    levelChoices: []
+    walkingSpeed: 6
+    monster_type: Great Cat
+    skillRatings: []
+    savingThrowRatings: []
+  tokenType: null
+  bestiaryId: 49b92c47-5878-4ece-b5ee-704da077be3f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1753882566431
+description: null
+parentFolder: e88c4842-3ea1-49c0-ad20-dd7d6ba773ba
+artist: null
+ord: 1
+ctime: 1759687814817
+mtime: 1775167489832
+hidden: false

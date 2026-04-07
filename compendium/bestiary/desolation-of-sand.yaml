@@ -1,0 +1,272 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Desolation of Sand
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8f3dfcd0-0e1e-4757-8195-83c64d18dcab
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 5
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: 5
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Summoner Heroic
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 4 damage
+        - 4 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 sonic damage
+        - 4 sonic damage
+        - 4 sonic damage
+        guid: a8f8f884-9f00-4a52-89fa-14a2f14cb795
+        modesSelected:
+        - 2
+        roll: "12"
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        filterTarget: Target.Conditions has "Slowed"
+        rule: M<2 restrained (EoT)
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        filterTarget: Target.Conditions has not "Slowed"
+        rule: M<1 Slowed (save ends)
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: |-
+        Burying Strike
+        The desolation’s free strikes inflict m<1 slowed (save ends). If the target is already slowed, then they are m<2 restrained (EoT).
+      abilityType: none
+      iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+    opportunityAttack: 4
+    stability: 1
+    import:
+      type: mcdm
+      data: |-
+        DESOLATION OF SAND Level 3 MINION HEXER
+        Elemental EV 3 for two minions
+        1M 5 5 1 4
+        Size Speed Stamina Stability Free Strike
+        Immunity: Sonic R Weakness: -
+        Movement: Burrow With Captain:
+        M ight +1 A gility +2 R eason 0 I ntuition 0 P resence -2
+        t Burying Strike
+        The desolation's free strikes inflict slowed (save ends). If
+        the target is already slowed, then they are restrained
+        (EoT).
+        t You Can't Fight Sand
+        The desolation doesn't provoke opportunity attacks by moving.
+        t Shifting Sand Pit 1 Essence
+        When the desolation is reduced to 0 Stamina, the area within 1
+        square of the desolation becomes difficult terrain for enemies until
+        the end of the encounter. You or any ally that enters the affected
+        area can immediately shift 3.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ff3e1c65-ac85-4c35-ab5a-ddabb6eee277: true
+      modifiers: []
+      name: Burying Strike
+      guid: ff3e1c65-ac85-4c35-ab5a-ddabb6eee277
+      description: The desolation's free strikes inflict slowed (save ends). If the target is already slowed, then they are restrained (EoT).
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6a834c8c-98a7-4db6-bb0c-f3403c019544: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        value: 1
+        source: Trait
+        name: Crafty
+        behavior: attribute
+        description: The desolation doesn't provoke opportunity attacks by moving.
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      source: Trait
+      description: The desolation doesn't provoke opportunity attacks by moving.
+      guid: 6a834c8c-98a7-4db6-bb0c-f3403c019544
+      name: You Can't Fight Sand
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0a97b486-5797-400c-ae23-82070a5f9320: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0a97b486-5797-400c-ae23-82070a5f9320
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:0a97b486-5797-400c-ae23-82070a5f9320: true
+        name: Shifting Sand Pit 1 Essence
+        resourceRefreshType: encounter
+        description: When the desolation is reduced to 0 Stamina, the area within 1 square of the desolation becomes difficult terrain for enemies until the end of the encounter. You or any ally that enters the affected area can immediately shift 3.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aliveafterdeath: true
+            aura:
+              __typeName: Aura
+              applyto: enemies
+              description: When the desolation is reduced to 0 Stamina, the area within 1 square of the desolation becomes difficult terrain for enemies until the end of the encounter. You or any ally that enters the affected area can immediately shift 3.
+              difficult_terrain: true
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              iconid: e2435dc3-1731-4e43-891d-508ecfd4f96b
+              guid: d9f69a2b-2dd4-4a8b-aa23-1d8ad198ca7b
+              modifiers: []
+              objectid: a9223d12-467d-4ef1-b34f-07517cdd49d8
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 8bc7da6e-4b06-4bef-b519-f99098f2007b
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: b3bd53b1-b3bb-4cbe-98f8-5c319e658373
+          castImmediately: true
+          targetType: self
+          numTargets: "1"
+          trigger: creaturedeath
+          name: Shifting Sand Pit 1 Essence
+          description: ""
+          abilityType: none
+          iconid: e2435dc3-1731-4e43-891d-508ecfd4f96b
+        guid: 8bc7da6e-4b06-4bef-b519-f99098f2007b
+      name: Shifting Sand Pit 1 Essence
+      guid: 0a97b486-5797-400c-ae23-82070a5f9320
+      description: When the desolation is reduced to 0 Stamina, the area within 1 square of the desolation becomes difficult terrain for enemies until the end of the encounter. You or any ally that enters the affected area can immediately shift 3.
+      source: Trait
+    role: Hexer Hexer
+    equipment: []
+    skillRatings: []
+    availableTriggers: []
+    damage_taken: 0
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    resources: []
+    minion: true
+    minionSquad: Desolation of Sand Squad 2
+    walkingSpeed: 5
+    movementSpeeds:
+      Burrow: 5
+    name: Desolation of Sand
+    creatureSize: 1M
+    initiativeGrouping: fa588ad9-d56a-4c44-9748-1e5a0f28680c
+    monster_type: Desolation of Sand
+    keywords:
+      Summoner: true
+      Air: true
+      Heroic: true
+      Elemental: true
+      Earth: true
+  tokenType: null
+  bestiaryId: 0414ebd8-307e-4c24-bf85-d97be7a755c9
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: 2
+  createdTimestamp: 1757331495444
+description: null
+parentFolder: 8505c8ec-8446-4e6b-bf74-a645343d7cf4
+artist: null
+ord: 2
+ctime: 1759502693427
+mtime: 1775167532219
+hidden: false

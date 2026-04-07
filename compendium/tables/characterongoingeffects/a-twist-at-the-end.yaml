@@ -1,0 +1,54 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 3aaee7fb-e8db-4585-a253-ac80b69d171f
+    repeatTargets: false
+    abilityType: none
+    trigger: endcombat
+    targetType: self
+    numTargets: "1"
+    name: A Twist at the End
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "1000"
+      chatMessage: "Twist at the End: Crumble to Dust"
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: This monster fights alongside the players, controlled by the Director. It will crumble to dust at the end of the encounter.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 4691272f-bc14-4dd3-99ff-ea634d11f3a9
+  name: A Twist at the End
+  sourceguid: f420865b-9037-4007-a65f-3df5e4688c14
+source: Ongoing Effect
+guid: f420865b-9037-4007-a65f-3df5e4688c14
+id: f420865b-9037-4007-a65f-3df5e4688c14
+ctime: 1753518642798
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.812000691890717
+    s: 0.861328840255737
+    v: 1.00238597393036
+    a: 1
+custom: true
+name: A Twist at the End
+iconid: 2e6bc261-9461-4f22-b362-496b3bc76158
+description: This monster fights alongside the players, controlled by the Director. It will crumble to dust at the end of the encounter.
+mtime: 1753518642798
+implementation: 3

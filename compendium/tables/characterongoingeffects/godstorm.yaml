@@ -1,0 +1,132 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:e4abab34-dcd2-4ebf-a46f-ba4fb6d4678b: true
+  sourceguid: e4abab34-dcd2-4ebf-a46f-ba4fb6d4678b
+  description: Gives the hero a maneuver to trigger the Godstorm's damage again.
+  source: Ongoing Effect
+  name: Godstorm
+  behavior: activated
+  guid: 920c4ddc-ffcd-42d6-9a98-4334d4f5f25b
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    repeatTargets: false
+    reasonedFilters: []
+    implementationDetails: You will need to manually target the existing area of Godstorm to make its power roll.
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 2 lightning damage; 2 sonic damage
+      - 3 lightning damage, 3 sonic damage
+      - 5 lightning damage, 5 sonic damage
+      guid: 8b7abc85-53eb-41ae-872f-1f017fef2689
+      roll: 2d10 + Intuition
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.698275864124298
+        s: 0.694610834121704
+        v: 0.65490198135376
+        a: 1
+    categorization: Ability
+    range: "5"
+    targetType: cube
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    modifiers: []
+    persistence: []
+    strain: []
+    guid: d1c9e013-d619-45d1-9f20-e9702d4bd78a
+    targetAllegiance: enemy
+    numTargets: "1"
+    domains:
+      CharacterOngoingEffect:e4abab34-dcd2-4ebf-a46f-ba4fb6d4678b: true
+    implementation: 2
+    description: Use this maneuver to trigger the effects of Godstorm again. You will need to manually target the existing area of Godstorm.
+    name: Command Godstorm
+    radius: "5"
+    abilityFilters: []
+    abilityType: none
+    iconid: 4db2911c-324d-47f4-a105-065dc93c6369
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:e4abab34-dcd2-4ebf-a46f-ba4fb6d4678b: true
+  sourceguid: e4abab34-dcd2-4ebf-a46f-ba4fb6d4678b
+  description: Gives the hero a maneuver to trigger the Godstorm's damage again.
+  source: Ongoing Effect
+  name: Godstorm
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      namedAbility: Move Godstorm
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 845f5c19-1019-41b0-bd1f-1e9c94b8b519
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      abilityType: named
+      runOnController: true
+    triggerPrompt: Move the Godstorm area up to 5 squares
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    hasManualVersion: false
+    strain: []
+    guid: 428a693e-9181-4a52-874d-766abef35c96
+    castImmediately: true
+    name: Godstorm
+    numTargets: "1"
+    trigger: beginturn
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 311086e4-2c66-437a-b359-fa1d65e2cbab
+source: Ongoing Effect
+guid: e4abab34-dcd2-4ebf-a46f-ba4fb6d4678b
+id: e4abab34-dcd2-4ebf-a46f-ba4fb6d4678b
+ctime: 1770294449439
+domains:
+  CharacterOngoingEffect:e4abab34-dcd2-4ebf-a46f-ba4fb6d4678b: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.697500169277191
+    s: 0.693359375
+    v: 0.655954241752625
+    a: 1
+name: Godstorm
+custom: true
+description: Gives the hero a maneuver to trigger the Godstorm's damage again.
+mtime: 1770296880482
+iconid: 4db2911c-324d-47f4-a105-065dc93c6369

@@ -1,0 +1,13 @@
+__typeName: CharacterComplication
+drawback: "Rather than attracting followers at 3, 6, 9, and 12 Renown, you can attract followers only when your Renown reaches 4, 8, 12, and 16. See Renown in Chapter 13: Rewards."
+mtime: 1755604145316
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Stripped of Rank
+ctime: 1755517450292
+description: You were trained as an officer, but you no longer serve. Whether you fled from a battle, were dishonorably discharged, or defected from an evil army, you make your own way in the world now—though your military training will never truly leave you.
+id: c716456c-29f4-4cb9-9077-562959b9b58b
+benefit: |-
+  You have the following ability:
+  Issue Order

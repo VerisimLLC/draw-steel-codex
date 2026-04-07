@@ -1,0 +1,51 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f072c602-407d-42b9-839a-fb0d855e7404
+  source: Ongoing Effect
+  guid: 9f3d6d6c-a343-4579-9269-66f477ffcca8
+  keywords: []
+  activationCondition: Ability.doesdamage
+  domains:
+    CharacterOngoingEffect:f072c602-407d-42b9-839a-fb0d855e7404: true
+  rollType: ability_power_roll
+  name: Self-Taught Extra Damage
+  modtype: none
+  description: As part of the Self-Taught Complication, you have forgone heroic resource gain at start of turn to get a bonus to damage equal to your highest characteristic.
+  damageModifier: Highest Characteristic
+  behavior: power
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: f072c602-407d-42b9-839a-fb0d855e7404
+  source: Ongoing Effect
+  value: 0
+  domains:
+    CharacterOngoingEffect:f072c602-407d-42b9-839a-fb0d855e7404: true
+  name: Self-Taught Extra Damage
+  guid: c3c9d9f8-666d-474d-93c4-7e40df6aa139
+  description: As part of the Self-Taught Complication, you have forgone heroic resource gain at start of turn to get a bonus to damage equal to your highest characteristic.
+  behavior: attribute
+  attribute: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+source: Ongoing Effect
+guid: f072c602-407d-42b9-839a-fb0d855e7404
+id: f072c602-407d-42b9-839a-fb0d855e7404
+ctime: 1768290294466
+domains:
+  CharacterOngoingEffect:f072c602-407d-42b9-839a-fb0d855e7404: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.301999926567078
+    s: 0.93749988079071
+    v: 0.771681725978851
+    a: 1
+custom: true
+name: Self-Taught Extra Damage
+iconid: 11d94f0a-d2cb-4f82-a64e-b36bc75e8670
+description: As part of the Self-Taught Complication, you have forgone heroic resource gain at start of turn to get a bonus to damage equal to your highest characteristic.
+mtime: 1772111917509
+implementation: 1

@@ -1,0 +1,20 @@
+__typeName: equipment
+id: 98f4306a-f559-42de-bd23-b03a9f590670
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: "Celestine: As a main action, you conjure up to three stars, which hover in unoccupied squares of your choice within 5 squares of you. The stars remain in place, and disappear if you create more stars. When an enemy enters any star's space, the star detonates and is destroyed, and the enemy takes 10 fire damage. If you have line of effect to the enemy, you can also slide them 1 square. Otherwise, the enemy slides 1 square in a random direction."
+itemPrerequisite: A still-warm piece of a meteorite
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Ullorvic
+imbuePrereq: none
+name: Celestine
+imbueTargetType: implement
+mtime: 1774700411589
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+imbueLevel: 5

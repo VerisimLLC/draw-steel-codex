@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+testCases:
+- text: Spread +1
+modifiers:
+- __typeName: CharacterModifier
+  guid: ff38df41-2c49-4b49-a6ee-20a4cb376860
+  sourceguid: 38f9729e-c275-4900-8724-5345cb50029d
+  value: "<<bonus>>"
+  source: Monster
+  name: Spread Bonus
+  behavior: attribute
+  description: ""
+  attribute: 15b56e3c-c24c-4321-9274-410469e651c0
+source: Monster
+guid: 38f9729e-c275-4900-8724-5345cb50029d
+importMatch: Spread \+<<bonus>>
+ctime: 1738391696583
+name: Spread Bonus
+id: 33262647-f0a2-4817-afc0-799d6dd2edca
+description: ""
+mtime: 1738391832211
+implementation: 3

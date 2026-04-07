@@ -1,0 +1,311 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e9bdbcfa-d2fc-4025-92ec-8bb200b97170
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 9
+    import:
+      type: mcdm
+      data: |+
+        Demon Chimeron    Level 9 Horde Brute
+        Abyssal, Demon    EV 11
+        <b>Stamina</b> 90    <b>Weakness</b> Holy 5
+        <b>Speed</b> 6    <b>Size</b> 3 / <b>Stability</b> 2
+        <b>    Free Strike</b> 5
+        Might +4    Agility 0    Reason 2    Intuition +1    Presence +2
+        <b>Flux Gnash</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2 <b>    Target</b> 1 creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    9 fire damage
+        %E2%98%85    <b>12-16</b>    11 fire damage
+        %E2%9C%B8    <b>17</b>    13 fire damage; M<4 bleeding (save ends)
+        Effect     After rolling power, the chimeron can choose to replace the damage type and effect of the ability with sonic and dazed (save ends) or cold and slowed (save ends).
+
+        <b>Pain Absorption</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>    Target</b> Self
+        <b>Trigger </b>The chimeron is targeted by an attack.
+        Effect The chimeron halves any damage dealt to them.
+
+        <b>Lethe</b>
+        While winded, the chimeron has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the chimeron can't be hidden from them.
+        Demon Styrich    Level 8 Horde Hexer
+        Abyssal, Demon    EV 10
+        <b>Stamina</b> 45    <b>Weakness</b> Holy 5
+        <b>Speed</b> 6    <b>Size</b> 1L /<b> Stability</b> 1
+        <b>Free Strike</b> 3
+        Might +2    Agility +4    Reason 0    Intuition +2    Presence 0
+        <b>Hair Whip</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distnce</b> Melee 4<b>    Target</b> 1 creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    7 damage; pull 1
+        %E2%98%85    <b>12-16</b>    10 damage; pull 2; grabbed
+        %E2%9C%B8    <b>17</b>    12 damage; pull 3; grabbed
+        <b>Effect </b>The styrich can pull targets restrained by their Tangled Nest ability.
+
+        <b>Tangled Nest</b> (Maneuver) %E2%97%86 2d10 + 4 %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 4 burst<b>    Target</b> All enemies
+        %E2%9C%A6    <b>%E2%89%A411</b>    A<2 slowed (save ends)
+        %E2%98%85    <b>12-16</b>    slowed (EoT) or A<3 restrained (EoT)
+        %E2%9C%B8    <b>17</b>    restrained (EoT) or A<4 restrained (save ends)
+        <b>Effect </b>The styrich makes a free strike against restrained targets.
+
+        <b>Lethe</b>
+        While winded, the styrich has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the styrich can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4c6c2c5b-fcfd-4a05-ab16-9632a2e9285a: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the chimeron has an edge on strikes, and strikes have an edge against them.
+      guid: 4c6c2c5b-fcfd-4a05-ab16-9632a2e9285a
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9fa8c094-d9cc-48d0-8246-c571cf39e209: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the chimeron can't be hidden from them.Demon Styrich    Level 8 Horde HexerAbyssal, Demon    EV 10
+      guid: 9fa8c094-d9cc-48d0-8246-c571cf39e209
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f2ab5bb5-eab5-4954-8341-804034c362b3: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the styrich has an edge on strikes, and strikes have an edge against them.
+      guid: f2ab5bb5-eab5-4954-8341-804034c362b3
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d86076c2-ac9a-4389-bf82-281cae2f3c9a: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the styrich can't be hidden from them.
+      guid: d86076c2-ac9a-4389-bf82-281cae2f3c9a
+      source: Trait
+    role: Horde Brute
+    inflictedConditions: []
+    keywords:
+      Demon: true
+      Abyssal: true
+    max_hitpoints_roll: "90"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Demon Chimeron
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 90
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 248e5948-99c6-4c1c-8821-03aca7227066
+      implementation: 4
+      numTargets: 1
+      name: Flux Gnash
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 fire damage
+        - 11 fire damage
+        - 13 fire damage; M<4 bleeding (save ends)
+        roll: 2d10 + 4
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 291696ff-9e84-469e-af41-8f6375ec76b0
+      abilityType: none
+      implementation: 0
+      behaviors: []
+      name: Pain Absorption
+      numTargets: "1"
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; pull 1
+        - 10 damage; pull 2; grabbed
+        - 12 damage; pull 3; grabbed
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e87842c3-60c6-418a-a06e-c9efc009f970
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Hair Whip
+      numTargets: 1
+      description: The styrich can pull targets restrained by their Tangled Nest ability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 4
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: d1894eed-4252-40a0-b46c-17c1321f4290
+      abilityType: none
+      numTargets: 1
+      implementation: 3
+      name: Tangled Nest
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - A<2 slowed (save ends)
+        - slowed (EoT) or A<3 restrained (EoT)
+        - restrained (EoT) or A<4 restrained (save ends)
+        roll: 2d10 + 4
+      description: The styrich makes a free strike against restrained targets.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds: []
+    ev: 11
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 6cbfa1bd-b3ac-4174-938a-eff3d32460e8
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Demon Chimeron
+parentFolder: d28dbebc-b729-459f-858a-44e596d131e0
+artist: null
+ord: 5
+ctime: 1741590263170
+mtime: 1775201137032
+hidden: false

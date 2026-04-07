@@ -1,0 +1,133 @@
+__typeName: CharacterFeature
+testCases:
+- text: If the blitzer is reduced to 0 Stamina, they can make a free strike before dying.
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: ed0cc9e3-415c-4267-a2fc-5a02324026d2
+    repeatTargets: false
+    abilityType: none
+    trigger: creaturedeath
+    targetType: self
+    numTargets: "1"
+    name: 'Bloodfire Burn '
+    behaviors:
+    - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+      momentaryEffect:
+        __typeName: CharacterOngoingEffect
+        guid: 87a399f7-a326-4f13-b203-f37419e85ec0
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        modifiers:
+        - __typeName: CharacterModifier
+          guid: fd3f0da3-8e04-4bd8-8802-4d152b530157
+          sourceguid: 87a399f7-a326-4f13-b203-f37419e85ec0
+          value: 1
+          source: Ongoing Effect
+          name: Cannot Be Removed
+          behavior: attribute
+          description: ""
+          attribute: 7565750e-2376-4809-abc2-47eed82153d1
+        source: Ongoing Effect
+        name: Cannot Be Removed
+        description: ""
+        id: 87a399f7-a326-4f13-b203-f37419e85ec0
+        iconid: ui-icons/skills/1.png
+      name: Ability Duration Effect
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        targetTextOverride: 1 creature
+        repeatTargets: false
+        rangeTextOverride: "1"
+        behaviors:
+        - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+          modifier:
+            __typeName: CharacterModifier
+            modifyDescription: ""
+            source: ""
+            filterAbility: Ability.Free Strike
+            behavior: modifyability
+            guid: d7ed3f3c-0f86-4e87-ae33-c518062ba528
+            name: Modify Attack
+            attributes: []
+            description: ""
+            cannotModifyAction: true
+            ability:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 6d07d93d-2ecf-4902-bbfc-391eee4d8c7b
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityModification: true
+              behaviors: []
+              abilityType: none
+              name: New Ability
+              targetType: self
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 1ca07533-f72e-41af-b6d8-541ded563e0a
+        numTargets: "1"
+        name: Invoked Ability
+        targetType: target
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      invokeOnCaster: true
+      promptText: Select creature to free strike.
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Monster
+  behavior: trigger
+  guid: 7a4155f2-3986-438f-be95-475724b85608
+  name: 'Bloodfire Burn '
+  sourceguid: fa90dcef-f87e-4136-b980-54fd94633db1
+- __typeName: CharacterModifier
+  guid: e35c7b47-d6d6-4169-9f33-f159efeaa530
+  sourceguid: fa90dcef-f87e-4136-b980-54fd94633db1
+  value: 1
+  source: Monster
+  name: 'Bloodfire Burn '
+  behavior: attribute
+  description: ""
+  attribute: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+source: Monster
+guid: fa90dcef-f87e-4136-b980-54fd94633db1
+importMatch: If <<monster>> is reduced to 0 Stamina, they can make a free strike before dying.
+ctime: 1775011293419
+name: 'Bloodfire Burn '
+id: 521d32cd-c491-4ff5-9ff5-d03716f6ba53
+description: ""
+mtime: 1775011741509
+implementation: 3

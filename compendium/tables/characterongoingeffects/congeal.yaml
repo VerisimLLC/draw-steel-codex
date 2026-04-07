@@ -1,0 +1,59 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 89229841-7787-43a7-b336-85f93170c863
+  source: Ongoing Effect
+  value: 2 when Stacks > 1 else 1
+  domains:
+    CharacterOngoingEffect:89229841-7787-43a7-b336-85f93170c863: true
+  name: Congeal
+  guid: 79e0a7c6-c91e-48f4-9e92-98b112c1aaee
+  description: The ooze increases their size by 1, gains a +1 bonus to speed, increases the potency of their potency effects by 1 (all to a maximum of 2), and gains temporary stamina equal to the absorbed ooze's remaining Stamina
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  sourceguid: 89229841-7787-43a7-b336-85f93170c863
+  source: Ongoing Effect
+  value: 2 when Stacks > 1 else 1
+  domains:
+    CharacterOngoingEffect:89229841-7787-43a7-b336-85f93170c863: true
+  name: Congeal
+  guid: 7a8e8579-8fd5-4a17-93bb-652212a23a2f
+  description: The ooze increases their size by 1, gains a +1 bonus to speed, increases the potency of their potency effects by 1 (all to a maximum of 2), and gains temporary stamina equal to the absorbed ooze's remaining Stamina
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: 89229841-7787-43a7-b336-85f93170c863
+  source: Ongoing Effect
+  value: 2 when Stacks > 1 else 1
+  domains:
+    CharacterOngoingEffect:89229841-7787-43a7-b336-85f93170c863: true
+  name: Congeal
+  guid: 3b26a041-53c2-445b-bc3a-2db5040e3f68
+  description: The ooze increases their size by 1, gains a +1 bonus to speed, increases the potency of their potency effects by 1 (all to a maximum of 2), and gains temporary stamina equal to the absorbed ooze's remaining Stamina
+  behavior: attribute
+  attribute: 20009cb8-8c21-497f-9563-b2d8c99176dd
+source: Ongoing Effect
+casterTracking: none
+stackable: true
+id: 89229841-7787-43a7-b336-85f93170c863
+ctime: 1764058121976
+domains:
+  CharacterOngoingEffect:89229841-7787-43a7-b336-85f93170c863: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.365168541669846
+    s: 0.820276498794556
+    v: 0.850980401039124
+    a: 1
+custom: true
+name: Congeal
+guid: 89229841-7787-43a7-b336-85f93170c863
+description: The ooze increases their size by 1, gains a +1 bonus to speed, increases the potency of their potency effects by 1 (all to a maximum of 2), and gains temporary stamina equal to the absorbed ooze's remaining Stamina
+mtime: 1764201468054
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

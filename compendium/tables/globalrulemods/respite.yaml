@@ -1,0 +1,50 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        persistence: []
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        strain: []
+        guid: 8255bdd5-0210-428f-98ff-6e3c016228bc
+        repeatTargets: false
+        abilityType: none
+        trigger: startrespite
+        targetType: self
+        numTargets: "1"
+        name: Respite Journal
+        behaviors:
+        - __typeName: ActivatedAbilityShowJournalBehavior
+          templateDocId: 2fbc8f4d-eba7-4a15-822c-3e26afe19ce1
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Respite Global Rule Mod Feature
+      behavior: trigger
+      guid: a7cd1638-986d-4c05-9b6b-8c7633287037
+      name: Respite Journal
+      sourceguid: f1853331-f573-4798-90b1-508e9612e6aa
+    source: Respite Global Rule Mod Feature
+    canHavePrerequisites: true
+    guid: f1853331-f573-4798-90b1-508e9612e6aa
+    name: Respite Journal
+    implementation: 3
+applyRetainers: false
+applyMonsters: false
+ctime: 1774580020497
+name: Respite
+id: 4d9f5bcd-368a-464c-8ddf-1b8de110d231
+mtime: 1774580316475
+applyCharacters: true
+applyCompanions: false

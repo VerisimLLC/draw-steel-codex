@@ -1,0 +1,90 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 188e5df2-bdc0-4a0f-89be-d34912341a60
+  source: Ongoing Effect
+  seq: 1da4884b-e621-4962-bc26-04583d70d50a
+  aura:
+    __typeName: Aura
+    modifiers: []
+    name: Aura of Souls
+    guid: 4b57eb2a-f952-457d-a876-f52534a8d432
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  radius: "4"
+  guid: 080e1ee1-bf16-4aa2-84d2-c4bab7f37c42
+  description: ""
+  behavior: aura
+  name: Aura of Souls
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    whenActive: combat
+    repeatTargets: false
+    trigger: endturn
+    numTargets: "1"
+    targetType: all
+    guid: e685c5e6-ade7-4131-8beb-81cbe6d74533
+    name: Aura of Souls
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: fc653521-67a5-4d10-8ffd-5577fc7fc7c5
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      promptText: You can slide each creature {Intuition} squares
+      abilityType: standard
+      standardAbilityParams:
+        range: "<<intuition>>"
+      standardAbility: 3e18f2b2-893d-4945-9564-cf75a5e16849
+    description: ""
+    range: "4"
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 0b35129d-a736-4fe7-acd9-69329721521e
+  name: Aura of Souls
+  sourceguid: 188e5df2-bdc0-4a0f-89be-d34912341a60
+source: Ongoing Effect
+guid: 188e5df2-bdc0-4a0f-89be-d34912341a60
+id: 188e5df2-bdc0-4a0f-89be-d34912341a60
+ctime: 1765425920288
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Aura of Souls
+description: ""
+custom: true
+mtime: 1765425920288
+iconid: ui-icons/skills/1.png

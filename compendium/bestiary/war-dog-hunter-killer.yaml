@@ -1,0 +1,160 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 77553ec7-2e56-4bb2-8579-933721529127
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        War Dog Hunter-Killer	Level 10 Minion Artillery
+        Humanoid, War Dog	EV 12 for four minions
+        <b>Stamina</b> 14
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Strike damage +4<b>Free Strike</b> 5
+        Might +1	Agility +5	Reason +3	Intuition +5	Presence +2
+        <b>Fuse-Iron Rocket</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; push 2
+        %E2%98%85	<b>12-16</b>	8 damage; push 3
+        %E2%9C%B8	<b>17</b>	10 damage; push 4
+        <b>Effect</b> Each enemy adjacent to the target takes 5 fire damage.
+
+        <b>Loyalty Collar</b>
+        When the hunter-killer dies, they explode, dealing 3d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:52b4a3bb-c769-4648-bb0d-e82f2b0bf4cc: true
+      modifiers: []
+      name: Loyalty Collar
+      description: When the hunter-killer dies, they explode, dealing 3d6 damage to each adjacent enemy.
+      guid: 52b4a3bb-c769-4648-bb0d-e82f2b0bf4cc
+      source: Trait
+    role: Minion Artillery
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "14"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    monster_type: War Dog Hunter-Killer
+    attributes:
+      agl:
+        baseValue: 5
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 5
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    withCaptain: +4 damage bonus to strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 14
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; push 2
+        - 8 damage; push 3
+        - 10 damage; push 4
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8e89543a-2e41-4d68-8b38-898844b0ba22
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Fuse-Iron Rocket
+      numTargets: 1
+      description: Each enemy adjacent to the target takes 5 fire damage.
+      abilityType: none
+      implementation: 3
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: ee1982a4-767a-4092-8fbb-2d539a998d77
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Hunter-Killer
+parentFolder: e0fe4628-5728-4664-a543-30bf2efaf46e
+artist: null
+ord: 2
+ctime: 1749972315360
+mtime: 1775201137032
+hidden: false

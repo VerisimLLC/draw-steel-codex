@@ -1,0 +1,36 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 5ee20fc4-845d-4b54-a427-513155611276
+ctime: 1761392951939
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: "[[/activateobject castle_andreas_region activate|Hide Castle Andreas]] [[/activateobject castle_andreas_region deactivate|Show Castle Andreas]]"
+    h: "See [Part 3 The Jagged Edge]\v\vThis takes place on the [Castle Andreas Map]."
+    M: |+
+      # Castle Andreas
+
+    r: |+
+      [[/setadventuredocument 21 "Castle Andreas"|Track Castle Andreas]][[/setadventuredocument off "Castle Andreas"|Untrack Castle Andreas]]
+
+    s: |2
+
+    u: |+
+      ## Region Map
+
+    q: |2+
+
+
+    Z: |+
+      See [Queen Bargnot's Plot], but eventually, the heroes must face [Queen Bargnot]’s forces for the good of the people of Broadhurst! Whether they face the Jagged Edge in Castle Andreas or on the streets of Broadhurst is up to the actions (or inaction) of the heroes.
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: e7c5d909-fa34-436b-808f-3ad48974966a
+description: Castle Andreas
+content: |-
+  # Castle Andreas
+
+  See [Queen Bargnot's Plot], but eventually, the heroes must face [Queen Bargnot]’s forces for the good of the people of Broadhurst! Whether they face the Jagged Edge in Castle Andreas or on the streets of Broadhurst is up to the actions (or inaction) of the heroes.
+
+  See [Part 3: The Jagged Edge]This takes place on either the [Castle Andreas Map] or [Attack on Broadhurst Map]
+mtime: 1774906371359

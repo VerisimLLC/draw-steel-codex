@@ -1,0 +1,10 @@
+__typeName: Skill
+specializations: []
+_fork: H4sIAAAAAAAACmWOwU7DMBBEfwX5jCVv7Dh2bxV3LuUerZ01WDilSjYSpeLfsYuQKFzm8PQ0Mxcxjnw+0SPOJHbi8JpLEfd3YubcAFjvh14PQ2+9rThPVeoj9rEznUxkJ2l00NLZoGToNRj0ibTH1hF/dRgF1gwGKj5+Tz0smLhpyLzksHGD+HxdX08UM5b8gZzfjqvYXQS0+P/1cGOKn4sqoas3vVSglDQAk3QxJNkBhM656DxRk5neuer7El9oPjcylg2fMJS6wMtGn7coYVn/sqv2BTg3RLtIAQAA
+id: 5ca5c242-fe6d-43b3-86b0-b5314a9fe39a
+ctime: 1704682349571
+hasPassive: false
+mtime: 1768772526487
+description: Make ranged weapons and ammunition
+name: Fletching
+attribute: agl

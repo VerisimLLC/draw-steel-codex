@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 873d7551-6dc5-4f17-96c3-5c1b8ab4fbd9
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Ranged: true
+    Weapon: true
+  activationCondition: true
+  description: Your weapon receives a +3 bonus to rolled damage.
+  name: Improved Sanctified Weapon - Ranged
+  behavior: power
+  damageModifier: "3"
+  rollType: ability_power_roll
+  guid: 9d5793a5-8737-4110-8c6c-246e702e4406
+source: Ongoing Effect
+guid: 873d7551-6dc5-4f17-96c3-5c1b8ab4fbd9
+id: 873d7551-6dc5-4f17-96c3-5c1b8ab4fbd9
+ctime: 1764522210825
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Improved Sanctified Weapon - Ranged
+description: Your weapon receives a +3 bonus to rolled damage.
+custom: true
+mtime: 1764522233496
+iconid: ui-icons/skills/1.png

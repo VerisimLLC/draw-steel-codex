@@ -1,0 +1,59 @@
+__typeName: CharacterComplication
+drawback: At the start of each combat encounter, you can choose to gain 1 additional Heroic Resource. If you do so, the Director gains 3 Malice.
+mtime: 1764852062743
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: Gain 1 additional heroic resource but the Director gains 3 Malice
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: abcc0015-7cf9-4b20-b7e7-c42b8af464d7
+        persistence: []
+        castImmediately: true
+        abilityType: none
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          applyto: caster
+          resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          chatMessage: "Feytouched: You gain 1 additional Heroic Resource"
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          chatMessage: "Feytouched: The director gains 3 Malice"
+          quantity: "3"
+        trigger: rollinitiative
+        name: Feytouched
+        description: ""
+        subject: enemy
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Complication
+      behavior: trigger
+      guid: 65f9a4f6-8bba-4c27-af13-cf85de89b061
+      name: Feytouched
+      sourceguid: 2a9c3ec2-5e0c-4ea2-94c2-e36d75361f70
+    source: Complication
+    canHavePrerequisites: true
+    guid: 2a9c3ec2-5e0c-4ea2-94c2-e36d75361f70
+    name: Feytouched
+    implementation: 3
+name: Feytouched
+ctime: 1755514141257
+description: Your birth was attended by faeries. A friendly fairy blessed you, granting you strength so you could defend yourself. In response, an unfriendly fairy granted you a life filled with peril so that you might prove your strength.
+id: 1cc24445-f109-4033-844b-658576f7633e
+benefit: At the start of each combat encounter, you can choose to gain 1 additional Heroic Resource. If you do so, the Director gains 3 Malice.

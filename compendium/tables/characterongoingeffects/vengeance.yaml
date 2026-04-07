@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 4de0e2b7-a460-4af9-b32a-e990edb90d12
+id: 4de0e2b7-a460-4af9-b32a-e990edb90d12
+ctime: 1774573096418
+domains:
+  CharacterOngoingEffect:4de0e2b7-a460-4af9-b32a-e990edb90d12: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+name: Vengeance
+custom: true
+description: This creature has attacked a creature using the Vengeance imbuement.
+mtime: 1774584641409
+iconid: ui-icons/skills/1.png

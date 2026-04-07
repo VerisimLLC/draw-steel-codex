@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.736999809741974
+    s: 1.00208127498627
+    v: 1.00238585472107
+    a: 1
+stackable: true
+id: b8f5dde9-51a3-4477-8a75-447802632e14
+ctime: 1742773032080
+domains:
+  CharacterOngoingEffect:b8f5dde9-51a3-4477-8a75-447802632e14: true
+implementation: 3
+custom: true
+name: One Hundred Throats Target
+guid: b8f5dde9-51a3-4477-8a75-447802632e14
+description: The Shadow moved past this creature with One Hundred Throats and may target them.
+mtime: 1772756325366
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce

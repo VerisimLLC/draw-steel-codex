@@ -1,0 +1,69 @@
+__typeName: Kit
+armor: Light
+health: 3
+id: adf74651-0900-4734-8253-e2a68453af99
+weapons:
+  Polearm: true
+reach: 1
+disengage: 1
+name: Stick and Robe
+description: Armed with a simple reach weapon, often a quarterstaff, heroes using the Stick and Robe kit are highly mobile thanks to their light armor. This allows them to make maximum use of their weapon's length.
+portraitid: cfd2d751-46dd-4d27-a47c-ea83c106c36a
+kitManeuver: false
+type: martial
+speed: 2
+imported: b8ba7102-bdf0-4dac-82e0-6baa5a36fcbd
+damageBonuses:
+  melee:
+  - 1
+  - 1
+  - 1
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 4 + M or A damage
+    - 7 + M or A damage; slide 1
+    - 10 + M or A damage; slide 3
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: When your stick speaks, your enemy moves.
+  sourceReference:
+    __typeName: SourceReference
+    page: 223
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 2
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  modifiers: []
+  strain: []
+  guid: c678123a-a538-4559-b539-9fb9a6747c9e
+  categorization: Signature Ability
+  numTargets: 1
+  implementation: 4
+  persistence: []
+  name: Where I Want You
+  targetType: target
+  description: ""
+  abilityType: none
+  iconid: 2c2b1cb9-6ba0-46f7-b133-07a5d8e8d87e
+mtime: 1770565551271
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+equipmentDescription: You wear light armor and wield a polearm.

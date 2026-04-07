@@ -1,0 +1,22 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: one
+guid: fb1a7ba3-979c-4d06-a1ef-bb27bc2736e1
+id: fb1a7ba3-979c-4d06-a1ef-bb27bc2736e1
+ctime: 1755032945153
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: We Meet at Last
+iconid: ui-icons/skills/1.png
+description: |-
+  You and the Troubadour can target each other with abilities even if you are beyond distance, with the distance of We Meet at Last replacing those abilities' distances. The target can't be force moved by an ability used beyond distance this way.
+
+  The Troubadour can use a free maneuver to communicate a motivating or dispiriting message to you.
+mtime: 1755032945153
+implementation: 3

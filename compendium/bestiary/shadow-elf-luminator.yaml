@@ -1,0 +1,275 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0ddc6ec1-8b43-46f7-8e70-e78442ef690a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Luminator	Level 4 Platoon Support
+        Fey, Humanoid, Shadow Elf	EV 12
+        <b>Stamina</b> 60
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +0	Agility +1	Reason +1	Intuition +3	Presence +2
+        <b>Neon Mark</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 3<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 lightning damage
+        %E2%98%85	<b>12-16</b>	12 lightning damage
+        %E2%9C%B8	<b>17</b>	15 lightning damage
+        <b>Effect</b> The next strike made against the target deals an additional 5 damage.
+
+        <b>Mourning 'Til Dusk </b>(Action) %E2%97%86 2d10 + 3%E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 2 burst<b>	Target</b> All allies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	The target regains 6 Stamina
+        %E2%98%85	<b>12-16</b>	The target regains 9 Stamina
+        %E2%9C%B8	<b>17</b>	The target regains 12 Stamina; the Director gains 3 Malice
+        <b>Effect</b> Each target has an edge on their next strike.
+
+        <b>Of the Umbra</b>
+        The luminator ignores concealment granted by darkness. While the luminator is in direct sunlight, they have damage weakness 3. While the luminator is concealed, they have damage immunity 3.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3bd6d35b-4859-456e-966d-803b5cd45547: true
+      modifiers: []
+      name: Of the Umbra
+      description: The luminator ignores concealment granted by darkness. While the luminator is in direct sunlight, they have damage weakness 3. While the luminator is concealed, they have damage immunity 3.
+      guid: 3bd6d35b-4859-456e-966d-803b5cd45547
+      source: Trait
+    role: Platoon Support
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Shadow Elf: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    monster_type: Shadow Elf Luminator
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 60
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 lightning damage
+        - 12 lightning damage
+        - 15 lightning damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 7fb5419d-ca00-4610-bb67-cc09d52daef1
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Neon Mark
+      numTargets: 1
+      description: The next strike made against the target deals an additional 5 damage.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6beae334-84e9-4c71-a590-c4d11213e886
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - The target regains 6 Stamina
+        - The target regains 9 Stamina
+        - The target regains 12 Stamina; the Director gains 3 Malice
+        roll: 2d10 + 3
+      name: "Mourning 'Til Dusk "
+      implementation: 3
+      description: Each target has an edge on their next strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 lightning damage
+        - 12 lightning damage
+        - 15 lightning damage
+        roll: 2d10 + Intuition
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c8b2203e-9a63-4a24-a610-c24c2f675e1f
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Lumina Mark
+      sourceReference:
+        __typeName: SourceReference
+        page: 130
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: The next strike made against the target deals an extra 5 damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - The target regains 6 Stamina.
+        - The target regains 9 Stamina.
+        - The target regains 12 Stamina and the Director gains 3 Malice.
+        roll: 2d10 + Intuition
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 130
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      numTargets: 1
+      modifiers: []
+      guid: 1f3f9881-3497-4078-b28c-06d2f1db88e2
+      abilityType: none
+      targetType: all
+      iconid: ui-icons/skills/1.png
+      name: Mourning Till Dusk
+      categorization: Heroic Ability
+      description: Each target gains an edge on their next strike.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 3
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 5
+    ev: 12
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: f41ade4e-f474-483c-9826-e04d2c6670e7
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Shadow Elf Luminator
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590327651
+mtime: 1775201137032
+hidden: false

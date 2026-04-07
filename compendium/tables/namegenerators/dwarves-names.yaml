@@ -1,0 +1,39 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: b04d3971-b893-4b5d-a5c4-57a7a1b61588
+  choiceName: Dwarf Masculine
+  id: 95fcedb4-0592-413b-b467-dab6e53266df
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 7a6e6c32-7436-45f8-ab4a-ecf14cbf909d
+  choiceName: Dwarf Gender Neutral
+  id: ddc5a0e2-126e-4319-b498-5cb400e0a761
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: fa8d0cd8-d2b5-49d8-bc59-62a7fbc1fbea
+  choiceName: Dwar Feminine
+  id: c267195f-d912-455a-8f8a-d89c55dcc1a4
+id: 3ae916a5-9b7a-42be-90ae-38cfd6a0551c
+rollType: namedChoice
+name: Dwarves Names
+mtime: 1743455084024
+items: false
+ctime: 1743455084024

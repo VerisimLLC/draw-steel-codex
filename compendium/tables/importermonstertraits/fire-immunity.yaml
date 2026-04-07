@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 38864cdb-b509-4f1b-a1d7-8da114911a67
+  behavior: resistance
+  source: Monster
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "5"
+    damageType: fire
+    apply: Damage Reduction
+  description: ""
+  name: Fire Immunity
+  guid: 6c047d23-3490-4db5-8a14-2a0f0207b964
+source: Monster
+guid: 38864cdb-b509-4f1b-a1d7-8da114911a67
+importMatch: fire Immunity <<immunity>>
+ctime: 1711734264984
+name: Fire Immunity
+description: ""
+id: 76af4511-60e9-4dc6-8f82-4f2871cc10c3
+mtime: 1711784242726

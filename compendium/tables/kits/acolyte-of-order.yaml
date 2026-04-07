@@ -1,0 +1,34 @@
+__typeName: Kit
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+health: 3
+id: a3c29a96-7c85-498f-8353-d69ce55f41ae
+ctime: 1727935314370
+type: "null"
+speed: 3
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  numTargets: "1"
+  modifiers: []
+  guid: 0b8476a3-fc33-4e0e-99ba-5f306aa76b76
+  repeatTargets: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  behaviors: []
+  range: 1
+  name: New Ability
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+mtime: 1727935314370
+name: Acolyte of Order

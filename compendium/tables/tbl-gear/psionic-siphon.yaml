@@ -1,0 +1,20 @@
+__typeName: equipment
+id: e8d879af-16ba-4ece-92e6-1c8960e7af29
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: Once per turn when you damage one or more creatures using a magic or psionic ability and obtain a tier 3 outcome, you gain Stamina equal to your highest characteristic score, and one creature you damage takes an extra 5 damage.
+itemPrerequisite: The frontal lobe of an overmind
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Variac
+imbuePrereq: none
+name: Psionic Siphon
+imbueTargetType: implement
+mtime: 1770782378871
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+imbueLevel: 9

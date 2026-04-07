@@ -1,0 +1,26 @@
+__typeName: CharacterFeature
+testCases:
+- text: Immediately after making an attack, this goblin can shift 1/2/3 squares.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 86e6e5e7-a748-436e-bb2e-5bcee6368d00
+  source: Monster
+  modtype: none
+  keywords:
+    Attack: true
+  activationCondition: true
+  guid: ab2619d2-0542-40cb-a1ea-37413f572814
+  name: Agile Retreat
+  behavior: power
+  addText: You shift <<tiera>>/<<tierb>>/<<tierc>> Squares
+  rollType: ability_power_roll
+  description: ""
+source: Monster
+guid: 86e6e5e7-a748-436e-bb2e-5bcee6368d00
+importMatch: Immediately after making an attack, this goblin can shift <<tiera>>/<<tierb>>/<<tierc>> squares.
+ctime: 1715814617597
+name: Agile Retreat
+id: 94958076-e79c-46ee-87c5-a4adef0f01b5
+description: ""
+mtime: 1715816310455
+implementation: 3

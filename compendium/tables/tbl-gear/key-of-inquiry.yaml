@@ -1,0 +1,69 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 9d7bb37d-3523-494a-81da-ab54d460718e
+  description: As a maneuver, you touch the key to an adjacent willing, grabbed, or restrained creature and twist the key 90 degrees clockwise. That creature must answer the next three questions they are asked truthfully and fully. If twisted 90 degrees counterclockwise instead, the creature forgets the last 30 minutes they experienced. A creature affected by the key can’t be affected again by any Key of Inquiry for 1 year. If the key is ever destroyed, all the memories it has erased are restored. Memories erased by the key can’t be restored in any other way
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 9d7bb37d-3523-494a-81da-ab54d460718e
+    guid: 1634931b-60a8-4a3a-ab83-cba87a39cd90
+    source: Item
+    behavior: activated
+    description: As a maneuver, you touch the key to an adjacent willing, grabbed, or restrained creature and twist the key 90 degrees clockwise. That creature must answer the next three questions they are asked truthfully and fully. If twisted 90 degrees counterclockwise instead, the creature forgets the last 30 minutes they experienced. A creature affected by the key can’t be affected again by any Key of Inquiry for 1 year. If the key is ever destroyed, all the memories it has erased are restored. Memories erased by the key can’t be restored in any other way
+    name: Key of Inquiry
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      implementationDetails: ""
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 324
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      persistence: []
+      modifiers: []
+      domains: []
+      strain: []
+      guid: 03ad8504-13ad-4d31-971c-9daceb7f9f5f
+      targetType: self
+      numTargets: "1"
+      castImmediately: true
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Key of Inquiry
+      categorization: Ability
+      description: As a maneuver, you touch the key to an adjacent willing, grabbed, or restrained creature and twist the key 90 degrees clockwise. That creature must answer the next three questions they are asked truthfully and fully. If twisted 90 degrees counterclockwise instead, the creature forgets the last 30 minutes they experienced. A creature affected by the key can’t be affected again by any Key of Inquiry for 1 year. If the key is ever destroyed, all the memories it has erased are restored. Memories erased by the key can’t be restored in any other way
+      abilityType: none
+      implementation: 0
+  source: Item
+  name: Key of Inquiry
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 0
+id: 535f22db-6617-4027-a57f-42c63a1a7282
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Ullorvic
+flavor: A foot-long platinum key is set with three opals.
+weight: 1
+echelon: 2
+specialDescription: ""
+type: Gear
+category: Gear
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+projectGoal: "300"
+itemPrerequisite: The finger bone of a creature with telepathy, three black opals
+description: As a maneuver, you touch the key to an adjacent willing, grabbed, or restrained creature and twist the key 90 degrees clockwise. That creature must answer the next three questions they are asked truthfully and fully. If twisted 90 degrees counterclockwise instead, the creature forgets the last 30 minutes they experienced. A creature affected by the key can’t be affected again by any Key of Inquiry for 1 year. If the key is ever destroyed, all the memories it has erased are restored. Memories erased by the key can’t be restored in any other way
+name: Key of Inquiry
+ctime: 1774851474806
+mtime: 1774851474806
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: b350349e-22b4-4b7c-a806-a1e91a6b77fe

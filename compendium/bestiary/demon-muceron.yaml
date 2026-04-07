@@ -1,0 +1,336 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fdfadee4-5d7e-4058-89e6-c785576f5270
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    max_hitpoints: 30
+    inflictedConditions: []
+    ev: 5
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    opportunityAttack: 3
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Demon Muceron	Level 3 Horde Brute
+        Abyssal, Demon	EV 5
+        <b>Stamina</b> 30	<b>Weakness</b> Holy 3
+        <b>Speed</b> 5	<b>Size</b> 1M/ <b>Stability</b> 0
+        	<b>Free Strike</b> 3
+        Might +2	Agility +2	Reason +0	Intuition +0	Presence +1
+        <b>Barbed Tongues</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> One creature
+        %E2%9C%A6	%E2%89%A411	5 damage; pull 2
+        %E2%98%85	12%E2%80%9316	7 damage; pull 3
+        %E2%9C%B8	17+	8 damage; pull 4
+        <b>Effect </b>If the target is pulled adjacent to the muceron, the muceron either makes a free strike against them or grabs them.
+
+        <b>Tongue Pull</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 5	<b>Target</b> Three creatures
+        <b>Effect</b> The muceron pulls each target 5 squares.
+
+        <b>Lethe</b>
+        While winded, the muceron has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the muceron can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f5a789b3-4c1b-40d3-b956-5084c0e53307: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the muceron can't be hidden from them.
+      guid: f5a789b3-4c1b-40d3-b956-5084c0e53307
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:30c17bd7-2e50-4133-bc48-344fc308fc2a: true
+        CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+        CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+        CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: self.Winded = 1
+        guid: 351db9f1-b63a-4b3c-b391-2b3fb2cae093
+        name: Lethe
+        domains:
+          CharacterFeature:30c17bd7-2e50-4133-bc48-344fc308fc2a: true
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the muceron has an edge on strikes, and strikes have an edge against them.
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: Target.Winded = 1
+        guid: 4f052c10-5f42-40df-96aa-8c16de3347f4
+        name: Lethe
+        domains:
+          CharacterFeature:30c17bd7-2e50-4133-bc48-344fc308fc2a: true
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the muceron has an edge on strikes, and strikes have an edge against them.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: While winded, the muceron has an edge on strikes, and strikes have an edge against them.
+      guid: 30c17bd7-2e50-4133-bc48-344fc308fc2a
+      name: Lethe
+      implementation: 3
+    role: Horde Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -3
+      damageType: holy
+      apply: Damage Reduction
+    damage_taken: 0
+    monster_type: Demon Muceron
+    resources: []
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    minion: false
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: ac7366b2-6354-4977-af3e-3089020974e1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; pull 2
+        - 7 damage; pull 3
+        - 8 damage; pull 4
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        filterTarget: Distance(Caster, Target) = 1
+        customAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList:
+          - text: Free Strike
+          - text: Grab
+          castImmediately: false
+          guid: f54d61db-d00f-4492-bb4f-a63020ce2ddc
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            runOnController: true
+            modesSelected:
+            - 1
+            invokeOnCaster: true
+            abilityType: standard
+            standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 92ff9730-7210-4ce7-bcd7-8214d1a6512d
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            runOnController: true
+            modesSelected:
+            - 2
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 85dda252-e68a-4b40-a062-899a75a8079e
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            applyto: caster
+            abilityType: named
+            namedAbility: Grab
+          name: Invoked Ability
+          numTargets: "1"
+          description: If the target is pulled adjacent to the muceron, the muceron either makes a free strike against them or grabs them.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        applyto: caster
+      name: Barbed Tongues
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: If the target is pulled adjacent to the muceron, the muceron either makes a free strike against them or grabs them.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: pull 5
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      numTargets: 3
+      modifiers: []
+      strain: []
+      guid: da4a8186-4e9a-443c-82c7-3cc78449abb0
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      targetType: target
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Tongue Pull
+      persistence: []
+      description: The muceron pulls each target 5 squares.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    walkingSpeed: 5
+    movementSpeeds: []
+    creatureSize: 1M
+    keywords:
+      Demon: true
+      Abyssal: true
+    notes:
+    - text: Mucerons (MIU-sur-onz) are the result of an ensnarer going through repeated demon evolutions to become a brutish creature. They are covered in multiple mouths that shoot out barbed tongues, tearing at enemies as they are dragged out of position.
+      title: Monster Notes
+    notesRevision: 5bb159c9-85a2-4224-8f19-a85e17e2d334
+  tokenType: null
+  bestiaryId: 551e5274-f995-40eb-adca-681f544878eb
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Demon Muceron
+parentFolder: 003daf5c-52f0-4ea2-9283-a547f7b2422e
+artist: null
+ord: 5
+ctime: 1741590252124
+mtime: 1775201137032
+hidden: false

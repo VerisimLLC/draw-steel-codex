@@ -1,0 +1,65 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a96bbf9c-1735-4392-b6c0-7774cd3dcbbd: true
+  sourceguid: a96bbf9c-1735-4392-b6c0-7774cd3dcbbd
+  description: Until the end of the encounter or until you are dying, each target takes holy damage equal to your Presence score at the end of each of your turns. A target takes an extra 2d6 holy damage if they are judged by you or if they are adjacent to any enemy.
+  source: Ongoing Effect
+  name: Edict of Disruptive Isolation
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetFilter: Enemy
+    repeatTargets: false
+    targetType: all
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "2"
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      filterTarget: ""
+      damageType: holy
+      roll: Presence
+      titleText: Edict of Disruptive Isolation
+      chatMessage: Edict of Disruptive Isolation
+    - __typeName: ActivatedAbilityDamageBehavior
+      filterTarget: ConditionCaster("judged") = caster or Next to Another Enemy >=1
+      damageType: holy
+      roll: 2d6
+      titleText: Edict of Disruptive Isolation
+      chatMessage: Edict of Disruptive Isolation
+    domains:
+      CharacterOngoingEffect:a96bbf9c-1735-4392-b6c0-7774cd3dcbbd: true
+    numTargets: "1"
+    guid: bc700626-108e-4be2-9325-2a4188f97067
+    trigger: endturn
+    name: Edict of Disruptive Isolation End of Turn Trigger
+    description: Until the end of the encounter or until you are dying, each target takes holy damage equal to your Presence score at the end of each of your turns. A target takes an extra 2d6 holy damage if they are judged by you or if they are adjacent to any enemy.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: e69c7ee3-78af-4de8-82a7-73fb19cdfe7f
+source: Ongoing Effect
+guid: a96bbf9c-1735-4392-b6c0-7774cd3dcbbd
+id: a96bbf9c-1735-4392-b6c0-7774cd3dcbbd
+ctime: 1746544387368
+domains:
+  CharacterOngoingEffect:a96bbf9c-1735-4392-b6c0-7774cd3dcbbd: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Edict of Disruptive Isolation
+custom: true
+description: Until the end of the encounter or until you are dying, each target takes holy damage equal to your Presence score at the end of each of your turns. A target takes an extra 2d6 holy damage if they are judged by you or if they are adjacent to any enemy.
+mtime: 1756952635020
+iconid: c9defaef-f6ff-40ab-a0f0-cb747ed52e51

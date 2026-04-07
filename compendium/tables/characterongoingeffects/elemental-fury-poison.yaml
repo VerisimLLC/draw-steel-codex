@@ -1,0 +1,54 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 8f6cd887-21eb-4f0d-9f8d-22c2d75e52a6
+    repeatTargets: false
+    trigger: losehitpoints
+    conditionFormula: HasAttacker
+    targetType: attacker
+    persistence: []
+    name: Elemental Fury - Poison
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "10"
+      damageType: poison
+      chatMessage: Elemental Fury Damage
+    - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+      applyto: subject
+      filterTarget: Cast.Damage Dealt >= Cast.Primary Target.Stamina
+      stamina: "10"
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: Until the end of the encounter or until you are dying, whenever an enemy damages you, they take 10 damage of the chosen type. If this damage reduces the enemy to 0 Stamina, you gain 10 temporary Stamina
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 6032484b-d52e-4c00-98c4-68c8de2b2746
+  name: Elemental Fury - Acid
+  sourceguid: fb0fd79f-c24a-494a-8ada-fcc3940343cc
+source: Ongoing Effect
+guid: dcde6554-5356-4dc7-98f3-9d772b85c466
+id: dcde6554-5356-4dc7-98f3-9d772b85c466
+ctime: 1770350211299
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Elemental Fury - Poison
+description: Until the end of the encounter or until you are dying, whenever an enemy damages you, they take 10 damage of the chosen type. If this damage reduces the enemy to 0 Stamina, you gain 10 temporary Stamina
+custom: true
+mtime: 1770350252702
+iconid: ui-icons/skills/1.png

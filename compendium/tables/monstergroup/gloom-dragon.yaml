@@ -1,0 +1,105 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 4447dd86-500f-4e1d-8c1a-9e70a3b80992
+  repeatTargets: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  abilityType: none
+  behaviors: []
+  targetType: self
+  name: Dread and Terror
+  numTargets: "1"
+  description: The dragon thickens the fog of their Gloaming Wyrmscale Aura trait and the horrors within it. Each creature in the area takes a bane on strikes made against the dragon until the start of the dragon’s next turn.
+  range: 1
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  persistence: []
+  modifiers: []
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  strain: []
+  guid: 91d3f43b-a0b0-4766-8e92-90183a72483a
+  repeatTargets: false
+  range: "100"
+  name: Doleful Visions
+  targetType: cube
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: inu
+    roll: 2d10 + Intuition
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 14 damage; dazed (save ends)
+    - 11 damage; dazed (EoT)
+    - 6 damage
+  radius: "2"
+  numTargets: "1"
+  description: The dragon manifests four 2 cubes of nightmarish apparitions anywhere on the encounter map. Each creature in the area when it appears makes an Intuition test.
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: e311a0bf-1e0f-4c57-b564-19929a2e8c95
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: d50e6784-3812-4cf8-a14a-fab3e7adad14
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  targetType: self
+  name: Solo Action
+  range: 1
+  description: The dragon takes an additional main action on their turn. They can use this feature even if they are dazed.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "7"
+  strain: []
+  guid: 23d81957-c0fe-4d17-81a0-07d3cc97ea32
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Phantasmagoria!
+  range: 1
+  description: |-
+    The dragon summons macabre, disquieting phantasms in a 10 cube within 1 square that lasts until the end of the encounter. Any enemy who enters the area for the first time in a round or starts their turn there takes 6 psychic damage, or 8 psychic damage if they are dragonsealed by the gloom dragon. Additionally, the
+    enemy’s Intuition score is treated as 1 lower for the purpose of resisting potencies until the end of the encounter.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+mtime: 1762947567362
+name: Gloom Dragon
+traits: []
+attacks: []
+id: c8ac88e1-3d1e-4bb7-8218-acbc05329b2e
+ctime: 1762942801743

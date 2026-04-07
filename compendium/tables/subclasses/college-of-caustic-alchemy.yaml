@@ -1,0 +1,1727 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727069422991
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 0b391400-89e9-4c1d-aa96-3f74a79d9388
+        behavior: resistance
+        source: College of Caustic Alchemy Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          keywords:
+            Area: true
+          dr: Agility
+          damageType: all
+          apply: Damage Reduction
+        guid: a75ef45d-1a27-4ca6-a656-4ca274af9604
+        name: Time Bomb
+        description: ""
+      - __typeName: CharacterModifier
+        sourceguid: 0b391400-89e9-4c1d-aa96-3f74a79d9388
+        source: College of Caustic Alchemy Class Feature
+        behavior: activated
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Time Bomb
+        resourceRefreshType: round
+        description: ""
+        guid: 224ae4f2-06cf-4fec-92b8-863acbd360b4
+        activatedAbility:
+          __typeName: ActivatedAbility
+          channelIncrement: 2
+          guid: cb58ba48-4060-468f-8b8a-ab4638e6a932
+          objectTarget: false
+          channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          targetAllegiance: enemy
+          targetTextOverride: Each enemy in the area
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Area: true
+          implementationDetails: "The number of stacks of \"Time Bomb Ticking\" is always 1 greater than the number of rounds that have passed. This is accounted for in the ability implementation.\v\vSurges are added to the character and then removed so as to trigger any relevant \"when you gain a surge\" triggers, however the surges themselves are not actually used to increase the damage in the implementation. Instead, the player is prompted to (duplicate) target a number of enemies equal to the gained surges and this deals extra damage to those enemies equal to the number of times they were selected * the player's highest characteristic"
+          targetType: cube
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: The longer it cooks, the bigger the boom.
+          sourceReference:
+            __typeName: SourceReference
+            page: 170
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "10"
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 224ae4f2-06cf-4fec-92b8-863acbd360b4
+            multicharge: false
+          rangeTextOverride: 2 cube within 10
+          persistence: []
+          modifiers: []
+          numTargets: "1"
+          strain: []
+          modeList:
+          - text: Acid damage
+            condition: ""
+          - text: Fire damage
+          - text: Poison damage
+          name: Time Bomb
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: Charges + max(0,Self.Stacks("Time Bomb Ticking") - 1)
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 9633866a-ebaa-4003-a779-5b0f351abac6
+            duration: 0
+            ongoingEffectCustom: 9633866a-ebaa-4003-a779-5b0f351abac6
+          - __typeName: ActivatedAbilityDelayBehavior
+            delay: "0.1"
+          - __typeName: ActivatedAbilityRememberBehavior
+            calculation: Charges + max(0,Self.Stacks("Time Bomb Ticking") - 1)
+            memoryName: surgestospend
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Ongoing Effects has "Targeted by Time Bomb"
+              repeatTargets: true
+              targetAllegiance: enemy
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: 9633866a-ebaa-4003-a779-5b0f351abac6
+                duration: 0
+                ongoingEffectCustom: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: "100"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 071f15e5-5afc-4661-b644-815637822d2b
+              numTargets: "<<surges>>"
+              name: Invoked Ability
+              targetType: target
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Spend surges on targets
+            applyto: caster
+            standardAbilityParams:
+              surges: "<<Charges + max(0,Self.Stacks(\"Time Bomb Ticking\") - 1)>>"
+            filterTarget: ""
+          - __typeName: ActivatedAbilityDamageBehavior
+            separateRolls: true
+            damageType: acid
+            roll: Agility + (min(Target.Stacks("Targeted by Time Bomb")-1,3) * Highest Characteristic)
+            modesSelected:
+            - 1
+            chatMessage: Time Bomb
+          - __typeName: ActivatedAbilityDamageBehavior
+            separateRolls: true
+            damageType: fire
+            roll: Agility + (min(Target.Stacks("Targeted by Time Bomb")-1,3) * Highest Characteristic)
+            modesSelected:
+            - 2
+            chatMessage: Time Bomb
+          - __typeName: ActivatedAbilityDamageBehavior
+            separateRolls: true
+            damageType: poison
+            roll: Agility + (min(Target.Stacks("Targeted by Time Bomb")-1,3) * Highest Characteristic)
+            modesSelected:
+            - 3
+            chatMessage: Time Bomb
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: Charges + max(0,Self.Stacks("Time Bomb Ticking") - 1)
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 9633866a-ebaa-4003-a779-5b0f351abac6
+            filterTarget: ""
+            conditions: []
+            mode: effect
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c
+            mode: effect
+            conditions: []
+            applyto: caster
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: 58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c
+            ongoingEffectCustom: 58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          implementation: 4
+          channelDescription: For every 2 insight spent, you increase the cube’s size by 1 and gain 1 surge that can be used only with this ability.
+          radius: 2 + Charges + max(0,Self.Stacks("Time Bomb Ticking") - 1)
+          actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+          description: |-
+            Each target takes acid, fire, or poison damage (your choice) equal to your Agility score.
+
+            For each combat round that has passed since this ability was last used in the current encounter, the area increases by 1 and you gain 1 surge that must be used with this ability. After using the ability or at the end of the encounter, its area and surges are reset.
+            **Spend 2+ Insight:** For every 2 insight spent, you increase the cube’s size by 1 and gain 1 surge that can be used only with this ability.
+          abilityType: none
+          iconid: d55a0ed1-c2c8-4a7c-8f24-8db4136ae90c
+      source: College of Caustic Alchemy Class Feature
+      guid: 0b391400-89e9-4c1d-aa96-3f74a79d9388
+      domains:
+        class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      description: ""
+      name: Time Bomb
+      implementation: 4
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 15ecc80a-e038-4ed1-96ae-9742eb0a9867
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0781f815-21f2-4683-ac62-696759f02c74
+        source: College of Caustic Alchemy Class Feature
+        behavior: proficiency
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        guid: 03879eaa-ac40-4066-adb1-e246bad8b8b7
+        equate: false
+        name: Caustic Alchemy Skill
+        proficiency: proficient
+        description: ""
+        subtype: skill
+        skills:
+          cdae52cd-ef20-461d-ae18-253023cdb827: true
+      name: Caustic Alchemy Skill
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      description: ""
+      source: College of Caustic Alchemy Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 88f82f18-4cc1-4e61-a3d8-a521634c949e
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 7b375607-674b-45a0-ae94-b390349a639a
+        description: Just a little poison goes a long way.
+        source: College of Caustic Alchemy Class Feature
+        name: Coat the Blade
+        behavior: activated
+        guid: 9ca7cbe1-47db-4e4e-8516-78beca32e02e
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: ""
+          categorization: Ability
+          targetFilter: ""
+          sourcePage: 142
+          repeatTargets: false
+          abilityType: none
+          numTargets: "1"
+          targetType: self
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.36578169465065
+              s: 0.896825432777405
+              v: 0.494117647409439
+              a: 1
+          flavor: Just a little poison goes a long way.
+          sourceDocument: 521cfbed-9528-4099-9618-3cab64d7f633
+          range: 1
+          iconid: 013d7c5e-381c-4675-a849-13debafd9f21
+          sourceReference:
+            __typeName: SourceReference
+            page: 177
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          persistence: []
+          modifiers: []
+          modeList:
+          - text: Extra Damage
+          - text: Weakens
+          strain: []
+          guid: f9e3dde0-5efb-4e1b-8535-25e09b0ba4d5
+          maxChannel: ""
+          description: "You gain two surges. Whenever you use a surge before the end of the encounter, you can choose to have its damage be poison damage.\n\nSpend 1+ Insight: For each insight you spend, you gain an additional surge. "
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: 2 + Charges
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 3276c468-deb3-4cb2-aabc-6f8ac7b7b609
+            duration: eoe
+            ongoingEffectCustom: 3276c468-deb3-4cb2-aabc-6f8ac7b7b609
+          channelDescription: +1 Surge per Insight Spent
+          name: Coat the Blade
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          resourceCost: none
+          implementation: 3
+      name: Coat the Blade
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      description: Just a little poison goes a long way.
+      source: College of Caustic Alchemy Class Feature
+      implementation: 3
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: e26f4d46-c083-4baa-8780-25addc7679eb
+        description: |-
+          Whenever you take damage, each enemy adjacent to you takes fire, acid, or poison damage (your choice) equal to your Agility score.
+
+          Additionally, your Defensive Roll ability now allows you to shift up to 5 squares, including shifting vertically. If you don’t end this shift on solid ground and are not flying, you fall.
+        source: College of Caustic Alchemy Class Feature
+        name: Volatile Reagents
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: enemy
+          targetType: all
+          triggerPrompt: Whenever you take damage, each enemy adjacent to you takes fire, acid, or poison damage (your choice) equal to your Agility score.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          modeList:
+          - text: Fire
+          - text: Acid
+          - text: Poison
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            modesSelected:
+            - 1
+            roll: Agility
+            damageType: fire
+            chatMessage: Volatile Reagents damage
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: Agility
+            damageType: acid
+            guid: f4f19717-e01c-475e-a392-92b32fa2f150
+            modesSelected:
+            - 2
+            chatMessage: Volatile Reagents damage
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: Agility
+            damageType: poison
+            guid: 1c6fcefd-f568-45f1-9fe1-26349689cc20
+            modesSelected:
+            - 3
+            chatMessage: Volatile Reagents damage
+          multipleModes: true
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          guid: 6607c179-78c5-4d8c-90d9-45cd0038114d
+          persistence: []
+          trigger: losehitpoints
+          name: Volatile Reagents
+          description: Whenever you take damage, each enemy adjacent to you takes fire, acid, or poison damage (your choice) equal to your Agility score.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: e2470af9-bdaf-44da-9bb3-03c92573bec3
+      source: College of Caustic Alchemy Class Feature
+      guid: e26f4d46-c083-4baa-8780-25addc7679eb
+      domains:
+        class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      description: |-
+        Whenever you take damage, each enemy adjacent to you takes fire, acid, or poison damage (your choice) equal to your Agility score.
+
+        Additionally, your Defensive Roll ability now allows you to shift up to 5 squares, including shifting vertically. If you don’t end this shift on solid ground and are not flying, you fall.
+      name: Volatile Reagents
+      implementation: 3
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 6th Level Caustic Alchemy Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 4a66dad0-fa36-4bc6-8faf-b49f762fa3c8
+          description: |-
+            You ready, hand, or lob a potion to each target, who can immediately quaff the potion (no action required). If they don’t drink the potion right away, they must use the Use Consumable maneuver to consume it later. The potion loses its potency at the end of the encounter.
+            A creature who drinks the potion can spend up to 2 Recoveries, and has acid immunity, fire immunity, or poison immunity (their choice) equal to your level until the end of the encounter.
+          source: College of Caustic Alchemy Class Feature
+          name: 'One Vial Makes You Better '
+          behavior: activated
+          guid: dbbf32a9-08c1-4d92-8fa5-6ac809a0a72c
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            repeatTargets: false
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 29a0922f-a6b8-4993-b7e4-a45d469289d0
+                  modesSelected:
+                  - 2
+                  duration: eoe
+                  ongoingEffectCustom: 29a0922f-a6b8-4993-b7e4-a45d469289d0
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: ac9898e2-0578-4157-9c1b-5ae15ab6cbd5
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  modesSelected:
+                  - 1
+                  abilityType: standard
+                  standardAbilityParams:
+                    numrecoveries: "2"
+                  standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    repeatTargets: false
+                    behaviors:
+                    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                      ongoingEffect: 8624b5ad-68ae-41ab-ad80-5441c5d13365
+                      modesSelected:
+                      - 1
+                      duration: eoe
+                      ongoingEffectCustom: 8624b5ad-68ae-41ab-ad80-5441c5d13365
+                    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                      ongoingEffect: a8a9463c-e3ca-4efd-9239-72d6d028ab79
+                      modesSelected:
+                      - 2
+                      duration: eoe
+                      ongoingEffectCustom: a8a9463c-e3ca-4efd-9239-72d6d028ab79
+                    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                      ongoingEffect: 410766ff-04aa-4cec-9d0c-e22c1e7e8afd
+                      modesSelected:
+                      - 3
+                      duration: eoe
+                      ongoingEffectCustom: 410766ff-04aa-4cec-9d0c-e22c1e7e8afd
+                    multipleModes: true
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    categorization: Hidden
+                    range: 1
+                    persistence: []
+                    modifiers: []
+                    strain: []
+                    modeList:
+                    - text: Acid
+                    - text: Fire
+                    - text: 'Posion '
+                    numTargets: "1"
+                    guid: 0dd63f7b-9723-49dd-953a-998f28adc266
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  modesSelected:
+                  - 1
+                  promptText: Select Acid, Fire, or Poison immunity
+                multipleModes: true
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                modeList:
+                - text: Drink potion
+                - text: Store potion
+                numTargets: "1"
+                guid: 11989e4d-8fd1-4148-81cd-beae1f460fce
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Drink potion or store
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A well-timed throw of a potion will keep your allies in the fight
+            categorization: Heroic Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 763aacb9-6083-4573-98ee-d557ccc45bce
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            numTargets: "3"
+            domains:
+              class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            implementation: 3
+            targetType: target
+            name: 'One Vial Makes You Better '
+            sourceReference:
+              __typeName: SourceReference
+              page: 169
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            description: |-
+              You ready, hand, or lob a potion to each target, who can immediately quaff the potion (no action required). If they don’t drink the potion right away, they must use the Use Consumable maneuver to consume it later. The potion loses its potency at the end of the encounter.
+              A creature who drinks the potion can spend up to 2 Recoveries, and has acid immunity, fire immunity, or poison immunity (their choice) equal to your level until the end of the encounter.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of Caustic Alchemy Class Feature
+        guid: 4a66dad0-fa36-4bc6-8faf-b49f762fa3c8
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+        description: |-
+          You ready, hand, or lob a potion to each target, who can immediately quaff the potion (no action required). If they don’t drink the potion right away, they must use the Use Consumable maneuver to consume it later. The potion loses its potency at the end of the encounter.
+          A creature who drinks the potion can spend up to 2 Recoveries, and has acid immunity, fire immunity, or poison immunity (their choice) equal to your level until the end of the encounter.
+        name: 'One Vial Makes You Better '
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 447bdb79-50ec-418c-9b87-fa209edc9bf3
+          description: |-
+            You ready, hand, or lob a potion to each target, who can immediately quaff the potion (no action required). If they don’t drink the potion right away, they must use the Use Consumable maneuver to consume it later. The potion loses its potency at the end of the encounter.
+            A creature who drinks the potion receives benefits based on your power roll.
+          source: College of Caustic Alchemy Class Feature
+          name: One Vial Makes You Faster
+          behavior: activated
+          guid: 5c019913-f295-4db5-bd69-55d414747246
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Three creatures
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - |-
+                The creature’s speed is increased by 2 until the end of the
+                encounter.
+              - The creature can fly until the end of the encounter
+              - The creature turns invisible until the end of their next turn
+              filterTarget: ""
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  filterTarget: "<<tierresult>> = 1"
+                  duration: eoe
+                  ongoingEffectCustom: fe059fa6-9128-4daa-b6fb-3f631e2ffdf6
+                  ongoingEffect: fe059fa6-9128-4daa-b6fb-3f631e2ffdf6
+                  modesSelected:
+                  - 1
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  filterTarget: "<<tierresult>> = 2"
+                  duration: eoe
+                  ongoingEffectCustom: b0a98def-f854-4ee2-9a46-2cc3d7c07aea
+                  ongoingEffect: b0a98def-f854-4ee2-9a46-2cc3d7c07aea
+                  modesSelected:
+                  - 1
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  filterTarget: "<<tierresult>> = 3"
+                  modesSelected:
+                  - 1
+                  ongoingEffectCustom: 87135433-7deb-4a7f-87f0-40ed39ba264b
+                  ongoingEffect: 87135433-7deb-4a7f-87f0-40ed39ba264b
+                  duration: 1
+                  durationUntilEndOfTurn: true
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  duration: eoe
+                  ongoingEffectCustom: d7298225-176d-4b38-8705-5876b003e467
+                  ongoingEffect: d7298225-176d-4b38-8705-5876b003e467
+                  stacks: "<<tierresult>>"
+                  modesSelected:
+                  - 2
+                multipleModes: true
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                modeList:
+                - text: Drink
+                - text: Store
+                numTargets: "1"
+                guid: 96ddab4c-67b0-4203-b147-036c6a95e0d6
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: ""
+              standardAbilityParams:
+                tierresult: "<<Cast.tier>>"
+              promptText: Drink or Store potion
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Each ally who catches a potion you throw can take the battle to the next level.
+            categorization: Heroic Ability
+            range: "10"
+            abilityType: none
+            targetType: target
+            persistence: []
+            modifiers: []
+            rangeTextOverride: Ranged 10
+            strain: []
+            guid: 3cfef4e9-0f6e-4d08-aa47-1bc8af4988b4
+            numTargets: "3"
+            sourceReference:
+              __typeName: SourceReference
+              page: 169
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            preDescription: |-
+              You ready, hand, or lob a potion to each target, who can immediately quaff the potion (no action required). If they don’t drink the potion right away, they must use the Use Consumable maneuver to consume it later. The potion loses its potency at the end of the encounter.
+              A creature who drinks the potion receives benefits based on your power roll.
+            implementation: 3
+            name: One Vial Makes You Faster
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of Caustic Alchemy Class Feature
+        guid: 447bdb79-50ec-418c-9b87-fa209edc9bf3
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+        description: |-
+          You ready, hand, or lob a potion to each target, who can immediately quaff the potion (no action required). If they don’t drink the potion right away, they must use the Use Consumable maneuver to consume it later. The potion loses its potency at the end of the encounter.
+          A creature who drinks the potion receives benefits based on your power roll.
+        name: One Vial Makes You Faster
+        implementation: 3
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      guid: ee479309-dc83-4fc9-b2b2-d35905c47121
+      source: College of Caustic Alchemy Class Feature
+      description: Your specialization grants your choice of one of two abilities.
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 197959a5-5e95-42d0-a495-2bfcc7e8f443
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 1eefd84d-6071-4e92-9f09-7e78a4a980a0
+        description: You always carry a supply of smoke bombs to use for distractions and easy getaways. You can use the Hide maneuver even if you are observed and don’t initially have cover or concealment. When you do so, you can shift a number of squares equal to your Agility score. If you end this movement with cover or concealment, you are automatically hidden.
+        source: College of Caustic Alchemy Class Feature
+        name: Smoke Bomb
+        behavior: activated
+        guid: bed7b5bd-e400-4774-94bf-64ea4c3c8107
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: ""
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 9f6ec31e-eb39-4ec3-b033-12062c573a74
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            abilityType: standard
+            standardAbilityParams:
+              distance: Agility
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 91a8aedf-a4f0-4c49-89b6-abe9ec45e97a
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 1
+            promptText: If you end this movement with cover or concealment, you are automatically hidden.
+            autoTarget: false
+            abilityType: standard
+            standardAbility: 003a1b5e-0b14-4c99-b948-0f0fc715bbf2
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 177
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList:
+          - text: End In Cover Or Concealment
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          numTargets: "1"
+          castImmediately: true
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          guid: 1002ee9a-cb83-47ac-b77d-d60afb6bc975
+          name: Smoke Bomb
+          targetType: self
+          description: You always carry a supply of smoke bombs to use for distractions and easy getaways. You can use the Hide maneuver even if you are observed and don’t initially have cover or concealment. When you do so, you can shift a number of squares equal to your Agility score. If you end this movement with cover or concealment, you are automatically hidden.
+          abilityType: none
+          iconid: 6332dd83-831a-4a85-b27a-1abef26c8cdc
+      name: Smoke Bomb
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      description: You always carry a supply of smoke bombs to use for distractions and easy getaways. You can use the Hide maneuver even if you are observed and don’t initially have cover or concealment. When you do so, you can shift a number of squares equal to your Agility score. If you end this movement with cover or concealment, you are automatically hidden.
+      source: College of Caustic Alchemy Class Feature
+      implementation: 3
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 4f427497-7917-4340-b74d-0629d37240c0
+      modifiers:
+      - __typeName: CharacterModifier
+        displayCondition: "1"
+        resourceCostType: none
+        modtype: none
+        keywords:
+          Strike: true
+        rollRequirement: nobane
+        rollType: ability_power_roll
+        damageModifier: ""
+        sourceguid: 4f427497-7917-4340-b74d-0629d37240c0
+        source: College of Caustic Alchemy Class Feature
+        guid: c1d56068-bcc7-480f-a471-69e0bc2d7588
+        activationCondition: resources.surges > 0
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        customTrigger:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 19c84c88-bacf-42a4-9b6c-1b5b1e3b0566
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          targetType: self
+          behaviors: []
+          name: New Ability
+          trigger: d20roll
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: You know just where to cut your enemies. Whenever you make a strike that has no bane or double bane, and that incorporates 1 or more surges, you gain 1 additional surge that you can use only on that strike.
+        name: 'Trained Assassin '
+        surges: "1"
+        addText: ""
+        hasCustomTrigger: false
+        behavior: power
+      name: 'Trained Assassin '
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      description: You know just where to cut your enemies. Whenever you make a strike that has no bane or double bane, and that incorporates 1 or more surges, you gain 1 additional surge that you can use only on that strike.
+      source: College of Caustic Alchemy Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 97afc701-ecfa-4382-96e7-c1c981b3df59
+          description: You attach a small bomb to a creature. If you are hidden from the creature, they don’t notice it. If they notice the bomb, the creature can remove it as an action. At the end of your next turn, the bomb detonates. You can detonate it earlier as no action. When it detonates, make one power roll targeting each enemy within 3 squares of the bomb.
+          source: College of Caustic Alchemy Class Feature
+          name: Sticky Bomb
+          behavior: activated
+          guid: 5103d187-2ab8-4ee0-89df-058b0bd8b602
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              applyto: none
+              filterTarget: 0 {Informational for Ability Tooltip}
+              roll: 2d10 + Agility
+              tiers:
+              - 4 + A fire damage
+              - 7 + A fire damage
+              - 11 + A fire damage
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              durationUntilEndOfTurn: false
+              duration: 1
+              ongoingEffectCustom: false
+              ongoingEffect: 5af9e6bb-40af-4796-a51b-87796d37ab8d
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              durationUntilEndOfTurn: true
+              duration: 1
+              ongoingEffectCustom: 9988166e-a54b-4b26-b92d-d6faff5a4c6b
+              ongoingEffect: 9988166e-a54b-4b26-b92d-d6faff5a4c6b
+              stacks: "2"
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              filterTarget: Caster.Conditions has not "hidden"
+              duration: 1
+              ongoingEffectCustom: deca6887-7c81-437a-a649-0c533e54b2ed
+              ongoingEffect: deca6887-7c81-437a-a649-0c533e54b2ed
+              durationUntilEndOfTurn: true
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Explosives are best when they’re attached to an enemy.
+            sourceReference:
+              __typeName: SourceReference
+              page: 180
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "10"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            categorization: Heroic Ability
+            strain: []
+            guid: a3631419-53f3-44e6-bd4a-925d3d6e8b48
+            iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            domains:
+              class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            properties:
+              remainhidden: true
+            name: Sticky Bomb
+            targetType: target
+            description: You attach a small bomb to a creature. If you are hidden from the creature, they don’t notice the bomb and you remain hidden.The creature otherwise notices the bomb and can disarm and removeit as a main action. If they don’t, at the end of your next turn, the bomb detonates. When the bomb detonates, you make a power roll targeting each enemy within 2 squares of it.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        source: College of Caustic Alchemy Class Feature
+        guid: 97afc701-ecfa-4382-96e7-c1c981b3df59
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+        description: You attach a small bomb to a creature. If you are hidden from the creature, they don’t notice it. If they notice the bomb, the creature can remove it as an action. At the end of your next turn, the bomb detonates. You can detonate it earlier as no action. When it detonates, make one power roll targeting each enemy within 3 squares of the bomb.
+        name: Sticky Bomb
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: aa127e7b-3947-499e-b5c5-dfbab9087e0c
+          description: Yellow, disgusting gas explodes from a bomb you toss.
+          source: College of Caustic Alchemy Class Feature
+          name: Stink Bomb
+          behavior: activated
+          guid: 3041747a-ef57-4f82-b99c-f1f0ae6edabb
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            targetTextOverride: Each creature in the area
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Area: true
+            targetType: cube
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Putrid yellow gas explodes from a bomb you toss.
+            sourceReference:
+              __typeName: SourceReference
+              page: 180
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 83e98abf-75f2-441e-963b-b8fb36d76bf7
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 poison damage
+              - 5 poison damage
+              - 7 poison damage
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityAuraBehavior
+              duration: none
+              aura:
+                __typeName: Aura
+                applyto: all
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                creatureFilter: Might < caster.average
+                name: Stink Bomb
+                triggers: []
+                guid: f7652110-490f-4863-a424-f1f6c3f17c77
+                modifiers:
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    persistence: []
+                    modifiers: []
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    strain: []
+                    guid: ce7f70dc-2b7f-4bcf-9e65-bb0974272446
+                    repeatTargets: false
+                    abilityType: none
+                    trigger: beginturn
+                    targetType: self
+                    numTargets: "1"
+                    name: Stink Bomb
+                    behaviors:
+                    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                      rule: Weakened (save ends)
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                  description: ""
+                  source: Aura
+                  behavior: trigger
+                  guid: 380d5b7c-6ef4-4002-bced-3d7a91b25a7f
+                  name: Stink Bomb
+                  sourceguid: f7652110-490f-4863-a424-f1f6c3f17c77
+                objectid: 201f81ca-3c31-4153-b19e-8a3c4d050824
+            numTargets: "1"
+            domains:
+              class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            categorization: Heroic Ability
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Stink Bomb
+            radius: 3
+            description: The gas remains in the area until the end of the encounter. A creature who starts their turn in the area and has M < Average is weakened (save ends).
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of Caustic Alchemy Class Feature
+        guid: aa127e7b-3947-499e-b5c5-dfbab9087e0c
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+        description: Yellow, disgusting gas explodes from a bomb you toss.
+        name: Stink Bomb
+        implementation: 3
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      guid: 65839bec-3c4e-4b40-a21f-0c4d6d96afba
+      description: Your specialization grants your choice of one of two abilities.
+      name: 2nd-Level Caustic Alchemy Abilities
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 13d4cac6-ab37-4cb5-a8b8-a5dd164fdafd
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a167aef5-c855-4f6a-a6d3-46f54ecb7a2b
+        source: College of Caustic Alchemy Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          damageTypeMappings: []
+          guid: 24b76766-d89f-4524-8766-1756e122165c
+          modtype: none
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 4435f1b0-a176-4910-8da4-cd34363379bb
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: Shift
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              runOnController: true
+              promptText: Shift up to 2 squares
+              guid: 4a5878ea-0bf3-4756-b6b0-46a0f9c2198b
+              filterTarget: Level < 5
+              abilityType: standard
+              autoTarget: false
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              standardAbilityParams:
+                distance: "2"
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 47fe8a08-85e2-4889-aa98-8567799d18e7
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              abilityType: standard
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 47fe8a08-85e2-4889-aa98-8567799d18e7
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                distance: "5"
+              promptText: Shift up to 5 squares
+              filterTarget: Level >= 5
+              guid: 5d113102-6f4b-449f-9933-1cc0e0d99267
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              runOnController: true
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 8677f438-a899-405a-8bc5-28b2ea0864d4
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: If you end this shift with concealment or cover, you can use the Hide maneuver even if you are observed.
+              autoTarget: false
+              abilityType: standard
+              standardAbility: 003a1b5e-0b14-4c99-b948-0f0fc715bbf2
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          rollType: ability_power_roll
+          rules: ""
+          activationCondition: false
+          behavior: power
+          name: Defensive Roll
+        guid: db92c09d-dfd0-4a88-925a-a3e03318412b
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        targetType: self
+        trigger: takedamage
+        name: Defensive Roll
+        rules: You take Half damage and shift {Agility}. If you have concealment or cover you can hide even if observed.
+        description: ""
+        range: 10
+        additionalCostModifiers:
+        - __typeName: CharacterModifier
+          rollType: ability_power_roll
+          source: Trigger
+          behavior: power
+          guid: bbb74b0b-af26-437f-a99a-ea91e427ddc8
+          modtype: none
+          keywords: []
+          hasCustomTrigger: false
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 0fc84bd9-5dc6-44ea-b5a1-013b5ae0c29d
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: Shift
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 018e42f4-1cf8-4f8a-867f-1523e49c047b
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              standardAbility: 003a1b5e-0b14-4c99-b948-0f0fc715bbf2
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          activationCondition: false
+          name: Defensive Roll+
+          rules: ""
+          potencymod: "-1"
+          resourceCostType: cost
+          rulesText: Reduce potency by 1
+      - __typeName: CharacterModifier
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: a167aef5-c855-4f6a-a6d3-46f54ecb7a2b
+        behavior: triggerdisplay
+        source: College of Caustic Alchemy Class Feature
+        name: Defensive Roll
+        description: ""
+        guid: 1a10a6c6-cc7a-45ea-87dc-9757464e71c3
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: |-
+            You halve the damage against the triggering damage, then can shift up to 2 squares after the triggering effect resolves. If you end this shift with concealment or cover, you can use the Hide maneuver even if you are observed.
+            **Spend 1 Insight:** You reduce the potency of any effect associated with the damage for you by 1.
+          name: Defensive Roll
+          trigger: Another creature damages you.
+          flavor: When an enemy attacks, you roll with the impact to reduce the harm.
+          guid: 17d90b69-186a-46fb-8d67-a06ff73d1543
+          distance: Self
+          keywords: []
+      name: Defensive Roll
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      description: ""
+      source: College of Caustic Alchemy Class Feature
+      implementation: 3
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th Level Caustic Alchemy Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: c067eb85-b266-45b0-bab1-268d889b6c51
+          description: ""
+          source: College of Caustic Alchemy Class Feature
+          name: Chain Reaction
+          behavior: activated
+          guid: 62eeead2-8730-4041-9450-a5f7d6d1ddf7
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            repeatTargets: false
+            rangeTextOverride: Ranged 10
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              applyto: targets
+              filterTarget: 0{Just for display purposes}
+              roll: 2d10 + Agility
+              tiers:
+              - 7 damage
+              - 10 damage
+              - 15 damage
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 57d2432e-5d34-4bf6-a462-fc419043bff6
+              duration: 0
+              ongoingEffectCustom: false
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              autoTarget: false
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                targetFilter: not Ongoing Effects has "Chain Reaction target"
+                repeatTargets: false
+                targetAllegiance: ally
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 57d2432e-5d34-4bf6-a462-fc419043bff6
+                  filterTarget: ""
+                  duration: 0
+                  ongoingEffectCustom: 57d2432e-5d34-4bf6-a462-fc419043bff6
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  autoTarget: false
+                  guid: a803b922-73ca-463b-9495-a6b7b8d0e235
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    objectTarget: false
+                    targetFilter: not Ongoing Effects has "Chain Reaction target"
+                    repeatTargets: false
+                    targetAllegiance: ally
+                    behaviors:
+                    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                      ongoingEffect: 57d2432e-5d34-4bf6-a462-fc419043bff6
+                      filterTarget: not Target.Ongoing Effects has "Chain Reaction target"
+                      duration: 0
+                      ongoingEffectCustom: 57d2432e-5d34-4bf6-a462-fc419043bff6
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    categorization: Hidden
+                    range: "3"
+                    persistence: []
+                    modifiers: []
+                    strain: []
+                    guid: 3603daf3-e604-4fcd-a72f-303a7f9977cb
+                    numTargets: "1"
+                    name: Invoked Ability
+                    targetType: all
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  promptText: Confirm Chain Targeting
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "3"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 3603daf3-e604-4fcd-a72f-303a7f9977cb
+                numTargets: "1"
+                name: Invoked Ability
+                targetType: all
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Confirm Chain Targeting
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              modesSelected:
+              - 1
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                targetFilter: ""
+                repeatTargets: false
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: ac149a26-5b51-4dc8-a7de-65bda9a4a3da
+                behaviors:
+                - __typeName: ActivatedAbilityPowerRollBehavior
+                  applyto: targets
+                  filterTarget: ""
+                  modesSelected:
+                  - 1
+                  roll: 2d10 + Agility
+                  tiers:
+                  - 7 acid damage
+                  - 10 acid damage
+                  - 15 acid damage
+                  guid: 0777d908-0d9a-4424-b1bb-b9b0805599b5
+                  target_proximity_range: "3"
+                  promptWhenResolving: false
+                - __typeName: ActivatedAbilityPurgeEffectsBehavior
+                  ongoingEffect: 57d2432e-5d34-4bf6-a462-fc419043bff6
+                  mode: effect
+                  conditions: []
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              targetingFormula: Target.Ongoing Effects has "Chain Reaction target"
+              targeting: formula
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                targetFilter: Ongoing Effects has "Tester"
+                strain: []
+                guid: ac149a26-5b51-4dc8-a7de-65bda9a4a3da
+                repeatTargets: false
+                abilityType: none
+                categorization: Hidden
+                behaviors:
+                - __typeName: ActivatedAbilityPowerRollBehavior
+                  applyto: targets
+                  filterTarget: ""
+                  modesSelected:
+                  - 2
+                  roll: 2d10 + Agility
+                  tiers:
+                  - 7 fire damage
+                  - 10 fire damage
+                  - 15 fire damage
+                  guid: f7dd8bfa-ebb7-4de5-ad4b-99c2d801e26c
+                  target_proximity_range: "3"
+                  promptWhenResolving: false
+                - __typeName: ActivatedAbilityPurgeEffectsBehavior
+                  ongoingEffect: 57d2432e-5d34-4bf6-a462-fc419043bff6
+                  mode: effect
+                  guid: 686eead6-fcfe-4ccb-ada4-a0681b0dcca6
+                  conditions: []
+                targetType: map
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              modesSelected:
+              - 2
+              guid: 791a0734-bb09-4e27-9097-26c794a42b1b
+              targetingFormula: Target.Ongoing Effects has "Chain Reaction target"
+              targeting: formula
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                targetFilter: Ongoing Effects has "Tester"
+                strain: []
+                guid: ac149a26-5b51-4dc8-a7de-65bda9a4a3da
+                repeatTargets: false
+                abilityType: none
+                categorization: Hidden
+                behaviors:
+                - __typeName: ActivatedAbilityPowerRollBehavior
+                  applyto: targets
+                  filterTarget: ""
+                  modesSelected:
+                  - 3
+                  roll: 2d10 + Agility
+                  tiers:
+                  - 7 poison damage
+                  - 10 poison damage
+                  - 15 poison damage
+                  guid: 62922de7-67b3-45d8-897a-49b57d5a8cec
+                  target_proximity_range: "3"
+                  promptWhenResolving: false
+                - __typeName: ActivatedAbilityPurgeEffectsBehavior
+                  ongoingEffect: 57d2432e-5d34-4bf6-a462-fc419043bff6
+                  mode: effect
+                  guid: 8772dd2a-cca8-4801-9f1b-e0f64fe798b7
+                  conditions: []
+                targetType: map
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              modesSelected:
+              - 3
+              guid: 0cfcec5c-1dcb-40bd-a413-c843a450c7dc
+              targetingFormula: Target.Ongoing Effects has "Chain Reaction target"
+              targeting: formula
+            multipleModes: true
+            categorization: Heroic Ability
+            preDescription: Each enemy within 3 squares of the target who is not currently targeted by this ability also becomes targeted by this ability. This effect continues until there are no more available targets. The ability deals acid, fire, or poison damage (your choice).
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modeList:
+            - text: Acid damage
+            - text: Fire damage
+            - text: Poison damage
+            proximityTargeting: true
+            description: ""
+            implementation: 3
+            objectTarget: true
+            targetTextOverride: One creature or object
+            proximityChain: true
+            implementationDetails: ""
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 0
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: One explosion, an offense. Three explosions, an assault. Nine explosions, a celebration
+            sourceReference:
+              __typeName: SourceReference
+              page: 172
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            numTargets: "1"
+            modifiers: []
+            strain:
+              enabled: false
+            guid: 272d00a0-fd91-4966-b75c-f932469cb4de
+            iconid: 4af2392d-cb5c-4afa-a2ae-2db77e79e582
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            domains:
+              class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            selfTarget: false
+            keywords:
+              Ranged: true
+            name: Chain Reaction
+            proximityRange: "3"
+            range: "10"
+            abilityType: none
+            persistence: []
+        source: College of Caustic Alchemy Class Feature
+        guid: c067eb85-b266-45b0-bab1-268d889b6c51
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+        description: ""
+        name: Chain Reaction
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 3af56fa5-83fb-44cc-9eda-0318225c927f
+          description: ""
+          source: College of Caustic Alchemy Class Feature
+          name: To the Stars
+          behavior: activated
+          guid: dfca8145-93b1-44b5-b3a7-f3e225981bdc
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: true
+            targetTextOverride: One creature or object
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Melee: true
+              Strike: true
+            behaviors:
+            - __typeName: ActivatedAbilityCreateObjectBehavior
+              objectid: 1a3a3b20-3493-40a4-a08e-0fc8ab326db5
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - " 4 + A fire damage; vertical push 8"
+              - " 7 + A fire damage; vertical push 10"
+              - 11 + A fire damage; vertical push 15
+              roll: 2d10 + Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: |-
+              You attach your most potent explosive to your foe. Under less pressing 
+              circumstances, you’re sure you could launch them into orbit.
+            categorization: Heroic Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 5afa9e20-0bcd-4d83-b821-4f61234de940
+            rangeTextOverride: Melee 1 or ranged 10
+            numTargets: "1"
+            domains:
+              class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            targetType: target
+            implementation: 4
+            name: To the Stars
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: The ground beneath a 3-cube area around the target’s starting position is difficult terrain.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of Caustic Alchemy Class Feature
+        guid: 3af56fa5-83fb-44cc-9eda-0318225c927f
+        domains:
+          class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+        description: ""
+        name: To the Stars
+        implementation: 4
+      classid: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+      guid: 4ce456e5-f5ec-4a3a-80ca-f4f4d3ea8a3c
+      source: College of Caustic Alchemy Class Feature
+      description: Your specialization grants your choice of one of two abilities.
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:17dda8c6-7d81-42c7-85f8-d66aa25f45d5: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+details: The College of Caustic Alchemy teaches its students recipes for the acids, bombs, and poisons used in their grim work. Graduates of the college are exceptional assassins. You gain the Alchemy skill.
+name: College of Caustic Alchemy
+mtime: 1773139900589
+id: 17dda8c6-7d81-42c7-85f8-d66aa25f45d5
+primaryClassId: a58112e5-6466-4189-b810-5d0d93adc075

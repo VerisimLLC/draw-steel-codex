@@ -1,0 +1,324 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dd9e173e-a2a0-472c-a549-9cfcaab21b75
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.05468756
+      y: -0.01251274
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.85
+    characterName: ""
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: bff58a7c-5be3-491b-a9e8-7e340041696b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    max_hitpoints: 20
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    opportunityAttack: 3
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Demon Remasch	Level 2 Horde Ambusher
+        Abyssal, Demon	EV 4
+        <b>Stamina</b> 20	<b>Weakness</b> Holy 3
+        <b>Speed</b> 5 (teleport)	<b>Size</b> 1S/<b> Stability</b> 0
+        	<b>Free Strike</b> 3
+        Might +0	Agility +2	Reason +0	Intuition +0	Presence +2
+        <b>Abyssal Strike</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	5 damage; the remasch teleports 2 squares
+        %E2%98%85	12%E2%80%9316	6 damage; the remasch teleports 3 squares
+        %E2%9C%B8	17+	8 damage; the remasch teleports 5 squares
+        <b>5 Malice</b> The remasch takes an adjacent creature with them when they teleport. The creature appears in an unoccupied space adjacent to the remasch's destination.
+
+        <b>Grasping Shadow</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The resmach teleports 2 squares and uses Abyssal Strike.
+
+        <b>Lethe</b>
+        While winded, the resmach has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the remasch can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ea7bbb36-1227-4600-8820-87b18cb1d167: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the remasch can't be hidden from them.
+      guid: ea7bbb36-1227-4600-8820-87b18cb1d167
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+        CharacterFeature:09893355-81e5-411b-bf4f-10f6ba389677: true
+        CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+        CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: self.Winded = 1
+        guid: f9c71b0a-7624-4ac8-b33e-1187b5ce7fb6
+        name: Lethe
+        domains:
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:09893355-81e5-411b-bf4f-10f6ba389677: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the remasch has an edge on strikes, and strikes have an edge against them.
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: Target.Winded = 1
+        guid: 9cc74857-5c3d-4036-bb2f-43898c0f2240
+        name: Lethe
+        domains:
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:09893355-81e5-411b-bf4f-10f6ba389677: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the remasch has an edge on strikes, and strikes have an edge against them.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: While winded, the remasch has an edge on strikes, and strikes have an edge against them.
+      guid: 09893355-81e5-411b-bf4f-10f6ba389677
+      name: Lethe
+      implementation: 3
+    role: Horde Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -3
+      damageType: holy
+      apply: Damage Reduction
+    damage_taken: 0
+    monster_type: Demon Remasch
+    resources: []
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    minion: false
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 9dfefbe5-5331-476a-b484-26e4f4372eb9
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; the remasch teleports 2 squares
+        - 6 damage; the remasch teleports 3 squares
+        - 8 damage; the remasch teleports 5 squares
+        roll: 2d10 + 2
+      implementation: 4
+      name: Abyssal Strike
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 0256f04b-9c36-47b3-af9f-8a152e1f8a17
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      castImmediately: true
+      numTargets: "1"
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Grasping Shadow
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 9818cc68-c6eb-44f4-9b53-46cd3c9164ed
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        runOnController: true
+        applyto: caster
+        standardAbilityParams:
+          range: "2"
+        abilityType: standard
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: a08771ac-cbae-4aca-af7f-6c56c5179312
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        runOnController: true
+        applyto: caster
+        namedAbility: Abyssal Strike
+        abilityType: named
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 9b149c49-5d6b-47a7-80e6-f4d6f6376dce
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      description: The resmach teleports 2 squares and uses Abyssal Strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    walkingSpeed: 5
+    movementSpeeds:
+      teleport: 5
+    creatureSize: 1S
+    keywords:
+      Demon: true
+      Abyssal: true
+    notes:
+    - text: Remasches (REE-mash-iz) have physical forms blended with the nature of the wastes where they dwell. A remasch teleports around the battlefield, inflicting chaos on their enemies directly or through the minions they control. These demons are rumored to be the initial source of the teachings of all shadows through the College of Black Ash.
+      title: Monster Notes
+    notesRevision: 1192dbac-e6cb-4882-a3e6-0674b0dd90c7
+  tokenType: null
+  bestiaryId: 37a0a7d7-dfb9-4f75-ad79-4f8fc9b871ef
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Demon Remasch
+parentFolder: 003daf5c-52f0-4ea2-9283-a547f7b2422e
+artist: null
+ord: 6
+ctime: 1741590238787
+mtime: 1775201137032
+hidden: false

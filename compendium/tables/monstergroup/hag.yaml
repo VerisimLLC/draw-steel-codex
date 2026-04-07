@@ -1,0 +1,393 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  objectTarget: false
+  repeatTargets: false
+  targetAllegiance: enemy
+  targetType: all
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 169
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "2"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: a09e8101-b342-4e28-b6a1-3079fbaf8c22
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: c14e2f0d-3793-48fe-aaaf-5c0853f1e9fe
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Select each enemy for the Hag to push to 3 squares, by uttering terrible words.
+    standardAbilityParams:
+      range: "3"
+    standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+    abilityType: standard
+    promptWhenResolving: true
+  name: Casting Curses and Bodies
+  numTargets: "1"
+  description: The hag utters terrible words that push each enemy within 2 squares of them up to 3 squares.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  repeatTargets: false
+  keywords:
+    Magic: true
+    Area: true
+  targetAllegiance: enemy
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 fire damage; R<1 frightened (save ends)
+    - 8 fire damage; R<2 frightened (save ends)
+    - 11 fire damage; R<3 frightened (save ends)
+    roll: 2d10 + 3
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    invokeOnCaster: true
+    customAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 1
+        roll: "5"
+        damageType: fire
+        chatMessage: Hag Wyrd; Fire damage and Frightened
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: target.reason < 1
+        duration: save_ends
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 2
+        roll: "5"
+        damageType: lightning
+        chatMessage: Hag Wyrd; Lightning damage and Dazed
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: target.reason < 1
+        duration: save_ends
+        ongoingEffectCustom: false
+        ongoingEffect: 65d906ae-c83a-4b57-adaf-17dc3793b9c5
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 3
+        roll: "5"
+        damageType: cold
+        chatMessage: Hag Wyrd; Cold damage and Slowed
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Target.Reason < 1
+        duration: save_ends
+        ongoingEffectCustom: false
+        ongoingEffect: 12bc7f58-0ae8-4b9e-9018-74d28b083992
+        modesSelected:
+        - 3
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 169
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Fire damage and Frightened
+      - text: Lightning damage and Dazed
+      - text: Cold damage and Slowed
+      numTargets: "1"
+      guid: c90031e5-c47b-473d-b4f4-c1e74040dc8b
+      targetType: line
+      name: T1 Post Roll Damage Type and Condition Selection
+      radius: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Pick which damage type and condition to inflict, and select the Line area of effect.
+    inheritRange: false
+    tiersSelected:
+    - 1
+    applyto: caster
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    tiersSelected:
+    - 2
+    customAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 1
+        roll: "8"
+        damageType: fire
+        chatMessage: Hag Wyrd; Fire damage and Frightened
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 3cc61ad4-03d5-4db9-af58-bf59318c9d5a
+        modesSelected:
+        - 1
+        duration: save_ends
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 2
+        roll: "8"
+        damageType: lightning
+        chatMessage: Hag Wyrd; Lighting damage and Dazed
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Target.reason < 2
+        duration: save_ends
+        ongoingEffectCustom: false
+        ongoingEffect: 65d906ae-c83a-4b57-adaf-17dc3793b9c5
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 3
+        roll: "8"
+        damageType: cold
+        chatMessage: Hag Wyrd; Cold damage and Slowed
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Target.reason < 2
+        duration: save_ends
+        ongoingEffectCustom: false
+        ongoingEffect: 12bc7f58-0ae8-4b9e-9018-74d28b083992
+        modesSelected:
+        - 3
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 169
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Fire damage and Frightened
+      - text: Lightning damage and Dazed
+      - text: Cold damage and Slowed
+      numTargets: "1"
+      guid: c107c0e4-7341-4548-91ea-bfa5c80af461
+      targetType: line
+      name: T2 Post Roll Damage Type and Condition Selection
+      radius: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    applyto: caster
+    invokeOnCaster: true
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    tiersSelected:
+    - 3
+    customAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 1
+        roll: "11"
+        damageType: fire
+        chatMessage: Hag Wyrd; Fire Damage and Frightened
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Target.Reason < 3
+        duration: save_ends
+        ongoingEffectCustom: false
+        ongoingEffect: 3cc61ad4-03d5-4db9-af58-bf59318c9d5a
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 2
+        roll: "11"
+        damageType: lightning
+        chatMessage: Hag Wyrd; Lightning damage and Dazed
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Target.Reason < 3
+        duration: save_ends
+        ongoingEffectCustom: false
+        ongoingEffect: 65d906ae-c83a-4b57-adaf-17dc3793b9c5
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 3
+        roll: "11"
+        damageType: cold
+        chatMessage: Hag Wyrd; Cold damage and Dazed
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Target.Reason < 3
+        duration: save_ends
+        ongoingEffectCustom: false
+        ongoingEffect: 12bc7f58-0ae8-4b9e-9018-74d28b083992
+        modesSelected:
+        - 3
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 169
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Fire damage and Frightened
+      - text: Lightning damage and Dazed
+      - text: Cold damage and Slowed
+      numTargets: "1"
+      guid: 2af012d6-7899-4727-af76-eb0e85b427bb
+      targetType: line
+      name: T3 Post Roll Damage Type and Condition Selection
+      radius: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 169
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "10"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 596b833a-ede8-40ee-a3a5-bfdeef93e67d
+  abilityType: none
+  targetType: line
+  radius: "1"
+  numTargets: "1"
+  implementation: 4
+  name: Hag Wyrd
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  description: After making the power roll, the hag can choose to replace the damage type and condition with lightning damage and dazed, or cold damage and slowed.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: 4c6fa8b9-c0ea-40c9-a1ea-bcfffe606f98
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 169
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 8099b655-b05a-4aec-9f71-023537eb1011
+  abilityType: none
+  castImmediately: true
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: The hag takes an additional main action on their turn. They can use this feature even if they are dazed.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+- __typeName: MaliceAbility
+  resourceNumber: "10"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilitySummonBehavior
+    allCreaturesTheSame: true
+    groupInitiativeWithCaster: false
+    casterChoosesCreatures: false
+    monsterType: fb2d7868-55d9-40a9-9776-651cc29552ff
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 169
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "10"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: c3e063df-5ee3-440e-b2bc-c85dc2f3919f
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  numTargets: "1"
+  name: House Call
+  targetType: emptyspace
+  description: |-
+    The hag’s hut springs to life. It enters the encounter map within 10 squares of the hag if it isn’t already there and takes its turn.
+
+    The hut is size 4, has 75 Stamina and damage immunity 3, and has speed 8 from its powerful set of animal legs.
+
+    This feature can’t be used if the hut is reduced to 0 Stamina. In addition to its move action, the house can take only the Kick main action.
+  abilityType: none
+  implementation: 4
+mtime: 1771511141787
+name: Hag
+traits: []
+attacks: []
+id: fe51d262-f292-486b-a689-8e73c181fb8e
+ctime: 1758524802338

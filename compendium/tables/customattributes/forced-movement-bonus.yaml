@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "0"
+category: Forced Movement
+name: Forced Movement Bonus
+documentation: The amount of additional spaces this creature can move another creature when it inflicts forced movement.
+mtime: 1755646514511
+id: b92d0101-f9a6-4c66-81e4-cdad46e6f1bb
+ctime: 1755646514511

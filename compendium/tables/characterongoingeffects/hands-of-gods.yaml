@@ -1,0 +1,41 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5d4bfa10-0443-459a-9389-530231e5c40f
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:5d4bfa10-0443-459a-9389-530231e5c40f: true
+  name: Hands of Gods
+  guid: d67d1f2c-1081-410e-8f03-1fc79111c31e
+  description: ""
+  behavior: attribute
+  attribute: 17802d38-f848-47d8-af1c-fcfde60e16bb
+- __typeName: CharacterModifier
+  sourceguid: 5d4bfa10-0443-459a-9389-530231e5c40f
+  source: Ongoing Effect
+  guid: e0bd23bc-f040-4a85-89a8-b2958376ccc2
+  keywordFilter: []
+  domains:
+    CharacterOngoingEffect:5d4bfa10-0443-459a-9389-530231e5c40f: true
+  name: Hands of Gods
+  description: ""
+  behavior: castingorigin
+  filterCondition: Ongoing Effect.Caster.id = Caster.id and ConditionCaster("judged").id = Caster.id
+source: Ongoing Effect
+guid: 5d4bfa10-0443-459a-9389-530231e5c40f
+id: 5d4bfa10-0443-459a-9389-530231e5c40f
+ctime: 1773611043423
+domains:
+  CharacterOngoingEffect:5d4bfa10-0443-459a-9389-530231e5c40f: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Hands of Gods
+custom: true
+description: ""
+mtime: 1773611834584
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,59 @@
+__typeName: equipment
+itemPrerequisite: The breath of a mystic sage captured at sunrise
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Hyrallic
+flavor: A glass flask contains a whirl of gentle sunlight.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+implementation: 4
+description: As a maneuver, you inhale the Breath of Dawn and are overcome with tranquility. You immediately end the frightened, slowed, and taunted conditions on yourself, and you gain a +8 bonus to Stability until the end of the encounter.
+echelon: 2
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: "90"
+id: 8594c062-eba8-49c2-92bc-5caa733d4a08
+ctime: 1773582477086
+name: Breath of Dawn
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    conditions:
+    - 1211270f-bfce-45a6-b937-d72f0e8a06a8
+    - 68f455f5-135f-495c-822d-40d809d2b15f
+    - 85e26e12-e853-464d-bbbc-98ddf2c0071a
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 60714fd4-4d50-42f7-b65b-264819b1741c
+    duration: eoe
+    ongoingEffectCustom: 60714fd4-4d50-42f7-b65b-264819b1741c
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: A glass flask contains a whirl of gentle sunlight.
+  categorization: Ability
+  range: 5
+  consumables:
+    8594c062-eba8-49c2-92bc-5caa733d4a08: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 009513ef-7631-4f84-886a-8546c1b952ba
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  castImmediately: true
+  numTargets: "1"
+  description: As a maneuver, you inhale the Breath of Dawn and are overcome with tranquility. You immediately end the frightened, slowed, and taunted conditions on yourself, and you gain a +8 bonus to Stability until the end of the encounter.
+  name: Breath of Dawn
+  targetType: self
+  attributeOverride: no_attribute
+  abilityType: none
+  iconid: ee2a8ccc-ce1d-4484-8f25-f491399ba9a2
+mtime: 1773664590669
+projectRollCharacteristic:
+  inu: true
+  prs: true
+iconid: ee2a8ccc-ce1d-4484-8f25-f491399ba9a2

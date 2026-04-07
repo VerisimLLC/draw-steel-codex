@@ -1,0 +1,130 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 98d8a806-b654-487c-94f2-68dfc2c2abd8
+  description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 7 or higher, you gain 1 Heroic Resource, and you or a creature of your choice within 3 squares can spend a Recovery. This replaces the benefit of Rejuvenating II.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityRollBehavior
+        rollDescription: Rejuvenating III
+        roll: 1d10
+      - __typeName: ActivatedAbilityCustomTriggerBehavior
+        value: cast.Roll
+        triggerName: RejuvenatingRoll
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        promptText: Select which creature can spend a Recovery.
+        standardAbilityParams:
+          range: "3"
+          numtargets: "1"
+          numrecoveries: "1"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: ec6fff72-6a64-4cee-831f-17dfda5332f1
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 4af4ccee-f664-43d2-b971-3abaec71aa42
+      triggerPrompt: You used an ability that cost 1 or more of your Heroic Resource. Roll a d10, on a 7 or higher, you gain 1 Heroic Resource and you or a creature of your choice within 3 squares can spend a Recovery
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 060ef4db-858d-432f-8a45-be519f43d8c7
+      castImmediately: true
+      conditionFormula: Used Ability.HeroicResourceCost > 0
+      numTargets: "1"
+      targetType: self
+      trigger: useability
+      name: Rejuvenating III
+      description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 7 or higher, you gain 1 Heroic Resource, and you or a creature of your choice within 3 squares can spend a Recovery. This replaces the benefit of Rejuvenating II.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 7 or higher, you gain 1 Heroic Resource, and you or a creature of your choice within 3 squares can spend a Recovery. This replaces the benefit of Rejuvenating II.
+    source: Item
+    behavior: trigger
+    guid: 2b0144b1-3039-4dc0-9751-da2e25473249
+    name: Rejuvenating III
+    sourceguid: 98d8a806-b654-487c-94f2-68dfc2c2abd8
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+        chatMessage: Rejuvenating III Heroic Resource Gain
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 8b53ae80-b683-48ae-96d1-050d2ddf419c
+      persistence: []
+      conditionFormula: Trigger Name = "RejuvenatingRoll" and Trigger Value >= 7
+      targetType: self
+      castImmediately: true
+      trigger: custom
+      name: Rejuvenating III
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 7 or higher, you gain 1 Heroic Resource, and you or a creature of your choice within 3 squares can spend a Recovery. This replaces the benefit of Rejuvenating II.
+    source: Item
+    behavior: trigger
+    guid: 553133f9-1551-4f1b-89d4-9904abf2d45a
+    name: Rejuvenating III
+    sourceguid: 98d8a806-b654-487c-94f2-68dfc2c2abd8
+  source: Item
+  name: Rejuvenating III
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A live flower that blooms only once a decade
+imbuePrereq: a62bbb96-f723-45e8-97e8-da4b30f89ebf
+projectSource: The First Language
+imbueLevel: 9
+imbueReplacesPrereq: true
+category: Gear
+description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 7 or higher, you gain 1 Heroic Resource, and you or a creature of your choice within 3 squares can spend a Recovery. This replaces the benefit of Rejuvenating II.
+type: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+ctime: 1770699205313
+projectGoal: "150"
+implementation: 4
+id: d68fec8c-66cb-4c35-9284-a224c37154c1
+name: Rejuvenating III
+imbueTargetType: implement
+mtime: 1774483761107
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 3bbc8836-f365-4669-a157-00e4aef31dc0

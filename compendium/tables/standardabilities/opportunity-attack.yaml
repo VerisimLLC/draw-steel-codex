@@ -1,0 +1,55 @@
+__typeName: ActivatedAbility
+id: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    cannotModifyAction: true
+    filterAbility: Ability.Categorization = "Basic Attack"
+    behavior: modifyability
+    guid: f3558a46-1d61-40eb-bfcb-9de703f734f4
+    attributes: []
+    source: ""
+    description: ""
+    name: Modify Attack
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: c039d40c-64a1-46d5-84f2-d685408abd0f
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 5
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 5
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 5507c1c6-3c4b-44bd-af63-34b56f6be001
+actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+ctime: 1711425848964
+repeatTargets: false
+numTargets: "1"
+mtime: 1763859539983
+name: Opportunity Attack
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,103 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 6e8db2ad-ee08-4e34-ae15-6186ba650ba6
+  description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 2 damage.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: c5abfcf0-2027-48f9-acd5-0d8e410b4398
+      repeatTargets: false
+      abilityType: none
+      trigger: losehitpoints
+      targetType: attacker
+      numTargets: "1"
+      name: Vengeance I
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: targets
+        targeting: formula
+        targetingFormula: Target.id = Self.id
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 146ebc92-6f38-4f50-8e0c-4f198cb1cc59
+          repeatTargets: false
+          abilityType: none
+          categorization: Hidden
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            durationUntilEndOfTurn: true
+            duration: end_of_next_turn
+            ongoingEffectCustom: 4de0e2b7-a460-4af9-b32a-e990edb90d12
+            ongoingEffect: 4de0e2b7-a460-4af9-b32a-e990edb90d12
+            guid: 0d083195-b158-4c5c-9014-915958d57186
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 2 damage.
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 2 damage.
+    source: Vengeance I Imbuement
+    behavior: trigger
+    guid: 958be818-5b1c-44c2-a745-5bd3f0ee4ec2
+    name: Vengeance I
+    sourceguid: 6e8db2ad-ee08-4e34-ae15-6186ba650ba6
+  - __typeName: CharacterModifier
+    sourceguid: 6e8db2ad-ee08-4e34-ae15-6186ba650ba6
+    displayCondition: ability.doesdamage and ConditionCaster("Vengeance").id = Target.id
+    source: Vengeance I Imbuement
+    modtype: none
+    keywords: []
+    activationCondition: "1"
+    behavior: power
+    activationAfterRoll: false
+    name: Vengeance I
+    description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 2 damage.
+    damageModifier: "2"
+    rollType: ability_power_roll
+    guid: 08e31ab6-bf8c-4118-a758-6dff085c0da8
+  source: Vengeance I Imbuement
+  name: Vengeance I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 17ad0103-6723-4bf2-800d-fa57981ea196
+imbuePrereq: none
+projectSource: Kalliak
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: The crown of a usurper
+mtime: 1774584831934
+name: Vengeance I
+imbueTargetType: weapon
+description: Whenever you use a damage-dealing ability using this weapon against a creature who has dealt damage to you since the end of your last turn, the ability deals an extra 2 damage.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

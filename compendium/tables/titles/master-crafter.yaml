@@ -1,0 +1,73 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Master Crafter Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 1d0f1df0-5b4c-4b0a-a39a-2bb7ea6e7722
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Masterpiece
+      description: The armor, implement, or weapon can be imbued a fourth time, with any enhancement the item qualifies for.
+      guid: fa57e38e-a5ad-49e9-a9f4-fe33c429910b
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Research Dividends
+      description: You gain the item prerequisite for an armor, implement, or weapon enhancement of your choice. Additionally, you learn the project source language for that enhancement.
+      guid: 793dd296-508b-4140-8cfd-c9c6eac11e6c
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      options:
+      - __typeName: CharacterSkillChoice
+        categories:
+          crafting: true
+        name: Crafting Skill
+        numChoices: 2
+        guid: 24bffb8e-bd2e-4e62-a114-f68168357b4f
+        source: Feat
+        description: You have a skill from the crafting skill group that would have been used during the creation of the prerequisite item.
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 6783a6fe-128d-4e7f-966c-494b89d36aa0
+          source: Feat
+          guid: 8e7359fa-052e-44cf-aac4-60016a5f64e4
+          keywords: []
+          activationCondition: true
+          activationAfterRoll: false
+          name: Skilled Hands
+          modtype: edge
+          description: "If you already have that skill, you instead gain an edge on tests made using the skill.\v\v**DIRECTOR INSTRUCTIONS**\nWe can't know what skill was used in the creation of the pre-requisite item so we have included a template Modify Power Roll behaviour which can be copied and added to the player's character sheet. Once you have copied it and pasted it into the Feature section of the Character Sheet, select the appropriate skill from the 'Add Skill' dropdown. "
+          behavior: power
+          rollType: test_power_roll
+        name: Already Have Skill
+        description: "If you already have that skill, you instead gain an edge on tests made using the skill.\v\v**DIRECTOR INSTRUCTIONS**\nWe can't know what skill was used in the creation of the pre-requisite item so we have included a template Modify Power Roll behaviour which can be copied and added to the player's character sheet. Once you have copied it and pasted it into the Feature section of the Character Sheet, select the appropriate skill from the 'Add Skill' dropdown. "
+        guid: 6783a6fe-128d-4e7f-966c-494b89d36aa0
+        canHavePrerequisites: true
+        source: Feat
+      guid: 1d96565e-a476-47b4-bdcf-3a18dfa1414f
+      numChoices: 1
+      name: Skilled Hands
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Strong Hands Make Light Work
+      description: Whenever you make a project roll, you can use Might as the project roll characteristic.
+      guid: bcaa0c74-e93b-4138-ae78-bc59bd9028c8
+      canHavePrerequisites: true
+      source: Feat
+id: afb4e778-0b0f-4913-8b11-7bc965225fc5
+ctime: 1762351997815
+name: Master Crafter
+description: The sword Vanartha has been remade, mightier now than on the day it was forged.
+mtime: 1775215723364
+echelon: "3"
+prerequisite: You complete a downtime project to imbue armor, an implement, or a weapon with a 9th-level enhancement.

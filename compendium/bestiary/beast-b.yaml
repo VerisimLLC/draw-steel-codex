@@ -1,0 +1,225 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 37aad305-377b-4b0e-b57f-7e7b5fd98dcd
+    offtokenPortraitId: null
+    portraitFrameId: 332770d5-bdfb-40bb-92c0-f8476e7e80f2
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.05648202
+      y: 0.1451861
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: bbd6eae4-cad6-4f0f-97ba-276790b99ee7
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 2
+    import:
+      type: mcdm
+      data: |+
+        Beast B	Level 2 Mount Troop
+        Animal	EV 32
+        <b>Stamina</b> 70
+        <b>Speed</b> 6	<b>Size</b> 3 /<b> Stability</b> 3
+        <b>	Free Strike</b> 5
+        Might +2	Agility +1	Reason -1	Intuition +1	Presence +0
+        <b>Natural Weapon</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; push 1
+        %E2%9C%B8	<b>17</b>	13 damage; push 2
+
+        <b>Trundle</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The beast moves up to their speed. The beast can make a free strike on each creature that makes an opportunity attack against them during this movement.
+
+        <b>Animal Rally</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> An ally within line of effect is knocked prone.
+        <b>Effect</b> The beast moves up to their speed. If they end their turn adjacent to the triggering ally, they can pick the ally up and allow them to climb on top of the beast.
+
+        <b>Beast of Burden</b>
+        Two of the beast's size 1 allies can occupy the same space while riding the beast.
+
+        <b>Nature Calls</b>
+        The beast ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:627f5741-9d65-4031-98d8-c03b00a88b2f: true
+      modifiers: []
+      name: Beast of Burden
+      description: Two of the beast's size 1 allies can occupy the same space while riding the beast.
+      guid: 627f5741-9d65-4031-98d8-c03b00a88b2f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4bf5459a-a3ce-4805-b8f6-10e41b30b9a1: true
+      modifiers: []
+      name: Nature Calls
+      description: The beast ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+      guid: 4bf5459a-a3ce-4805-b8f6-10e41b30b9a1
+      source: Trait
+    role: Mount Troop
+    inflictedConditions: []
+    ev: 32
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    walkingSpeed: 6
+    monster_type: Beast B
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    monster_category: Monster
+    damage_taken: 0
+    max_hitpoints: 70
+    resources: []
+    traitNames: []
+    keywords:
+      Animal: true
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 152af85b-4de1-4569-8abe-135eea259483
+      implementation: 4
+      numTargets: 2
+      name: Natural Weapon
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage; push 1
+        - 13 damage; push 2
+        roll: 2d10 + 2
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 0029aadf-3734-4617-80f9-263f6ac328e1
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Trundle
+      numTargets: "1"
+      description: The beast moves up to their speed. The beast can make a free strike on each creature that makes an opportunity attack against them during this movement.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 08d90d35-153f-48ae-8525-2e4203aaef03
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Animal Rally
+      numTargets: "1"
+      description: The beast moves up to their speed. If they end their turn adjacent to the triggering ally, they can pick the ally up and allow them to climb on top of the beast.
+      abilityType: none
+      implementation: 0
+    groupid: a68c91b6-55f3-4c16-82d9-e0da68078b49
+    movementSpeeds: []
+    creatureSize: "3"
+    opportunityAttack: 5
+    levelChoices: []
+    minion: false
+  tokenType: null
+  bestiaryId: 97d51dce-6f2d-40be-ba8c-7c948fbe29ae
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Beast B
+parentFolder: 4b3931af-633a-4d06-a87c-a4139290d258
+artist: null
+ord: 7
+ctime: 1741590284910
+mtime: 1775201137032
+hidden: false

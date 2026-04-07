@@ -1,0 +1,70 @@
+__typeName: CharacterOngoingEffect
+association: []
+id: f564f656-b599-4d5f-b588-a778a91b5d2b
+endTrigger: attacked
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e234f1f4-9953-43bd-894c-d96adbb63f84
+  surgesCanBeKept: true
+  source: Ongoing Effect
+  surges: "1"
+  guid: 9eb9df72-3a46-46c3-abdc-8630831261be
+  rollType: enemy_ability_power_roll
+  keywords: []
+  activationCondition: target.ConditionCaster("Aid Attack") != self
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    trigger: d20roll
+    strain: []
+    guid: 994317c2-aec2-488b-bdaf-e5ea930b7824
+    repeatTargets: false
+    targetType: self
+    range: 1
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      applyto: targets
+      mode: effect
+      ongoingEffect: e234f1f4-9953-43bd-894c-d96adbb63f84
+      conditions: []
+    persistence: []
+    name: New Ability
+    display:
+      saturation: 1
+      brightness: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  modtype: edge
+  name: Aid Attack with Surge
+  domains:
+    CharacterOngoingEffect:e234f1f4-9953-43bd-894c-d96adbb63f84: true
+  description: 'The next ability power roll made against you before the start of the casters next turn has an edge and gains a surge. '
+  behavior: power
+  hasCustomTrigger: false
+source: Ongoing Effect
+casterTracking: one
+guid: e234f1f4-9953-43bd-894c-d96adbb63f84
+custom: true
+ctime: 1770128960763
+domains:
+  CharacterOngoingEffect:e234f1f4-9953-43bd-894c-d96adbb63f84: true
+iconid: 5e60c5cb-d09d-41bb-b7e6-e15b745e5757
+description: 'The next ability power roll made against you before the start of the casters next turn has an edge and gains a surge. '
+name: Aid Attack with Surge
+statusEffect: true
+mtime: 1770128960763
+display:
+  saturation: 1
+  brightness: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0182502269744873
+    s: 0.968127489089966
+    v: 0.984313726425171
+    a: 1
+implementation: 3

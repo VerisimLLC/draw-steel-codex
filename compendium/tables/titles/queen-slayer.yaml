@@ -1,0 +1,163 @@
+__typeName: Title
+effect: |-
+  Choose one of the following benefits:
+
+  Craftier: When an enemy shifts out of a space adjacent to you, you can make a melee free strike against them as a triggered action.
+
+  Criminal Killer: You have an edge on tests made to intimidate the leaders of criminal organizations.
+
+  Goblin Bane: When you start a combat encounter that includes a foe who has the Goblin keyword, you gain a surge.
+prerequisite: You reduced Queen Bargnot to 0 Stamina.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Benefit
+    options:
+    - __typeName: CharacterFeature
+      source: Title
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 36d0d24d-f4b3-45c7-b4be-1d04550b1773
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: Target = MovingCreature
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: Melee Free Strike
+            promptText: Choose Free Strike Against Target
+            targetingFormula: ""
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: edf25046-ec83-4417-9bca-ec7972dc39e8
+              repeatTargets: false
+              targetType: self
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              display:
+                saturation: 1
+                brightness: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            targeting: self
+            autoTarget: true
+            abilityType: standard
+            standardAbilityParams:
+              targetid: "<<MovingCreature.id>>"
+            standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            applyto: caster
+            value: MovingCreature.id
+            triggerName: Make Opportunity Attack
+          triggerPrompt: Free Strike against shifting creature
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: "100"
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 7c67d311-42e7-43f1-881f-359f1b8006eb
+          whenActive: combat
+          conditionFormula: (not Friends(Moving Creature, Self)) and Moving Creature.Altitude <= (Self.Altitude + 1) and Moving Creature.Movement Type is "Shift"
+          trigger: leaveadjacent
+          targetType: all
+          name: Craftier
+          persistence: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        name: Opportunity Attack
+        source: Title
+        behavior: trigger
+        guid: 5aca12b5-df94-44e0-b300-f7b5b41b6a6a
+        description: ""
+      canHavePrerequisites: true
+      name: Craftier
+      description: When an enemy shifts out of a space adjacent to you, you can make a melee free strike against them as a triggered action.
+      guid: 3e638d2a-58eb-45d4-9ebf-5066a8927c8b
+      implementation: 2
+    - __typeName: CharacterFeature
+      source: Title
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 471af56f-5455-4b67-ab62-4cbbdaa93f2b
+        source: Title
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        name: Criminal Killer
+        rollType: test_power_roll
+        behavior: power
+        description: You have an edge on tests made to intimidate the leaders of criminal organizations.
+        guid: 9605b62c-03b1-4712-a9f2-90f73a0c56f7
+        skills:
+        - cb214a42-7f8c-4d02-b6ac-1399724a8b5f
+      canHavePrerequisites: true
+      name: Criminal Killer
+      description: You have an edge on tests made to intimidate the leaders of criminal organizations.
+      guid: 471af56f-5455-4b67-ab62-4cbbdaa93f2b
+      implementation: 2
+    - __typeName: CharacterFeature
+      source: Title
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 9e450a43-ef48-4936-b426-1716ae40d2f6
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: Goblin Bane
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "100"
+          strain: []
+          guid: 0ee8c179-fa72-4a3e-b870-3837bd3a8924
+          trigger: rollinitiative
+          conditionFormula: Count Nearby Enemies(100, "Goblin")
+          targetType: self
+          persistence: []
+          name: Goblin Bane
+          abilityType: none
+          description: When you start a combat encounter that includes a foe who has the Goblin keyword, you gain a surge.
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        name: Goblin Bane
+        source: Title
+        behavior: trigger
+        guid: f4f49958-ce4e-4905-8d6b-ee738c6f2ce7
+        description: When you start a combat encounter that includes a foe who has the Goblin keyword, you gain a surge.
+      canHavePrerequisites: true
+      name: Goblin Bane
+      description: When you start a combat encounter that includes a foe who has the Goblin keyword, you gain a surge.
+      guid: 9e450a43-ef48-4936-b426-1716ae40d2f6
+      implementation: 2
+    description: "Choose one of the following benefits:"
+    numChoices: 1
+    guid: 732c8c1b-7ee5-4dcf-b192-5a6ca642c3c9
+name: Queen Slayer
+mtime: 1770130713088
+description: Regicide isn’t always a bad thing.
+id: 3dbc7ff5-1ffe-43fd-8835-1f98f48b45e2
+ctime: 1764025340670

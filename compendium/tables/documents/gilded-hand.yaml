@@ -1,0 +1,112 @@
+__typeName: MarkdownDocument
+annotations: []
+id: d66225fd-2044-4c25-aa44-d329b822c91c
+ctime: 1761396470058
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |+
+      [Gorek]: A dwarf fury, Gorek makes no pretense about why he’s in the Gilded Hand. He likes to fight. He likes to make money. Everything else is boring to him.
+
+
+    w: |+
+      See also: [Gilded Hand Encounters] and [Gilded Hand Encounters Map]
+
+
+    V: |+
+      [Boddorff] Buckfeather: A polder conduit of Pentalion, an evil saint dedicated to dominance and power, Boddorff keeps his holy symbol under his clothes unless he wishes to intimidate someone or cause a scene. He’s the face of the group, happy to talk and interact with others. He often makes up entire stories about the group’s adventures to appease those looking for a tall tale. After all, every legend helps the Gilded Hand find another job.
+
+    S: |+
+      She’s often in the common room alone so she can get away from the reality of her friends’ decisions. Targon charged her with the safekeeping of the ring, since as a pickpocket herself, Illwyth knows the best way to defend against them.
+
+    t: |+
+      **[Gilded Showdown]**
+
+    q: |+
+      **[Negotiating for the Ring]**
+
+    O: |+
+      [Mara]: A human elementalist in her fifties, Mara is an expert in magic and Caelian history. She doesn’t reveal much to any hero who speaks to her, but she does ask lots of questions about their adventures in the tomb, playing the part of a merely curious scholar.
+
+    M: |+
+      [Targon]: A human tactician in his twenties, Targon is always scowling. He’s the leader of the group, though he listens more than he speaks and doesn’t offer more than a grunted word or two to anyone outside of the Gilded Hand.
+
+    n: |+
+      **[Grabbing the Ring]**
+
+    K: |+
+      **The Gilded Hand has the following members:**
+
+    C: |+
+      # The Gilded Hand
+
+    i: |+
+      **[Another Meeting With the Hand]**
+
+    E: |
+      The Gilded Hand hasn’t come to Broadhurst in the interest of helping its people. The mercenary band saved Wend, a city many miles away on the eastern side of Dalrath, from a group of demon-worshipping cultists. Those cultists were operating in the tomb of a Caelian knight named Cressa, similar to the Delian Tomb. While battling the cult, the Gilded Hand found the Delian Knight Commander’s Ring. They know it can be used to access the third level of the tomb, where the Cup of Iulius waits, but they don’t have a way to lift the ward to the second level of the tomb.
+    g: |+
+      **[Illwyth Alone]**
+
+    Q: |
+      [Illwyth]: A wode elf shadow, Illwyth is the only member of the Gilded Hand with reservations about selling the Cup of Iulius to Queen Bargnot, though she hasn’t shared her feelings with anyone.
+    e: |+
+      **[First Meeting With the Hand]**
+
+    G: |2
+
+    c: |+
+      ## Gilded Hand Interactions:
+
+    I: |+
+      As they searched for a way to unseal the second level of the tomb, the Gilded Hand met Queen Bargnot. She’s promised to pay a huge amount for the cup, a deal the Gilded Hand greedily took. With a buyer secure, now all they need to do is recover the chalice.
+
+    a: |2
+
+    k: |+
+      **[Learning the Hand's Plot]**
+
+parentFolder: 423b20dc-f04b-44af-849e-7a7e01636bf4
+updateid: 078b6d8d-8b3f-4c3d-90d5-f075ff32eb70
+mtime: 1775167340158
+content: |+
+  # The Gilded Hand
+
+  The Gilded Hand hasn’t come to Broadhurst in the interest of helping its people. The mercenary band saved Wend, a city many miles away on the eastern side of Dalrath, from a group of demon-worshipping cultists. Those cultists were operating in the tomb of a Caelian knight named Cressa, similar to the Delian Tomb. While battling the cult, the Gilded Hand found the Delian Knight Commander’s Ring. They know it can be used to access the third level of the tomb, where the Cup of Iulius waits, but they don’t have a way to lift the ward to the second level of the tomb.
+
+  As they searched for a way to unseal the second level of the tomb, the Gilded Hand met Queen Bargnot. She’s promised to pay a huge amount for the cup, a deal the Gilded Hand greedily took. With a buyer secure, now all they need to do is recover the chalice.
+
+  **The Gilded Hand has the following members:**
+
+  [Targon]: A human tactician in his twenties, Targon is always scowling. He’s the leader of the group, though he listens more than he speaks and doesn’t offer more than a grunted word or two to anyone outside of the Gilded Hand.
+
+  [Mara]: A human elementalist in her fifties, Mara is an expert in magic and Caelian history. She doesn’t reveal much to any hero who speaks to her, but she does ask lots of questions about their adventures in the tomb, playing the part of a merely curious scholar.
+
+  [Illwyth]: A wode elf shadow, Illwyth is the only member of the Gilded Hand with reservations about selling the Cup of Iulius to Queen Bargnot, though she hasn’t shared her feelings with anyone.
+  She’s often in the common room alone so she can get away from the reality of her friends’ decisions. Targon charged her with the safekeeping of the ring, since as a pickpocket herself, Illwyth knows the best way to defend against them.
+
+  [Boddorff] Buckfeather: A polder conduit of Pentalion, an evil saint dedicated to dominance and power, Boddorff keeps his holy symbol under his clothes unless he wishes to intimidate someone or cause a scene. He’s the face of the group, happy to talk and interact with others. He often makes up entire stories about the group’s adventures to appease those looking for a tall tale. After all, every legend helps the Gilded Hand find another job.
+
+  [Gorek]: A dwarf fury, Gorek makes no pretense about why he’s in the Gilded Hand. He likes to fight. He likes to make money. Everything else is boring to him.
+
+
+  ## Gilded Hand Interactions:
+
+  **[First Meeting With the Hand]**
+
+  **[Illwyth Alone]**
+
+  **[Another Meeting With the Hand]**
+
+  **[Learning the Hand’s Plot]**
+
+  **[Grabbing the Ring]**
+
+  **[Negotiating for the Ring]**
+
+  **[Gilded Showdown]**
+
+
+
+
+description: Gilded Hand

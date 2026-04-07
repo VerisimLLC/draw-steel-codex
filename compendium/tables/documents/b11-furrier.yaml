@@ -1,0 +1,146 @@
+__typeName: MarkdownDocument
+annotations:
+  follower:Tansy:
+    __typeName: RichFollower
+    identifier: Tansy
+    follower:
+      __typeName: Follower
+      languages:
+        9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+        36cfd691-17e8-4931-85ef-93db7e2741f5: true
+        7e7efb1d-4627-44ab-9407-11daff1a15cf: true
+      ancestry: 6f995f3d-a4e3-456a-9294-ff2c9ec5cb95
+      portrait: 79130d15-cff3-43de-b278-f1472e9f65cc
+      name: Tansy
+      guid: 33537cf4-6225-43f1-83ab-7d746c8023c0
+      characteristic: mgt
+      skills:
+        078b501f-e549-4725-993f-7ed8d57fc2ae: true
+        436ea6c1-6386-43b2-b074-020992cc73fd: true
+        8b5a4de7-badf-4e23-8ff2-0f7a832ff754: true
+        becbc5ec-de63-481b-8247-e62c2a6fd8cb: true
+  follower:
+    __typeName: RichFollower
+    identifier: false
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: d9df0094-0fd6-4e36-9a83-0b081903b644
+      skills: []
+  "follower:":
+    __typeName: RichFollower
+    identifier: ""
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 34ceff13-66ae-496f-b45e-3c6400a4f442
+      skills: []
+  follower:Ta:
+    __typeName: RichFollower
+    identifier: Ta
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: e76a6f76-ce90-4394-b4eb-5e42620176a0
+      skills: []
+id: 01a9d228-03a9-4d57-ba67-552e1204a82e
+ctime: 1761388423789
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |+
+      If the heroes ask to examine a broken trap, [Tansy] is happy to share it with them. A hero examining the trap can make an easy Reason test.
+
+    w: |
+      [[follower:Tansy]]
+    V: |+
+      > * “I’m going to have to find a new spot. But if you can bring me the hide of this predator, I’d be very grateful!”
+
+
+
+    S: |
+      > * “Whatever is breaking the traps is strong. Chewing right through metal to get to the rodents I’m catching.”
+    t: |+
+      If a hero has enough Renown to gain a follower and doesn’t have one, they can recruit [Tansy] as an artisan. If they do, give them the Tansy Follower.
+
+    q: |+
+      ## Follower: Tansy
+
+    O: |
+      > * “Something keeps breaking my traps. I need to catch a lot more animals and stop repairing my snares if we want warm clothes for the winter.”
+    M: |+
+      If the heroes talk to [Tansy] about their broken traps, the furrier provides the following information:
+
+
+    n: |+
+      If the heroes wish to hunt the animal that did this, they can follow the Dunn River south into the Silver Wood until they find the [Wolf Den].
+
+
+    K: |+
+      ## Broken Trap
+
+    I: |+
+      [Tansy] the furrier is always serious. While they aren’t rude, they have hardly any sense of humor and take almost everything anyone says literally.
+
+
+    G: |+
+      > * “Inside, a furrier examines a pelt as they attach it to the bottom of a large cloak.”
+
+
+    h: |
+      |{#The hero knows that something big and powerful managed to break the trap with their teeth. No normal animal in these parts could do such a thing.}
+    E: |
+      > * “The preserved head of a bear is mounted over the door of this shop, which has furs on display in its window.”
+    k: |+
+      |{#The hero knows that something big and powerful managed to break the trap with their teeth. No normal animal in these parts could do such a thing. The creature also knew just where to bite the trap to make it break, which suggests an intelligence greater than the average animal.}
+
+    C: |+
+      # B11. Furrier
+
+
+    e: |
+      |{#The hero knows that something big and powerful managed to break the trap with their teeth. No normal animal in these parts could do such a thing. While examining the trap, the hero accidentally punctures themself on a jagged piece of metal and takes 1 damage.}
+    Q: |
+      > * “The best place to catch animals is along the riverbank in the Silver Forest. I usually follow the Dunn River south. There’s a small cave there filled with wildlife, and I set my traps outside.”
+    b: |
+      |Examine the Trap: Reason Test
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 8f268afc-998d-41a5-8d93-1f65cc887bfa
+description: B11. Furrier
+content: |
+  # B11. Furrier
+
+
+  > * “The preserved head of a bear is mounted over the door of this shop, which has furs on display in its window.”
+  > * “Inside, a furrier examines a pelt as they attach it to the bottom of a large cloak.”
+
+
+  [Tansy] the furrier is always serious. While they aren’t rude, they have hardly any sense of humor and take almost everything anyone says literally.
+
+
+  ## Broken Trap
+
+  If the heroes talk to [Tansy] about their broken traps, the furrier provides the following information:
+
+
+  > * “Something keeps breaking my traps. I need to catch a lot more animals and stop repairing my snares if we want warm clothes for the winter.”
+  > * “The best place to catch animals is along the riverbank in the Silver Forest. I usually follow the Dunn River south. There’s a small cave there filled with wildlife, and I set my traps outside.”
+  > * “Whatever is breaking the traps is strong. Chewing right through metal to get to the rodents I’m catching.”
+  > * “I’m going to have to find a new spot. But if you can bring me the hide of this predator, I’d be very grateful!”
+
+
+
+  If the heroes ask to examine a broken trap, [Tansy] is happy to share it with them. A hero examining the trap can make an easy Reason test.
+
+  |Examine the Trap: Reason Test
+  |{#The hero knows that something big and powerful managed to break the trap with their teeth. No normal animal in these parts could do such a thing. While examining the trap, the hero accidentally punctures themself on a jagged piece of metal and takes 1 damage.}
+  |{#The hero knows that something big and powerful managed to break the trap with their teeth. No normal animal in these parts could do such a thing.}
+  |{#The hero knows that something big and powerful managed to break the trap with their teeth. No normal animal in these parts could do such a thing. The creature also knew just where to bite the trap to make it break, which suggests an intelligence greater than the average animal.}
+
+  If the heroes wish to hunt the animal that did this, they can follow the Dunn River south into the Silver Wood until they find the [Wolf Den].
+
+
+  ## Follower: Tansy
+
+  If a hero has enough Renown to gain a follower and doesn’t have one, they can recruit [Tansy] as an artisan. If they do, give them the [Tansy Follower Card].
+mtime: 1764324173737

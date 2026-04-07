@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: a41ad86c-64ff-4421-bc55-7e5325dce78a
+id: a41ad86c-64ff-4421-bc55-7e5325dce78a
+ctime: 1757777359309
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Speed 0
+description: ""
+custom: true
+mtime: 1757777359309
+iconid: ui-icons/skills/1.png

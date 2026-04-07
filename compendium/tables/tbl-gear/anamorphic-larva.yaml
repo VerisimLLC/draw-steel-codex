@@ -1,0 +1,21 @@
+__typeName: equipment
+itemPrerequisite: A grub steeped in voiceless talker bile
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Variac
+flavor: A cloudy glass vial holds a writhing monstrous grub.
+weight: 1
+echelon: 3
+specialDescription: ""
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+ctime: 1775045100929
+type: Gear
+projectGoal: "180"
+mtime: 1775045100929
+name: Anamorphic Larva
+category: Gear
+description: "When you release the larva as a maneuver, it feeds on psychic energy to grow exponentially, creating a 10 wall of larval flesh adjacent to you. The wall can’t be created to fill any square occupied by a creature with stability 1 or higher. Each other creature in the wall when it is created is pushed to the nearest unoccupied space. \vAt the start of each of your turns, each creature adjacent to the wall takes psychic damage equal to three times their Intuition score, and you can add 1 square to the wall for each creature who takes this damage. If no creature takes damage at the start of your turn, the larva dies and the wall disappears."
+projectRollCharacteristic:
+  mgt: true
+  inu: true
+id: f94dd142-5442-4ed3-adac-b107b90468ac

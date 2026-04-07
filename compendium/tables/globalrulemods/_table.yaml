@@ -1,0 +1,2663 @@
+42a8dd10-c3a1-4d69-b03a-2e18095c2a49:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 573add23-769b-4003-baae-c4982901b13b
+        source: Monster Death Global Rule Mod Feature
+        guid: fffe0f4a-d924-4b47-ae7a-9a13c471318e
+        filterCondition: not retainer
+        name: Monster Death
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 1e4d8ac3-6ad6-4d1c-8ddf-e1cf6968434e
+          repeatTargets: false
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityDelayBehavior
+            delay: (1 when not minion) + DelayDeath
+            proceedCondition: Cannot be Removed = 0
+          - __typeName: ActivatedAbilityRemoveCreatureBehavior
+            leavesCorpse: true
+            filterTarget: (target.dead or target.minion) and not Summoned
+            applyto: targets
+            dropsLoot: true
+          - __typeName: ActivatedAbilityRemoveCreatureBehavior
+            applyto: targets
+            filterTarget: (target.dead or target.minion) and Summoned
+            leavesCorpse: false
+            dropsLoot: true
+            guid: be116b74-5899-4a7d-a46d-b07d5cefcec0
+          targetType: self
+          numTargets: "1"
+          name: Monster Death
+          mandatory: local
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        behavior: trigger
+      name: Monster Death
+      description: ""
+      guid: 573add23-769b-4003-baae-c4982901b13b
+      source: Monster Death Global Rule Mod Feature
+      implementation: 3
+  applyRetainers: false
+  applyMonsters: true
+  ctime: 1752027308859
+  name: Monster Death
+  id: 42a8dd10-c3a1-4d69-b03a-2e18095c2a49
+  mtime: 1775187601073
+  applyCharacters: false
+  applyCompanions: false
+f232412f-23a1-4d64-9173-10f6f3290ec9:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        resourceType: 67f15a17-523c-4a30-8f1a-a27e4f122605
+        source: Villain Actions Global Rule Mod Feature
+        behavior: resource
+        name: Villain Actions
+        guid: 4e030a76-dde6-4155-be1a-fe73461b9c3b
+        num: 0
+        description: ""
+        sourceguid: c38dfba1-fe35-48c0-a1ed-30cb6c676686
+      source: Villain Actions Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: c38dfba1-fe35-48c0-a1ed-30cb6c676686
+      name: Villain Actions
+      implementation: 3
+  applyRetainers: false
+  applyMonsters: true
+  ctime: 1754882458998
+  name: Villain Actions
+  id: f232412f-23a1-4d64-9173-10f6f3290ec9
+  mtime: 1754882458998
+  applyCharacters: false
+  applyCompanions: false
+736d5b7c-288e-45dc-80e3-b168d401231a:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 140b49bd-1b6d-4dc9-8266-123e42c18614
+        source: Tests Global Rule Mod Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        name: Skilled
+        guid: 239818fb-b9bf-452e-ad94-f50735072a4c
+        description: Proficiency with a skill gives you a +2 to your power roll.
+        modtype: plustwo
+        rollType: test_power_roll
+      name: Skilled
+      description: Proficiency with a skill gives you a +2 to your power roll.
+      guid: 140b49bd-1b6d-4dc9-8266-123e42c18614
+      source: Tests Global Rule Mod Feature
+      implementation: 2
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 679e9d27-4ea0-4052-a563-f441849dcd4f
+        source: Tests Global Rule Mod Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        name: Related Language
+        guid: d4448b69-a8e4-4a68-8c90-50f7dbc00cd4
+        description: If you don’t know the language of the source but you know a related language, the project roll takes a bane
+        modtype: bane
+        rollType: project_roll
+      - __typeName: CharacterModifier
+        sourceguid: 679e9d27-4ea0-4052-a563-f441849dcd4f
+        source: Tests Global Rule Mod Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        name: Unknown Language
+        guid: c28a2e40-1445-4d40-8ad1-4c5f8873874b
+        description: If you don’t know the source’s language or a related language, the project roll has a double bane.
+        modtype: double_bane
+        rollType: project_roll
+      - __typeName: CharacterModifier
+        sourceguid: 140b49bd-1b6d-4dc9-8266-123e42c18614
+        source: Tests Global Rule Mod Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        name: Skilled
+        guid: 161bb25d-b12e-4c9d-9e53-d9ad61261ddc
+        description: Proficiency with a skill gives you a +2 to your power roll.
+        modtype: plustwo
+        rollType: project_roll
+      source: Tests Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: 651c9da5-766b-4651-ae90-81a908b59246
+      name: Project Rolls
+      implementation: 2
+  name: Tests
+  mtime: 1771301413486
+  id: 736d5b7c-288e-45dc-80e3-b168d401231a
+  ctime: 1734207299961
+75fed15a-50f0-45ef-99fe-607e72b87046:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 890d323b-80a5-4f3b-a925-2819dfe9ea3e
+        guid: 5ef7b8a3-883c-480a-b0f4-6384d7a878ef
+        source: Charge Global Rule Mod Feature
+        behavior: activated
+        description: When you take the Charge action, you move up to your speed in a straight line without shifting, and can then make a melee free strike (see Free Strikes) or use an  ability with the Charge keyword against a creature when you end your move. You can’t move through difficult terrain as part of your movement with this action. You  can’t climb, fly, or swim as part of this action unless you have that type of movement as a keyword in your speed.
+        name: Charge
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            applyto: caster_including_squad
+            value: ""
+            triggerName: BeginCharge
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            applyto: caster_including_squad
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              modifiers:
+              - __typeName: CharacterModifier
+                guid: 2c8b8665-8542-4cce-8bd8-87960685db90
+                sourceguid: a64f1565-e2f8-46d4-a382-7a02c675ada8
+                value: 1
+                source: Ongoing Effect
+                name: Charging
+                behavior: attribute
+                description: This creature is charging
+                attribute: 0be0b448-fb91-4cf9-a418-9b630342b62d
+              source: Ongoing Effect
+              guid: a64f1565-e2f8-46d4-a382-7a02c675ada8
+              id: a64f1565-e2f8-46d4-a382-7a02c675ada8
+              name: Charging
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor:
+                  __usertype: LuaColor
+                  h: 0
+                  s: 1.00112962722778
+                  v: 1.00129628181458
+                  a: 1
+              description: This creature is charging
+              implementation: 3
+              iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: move
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster_minions
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: 8b7e0e1a-b1c7-4967-82c8-208c5f811f70
+              repeatTargets: false
+              targetType: emptyspace
+              persistence: []
+              behaviors:
+              - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                movementType: move
+                guid: 67a38538-34a9-4c23-b782-2fbe071711c0
+              targeting: straightpath
+              selfTarget: true
+              name: Squad Charge
+              description: ""
+              range: Charging Speed
+              iconid: ui-icons/skills/1.png
+            promptWhenResolvingText: Choose Squad Member to Charge
+            autoTarget: false
+            filterTarget: caster.minion
+            promptWhenResolving: true
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            targeting: prompt
+            promptText: Choose Charging Attack
+            autoTarget: false
+            abilityType: standard
+            standardAbility: 923bf32c-4233-4fec-8895-7ce18da28744
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 71b79813-c37a-4945-84fc-6d40fa73cdc5
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 1.00112962722778
+              v: 1.00129628181458
+              a: 1
+          categorization: Common Ability
+          range: Charging Speed
+          persistence: []
+          modifiers: []
+          numTargets: "1"
+          strain: []
+          guid: 47e7d7e4-8750-487e-953b-4d93106a7809
+          iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+          sourceReference:
+            __typeName: SourceReference
+            page: 274
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          domains: []
+          targeting: straightpath
+          targetType: emptyspace
+          name: Charge
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          description: When you take the Charge action, you move up to your speed in a straight line without shifting, and can then make a melee free strike (see Free Strikes) or use an  ability with the Charge keyword against a creature when you end your move. You can’t move through difficult terrain as part of your movement with this action. You  can’t climb, fly, or swim as part of this action unless you have that type of movement as a keyword in your speed.
+          abilityType: none
+          implementation: 3
+      name: Charge
+      description: When you take the Charge action, you move up to your speed in a straight line without shifting, and can then make a melee free strike (see Free Strikes) or use an  ability with the Charge keyword against a creature when you end your move. You can’t move through difficult terrain as part of your movement with this action. You  can’t climb, fly, or swim as part of this action unless you have that type of movement as a keyword in your speed.
+      guid: 890d323b-80a5-4f3b-a925-2819dfe9ea3e
+      source: Charge Global Rule Mod Feature
+      implementation: 3
+  name: Charge
+  mtime: 1775024270995
+  id: 75fed15a-50f0-45ef-99fe-607e72b87046
+  ctime: 1742872901872
+fb02522c-2c9a-42e1-8116-01b743d7ad14:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        resourceType: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+        source: Villain Points Global Rule Mod Feature
+        behavior: resource
+        name: Malice
+        guid: cdb4d1da-696e-460d-8ed9-b7a05961b178
+        num: 0
+        description: ""
+        sourceguid: 687ec453-7dda-4f46-ada7-5a9320d36c21
+      name: Malice
+      description: ""
+      guid: 687ec453-7dda-4f46-ada7-5a9320d36c21
+      source: Villain Points Global Rule Mod Feature
+      implementation: 3
+  applyRetainers: false
+  applyMonsters: true
+  ctime: 1728879980477
+  name: Malice
+  id: fb02522c-2c9a-42e1-8116-01b743d7ad14
+  mtime: 1768341312164
+  applyCharacters: false
+  applyCompanions: false
+883c2fb1-c987-4954-8a05-d90b3412a8af:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      prefab: afc40f8a-ff4a-4ac0-b05c-b46c321f8f04
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: addc46eb-dc0f-4900-8cd1-adfefffb46dc
+        source: Heroic Resources Global Rule Mod Feature
+        guid: ced99e8d-2b44-4e18-93a7-e5d91db79e09
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Heroic Resources Basic Rules
+        description: ""
+        num: 0
+        resourceType: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+        behavior: resource
+      source: Heroic Resources Global Rule Mod Feature
+      guid: bd0e9888-522e-4bea-955b-151ebc1353e9
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      name: Heroic Resources Basic Rules
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: ""
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            roll: Recovery Value
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 2166c5fe-260e-4691-9743-06cf097a59f3
+            filterTarget: ""
+            quantity: "2"
+            mode: expend
+            chatMessage: Hero Tokens Spent on Recovery
+          triggerPrompt: You can spend 2 hero tokens on your turn or when you take damage (no action required) to regain Stamina equal to your recovery value before taking the damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: always
+          guid: 7a883c18-c43a-4472-921d-7cd7612a4639
+          conditionFormula: HeroTokens >= 2
+          numTargets: "1"
+          targetType: self
+          trigger: creaturedeath
+          name: Recovery on Death
+          description: You can spend 2 hero tokens on your turn or when you take damage (no action required) to regain Stamina equal to your recovery value before taking the damage.
+          abilityType: none
+          iconid: 12cdef25-2e5b-47e0-bccf-758198de8442
+        description: ""
+        source: Heroic Resources Global Rule Mod Feature
+        behavior: trigger
+        guid: ff0601cb-c013-49bb-9404-5059c4bf17d2
+        name: Hero Tokens
+        sourceguid: 99ded6d9-5dd7-4a9c-a92e-e2d05849844c
+      source: Heroic Resources Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: 99ded6d9-5dd7-4a9c-a92e-e2d05849844c
+      name: Hero Tokens
+      implementation: 3
+  applyRetainers: false
+  applyMonsters: false
+  ctime: 1740200721348
+  name: Heroic Resources
+  id: 883c2fb1-c987-4954-8a05-d90b3412a8af
+  mtime: 1775067701618
+  applyCharacters: true
+  applyCompanions: false
+4d9f5bcd-368a-464c-8ddf-1b8de110d231:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 8255bdd5-0210-428f-98ff-6e3c016228bc
+          repeatTargets: false
+          abilityType: none
+          trigger: startrespite
+          targetType: self
+          numTargets: "1"
+          name: Respite Journal
+          behaviors:
+          - __typeName: ActivatedAbilityShowJournalBehavior
+            templateDocId: 2fbc8f4d-eba7-4a15-822c-3e26afe19ce1
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Respite Global Rule Mod Feature
+        behavior: trigger
+        guid: a7cd1638-986d-4c05-9b6b-8c7633287037
+        name: Respite Journal
+        sourceguid: f1853331-f573-4798-90b1-508e9612e6aa
+      source: Respite Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: f1853331-f573-4798-90b1-508e9612e6aa
+      name: Respite Journal
+      implementation: 3
+  applyRetainers: false
+  applyMonsters: false
+  ctime: 1774580020497
+  name: Respite
+  id: 4d9f5bcd-368a-464c-8ddf-1b8de110d231
+  mtime: 1774580316475
+  applyCharacters: true
+  applyCompanions: false
+d2f9f92d-4f6d-4b1b-9cba-ff0ecabf9f55:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+        source: Actions Global Rule Mod Feature
+        guid: 636d9ed4-811a-4d1e-ac8c-6c0e3c660020
+        name: Actions
+        resourceType: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        num: 1
+        behavior: resource
+        description: |-
+          On your turn you can take a maneuver and an action or two maneuvers.
+
+          You can take 1 triggered action per round when the trigger happens.
+      - __typeName: CharacterModifier
+        sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+        source: Actions Global Rule Mod Feature
+        guid: 4e7cc354-d7b9-41db-b295-dff7796252b4
+        name: Actions
+        resourceType: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        num: 1
+        behavior: resource
+        description: |-
+          On your turn you can take a maneuver and an action or two maneuvers.
+
+          You can take 1 triggered action per round when the trigger happens.
+      - __typeName: CharacterModifier
+        sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+        source: Actions Global Rule Mod Feature
+        guid: f8120341-01df-4ce6-ba28-4012a3c1d7af
+        name: Actions
+        resourceType: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+        num: 1 when (not conditions has "Surprised")
+        behavior: resource
+        description: |-
+          On your turn you can take a maneuver and an action or two maneuvers.
+
+          You can take 1 triggered action per round when the trigger happens.
+      - __typeName: CharacterModifier
+        sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+        source: Actions Global Rule Mod Feature
+        guid: 850e99eb-dd2c-4da1-8f05-b887983a37de
+        name: Actions
+        resourceType: 5e551b7d-17fb-4099-a303-bafb3c146f98
+        num: 1 when (not conditions has "Surprised") and (not conditions has "Dazed")
+        behavior: resource
+        description: |-
+          On your turn you can take a maneuver and an action or two maneuvers.
+
+          You can take 1 triggered action per round when the trigger happens.
+      - __typeName: CharacterModifier
+        sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+        source: Actions Global Rule Mod Feature
+        guid: bf27247b-ffcb-45ca-8de6-961c6b8d9498
+        name: Actions
+        resourceType: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+        num: 1 when (not conditions has "Dazed")
+        behavior: resource
+        description: |-
+          On your turn you can take a maneuver and an action or two maneuvers.
+
+          You can take 1 triggered action per round when the trigger happens.
+      - __typeName: CharacterModifier
+        sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+        source: Actions Global Rule Mod Feature
+        guid: 34729a20-3f8e-4454-8336-11c7093b663c
+        name: Actions
+        resourceType: 5758da29-8660-47d3-805b-7c6038f476a1
+        num: 1 when (Game Mode = "Respite" or Game Mode = "Downtime")
+        behavior: resource
+        description: |-
+          On your turn you can take a maneuver and an action or two maneuvers.
+
+          You can take 1 triggered action per round when the trigger happens.
+      name: Actions
+      description: |-
+        On your turn you can take a maneuver and an action or two maneuvers.
+
+        You can take 1 triggered action per round when the trigger happens.
+      guid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+      source: Actions Global Rule Mod Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0e6b6a31-f49c-443c-b890-32ad63509b41
+        guid: ec5666d7-b15a-4bf9-9b7e-a6c01621a777
+        source: Actions Global Rule Mod Feature
+        behavior: activated
+        description: 'When you take the Defend action, all ability power rolls made against you have a double bane until the start of your next turn. You gain no benefit from this action while another creature is taunted by you (see Conditions). '
+        name: Defend
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: ""
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            durationUntilEndOfTurn: false
+            duration: 1
+            ongoingEffectCustom: false
+            ongoingEffect: 5ca9517b-ddbf-4f61-bd59-68e3a62708eb
+            stacks: "2"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 274
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d57d1e56-eb1d-4f87-a568-6c1a8ab638cc
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          iconid: 114facd6-e696-4cda-aed7-2a1cffd2f410
+          domains: []
+          categorization: Common Ability
+          numTargets: "1"
+          name: Defend
+          targetType: self
+          description: When you take the Defend action, all attacks against you suffer 2 banes until the start of your next turn.
+          abilityType: none
+          implementation: 3
+      name: Defend
+      description: 'When you take the Defend action, all ability power rolls made against you have a double bane until the start of your next turn. You gain no benefit from this action while another creature is taunted by you (see Conditions). '
+      guid: df12f3cf-ac3c-4769-9aaf-7735699f31e5
+      source: Actions Global Rule Mod Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1817ad33-c98f-45b7-9875-b2d9a6c6d164
+        guid: 1a90f1d6-855c-4fe0-a358-dc7ca385b16b
+        source: Actions Global Rule Mod Feature
+        behavior: activated
+        description: ""
+        name: Heal
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            filterTarget: mode = 1
+            modesSelected:
+            - 1
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: ed489306-0211-455e-8c42-50366f7c39e9
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+            targeting: self
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            filterTarget: mode = 2
+            modesSelected:
+            - 2
+            mode: effect
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.315624713897705
+              s: 0.803125083446503
+              v: 0.920765995979309
+              a: 1
+          flavor: A creature who uses the Heal action employs medicine or inspiring words to make an adjacent creature feel better and stay in the fight.
+          sourceReference:
+            __typeName: SourceReference
+            page: 274
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          persistence: []
+          strain: []
+          modeList:
+          - text: Spend a Recovery
+          - text: Saving Throw
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          categorization: Common Ability
+          domains: []
+          implementation: 3
+          guid: 20310e65-b594-45dd-b7d2-d3598059c1f1
+          name: Heal
+          targetType: target
+          description: 'The target creature can spend a Recovery to regain Stamina, or can make a saving throw against one effect they are suffering that can be ended by a saving throw. '
+          abilityType: none
+          iconid: 3ab6193e-80e3-47ce-ba28-26070a4cfaa2
+      name: Heal
+      description: ""
+      guid: 1817ad33-c98f-45b7-9875-b2d9a6c6d164
+      source: Actions Global Rule Mod Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Convert your Main Action into a Maneuver
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5e984307-b02e-4fcc-a112-700438af9c14
+        guid: 186621ed-847c-4135-be3c-3298f25e22c5
+        source: Actions Global Rule Mod Feature
+        behavior: activated
+        description: Convert your Main Action into a Maneuver
+        name: Use Maneuver
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            guid: ecc277e3-3f16-4e35-a437-48057888d07b
+            modifier:
+              __typeName: CharacterModifier
+              modifyDescription: ""
+              source: ""
+              filterAbility: Ability.Maneuver
+              behavior: modifyability
+              guid: 9083ad34-0006-4565-b9ba-f7508777bfe8
+              cannotModifyAction: true
+              attributes: []
+              mustPayResourceCost: true
+              description: ""
+              name: Modify Attack
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 2452be0e-7b44-4c6a-a894-b5e0de6a519d
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                behaviors: []
+                abilityType: none
+                name: New Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Common Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 3e5f62be-fdb0-4169-bca2-0afa0f8f553b
+          targetType: self
+          castImmediately: true
+          domains: []
+          iconid: 991e012a-2120-4672-be8c-75c694277042
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          name: Use Maneuver
+          numTargets: "1"
+          description: Convert your Main Action into a Maneuver
+          abilityType: none
+          implementation: 3
+      source: Actions Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: 5e984307-b02e-4fcc-a112-700438af9c14
+      name: Use Maneuver
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: Convert your Main Action into a Move Action
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 20050f01-a5c3-4d88-bbeb-6a548422e27c
+        guid: ea2cb441-cf3c-4922-85ce-fa61678ca9ea
+        source: Actions Global Rule Mod Feature
+        behavior: activated
+        description: Convert your Main Action into a Move Action
+        name: Use Move Action
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Common Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          domains: []
+          strain: []
+          modeList:
+          - text: Advance
+          - text: Disengage
+          guid: 91ae2b6a-2d76-476a-b418-9bcc12da24c1
+          iconid: 1067bcb5-f47d-40ba-9910-125f27ad2355
+          castImmediately: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: b3cf4d20-5fc6-448e-a05e-3f342c363017
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 1
+            abilityType: standard
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 73fd984e-0324-47df-aeec-a823b89755e1
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 2
+            abilityType: standard
+            standardAbility: a0cde3eb-493e-41ac-bfe0-b0ec583431af
+          numTargets: "1"
+          name: Use Move Action
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          description: Convert your Main Action into a Move Action
+          abilityType: none
+          implementation: 3
+      source: Actions Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: 20050f01-a5c3-4d88-bbeb-6a548422e27c
+      name: Use Move Action
+      implementation: 4
+  name: Actions
+  mtime: 1775024258559
+  id: d2f9f92d-4f6d-4b1b-9cba-ff0ecabf9f55
+  ctime: 1699694773256
+534cbec8-5c03-4919-9aa4-b34f5db5e3a0:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2c77cb3b-a35d-43a2-b7b1-ef657936f4fe
+        source: Draw Steel Heroes
+        behavior: power
+        keywords: []
+        activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1) or (Target.MovementType = "Burrow" and Target.DistanceBelowGround >= 1) or (Caster.MovementType = "Burrow" and Caster.DistanceBelowGround >= 1)) and Self.Ignore Cover <= 0 '
+        name: Cover
+        guid: e77d603e-01da-40a0-8253-002677d0273e
+        description: When you have line of effect to a creature or object but that target has at least half their form blocked by a solid object such as a tree, wall, or overturned table, the target has cover. You take a bane on damage-dealing abilities used against creatures or objects that have cover from you.
+        modtype: bane
+        rollType: ability_power_roll
+      name: Cover
+      description: When you have line of effect to a creature or object but that target has at least half their form blocked by a solid object such as a tree, wall, or overturned table, the target has cover. You take a bane on damage-dealing abilities used against creatures or objects that have cover from you.
+      guid: 2c77cb3b-a35d-43a2-b7b1-ef657936f4fe
+      source: Draw Steel Heroes
+      implementation: 3
+  name: Cover
+  mtime: 1774512345759
+  id: 534cbec8-5c03-4919-9aa4-b34f5db5e3a0
+  ctime: 1704299082329
+c48b86ce-0da3-483c-b405-441630e7498d:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f2360d05-10b7-4889-a571-5a585be5684a
+        source: Surges Global Rule Mod Feature
+        guid: 23edb243-90a1-4338-94ea-e1587fb5a390
+        filterCondition: Combat Round > 0
+        name: Surges
+        description: ""
+        num: 0
+        resourceType: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+        behavior: resource
+      name: Surges
+      guid: f2360d05-10b7-4889-a571-5a585be5684a
+      description: ""
+      source: Surges Global Rule Mod Feature
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a151bcb9-bbe4-4dc3-8f04-fa5bc67fb04c
+        displayCondition: resources.surges >= 2 and Ability.haspotency
+        source: Surges Global Rule Mod Feature
+        guid: 4d78e4da-c021-455d-baa4-89461d77fba4
+        keywords: []
+        resourceCostAmount: 2
+        activationCondition: ""
+        description: When you use a power roll, you may spend two surges to add one to the potency.
+        rollType: ability_power_roll
+        name: Potency Surge
+        resourceCostType: surges
+        potencymod: "1"
+        behavior: power
+        modtype: none
+      name: Potency Surge
+      description: When you use a power roll, you may spend two surges to add one to the potency.
+      guid: a151bcb9-bbe4-4dc3-8f04-fa5bc67fb04c
+      source: Surges Global Rule Mod Feature
+      implementation: 3
+  name: Surges
+  mtime: 1762447173985
+  id: c48b86ce-0da3-483c-b405-441630e7498d
+  ctime: 1737441600992
+eef51635-752b-4181-968a-6b957302c470:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      description: Strikes against creatures with concealment take a bane.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 74f38e0e-a14b-4be6-8b66-4dfed1e1686a
+        displayCondition: target.Concealed
+        source: Concealment Global Rule Mod Feature
+        modtype: bane
+        keywords:
+          Strike: true
+        activationCondition: target.Concealed and (not caster.Ignore Concealment) and (caster.ignore Concealment Within Range <= 0 or Distance(caster,target) > caster.Ignore Concealment Within Range)
+        rollType: ability_power_roll
+        guid: 578ae7e1-a2ec-435b-b52c-b804791f2e0a
+        description: Strikes against creatures with concealment take a bane.
+        behavior: power
+        name: Concealment
+      source: Concealment Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: 74f38e0e-a14b-4be6-8b66-4dfed1e1686a
+      name: Concealment
+      implementation: 3
+  name: Concealment
+  mtime: 1771247974487
+  id: eef51635-752b-4181-968a-6b957302c470
+  ctime: 1766652477875
+193c0a8b-8e9f-4bf3-8939-9a0a766e257d:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ce96ee10-bb53-4791-93f1-2bacd96ce88d
+        guid: 40175659-9429-41a9-b9ca-82724175a137
+        source: Move Actions Global Rule Mod Feature
+        behavior: activated
+        description: When a creature takes the Disengage move action, they can shift 1 square. Certain class features, kits, and other rules allow a creature to shift more than 1 square when they disengage. A creature who does so can break up their shift with their maneuver and action however they wish.
+        name: Disengage
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: emptyspace
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.669999897480011
+              s: 0.980370044708252
+              v: 1.00191080570221
+              a: 1
+          categorization: Move
+          range: Disengage Speed
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 4f9a07b3-b53c-48b6-abba-1cb992a2b934
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: shift
+          domains: []
+          targeting: pathfind
+          iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+          name: Disengage
+          numTargets: "1"
+          description: When a creature takes the Disengage move action, they can shift 1 square. Certain class features, kits, and other rules allow a creature to shift more than 1 square when they disengage. A creature who does so can break up their shift with their maneuver and action however they wish.
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        sourceguid: ce96ee10-bb53-4791-93f1-2bacd96ce88d
+        source: Move Actions Global Rule Mod Feature
+        guid: eca20596-bda0-40db-b555-8adefc716034
+        filterCondition: Moved This Turn > 0
+        name: Disengage
+        description: When a creature takes the Disengage move action, they can shift 1 square. Certain class features, kits, and other rules allow a creature to shift more than 1 square when they disengage. A creature who does so can break up their shift with their maneuver and action however they wish.
+        explanation: You have used your move action this turn.
+        behavior: suppressabilities
+      name: Disengage
+      description: When a creature takes the Disengage move action, they can shift 1 square. Certain class features, kits, and other rules allow a creature to shift more than 1 square when they disengage. A creature who does so can break up their shift with their maneuver and action however they wish.
+      guid: ce96ee10-bb53-4791-93f1-2bacd96ce88d
+      source: Move Actions Global Rule Mod Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 85051457-7567-4c5b-b64f-abd121093e3c
+        guid: dec8546d-a278-4bd4-824e-72431a92de24
+        source: Move Actions Global Rule Mod Feature
+        behavior: activated
+        description: ""
+        name: Jump
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.303749918937683
+              s: 0.561913967132568
+              v: 1.00238585472107
+              a: 1
+          categorization: Move
+          range: Min(Max(1, Max(Might, Agility)) + (1 when Moved This Turn >= 2), Movement Speed - Moved This Turn)
+          persistence: []
+          modifiers: []
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            attrid: mgt
+            roll: 2d10 + Might
+            applyto: caster
+            skillid: 7edbc5b3-92f7-4c39-bd05-165bb2990924
+            isTest: true
+            resistanceRoll: false
+            tiers:
+            - Jump {Jump Distance}
+            - Jump {1 + Jump Distance}
+            - Jump {2+ Jump Distance}
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 455f339f-d408-47ed-94da-6ff6e862cd27
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 455f339f-d408-47ed-94da-6ff6e862cd27
+              modtype: none
+              adjustments:
+              - type: jump
+                value: 1
+              keywords: []
+              activationCondition: Moved This Turn >= 2
+              behavior: power
+              rollType: test_power_roll
+              domains: []
+              description: If you move at least 2 squares in a straight line immediately before your jump, you can long jump 1 additional square.
+              guid: 258aa0d2-f50d-49e2-9ac1-e37805040b97
+              name: Run-Up
+          strain: []
+          guid: b88b53af-e769-4e34-ab7c-5a0dfe0f2adc
+          numTargets: "1"
+          domains: []
+          castImmediately: true
+          targeting: straightpath
+          iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+          name: Jump
+          sourceReference:
+            __typeName: SourceReference
+            page: 269
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          description: ""
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        sourceguid: 574bf92b-c6c8-49c6-89b1-c24a9bf45141
+        source: Move Actions Global Rule Mod Feature
+        guid: e3c8bf83-f5c1-4c4c-b697-122fce5bf8e5
+        filterCondition: InDifficultTerrain
+        name: Jump
+        description: ""
+        explanation: You cannot jump from difficult terrain.
+        behavior: suppressabilities
+      name: Jump
+      description: ""
+      guid: 574bf92b-c6c8-49c6-89b1-c24a9bf45141
+      source: Move Actions Global Rule Mod Feature
+      implementation: 2
+  name: Move Actions
+  mtime: 1774411504346
+  id: 193c0a8b-8e9f-4bf3-8939-9a0a766e257d
+  ctime: 1746267175761
+db1b8c72-1571-48cb-a598-ed18f4eb59c5:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c1c62a43-057d-4c88-b7d1-1fd5c549ce14
+        displayCondition: Resources.Hero Tokens >=2
+        source: Gain 2 Surges Global Rule Mod Feature
+        modtype: none
+        keywords: []
+        surges: "2"
+        surgesCanBeKept: true
+        activationCondition: ""
+        name: "Spend 1 Hero Token: Gain 2 Surges"
+        rollType: ability_power_roll
+        description: You can spend a Hero Token to gain 2 surges. Surges allow you to increase the damage or potency of an ability.	
+        guid: cdef7c24-c10a-4728-af89-cac2fcff8692
+        behavior: power
+      name: "Spend 1 Hero Token: Gain 2 Surges"
+      description: You can spend a Hero Token to gain 2 surges. Surges allow you to increase the damage or potency of an ability.	
+      guid: c1c62a43-057d-4c88-b7d1-1fd5c549ce14
+      canHavePrerequisites: true
+      source: Gain 2 Surges Global Rule Mod Feature
+  applyRetainers: false
+  applyMonsters: false
+  ctime: 1773217721889
+  name: Gain 2 Surges
+  id: db1b8c72-1571-48cb-a598-ed18f4eb59c5
+  mtime: 1773218204376
+  applyCharacters: true
+  applyCompanions: false
+caa94136-426c-48e5-8c73-3c0fc75cd2a3:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c12d0dba-5850-45db-be98-7be3dea99428
+        source: Water Global Rule Mod Feature
+        behavior: resistance
+        filterCondition: InWater
+        name: Underwater
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "5"
+          damageType: fire
+          apply: Damage Reduction
+        description: ""
+        guid: 48a7d56a-6687-4ae1-a009-b8db27dcdc9b
+      - __typeName: CharacterModifier
+        sourceguid: c12d0dba-5850-45db-be98-7be3dea99428
+        source: Water Global Rule Mod Feature
+        behavior: resistance
+        filterCondition: InWater
+        name: Underwater
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "-5"
+          damageType: lightning
+          apply: Damage Reduction
+        description: ""
+        guid: 24c8f5b8-2ddc-4752-ab16-c05f49660463
+      name: Underwater
+      description: ""
+      guid: c12d0dba-5850-45db-be98-7be3dea99428
+      canHavePrerequisites: true
+      source: Water Global Rule Mod Feature
+  name: Underwater
+  mtime: 1763980784925
+  id: caa94136-426c-48e5-8c73-3c0fc75cd2a3
+  ctime: 1763976726174
+4d0ead0e-65af-4cc4-93e0-d6adfe7d06b2:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3f8f2a02-4e73-463f-9d6d-0bbdefab1678
+        guid: e3da6e60-5244-4691-941f-3b9b8895a1ec
+        source: Maneuvers Global Rule Mod Feature
+        behavior: activated
+        description: "Choose an enemy adjacent to you.\n\nThe next ability power roll an ally who makes against that creature before the start of your next turn has an edge. "
+        name: Aid Attack
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: e234f1f4-9953-43bd-894c-d96adbb63f84
+            durationUntilEndOfTurn: false
+            duration: 1
+            ongoingEffectCustom: e234f1f4-9953-43bd-894c-d96adbb63f84
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.0185185205191374
+              s: 0.968127489089966
+              v: 0.984313726425171
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 273
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 54924c9b-3d27-43a8-a188-61cff992a02c
+          targetType: target
+          persistence: []
+          domains: []
+          iconid: 5e60c5cb-d09d-41bb-b7e6-e15b745e5757
+          categorization: Common Ability
+          name: Aid Attack
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          description: "Choose an enemy adjacent to you.\n\nThe next ability power roll an ally who makes against that creature before the start of your next turn has an edge. "
+          abilityType: none
+          implementation: 3
+      name: Aid Attack
+      description: "Choose an enemy adjacent to you.\n\nThe next ability power roll an ally who makes against that creature before the start of your next turn has an edge. "
+      guid: 3f8f2a02-4e73-463f-9d6d-0bbdefab1678
+      source: Maneuvers Global Rule Mod Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 86ef635b-8dde-40bf-b1d6-52db9b4d5858
+        guid: 3c5b1c14-7eb8-441e-9cae-3c4d201bbc8a
+        source: Maneuvers Global Rule Mod Feature
+        behavior: activated
+        description: 'Using the Hide maneuver, you attempt to hide from other creatures who aren’t observing you while you have cover or concealment (see Hide and Sneak). '
+        name: Hide
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          implementationDetails: Hidden is a general effect. Hidden that is creature to creature specific is WiP.
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.665032684803009
+              s: 0.925646066665649
+              v: 0.807453393936157
+              a: 1
+          flavor: Using the Hide maneuver, you attempt to hide from other creatures who aren’t observing you while you have cover or concealment.
+          sourceReference:
+            __typeName: SourceReference
+            page: 273
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 5
+          categorization: Common Ability
+          persistence: []
+          modifiers: []
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: hidden (eoe)
+          strain: []
+          guid: 48ee3631-c735-4afe-a48c-f12201068aac
+          domains: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          castImmediately: true
+          numTargets: "1"
+          properties:
+            remainhidden: true
+          name: Hide
+          implementation: 2
+          description: You become hidden. You must have cover or concealment from a creature to become hidden, and that creature cannot be observing you.
+          abilityType: none
+          iconid: a1f8b8ab-a695-4b99-af22-02986221aec6
+      name: Hide
+      description: 'Using the Hide maneuver, you attempt to hide from other creatures who aren’t observing you while you have cover or concealment (see Hide and Sneak). '
+      guid: 86ef635b-8dde-40bf-b1d6-52db9b4d5858
+      source: Maneuvers Global Rule Mod Feature
+      implementation: 2
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 251abe3e-b761-48f3-9a47-1356aa71dad4
+        guid: d9b900b5-6594-46ef-9c20-4e41fae3d8dd
+        source: Maneuvers Global Rule Mod Feature
+        behavior: activated
+        description: "You attempt to shove an adjacent creature using a power roll.\n\nYou can normally only target creatures and objects up to your size category. If your Might score is 2 or higher, you can target creatures and objects with a size equal to your Might score or lower. "
+        name: Knockback
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: ""
+          repeatTargets: false
+          reasonedFilters:
+          - formula: |-
+              (Target.Knockback Target Size<= caster.Knockback Caster Size) or (Caster.Grab Characteristic >= 2 and (Target.Knockback Target Size-3) <= Caster.Grab Characteristic)
+
+              {Note that we must either be equal to or bigger than the target, or have a Might ("Grab Characteristic") greater than or equal to size. Since size 1L is equal to size '4', we subtract 3 from the Knockback Target Size when making this calculation}
+            reason: This creature is too large for you to knockback.
+          - formula: (Not (target.conditions has "Grabbed")) or (ConditionCaster("Grabbed") = Caster)
+            reason: Grabbed creatures cannot be force moved, except by the grabber.
+          behaviors:
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            applyto: caster
+            value: ""
+            triggerName: BeginKnockback
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - Push 1
+            - Push 2
+            - Push 3
+            filterTarget: ""
+            roll: 2d10 + Might
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.538348972797394
+              s: 0.841210603713989
+              v: 1.00191068649292
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 273
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "1"
+          numTargets: Knockback Targets
+          modifiers: []
+          persistence: []
+          strain: []
+          guid: fcf7f003-73d0-41b0-af9c-35786c62c889
+          categorization: Common Ability
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          domains: []
+          implementation: 3
+          targetType: target
+          name: Knockback
+          keywords:
+            Melee: true
+            Weapon: true
+          description: "You attempt to shove an adjacent creature using a power roll.\n\nYou can normally only target creatures and objects up to your size category. If your Might score is 2 or higher, you can target creatures and objects with a size equal to your Might score or lower. "
+          abilityType: none
+          iconid: 4ed2da23-daf5-416c-bbc2-4e826483a00a
+      name: Knockback
+      description: "You attempt to shove an adjacent creature using a power roll.\n\nYou can normally only target creatures and objects up to your size category. If your Might score is 2 or higher, you can target creatures and objects with a size equal to your Might score or lower. "
+      guid: 251abe3e-b761-48f3-9a47-1356aa71dad4
+      source: Maneuvers Global Rule Mod Feature
+      implementation: 2
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 22f53f3a-7cf8-48b0-a68a-73cf498da13b
+        guid: ec6f18a2-edfa-432c-adc5-f9c728d013a8
+        source: Maneuvers Global Rule Mod Feature
+        behavior: activated
+        description: ""
+        name: Search for Hidden Creatures
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: Conditions has "hidden"
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityOpposedRollBehavior
+            attackAttributes:
+              "1":
+                skill: 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+                attribute: inu
+              attribute: mgt
+            defenseAttributes:
+              "1":
+                skill: fdd43bde-6062-484d-aea6-3803d396ea8e
+                attribute: agl
+              attribute: mgt
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions:
+            - 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+            applyto: hit_targets
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You can use this maneuver to attempt to search for creatures hidden from you.
+          categorization: Common Ability
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d4c248aa-2d7b-42a7-bac8-0cb46f179ab5
+          sourceReference:
+            __typeName: SourceReference
+            page: 274
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          targetType: all
+          domains: []
+          implementation: 3
+          numTargets: "1"
+          name: Search for Hidden Creatures
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          description: |
+            You can search for creatures who are hidden from you as long as those creatures are within 10 squares and you have line of effect to them. To do so, you use a maneuver to make an Intuition test using the Search skill, and any hidden creatures within 10 squares of you each make an opposed Agility test using the Hide skill. At the Director’s discretion, different characteristics and skills can be used in this opposed test. For example, your foe might make a Presence test using the Handle Animals skill to hide among a flock of sheep without disturbing them, or you could make a Reason test using the Eavesdrop skill to pick out the breathing of a creature hidden in the dark.
+            If the total of your test is higher than that of a hidden creature, they are no longer hidden from you. Otherwise, they remain hidden from you.
+            As part of the maneuver used to search for hidden creatures, you can point out any creatures you notice to allies within 10 squares of you, making those creatures no longer hidden from those allies.
+            If a creature is hidden from your allies but not from you, you can use a maneuver without making a test to point that creature out to your allies.
+          abilityType: none
+          iconid: f3ca1e31-fa85-4a4f-aa5d-36d4a551310f
+      name: Search for Hidden Creatures
+      description: ""
+      guid: 22f53f3a-7cf8-48b0-a68a-73cf498da13b
+      source: Maneuvers Global Rule Mod Feature
+      implementation: 2
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6d907044-22da-4963-a4da-58cb108e2ff4
+        guid: 40c44e51-d096-481c-a2e8-5e04d0feffb0
+        source: Maneuvers Global Rule Mod Feature
+        behavior: activated
+        description: 'A creature can use the Stand Up maneuver to stand up if they are prone, ending that condition. Alternatively, they can use this maneuver to make a willing adjacent prone creature stand up. '
+        name: Stand Up
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: (target.conditions has "Prone") and (target.Cannot Stand = 0)
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            ongoingEffect: 00cb5e88-2ed8-4760-82e4-6e4e3b73a81f
+            conditions:
+            - da6867b1-01e3-4570-8d1b-1b94ea1ea343
+            purgeType: all
+            chatMessage: Stood up!
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.309999704360962
+              s: 0.955468416213989
+              v: 1.0019109249115
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 274
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          targetType: target
+          strain: []
+          guid: b6d282d9-2c8c-4824-ac1d-09394e8a39e8
+          selfTarget: true
+          iconid: fbfb413b-5378-48cc-9a8d-44af9bddd71c
+          domains: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          categorization: Common Ability
+          name: Stand Up
+          numTargets: "1"
+          description: 'You can use this maneuver to stand up if you are prone, ending that condition. Alternatively, you can use this maneuver to make a willing adjacent prone creature stand up. '
+          abilityType: none
+          implementation: 3
+      name: Stand Up
+      description: 'A creature can use the Stand Up maneuver to stand up if they are prone, ending that condition. Alternatively, they can use this maneuver to make a willing adjacent prone creature stand up. '
+      guid: 6d907044-22da-4963-a4da-58cb108e2ff4
+      source: Maneuvers Global Rule Mod Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 34e0f70c-37d4-47c0-b12c-52faec2300da
+        guid: b58f0bbb-73f8-4d8b-8008-8a880b759fdc
+        source: Maneuvers Global Rule Mod Feature
+        behavior: activated
+        description: If a creature who can’t burrow wants to dig into the ground, they can use the following ability provided their speed is 2 or more.
+        name: Claw Dirt
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            applyto: caster
+            roll: 2d10 + Might
+            tiers:
+            - You can move 1 square into, out of, or through ground you are touching that can be burrowed through, and you are slowed and weakened (EoT).
+            - You can use your main action this turn to move 1 square into, out of, or through ground you are touching that can be burrowed through, and you are slowed (EoT).
+            - You can move 1 square into, out of, or through ground you are touching that can be burrowed through.
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            tiersSelected:
+            - 2
+            rule: Slowed (EoT)
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            tiersSelected:
+            - 3
+            - 1
+            rule: Slowed and Weakened (EoT)
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: ""
+          categorization: Common Ability
+          range: 1
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          modifiers: []
+          strain: []
+          guid: a3766261-c2cd-4de1-9795-085cecbb703f
+          numTargets: "1"
+          domains: []
+          persistence: []
+          abilityFilters: []
+          name: Claw Dirt
+          targetType: self
+          description: If a creature who can’t burrow wants to dig into the ground, they can use the following ability provided their speed is 2 or more.
+          abilityType: none
+          iconid: d7fe0545-7c6e-4305-a6be-50572d2bbea8
+      name: Claw Dirt
+      description: If a creature who can’t burrow wants to dig into the ground, they can use the following ability provided their speed is 2 or more.
+      guid: 34e0f70c-37d4-47c0-b12c-52faec2300da
+      canHavePrerequisites: true
+      source: Maneuvers Global Rule Mod Feature
+  name: Maneuvers
+  mtime: 1775024328344
+  id: 4d0ead0e-65af-4cc4-93e0-d6adfe7d06b2
+  ctime: 1709477751315
+1f00c2e7-6e6a-4f23-bd3c-da4c38e35fbd:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d10f06a1-833a-4a03-966e-70d2ae48f03c
+        source: Dying Global Rule Mod Feature
+        guid: bd720da9-9323-44c0-9ef5-82da5f31dd2a
+        filterCondition: stamina <= Dying Stamina and (Hero or Retainer)
+        name: Catch Breath
+        description: |-
+          When your Stamina is 0 or lower, you are dying. While dying, you can’t take the Catch Breath action in combat, and whenever you make a test using Might or Agility, make an attack, or use an action, maneuver, or a triggered action, you lose 1d6 Stamina after the action, maneuver, or triggered action is resolved. This Stamina loss can’t be prevented in any way. While you are dying, your allies can help you spend recoveries in combat, and you can spend Recoveries out of combat as usual.
+
+          While your Stamina is lower than 0, if it reaches the negative of your winded value, you die. When you die, you can’t be brought back to life without the use of a special powerful item such as a Scroll of Resurrection.
+        explanation: You cannot Catch Breath while dying.
+        behavior: suppressabilities
+      - __typeName: CharacterModifier
+        sourceguid: d10f06a1-833a-4a03-966e-70d2ae48f03c
+        source: Dying Global Rule Mod Feature
+        guid: c4dd3a1b-dc06-40ad-a2af-4e2254265f1b
+        conditionid: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+        name: Dying
+        behavior: bestowcondition
+        description: |-
+          When your Stamina is 0 or lower, you are dying. While dying, you can’t take the Catch Breath action in combat, and whenever you make a test using Might or Agility, make an attack, or use an action, maneuver, or a triggered action, you lose 1d6 Stamina after the action, maneuver, or triggered action is resolved. This Stamina loss can’t be prevented in any way. While you are dying, your allies can help you spend recoveries in combat, and you can spend Recoveries out of combat as usual.
+
+          While your Stamina is lower than 0, if it reaches the negative of your winded value, you die. When you die, you can’t be brought back to life without the use of a special powerful item such as a Scroll of Resurrection.
+        explanation: You are Bleeding because you are Dying.
+        filterCondition: stamina <= Dying Stamina and (Hero or Retainer) {bleeding from dying}
+      name: Dying
+      description: |-
+        When your Stamina is 0 or lower, you are dying. While dying, you can’t take the Catch Breath action in combat, and whenever you make a test using Might or Agility, make an attack, or use an action, maneuver, or a triggered action, you lose 1d6 Stamina after the action, maneuver, or triggered action is resolved. This Stamina loss can’t be prevented in any way. While you are dying, your allies can help you spend recoveries in combat, and you can spend Recoveries out of combat as usual.
+
+        While your Stamina is lower than 0, if it reaches the negative of your winded value, you die. When you die, you can’t be brought back to life without the use of a special powerful item such as a Scroll of Resurrection.
+      guid: d10f06a1-833a-4a03-966e-70d2ae48f03c
+      source: Dying Global Rule Mod Feature
+      implementation: 2
+  applyRetainers: true
+  applyMonsters: true
+  ctime: 1728897599467
+  name: Dying
+  id: 1f00c2e7-6e6a-4f23-bd3c-da4c38e35fbd
+  mtime: 1774555664954
+  applyCharacters: true
+  applyCompanions: true
+4eaeb66a-7f42-4145-b096-a21ef63aeb33:
+  __typeName: GlobalRuleMod
+  id: 4eaeb66a-7f42-4145-b096-a21ef63aeb33
+  applyMonsters: false
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+        sourceguid: b71e44f8-166e-425e-b84b-f2525a58c1b9
+        behavior: resource
+        source: Retainers Global Rule Mod Feature
+        name: Recoveries
+        num: 6
+        description: ""
+        guid: 406dc2b5-53c0-48db-8cae-b15e74ae850b
+      name: Recoveries
+      description: ""
+      guid: b71e44f8-166e-425e-b84b-f2525a58c1b9
+      source: Retainers Global Rule Mod Feature
+      implementation: 3
+  applyRetainers: true
+  name: Retainers
+  mtime: 1748129759504
+  applyCharacters: false
+  ctime: 1748129759504
+71933bef-0d7c-4f84-899b-e72156a9ca34:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: eba4380a-99e1-4e0e-9da0-09fe20f98b92
+        source: Flanking Global Rule Mod Feature
+        behavior: power
+        keywords:
+          Strike: true
+          Melee: true
+        activationCondition: Target.Flanked By(self)
+        name: Flanking
+        guid: 0a60da68-44e3-4d01-a600-0050d0120a1f
+        description: |-
+          When you and one or more allies are adjacent to the same enemy and on opposite sides of the enemy, you are flanking that enemy. While flanking an enemy, you gain an edge on melee strikes against them.
+
+          If you’re unsure whether your hero and an ally are flanking a foe, imagine a line extending from the center of your space to the center of your ally’s space. If that line passes through opposite sides or corners of the enemy’s space, then you and your ally are flanking the enemy.
+
+          You must have line of effect to the enemy and be able to take triggered actions to gain or grant the flanking benefit.
+        modtype: edge
+        rollType: ability_power_roll
+      name: Flanking
+      description: |-
+        When you and one or more allies are adjacent to the same enemy and on opposite sides of the enemy, you are flanking that enemy. While flanking an enemy, you gain an edge on melee strikes against them.
+
+        If you’re unsure whether your hero and an ally are flanking a foe, imagine a line extending from the center of your space to the center of your ally’s space. If that line passes through opposite sides or corners of the enemy’s space, then you and your ally are flanking the enemy.
+
+        You must have line of effect to the enemy and be able to take triggered actions to gain or grant the flanking benefit.
+      guid: eba4380a-99e1-4e0e-9da0-09fe20f98b92
+      source: Flanking Global Rule Mod Feature
+      implementation: 3
+  name: Flanking
+  mtime: 1773594182246
+  id: 71933bef-0d7c-4f84-899b-e72156a9ca34
+  ctime: 1716613501419
+64a0b403-130d-4d7c-a6d6-769b49172322:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: Target = MovingCreature
+          repeatTargets: false
+          targetType: all
+          triggerPrompt: Free Strike against moving creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: "100"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 96b1c440-f66f-4afb-82df-e3fe1e031c95
+          numTargets: "1"
+          conditionFormula: (not Friends(Moving Creature, Self)) and Moving Creature.Altitude <= (Self.Altitude + 1)
+          trigger: leaveadjacent
+          whenActive: combat
+          name: Opportunity Attack
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: Melee Free Strike
+            promptText: Choose Free Strike Against Target
+            targetingFormula: ""
+            applyto: caster
+            targeting: self
+            abilityType: standard
+            autoTarget: true
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: b882eecb-0926-4fc8-8d8f-7c0dc34dda91
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbilityParams:
+              targetid: "<<MovingCreature.id>>"
+            standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            applyto: caster
+            value: MovingCreature.id
+            triggerName: Make Opportunity Attack
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Opportunity Attacks Global Rule Mod Feature
+        behavior: trigger
+        guid: 079e9b71-fdb1-4ea3-8965-a0658bd0dd61
+        name: Opportunity Attack
+        sourceguid: 36d0d24d-f4b3-45c7-b4be-1d04550b1773
+      - __typeName: CharacterModifier
+        sourceguid: 36d0d24d-f4b3-45c7-b4be-1d04550b1773
+        guid: d5bc9d0b-944f-4c8a-8c5e-2dc1eea8725e
+        source: Opportunity Attacks Global Rule Mod Feature
+        behavior: triggerdisplay
+        description: ""
+        name: Opportunity Attack
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: free
+          effect: You make a free strike against the target. You cannot have a bane on the attack.
+          target: One Enemy Creature
+          trigger: The creature moves away from you while not shifting.
+          name: Opportunity Attack
+          guid: 429ce0e8-0218-4eca-9617-a660cf159ba5
+          distance: Melee 1
+          keywords: []
+      name: Opportunity Attack
+      description: ""
+      guid: 026e44e4-4947-4fb3-a050-df3aec187c32
+      source: Opportunity Attacks Global Rule Mod Feature
+      implementation: 4
+  name: Opportunity Attack
+  mtime: 1775006109511
+  id: 64a0b403-130d-4d7c-a6d6-769b49172322
+  ctime: 1746957724303
+a2352c5c-a2d9-4c30-92c2-cba115bfbb72:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 8c5108d9-0c52-46bd-8d30-d0c59d92848e
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b417d403-c35e-46dd-8b1d-885394eabafe
+        source: Free Strikes Global Rule Mod Feature
+        behavior: activated
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Melee Free Strike
+        description: ""
+        guid: 7b0c5900-4d4f-40da-a71c-8f43e182d8a8
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          repeatTargets: false
+          keywords:
+            Strike: true
+            Melee: true
+            Weapon: true
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 0.10884352773428
+              v: 0.576470613479614
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 274
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "1"
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          modifiers: []
+          strain: []
+          guid: c9c0cae5-3426-474c-9770-640d79c43788
+          numTargets: "1"
+          iconid: 391aec7f-87ba-4b36-9c2b-2b478ff823d8
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 2 + M or A damage
+            - 5 + M or A damage
+            - 7 + M or A damage
+            roll: 2d10 + Might or Agility
+          persistence: []
+          name: Melee Free Strike
+          categorization: Basic Attack
+          description: ""
+          abilityType: none
+          implementation: 4
+      name: Melee Free Strike
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: ""
+      source: Free Strikes Global Rule Mod Feature
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 726636fa-7979-4e92-8bc3-f0596ca01be8
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b417d403-c35e-46dd-8b1d-885394eabafe
+        source: Opportunity Attacks Global Rule Mod Feature
+        behavior: activated
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Ranged Free Strike
+        description: ""
+        guid: 7b0c5900-4d4f-40da-a71c-8f43e182d8a8
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Strike: true
+            Weapon: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 2 + M or A damage
+            - 4 + M or A damage
+            - 6 + M or A damage
+            roll: 2d10 + Might or Agility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 0.10884352773428
+              v: 0.576470613479614
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 274
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "5	"
+          numTargets: "1"
+          modifiers: []
+          categorization: Basic Attack
+          strain: []
+          guid: c9c0cae5-3426-474c-9770-640d79c43788
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          persistence: []
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          implementation: 4
+          targetType: target
+          name: Ranged Free Strike
+          displayOrder: 2
+          description: ""
+          abilityType: none
+          iconid: 8a3caccc-e8f7-401e-84f3-78287c2e2624
+      name: Ranged Free Strike
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: ""
+      source: Opportunity Attacks Global Rule Mod Feature
+      implementation: 4
+  applyRetainers: false
+  applyMonsters: false
+  ctime: 1715756666451
+  name: Free Strikes
+  id: a2352c5c-a2d9-4c30-92c2-cba115bfbb72
+  mtime: 1770807557900
+  applyCharacters: true
+  applyCompanions: false
+9061da45-8fd5-49c7-99bf-c3e98bb6a2e2:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5df1bf0a-ba4b-4a0b-b13e-eaf034d4d47b
+        guid: f3749034-8224-4819-8172-4e4a8c550d38
+        source: Catch Breath Global Rule Mod Feature
+        behavior: activated
+        description: 'By using the Catch Breath, maneuver, you spend a Recovery and regain Stamina in an amount equal to your recovery value. '
+        name: Catch Breath
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          reasonedFilters: []
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.384999752044678
+              s: 0.952539682388306
+              v: 0.935618340969086
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 273
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          strain: []
+          guid: ca322ca9-4729-46b2-81bc-d3ac4098fc47
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            filterTarget: ""
+            mode: expend
+            resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+            chatMessage: Recovery Spent
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: Recovery Value
+          categorization: Common Ability
+          domains: []
+          implementation: 3
+          description: You regain stamina equal to your Recovery Value.
+          name: Catch Breath
+          numTargets: "1"
+          abilityFilters:
+          - formula: resources.Recovery > 0	
+            reason: You do not have any recoveries.
+          - formula: not (Conditions has "dying")
+            reason: You cannot use Catch Breath when you are dying.
+          abilityType: none
+          iconid: 12cdef25-2e5b-47e0-bccf-758198de8442
+      name: Catch Breath
+      description: 'By using the Catch Breath, maneuver, you spend a Recovery and regain Stamina in an amount equal to your recovery value. '
+      guid: ccf96bd1-5bf2-4097-b793-bf8a1f8b7ceb
+      source: Catch Breath Global Rule Mod Feature
+      implementation: 3
+  applyRetainers: false
+  applyMonsters: false
+  ctime: 1766651969592
+  name: Catch Breath
+  id: 9061da45-8fd5-49c7-99bf-c3e98bb6a2e2
+  mtime: 1775024264907
+  applyCharacters: true
+  applyCompanions: false
+f55452d8-b1ad-499f-b21e-f69aaad65feb:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8089ce00-fae6-485f-8e3e-5698630946a5
+        source: High Ground Global Rule Mod Feature
+        modtype: edge
+        keywords:
+          Attack: true
+        activationCondition: Altitude >= (Target.Altitude + Target.Height) and Target.Movement Type != "Burrow" and (not mounted)
+        filterCondition: Movement Type = "Walk"
+        description: When you use an ability to target a creature or object while standing on the ground and occupying a space that is fully above the target's space, you gain an edge on the power roll against that target.
+        name: High Ground
+        rollType: ability_power_roll
+        damageModifier: ""
+        behavior: power
+        guid: 7cc603dd-89cc-47a1-8e46-fa1d90532a3c
+      name: High Ground
+      description: When you use an ability to target a creature or object while standing on the ground and occupying a space that is fully above the target's space, you gain an edge on the power roll against that target.
+      guid: 7dad8af0-5a22-45c8-874a-1fce113ef91d
+      source: High Ground Global Rule Mod Feature
+      implementation: 3
+  name: High Ground
+  mtime: 1768652685370
+  id: f55452d8-b1ad-499f-b21e-f69aaad65feb
+  ctime: 1733039119098
+c2d07fb5-0eeb-4932-ae5f-758d516ded7d:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 903025b6-4cd5-4546-916d-6e4e6695bab1
+          repeatTargets: false
+          trigger: collide
+          conditionFormula: (No Damage from Forced Movement < 1) and (NoDamageFromForcedMovementWithObjects < 1 or not WIthObject)
+          targetType: self
+          persistence: []
+          name: Collision
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: |-
+              (Speed + (2 when WithObject) +
+
+              ((Pusher.BonusPushDamageIntoObjects when (WithObject and MovementType = "push")) when HasPusher)) - Forced Movement Damage Reduction
+            chatMessage: Collision
+          description: ""
+          range: 5
+          iconid: ui-icons/skills/1.png
+        description: When you are knocked into another creature or an object, you take 1 damage for each square remaining in the movement.
+        source: Collision Global Rule Mod Feature
+        behavior: trigger
+        guid: 5a592f45-4376-4bb0-8004-4b7fbadbdd94
+        name: Collision
+        sourceguid: 1f94ab92-6243-44f7-a016-4d2f12869ec9
+      name: Collision
+      description: When you are knocked into another creature or an object, you take 1 damage for each square remaining in the movement.
+      guid: 1f94ab92-6243-44f7-a016-4d2f12869ec9
+      source: Collision Global Rule Mod Feature
+      implementation: 3
+  name: Collision
+  mtime: 1770743008169
+  id: c2d07fb5-0eeb-4932-ae5f-758d516ded7d
+  ctime: 1711098573140
+800867b2-86ac-4848-b95f-e147019ef22d:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 89521cd2-d9cb-43b8-b17d-3a45d2a0387d
+          repeatTargets: false
+          trigger: endturn
+          conditionFormula: not dead
+          targetType: self
+          persistence: []
+          name: End Turn Save
+          behaviors:
+          - __typeName: ActivatedAbilitySaveBehavior
+            applyto: caster
+          description: ""
+          range: 5
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: End Turn Save Global Rule Mod Feature
+        behavior: trigger
+        guid: eece7f6a-9129-431d-b49a-16e5acf51714
+        name: End Turn Save
+        sourceguid: d2b4ac7c-444b-429b-a7c2-99b38b931b65
+      name: End Turn Save
+      description: ""
+      guid: d2b4ac7c-444b-429b-a7c2-99b38b931b65
+      source: End Turn Save Global Rule Mod Feature
+      implementation: 3
+  name: End Turn Save
+  mtime: 1772713269810
+  id: 800867b2-86ac-4848-b95f-e147019ef22d
+  ctime: 1711321751814
+228176cb-87b7-4e06-bf75-67a8d9b9c845:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 2f3eafd8-bb90-4714-9f14-d2f2cd1e9fb9
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            chatMessage: Critical Hit!
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            applyto: caster
+            value: ""
+            triggerName: Critical Hit
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            applyto: caster
+            text: Critical Hit!
+            color:
+              __usertype: LuaColor
+              h: 0.135749965906143
+              s: 0.28417956829071
+              v: 0.989622592926025
+              a: 1
+          conditionFormula: ((High Roll + Low Roll) >= Critical Threshold) and Ability.Action
+          whenActive: combat
+          numTargets: "1"
+          trigger: rollpower
+          name: Critical Hit!
+          description: "Whenever you make an ability roll as an action and the roll is a natural 19 or natural 20—a total of 19 or 20 before adding your characteristic score or other modifiers—you score a critical hit. A critical hit allows you to immediately take an additional action after resolving the power roll, whether or not it’s your turn and even if you are dazed (see Conditions below). \n\nYou can’t score a critical hit with an ability roll made as a maneuver or any other action type, but you can score a critical hit with an action you use off your turn. For example, an opportunity attack made as a triggered action or a signature attack used as a free triggered action with the assistance of the tactician’s Strike Now ability can be critical hits. "
+          abilityType: none
+          iconid: b5db9101-7d79-4166-b119-21a12922ffcd
+        description: ""
+        source: Critical Hit! Global Rule Mod Feature
+        behavior: trigger
+        guid: 3807f0c2-04ab-4032-b1d3-184fc22fb5aa
+        name: Critical Hit!
+        sourceguid: e14ab0db-d62e-4789-959b-c0eecf06302c
+      name: Critical Hit!
+      description: ""
+      guid: e14ab0db-d62e-4789-959b-c0eecf06302c
+      source: Critical Hit! Global Rule Mod Feature
+      implementation: 3
+  name: Critical Hit!
+  mtime: 1772146479279
+  id: 228176cb-87b7-4e06-bf75-67a8d9b9c845
+  ctime: 1743447665249
+1d642117-27c8-49c5-b37b-a8fc94b5ca5b:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 86a67591-f6b0-483e-972f-1a1cfff27d21
+        guid: 99f534af-3c62-4f7e-982f-40100f94bd54
+        source: Grab Global Rule Mod Feature
+        behavior: activated
+        description: ""
+        name: Grab
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: ""
+          repeatTargets: false
+          keywords:
+            Melee: true
+            Weapon: true
+          targetType: target
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 1.00267481803894
+              v: 1.00306558609009
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 273
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: Grab Range
+          modeList:
+          - text: Aggressive
+            rules: By grabbing aggressively, a tier 2 result means the target can use a Free Strike on you, but you will be able to grab them.
+            condition: ""
+          - rules: By grabbing safely, a tier 2 result means you won't grab the target, but they won't be able to make a Free Strike against you.
+            text: Safe
+          persistence: []
+          modifiers: []
+          reasonedFilters:
+          - formula: Caster.Grab Characteristic < 2 or (target.size <= caster.size or (caster.Grab Characteristic >= 2 and (target.TileSize) <= caster.Grab Characteristic))
+            reason: You cannot grab creatures that are larger than you and larger than your Might.
+          - formula: Caster.Grab Characteristic >= 2 or caster.size >= target.size
+            reason: You cannot grab creatures that are larger than you.
+          strain: []
+          guid: adc7542e-9f0f-488e-b8dc-47247339044d
+          numTargets: "1"
+          implementation: 3
+          domains: []
+          categorization: Common Ability
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          name: Grab
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - No effect
+            - The target is grabbed by you. They make a melee free strike against you immediately before becoming grabbed.
+            - The target is grabbed by you.
+            roll: 2d10 + Might
+            modesSelected:
+            - 1
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - No effect
+            - No effect
+            - The target is grabbed by you.
+            roll: 2d10 + Might
+            modesSelected:
+            - 2
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            modesSelected:
+            - 1
+            promptText: Free Strike against grabbing creature
+            tiersSelected:
+            - 2
+            filterTarget: ""
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 7ae321ce-ff93-4f8c-aa26-7e2eab7f311f
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            autoTarget: false
+            abilityType: standard
+            standardAbilityParams:
+              targetid: "<<self.id>>"
+            standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            filterTarget: cast.Tier for Target(Target) > mode
+            rule: grabbed
+          description: ""
+          abilityType: none
+          iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+      name: Grab
+      description: ""
+      guid: 86a67591-f6b0-483e-972f-1a1cfff27d21
+      source: Grab Global Rule Mod Feature
+      implementation: 3
+  name: Grab
+  mtime: 1775024340174
+  id: 1d642117-27c8-49c5-b37b-a8fc94b5ca5b
+  ctime: 1745963144454
+60c3b18d-3186-406f-badb-d3ba656d4766:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: You may choose to spend a recovery
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: local
+          range: 1
+          guid: 202f803c-ca0f-490d-80aa-0621358c2970
+          numTargets: "1"
+          modifiers: []
+          mandatoryDifferentPlayer: false
+          strain: []
+          modeList:
+          - text: Spend Recovery
+          - text: Spend 2 Recoveries
+            rules: ""
+            condition: RecoveriesAvailabletoSpend > 1 and Trigger Value > 1
+          - text: Spend 3 Recoveries
+            rules: ""
+            condition: RecoveriesAvailabletoSpend > 2 and Trigger Value > 2
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+            mode: expend
+            quantity: mode
+            guid: 9541be61-afe6-4fc7-8192-a7b89a6a770d
+            chatMessage: Use Recovery
+          - __typeName: ActivatedAbilityHealBehavior
+            filterTarget: ""
+            roll: Recovery Value * Mode
+          multipleModes: true
+          castImmediately: true
+          conditionFormula: Trigger Name = "Spend Recovery" and RecoveriesAvailabletoSpend > 0
+          persistence: []
+          name: Spend Recovery
+          trigger: custom
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: a69c8491-5b28-4cd0-b5c9-5a77310c979f
+        source: Triggers Global Rule Mod Feature
+        behavior: trigger
+        description: Some features may make it possible for a hero to spend a recovery.
+        name: Spend Recovery
+        sourceguid: c5c368a8-83e3-443a-9f39-4323db9c1a76
+      name: Spend Recovery
+      guid: c5c368a8-83e3-443a-9f39-4323db9c1a76
+      description: Some features may make it possible for a hero to spend a recovery.
+      source: Triggers Global Rule Mod Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: You may end an effect with a Free Triggered Action
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 4fdb2bac-f971-4b6c-8fcd-cbb9dfb72686
+          numTargets: "1"
+          conditionFormula: Trigger Name = "Free Trigger End Effect"
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: cf83a426-6e23-477d-9ebf-e9678c16b702
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 0b1cc306-e0b8-4898-836a-c84b0ee7df47
+          trigger: custom
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: cfffe864-d7b4-43d1-b7c3-d19170d3a0f4
+        source: Triggers Global Rule Mod Feature
+        behavior: trigger
+        description: ""
+        name: Free Triggered Action End Effect
+        sourceguid: 7c350784-1636-446f-8c56-2e9a9c2e4a77
+      source: Triggers Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: 7c350784-1636-446f-8c56-2e9a9c2e4a77
+      name: Free Triggered Action End Effect
+      implementation: 3
+  applyRetainers: false
+  applyMonsters: false
+  ctime: 1746292631518
+  name: Triggers
+  id: 60c3b18d-3186-406f-badb-d3ba656d4766
+  mtime: 1775206581254
+  applyCharacters: true
+  applyCompanions: false
+3b312257-2e16-4fc9-a870-ca049fa31a47:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      description: While you are hidden from another creature, you gain an edge on ability rolls made against that creature. This benefit lasts until the end of the turn in which you are no longer hidden.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ed6ffea6-2e08-4b02-baa7-5f7324d24c75
+        displayCondition: caster.HiddenThisTurn or (caster has "Hidden")
+        source: Hiding Global Rule Mod Feature
+        modtype: edge
+        keywords: []
+        activationCondition: not Friends(caster, target)
+        rollType: ability_power_roll
+        guid: fe9c004e-f68d-4bfd-8480-42387a050f06
+        description: While you are hidden from another creature, you gain an edge on ability rolls made against that creature. This benefit lasts until the end of the turn in which you are no longer hidden.
+        behavior: power
+        name: Hidden
+      source: Hiding Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: ed6ffea6-2e08-4b02-baa7-5f7324d24c75
+      name: Hidden This Turn
+      implementation: 3
+  name: Hiding
+  mtime: 1756494790126
+  id: 3b312257-2e16-4fc9-a870-ca049fa31a47
+  ctime: 1754867139672
+6159aea6-6748-4e32-bd20-a953822c60df:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ba8f616f-4a74-4aa6-bbc0-7eb90ae63edd
+        guid: 3d8f64e4-ea0f-4e28-ae9c-eecf16c1b2fd
+        source: Hidden Utility Actions Global Rule Mod Feature
+        behavior: activated
+        description: ""
+        name: Move Speed
+        activatedAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          guid: 4894c586-0725-456c-8ceb-11d22f6a8711
+          repeatTargets: false
+          abilityType: none
+          domains: []
+          targeting: pathfind
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: move
+          name: Move Speed
+          targetType: emptyspace
+          description: ""
+          range: self.Movement Speed
+          iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+      name: Move Speed
+      description: ""
+      guid: ba8f616f-4a74-4aa6-bbc0-7eb90ae63edd
+      source: Hidden Utility Actions Global Rule Mod Feature
+      implementation: 3
+  name: Hidden Utility Actions
+  mtime: 1742767387833
+  id: 6159aea6-6748-4e32-bd20-a953822c60df
+  ctime: 1742767387833
+4dd01554-5471-4eb6-aeba-ff42c50343f4:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: ""
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            filterTarget: (speed - Fall Reduction) >= 2 and Target.InWater = 0
+            roll: Min(50, (speed - Fall Reduction)*2)
+            chatMessage: Falling Damage
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            filterTarget: (speed - (Fall Reduction + 4 when Target.InWater)) >= 2
+            rule: prone
+          - __typeName: ActivatedAbilityDamageBehavior
+            filterTarget: ((speed-4) - Fall Reduction) >= 2 and Target.InWater = 1
+            roll: Min(50, ((speed-4) - Fall Reduction)*2)
+            chatMessage: Falling Damage - Landed in Water
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            value: Cast.Damage Dealt Against(target)
+            triggerName: landfromfall
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: e827ed5e-7d68-4809-b760-50c85fd45bc7
+          conditionFormula: Stop Fall Damage < 1
+          targetType: self
+          name: Fall Damage
+          trigger: fall
+          numTargets: "1"
+          description: When a creature falls 2 or more squares and lands on the ground, they take 2 damage for each square they fall (to a maximum of 50 damage) and land prone. A creature who falls can reduce the effective height of the fall by a number of squares equal to their Agility score (to a minimum of 0).
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Falling Global Rule Mod Feature
+        behavior: trigger
+        guid: e25f5256-13b1-4535-b620-192085929c89
+        name: Fall Damage
+        sourceguid: 1f18ce16-b3c1-4e67-9352-a2585841b07f
+      name: Fall Damage
+      description: ""
+      guid: 1f18ce16-b3c1-4e67-9352-a2585841b07f
+      source: Falling Global Rule Mod Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: c7c64039-0c94-4569-8bee-169a5d36fe06
+          repeatTargets: false
+          trigger: inflictcondition
+          conditionFormula: Condition is prone and Altitude >= 1
+          targetType: self
+          persistence: []
+          name: Fall when Prone
+          behaviors:
+          - __typeName: ActivatedAbilityFallBehavior
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Falling Global Rule Mod Feature
+        behavior: trigger
+        guid: 861b3fb5-053d-4bb2-9afd-1a4527d5547f
+        name: Fall when Prone
+        sourceguid: 25cda69d-8b7e-4cc3-9789-cf812fc2f144
+      source: Falling Global Rule Mod Feature
+      canHavePrerequisites: true
+      guid: 25cda69d-8b7e-4cc3-9789-cf812fc2f144
+      name: Fall when Prone
+      implementation: 3
+  name: Falling
+  mtime: 1770887603306
+  id: 4dd01554-5471-4eb6-aeba-ff42c50343f4
+  ctime: 1720919870223
+6f90ddb0-d311-40d3-afac-8cf235fd1b7b:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 959a17af-608c-4bc6-9107-aea5c7563800
+        source: Caelian Global Rule Mod Feature
+        guid: d250773e-2c3c-4832-977c-7db7cec7381d
+        behavior: proficiency
+        equate: false
+        name: Caelian
+        description: All heroes know Caelian.
+        proficiency: proficient
+        subtype: language
+        skills:
+          9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      name: Caelian
+      description: All heroes know Caelian.
+      guid: 959a17af-608c-4bc6-9107-aea5c7563800
+      source: Caelian Global Rule Mod Feature
+      implementation: 3
+  applyRetainers: false
+  applyMonsters: false
+  ctime: 1737350398551
+  name: Caelian
+  id: 6f90ddb0-d311-40d3-afac-8cf235fd1b7b
+  mtime: 1737350398551
+  applyCharacters: true
+  applyCompanions: false
+85913b3a-c2b7-45ae-b2f0-52b32b685395:
+  __typeName: GlobalRuleMod
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3fdc5a6a-79c9-4270-a306-3518f234127f
+        displayCondition: (Count Nearby Enemies(1) > 0) and (ability.keywords has "ranged")
+        source: Ranged Strikes Global Rule Mod Feature
+        modtype: bane
+        keywords:
+          Ranged: true
+          Strike: true
+        activationCondition: "1"
+        rollType: ability_power_roll
+        guid: 7acde52c-c92c-4815-b629-61d4f59b8269
+        description: If you make a ranged strike while an enemy is adjacent to you, you have a bane on the strike’s power roll.
+        behavior: power
+        name: Adjacent Enemy on Ranged Strike
+      name: Adjacent Enemy on Ranged Strike
+      description: If you make a ranged strike while an enemy is adjacent to you, you have a bane on the strike’s power roll.
+      guid: 3fdc5a6a-79c9-4270-a306-3518f234127f
+      source: Ranged Strikes Global Rule Mod Feature
+      implementation: 4
+  name: Ranged Strikes
+  mtime: 1774788180054
+  id: 85913b3a-c2b7-45ae-b2f0-52b32b685395
+  ctime: 1747286022983

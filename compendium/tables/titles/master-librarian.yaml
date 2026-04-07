@@ -1,0 +1,58 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Master Librarian Benefit
+    numChoices: 1
+    guid: cfd88148-466e-4c82-8e3a-9c38467fd695
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Arcane Improvisation
+      description: When you use a damage-dealing magic signature ability, you can change its damage type to acid, cold, corruption, fire, lightning, poison, or sonic damage.
+      guid: 4992dff6-6dc1-4f78-b1d7-4b57f30b242f
+      canHavePrerequisites: true
+      source: Title
+    - __typeName: CharacterFeature
+      description: If you start a Discover Lore project in your hero’s stronghold or other a permanent base of operations you immediately gain 60 project points toward the completion of that project. If the project costs 60 or fewer points, you complete it in 10 uninterrupted minutes without needing to use a respite activity
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a100a37a-791d-4149-8eee-6711f0336be8
+        source: Feat
+        guid: 9d4bd4ca-aac9-4253-8756-198b6cdf86e6
+        explanationText: If you start a Discover Lore project in your hero’s stronghold or other a permanent base of operations you immediately gain 60 project points toward the completion of that project. If the project costs 60 or fewer points, you complete it in 10 uninterrupted minutes without needing to use a respite activity.
+        name: I Have Just the Book
+        description: If you start a Discover Lore project in your hero’s stronghold or other a permanent base of operations you immediately gain 60 project points toward the completion of that project. If the project costs 60 or fewer points, you complete it in 10 uninterrupted minutes without needing to use a respite activity
+        targetDocId: 2fbc8f4d-eba7-4a15-822c-3e26afe19ce1
+        heading: I Have Just the Book
+        behavior: journalexplanation
+      source: Feat
+      canHavePrerequisites: true
+      guid: a100a37a-791d-4149-8eee-6711f0336be8
+      name: I Have Just the Book
+      implementation: 2
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+      name: Picked Up a Few Things
+      guid: f5e2136c-389a-4e67-9d17-0334a9f7ae0a
+      description: You know a skill from the lore skill group.
+      source: Feat
+    - __typeName: CharacterLanguageChoice
+      prefab: dd4749a1-f74e-4196-8485-f4409ca954f7
+      name: Polyglot
+      numChoices: 2
+      description: You know two languages. Additionally, the project goal for the Learn New Language project is halved for you.
+      source: Feat
+      guid: 02ba704c-ef76-49c1-bd8b-c1c1e480bd09
+id: 563f7817-1211-4397-85e3-ae879b1c0afb
+ctime: 1762351672029
+name: Master Librarian
+description: You want to know the exact coordinates of the Gem of the Waves shipwreck? I came across that just the other day in an unpublished memoir of its second mate. Let me get that for you.
+mtime: 1775109161247
+echelon: "2"
+prerequisite: You have the Ancient Loremaster title, and you have completed a Discover Lore project to learn lost knowledge or forbidden knowledge.

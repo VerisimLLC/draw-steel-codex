@@ -1,0 +1,49 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    name: Fury Does Might Damage
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: Subject.Might
+    conditionFormula: Subject = ConditionCaster("Bleeding")
+    subject: other
+    guid: fd23587a-0f4f-483f-af54-e6c62105fe81
+    trigger: endturn
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: At the end of each of the Fury's turns you take damage equal to their Might.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 1113658d-645b-48a2-b4e1-fb28bc3e6d5b
+  name: Fury Does Might Damage
+  sourceguid: c57d30c6-80e1-4fce-a0f7-7fb9c85e54ed
+source: Ongoing Effect
+guid: c57d30c6-80e1-4fce-a0f7-7fb9c85e54ed
+id: c57d30c6-80e1-4fce-a0f7-7fb9c85e54ed
+ctime: 1746864926293
+condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Fury Does Might Damage
+description: At the end of each of the Fury's turns you take damage equal to their Might.
+mtime: 1757244855922
+iconid: bd44e33a-fb70-490c-acac-882da0d34642

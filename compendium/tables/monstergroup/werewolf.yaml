@@ -1,0 +1,110 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    hasTemporaryHitpoints: true
+    duration: 0
+    ongoingEffectCustom: 32e51e7e-5098-4ad6-8b95-d7571f9b3e24
+    ongoingEffect: 32e51e7e-5098-4ad6-8b95-d7571f9b3e24
+    temporaryHitpoints: "10"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.956445217132568
+      v: 0.883498728275299
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 323
+    docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 24dc7d40-6604-47ab-a722-0b9b209658b9
+  abilityType: none
+  iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+  castImmediately: true
+  targetType: self
+  description: The werewolf gains 10 temporary Stamina and a +3 bonus to speed until the end of their turn. The werewolf can’t use this feature if they took any holy damage since ending their last turn.
+  name: Blood In Their Eyes
+  numTargets: "1"
+  abilityFilters: []
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: d7dcb613-6aac-4d59-aab8-2d7eb78339ba
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 323
+    docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 2c37be5b-5f91-405e-916b-d9c78ce4c058
+  abilityType: none
+  castImmediately: true
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: The werewolf takes an additional main action on their turn. They can use this feature even if they are dazed.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "10"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 85f356e6-a07b-486c-a001-eca594fd6e8e
+    duration: eoe
+    ongoingEffectCustom: f577f2ae-a41c-4ee5-bc18-7a259c4be0a1
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 323
+    docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 578b02b5-d887-4f12-8df9-6450eb4496ab
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+  numTargets: "1"
+  targetType: map
+  selfTarget: true
+  name: Moonfall
+  description: Until the end of the encounter, the encounter map turns to night and the moon appears impossibly huge in the sky. The werewolf can take an additional move action or maneuver on each of their turns while they have line of effect to the moon. Any creature who ends their turn with line  of effect to the moon with 1 or more rage gains 2 rage.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+mtime: 1768250132824
+name: Werewolf
+traits: []
+attacks: []
+id: 96a303f7-0086-48f9-8892-8b1d0ea94b11
+ctime: 1758373533630

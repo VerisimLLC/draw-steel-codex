@@ -1,0 +1,62 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    damageTypeMappings: []
+    description: 1/2/3
+    name: Wetwork Extra Damage
+    behavior: power
+    damageModifierType: psychic
+    modtype: none
+    rollType: ability_power_roll
+  source: Item
+  name: Wetwork Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 7f50cfd2-1b2f-4739-bf8d-b930607582fb
+itemPrerequisite: A folded metal blade infused with blood
+keywords:
+  Polearm: true
+  Psionic: true
+projectSource: Texts or lore in Higaran
+flavor: When first held, this naginata whispers the names of its past victims.
+level9: The weapon’s extra psychic damage increases to 3. Additionally, if you reduce a creature to 0 Stamina using the weapon, you can use a maneuver to move up to your speed and make either a signature ability strike or a melee free strike.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The weapon’s extra psychic damage increases to 2. Additionally, if you reduce a creature to 0 Stamina using the weapon, you can use a maneuver to make a melee free strike and can move up to 2 squares before or after the strike.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: c3c028c1-d3ce-452a-84d7-440c18010012
+ctime: 1759398422472
+name: Wetwork
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 psychic damage. Additionally, if you reduce a creature to 0 Stamina using this weapon, you can immediately use a maneuver to make a melee free strike.
+mtime: 1759398422472
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: e26ca38b-67e1-415c-99c8-4e01ad36290c

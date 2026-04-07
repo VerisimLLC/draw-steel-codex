@@ -1,0 +1,31 @@
+__typeName: MarkdownDocument
+description: Boddorff
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 39d8a0ee-ad05-4b42-990e-71566f50b720
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.500000915527344
+    halign: center
+    image: 59b45d58-66fe-4926-a19a-621491c4ad1e
+id: 3af1bace-3d28-41ba-b463-b5e0d888d890
+mtime: 1761428874719
+content: |-
+  # Boddorff Buckfeather
+
+  [[image]]
+
+  *A polder conduit. He’s the face of the group, happy to talk and interact with others.*
+
+  {
+  Secret: see [Gilded Hand]
+  A polder conduit of Pentalion, an evil saint dedicated to dominance and power, Boddorff keeps his holy symbol under his clothes unless he wishes to intimidate someone or cause a scene. He’s the face of the group, happy to talk and interact with others. He often makes up entire stories about the group’s adventures to appease those looking for a tall tale. After all, every legend helps the [Gilded Hand] find another job.
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761427639743

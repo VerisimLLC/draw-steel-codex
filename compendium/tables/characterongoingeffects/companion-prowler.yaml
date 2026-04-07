@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 5ee55760-10bf-4482-b0c7-8ce2055e7af6
+id: 5ee55760-10bf-4482-b0c7-8ce2055e7af6
+ctime: 1770382819860
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: ""
+name: Companion Prowler
+hiddenOnToken: true
+mtime: 1770382819860
+custom: true
+iconid: ui-icons/skills/1.png

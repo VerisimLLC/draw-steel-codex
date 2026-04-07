@@ -1,0 +1,4029 @@
+__typeName: Class
+numKits: 2
+isSubclass: false
+portraitid: f5203e60-b410-4345-aa75-7b356e173544
+classColor:
+  __usertype: LuaColor
+  h: 0.560185194015503
+  s: 0.776978433132172
+  v: 0.545098066329956
+  a: 1
+heroicResourceIcon: drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_FOCUS.png
+heroicResourceName: Focus
+epicResourceName: Command
+_fork: H4sIAAAAAAAACu1de2/bRrb/KoTvPy024533w7e3QJput8G22yDJ3qKAgWCeNrcS6aWodN1Fv/ueISlZkiWbduxYcRwUrkTOkDPn+Ttnzoz+c/DuXXt+Fv9up/Hg6ODFxM5mB8+Kg3L2Zu589+0o2ckswrWzumkbW7ZlgJbox2/L9v3PvzffeUOSbf6h//XPrmO+KbAMnDiJNJEOceEF0olqpKRI1ASZtI25cdW/9a31belLWxVfkC/zdfiabxCFBZGMEkKFgsshtracwIgOXtm2iXVVvJrY8zbO2oLkbtNlNyMYUYJgk7tN4vuYe/2n/4QIzZ8vz/uHfDc/J0XbzpvYdXk3mdu31k3iQIc/8jjqqS2r7nZHoqNR8z1qm3kmY9/FO84DIQRZ7jHijkeksU/IS4+1c9AJX3RZGUS+8sf2S/3szGOeHMGPeXbsMU/uUSsdIY96djeY3Ja2p7YBAx+b7/pmB4sB38ZVvI6+fh+bMnZealqHMpWxue7NPw7tugfNp3CL4OM2f5vV88bHk3k3FgdeI6XAkMIkIG4ZjMokjLTixpHko4vdWIbmPkhCNPHIs+gRD4Igw4DyTmmhk5UiaHXxjjU/19GvWCGIi6f2fVk30AoI2XfYNesPk5UtXF688S2QLrPEBYOTgSdJFxH3iSLtrUTWSM5wkNRw040jznxTnrVlXUGvg2uFainsA/1EFMQKFlHKQstlgAk4EZBy1lNhiSFkNP3unCbl9GwSp7FqbT8/NnbCW+zcXSpAP/PXA8eOiq+++fq72s9nX/35m69vqxJ3Trw1rdLck+C4Q85yYDM2HB6mHDIxEsGEoMylDRVom/LkpB/b8BCms2YKhTxNDHEN+qm1AJlMJPIgmfVMjJWV4ekxPHflpGzPLxHp7WaDi05ZP+vJpKwABoNkvI+XaL5N4HfzrlhjHtimt7Y5iW3GuB2kbWx1Al1Fp6VnMIfl/QUqXxijKJVKwSHLDBgjaSxyhloUHRbKBuMspd08uv6Dps/ipCN96etqsIDBGYIJUkEZxImUyBFiECWWUENpSj7kDrYnzPCYqq56JSxnZwDIMxUckOu0rWKOH0hm7omvJx1v/ycN/zp2ZaYMGpabnc7j7LRM7cER3i5Zdy6qC6nboS/PQYre23YpCq8jmIWqnJ1+s5BWeMa/5rZqO0E6+L//L31bLyz1wrB2tAUWWO1BBZQFAnMmEgJyUyScIoGxKGjvLuzZ2eS8rTNP7azttWCkYV03UM/boj2NxQxY3hZ1Kmzh66mzbRErX88rePSz4ryeZzE8AaIWKYtiEWE2k6Kt862mWE7ncCGjW4Yy0jStj25x9yjfLt7CQJuyOoH/8lBh3nFS1E0ApeoHMi2rcFj8AsMFukeYy/exqUu/fF3h7WQSQz+Jw+Lu537pkdH60/z/ri2IcTV7lh+Xn9o9kgxj6TrngU/qGQy8Oi+amIU4T7V/re2fHKuQn9d/HEZ5eFwdV1+VXw9WLNRxVlR12z9r2XvouexV2HkLigIGEIhy/tWfX+7i3BXO6hJmwrc17At0paB59HAf/DqgK2qQEckhiiknNjniE7sbuHStIN4zgBqr6U8KsXcKsSUE//iICQvjPfEQTkgi4GHKQxyiAIWnGCjlWnDur0VMXIGPNYDiqYrgyqOPyGLATgKQUjTKSSH5R0JMLoIYZ4HYF7CkpWMMtBDpGCHQ60gdVURCMEsk0yEq+wSW7gcs7RcmuonNekI/j8zYX5GbGGuC9yI3QZ/Eax/F6woscReZoIGCNYzy1cRe9q0jkz8Le/w6Jvh4Onip5WwvJUmF58wkYRCJCXwnBsCvgwb/Z5VJWnhDFFuBIZRhHi2JiPKcJE2cg5MEMy8JlYF6GgPTYxXJbviXax3QTfDGBjn7FcX5zJ7EH8pp2f7UqVavxKcZFixRx3Q+gQF31y6AxgiqrjnCsWTa5n924aADKvok9w4wtB2XrGGe/ssa6qGcRsexRCzmJDkPEMYp4cFvJyc9i45IvcJ/JYlzAixn4BqE2jhonihEipqSYCXhXprPBA49zyDmp+qkBuP0l5Sib1dxUVhOBsQkvKvTuyr+u323gM31ar8u3+c0SAlGPloJyAmCb0eBK1TwaKzFmgpzqd+L+QxM1w163wpj/XwaKzDFRTaPxW9lewr2WhQzMP8g8oNRL0KEzkWwU1CwZ9ksn3eXCphzY4frO13GjqGtxENLU3EvDni3BV6nxC8Ld7VwZ9n9pHoyqX/LDsrFKqayBZpU4GPPwLVs+lEgYwDnW0ELoOUc3BJoadcyy0XhzovZaT1v88Og6xRaz5bkAvIDrY7Ax82p8KnYxhaCt/Pl2x18+fZqvtzwXdP6fZwNL8mTzN9zr/5dYNccTDQDlqHbDcVhZHLrnh1gIElpThNSjkNzFTskaZHXNvnEkhEp7qMD/KjubyyRbuT+BH5o58cik5QJiVIieYWYYmQZU4gxrMDCUio5H+v8MqfBADRtP7gf5vZFdyN7viE5e3CE8CHGRBrMtII3aIaxhjvv4Vn5hmFGMEE4NiaTAK7+cbUjPaRccqqFIv3fT9GxbnpOp5lkxHII7SJHnABnjA4eEWM8VhF4Kuluzzm29515znszm09O9MmJXu9Er6rfGOkI9yJHcrl+40muHlKu+D0lR/av/sVRRpn1GCWHLShHSoBtbC5zytAgORYCu77+xatgHTPIQQ/Ek4i5yk8ggsEDeZEIkfheV3MWaJZxHCzAM5dEQlyKgJymFCmitWUGBsPZ+uLPadneBIW+sk1zfu3yzh0ApkMpGKFccSMl5ob2AAofKk2IoADQjFaUsB494UMQCQU3OJVYMsHHwaft0pE5U1eL3OrLTkaM8yBzAWmcCLCXMeS8EBCPe0J4BLyI/ToQDS5G7cH2GodR5gmyHv64RLGnHJPELwPaxQrWduy7Ayhnu2VBl88vLt0v3rseJvWQ7KjLaz9vW+t/BcsG6HZhGotyVpzayfsYDo+b4+rNWU7h0n718Kh42Vv69Y5t3YL1uugO9rBuCnAFOZddtvkS6MPcx5BNHL56KWgpw+vD/ls8/61uAgyheysv3pbTCLNYaFse6/DlqHhe+KZX2WJqfwX7aosf4yQuxl3Y7LpmbWeq62bTnHc2+HV2bB0FbkUwsiBY7mXXeoVlrwVRwNktfQMJsvhTwW4OKMZaygcBFE+8vZ634n5XPL6xs9IPk+wWWF810Zezxbw/pAT2fjIrO0zqFRn7oSx9WadgLMc0IBMo4GoDWNviqFGUTgWfZMAi3Jw+1yU5wI2Dh1egfMqBGjomkfHUIeq40ilpyoL+sLqGUbkMfGikMvkfV4IrQxaumBsQVAkOGhOhGP0QV/zgmYuOMWvlERCAdP5d/qkraO6Vc6BxZyVunV1Yl4bj6sJm/RztWV0V+S1gnTp4UnzRN/vyuPq2nLW2yjUN/H/BcrxY2C4wTbX7JxgfaNIZjaOCduZB7BjiGiyOGSpmMJvLaBAPTiBLkkLEWktooJERuQGL1/IRSxVJnEjBkdEakBNxAE2NVygmzINJibhgHtpnjNTLPePWFY56LO/2NPJ/cNLK+/WTb8qTqh9Zb2ZypqETu3pW5inljMQbiNB+jR/dZV4aIYzDtkCy6XVDXKwnMwaTZQRRlQNQaxjSEgM9NARCmUaR6lG++deB6fl+z+ErNfmqaNTDJE/qpvx9sYC7yYDz3e5ySzAYwLsJbSkolsrcxhzZZCJol+AEJ0dUCmP8OLbEGGcSCpIAqZxMyGFw65HLRCXjKjlzReB3FzE2FgRTDBCGS0IN5gvPniNupqnUUhLeLUZ0np0RJbnC0khDocPj9uyjVizvr6QSFCS/oFk8sBPGuyqzXAQlz4vT2NS7k4w5sdjxsZif5cCaLRocFjlYAYPw15FVmGvYgmkRuaIRIkcJCFbDH600fAVdwoR5kEY8AluAcSEpgJvTkWdtDDbbGo08ZZhE5gQ2o5Nu94Utbm7rdwWuvcQ+K/5Wts+Oq4Un7MLY3hMeV6+zzTsaglUCEW1nM442fOFP233hRah6D1LRVfK9/LroX9FV8S1xAISwtysCHStGewFzLheBfvasVQ8Ds97E8vfY5Rh/OotZAT86ytqVyh2Zg7/xxK6qwegTGh8Acz4EXV0HkZSROJh8UEIgGvEEozGaB5SrLqMWBismVxyC5NwyLSNKHgbKo8mL/0zBuKUQOibHo7qjHMjnDJ3usk4yAPGIAvxjuRHA4U7KgkdMJSo4RK0u+N3VHmN7PzCWuzPcdtysppN7helXf+2veV/AaiajW/62IYANB0OerULvFQ6LwYR3KeZd679reE2GBHLrDco7qhAHWUMWpoZwhNBOagyTVSPwGlE8guXgiEgBjxGJIJNIRAZHyoKIwlq7r3htp20dtc4wePFm6ccJzhmK55PJ+eYawX0y9QosNZbFe4GlLqeM9pvu+uMCnfNOYt/aedV+CLTZXiTa1PMqHGxaCIeZjZ4KMMQhIE7BCBpvHQp5CUAqRjFe3WtuFCPBeom8lxIcNYRvYEsF8hxLmKFSVuw6LuQL8uUdFd5ubsPYgoEu1t77iy/qWXs9fLknf0pWvv2jasvJX6rwU3qbHetCdza9qybBuBgEctiRvECFIUKOEllCjOFOMABMO73rApbeylNllVquopYzUK95Fw7M88BXd3x1y6UZInRVWd0a6JZ10FwMNmgoyXrYxc52cvGK5T6G/AGeD68cIOfhqHTj4pgWIYPGGKNE8pkJKRJkc4bBOBodidjwXo5XEfUGe/9au0lZvelo0b8F2kcYcf78XRknYcmu1H/r1O+kr/jsRtEuu1VtVwq6kKOewgsQ355mvazzI3ZARbrWiW502lEuvI08Ww9V2B7E5HpzMNdgSeJ6bBN/KLP2bKf/WVP/Oxeyn7/e0MplLGColRALOCSF7XYqSeQAY6Fc76R0YpaxboLLJ/VDA7G+GMUdF8wvbeE6Khxp3LaVHm2NksZFWE9BzRg8t8U3Aq+rKk5iWJj+GyD7GxRog8l4sS5pDzjnOzLWOSG0bqmXG34/xFrfDLoqzkA2IY7Ix9cgrjyEg4oFFIzHHoJAkugu6LoVTDxAKvATYMCWc2vvEsMOO9o3lhtfVrOzMm+NX1mKL77IKGwGSLzLQX553OxXUdGi+l7hGCDQRVYThrgXARmqLMLEBWkZsSrRLdByrOG5I+j5MetbtuegL+087VLQnUjbYjhYsxfKy1nMO5KdHUhmMz5YIhFhsFDBZx65BDzCHGmmBOIy5ltWK2FXWfv3rhi/D1tHevhhSnfr3p99unVbH5CfvqKQoF9pueGZu2txL2VWKJMMBLpaZKwXUXfkUKYgBxjog+UjMmNc4+CEhnhZOHBhBuey/RiQx5FqiK0VjWGHC/tombEP1bLrFr+2LXs1q0U9w9pXcbH05S9X+DSXF7+aXctf40zP4hASclh0edyinE4hnAMOwmeb8kaj+SwTYNqNz3VZo95s3nJdc6xQ7UUubsy65mfG2m2n4N8/VvrewuD7TW/Pq/flZP/KrRe5QgYQJ1qMHAXJ5ixq5CLE9QwiZZZIpDzYPUdGQ8Lw7rDR86u2+7Uj0tPDloSLpoerWe3pHO65JezPrcKgfIsXrAr3LdDWLum7BlttQiuaNOWEOeTy3n2upEeWSI1M8pSmmKT3W6GVuA9odcjxYmM9/JWfLdJakPJ+kZQhhlurUAo05t3KwPnELKKRAp7Le5bxmHpzrgKhTBswC3lLRhQCfKcjSGuMKfaGG572E0nt0qB1Q7HZaoG1RB/+f5ld4uV66RXHe1Ev3WxWFX2Q+90rA7b07McV+Pa2zl1D3v192cGvOXXbDq6+s0+5zooeFh2Rlm/ux1POirLyddPkkqfMDLgAT4qhAAo3eYNWaupp0S/33xYGjtSIvYCB/ElSP0NJ3dOfxemXcPpfR3u8P/uzparg8UyObDmd8xHNbsvxGo9ndlvqeh/P5Mijnt2jlsst298fz+TIo57dlh2Zj2dy9JH+auZZU05tczl5+GC/Trh8GADy0t/6JwoBgjelm7e5wWnZntVl1c5WchDaGuxCDEgHBYEbjxbpKAJi2isnAnYRjz5T+72dzKEJZxupj+UQ7jFPsYVc9VlclvfbcLkOVOooE0sBgbRQxIlmyDmrESOYCU2l0XHLbxP+kqsavo920p7m8ISq7rD7pvgxJ+PyFTZceH7SJe26E4CGS3+pck1kjq5yz+Hi62hnEN6s9HxZtfOuCmK12SsQu7jsuiPuGXlM7apQTE9WTwkRXuF8KhXCIgnQLJvy4h5BzBqGpWaMjl/OGcRhD6VhFi//YOcjlIYtYcl10mBPJivS4LWMyjKFDJiBvHaNwTjIfIQMCVoYmvT4k+IGaSBP0vBA0nDFKYm7pCFWa1tiiOXWBocolfknbRVDFmNwFdSCLOgkohl9PMogDfRJGh5IGq44XmuXNDSzakUalMJccJ0FIeaTnSJDhkmKgoshMKqlEaPPIn/yFA8sDVccIrNLGspqviIN1vv8E9UWgRHQuSgIfAZlBLnANMY2euvpk6f4RKThir3uu6ThrFn9NXMcTeIJMxSIY700uJg3XIUgmHZSCv/kKT4VabhiQ+BuaVgNMZXjSSkORDBGIu65R1YIjFTkKhKtXSSjj+IcpOGAHq8VyuyxRDCYvOSSIE0Z+Ml8+KEWNCIvJAs2WYup+MQk4qpjTkbOdi/Wgbee4/5pkX1Ps2lDmnfLPozHkCscZve41zQfaRZ7xKX/AuqhDUfIjAAA
+baseCharacteristics:
+  mgt: 2
+  rea: 2
+  arrays:
+  - - 2
+    - -1
+    - -1
+  - - 1
+    - 1
+    - -1
+  - - 1
+    - 0
+    - 0
+ctime: 1709705589786
+levels:
+  level-17:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-20:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-19:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-16:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5b0a203e-dbda-4d96-9658-1cc414cda191
+        source: Tactician Class Feature
+        modtype: remove_bane
+        keywords:
+          Weapon: true
+        activationCondition: false
+        guid: bb5e9010-5fcd-4f1c-8d1d-4909a8c3dd45
+        rollType: ability_power_roll
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        description: Your expertise with weapons has grown to true mastery. Whenever you use a signature ability from one of your equipped kits or make a free strike using a weapon from one of your equipped kits, you can negate a bane on the power roll or reduce a double bane to a bane.
+        behavior: power
+        name: Master of Arms
+      source: Tactician Class Feature
+      guid: da30e7d9-2406-4aad-9b31-320ad3c74b8b
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: Your expertise with weapons has grown to true mastery. Whenever you use a signature ability from one of your equipped kits or make a free strike using a weapon from one of your equipped kits, you can negate a bane on the power roll or reduce a double bane to a bane.
+      name: Master of Arms
+      implementation: 3
+    - __typeName: CharacterFeatChoice
+      tag: exploration perks,interpersonal perk,intrigue perk
+      name: Perk
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: e6afa028-29a6-4a96-96bc-8e248b91c641
+      description: You gain one exploration, interpersonal, or intrigue perk of your choice.
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatChoice
+      tag: exploration perks,interpersonal perk,intrigue perk
+      name: Perk
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 1a24bd69-93c8-4e2a-8555-c3732cd36582
+      description: 'You gain an exploration, interpersonal, or intrigue perk of your choice. '
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-14:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+      name: 7-Focus Heroic Abilities
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 792e9072-01a7-4cac-9232-51ecb1de35b3
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Hit 'Em Hard!
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            repeatTargets: false
+            keywords: []
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 910aa293-29ca-4b60-950d-b310e9bd7515
+              duration: eoe_or_dying
+              ongoingEffectCustom: 910aa293-29ca-4b60-950d-b310e9bd7515
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Historians will write about this day.
+            sourceReference:
+              __typeName: SourceReference
+              page: 194
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 54350730-82b1-417b-b3cb-0b8e94e860c9
+            abilityType: none
+            categorization: Heroic Ability
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: self
+            numTargets: "1"
+            name: Hit 'Em Hard!
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: Until the end of the encounter or you are dying, whenever you or any ally deals damage to a target marked by you, they gain two surges, which they can use immediately.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 1a65af40-be30-4586-80b4-400f66452807
+        source: Character
+        guid: 15c723ff-7725-4959-b570-458ff8c9ec96
+        id: 15c723ff-7725-4959-b570-458ff8c9ec96
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Hit 'Em Hard!
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            repeatTargets: false
+            keywords: []
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: ff7d1a85-bfcf-4fc2-8ecd-1e8347451101
+              duration: eoe_or_dying
+              ongoingEffectCustom: ff7d1a85-bfcf-4fc2-8ecd-1e8347451101
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.613749444484711
+                s: 0.977928876876831
+                v: 1.00191080570221
+                a: 1
+            flavor: The purpose of a charge is to break their morale and force a retreat.
+            sourceReference:
+              __typeName: SourceReference
+              page: 195
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: fc218037-9873-4258-a222-017dcd71f6e2
+            numTargets: "1"
+            iconid: 2c2b1cb9-6ba0-46f7-b133-07a5d8e8d87e
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: self
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            name: Frontal Assault
+            categorization: Heroic Ability
+            description: Until the end of the encounter or you are dying, whenever you or any ally deals damage a target marked by you, the damage dealer can push the target up to 2 squares, then shift up to 2 squares. Additionally, any ally using the Charge action to attack a target marked by you can use a signature or heroic ability in place of a melee free strike.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: 93011d39-a2c7-4eaf-94e4-7c8ccd473f9c
+        id: 93011d39-a2c7-4eaf-94e4-7c8ccd473f9c
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Frontal Assault
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            repeatTargets: false
+            keywords: []
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 1ca67786-2503-4374-91e8-dad200613a25
+              duration: eoe_or_dying
+              ongoingEffectCustom: 1ca67786-2503-4374-91e8-dad200613a25
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: The tide begins to turn.
+            sourceReference:
+              __typeName: SourceReference
+              page: 194
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 68a5ecfd-1771-4300-b60a-b9b2f4f57e6a
+            numTargets: "1"
+            iconid: df8e6c86-40a0-4101-8772-46a93ffcbea8
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: self
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            name: Rout
+            categorization: Heroic Ability
+            description: Until the end of the encounter or you are dying, whenever you or any ally deals damage to a target marked by you, if that target has R < average, they are frightened of the damage dealer (save ends).
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: 62f7a705-7943-4ca9-b37e-9c81ec340645
+        id: 62f7a705-7943-4ca9-b37e-9c81ec340645
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Rout
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            repeatTargets: false
+            keywords: []
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: e4b3a4a0-41fd-46f2-bba7-f1736ec1160f
+              duration: eoe_or_dying
+              ongoingEffectCustom: e4b3a4a0-41fd-46f2-bba7-f1736ec1160f
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: "\"We can do this! Keep faith and hold fast!\""
+            sourceReference:
+              __typeName: SourceReference
+              page: 195
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: a7a98d9e-69c1-47cd-8b48-a34b7947a841
+            numTargets: "1"
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: self
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            name: Stay Strong and Focus!
+            categorization: Heroic Ability
+            description: Until the end of the encounter or you are dying, whenever you or any ally deals damage to a target marked by you, the damage dealer can spend a Recovery.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: b0352221-5867-4d0a-becd-b74b7e3aff0c
+        id: b0352221-5867-4d0a-becd-b74b7e3aff0c
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Stay Strong, and Focus!
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      description: Choose one heroic ability from the following options, each of which costs 7 focus to use.
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: You are prepared for all eventualities. At the start of an encounter, you can use a free triggered action to use your Mark ability against an enemy you have line of effect to, even if you are surprised. You can then immediately slide the marked target up to 3 squares, ignoring their stability. The target can't be moved in a way that would harm them (such as over a cliff), leave them dying, or result in them suffering a condition or other negative effect.
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 203dddd4-591c-4d47-9b5a-5a352a74a899
+        description: You are prepared for all eventualities. At the start of an encounter, you can use a free triggered action to use your Mark ability against an enemy you have line of effect to, even if you are surprised. You can then immediately slide the marked target up to 3 squares, ignoring their stability. The target can't be moved in a way that would harm them (such as over a cliff), leave them dying, or result in them suffering a condition or other negative effect.
+        source: Tactician Class Feature
+        name: Out of Position
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Mark an enemy within line of sight
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: c5787e9c-9e14-43f1-aafc-d4a9e2c3bc51
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              persistence: []
+              objectTarget: false
+              abilityType: none
+              strain: []
+              guid: 447fdbb2-c929-4f6b-8b06-7ba1f7d60ad0
+              repeatTargets: false
+              modifiers: []
+              targetAllegiance: enemy
+              targetType: target
+              numTargets: "1"
+              name: Mark
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+                ongoingEffectCustom: false
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 7a0124f8-346b-4d17-a353-c199498d2061
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                promptText: "Out of Position: Slide the target without damaging them."
+                abilityType: standard
+                standardAbilityParams:
+                  range: "3"
+                standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+              description: ""
+              range: "10"
+              iconid: ui-icons/skills/1.png
+            promptText: "Out of Position: Mark an enemy within your line of sight."
+          trigger: rollinitiative
+          name: Out of Position
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: e1ed0bae-f1c9-4772-8a76-25422fad4dd4
+      name: Out of Position
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 203dddd4-591c-4d47-9b5a-5a352a74a899
+      source: Tactician Class Feature
+      implementation: 2
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatChoice
+      tag: interpersonal perk,intrigue perk,crafting perk,exploration perks,lore perks,supernatural perks
+      name: Perk
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 13e694e2-d198-4243-b4d4-5fc31eaf509a
+      description: 'You gain one perk of your choice. '
+      source: Tactician Class Feature
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+      name: 11-Focus Heroic Abilities
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: f80aa90d-6dea-4fa4-9784-0817e0653fae
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            objectTarget: false
+            targetFilter: ""
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              chatMessage: Go Now And Speed Well
+              quantity: "2"
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: caef42e5-ac0e-4fc4-987e-66f9f59a230a
+                  source: Ongoing Effect
+                  modtype: double_edge
+                  keywords: []
+                  activationCondition: true
+                  description: The ability has a double edge on the power roll, ignores damage immunity, and increases the potency of any potency effects by 1.
+                  name: Go Now And Speed Well
+                  behavior: power
+                  potencymod: "1"
+                  rollType: ability_power_roll
+                  guid: 2a8e1678-c80e-4817-a074-0accceb6be78
+                source: Ongoing Effect
+                guid: caef42e5-ac0e-4fc4-987e-66f9f59a230a
+                id: caef42e5-ac0e-4fc4-987e-66f9f59a230a
+                name: Go Now And Speed Well
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                description: ""
+                implementation: 4
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityModifyCastBehavior
+              paramid: ability_ignore_immunity
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: d33bed76-5d86-405d-a782-99dd88637cd5
+                repeatTargets: false
+                abilityType: none
+                castImmediately: true
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    modifyDescription: ""
+                    source: ""
+                    filterAbility: Ability.Usable as Signature Ability or Ability.Heroic
+                    behavior: modifyability
+                    guid: 7f016f5a-c9ff-45e7-8f92-46307d9a61f0
+                    replaceBehaviors: before
+                    attributes: []
+                    cannotModifyAction: true
+                    description: ""
+                    name: Modify Attack
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      strain: []
+                      guid: 5a83ba16-1c02-4574-83ec-c1f8c6ace749
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors: []
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                numTargets: "1"
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You direct an attack to strike true.
+            categorization: Heroic Ability
+            range: 10
+            effectImplemented: true
+            abilityType: none
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            persistence: []
+            strain: []
+            guid: 7868f9a9-8c9e-4bff-bd99-6d35ef183a15
+            numTargets: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 184
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: target
+            name: Go Now And Speed Well
+            selfTarget: true
+            implementation: 4
+            description: The target gains two surges and can use a signature or heroic ability as a free triggered action. They have a double edge on the power roll, ignore damage immunity, and increase the potency of effects by 1.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: f634dc5f-c076-4889-9ad7-019fa4f66cd6
+        id: f634dc5f-c076-4889-9ad7-019fa4f66cd6
+        ctime: 1715748063870
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Go Now And Speed Well
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: ce0ae37b-e3d9-4161-a236-7e41903addbb
+          description: ""
+          source: Character
+          name: Finish Them!
+          behavior: trigger
+          triggeredAbility:
+            __typeName: TriggeredAbility
+            resourceNumber: 11
+            repeatTargets: false
+            abilityType: none
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              runOnController: true
+              standardAbilityParams:
+                numrecoveries: "1"
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 755173f4-0ca8-496f-a2b7-4dce516c7f0a
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+            - __typeName: ActivatedAbilityDestroyBehavior
+              applyto: subject
+            triggerPrompt: The target is killed. Additionally, the creature who caused the target to be winded can spend a Recovery
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            trigger: winded
+            range: 1
+            targetType: attacker
+            hasManualVersion: false
+            persistence: []
+            modifiers: []
+            subjectRange: "10"
+            strain: []
+            guid: 90463c2f-3017-47ed-aa16-d076b9073cba
+            numTargets: "1"
+            conditionFormula: not Subject.Leader and not Subject.Solo
+            castImmediately: true
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+            name: Finish Them!
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            description: |-
+              **Trigger:** The target is not a leader or solo creature, and becomes winded.
+              **Effect:** The target is killed. Additionally, the creature who caused the target to be winded can spend a Recover
+            subject: enemy
+            iconid: ui-icons/skills/1.png
+          guid: aada40bd-6352-478b-adc2-5a2befad0c97
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: ce0ae37b-e3d9-4161-a236-7e41903addbb
+          description: ""
+          source: Character
+          name: Finish Them!
+          behavior: triggerdisplay
+          guid: e65c04eb-b48e-4149-803a-d91b8164bc7c
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            type: free
+            effect: The target is killed. Additionally, the creature who caused the target to be winded can spend a Recovery.
+            name: Finish Them!
+            trigger: The target is not a leader or solo creature, and becomes winded.
+            flavor: You point out an opening to your ally so they can land a killing blow
+            guid: 062305fc-fac9-45fc-a558-30cc1d862286
+            cost: 11 Focus
+            keywords:
+              Ranged: true
+        source: Character
+        guid: ce0ae37b-e3d9-4161-a236-7e41903addbb
+        id: ce0ae37b-e3d9-4161-a236-7e41903addbb
+        ctime: 1715748063870
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Finish Them!
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            objectTarget: false
+            targetFilter: ""
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            implementationDetails: Once you select your allies, you can also select the order the allies will use their signature abilities in.
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              chatMessage: The Floodgates Open
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 959fab8f-6e14-435f-826e-5b89370770cc
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: 959fab8f-6e14-435f-826e-5b89370770cc
+                  source: Ongoing Effect
+                  modtype: edge
+                  keywords: []
+                  activationCondition: true
+                  description: Each target gains 1 surge and can use a signature ability as a free triggered action. That ability gains an edge on the power roll and increases the potency of any potency effects by 1.
+                  name: The Floodgates Open
+                  behavior: power
+                  potencymod: "1"
+                  rollType: ability_power_roll
+                  guid: b94c523e-33dc-4e50-ace2-91f63bb7a476
+                source: Ongoing Effect
+                name: The Floodgates Open
+                description: Each target gains 1 surge and can use a signature ability as a free triggered action. That ability gains an edge on the power roll and increases the potency of any potency effects by 1.
+                id: 959fab8f-6e14-435f-826e-5b89370770cc
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 71efbb4b-c9dd-4d3a-8548-5f2a8533c8c7
+                repeatTargets: false
+                abilityType: none
+                castImmediately: true
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    cannotModifyAction: true
+                    filterAbility: ability.Usable as Signature Ability
+                    behavior: modifyability
+                    guid: 29a30db6-ab14-4f02-a1dc-00df5ce8eddd
+                    attributes: []
+                    source: ""
+                    description: ""
+                    name: Modify Attack
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      guid: 3cfd69e0-c5c1-49b5-9792-55826eaf80aa
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      targetType: self
+                      abilityType: none
+                      name: New Ability
+                      behaviors: []
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                numTargets: "1"
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptText: Choose the order the targeted allies will use their signature ability.
+              promptWhenResolving: true
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You direct your squad to strike in unision and with devastating effect.
+            categorization: Heroic Ability
+            range: 10
+            effectImplemented: true
+            abilityType: none
+            persistence: []
+            modifiers: []
+            targetAllegiance: ally
+            strain: []
+            guid: c226512c-0b81-4fab-9bb3-7e7536723097
+            implementation: 4
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            numTargets: 3
+            sourceReference:
+              __typeName: SourceReference
+              page: 184
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: The Floodgates Open
+            targetType: target
+            description: Each target gains a surge and uses a signature ability that has an edge with increased effect potency of 1, if applicable.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: badd3234-0003-48f1-aaf4-e9e4c978f989
+        id: badd3234-0003-48f1-aaf4-e9e4c978f989
+        ctime: 1715748063870
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: The Floodgates Open
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: I'll Open and You'll Close
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            isRangedVariation: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + M damage
+              - 10 + M damage
+              - 14 + M damage
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                objectTarget: false
+                abilityType: none
+                strain: []
+                guid: 70ab8b2b-b88c-438d-9b58-cb468c0e3a66
+                repeatTargets: false
+                modifiers: []
+                targetAllegiance: ally
+                targetType: target
+                numTargets: "1"
+                name: Invoked Ability
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    persistence: []
+                    modifiers: []
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    strain: []
+                    guid: d1c1ee5e-0cda-4fc1-b1df-ee508b4038ee
+                    repeatTargets: false
+                    abilityType: none
+                    castImmediately: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                      guid: e6aaabe7-93cd-4bd8-a23e-41f36e28c6a5
+                      modifier:
+                        __typeName: CharacterModifier
+                        cannotModifyAction: true
+                        filterAbility: ability.Heroic and (ability.HeroicResourceCost <= Heroic Resources Available to Spend)
+                        behavior: modifyability
+                        guid: 9c428b8c-d18d-4b39-8a24-b37c13e4b506
+                        attributes: []
+                        source: ""
+                        description: ""
+                        name: Modify Attack
+                        ability:
+                          __typeName: ActivatedAbility
+                          numTargets: "1"
+                          modifiers: []
+                          guid: 5866fc09-00f1-4c1d-a2b8-737d7f0f19f3
+                          repeatTargets: false
+                          display:
+                            brightness: 1
+                            saturation: 1
+                            hueshift: 0
+                            bgcolor: "#ffffffff"
+                          abilityModification: true
+                          targetType: self
+                          abilityType: none
+                          name: New Ability
+                          behaviors: []
+                          description: ""
+                          range: 1
+                          iconid: ui-icons/skills/1.png
+                    numTargets: "1"
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                  promptText: Attack the target the tactician attacked. If that creature is dead, you may choose another target.
+                description: ""
+                range: "10"
+                iconid: ui-icons/skills/1.png
+              promptText: Select an Ally to use a Heroic Ability as a Free Triggered Action
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your specialization grants your choice of one of two abilities.
+            categorization: Heroic Ability
+            range: 5
+            effectImplemented: true
+            abilityType: none
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 184
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain: []
+            guid: 81d23c8b-bd35-434e-aa15-ac8144a25e53
+            meleeRange: 1
+            numTargets: 1
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: target
+            objectTarget: false
+            name: I'll Open and You'll Close
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: One ally within 10 can use a heroic ability against the target as a free triggered action without spending any heroic resources, as long as they have enough heroic resources to pay for the ability. If an ability is left to be resolved and the target was reduced to 0 Stamina, the ability user can pick a different target.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: c100ccd1-af5c-414d-858c-dae417cf8310
+        id: c100ccd1-af5c-414d-858c-dae417cf8310
+        ctime: 1715748063870
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: I'll Open and You'll Close
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      description: Choose one heroic ability from the following options.
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: efa2429c-5e24-46cc-b53a-60c590440d1f
+        source: Tactician Class Feature
+        guid: 03032596-dca3-4f3e-8c59-27f437b7630b
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Recoveries
+        description: "10"
+        num: "10"
+        resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+        behavior: resource
+      source: Tactician Class Feature
+      guid: 55dadedf-069b-4497-94e2-63aec91d7b9c
+      id: d1bec0aa-e2d9-415f-b130-dfb842eac32c
+      ctime: 1715748325133
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+      name: Recoveries
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      mtime: 1715748325133
+      description: "10"
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6866713c-b222-4924-b7e1-d5c09fe07008
+        source: Tactician Class Feature
+        behavior: proficiency
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        guid: ba11fc0e-1f14-4768-b13f-8a2abe2eabcd
+        equate: false
+        name: Lead Skill
+        proficiency: proficient
+        description: ""
+        subtype: skill
+        skills:
+          27995005-8a25-435d-9f50-351c9d08a7b4: true
+      name: Lead Skill
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 8a889223-c4ff-41ee-9985-29b3415ec02e
+      source: Tactician Class Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      source: Tactician Class Feature
+      guid: 0bf62756-2fe1-40f2-aa2d-b0e8753250fa
+      individualSkills:
+        078b501f-e549-4725-993f-7ed8d57fc2ae: true
+        5ca5c242-fe6d-43b3-86b0-b5314a9fe39a: true
+        47a38ee9-41ad-4173-a010-adf9e185e221: true
+        ac718c6f-05e2-4301-997c-b1c54aad9250: true
+        50ca6145-2d22-4496-a355-c7b2df2cf0de: true
+        7f6d9375-0ab0-415c-8196-4d99e98aa12b: true
+        61709a09-1a95-4726-b722-c40639cae405: true
+        1c837bdc-17cc-4c7a-9814-f2f8b92cf55a: true
+        bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a: true
+        db532974-aa0a-41a9-aacf-4adc1e6121d3: true
+        d533510d-0f1f-4ce3-a48c-cc21acadb6c6: true
+      categories:
+        exploration: true
+      name: Skills
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      numChoices: 2
+      description: "Choose any two skills from Alertness, Architecture, Blacksmithing, Brag, Culture, Empathize, Fletching, Mechanics, Monsters, Search, Strategy, or the skills of the exploration skill group. (Quick Build: Lead, Monsters, Strategy)"
+    - __typeName: CharacterSubclassChoice
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: Choose your Tactical Doctrine
+      guid: 49f33cad-7c3b-48a8-8f99-25c2a97d894c
+      name: Tactical Doctrine
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: |-
+        At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain focus equal to your Victories. At the start of each of your turns during combat, you gain 2 focus.
+
+        You lose any remaining focus at the end of the encounter
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 84c1db4b-ba41-4094-8f7b-9ee1535523bf
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain focus equal to your Victories. At the start of each of your turns during combat, you gain 2 focus.
+
+          You lose any remaining focus at the end of the encounter
+        source: Tactician Class Feature
+        name: Focus
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: Victories
+            checklistid: aed4bdcb-dbf1-4902-9698-edbf0dde7b1e
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Draw Steel
+          triggerPrompt: "Start of Combat: Gain Focus equal to your Victories."
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: ce677fdb-a39c-469a-b92a-eb057ad9ba22
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          conditionFormula: Victories > 0
+          numTargets: "1"
+          targetType: self
+          trigger: rollinitiative
+          name: Draw Steel
+          description: At the start of a combat encounter you gain Focus equal to your Victories.
+          abilityType: none
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        guid: 381ffd57-c2f3-481d-8856-af1e4d63ac35
+      - __typeName: CharacterModifier
+        sourceguid: 84c1db4b-ba41-4094-8f7b-9ee1535523bf
+        source: Tactician Class Feature
+        guid: b7c1decb-9117-4a29-95fb-20241afb1cf3
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Focus
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain focus equal to your Victories. At the start of each of your turns during combat, you gain 2 focus.
+
+          You lose any remaining focus at the end of the encounter
+        num: 0
+        resourceType: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+        behavior: resource
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 059cc1c1-9615-457c-8972-8fed2248544c
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain focus equal to your Victories. At the start of each of your turns during combat, you gain 2 focus.
+
+          You lose any remaining focus at the end of the encounter
+        source: Tactician Class Feature
+        name: Focus
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: Heroic Resource Gain at Start
+            checklistid: 6bd7495d-8ed4-49f4-8a5b-47fc0ce6dcf1
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Start of Turn
+          triggerPrompt: "Start of Turn: Gain Focus"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 86b33528-8eed-41c1-9e7e-553a1638de7a
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          conditionFormula: Heroic Resource Gain at Start > 0
+          numTargets: "1"
+          targetType: self
+          trigger: beginturn
+          name: Focus
+          description: At the start of each of your turns, you gain 2 focus.
+          abilityType: none
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        guid: 47fff99b-27e9-4ece-a0f3-5c35e97b6564
+      - __typeName: CharacterModifier
+        sourceguid: 059cc1c1-9615-457c-8972-8fed2248544c
+        source: Tactician Class Feature
+        behavior: trigger
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Focus
+        resourceRefreshType: round
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain focus equal to your Victories. At the start of each of your turns during combat, you gain 2 focus.
+
+          You lose any remaining focus at the end of the encounter
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Take Damage: Gain Focus"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 41a7caaf-840f-44b6-a43f-e07ac8bc084f
+          abilityType: none
+          persistence: []
+          modifiers: []
+          subjectRange: "100"
+          strain: []
+          guid: e0350af5-c80c-418a-a43a-39fad88e8ee7
+          trigger: losehitpoints
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          conditionFormula: ""
+          numTargets: "1"
+          mandatory: game:heroicresourcetriggers
+          name: Marked Takes Damage
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 2 when Level >= 4 else 1
+            checklistid: 92ee378f-3221-43dc-a04c-6c15e63f3dd4
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Marked Takes Damage
+          description: The first time each round that you or an ally damages a target you have marked, you gain 1 focus.
+          subject: other
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        guid: 41a7caaf-840f-44b6-a43f-e07ac8bc084f
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 059cc1c1-9615-457c-8972-8fed2248544c
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain focus equal to your Victories. At the start of each of your turns during combat, you gain 2 focus.
+
+          You lose any remaining focus at the end of the encounter
+        source: Tactician Class Feature
+        name: Focus
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            checklistid: 75949255-7efc-4694-aedd-2660fb30ba7c
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Ally Uses Heroic Ability
+          triggerPrompt: "Ally Uses Heroic Ability: Gain Focus"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          guid: 702fed7b-2200-4200-8335-ec6755667ab0
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: useability
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          targetType: self
+          persistence: []
+          name: Focus
+          conditionFormula: UsedAbility.Heroic
+          description: The first time in a round that an ally within 10 squares of you uses a heroic ability, you gain 1 focus.
+          subject: allies
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        guid: 01ca13b1-91bc-4159-a123-8fea05ec2fac
+      - __typeName: CharacterModifier
+        operation: add
+        sourceguid: e4f61019-883e-47db-bfeb-6cab6a92af4e
+        source: Tactician Class Feature
+        value: 2
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Focus
+        guid: fe4c8e6e-52b3-4371-852e-938b3bb60c6d
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain focus equal to your Victories. At the start of each of your turns during combat, you gain 2 focus.
+
+          You lose any remaining focus at the end of the encounter
+        behavior: attribute
+        attribute: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+      name: Focus
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: e4f61019-883e-47db-bfeb-6cab6a92af4e
+      source: Tactician Class Feature
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: |-
+        You have drilled with a broad array of weapons and have developed techniques to optimize their use. Whenever you select or change your kit, you can select an additional martial kit and gain the benefits of both kits.
+
+        If both kits grant you the same benefit, you take one or the other and can't change your choice until you finish a Respite. (This usually means taking the higher of two bonuses.) You also gain access to the signature abilities of both kits.
+      modifiers: []
+      name: Field Arsenal
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 41070fb5-d25c-4cc0-8d1a-7e1db8e2d04c
+      source: Tactician Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 3a5cdd0c-d67c-4412-9d6c-e8358d4aec32
+        description: ""
+        source: Tactician Class Feature
+        name: Mark
+        behavior: activated
+        guid: fc196147-24f7-4b50-8b65-fa4eb6dc28ef
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          keywords:
+            Ranged: true
+          targetAllegiance: enemy
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+            durationUntilEndOfTurn: false
+            ongoingEffectCustom: false
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: |2-
+
+            You draw your allies' attention to a specific foe--with devastating effect.
+          categorization: Heroic Ability
+          range: "10"
+          guid: 5abb3441-4647-4626-be56-89691b0be8fd
+          channeledResource: none
+          persistence: []
+          modifiers: []
+          numTargets: "1"
+          strain: []
+          maxChannel: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 192
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          implementation: 3
+          channelDescription: ""
+          name: Mark
+          description: "The target is marked by you until the end of the encounter, you die, you use this ability again, or you willingly end this effect (no action required). If another tactician marks the target, then your mark on the target ends. You can have one target marked this way, but other tactician abilities can allow you to have multiple marked creatures.\n\nWhile the target is marked and within your line of effect, you and allies within your line of effect have an edge on power rolls made against the target.\n\nWhen the marked creature is reduced to 0 Stamina, you can use a free triggered action to move the mark to a new target within 10 squares. \n\nIn addition, you can spend 1 focus to take one of the following free triggered actions whenever you or an ally damages a target with an ability. You can't use more than one instance of a benefit per trigger: \n\nThe ability deals additional damage equal to twice your Reason score. \n\nThe damage dealer can spend a Recovery. \n\nThe damage dealer can shift up to a number of squares equal to your Reason score. \n\nIf you damage the target, the target is taunted by you (EoT). "
+          attributeOverride: no_attribute
+          abilityType: none
+          iconid: b5db9101-7d79-4166-b119-21a12922ffcd
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 3a5cdd0c-d67c-4412-9d6c-e8358d4aec32
+        description: ""
+        source: Tactician Class Feature
+        name: Mark
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          range: 1
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 7016925a-e9f3-47a3-86a3-a277af4a6bf9
+          trigger: creaturedeath
+          numTargets: "1"
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            promptText: Choose a new creature to mark
+            autoTarget: false
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 5a72ed33-6043-455e-af51-cfc8d1d770be
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 436b4dd1-77f9-4d83-9665-4a42c301e464
+          triggerPrompt: You may place your Mark on a new creature.
+          name: Mark
+          mandatory: false
+          description: ""
+          subject: other
+          iconid: ui-icons/skills/1.png
+        guid: 0c4cc268-746b-4194-84e6-46323d153bfc
+      name: Mark
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: b7c70946-ea8a-405d-99f4-1df9301eeff5
+      source: Tactician Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 2d87b889-18ed-4655-8033-1ea9e6a6f539
+        description: ""
+        source: Tactician Class Feature
+        name: "Mark: Additional Damage"
+        behavior: triggerdisplay
+        guid: a557907c-6ff8-4982-b181-321de00e6d12
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: 'The ability deals {2*Reason|double your reason in} additional damage. '
+          guid: c9ff7a76-385a-4127-8ca6-5268eceda880
+          distance: "-"
+          keywords: []
+          target: One creature marked by you
+          name: "Mark: Additional Damage"
+          cost: 1 Focus
+          trigger: The target takes damage from an ability
+          type: free
+      - __typeName: CharacterModifier
+        sourceguid: 3a5cdd0c-d67c-4412-9d6c-e8358d4aec32
+        source: Tactician Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          modtype: none
+          rollType: ability_power_roll
+          keywords: []
+          activationCondition: false
+          behavior: power
+          description: The ability deals double the Tactician's Reason score in additional damage.
+          name: "Mark: Additional Damage"
+          rules: ""
+          damageModifier: 2*Triggerer.Reason
+          resourceCostType: cost
+          guid: 4b5fd839-24df-4e74-9d47-6071740f913e
+        guid: 393b5094-a74f-4528-89fb-1c1ec3d6d6dc
+        behavior: powertabletrigger
+        type: free
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        targetType: enemy
+        targetFilter: (target has "Mark") and (target.ConditionCaster("Mark") = triggerer)
+        name: "Mark: Additional Damage"
+        rules: The ability deals {2*Reason|double your reason in} additional damage.
+        description: ""
+        range: "100"
+        trigger: takedamage
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 2d87b889-18ed-4655-8033-1ea9e6a6f539
+        description: ""
+        source: Tactician Class Feature
+        name: "Mark: Additional Damage"
+        behavior: activated
+        guid: 5c974feb-d542-4472-aeec-e3b0e809118a
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: (target.conditions has "Mark") and Target.ConditionCaster("Mark") = caster
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: "Mark: Additional Damage"
+            roll: 2*Reason
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Trigger
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: f42631ef-8464-4699-b406-8b12775542bb
+          abilityType: none
+          implementation: 3
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          numTargets: "1"
+          sourceReference:
+            __typeName: SourceReference
+            page: 193
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          name: "Mark: Additional Damage"
+          targetType: target
+          description: When a marked creature is attacked, you can use 1 Focus to deal extra damage equal to twice your Reason score.
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+      name: "Mark: Additional Damage"
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 2d87b889-18ed-4655-8033-1ea9e6a6f539
+      source: Tactician Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: c06f943f-e57d-4e7d-a2a6-87b0e46c56b6
+        description: ""
+        source: Tactician Class Feature
+        name: "Mark: Recovery"
+        behavior: triggerdisplay
+        guid: ce93d56b-934b-43e5-8bd9-b43203787065
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The target may spend a recovery.
+          guid: f7b84d57-1db2-4376-a5f2-16b2c6dfc057
+          distance: "-"
+          keywords: []
+          target: Self or an ally
+          trigger: The target deals damage to a creature marked by you.
+          cost: 1 Focus
+          flavor: "	"
+          type: free
+          name: "Mark: Recovery"
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 3a5cdd0c-d67c-4412-9d6c-e8358d4aec32
+        description: ""
+        source: Tactician Class Feature
+        name: Mark
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 1
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            targeting: self
+            standardAbilityParams:
+              numrecoveries: "1"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2bcb5ac7-7a59-4334-973e-632fe076e98f
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+          characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          abilityType: none
+          range: 1
+          trigger: losehitpoints
+          conditionFormula: HasAbility and Ability.doesdamage
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 82bdf258-78d2-42dc-af24-87de91472653
+          numTargets: "1"
+          targetType: attacker
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          triggerPrompt: Attacker may spend a recovery
+          name: "Mark: Recovery"
+          mandatory: false
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 2ece9ccf-ca39-4736-92d9-b5bb9e2e90d6
+      name: "Mark: Recovery"
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: c06f943f-e57d-4e7d-a2a6-87b0e46c56b6
+      source: Tactician Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 02c87bc3-c2a3-411a-9fd3-1e18c4df746f
+        description: ""
+        source: Tactician Class Feature
+        name: "Mark: Shift"
+        behavior: triggerdisplay
+        guid: 3314bf8b-3b45-42b2-9c98-0f2322f5530b
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: free
+          effect: The target can shift {Reason|a number of squares equal to your Reason score}.
+          target: Self or an ally
+          trigger: The target deals damage to a creature marked by you.
+          name: "Mark: Shift"
+          guid: 25cdeb96-9bb1-478d-88e1-7f2af77b3de0
+          distance: "-"
+          keywords: []
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 3a5cdd0c-d67c-4412-9d6c-e8358d4aec32
+        description: ""
+        source: Tactician Class Feature
+        name: Mark
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 1
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            promptText: "Mark: Choose where to shift"
+            standardAbilityParams:
+              distance: "<<Self.Reason>>"
+              numrecoveries: "1"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2bcb5ac7-7a59-4334-973e-632fe076e98f
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+          characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          abilityType: none
+          range: 1
+          trigger: losehitpoints
+          conditionFormula: HasAbility and Ability.doesdamage
+          persistence:
+            enabled: true
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 82bdf258-78d2-42dc-af24-87de91472653
+          numTargets: "1"
+          targetType: attacker
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          triggerPrompt: Attacker may shift {Reason}
+          name: "Mark: Shift"
+          mandatory: false
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: a9640c9b-7d95-4a5a-84fd-4983c4c3d7ac
+      name: "Mark: Shift"
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 02c87bc3-c2a3-411a-9fd3-1e18c4df746f
+      source: Tactician Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 5f60345a-f8e1-4165-8dce-47d37a7c55f9
+        description: ""
+        source: Tactician Class Feature
+        name: "Mark: Taunt"
+        behavior: triggerdisplay
+        guid: 8fd98c75-e17e-494d-95fa-bd7e24dbcf1f
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: free
+          effect: The target is Taunted by you.
+          target: A creature marked by you
+          trigger: You deal damage to the target with a melee ability.
+          name: "Mark: Taunt"
+          guid: 8b8977f2-1638-4360-a967-65c36dca0eb6
+          distance: "-"
+          keywords: []
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 5f60345a-f8e1-4165-8dce-47d37a7c55f9
+        description: ""
+        source: Tactician Class Feature
+        name: "Mark: Taunt"
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 1
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: Taunted (EoT)
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            text: TAUNTED!
+            color: "#ffffffff"
+          triggerPrompt: Taunt the target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: db34786b-2a66-4c72-901f-be0c8aeef558
+          abilityType: none
+          trigger: dealdamage
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          persistence: []
+          conditionFormula: (Target.conditions has "Mark") and target.ConditionCaster("Mark") = self and HasAbility and (Ability.Keywords has "Melee") and Ability.doesdamage
+          name: "Mark: Taunt"
+          targetType: target
+          description: ""
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+        guid: 4996c32c-eb18-44ad-aae4-a81610304a48
+      name: "Mark: Taunt"
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 5f60345a-f8e1-4165-8dce-47d37a7c55f9
+      source: Tactician Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      prefab: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+        behavior: kitaccess
+        source: Tactician Class Feature
+        name: Kit
+        description: You can use and gain the benefits of a kit.
+        kitType: martial
+        guid: ecf1b910-775f-418e-9bb2-65622277e378
+      source: Tactician Class Feature
+      guid: b1128ff2-4857-49d4-9321-472a95b036ec
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      name: Kit
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: You can use and gain the benefits of a kit.
+      implementation: 3
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Tactician Class Feature
+        value: 1
+        filterCondition: Agility < 4
+        guid: 4608c36c-41b1-4353-b0ac-3e8f3a53a51b
+        name: Characteristic Increase
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Tactician Class Feature
+        value: 1
+        filterCondition: Intuition < 4
+        guid: f975dde2-c4e5-4c0a-a108-c89908808f8d
+        name: Characteristic Increase
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: inu
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Tactician Class Feature
+        value: 1
+        filterCondition: Might < 4
+        guid: 9e5c8bde-6e30-4e26-98c5-7e25c0fea3f1
+        name: Characteristic Increase
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Tactician Class Feature
+        value: 1
+        filterCondition: Presence < 4
+        guid: 1c94122b-b3ae-4b9c-9695-2a47e0ab1bce
+        name: Characteristic Increase
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: prs
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Tactician Class Feature
+        value: 1
+        filterCondition: Reason < 4
+        guid: f118be22-4513-4538-8f15-f28cbc99c895
+        name: Characteristic Increase
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: rea
+      source: Tactician Class Feature
+      guid: 0e4a82ea-6c5e-4ead-90c8-6174e0ca6404
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: Each of your characteristic scores increases by 1, to a maximum of 4.
+      name: Characteristic Increase
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5d2e299a-c4eb-4273-835f-56d3d465c937
+        source: Tactician Class Feature
+        value: 1
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Heightened Focus
+        guid: 8fd5280a-bcc0-48a6-bbe1-2b85c2446831
+        description: When you gain focus at the start of each of your turns during combat, you gain 3 focus instead of 2.
+        behavior: attribute
+        attribute: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+      source: Tactician Class Feature
+      guid: 5d2e299a-c4eb-4273-835f-56d3d465c937
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: When you gain focus at the start of each of your turns during combat, you gain 3 focus instead of 2.
+      name: Heightened Focus
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 29b0cbcc-949b-421b-947a-3866831b2363
+        source: Tactician Class Feature
+        value: 1
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Seize the Initiative
+        guid: f9530ebe-40b4-456a-8de5-cb4f0ebe785c
+        description: If you are not surprised when combat begins, your side gets to go first. If an enemy has an ability that allows their side to go first, you roll as usual to determine who goes first.
+        behavior: attribute
+        attribute: 702ec072-f5eb-42d0-89e2-fd71ced69064
+      - __typeName: CharacterModifier
+        text: If you are not surprised when combat begins, your side gets to go first. If an enemy has an ability that allows their side to go first, you roll as usual to determine who goes first.
+        sourceguid: 29b0cbcc-949b-421b-947a-3866831b2363
+        source: Tactician Class Feature
+        behavior: movementtext
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Seize the Initiative
+        texttype: initiative
+        description: If you are not surprised when combat begins, your side gets to go first. If an enemy has an ability that allows their side to go first, you roll as usual to determine who goes first.
+        guid: 6f554fce-361c-4844-87d1-479af25a9cb4
+        color: white
+      source: Tactician Class Feature
+      guid: 29b0cbcc-949b-421b-947a-3866831b2363
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: If you are not surprised when combat begins, your side gets to go first. If an enemy has an ability that allows their side to go first, you roll as usual to determine who goes first.
+      name: Seize the Initiative
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+        crafting: true
+        exploration: true
+        intrigue: true
+        interpersonal: true
+      source: Tactician Class Feature
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 4cc8f925-2970-4f5a-8196-726796ed7e30
+      description: You gain one skill of your choice.
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+      name: 9-Focus Heroic Abilities
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 9ff7d407-5ebc-423d-a217-8351f0ec9342
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 9 + M damage
+              - 13 + M damage
+              - 18 + M damage
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: ally
+                targetType: all
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 10d89373-27c7-4d01-ad19-b0541a7e267f
+                numTargets: "1"
+                behaviors:
+                - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+                  stamina: "10"
+                  chatMessage: Squad! Gear Check! Temp Stamina
+                selfTarget: true
+                name: Squad! Gear Check!
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: You and allies gain 10 temp stamina
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You distract a foe while your allies secure their defensive gear.
+            sourceReference:
+              __typeName: SourceReference
+              page: 181
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 546ebe64-f221-4bc3-ac95-b7e0ee72ced6
+            numTargets: 1
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: target
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Squad! Gear Check!
+            categorization: Heroic Ability
+            description: You and all allies in within 1 square of the target gain 10 Temporary Stamina.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: 4083001f-c13b-49f5-8234-146c66a04e59
+        id: 4083001f-c13b-49f5-8234-146c66a04e59
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Squad! Gear Check!
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            targetTextOverride: Self and two allies
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You have drilled your squad on how to best use their gear and make them demonstrate their hard work.
+            categorization: Heroic Ability
+            range: 10
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 285af30f-544b-4c63-8d5a-9fc2fbc46b5f
+            iconid: ui-icons/skills/1.png
+            numTargets: 2
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 181
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Squad! Remember Your Training!
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              applyto: caster_and_targets
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              applyto: caster_and_targets
+              lingerTime: 2
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 28c115ae-0178-445b-ad47-a16ea6b1180d
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: 28c115ae-0178-445b-ad47-a16ea6b1180d
+                  source: Ongoing Effect
+                  behavior: power
+                  keywords: []
+                  activationCondition: true
+                  name: Temp Double Edge
+                  guid: efbf9d88-d0b6-4af8-bad5-600a9f372810
+                  description: ""
+                  modtype: double_edge
+                  rollType: ability_power_roll
+                source: Ongoing Effect
+                name: Temp Double Edge
+                description: ""
+                id: 28c115ae-0178-445b-ad47-a16ea6b1180d
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster_and_targets
+              runOnController: true
+              promptText: Make Signature Ability with Edge
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 4637bd74-6c9e-4532-ad16-9cf0f2859868
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              standardAbility: 7b19698f-5fe2-4eea-9ef8-7621a7974073
+            description: Each target gains one surge and uses a signature ability. All targets gain any benefits you have with kits, such as Improved Field Arsenal.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: c370e5d7-4dd3-4c91-8aec-0b3f3f108fcd
+        id: c370e5d7-4dd3-4c91-8aec-0b3f3f108fcd
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Squad! Remember Your Training!
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Win This Day!
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Self and each ally in the area
+            repeatTargets: false
+            keywords:
+              Area: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              quantity: "2"
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              purgeType: chosen
+              conditions: []
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              standardAbilityParams:
+                numrecoveries: "1"
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 1bf83d59-f175-4b51-9ddd-a0e0fc004f8d
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+              abilityType: standard
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You inspire your allies to recover and gather their strength.
+            categorization: Heroic Ability
+            range: "3"
+            effectImplemented: false
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 568bb940-b064-4876-9959-df7ef5a50f36
+            numTargets: "1"
+            sourceReference:
+              __typeName: SourceReference
+              page: 181
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: all
+            name: Win This Day!
+            selfTarget: true
+            implementation: 3
+            description: |-
+              Each target gains 2 surges. Additionally, they can spend a
+              Recovery, remove any conditions or effects on them, and stand up if
+              they are prone.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: 07b78d37-61db-4489-8e0d-f0eecd4b833b
+        id: 07b78d37-61db-4489-8e0d-f0eecd4b833b
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Win This Day!
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: You've Still Got Something Left
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetFilter: ""
+            targetTextOverride: One ally
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              lingerTime: 1
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 54b87c8c-117a-4944-aa22-6ca86b9cd2df
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: 54b87c8c-117a-4944-aa22-6ca86b9cd2df
+                  source: Ongoing Effect
+                  guid: 48e0533e-3b42-4849-9679-012b03e724f0
+                  modtype: none
+                  behavior: power
+                  keywords: []
+                  activationCondition: true
+                  description: ""
+                  overrideCost: false
+                  rollType: ability_power_roll
+                  resourceCostAmount: ""
+                  damageModifier: Triggerer.Reason
+                  resourceCostType: none
+                  name: Bonus damage
+                source: Ongoing Effect
+                name: Bonus damage
+                description: ""
+                id: 54b87c8c-117a-4944-aa22-6ca86b9cd2df
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: ced3fc92-5ab0-498f-b2d5-e644441beaf1
+                repeatTargets: false
+                abilityType: none
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    source: ""
+                    filterAbility: Ability.Heroic
+                    behavior: modifyability
+                    keywords:
+                      Strike: true
+                    guid: 6291c27f-60ae-45ff-bced-d88f32502382
+                    attributes:
+                    - operation: Add
+                      value: "-(1 + <<casterreasons>>)"
+                      id: cost
+                    cannotModifyAction: true
+                    description: ""
+                    name: Modify Attack
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      guid: 98b7084f-9663-4d04-9440-4700a90ef2ef
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      targetType: self
+                      abilityType: none
+                      name: New Ability
+                      behaviors: []
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                targetType: self
+                numTargets: "1"
+                name: You've Still Got Something Left
+                categorization: Hidden
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              targeting: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You push an ally to use a heroic ability sooner than they otherwise would.
+            categorization: Heroic Ability
+            range: 10
+            effectImplemented: false
+            abilityType: none
+            persistence: []
+            modifiers: []
+            targetType: target
+            strain: []
+            guid: 56f40db8-c6f3-48d1-80a1-1759b2d3c36d
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            numTargets: 1
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 181
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            properties:
+              useasstrike: true
+            name: You've Still Got Something Left
+            implementation: 3
+            description: The target uses a heroic ability with the Strike keyword as a free triggered action, and deals extra damage with that ability equal to your Reason score. The ability has its Heroic Resource cost reduced by 1 + your Reason score (minimum cost 0).
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: f89f5bec-b5c4-4d98-8620-4209055b5d9a
+        id: f89f5bec-b5c4-4d98-8620-4209055b5d9a
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: You've Still Got Something Left
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      description: Choose one heroic ability from the following options.
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ee9a905f-538c-41c3-bdb6-c77c5bf24a64
+        source: Tactician Class Feature
+        modtype: tier3
+        keywords: []
+        activationCondition: Ability.Keywords has "Kit"
+        guid: 0d7ec443-ae4d-4248-8809-97b0b3edd113
+        rollType: ability_power_roll
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        description: Whenever you use a signature ability from one of your equipped kits or make a free strike using a weapon from one of your equipped kits, you automatically obtain a tier 3 outcome on the power roll. You can still roll to determine if you score a critical hit.
+        behavior: power
+        name: Grandmaster of Arms
+      source: Tactician Class Feature
+      guid: ee9a905f-538c-41c3-bdb6-c77c5bf24a64
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: Your expertise with weapons has grown to true mastery. Whenever you use a signature ability from one of your equipped kits or make a free strike using a weapon from one of your equipped kits, you automatically obtain a tier 3 outcome on the power roll. You can still roll to determine if you score a critical hit.
+      name: Grandmaster of Arms
+      implementation: 3
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-11:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-12:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-10:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 18145bbd-0b61-4253-9657-cd6c98309e14
+        source: Tactician Class Feature
+        value: 5
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: 10th Level Characteristic Increase
+        guid: c9fc5ffc-18a1-4485-a158-d1dbfac1b039
+        description: Your Might and Reason scores each increase to 5.
+        behavior: attribute
+        attribute: mgt
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 18145bbd-0b61-4253-9657-cd6c98309e14
+        source: Tactician Class Feature
+        value: 5
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: 10th Level Characteristic Increase
+        guid: 8c94c08c-b225-4c55-9ead-cf8590814b72
+        description: Your Might and Reason scores each increase to 5.
+        behavior: attribute
+        attribute: rea
+      source: Tactician Class Feature
+      guid: f2023b4f-87e2-46d7-8e63-26e4e9f56c34
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: Your Might and Reason scores each increase to 5.
+      name: 10th Level Characteristic Increase
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0dfbce66-aacb-471d-8eed-306c53319581
+        source: Tactician Class Feature
+        guid: 42ea72ee-f498-4824-b73d-13d57a68d690
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Command
+        description: |-
+          You have an epic resource called command. Each time you finish a respite, you gain command equal to the XP you gain. You can spend command on your abilities as if it were focus.
+          Additionally, whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier. Whenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier.
+          Command remains until you spend it.
+        num: 0
+        resourceType: e7b04a7e-61fc-4e17-b999-d95d7e751abb
+        behavior: resource
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 0dfbce66-aacb-471d-8eed-306c53319581
+        description: |-
+          You have an epic resource called command. Each time you finish a respite, you gain command equal to the XP you gain. You can spend command on your abilities as if it were focus.
+          Additionally, whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier. Whenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier.
+          Command remains until you spend it.
+        source: Tactician Class Feature
+        name: Command
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          trigger: endrespite
+          strain: []
+          guid: c402195a-e2b6-4b7e-a702-74f0778f5956
+          repeatTargets: false
+          abilityType: none
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          targetType: self
+          persistence: []
+          name: Command
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: e7b04a7e-61fc-4e17-b999-d95d7e751abb
+            chatMessage: Command Gained
+            quantity: XP Gained
+          description: You have an epic resource called command. Each time you finish a respite, you gain command equal to the XP you gain. You can spend command on your abilities as if it were focus.
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 5563b720-1af3-4081-ae44-7acba41a9dd0
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 0dfbce66-aacb-471d-8eed-306c53319581
+        description: |-
+          You have an epic resource called command. Each time you finish a respite, you gain command equal to the XP you gain. You can spend command on your abilities as if it were focus.
+          Additionally, whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier. Whenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier.
+          Command remains until you spend it.
+        source: Tactician Class Feature
+        name: Command
+        behavior: triggerdisplay
+        guid: 0ea7cd2e-6248-43de-86dc-a6d35ef8f0c8
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: ""
+          effect: You have an epic resource called command. Each time you finish a respite, you gain command equal to the XP you gain. You can spend command on your abilities as if it were focus.
+          name: Command
+          type: passive
+          guid: 266a9037-35eb-446a-849a-7dd76cf51acd
+          distance: ""
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 0dfbce66-aacb-471d-8eed-306c53319581
+        source: Tactician Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          displayCondition: ""
+          resourceCostType: epic
+          modtype: tierup
+          name: Command
+          resourceCostAmount: "1"
+          activationCondition: ""
+          keywords: []
+          source: Trigger
+          rollType: ability_power_roll
+          rules: ""
+          description: Whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier.
+          behavior: power
+          guid: 361331d7-bfb7-4765-9114-71dfcf1dd816
+        guid: 6d4fa451-8e9a-47ba-8f20-4eaca35fc307
+        behavior: powertabletrigger
+        type: free
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        targetType: selforally
+        targetFilter: (cast.primary target has "Mark") and (cast.primary target.ConditionCaster("Mark") = triggerer)
+        name: Command
+        rules: Whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier.
+        description: |-
+          You have an epic resource called command. Each time you finish a respite, you gain command equal to the XP you gain. You can spend command on your abilities as if it were focus.
+          Additionally, whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier. Whenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier.
+          Command remains until you spend it.
+        range: "100"
+        trigger: powerroll
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 0dfbce66-aacb-471d-8eed-306c53319581
+        description: |-
+          You have an epic resource called command. Each time you finish a respite, you gain command equal to the XP you gain. You can spend command on your abilities as if it were focus.
+          Additionally, whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier. Whenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier.
+          Command remains until you spend it.
+        source: Tactician Class Feature
+        name: Command
+        behavior: triggerdisplay
+        guid: 56f12cb9-fcad-4b8c-9e60-65a4e003b63a
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: ""
+          effect: "Whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier.\v\vWhenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier."
+          type: free
+          name: Command
+          cost: 1 Command
+          guid: 36d07532-63f4-4e83-96f3-a54e550a0afb
+          distance: ""
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 0dfbce66-aacb-471d-8eed-306c53319581
+        source: Tactician Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          modtype: tierdown
+          keywords: []
+          activationCondition: false
+          guid: 53bc1a25-4016-4ef2-903b-0f3a45443603
+          behavior: power
+          name: Command
+          rules: ""
+          description: Whenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier.
+          rollType: ability_power_roll
+          resourceCostType: epic
+        guid: 58c02d77-26dc-4d66-8939-e9b8966a4b6a
+        behavior: powertabletrigger
+        type: free
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        targetType: enemy
+        targetFilter: (caster has "Mark") and (caster.ConditionCaster("Mark") = triggerer)
+        name: Command
+        rules: Whenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier.
+        description: |-
+          You have an epic resource called command. Each time you finish a respite, you gain command equal to the XP you gain. You can spend command on your abilities as if it were focus.
+          Additionally, whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier. Whenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier.
+          Command remains until you spend it.
+        range: "100"
+        trigger: powerroll
+      source: Tactician Class Feature
+      guid: 0dfbce66-aacb-471d-8eed-306c53319581
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: |-
+        You have an epic resource called command. Each time you finish a respite, you gain command equal to the XP you gain. You can spend command on your abilities as if it were focus.
+        Additionally, whenever you or any ally uses an ability to deal rolled damage to a creature marked by you, you can spend 1 command as a free triggered action to increase the power roll outcome for that target by one tier. Whenever an enemy marked by you makes an ability roll, you can spend 1 command as a free triggered action to decrease the power roll outcome by one tier.
+        Command remains until you spend it.
+      name: Command
+      implementation: 4
+    - __typeName: CharacterFeatChoice
+      tag: feat,exploration perks,interpersonal perk,intrigue perk
+      name: Perk
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 28dfcb22-193a-46a5-90a5-057ff53bf585
+      description: You gain one exploration, interpersonal, or intrigue perk of your choice.
+    - __typeName: CharacterSkillChoice
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: You gain one skill of your choice.
+      guid: a1ddf16b-279f-425b-a4e4-363e925bec8f
+      source: Tactician Class Feature
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 78bcf3e3-5bf5-40d0-8076-d88cb21946d0
+        source: Tactician Class Feature
+        value: 1
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: True Focus
+        guid: 966a5786-8bf7-4cf5-ae5a-6a59b8f8e480
+        description: When you gain focus at the start of each of your turns during combat, you gain 4 focus instead of 3.
+        behavior: attribute
+        attribute: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+      source: Tactician Class Feature
+      guid: 78bcf3e3-5bf5-40d0-8076-d88cb21946d0
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: When you gain focus at the start of each of your turns during combat, you gain 4 focus instead of 3.
+      name: True Focus
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: |-
+        You have mastered the entirety of possible strategies and tactics. Whenever you or any ally makes an ability roll against a target marked by you, the character making the roll can roll three dice and choose which two to use.
+        Additionally, whenever an ally uses a heroic ability that targets one or more creatures marked by you, they spend 2 fewer of their Heroic Resource on that ability (minimum 1).
+      modifiers: []
+      name: Warmaster
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 964ae8a1-d3ec-4d39-9657-b359007ad6ac
+      source: Tactician Class Feature
+      canHavePrerequisites: true
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-15:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      prefab: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+        source: Tactician Class Feature
+        value: 1
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Characteristic Increase
+        guid: 36c4fc4c-23e3-4d8a-acda-d5df5edb8c35
+        description: 'Your Might and Reason scores each increase to 3. '
+        behavior: attribute
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+        source: Tactician Class Feature
+        value: 1
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Characteristic Increase
+        guid: bc3d4913-16f1-4e6e-a780-f15632c8085c
+        description: 'Your Might and Reason scores each increase to 3. '
+        behavior: attribute
+        attribute: rea
+      source: Tactician Class Feature
+      guid: d5053a1e-48ed-4441-84a8-2e6acdfd771a
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      name: Characteristic Increase
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: 'Your Might and Reason scores each increase to 3. '
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 68fd0394-48a0-4189-8b18-96c09223d265
+      categories:
+        lore: true
+        crafting: true
+        exploration: true
+        intrigue: true
+        interpersonal: true
+      source: Tactician Class Feature
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Tactician Class Feature
+      guid: 51fef704-3b34-48cb-8ee8-e18056702fbe
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: 'The first time each combat round that you or any ally damages a target marked by you, you gain 2 focus instead of 1. '
+      name: 'Focus on Their Weaknesses '
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5b0a203e-dbda-4d96-9658-1cc414cda191
+        source: Tactician Class Feature
+        modtype: edge
+        keywords:
+          Weapon: true
+        activationCondition: false
+        guid: 537dd3b9-b4bd-4190-b754-2981edb2368b
+        rollType: ability_power_roll
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        description: 'Your expertise with weapons has grown. Whenever you use a signature ability from one of your equipped kits or make a free strike using a weapon from one of your equipped kits, you gain an edge. '
+        behavior: power
+        name: Improved Field Arsenal
+      source: Tactician Class Feature
+      guid: 5b0a203e-dbda-4d96-9658-1cc414cda191
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: 'Your expertise with weapons has grown. Whenever you use a signature ability from one of your equipped kits or make a free strike using a weapon from one of your equipped kits, you gain an edge. '
+      name: Improved Field Arsenal
+      implementation: 3
+    - __typeName: CharacterFeatChoice
+      tag: crafting perk,exploration perks,interpersonal perk,intrigue perk,lore perks,supernatural perks
+      name: Perk
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: 2ce21866-1511-4836-8e19-57cfd74cf909
+      description: You gain one perk of your choice
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-18:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      source: Tactician Class Feature
+      guid: 6741b580-2361-4855-97d9-64b42f442a5b
+      imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+      name: 3-Focus Heroic Abilities
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: Choose one heroic ability from the following options, each of which costs 3 focus to use. (<i>Quick Build:</i> Inspiring Strike)
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Tactician Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            targetFilter: not Enemy
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - the target gains one surge
+              - the target gains two surges
+              - the target gains three surges
+              roll: 2d10 + Reason
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You shout a phrase that galvanizes your team.
+            sourceReference:
+              __typeName: SourceReference
+              page: 193
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 10
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 3e5aace6-e693-4578-9686-098161a82958
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            categorization: Heroic Ability
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            numTargets: 3
+            implementation: 3
+            name: Battle Cry
+            targetType: target
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Tactician Class Feature
+        guid: aa0a1408-7e3c-4965-8018-7848f520cb19
+        id: 653e832b-e917-4783-9eb9-fcdd615b1d68
+        ctime: 1715748063870
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Battle Cry
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Tactician Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your precise strike leaves your foe struggling to respond.
+            categorization: Heroic Ability
+            range: 5
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 55d8bad5-361b-4b69-8a15-53b04ffa0f47
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            numTargets: 1
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + M damage; M < weak, dazed (save ends)
+              - 5 + M damage; M < average, dazed (save ends)
+              - 8 + M damage; M < strong, dazed (save ends)
+              roll: 2d10 + Might
+            implementation: 3
+            name: Concussive Strike
+            meleeRange: 1
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 998621b7-f58c-4181-8c77-1700e49ac075
+        source: Tactician Class Feature
+        guid: 2f8858fa-b36a-4620-a549-33d6b80bb680
+        id: 60af4e0f-813b-4b4a-bae6-a0238634540f
+        ctime: 1715748063870
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Concussive Strike
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Tactician Class Feature
+          name: Ability
+          behavior: activated
+          guid: b47613f3-ccba-4d9f-9aed-030185ae08cc
+          activatedAbility:
+            __typeName: ActivatedAbility
+            disableSplitIntoMeleeAndRanged: false
+            resourceNumber: 3
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            isMeleeVariation: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "5 + M damage; #you or one ally within 10 squares can spend a Recovery"
+              - "7 + M damage; #you or one ally within 10 squares can spend a Recovery"
+              - "10 + M damage; #you and one ally within 10 squares can spend a Recovery, and each of you gains an edge on the next ability power roll they make in the encounter"
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              promptText: Choose an ally to spend a recovery
+              tiersSelected:
+              - 1
+              - 2
+              targeting: prompt
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 06a8c1db-b54c-427a-8cbd-5830ccafff2d
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              applyto: caster
+              autoTarget: false
+              standardAbility: 4af4ccee-f664-43d2-b971-3abaec71aa42
+              abilityType: standard
+              standardAbilityParams:
+                range: "10"
+                prompt: ""
+                numtargets: "1"
+                numrecoveries: "1"
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: false
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                abilityType: none
+                strain: []
+                guid: 96292480-560a-4325-9a1c-23edcf46ed36
+                repeatTargets: false
+                name: Invoked Ability
+                numTargets: "1"
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  applyto: targets
+                  targeting: self
+                  standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+                  standardAbilityParams:
+                    numrecoveries: "1"
+                  runOnController: false
+                  abilityType: standard
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 75723298-ed5b-4dbe-b588-88853548c6f7
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  applyto: caster
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 8b18ffa4-7212-47d4-a972-e1a259c7c333
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+                  abilityType: standard
+                  standardAbilityParams:
+                    numrecoveries: "1"
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  applyto: caster_and_targets
+                  ongoingEffect: 3d0b375f-3314-495b-89ff-59d761fc2cba
+                  ongoingEffectCustom: false
+                targetType: target
+                selfTarget: false
+                categorization: Hidden
+                description: ""
+                range: "10"
+                iconid: ui-icons/skills/1.png
+              promptText: You and an ally may spend a recovery and gain an edge
+              autoTarget: false
+              applyto: caster
+              tiersSelected:
+              - 3
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.181249499320984
+                s: 0.411523342132568
+                v: 1.00306522846222
+                a: 1
+            flavor: Your attack gives an ally hope.
+            categorization: Heroic Ability
+            range: "5"
+            modificationLog:
+            - Includes +2/+2/+2 damage from Mountain/Shining Armor kit
+            iconid: 64c8fbe4-c9d7-49e7-b223-bcb6cc3688ad
+            persistence: []
+            modifiers: []
+            numTargets: 1
+            strain: []
+            guid: 6e4f4ed9-6e8b-4fc4-aa33-97a9785236e8
+            sourceReference:
+              __typeName: SourceReference
+              page: 178
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            meleeRange: 1
+            properties: []
+            name: Inspiring Strike
+            targetType: target
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Tactician Class Feature
+        guid: df1a23fb-8e77-44c7-ac65-bca1eb094e9f
+        id: a8d30a0b-2051-4604-9fa3-b8378fd0e4e9
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Inspiring Strike
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Tactician Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            targetFilter: not Enemy
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: a6082e8f-8d78-42c7-8ea5-9cb118dd0786
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              namedAbility: Move Speed
+              promptText: Squad! Forward!
+              autoTarget: false
+              targeting: prompt
+              abilityType: named
+              runOnController: true
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              runOnController: true
+              promptText: Squad! Forward!
+              guid: 2c17309d-5a66-4862-8e0d-29be44ace4af
+              applyto: caster
+              targeting: prompt
+              autoTarget: false
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: a6082e8f-8d78-42c7-8ea5-9cb118dd0786
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: named
+              namedAbility: Move Speed
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.638750314712524
+                s: 0.645898044109344
+                v: 0.965599060058594
+                a: 1
+            flavor: On your command, you and your allies force back the enemy line.
+            categorization: Heroic Ability
+            range: 10
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: f926aa2f-826a-4812-8811-c647c8ae625f
+            iconid: 2c2b1cb9-6ba0-46f7-b133-07a5d8e8d87e
+            numTargets: 2
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 193
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            targetType: target
+            name: Squad! Forward!
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: Each target can move their speed.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Tactician Class Feature
+        guid: 5457176e-2112-4273-9aa4-545f642deb03
+        id: 242f1135-e5df-4502-b25d-1757844b61e2
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Squad! Forward!
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 5655270d-9816-4158-923f-3350cdf327f4
+        description: ""
+        source: Tactician Class Feature
+        name: Strike Now!
+        behavior: activated
+        guid: 437fe5c2-c596-4035-ad88-e06e57a209e1
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: ""
+          repeatTargets: false
+          keywords:
+            Ranged: true
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            promptText: Strike Now!
+            autoTarget: false
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 67a0130e-0121-403f-92d0-15f246d63c0e
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 7b19698f-5fe2-4eea-9ef8-7621a7974073
+          implementation: 3
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.636249840259552
+              s: 0.72206974029541
+              v: 1.00228643417358
+              a: 1
+          flavor: 'Your foe left an opening. You point this out to an ally! '
+          categorization: Ability
+          range: "10"
+          channelIncrement: 5
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          persistence: []
+          modifiers: []
+          numTargets: 1 + (1 when Charges >= 1)
+          strain: []
+          guid: e68b20fd-0749-478f-a691-a6098f3a0d6f
+          channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          sourceReference:
+            __typeName: SourceReference
+            page: 178
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          targetType: target
+          channelDescription: You target two allies instead of one.
+          name: Strike Now!
+          maxChannel: 5
+          description: "The target can make a signature attack as a free triggered action.\n\nSpend 5 Focus: You target two allies instead of one. "
+          abilityType: none
+          iconid: c4893538-9809-4de1-8ef9-2fa83a84fe2b
+      name: Strike Now!
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      guid: cb7436d6-fd78-4de2-8626-a32828bd75d9
+      source: Tactician Class Feature
+      implementation: 3
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      source: Tactician Class Feature
+      guid: 85c5aafa-0fdc-4bd7-86c9-fee82aaf9c8b
+      imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+      name: 5-Focus Heroic Abilities
+      classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+      description: Choose one heroic ability from the following options, each of which costs 5 focus to use. (<i>Quick Build:</i> Hammer and Anvil)
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: "\"Let's not argue about who's the hammer and who's the anvil!\""
+          source: Tactician Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 5 + M damage; one ally within 10 squares can make a signature strike against the target as a free triggered action
+              - 9 + M damage; one ally within 10 squares can make a signature strike that gains an edge against the target as a free triggered action
+              - 12 + M damage; two allies within 10 squares can each make a signature strike that gains an edge against the target as free triggered actions
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              promptText: Choose ally to make signature strike
+              tiersSelected:
+              - 1
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 608c6353-a70d-465f-8ac0-394cfe1ab118
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              filterTarget: (Target.Stamina - Cast.Damage Dealt) > 0
+              autoTarget: false
+              standardAbilityParams:
+                hasedge: "0"
+                targetcount: "1"
+                prompt: Make signature strike
+                range: "10"
+                targetid: "<<target.id>>"
+              standardAbility: e11fbdc8-5d13-49ab-9c0f-acab39ffc044
+              applyto: targets
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              promptText: Choose ally to make signature strike
+              guid: 28bfe182-b949-454d-87a4-21142645e5c8
+              applyto: targets
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 608c6353-a70d-465f-8ac0-394cfe1ab118
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              filterTarget: (Target.Stamina - Cast.Damage Dealt) > 0
+              autoTarget: false
+              standardAbility: e11fbdc8-5d13-49ab-9c0f-acab39ffc044
+              standardAbilityParams:
+                hasedge: "1"
+                targetcount: "1"
+                prompt: Make signature strike
+                range: "10"
+                targetid: "<<target.id>>"
+              tiersSelected:
+              - 2
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              promptText: Choose two allies to make signature strike
+              guid: 04673f0a-6fde-45db-a7ea-0eabf8bf7994
+              applyto: targets
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 608c6353-a70d-465f-8ac0-394cfe1ab118
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              filterTarget: (Target.Stamina - Cast.Damage Dealt) > 0
+              autoTarget: false
+              standardAbility: e11fbdc8-5d13-49ab-9c0f-acab39ffc044
+              standardAbilityParams:
+                hasedge: "1"
+                targetcount: "2"
+                prompt: Make signature strike
+                range: "10"
+                targetid: "<<target.id>>"
+              tiersSelected:
+              - 3
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: f5d589db-b06b-451b-aa84-51cebf4d1eba
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              promptText: Choose ally to make signature strike
+              standardAbilityParams:
+                hasedge: "0"
+                prompt: Make signature strike
+                range: "10"
+                targetcount: "1"
+              filterTarget: (Target.Stamina - Cast.Damage Dealt) <= 0
+              standardAbility: dc7c2d16-098d-4966-bdf7-8c611da7be1f
+              tiersSelected:
+              - 1
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              promptText: Choose ally to make signature strike
+              guid: 04751516-1378-4a7d-9218-456c588d12a6
+              tiersSelected:
+              - 2
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: f5d589db-b06b-451b-aa84-51cebf4d1eba
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: (Target.Stamina - Cast.Damage Dealt) <= 0
+              standardAbilityParams:
+                hasedge: "1"
+                prompt: Make signature strike
+                range: "10"
+                targetcount: "1"
+              abilityType: standard
+              standardAbility: dc7c2d16-098d-4966-bdf7-8c611da7be1f
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              promptText: Choose two allies to make signature strike
+              guid: 2918a6c3-b1e0-4bb7-a099-449946afd447
+              tiersSelected:
+              - 3
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: f5d589db-b06b-451b-aa84-51cebf4d1eba
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: (Target.Stamina - Cast.Damage Dealt) <= 0
+              standardAbilityParams:
+                hasedge: "1"
+                prompt: Make signature strike
+                range: "10"
+                targetcount: "2"
+              abilityType: standard
+              standardAbility: dc7c2d16-098d-4966-bdf7-8c611da7be1f
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.121249318122864
+                s: 0.784570217132568
+                v: 1.00306499004364
+                a: 1
+            flavor: "\"Let's not argue about who's the hammer and who's the anvil!\""
+            categorization: Heroic Ability
+            range: 5
+            effectImplemented: false
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 8e05b761-edae-4495-94e1-02d076ff8ede
+            meleeRange: 1
+            numTargets: 1
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 178
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            implementation: 3
+            name: Hammer and Anvil
+            targetType: target
+            description: If the target is reduced to 0 Stamina and a strike granted by this ability hasn't been made, the striker can pick a different target.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 516f1bc6-09d4-4107-9ddb-0940f7d51a81
+        source: Tactician Class Feature
+        guid: b7bf34c3-3238-4a1d-b183-821d82a854a2
+        id: aae2db25-4862-488f-966c-599f3fdf66ef
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Hammer and Anvil
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: "\"Let's not argue about who's the hammer and who's the anvil!\""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Tactician Class Feature
+          name: Mind Game
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: dbbf46a4-45da-47a7-8d85-51b150fe3d07
+              ongoingEffectCustom: false
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 4 + M damage; R < weak, weakened (save ends)
+              - 6 + M damage; R < average, weakened (save ends)
+              - 10 + M damage; R < strong, weakened (save ends)
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              durationUntilEndOfTurn: false
+              duration: 1
+              ongoingEffectCustom: 1676bc99-e871-419b-8751-f97bc056b415
+              ongoingEffect: 1676bc99-e871-419b-8751-f97bc056b415
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your attack demoralizes your foe. Your allies begin to think you can win.
+            sourceReference:
+              __typeName: SourceReference
+              page: 193
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 5
+            effectImplemented: true
+            targetType: target
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            categorization: Heroic Ability
+            strain: []
+            guid: 3551ac63-eee5-422e-82bb-84703550e82f
+            numTargets: 1
+            meleeRange: 1
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            implementation: 3
+            preDescription: You mark the target.
+            name: Mind Game
+            persistence: []
+            description: Before the start of your next turn, the first time any ally deals damage to any target marked by you, that ally can spend a Recovery.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Tactician Class Feature
+        guid: e269cd48-bd7d-4501-932d-551ca42d4378
+        id: a385516e-5348-42c5-952d-80676cb3523a
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Mind Game
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Tactician Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            objectTarget: false
+            targetFilter: ""
+            targetTextOverride: 3 allies
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              runOnController: true
+              autoTarget: false
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 16b52f81-c045-48b3-811a-c6a268fc030e
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your allies wait for your command-then unleash death!
+            categorization: Heroic Ability
+            range: "10"
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: dad07901-69b7-4018-a2b1-b1815a6f10c1
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            numTargets: 3
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 179
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            targetType: target
+            name: Now!
+            iconid: 5e9e11f6-e1a1-4ba2-a697-2472794d7b89
+            description: Each target can make a free strike.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Tactician Class Feature
+        guid: 5769d574-86d2-419b-9df2-da5fe8412b35
+        id: a4f7a091-fb21-4ca9-b7d0-7f286b549dba
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: Now!
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Tactician Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            targetFilter: not Enemy and (not Taken Turn)
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            behaviors:
+            - __typeName: ActivatedAbilityInitiativeBehavior
+              mode: set_priority
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.663749396800995
+                s: 0.915429353713989
+                v: 1.00306570529938
+                a: 1
+            flavor: Your tactical doctrine grants your choice of one of two abilities.
+            categorization: Heroic Ability
+            range: 10
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 1d0c841a-2da1-45c5-b7c8-5eb8ddf44426
+            iconid: 5d4af519-5d82-4ada-8f2a-46f441d3470d
+            numTargets: 2
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 193
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            targetType: target
+            name: This Is What We Planned For
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: Each target who hasn't acted yet this round can take their turn in any order immediately after yours.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Tactician Class Feature
+        guid: d29670a8-d754-42ec-9bc9-9cb5dc94c765
+        id: 0bb5a421-301d-400d-87fa-4e84559b1dbe
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        imported: 7afa03e5-f28b-4719-9eea-ba2b07d31f7c
+        name: This Is What We Planned For
+        classid: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-13:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:cb44d111-a4c0-4b4e-80cf-c6c08bb9d60e: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+heroicResourceChecklist:
+- mode: encounter
+  details: When combat begins you gain Focus equal to your Victories.
+  name: Start of Combat
+  guid: aed4bdcb-dbf1-4902-9698-edbf0dde7b1e
+  quantity: Victories
+- mode: round
+  details: At the start of your turn you gain {Heroic Resource Gain at Start} Focus.
+  name: Start of Turn
+  guid: 6bd7495d-8ed4-49f4-8a5b-47fc0ce6dcf1
+  quantity: Heroic Resource Gain at Start
+- mode: round
+  details: 'The first time each round that you or an ally damages a target you have marked, you gain 1 focus. This inceases to 2 at level 4. '
+  name: Damage the Marked
+  guid: 92ee378f-3221-43dc-a04c-6c15e63f3dd4
+  quantity: 1 + 1 when level >= 4
+- mode: round
+  details: The first time in a round that an ally within 10 squares of you uses a heroic ability, you gain 1 focus.
+  name: Ally Uses Heroic Ability
+  guid: 75949255-7efc-4694-aedd-2660fb30ba7c
+  quantity: 1
+id: 506d41b6-816b-45c5-8f28-765f29d6f8ae
+name: Tactician
+details: |-
+  Strategist. Defender. Leader. With weapon in hand, you lead allies into the maw of battle, barking out commands that inspire your fellow heroes to move faster and strike more precisely.
+  All the while, you stand between your compatriots and death, taunting the followers of evil to best you if they can.
+
+  As a tactician, you have abilities that heal your allies and grant them increased damage, movement, and attacks, even as you leave your enemies struggling to respond.
+mtime: 1774734143902
+hitpointsCalculation: 21 + (Level - 1)*9
+quantity: "2"

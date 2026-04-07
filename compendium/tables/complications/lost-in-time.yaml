@@ -1,0 +1,250 @@
+__typeName: CharacterComplication
+drawback: 'You automatically fail any test made to recall information from the period during which you were suspended in time. '
+mtime: 1767272797482
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You automatically fail any test made to recall information from the period during which you were suspended in time.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: cc239993-5032-4d49-a432-a4bc71fd2fb3
+      source: Complication
+      guid: 3c1f646e-e5d5-429b-abe4-b034cd554935
+      adjustments: []
+      keywords: []
+      activationCondition: true
+      modtype: tier1
+      name: Lost in Time - Drawback
+      rollType: test_power_roll
+      description: You automatically fail any test made to recall information from the period during which you were suspended in time.
+      behavior: power
+      skills:
+      - 80526c1a-3cfd-40dc-9065-eb840df8601d
+      - 61709a09-1a95-4726-b722-c40639cae405
+      - 0df23459-ab2f-4659-8a2d-ae5820dc889f
+      - 57101165-410a-4734-98ee-d4e5b656d3df
+      - bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+      - f15f5445-666a-4ea9-bdf3-fbed284bae85
+      - 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+      - afd26a9a-22e2-4341-b171-f7e3182c8744
+      - f014760c-c987-4436-81ba-5e6acfdf6905
+      - 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+      - 1c837bdc-17cc-4c7a-9814-f2f8b92cf55a
+      - 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+    source: Complication
+    canHavePrerequisites: true
+    guid: cc239993-5032-4d49-a432-a4bc71fd2fb3
+    name: Lost in Time - Drawback
+    implementation: 3
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    options:
+    - __typeName: CharacterFeature
+      description: Whenever you use a signature ability, you can have it deal acid damage instead of its usual damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4e712b47-2f3f-461d-873c-93240b547242
+        displayCondition: Ability.Categorization = "Signature Ability"
+        source: Feat
+        guid: 939b6fe3-e41a-461e-85ed-4c6be06705fe
+        keywords: []
+        activationCondition: ""
+        damageTypeMappings:
+          all: acid
+        rollType: ability_power_roll
+        modtype: none
+        description: Whenever you use a signature ability, you can have it deal acid damage instead of its usual damage.
+        behavior: power
+        name: Lost in Time - Acid Damage
+      source: Feat
+      canHavePrerequisites: true
+      guid: 4e712b47-2f3f-461d-873c-93240b547242
+      name: Acid Damage
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Whenever you use a signature ability, you can have it deal cold damage instead of its usual damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4e712b47-2f3f-461d-873c-93240b547242
+        displayCondition: Ability.Categorization = "Signature Ability"
+        source: Feat
+        guid: 939b6fe3-e41a-461e-85ed-4c6be06705fe
+        keywords: []
+        activationCondition: ""
+        damageTypeMappings:
+          all: cold
+        rollType: ability_power_roll
+        modtype: none
+        description: Whenever you use a signature ability, you can have it deal cold damage instead of its usual damage.
+        behavior: power
+        name: Lost in Time - Cold Damage
+      source: Feat
+      canHavePrerequisites: true
+      guid: 853d8d80-c16a-47a3-801d-f0c2c265f72a
+      name: Cold Damage
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Whenever you use a signature ability, you can have it deal corruption damage instead of its usual damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4e712b47-2f3f-461d-873c-93240b547242
+        displayCondition: Ability.Categorization = "Signature Ability"
+        source: Feat
+        guid: 939b6fe3-e41a-461e-85ed-4c6be06705fe
+        keywords: []
+        activationCondition: ""
+        damageTypeMappings:
+          all: corruption
+        rollType: ability_power_roll
+        modtype: none
+        description: Whenever you use a signature ability, you can have it deal corruption damage instead of its usual damage.
+        behavior: power
+        name: Lost in Time - Corruption Damage
+      source: Feat
+      canHavePrerequisites: true
+      guid: 65cf52fe-8100-4b77-bf54-48a31ced9342
+      name: Corruption Damage
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Whenever you use a signature ability, you can have it deal fire damage instead of its usual damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4e712b47-2f3f-461d-873c-93240b547242
+        displayCondition: Ability.Categorization = "Signature Ability"
+        source: Feat
+        guid: 939b6fe3-e41a-461e-85ed-4c6be06705fe
+        keywords: []
+        activationCondition: ""
+        damageTypeMappings:
+          all: fire
+        rollType: ability_power_roll
+        modtype: none
+        description: Whenever you use a signature ability, you can have it deal fire damage instead of its usual damage.
+        behavior: power
+        name: Lost in Time - Fire Damage
+      source: Feat
+      canHavePrerequisites: true
+      guid: 9c5de68c-4685-4140-b6b3-d98116620c88
+      name: Fire Damage
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Whenever you use a signature ability, you can have it deal holy damage instead of its usual damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4e712b47-2f3f-461d-873c-93240b547242
+        displayCondition: Ability.Categorization = "Signature Ability"
+        source: Feat
+        guid: 939b6fe3-e41a-461e-85ed-4c6be06705fe
+        keywords: []
+        activationCondition: ""
+        damageTypeMappings:
+          all: holy
+        rollType: ability_power_roll
+        modtype: none
+        description: Whenever you use a signature ability, you can have it deal holy damage instead of its usual damage.
+        behavior: power
+        name: Lost in Time - Holy Damage
+      source: Feat
+      canHavePrerequisites: true
+      guid: 6a8e4527-dbed-47ba-a200-565d226e39e7
+      name: Holy Damage
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Whenever you use a signature ability, you can have it deal lightning damage instead of its usual damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4e712b47-2f3f-461d-873c-93240b547242
+        displayCondition: Ability.Categorization = "Signature Ability"
+        source: Feat
+        guid: 939b6fe3-e41a-461e-85ed-4c6be06705fe
+        keywords: []
+        activationCondition: ""
+        damageTypeMappings:
+          all: lightning
+        rollType: ability_power_roll
+        modtype: none
+        description: Whenever you use a signature ability, you can have it deal lightning damage instead of its usual damage.
+        behavior: power
+        name: Lost in Time - Lightning Damage
+      source: Feat
+      canHavePrerequisites: true
+      guid: bdfd283c-3f6e-4bc3-8d41-ea4f0fa57c90
+      name: Lightning Damage
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Whenever you use a signature ability, you can have it deal poison damage instead of its usual damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4e712b47-2f3f-461d-873c-93240b547242
+        displayCondition: Ability.Categorization = "Signature Ability"
+        source: Feat
+        guid: 939b6fe3-e41a-461e-85ed-4c6be06705fe
+        keywords: []
+        activationCondition: ""
+        damageTypeMappings:
+          all: poison
+        rollType: ability_power_roll
+        modtype: none
+        description: Whenever you use a signature ability, you can have it deal poison damage instead of its usual damage.
+        behavior: power
+        name: Lost in Time - Poison Damage
+      source: Feat
+      canHavePrerequisites: true
+      guid: 5e5d91e7-939e-467c-931d-11f5c2587e15
+      name: Poison Damage
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Whenever you use a signature ability, you can have it deal psychic damage instead of its usual damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4e712b47-2f3f-461d-873c-93240b547242
+        displayCondition: Ability.Categorization = "Signature Ability"
+        source: Feat
+        guid: 939b6fe3-e41a-461e-85ed-4c6be06705fe
+        keywords: []
+        activationCondition: ""
+        damageTypeMappings:
+          all: psychic
+        rollType: ability_power_roll
+        modtype: none
+        description: Whenever you use a signature ability, you can have it deal psychic damage instead of its usual damage.
+        behavior: power
+        name: Lost in Time - Psychic Damage
+      source: Feat
+      canHavePrerequisites: true
+      guid: e55bd803-9f46-4819-8885-3122408c0315
+      name: Psychic Damage
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Whenever you use a signature ability, you can have it deal sonic damage instead of its usual damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4e712b47-2f3f-461d-873c-93240b547242
+        displayCondition: Ability.Categorization = "Signature Ability"
+        source: Feat
+        guid: 939b6fe3-e41a-461e-85ed-4c6be06705fe
+        keywords: []
+        activationCondition: ""
+        damageTypeMappings:
+          all: sonic
+        rollType: ability_power_roll
+        modtype: none
+        description: Whenever you use a signature ability, you can have it deal sonic damage instead of its usual damage.
+        behavior: power
+        name: Lost in Time - Sonic Damage
+      source: Feat
+      canHavePrerequisites: true
+      guid: 8dea13f4-adaf-4240-9dc1-ae4667614b51
+      name: Sonic Damage
+      implementation: 3
+    guid: 6b9ee94b-de09-45ab-9398-75e08cc15106
+    numChoices: 1
+    description: Choose a damage type from acid, cold, corruption, fire, holy, lightning, poison, psychic, or sonic. Whenever you use a signature ability, you can have it deal your chosen damage type instead of its usual damage.
+name: Lost in Time
+ctime: 1755515810521
+description: In a long-ago age, a cataclysm overtook your city. You weren’t killed, but some arcane accident caused you to be suspended in time until now. Alone, you must navigate the world around you with a head full of outdated memories—and a few ancient secrets.
+id: a5419cbd-f23f-48b0-b2a8-e0b7c589e432
+benefit: |-
+  Choose a damage type from acid, cold, corruption, fire, holy, lightning, poison, psychic, or sonic. Whenever you use a signature
+  ability, you can have it deal your chosen damage type instead of its usual damage.

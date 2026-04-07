@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 61ced55f-0a64-4c52-889f-441d2d7ac199
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-(Stacks)"
+    damageType: acid
+    apply: Damage Reduction
+  description: ""
+  name: Damage Weakness - Acid
+  guid: 351cdbfe-57d9-437e-990f-0d19c0bfa58b
+source: Ongoing Effect
+stackable: true
+id: 61ced55f-0a64-4c52-889f-441d2d7ac199
+ctime: 1758309065531
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.197969540953636
+    s: 0.8073770403862
+    v: 0.95686274766922
+    a: 1
+guid: 61ced55f-0a64-4c52-889f-441d2d7ac199
+name: Damage Weakness - Acid
+custom: true
+mtime: 1758751518906
+description: ""
+iconid: e8b60b7d-78a7-4ef0-8622-62ee5c1bb39b

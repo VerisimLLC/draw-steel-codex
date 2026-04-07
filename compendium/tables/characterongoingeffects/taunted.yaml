@@ -1,0 +1,23 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 2677712b-9ca5-4e91-b354-293c5ab0c403
+id: 2677712b-9ca5-4e91-b354-293c5ab0c403
+ctime: 1758155725642
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.789500176906586
+    s: 1.00169110298157
+    v: 0.99999988079071
+    a: 1
+condition: 85e26e12-e853-464d-bbbc-98ddf2c0071a
+name: Taunted
+description: ""
+mtime: 1758155725642
+custom: true
+iconid: da22a911-febf-451c-8e0f-d53673a62216

@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 2eae8522-c238-444d-b2b6-4c853f3eb9bc
+id: 2eae8522-c238-444d-b2b6-4c853f3eb9bc
+ctime: 1728095505747
+description: ""
+custom: true
+iconid: bc8b8ff6-5559-4f63-8ad8-6d51c95096f7
+endTrigger: endcombat
+statusEffect: false
+mtime: 1728095525210
+name: Has Transformed
+implementation: 3

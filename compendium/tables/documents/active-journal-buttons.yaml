@@ -1,0 +1,33 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 9ab4b84f-3c62-4dfb-95d3-48ecb36e9361
+ctime: 1764267027748
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |+
+      [[/setadventuredocument 1 "Delian Tomb Welcome"; setadventuredocument 2 "A Mother's Plea"; setadventuredocument 3 "Arrival"; setadventuredocument 4 "Goblin Guards Combat"; setadventuredocument 5 "Tomb First Level" |Set Part 1 Quests Active]]
+
+    l: "[[/setadventuredocument off \"Part 2 Broadhurst and Environs\";setadventuredocument off \"Respite Tracker\";setadventuredocument off \"Part 2\";setadventuredocument off \"Broadhurst\";"
+    I: |2
+
+    W: |+
+      [[/setadventuredocument off "Delian Tomb Welcome"; setadventuredocument off "A Mother's Plea"; setadventuredocument off "Arrival"; setadventuredocument off "Goblin Guards Combat"; setadventuredocument off "Tomb First Level"; setadventuredocument off "Kicking Things Off" |Set Part 1 Quests Inactive]]
+
+    x: "[[/setadventuredocument off \"Part 2 Broadhurst and Environs\"|Remove Part 2 Quests]]"
+    e: |+
+      [[/setadventuredocument 1 "Part 2 Broadhurst and Environs"; setadventuredocument 2 "Respite Tracker";setadventuredocument 3 "Part 2";setadventuredocument 4 "Broadhurst";setadventuredocument 5 "Events";|Set Part 2 Quests Active]]
+
+    v: |2
+
+    s: setadventuredocument off "Events";|Remove Part 2 Quests]]
+    w: |+
+      [[/setadventuredocument 2 "Part 2 Broadhurst and Environs"|Set Part 2 Quests Active]]
+
+    u: |2
+
+parentFolder: private
+updateid: d00b6329-3536-4a5d-a434-35bb14b3ec55
+mtime: 1764290722308
+content: ""
+description: Active Journal Buttons

@@ -1,0 +1,39 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 76092684-01c0-4a06-b5ff-351115355928
+  description: You gain a +1 bonus to speed.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: f530a9e1-776a-4023-870b-c2016ead7641
+    sourceguid: 76092684-01c0-4a06-b5ff-351115355928
+    value: 1
+    source: Item
+    name: Swift
+    behavior: attribute
+    description: You gain a +1 bonus to speed.
+    attribute: speed
+  source: Item
+  name: Swift
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: c3840fda-7d9c-49a0-93a3-a143623a3c6a
+imbuePrereq: none
+projectSource: Yllyric
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770698928353
+type: Gear
+itemPrerequisite: The feather of a falcon slain as it was diving
+mtime: 1774321690314
+name: Swift
+imbueTargetType: armor
+description: You gain a +1 bonus to speed.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

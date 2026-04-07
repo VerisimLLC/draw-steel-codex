@@ -1,0 +1,217 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 51f147aa-e726-4d85-83d1-e82219185ad7
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Demon Bale Eye	Level 5 Horde Hexer
+        Abyssal, Demon	EV 7
+        <b>Stamina</b> 30	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6 (fly)	<b>Size</b> 4 /<b> Stability</b> 2
+        <b>Free Strike</b> 3
+        Might +0	Agility +0	Reason +3	Intuition +3	Presence +3
+        <b>Wilting Visions</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Magic, Strike, Ranged
+        <b>Distance</b> Ranged 15<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 psychic damage
+        %E2%98%85	<b>12-16</b>	8 psychic damage
+        %E2%9C%B8	<b>17</b>	9 psychic damage
+        <b>Effect</b> The target has corruption weakness 5 (EoT).
+        <b>2 Malice</b> The target has <b>I<2 </b>corruption weakness 5 (save ends).
+
+        <b>Demonwarp Tears</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 4 cube beneath Bale Eye within 5<b>	Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 psychic damage; A<1 warped (save ends)
+        %E2%98%85	<b>12-16</b>	5 psychic damage; A<2 warped (save ends)
+        %E2%9C%B8	<b>17</b>	6 psychic damage; A<3 warped (save ends)
+        <b>Effect</b> A warped creature has all of their characteristic scores reversed. A score of +1 becomes -1, -2 becomes +2, etc.
+
+        <b>Lethe</b>
+        While winded, the bale eye has an edge on strikes, and strikes have an edge against them.
+
+        <b>Focused Soulsight</b>
+        Each creature within 5 of the bale eye can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ed2d29f0-8594-4679-b853-0cf4340cae0f: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the bale eye has an edge on strikes, and strikes have an edge against them.
+      guid: ed2d29f0-8594-4679-b853-0cf4340cae0f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:14628244-4fd9-46c5-b2fd-467b62416b8d: true
+      modifiers: []
+      name: Focused Soulsight
+      description: Each creature within 5 of the bale eye can't be hidden from them.
+      guid: 14628244-4fd9-46c5-b2fd-467b62416b8d
+      source: Trait
+    role: Horde Hexer
+    inflictedConditions: []
+    keywords:
+      Demon: true
+      Abyssal: true
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 3
+    monster_type: Demon Bale Eye
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 30
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 psychic damage
+        - 8 psychic damage
+        - 9 psychic damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 12fbf30f-337c-41eb-af98-7894ea2b701b
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Wilting Visions
+      numTargets: 1
+      description: The target has corruption weakness 5 (EoT).
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d58b73c5-531f-4cfa-aa1b-1d9add36bb2b
+      abilityType: none
+      numTargets: "1"
+      implementation: 3
+      name: Demonwarp Tears
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 psychic damage; A<1 warped (save ends)
+        - 5 psychic damage; A<2 warped (save ends)
+        - 6 psychic damage; A<3 warped (save ends)
+        roll: 2d10 + 3
+      description: A warped creature has all of their characteristic scores reversed. A score of +1 becomes -1, -2 becomes +2, etc.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds:
+      fly: 6
+    ev: 7
+    minion: false
+    levelChoices: []
+    creatureSize: "4"
+  tokenType: null
+  bestiaryId: 13dfe3b7-923a-42d7-8991-c03ab96a304c
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Demon Bale Eye
+parentFolder: d2197625-9db6-4f37-8d6f-353a079bffdf
+artist: null
+ord: 4
+ctime: 1741590220713
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Vaughn
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: c861e7c4-a4d8-4f01-b899-0cf91267769a
+annotations:
+  image:
+    __typeName: RichImage
+id: af165225-e436-4711-a803-c4439626fb47
+mtime: 1761396012943
+content: |-
+  # Vaughn
+
+  [[image]]
+
+  *Description, Known Information*
+  {
+  Secret: Quests or hidden information
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761396006263

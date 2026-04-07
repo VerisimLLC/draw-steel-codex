@@ -1,0 +1,75 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: min
+  sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  source: Condition
+  value: 0
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  name: Trouser Cut
+  guid: 5e304252-1449-4316-a362-8b5d8daeef27
+  description: If the target is wearing clothing covering the lower half of their body, they must use a maneuver once to pull that clothing up before they can move.
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: 9d02f1df-cf11-408e-b972-55751f036a40
+  guid: 9de59cef-3726-4697-88fc-d978315b85e4
+  source: Ongoing Effect
+  behavior: activated
+  description: If the target is wearing clothing covering the lower half of their body, they must use a maneuver once to pull that clothing up before they can move.
+  name: Trouser Cut
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00166630744934
+        v: 0.632008790969849
+        a: 1
+    categorization: Ability
+    range: 1
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    modifiers: []
+    strain: []
+    guid: 39e9714d-e874-42e1-b1bb-e9bc5f736e69
+    domains: []
+    persistence: []
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      applyto: caster
+      mode: effect
+      ongoingEffect: 9d02f1df-cf11-408e-b972-55751f036a40
+      purgeType: all
+      conditions: []
+    name: Pull Your Clothing Up (Trouser Cut)
+    numTargets: "1"
+    description: If the target is wearing clothing covering the lower half of their body, they must use a maneuver once to pull that clothing up before they can move.
+    abilityType: none
+    iconid: bc90bb09-9e3c-46d4-bf16-0e5c0134dbf8
+source: Ongoing Effect
+guid: 9d02f1df-cf11-408e-b972-55751f036a40
+id: 9d02f1df-cf11-408e-b972-55751f036a40
+ctime: 1762454654915
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00166594982147
+    v: 0.585458278656006
+    a: 1
+name: Trouser Cut
+description: If the target is wearing clothing covering the lower half of their body, they must use a maneuver once to pull that clothing up before they can move.
+custom: true
+mtime: 1762454998192
+iconid: bc90bb09-9e3c-46d4-bf16-0e5c0134dbf8

@@ -1,0 +1,54 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 7b1c9a38-7c48-47c4-9720-c28ffe22519b
+ctime: 1761428166866
+textStorage:
+  __typeName: TextStorage
+  sections:
+    v: |
+      After chatting with the heroes, [Boddorff] wishes them well and the group retreats to their rooms.
+    P: |+
+      [Boddorff] introduces each member of the group to the heroes. If they take him up on the offer, he asks them about their adventure in the tomb. He wants to know who they fought and what they found inside. If the heroes mention the ward covering the stairs down the second level, [Mara] asks if the heroes know how to get around it.
+
+    M: "> * “The polder smiles as you enter the room and says, ‘Ah! If it isn’t the heroes of Broadhurst! Come and sit. Tell us of your adventures, and we might tell you a bit about our deeds.’”\n \n\n"
+    FZ: |+
+      :<>[[/spawn Mara 1 4; spawn Targon 0 5; showtoken Mara; showtoken Targon; spawn "Boddorff Buckfeather" 0 3; spawn Gorek 3 2; spawn Illwyth 3 4|Spawn Gilded Hand]]
+
+
+    r: |+
+      |{#The hero can tell that the Gilded Hand is withholding the truth and that Illwyth seems uncomfortable even around her friends.}
+
+    n: |
+      |{#The hero can tell that the Gilded Hand is withholding the truth and that Illwyth seems uncomfortable even around her friends.}{However, Boddorff can tell the group is being scrutinized and quickly adjourns the meeting.}
+    j: |
+      |{#The hero can’t discern anything about the honesty of the Gilded Hand.}
+    J: |
+      > * “The armored man and robed woman you saw reject [Ashleigh]’s plea for help are in the common room of the inn, sitting with a comfortably dressed polder, a burly, shirtless dwarf, and a cloaked wode elf wearing a gold band with an emerald cut like a shield on her finger.”
+    G: |+
+      After returning from the Delian Tomb for the first time, the heroes run into the [Gilded Hand] while they stay at the inn. When you’re ready to begin the scene, share the following information:
+
+
+    X: |+
+      Should the heroes ask about the [Gilded Hand]’s adventures, [Targon] says, “Ever hear of the Cressan Tomb? That was us who cleared out the cult of the demon lord Aurumvas.” Unless you decide otherwise, the heroes haven’t heard of this deed, though they can learn more about the tomb in [Abbott Loric]’s library (see [B3. Church of Saint Gryffyn]).
+
+    E: |+
+      This encounter takes place on the [Gilded Hand Encounters Map].
+
+    F: |2
+
+    C: |+
+      # First Meeting With the Hand
+
+    T: |+
+      If the heroes ask why [Targon] and [Mara] rejected [Ashleigh], [Boddorff] is quick to jump in and say, “My friends here are a little quick with sharp tongues. We can’t afford to take a job that doesn’t pay, on account of us having people back home who need money to survive. But that was no reason to treat the woman so poorly.” If pressed, [Targon] and [Mara] apologize, promising to make it up to [Ashleigh]. None of this is true.
+
+    f: |
+      |Discern the Gilded Hand’s Honesty: Intuition Test
+    b: |+
+      While interacting with the [Gilded Hand], a hero who is suspicious of their motives can make a moderate Intuition test to attempt to discern their level of honesty.
+
+parentFolder: eaf490ac-5c37-4c4b-9843-f2c26f95ec52
+updateid: 28df6601-ce77-4c64-bfb2-5bf057397503
+mtime: 1775162474588
+content: "# First Meeting With the Hand\n\n\nAfter returning from the Delian Tomb for the first time, the heroes run into the [Gilded Hand] while they stay at the inn. When you’re ready to begin the scene, share the following information:\n\n\n> * “The armored man and robed woman you saw reject [Ashleigh]’s plea for help are in the common room of the inn, sitting with a comfortably dressed polder, a burly, shirtless dwarf, and a cloaked wode elf wearing a gold band with an emerald cut like a shield on her finger.”\n> * “The polder smiles as you enter the room and says, ‘Ah! If it isn’t the heroes of Broadhurst! Come and sit. Tell us of your adventures, and we might tell you a bit about our deeds.’”\n \n\n[Boddorff] introduces each member of the group to the heroes. If they take him up on the offer, he asks them about their adventure in the tomb. He wants to know who they fought and what they found inside. If the heroes mention the ward covering the stairs down the second level, [Mara] asks if the heroes know how to get around it.\n\nIf the heroes ask why [Targon] and [Mara] rejected [Ashleigh], [Boddorff] is quick to jump in and say, “My friends here are a little quick with sharp tongues. We can’t afford to take a job that doesn’t pay, on account of us having people back home who need money to survive. But that was no reason to treat the woman so poorly.” If pressed, [Targon] and [Mara] apologize, promising to make it up to [Ashleigh]. None of this is true.\n\nShould the heroes ask about the [Gilded Hand]’s adventures, [Targon] says, “Ever hear of the Cressan Tomb? That was us who cleared out the cult of the demon lord Aurumvas.” Unless you decide otherwise, the heroes haven’t heard of this deed, though they can learn more about the tomb in [Abbott Loric]’s library (see [B3. Church of Saint Gryffyn]).\n\nWhile interacting with the [Gilded Hand], a hero who is suspicious of their motives can make a moderate Intuition test to attempt to discern their level of honesty.\n\n|Discern the Gilded Hand’s Honesty: Intuition Test\n|{#The hero can’t discern anything about the honesty of the Gilded Hand.}\n|{#The hero can tell that the Gilded Hand is withholding the truth and that Illwyth seems uncomfortable even around her friends. However, Boddorff can tell the group is being scrutinized and quickly adjourns the meeting.}\n|{#The hero can tell that the Gilded Hand is withholding the truth and that Illwyth seems uncomfortable even around her friends.}\n\nAfter chatting with the heroes, [Boddorff] wishes them well and the group retreats to their rooms.\n"
+description: First Meeting With the Hand

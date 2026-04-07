@@ -1,0 +1,48 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 0d2ce9be-e124-4149-8ee8-438bfda8fa8c
+      guid: 5312422c-1b0f-4710-bb0e-a935b83002eb
+      source: Feat
+      behavior: activated
+      description: You send a one-way telepathic message to a friend.
+      name: Psychic Whisper
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        keywords:
+          Psionic: true
+        targetType: target
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        flavor: You send a one-way telepathic message to a friend.
+        range: "10	"
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 46a7596e-e5d3-4349-9170-f31fe8e9eca3
+        domains: []
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        behaviors: []
+        name: Psychic Whisper
+        numTargets: "1"
+        description: As long as the target understands one or more languages, you send a telepathic message to them that takes 10 seconds or less to speak. The target knows who the message is from and can decide to ignore it and subsequent messages.
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    name: Psychic Whisper
+    guid: 0d2ce9be-e124-4149-8ee8-438bfda8fa8c
+    description: You send a one-way telepathic message to a friend.
+    source: Feat
+tag: Supernatural Perks
+name: Psychic Whisper
+description: 'You gain the following ability. '
+mtime: 1755375770867
+id: 9fd5e8ea-f0c3-4c0f-a04e-823e9063babf
+ctime: 1730701464612

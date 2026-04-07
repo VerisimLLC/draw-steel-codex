@@ -1,0 +1,29 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 8089ce00-fae6-485f-8e3e-5698630946a5
+      source: High Ground Global Rule Mod Feature
+      modtype: edge
+      keywords:
+        Attack: true
+      activationCondition: Altitude >= (Target.Altitude + Target.Height) and Target.Movement Type != "Burrow" and (not mounted)
+      filterCondition: Movement Type = "Walk"
+      description: When you use an ability to target a creature or object while standing on the ground and occupying a space that is fully above the target's space, you gain an edge on the power roll against that target.
+      name: High Ground
+      rollType: ability_power_roll
+      damageModifier: ""
+      behavior: power
+      guid: 7cc603dd-89cc-47a1-8e46-fa1d90532a3c
+    name: High Ground
+    description: When you use an ability to target a creature or object while standing on the ground and occupying a space that is fully above the target's space, you gain an edge on the power roll against that target.
+    guid: 7dad8af0-5a22-45c8-874a-1fce113ef91d
+    source: High Ground Global Rule Mod Feature
+    implementation: 3
+name: High Ground
+mtime: 1768652685370
+id: f55452d8-b1ad-499f-b21e-f69aaad65feb
+ctime: 1733039119098

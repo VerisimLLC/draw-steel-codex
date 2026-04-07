@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 87b2a6fd-e56d-442b-bf1c-09f23c14b5e3
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:87b2a6fd-e56d-442b-bf1c-09f23c14b5e3: true
+  name: Inner Light Ritual
+  guid: 90cd8d4b-f98b-4c67-b7ee-82a473a9a197
+  description: You have a +1 bonus on saving throws. This benefit lasts until you finish another respite.
+  behavior: attribute
+  attribute: 34e099f4-afe1-4b99-abd0-8784cac7f857
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 87b2a6fd-e56d-442b-bf1c-09f23c14b5e3
+id: 87b2a6fd-e56d-442b-bf1c-09f23c14b5e3
+ctime: 1746458219536
+domains:
+  CharacterOngoingEffect:87b2a6fd-e56d-442b-bf1c-09f23c14b5e3: true
+description: You have a +1 bonus on saving throws. This benefit lasts until you finish another respite.
+custom: true
+name: Inner Light Ritual
+statusEffect: false
+mtime: 1746461502362
+iconid: 9973d0ac-f358-4241-9c92-04e5a165be09
+implementation: 3

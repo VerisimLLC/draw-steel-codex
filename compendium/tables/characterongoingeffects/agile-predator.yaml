@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+  source: Ongoing Effect
+  filter: Target != ConditionCaster("Agile Predator")
+  domains:
+    CharacterOngoingEffect:a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d: true
+  filterid: opportunityattack
+  guid: b2c3d4e5-6f7a-8b9c-0d1e-2f3a4b5c6d7e
+  description: Cannot make opportunity attacks against the creature that damaged them.
+  behavior: filter
+  name: Agile Predator
+source: Ongoing Effect
+casterTracking: one
+guid: a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+hiddenOnToken: true
+id: a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+name: Agile Predator
+description: This creature cannot make opportunity attacks against the creature that damaged them this turn.
+custom: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+iconid: bc90bb09-9e3c-46d4-bf16-0e5c0134dbf8

@@ -1,0 +1,100 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  guid: c3cc4a78-36a1-4f38-99a3-656e57130818
+  behavior: power
+  keywords:
+    Attack: true
+  hasCustomTrigger: false
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 94d167ae-0b0d-4f80-97e4-a074c0adc856
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  domains:
+    CharacterOngoingEffect:b4f21d9a-e2a8-48f8-a2a7-c742e218a250: true
+    CharacterOngoingEffect:67f10517-edfe-455f-a837-ae4e9699593a: true
+    CharacterOngoingEffect:529b5f9b-c443-40ae-aff3-9102eb3ac2df: true
+  rollType: enemy_ability_power_roll
+  activationCondition: true
+  description: ""
+  modtype: edge
+  name: Edge on Next Strike Against
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:529b5f9b-c443-40ae-aff3-9102eb3ac2df: true
+  sourceguid: 529b5f9b-c443-40ae-aff3-9102eb3ac2df
+  description: ""
+  source: Ongoing Effect
+  name: Edge on Next Strike Against
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 1f40aae9-64ba-4cb3-a972-fbaa3c317e08
+    castImmediately: true
+    domains:
+      CharacterOngoingEffect:529b5f9b-c443-40ae-aff3-9102eb3ac2df: true
+    conditionFormula: Ability.Keywords has "strike"
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 529b5f9b-c443-40ae-aff3-9102eb3ac2df
+      mode: effect
+      conditions: []
+    numTargets: "1"
+    trigger: losehitpoints
+    name: Edge on Next Strike Against
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: aafec6ed-161f-4faf-8d6c-8752ccc80ea1
+source: Ongoing Effect
+guid: 529b5f9b-c443-40ae-aff3-9102eb3ac2df
+id: 529b5f9b-c443-40ae-aff3-9102eb3ac2df
+ctime: 1758491947356
+domains:
+  CharacterOngoingEffect:529b5f9b-c443-40ae-aff3-9102eb3ac2df: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.967418313026428
+    v: 0.89146900177002
+    a: 1
+endTrigger: none
+mtime: 1770312763522
+description: ""
+name: Edge on Next Strike Against
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce

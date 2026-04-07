@@ -1,0 +1,150 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:2cb02af3-cb36-4a1c-9fc7-14d0348b28c4: true
+  sourceguid: 2cb02af3-cb36-4a1c-9fc7-14d0348b28c4
+  description: ""
+  source: Ongoing Effect
+  name: Flowering Bed
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: ally
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Flowering Bed!
+      color:
+        __usertype: LuaColor
+        h: 0.445749759674072
+        s: 0.99316394329071
+        v: 0.985541522502899
+        a: 1
+    - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+      stamina: Reason
+      chatMessage: Flowering Bed
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: Reason
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    guid: a5c4b757-9478-4ee6-a4e2-05b7d36a3a27
+    conditionFormula:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: Heroic Resources Available to Spend >=3
+        threshold: 1
+      - script: Hero
+        threshold: 7
+      editableField: true
+      id: table
+      field: Level
+    domains:
+      CharacterOngoingEffect:2cb02af3-cb36-4a1c-9fc7-14d0348b28c4: true
+    trigger: endturn
+    numTargets: "1"
+    name: Flowering Bed
+    targetType: all
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: f0d67da0-22b8-47e0-b424-4e85993396b5
+- __typeName: CharacterModifier
+  sourceguid: cb3859c6-ed31-4c59-942e-3342f7236239
+  source: Ongoing Effect
+  seq: dd1ca1e4-53a1-4c91-99a4-2385492da384
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers:
+    - __typeName: CharacterModifier
+      text: Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation.  If you have 5 or more Victories, the bonus to patience increases to 2.
+      sourceguid: 939c6890-54ed-4037-b9bf-5a97ceaad14f
+      source: Aura
+      behavior: movementtext
+      name: Flowering Bed
+      texttype: negotiation
+      description: ""
+      guid: 90f75048-74fb-4035-9035-d42245fb27e1
+      color: white
+    - __typeName: CharacterModifier
+      sourceguid: 939c6890-54ed-4037-b9bf-5a97ceaad14f
+      source: Aura
+      guid: af947c55-e967-4af5-b09f-69525fe91c5f
+      keywords: []
+      activationCondition: true
+      filterCondition: Victories < 5
+      behavior: power
+      rollType: test_power_roll
+      name: Flowering Bed
+      description: While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, tests that use the Handle Animals skill have a double edge.
+      modtype: edge
+      skills:
+      - ff54a691-e0a0-4246-8ceb-7975b8826e92
+    - __typeName: CharacterModifier
+      sourceguid: 939c6890-54ed-4037-b9bf-5a97ceaad14f
+      source: Aura
+      guid: eeae13f2-a22e-4bcb-97c6-8773cc7dfcf9
+      keywords: []
+      activationCondition: true
+      filterCondition: Victories >= 5
+      behavior: power
+      rollType: test_power_roll
+      name: Flowering Bed
+      description: While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, tests that use the Handle Animals skill have a double edge.
+      modtype: double_edge
+      skills:
+      - ff54a691-e0a0-4246-8ceb-7975b8826e92
+    name: Flowering Bed
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 939c6890-54ed-4037-b9bf-5a97ceaad14f
+    implementation: 3
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  domains:
+    CharacterOngoingEffect:cfbbd0e7-dc44-40e2-b526-b5d619def4d6: true
+    CharacterOngoingEffect:cb3859c6-ed31-4c59-942e-3342f7236239: true
+    CharacterOngoingEffect:2cb02af3-cb36-4a1c-9fc7-14d0348b28c4: true
+  radius: Reason
+  guid: 0cd21eeb-69a1-4624-9589-4696b1211e8c
+  description: ""
+  behavior: aura
+  name: Quaking Earth
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 2cb02af3-cb36-4a1c-9fc7-14d0348b28c4
+id: 2cb02af3-cb36-4a1c-9fc7-14d0348b28c4
+ctime: 1767216817755
+domains:
+  CharacterOngoingEffect:2cb02af3-cb36-4a1c-9fc7-14d0348b28c4: true
+canEndWithAction: true
+description: ""
+sustainFormula:
+  __typeName: GoblinScriptTable
+  entries:
+  - script: Heroic Resources Available to Spend >=3
+    threshold: 1
+  - script: Heroic Resources Available to Spend >=3
+    threshold: 7
+  editableField: true
+  id: table
+  field: Level
+custom: true
+mtime: 1771248561576
+name: Flowering Bed
+iconid: ui-icons/skills/1.png

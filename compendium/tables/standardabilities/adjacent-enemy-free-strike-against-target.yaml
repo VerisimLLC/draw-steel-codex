@@ -1,0 +1,53 @@
+__typeName: ActivatedAbility
+targetFilter: Enemy
+id: 25e9c9e7-bf7a-4950-ba7e-9c41b252e783
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: One ally adjacent to the target can make a free strike against them.
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+importMatch: ally adjacent to the target can make a free strike against them
+ctime: 1772033466715
+repeatTargets: false
+persistence: []
+description: ""
+name: Adjacent Enemy Free Strike Against Target
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: targets
+  targeting: prompt
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  filterTarget: ""
+  namedAbility: Melee Free Strike
+  abilityType: named
+  standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+mtime: 1772113095754
+abilityType: none
+iconid: ui-icons/skills/1.png

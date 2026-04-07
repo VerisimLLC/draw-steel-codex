@@ -1,0 +1,39 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 64dcda80-d819-43f1-b026-0d80f129fd0f
+  choiceName: Orc Masculine
+  id: cb15bc02-e056-4049-ba2a-a1da806aa583
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: b65edd8f-0419-43d7-a6df-a2f01b85beb9
+  choiceName: Orc Gender Neutral
+  id: 20b1a04e-e17f-4588-9c5a-fc26db801193
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: a1cd62d8-1856-4f89-a46d-e3d0706e612e
+  choiceName: Orc Feminine
+  id: 56c672ed-9cba-4b8c-8a12-63eaf2cfc024
+id: b5ef575c-9574-415c-a419-94598f83f37b
+rollType: namedChoice
+name: Orc Name
+mtime: 1743455461028
+items: false
+ctime: 1743455461028

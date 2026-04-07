@@ -1,0 +1,108 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 6e02fd6d-ac33-4aca-bf0e-621aca4e3e00
+  description: 6/12/21
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 951d0828-36d9-4967-b442-d3e2125061ab
+    sourceguid: e1ca3cd3-5ab7-47f7-82a3-1f34f0beb348
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "6"
+        threshold: 1
+      - script: "12"
+        threshold: 5
+      - script: "21"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    source: Item
+    name: Paper Trappings
+    behavior: attribute
+    description: 6/12/21
+    attribute: hitpoints
+  source: Item
+  name: Paper Trappings
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: c30f3e82-d05f-488b-9722-2e7d6ff507b4
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: c30f3e82-d05f-488b-9722-2e7d6ff507b4
+    guid: 0c4db3ed-51ba-4dd4-b529-95a742fbb6a5
+    source: Item
+    behavior: activated
+    description: ""
+    name: Paper Trappings
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      implementationDetails: "We don't track minutes in the Codex currently so the effect is set to end of encounter. "
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: be3a4dcc-4bef-4f70-95bc-87bc34b863a1
+        duration: eoe
+        ongoingEffectCustom: be3a4dcc-4bef-4f70-95bc-87bc34b863a1
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 328
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      persistence: []
+      modifiers: []
+      domains: []
+      strain: []
+      guid: 630d4979-f908-4503-a1d6-b57d7f3a8e1a
+      targetType: self
+      numTargets: "1"
+      castImmediately: true
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Paper Trappings
+      categorization: Ability
+      description: You can use a main action to fold in on yourself until you and your gear are paper thin. This effect lasts for 1 minute, letting you easily slip through any opening that is 1 inch wide or more. When you return to your three-dimensional form, you are dazed for 1 minute. If you return to your true form while in a space that is too small for you, you are violently expelled into the nearest open space of your choice and take 3d6 damage.
+      abilityType: none
+      implementation: 2
+  source: Item
+  name: Paper Trappings
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+itemPrerequisite: Ten pages from each of a hundred different books
+keywords:
+  Magic: true
+  Light Armor: true
+projectSource: Texts or lore in Anjali
+level5: The armor’s bonus to Stamina increases to +12, and when you return to your true form, you are dazed only until the end of your next turn. Additionally, while you are paper thin, you can use a maneuver to wrap yourself around an adjacent target who is the same size or smaller than you, automatically grabbing them.
+level9: The armor’s bonus to Stamina increases to +21, and you are no longer dazed when you return to your true form. Additionally, while you have a target grabbed when you are paper thin, you can use a maneuver to constrict the target, dealing 10 damage to them. A creature damaged this way takes a bane when using the Escape Grab maneuver against you and when making strikes against you.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+projectGoal: "450"
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+implementation: 2
+ctime: 1759206801351
+domains:
+  item:8d1167b8-2fae-4d0a-9bce-98eeb44884a7: true
+description: While you wear this armor, you gain a +6 bonus to Stamina. Additionally, you can use a main action to fold in on yourself until you and your gear are paper thin. This effect lasts for 1 minute, letting you easily slip through any opening that is 1 inch wide or more. When you return to your three-dimensional form, you are dazed for 1 minute. If you return to your true form while in a space that is too small for you, you are violently expelled into the nearest open space of your choice and take 3d6 damage.
+flavor: This delicate robe is made from thousands of pages torn from books, intricately folded together without a single thread to bind them.
+name: Paper Trappings
+id: 8d1167b8-2fae-4d0a-9bce-98eeb44884a7
+mtime: 1774961688414
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 9f4e0000-d3f4-4340-8d76-99ca0e748e9a

@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+objectTarget: false
+id: a46508d1-6b6d-4d2a-94ad-7ac4446247f4
+behaviors:
+- __typeName: ActivatedAbilityConditionSourceBehavior
+  mode: caster
+  conditionMode: caster
+  condid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "100"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 4d9088d1-3569-4de3-9e2a-7761957633ac
+ctime: 1764487798411
+targetType: target
+repeatTargets: false
+numTargets: "1"
+name: SetConditionCaster
+mtime: 1765298022794
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

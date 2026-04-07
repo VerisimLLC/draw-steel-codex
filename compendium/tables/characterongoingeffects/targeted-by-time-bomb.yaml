@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 9633866a-ebaa-4003-a779-5b0f351abac6
+hiddenOnToken: true
+ctime: 1771760807946
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+id: 9633866a-ebaa-4003-a779-5b0f351abac6
+custom: true
+name: Targeted by Time Bomb
+description: ""
+mtime: 1771760845212
+stackable: true
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,68 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 43d0bce9-9f35-473c-be69-3d6f44de5709
+  guid: 5fd28430-e1fe-4d7a-9591-b6a5e84efce6
+  source: Ongoing Effect
+  domains:
+    CharacterOngoingEffect:7493dde5-a91b-473c-9b3e-8784f791b667: true
+    CharacterOngoingEffect:43d0bce9-9f35-473c-be69-3d6f44de5709: true
+  modtype: none
+  behavior: power
+  keywords:
+    Attack: true
+  surges: ""
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 45c89c78-8112-4b81-bdf1-2e54febdb233
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 43d0bce9-9f35-473c-be69-3d6f44de5709
+      mode: effect
+      conditions: []
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  activationCondition: true
+  rollType: ability_power_roll
+  shields: stacks
+  description: "The next attack this creature makes has :surge:"
+  name: Next Attack Has Shield
+  hasCustomTrigger: false
+source: Ongoing Effect
+display:
+  brightness: 1.25714372907366
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.0020809173584
+    v: 0.822607219219208
+    a: 1
+stackable: true
+id: 6c5d712a-2454-42ed-91a9-fefccbd522f4
+ctime: 1730098360562
+domains:
+  CharacterOngoingEffect:7493dde5-a91b-473c-9b3e-8784f791b667: true
+  CharacterOngoingEffect:43d0bce9-9f35-473c-be69-3d6f44de5709: true
+iconid: e8b60b7d-78a7-4ef0-8622-62ee5c1bb39b
+guid: 43d0bce9-9f35-473c-be69-3d6f44de5709
+endTrigger: attack
+mtime: 1737361023786
+description: "The next attack this creature makes has :surge:"
+name: Next Attack Has Shield
+implementation: 3

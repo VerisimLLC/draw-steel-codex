@@ -1,0 +1,94 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 533aa215-87ce-4309-8ea3-60613eb4ffac
+ctime: 1761685484325
+textStorage:
+  __typeName: TextStorage
+  sections:
+    sZ: "#"
+    yX: |
+      **For 1 Respite**
+    yU: |
+      ???query (bargnotHasCupRespites = 1) and (bargnotHasCup = 1)
+    ya: |
+      ???
+    ys: |
+      [[/setvar bargnotHasCupRespites 0|For 0 Respites]][[/setvar bargnotHasCupRespites 1|For 1 Respite]][[/setvar bargnotHasCupRespites 2|For 2 Respites]]
+    y: |
+      ???
+    h: |
+      If the heroes go to [Castle Andreas], they find the Jagged Edge there. Depending on if and how long [Queen Bargnot] has had the [item:Cup of Iulius], it might be a challenging battle. See [Castle Andreas] for more details.
+    w: |
+      ???query heroesHaveCup = 1
+    x: |
+      **The Heroes Have The Cup**
+    u: |
+      [[/setvar heroesHaveCup 1; setvar bargnotHasCup 0|The Heroes Have The Cup of Iulius]] [[/setvar bargnotHasCup 1; setvar heroesHaveCup 0|Queen Bargnot Has The Cup of Iulius]]
+    V: |+
+      ## Running Part 3	
+
+    s: |2
+
+    t: |+
+      # Part 3 Setup
+
+    yw: |
+      ???
+    R: |+
+      [[/clearadventuredocuments; setadventuredocument 1 "Part 2 Broadhurst and Environs"; setadventuredocument 2 "Respite Tracker";setadventuredocument 0 "Part 2";setadventuredocument 4 "Broadhurst";setadventuredocument 5 "Events"|Revert To Adventure Part 2 Active]]
+
+
+    O: |
+      [[/clearadventuredocuments; setadventuredocument 1 "Part 3 The Jagged Edge"; setadventuredocument 2 "Goblin Replacements"; setadventuredocument 3 "Coming to Terms"|Set Adventure Part 3 As Active]]
+    yk: |+
+      ???
+
+    m: |
+      If the heroes or the Jagged Edge claim the [item:Cup of Iulius] and the heroes don’t go to [Castle Andreas] before finishing three respites, then the Jagged Edge comes to them. See [Attack on Broadhurst] for more details.
+    yR: |
+      ???
+    c: |+
+      Part 3 of this adventure either occurs at the Jagged Edge base in the ruins of Castle Andreas or in the village square of Broadhurst.
+
+    L: |+
+      Eventually, the heroes must face [Queen Bargnot]’s forces for the good of the people of Broadhurst! Whether they face the Jagged Edge in [Castle Andreas] or on the streets of Broadhurst is up to the actions (or inaction) of the heroes.
+
+    yo: |
+      ???Query bargnotHasCup = 1
+    yF: |
+      **Bargnot Has Had Cup For How Many Respites?.**
+    yL: |
+      ???query (bargnotHasCupRespites = 0) and (bargnotHasCup = 1)
+    H: |+
+      # Part 3 The Jagged Edge
+
+    yC: |
+      ???Query bargnotHasCup = 1
+    yI: |
+      ???
+    yg: |
+      **For 2 Respites**
+    yd: |
+      ???query (bargnotHasCupRespites = 2) and (bargnotHasCup = 1)
+    yO: |
+      **For 0 Respites**
+    v: |+
+      [[/setvar bargnotHasCup 1; setvar heroesHaveCup 1|Reset Who Has The Cup of Iulius]]
+
+
+parentFolder: 67c70371-8ca6-4d14-bef4-13eaf5753bc6
+updateid: 986646ef-ddee-444e-bf99-1536fe0eb021
+description: Part 3 The Jagged Edge
+content: |
+  # Part 3: The Jagged Edge
+
+  Eventually, the heroes must face [Queen Bargnot]’s forces for the good of the people of Broadhurst! Whether they face the Jagged Edge in [Castle Andreas] or on the streets of Broadhurst is up to the actions (or inaction) of the heroes.
+
+
+  ## Running Part 3	
+
+  Part 3 of this adventure either occurs at the Jagged Edge base in the ruins of Castle Andreas or in the village square of Broadhurst.
+
+  If the heroes go to [Castle Andreas], they find the Jagged Edge there. Depending on if and how long [Queen Bargnot] has had the [Cup of Iulius], it might be a challenging battle. See [Castle Andreas] for more details.
+  If the heroes or the Jagged Edge claim the [Cup of Iulius] and the heroes don’t go to [Castle Andreas] before finishing three respites, then the Jagged Edge comes to them. See [Attack on Broadhurst] for more details.
+mtime: 1766081111742

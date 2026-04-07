@@ -1,0 +1,78 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: b9365e82-a4cd-4fca-9b18-4fca67b562ce
+ctime: 1761751564060
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      * For three heroes, remove Boddorff Buckfeather, and reduce Gorek's
+    W: |
+      * For four heroes, remove Boddorff Buckfeather from the start of the encounter.
+    U: |
+      If this encounter has four or three heroes, make the following adjustments:
+    S: |
+      **Encounter Adjustments**
+    t: |
+      When only one member of the [Gilded Hand] remains, that member surrenders and tells the heroes everything they know, including the location of [Queen Bargnot] in the ruins of [Castle Andreas] (see [Part 3: The Jagged Edge]). The heroes earn 1 Victory each for winning the day.
+    q: |+
+      ## Ending the Encounter
+
+    e: |+
+      Each time a creature touches a heavy iron brazier or starts their turn touching it, they take 2 fire damage.
+
+
+    O: |
+      |2|[Gorek]|
+    g: |+
+      ## Stairs
+
+    M: |
+      |1|[Boddorff] Buckfeather|
+    n: |+
+      [Gorek] applies a “King of the Hill” strategy to the fight, using the Knockback maneuver and Brutal Impact to force foes back down the stairs when they approach. Meanwhile, [Boddorff] stands well back, buffing [Gorek] with Imbue with Might, and throwing holy damage at the heroes. [Mara] stands back and uses ranged abilities to damage as many heroes as possible.
+
+
+    k: |+
+      ## Tactics
+
+    C: |
+      # Encounter D14.2	
+    i: "If a creature is force moved down the stairs, they end their movement prone.\n \n\n"
+    I: |
+      **D14.2 Groups**
+    G: |+
+      [[/spawn Mara -23 7; spawn "Boddorff Buckfeather" -17 6; spawn Gorek -16 6|Spawn The Gilded Hand]]
+
+    H: |+
+      [[/activateobjects E14_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects E14_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    E: |+
+      The heroes face the [Gilded Hand] in the Delian Tomb.
+
+    K: |
+      |Group	|Creatures|
+    c: |+
+      ## Braziers
+
+    Q: "|3|[Mara]|\n \n"
+    a: |+
+      Stamina to 80 and Mara's Stamina to 40.
+
+
+    w: |+
+      [[/awardvp 1|Award Heroes 1 Victory]]
+
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 54dde3d3-cf82-476d-a9aa-7685fca4e24f
+mtime: 1764258992083
+content: "# Encounter D14.2	\nThe heroes face the [Gilded Hand] in the Delian Tomb.\n\n[[/spawn Mara -23 7; spawn \"Boddorff Buckfeather\" -17 6; spawn Gorek -16 6|Spawn The Gilded Hand]]\n\n**D14.2 Groups**\n|Group	|Creatures|\n|1|Boddorff Buckfeather|\n|2|Gorek|\n|3|Mara|\n \n**Encounter Adjustments**\nIf this encounter has four or three heroes, make the following adjustments:\n* For four heroes, remove Boddorff Buckfeather from the start of the encounter.\n* For three heroes, remove Boddorff Buckfeather, and reduce Gorek's\nStamina to 80 and Mara's Stamina to 40.\n\n\n## Braziers\n\nEach time a creature touches a heavy iron brazier or starts their turn touching it, they take 2 fire damage.\n\n\n## Stairs\n\nIf a creature is force moved down the stairs, they end their movement prone.\n \n\n## Tactics\n\n[Gorek] applies a “King of the Hill” strategy to the fight, using the Knockback maneuver and Brutal Impact to force foes back down the stairs when they approach. Meanwhile, [Boddorff] stands well back, buffing [Gorek] with Imbue with Might, and throwing holy damage at the heroes. [Mara] stands back and uses ranged abilities to damage as many heroes as possible.\n\n\n## Ending the Encounter\n\nWhen only one member of the [Gilded Hand] remains, that member surrenders and tells the heroes everything they know, including the location of [Queen Bargnot] in the ruins of [Castle Andreas] (see [Part 3: The Jagged Edge]). The heroes earn 1 Victory each for winning the day.\n[[/awardvp 1|Award Heroes 1 Victory]]\n\n"
+description: Encounter D14.2

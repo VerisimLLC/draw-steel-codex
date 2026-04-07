@@ -1,0 +1,11 @@
+2c94356c-3f5c-42e0-93d3-80603f952a49:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 04fb6189-9b60-4ba1-ba52-5698fcd3eb4e
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  mtime: 1730269448952
+  id: 2c94356c-3f5c-42e0-93d3-80603f952a49
+  ctime: 1730269448952

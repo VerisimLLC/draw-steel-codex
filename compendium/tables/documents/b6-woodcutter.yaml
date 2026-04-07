@@ -1,0 +1,105 @@
+__typeName: MarkdownDocument
+annotations: []
+id: f1ff1e0b-f1e5-4920-8ba3-975e66703c7b
+ctime: 1761388189493
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: "> * If the heroes choose not to report [Percival] to anyone, a grateful [Vaughn] gives the heroes three [item:Snapdragon]s (see Treasure in Handouts) that he found in the Silver Wood.\n\n \n\n"
+    u: |
+      > * If the heroes report [Percival] to [Robin and Sarah] at the granary, the millers thank the heroes and ask them not to go to the reeve with this information. Instead, they take the matter up privately with [Vaughn], who gives them back the grain and promises to pay for what was used and repairs to the granary as soon as he has the coin.
+    s: |
+      > * If the heroes turn in [Percival] (or [Vaughn], as the father requests) to the reeve, [Reeve Rosamund] orders the grain returned and has the offender work for free at the mill and granary for a month. Most of the Broadhurst villagers view the offender as a thief and shun them.
+    q: |+
+      It’s up to the heroes to decide what course of action to take once they know the truth:
+
+    o: |2
+
+    m: |
+      When [Percival] admits that he stole the grain, he explains in a torrent of words and crying that he was just doing it to feed his father and himself, since they had no money and no food left. [Vaughn] forgives his son almost immediately, and finally sees fully how his actions have influenced his home. He vows to begin cutting down wood again, though as long as the Forsaken Wraiths are in the Silver Wood, he only cuts down the young trees near his place. Their wood is bad, but he can sell enough to [Orson] the charcoal burner to feed his son and himself.
+    k: |+
+      |{#Percival admits that he stole the grain.}
+
+    i: |
+      |{#Percival admits that he stole the grain. Vaughn then begs the heroes to turn him in instead of his son, since the woodcutter blames himself for his son’s desperate actions.}
+    g: |
+      |{#Percival swears to know nothing about the robbery.}
+    e: |
+      |Press Percival for the Truth: Presence Test
+    c: |+
+      [B5. Mill and Granary]), and present them to [Percival], they make this test with an edge for each piece of evidence they present.
+
+    a: |+
+      ## Admitting the Truth
+
+    b: |
+      If a hero suspects [Percival] of lying about the stolen grain, they can make a moderate Presence test to attempt to get the truth from him. If the heroes found the floor door or penknife in the granary (see
+    Y: |
+      |{#The hero can tell that Percival is lying.}
+    Z: |+
+      |{#The hero can tell that Percival is lying and gains an edge on any tests made to get him to admit the truth about the stolen grain.}
+
+
+    W: |
+      |Discern Percival’s Honesty: Intuition Test
+    X: |
+      |{#It’s clear to the hero that Percival is holding back the truth, but the boy gets the sense the heroes are onto him.}{He won’t confess his crime without proof of his involvement, which can be found in [B5. Mill and Granary]}.
+    U: |
+      If the heroes ask about the thefts in the granary (see [B5. Mill and Granary]), [Vaughn] responds by saying he doesn’t know anything about it—and he genuinely doesn’t. [Percival] also denies knowing anything about a grain thief, but he’s lying. The woodcutter’s son stole the grain when his father ran out of money, so that [Vaughn] and he could keep eating.
+    V: "While asking [Percy] about the thief, a hero who is suspicious of him can make an easy Intuition test.\n \n \n"
+    S: |+
+      > * “I tried organizing a group of folks to get the bandits out, but none are brave enough to help. I thought [Brune] would be up for a fight for sure! The butcher’s tough, but he just laughed at me.”
+
+
+    T: |+
+      ## Grain Thief
+
+    Q: |
+      [Percival] is 18 years old. While he’s also hungry and tired, he’s mostly worried about his father and their situation and far less concerned about the bandits. If the heroes ask [Percival] about the bandits, he gives the following information:
+    R: |
+      > * “We’re going hungry here. Please do whatever you need to do to get my dad back to work.”
+    O: |+
+      > * “Please. If you can find those bandits and drive ’em out of the woods, I can get some rest and then get back to work.”
+
+
+    P: |
+      [Vaughn] is on the edge of delirium from hunger and sleep deprivation but will answer any questions the heroes have. If they decide to follow the Dunn River north into the Silver Forest, they eventually find the [Fort Forsaken].
+    M: |
+      > * “So, I came back, quick and quiet. I’m glad to have my life! I told the reeve ([Reeve Rosamund]), but so far she hasn’t managed to do anything. She’s only one person, and we’re just regular folk out here.”
+    N: |
+      > * “Me and [Percival], we’ve been out patrollin’ to protect our place. I ain’t been back in the woods since. Run out of wood and ain’t been paid. Down to just some grain in the cupboard.”
+    K: |
+      > * “Well, eventually I find a camp. Now, I ain’t a fool, so I approach quiet like. I’m friendly, but the saints know these folks might not be.”
+    L: |
+      > * “And they weren’t. Gods, I heard them talk of murderin’ and robbin’. Called themselves the Forsaken Wraiths, they did. Plannin’ to steal from this town! I heard it!”
+    I: |
+      > * “I been going deeper into the forest as of late. See, these trees on the edge here are all young. They won’t make for good boards until they’re older, so I got to go into the forest.”
+    J: |
+      > * “But last time I went in—weeks ago—I found trouble. I was travelin’ up the Dunn River. If I fell a tree, I can float it down to town.”
+    G: |+
+      ## Bandits in the Wood
+
+    H: |+
+      After introducing himself to the heroes, Vaughn shares the following information:
+
+
+    E: |+
+      [Vaughn] the woodcutter and his son [Percival] are outside the house, patrolling the perimeter for bandits. They adopted this routine several weeks ago, when [Vaughn] stumbled into the camp of the Forsaken Wraiths.
+
+    F: |+
+      If the heroes come to chat, [Vaughn] introduces himself and his son. Both are thin and pale, as if they haven’t eaten or slept much in the last few weeks. However, [Vaughn] is happy to see the heroes and immediately launches into a tale, telling them how they might help him.
+
+
+    C: |
+      > * “A small shack sits at the edge of town. Many of the trees nearby have been reduced to stumps.”
+    D: |+
+      > * “Two men who look similar, one middle-aged, the other youthful, patrol around the house, each holding a woodcutter’s axe.”
+
+    B: |+
+      # B6. Woodcutter
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: b49a02a7-9336-420f-ac59-9290f65816d2
+description: B6. Woodcutter
+content: "# B6. Woodcutter\n\n> * “A small shack sits at the edge of town. Many of the trees nearby have been reduced to stumps.”\n> * “Two men who look similar, one middle-aged, the other youthful, patrol around the house, each holding a woodcutter’s axe.”\n\n[Vaughn] the woodcutter and his son [Percival] are outside the house, patrolling the perimeter for bandits. They adopted this routine several weeks ago, when [Vaughn] stumbled into the camp of the Forsaken Wraiths.\n\nIf the heroes come to chat, [Vaughn] introduces himself and his son. Both are thin and pale, as if they haven’t eaten or slept much in the last few weeks. However, [Vaughn] is happy to see the heroes and immediately launches into a tale, telling them how they might help him.\n\n\n## Bandits in the Wood\n\nAfter introducing himself to the heroes, Vaughn shares the following information:\n\n\n> * “I been going deeper into the forest as of late. See, these trees on the edge here are all young. They won’t make for good boards until they’re older, so I got to go into the forest.”\n> * “But last time I went in—weeks ago—I found trouble. I was travelin’ up the Dunn River. If I fell a tree, I can float it down to town.”\n> * “Well, eventually I find a camp. Now, I ain’t a fool, so I approach quiet like. I’m friendly, but the saints know these folks might not be.”\n> * “And they weren’t. Gods, I heard them talk of murderin’ and robbin’. Called themselves the Forsaken Wraiths, they did. Plannin’ to steal from this town! I heard it!”\n> * “So, I came back, quick and quiet. I’m glad to have my life! I told the reeve ([Reeve Rosamund]), but so far she hasn’t managed to do anything. She’s only one person, and we’re just regular folk out here.”\n> * “Me and [Percival], we’ve been out patrollin’ to protect our place. I ain’t been back in the woods since. Run out of wood and ain’t been paid. Down to just some grain in the cupboard.”\n> * “Please. If you can find those bandits and drive ’em out of the woods, I can get some rest and then get back to work.”\n\n\n[Vaughn] is on the edge of delirium from hunger and sleep deprivation but will answer any questions the heroes have. If they decide to follow the Dunn River north into the Silver Forest, they eventually find the [Fort Forsaken].\n[Percival] is 18 years old. While he’s also hungry and tired, he’s mostly worried about his father and their situation and far less concerned about the bandits. If the heroes ask [Percival] about the bandits, he gives the following information:\n> * “We’re going hungry here. Please do whatever you need to do to get my dad back to work.”\n> * “I tried organizing a group of folks to get the bandits out, but none are brave enough to help. I thought [Brune] would be up for a fight for sure! The butcher’s tough, but he just laughed at me.”\n\n\n## Grain Thief\n\nIf the heroes ask about the thefts in the granary (see [B5. Mill and Granary]), [Vaughn] responds by saying he doesn’t know anything about it—and he genuinely doesn’t. [Percival] also denies knowing anything about a grain thief, but he’s lying. The woodcutter’s son stole the grain when his father ran out of money, so that [Vaughn] and he could keep eating.\nWhile asking [Percy] about the thief, a hero who is suspicious of him can make an easy Intuition test.\n \n \n|Discern Percival’s Honesty: Intuition Test\n|{#It’s clear to the hero that Percival is holding back the truth, but the boy gets the sense the heroes are onto him. He won’t confess his crime without proof of his involvement, which can be found in [B5. Mill and Granary]}.\n|{#The hero can tell that Percival is lying.}\n|{#The hero can tell that Percival is lying and gains an edge on any tests made to get him to admit the truth about the stolen grain.}\n\n\n## Admitting the Truth\n\nIf a hero suspects [Percival] of lying about the stolen grain, they can make a moderate Presence test to attempt to get the truth from him. If the heroes found the floor door or penknife in the granary (see\n[B5. Mill and Granary]), and present them to [Percival], they make this test with an edge for each piece of evidence they present.\n\n|Press Percival for the Truth: Presence Test\n|{#Percival swears to know nothing about the robbery.}\n|{#Percival admits that he stole the grain. Vaughn then begs the heroes to turn him in instead of his son, since the woodcutter blames himself for his son’s desperate actions.}\n|{#Percival admits that he stole the grain.}\n\nWhen [Percival] admits that he stole the grain, he explains in a torrent of words and crying that he was just doing it to feed his father and himself, since they had no money and no food left. [Vaughn] forgives his son almost immediately, and finally sees fully how his actions have influenced his home. He vows to begin cutting down wood again, though as long as the Forsaken Wraiths are in the Silver Wood, he only cuts down the young trees near his place. Their wood is bad, but he can sell enough to [Orson] the charcoal burner to feed his son and himself.\n\nIt’s up to the heroes to decide what course of action to take once they know the truth:\n\n> * If the heroes turn in [Percival] (or [Vaughn], as the father requests) to the reeve, [Reeve Rosamund] orders the grain returned and has the offender work for free at the mill and granary for a month. Most of the Broadhurst villagers view the offender as a thief and shun them.\n> * If the heroes report [Percival] to [Robin and Sarah] at the granary, the millers thank the heroes and ask them not to go to the reeve with this information. Instead, they take the matter up privately with [Vaughn], who gives them back the grain and promises to pay for what was used and repairs to the granary as soon as he has the coin.\n> * If the heroes choose not to report [Percival] to anyone, a grateful [Vaughn] gives the heroes three [Snapdragons] (see Treasure in Handouts) that he found in the Silver Wood.\n\n \n\n"
+mtime: 1766079743569

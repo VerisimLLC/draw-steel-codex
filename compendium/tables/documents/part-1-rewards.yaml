@@ -1,0 +1,80 @@
+__typeName: MarkdownDocument
+annotations:
+  image:rewards:
+    __typeName: RichImage
+    identifier: rewards
+    halign: center
+    image: 536561a3-d1eb-4db3-9c6b-08c30db83cff
+  follower:Ashleigh:
+    __typeName: RichFollower
+    identifier: Ashleigh
+    follower:
+      __typeName: Follower
+      languages:
+        9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+        7e7efb1d-4627-44ab-9407-11daff1a15cf: true
+        e110c3b1-3799-4179-b542-f842079b77f1: true
+      ancestry: 6f995f3d-a4e3-456a-9294-ff2c9ec5cb95
+      portrait: 536561a3-d1eb-4db3-9c6b-08c30db83cff
+      name: Ashleigh
+      guid: ded322c1-bed0-45d8-9e8c-b8a5551d7415
+      characteristic: mgt
+      skills:
+        50ca6145-2d22-4496-a355-c7b2df2cf0de: true
+        5ca5c242-fe6d-43b3-86b0-b5314a9fe39a: true
+        192827b0-ef39-4d5f-840a-b3c654e7b158: true
+        ac718c6f-05e2-4301-997c-b1c54aad9250: true
+id: 81c344a7-70a4-4cd6-82e8-6010fc1884de
+ctime: 1763333505527
+textStorage:
+  __typeName: TextStorage
+  sections:
+    o: |+
+      ## Follower: Ashleigh
+
+    P: |+
+      [[image:rewards]]
+
+    K: |+
+      The heroes earn the following rewards for completing this part of the adventure.
+
+    Z: |+
+      Since you have saved [Violet], legend of your deeds spreads through Broadhurst. You gain 1 Renown each.
+
+    x: "[[follower:Ashleigh]]"
+    e: |
+      ## Title: Violet’s Savior
+    v: |2+
+
+
+    F: |+
+      # Part 1 Rewards
+
+    j: |+
+      The hero who cuts [Violet] free and escorts her from the room where she was held to stop the ritual or deals damage that reduces Vorgosh to 0 Stamina earns the [title:Violet's Savior] title.
+
+    U: |+
+      ## Renown
+
+    r: "[Ashleigh] becomes an artisan follower for the heroes, offering her services as a blacksmith to them for free. She doesn’t count against the limited number of followers a hero can have based on their Renown. Artisan followers are useful for crafting projects."
+parentFolder: 8e307759-fe9b-408a-bb88-34f90e1fe01b
+updateid: dc36ba6b-42b9-4455-aabb-f651b01aa4bb
+description: Part 1 Rewards
+content: |-
+  # Part 1 Rewards
+
+  The heroes earn the following rewards for completing this part of the adventure.
+
+  [[image:rewards]]
+
+  ## Renown
+
+  Since you have saved [Violet], legend of your deeds spreads through Broadhurst. You gain 1 Renown each.
+
+  ## Title: Violet’s Savior
+  The hero who cuts [Violet] free and escorts her from the room where she was held to stop the ritual or deals damage that reduces Vorgosh to 0 Stamina earns the [title:Violet's Savior] title.
+
+  ## Follower: Ashleigh
+
+  [Ashleigh] becomes an artisan follower for the heroes, offering her services as a blacksmith to them for free. She doesn’t count against the limited number of followers a hero can have based on their Renown. See the [Ashleigh Follower Card] for details. Artisan followers are useful for crafting projects.
+mtime: 1764322109630

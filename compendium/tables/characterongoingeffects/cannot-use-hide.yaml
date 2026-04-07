@@ -1,0 +1,30 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 677b1bb4-7efc-40b7-8246-95acc8321475
+  source: Ongoing Effect
+  guid: 3f6405f8-39b0-4c54-a453-2f382b3951ee
+  domains:
+    CharacterOngoingEffect:677b1bb4-7efc-40b7-8246-95acc8321475: true
+  abilityFilter: not Ability.name =  "Hide"
+  name: Cannot use Hide
+  description: ""
+  explanation: You cannot use the hide maneuver while judged
+  behavior: suppressabilities
+source: Ongoing Effect
+guid: 677b1bb4-7efc-40b7-8246-95acc8321475
+id: 677b1bb4-7efc-40b7-8246-95acc8321475
+ctime: 1765498682772
+domains:
+  CharacterOngoingEffect:677b1bb4-7efc-40b7-8246-95acc8321475: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Cannot use Hide
+custom: true
+description: ""
+mtime: 1768661517453
+iconid: ui-icons/skills/1.png

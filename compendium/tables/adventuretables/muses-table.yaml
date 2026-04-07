@@ -1,0 +1,31 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 899008fc-f4a9-4253-b3cb-fb4416935167
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start + 1} drama; the Director gains 1d3 Malice
+- __typeName: RollTableRow
+  id: ab71a713-bf39-4c32-b022-78abfb3a5f95
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start + 1} drama; Gain 1 Heroic Resource, which you can keep or give to an ally within distance of your active performance; the Director gains 1 Malice.
+- __typeName: RollTableRow
+  id: 9ea98a34-2840-48a8-9617-0be45902471c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start + 2} drama; Gain 2 Heroic Resources, which you can keep or distribute to allies within distance of your active performance.
+name: Muses Table
+mtime: 1769642093361
+id: f467aa03-77fb-43e9-a266-b40cc984a936
+ctime: 1753664221941

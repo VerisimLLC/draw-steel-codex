@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Exploration Perks
+name: Wood Wise
+description: When you make a test using a skill from the exploration skill group and at least one of the d10s rolled is a 1, you can reroll one d10. You can use this perk only once per test.
+mtime: 1772880214789
+id: 7cdbe600-9e48-4612-afc6-6f2580d36601
+ctime: 1730700578415

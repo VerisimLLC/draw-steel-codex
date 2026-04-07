@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: d20192db-ff0f-4acb-887b-201c89695a42
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: a4448cf3-c752-44ab-863e-63595a05b82b
+  duration: end_of_next_turn
+  ongoingEffectCustom: a4448cf3-c752-44ab-863e-63595a05b82b
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: If the target deals damage to another creature, the target of this ability takes another 1d10 lightning damage (save ends).
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: f14e92e8-2d99-4f5b-a9cf-11abd83dccfb
+importMatch: If the target deals damage to another creature, the target of this ability takes another 1d10 lightning damage \(save ends\).	
+ctime: 1732092249513
+targetType: self
+repeatTargets: false
+description: ""
+name: Target Takes Damage on their next Attack
+numTargets: "1"
+mtime: 1772545059113
+abilityType: none
+iconid: ui-icons/skills/1.png

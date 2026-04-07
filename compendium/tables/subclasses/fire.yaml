@@ -1,0 +1,758 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1728661976111
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ed8b2871-aaf8-42a4-9337-77b7d37ce8a6
+        displayCondition: Ability.damagetypes has "fire"
+        source: Fire Class Feature
+        guid: 7b97b2e8-0083-45f3-a176-a9e850b95fcb
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        keywords: []
+        activationCondition: Ability.damagetypes has "fire"
+        description: Whenever you deal fire damage to a creature or object, they take an extra 1d6 fire damage.
+        rollType: ability_power_roll
+        name: The Flame Primordial
+        behavior: power
+        damageModifier: 1d6
+        damageModifierType: none
+        modtype: none
+      - __typeName: CharacterModifier
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: ed8b2871-aaf8-42a4-9337-77b7d37ce8a6
+        description: ""
+        source: Fire Class Feature
+        name: The Flame Primordial
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            text: The Flame Primordial!
+            color:
+              __usertype: LuaColor
+              h: 0
+              s: 0.995116949081421
+              v: 0.980954170227051
+              a: 1
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 02e6bc81-7426-42a0-a306-77f3b572cc97
+            ongoingEffectCustom: 02e6bc81-7426-42a0-a306-77f3b572cc97
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          guid: e615cfcd-fd66-4b39-a81b-8863c5514cc4
+          numTargets: "1"
+          abilityType: none
+          domains:
+            class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          castImmediately: true
+          name: The Flame Primordial
+          trigger: beginturn
+          targetType: subject
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 74d97e3a-15c9-492d-b7b5-b2b928c6b115
+      source: Fire Class Feature
+      guid: ed8b2871-aaf8-42a4-9337-77b7d37ce8a6
+      domains:
+        class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+      description: ""
+      name: The Flame Primordial
+      implementation: 2
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: b6a76fe5-ad92-4c90-9878-dec428c87439
+        description: |
+          With the merest touch, you cause an object to turn into slag or ash.
+        source: Fire Class Feature
+        name: Return to Formlessness
+        behavior: activated
+        guid: 861baa73-df55-44df-a984-250b7718134b
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: 0
+          objectTarget: true
+          targetTextOverride: 1 mundane object
+          repeatTargets: false
+          keywords:
+            Magic: true
+            Melee: true
+          targetAllegiance: none
+          behaviors: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.0962498188018799
+              s: 0.848535001277924
+              v: 0.85378086566925
+              a: 1
+          flavor: With the merest touch, you cause an object to turn into slag or ash.
+          sourceReference:
+            __typeName: SourceReference
+            page: 130
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: f37a3c82-7170-4fda-a37f-15e2789845fd
+          abilityType: none
+          domains:
+            class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          numTargets: "1"
+          name: Return to Formlessness
+          targetType: target
+          description: You heat the target and cause it to combust and melt, destroying it. If the object is larger than 1 square, then only the square of the object that you touch is destroyed.
+          resourceCost: none
+          iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+      source: Fire Class Feature
+      classid: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+      guid: ff2df5a0-695d-42ca-ad17-fe32f3c9edb4
+      description: |
+        With the merest touch, you cause an object to turn into slag or ash.
+      name: Return to Formlessness
+    - __typeName: CharacterFeature
+      domains:
+        class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 79f213ea-524c-466b-ba70-5da8f5024844
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 594d6c0a-c8c3-4b3e-a2ea-e288a340a6a3
+        displayCondition: ability.keywords has "Fire" and ability.keywords has "Magic"
+        source: Fire Class Feature
+        modtype: none
+        keywords:
+          Magic: true
+          Fire: true
+        activationCondition: "1"
+        behavior: power
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: Acolyte of Fire
+        description: You become an expert at wielding destructive flames. Your abilities that have the Fire and Magic keywords gain a +1 bonus to rolled damage.Your Hurl Element ability also gains this bonus when you use it to deal fire damage.
+        damageModifier: "1"
+        rollType: ability_power_roll
+        guid: 83896481-9aea-4cd6-908d-0b5aed5e843d
+      - __typeName: CharacterModifier
+        sourceguid: 594d6c0a-c8c3-4b3e-a2ea-e288a340a6a3
+        displayCondition: ability.name = "Hurl Element" and (cast.mode = 4)
+        source: Fire Class Feature
+        modtype: none
+        keywords: []
+        activationCondition: "1"
+        behavior: power
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: Acolyte of Fire
+        description: You become an expert at wielding destructive flames. Your abilities that have the Fire and Magic keywords gain a +1 bonus to rolled damage.Your Hurl Element ability also gains this bonus when you use it to deal fire damage.
+        damageModifier: "1"
+        rollType: ability_power_roll
+        guid: bd528998-5ca7-40a3-966c-263efb84ee12
+      name: Acolyte of Fire
+      classid: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+      description: You become an expert at wielding destructive flames. Your abilities that have the Fire and Magic keywords gain a +1 bonus to rolled damage.Your Hurl Element ability also gains this bonus when you use it to deal fire damage.
+      source: Fire Class Feature
+      implementation: 3
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 89455ec3-1eb7-49b5-bb09-c801d52ff591
+        description: |-
+          You can use 1 square of movement to walk into an area of fire your size or larger and teleport to any other area of fire your size or larger within 10 squares of the first area. 
+          Additionally, whenever you use a fire ability or are targeted by an ability that deals fire damage, each enemy adjacent to you takes fire damage equal to your Reason score.
+        source: Fire Class Feature
+        name: Smoldering Step
+        behavior: activated
+        guid: d818bca9-74da-4469-85d2-79412e4ab55c
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          implementationDetails: The Codex does not limit the squares you can teleport to.
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 137
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "20"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 785d5d69-33f4-4bd3-aeba-b91690963eb6
+          domains:
+            class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          name: Smoldering Step
+          targetType: emptyspace
+          description: |-
+            You can use 1 square of movement to walk into an area of fire your size
+            or larger and teleport to any other area of fire your size or larger within
+            10 squares of the first area.
+          abilityType: none
+          implementation: 2
+      - __typeName: CharacterModifier
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 89455ec3-1eb7-49b5-bb09-c801d52ff591
+        description: |-
+          You can use 1 square of movement to walk into an area of fire your size or larger and teleport to any other area of fire your size or larger within 10 squares of the first area. 
+          Additionally, whenever you use a fire ability or are targeted by an ability that deals fire damage, each enemy adjacent to you takes fire damage equal to your Reason score.
+        source: Fire Class Feature
+        name: Smoldering Step
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: enemy
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 3a979ed8-2f5e-420f-b156-b6e790325044
+          conditionFormula: Used Ability.damagetypes has "fire"
+          domains:
+            class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: Reason
+            damageType: fire
+            chatMessage: Smoldering Step Damage
+          trigger: useability
+          name: Smoldering Step
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: aa147168-a556-4014-a706-5b95b7259350
+      - __typeName: CharacterModifier
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 89455ec3-1eb7-49b5-bb09-c801d52ff591
+        description: |-
+          You can use 1 square of movement to walk into an area of fire your size or larger and teleport to any other area of fire your size or larger within 10 squares of the first area. 
+          Additionally, whenever you use a fire ability or are targeted by an ability that deals fire damage, each enemy adjacent to you takes fire damage equal to your Reason score.
+        source: Fire Class Feature
+        name: Smoldering Step
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: enemy
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 8b4c83ea-2cce-4e34-ad7e-b1e0889870c1
+          conditionFormula: HasAbility and Damage Type is Fire
+          domains:
+            class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: Reason
+            damageType: fire
+            chatMessage: Smoldering Step Damage
+          trigger: losehitpoints
+          name: Smoldering Step
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 2411e137-ca0d-4187-bd07-4726c0cf230d
+      source: Fire Class Feature
+      guid: 0db0a88d-f782-4e32-9cdd-c566a5662bd2
+      domains:
+        class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+      description: |-
+        You can use 1 square of movement to walk into an area of fire your size or larger and teleport to any other area of fire your size or larger within 10 squares of the first area. 
+        Additionally, whenever you use a fire ability or are targeted by an ability that deals fire damage, each enemy adjacent to you takes fire damage equal to your Reason score.
+      name: Smoldering Step
+      implementation: 3
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 1b3de591-e953-42fa-a947-61fda9301af5
+        description: |-
+          Your Mantle of Essence feature no longer requires essence. 
+
+          Additionally, your Mantle of Essence now radiates magic that creates a calming air. Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation. While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, the bonus to patience increases to 2 and tests that use the Handle Animals skill have a double edge.
+        source: Fire Class Feature
+        name: Burning Grounds
+        behavior: activated
+        guid: 7de3a8a0-3486-485b-ae10-28c27535d14a
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: cfbbd0e7-dc44-40e2-b526-b5d619def4d6
+            duration: eoe_or_dying
+            ongoingEffectCustom: cfbbd0e7-dc44-40e2-b526-b5d619def4d6
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 122
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 6cb6a605-5f53-4ada-a1e3-73b194a51eea
+          domains:
+            class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          name: Burning Grounds
+          targetType: self
+          description: |-
+            While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).
+
+            At the end of each of your turns, each enemy in the area takes fire damage equal to your Reason score.Additionally, your Mantle of Essence now radiates magic that creates a calming air. Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation. While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, the bonus to patience increases to 2 and tests that use the Handle Animals skill have a double edge.
+          abilityType: none
+          implementation: 3
+      source: Fire Class Feature
+      guid: fbe0c464-93c3-41b3-ac7b-7daf681d080b
+      domains:
+        class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+      description: |-
+        Your Mantle of Essence feature no longer requires essence. 
+
+        Additionally, your Mantle of Essence now radiates magic that creates a calming air. Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation. While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, the bonus to patience increases to 2 and tests that use the Handle Animals skill have a double edge.
+      name: Burning Grounds
+      implementation: 3
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1b3de591-e953-42fa-a947-61fda9301af5
+        source: Fire Class Feature
+        behavior: activated
+        filterCondition: Heroic Resources Available to Spend >=3
+        name: Burning Grounds
+        guid: 7de3a8a0-3486-485b-ae10-28c27535d14a
+        description: "While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).\v\vAt the end of each of your turns, each enemy in the area takes fire damage equal to your Reason score."
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: cfbbd0e7-dc44-40e2-b526-b5d619def4d6
+            duration: eoe_or_dying
+            ongoingEffectCustom: cfbbd0e7-dc44-40e2-b526-b5d619def4d6
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 122
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 6cb6a605-5f53-4ada-a1e3-73b194a51eea
+          domains:
+            class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          name: Burning Grounds
+          targetType: self
+          description: |-
+            While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).
+
+            At the end of each of your turns, each enemy in the area takes fire damage equal to your Reason score.
+          abilityType: none
+          implementation: 3
+      source: Fire Class Feature
+      guid: 773143d6-3969-4614-8c43-be1fb84bc483
+      domains:
+        class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      canHavePrerequisites: true
+      classid: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+      description: "While you have 3 or more essence and are not dying, you exude an aura of magic whose distance is equal to your Reason score. The effects within the area of the aura are based on your specialization, as shown on the Mantle of Essence Specialization Effects table. You can activate and deactivate the aura at will (no action required).\v\vAt the end of each of your turns, each enemy in the area takes fire damage equal to your Reason score."
+      name: Burning Grounds
+      implementation: 3
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 09b26b55-ba25-4aa8-b694-dc6913c5a1c5
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 09b26b55-ba25-4aa8-b694-dc6913c5a1c5
+        behavior: resistance
+        source: Fire Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: 5+Level
+          damageType: fire
+          apply: Damage Reduction
+        guid: 3ac81d8d-df40-4307-9476-45b729cbe989
+        name: Disciple of Fire
+        description: |-
+          Your connection to fire allows you to protect yourself from it, even as you rip away the protections of others. You have fire immunity equal to 5 plus your level. Additionally, fire damage you deal ignores a target’s fire immunity.
+          At the start of a combat encounter, you gain a number of surges equal to your Victories. Whenever you spend a surge to deal extra damage, you can make that damage fire damage.
+      - __typeName: CharacterModifier
+        sourceguid: 09b26b55-ba25-4aa8-b694-dc6913c5a1c5
+        source: Fire Class Feature
+        value: 1
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        name: Disciple of Fire
+        guid: fbb02ffb-4f01-4fac-9f46-59cdfa7f914b
+        description: |-
+          Your connection to fire allows you to protect yourself from it, even as you rip away the protections of others. You have fire immunity equal to 5 plus your level. Additionally, fire damage you deal ignores a target’s fire immunity.
+          At the start of a combat encounter, you gain a number of surges equal to your Victories. Whenever you spend a surge to deal extra damage, you can make that damage fire damage.
+        behavior: attribute
+        attribute: 3d9a620e-06ab-4dc0-94dc-7af862d7bd63
+      - __typeName: CharacterModifier
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 09b26b55-ba25-4aa8-b694-dc6913c5a1c5
+        description: |-
+          Your connection to fire allows you to protect yourself from it, even as you rip away the protections of others. You have fire immunity equal to 5 plus your level. Additionally, fire damage you deal ignores a target’s fire immunity.
+          At the start of a combat encounter, you gain a number of surges equal to your Victories. Whenever you spend a surge to deal extra damage, you can make that damage fire damage.
+        source: Fire Class Feature
+        name: Disciple of Fire
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          trigger: rollinitiative
+          strain: []
+          guid: 868416a1-0dc2-480d-b97b-6e6b3950111a
+          repeatTargets: false
+          abilityType: none
+          domains:
+            class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+            class:c1e1c512-6092-423f-85b2-324547f7f390: true
+          targetType: self
+          persistence: []
+          name: Disciple of Fire
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            filterTarget: Victories > 0
+            quantity: Victories
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: Disciple of Fire
+          description: At the start of a combat encounter, you gain a number of surges equal to your Victories.
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 47c51e35-cb9d-4815-a99f-bfa7253b305a
+      - __typeName: CharacterModifier
+        sourceguid: 09b26b55-ba25-4aa8-b694-dc6913c5a1c5
+        source: Fire Class Feature
+        guid: d0609a2b-37c7-42fc-bb12-4a922c8da18a
+        modtype: none
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        keywords: []
+        rollRequirement: surges
+        rollType: ability_power_roll
+        activationCondition: true
+        name: Disciple of Fire
+        surgeDamageType: fire
+        description: Whenever you spend a surge to deal extra damage, you can make that damage fire damage.
+        behavior: power
+        damageTypeMappings: []
+      name: Disciple of Fire
+      classid: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+      description: |-
+        Your connection to fire allows you to protect yourself from it, even as you rip away the protections of others. You have fire immunity equal to 5 plus your level. Additionally, fire damage you deal ignores a target’s fire immunity.
+        At the start of a combat encounter, you gain a number of surges equal to your Victories. Whenever you spend a surge to deal extra damage, you can make that damage fire damage.
+      source: Fire Class Feature
+      implementation: 3
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 661cf90a-ecd4-40ea-a038-d70519e85cee
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 33020847-3b77-4195-b670-99bcadbeb192
+        source: Fire Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          guid: f53a1c9f-69e3-4013-9bfd-56982d44ad4b
+          adjustments:
+          - type: push
+            value: Triggerer.Reason
+          - type: pull
+            value: Triggerer.Reason
+          - type: slide
+            value: Triggerer.Reason
+          keywords: []
+          activationCondition: true
+          rollType: ability_power_roll
+          name: Explosive Assistance
+          rules: ""
+          modtype: none
+          resourceCostType: none
+          behavior: power
+        guid: 5ea5df05-3e64-417a-b3c3-7a89087c130b
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        targetType: selforally
+        trigger: forcemove
+        name: Explosive Assistance
+        rules: The forced movement distance gains a bonus equal to your Reason score.
+        description: ""
+        range: 10
+        additionalCostModifiers:
+        - __typeName: CharacterModifier
+          source: Trigger
+          guid: 18027af2-57e4-4b3b-91fe-6218a9e6f61f
+          adjustments:
+          - type: push
+            value: triggerer.Reason
+          - type: pull
+            value: triggerer.Reason
+          - type: slide
+            value: triggerer.Reason
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          behavior: power
+          name: Explosive Assistance+
+          rules: ""
+          modtype: none
+          resourceCostType: cost
+          rulesText: The forced movement distance gains a bonus equal to twice your Reason score.
+      - __typeName: CharacterModifier
+        domains:
+          class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        sourceguid: 33020847-3b77-4195-b670-99bcadbeb192
+        behavior: triggerdisplay
+        source: Fire Class Feature
+        name: Explosive Assistance
+        description: ""
+        guid: 6b5c3046-dd96-4e9b-900a-c853756138fa
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or one ally
+          effect: |-
+            The forced movement distance gains a bonus equal to your Reason score.
+            **Spend 1 Essence:** The forced movement distance gains a bonus equal to twice your Reason score instead.
+          trigger: The target force moves a creature or object.
+          flavor: You add a little magic to an ally’s aggression at just the right time.
+          guid: 1ad7feb5-fd90-4f58-8fe6-38890717ea05
+          name: Explosive Assistance
+          keywords: []
+      name: Explosive Assistance
+      classid: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+      description: ""
+      source: Fire Class Feature
+      implementation: 3
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      guid: 6f0702d7-bb52-4a7a-a715-300507425641
+      modifiers: []
+      name: A Conversation with Fire
+      classid: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+      description: When you spend 1 uninterrupted minute in front of a fire, you can speak the name of another creature. If that creature is willing to speak to you, their image appears in the fire, and they can see you before them in a shimmering ball of light. The two of you can speak to each other through these images as if you were together in person. As a maneuver, you or the creature can end the conversation.
+      source: Fire Class Feature
+      implementation: 4
+    domains:
+      class:77e7059f-84da-4fad-a859-2ab4c4112fe5: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+details: "<B>Fire</B> is the element of destruction. Fire abilities harm enemies and objects."
+name: Fire
+mtime: 1771942415756
+id: 77e7059f-84da-4fad-a859-2ab4c4112fe5
+primaryClassId: c1e1c512-6092-423f-85b2-324547f7f390

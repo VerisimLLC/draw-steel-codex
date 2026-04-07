@@ -1,0 +1,375 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: aa74cc58-9be1-43f3-9563-8de40749669d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: War Dog Portalite
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        modesSelected:
+        - 2
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: bdc92d82-9a53-47c8-a5b1-b0438ad71540
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          targetType: emptyspace
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          range: "3"
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 0e616dbe-08f0-4d50-8497-d657e4b45eb9
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 7a66b922-615c-4606-b411-a0cdf320d572
+          displayCondition: ""
+          behavior: power
+          keywords: []
+          activationCondition: Target.Count Nearby Enemies(1, self)
+          description: |
+            The portalite has an edge on this ability if an ally is adjacent to the target.
+          domains: []
+          name: Adjacent Ally
+          rollType: ability_power_roll
+          damageModifier: Agility
+          modtype: none
+          guid: 5c88b523-ac11-4588-b5de-f3d491f5559d
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage; slide 1
+        - 6 damage; slide 2
+        - 7 damage; slide 3
+        roll: 2d10 + 2
+        modifiers: []
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+        mode: expend
+        modesSelected:
+        - 2
+        applyto: caster
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4a59fd84-dfd0-488e-9490-c6d0c395698b
+      modeList:
+      - rules: The portalite has an edge on this ability if an ally is adjacent to the target.
+        text: Without Malice
+      - rules: " The portalite teleports the target 3 squares before sliding them."
+        text: With Malice
+        condition: Resources.Malice > 0
+      meleeRange: 1
+      targetType: target
+      numTargets: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Corrupted Ash Daggers
+      implementation: 3
+      description: |-
+        The portalite has an edge on this ability if an ally is adjacent to the target.
+        **1 Malice**: The portalite teleports the target 3 squares before sliding them.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Target has "Loyalty Collar"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: "10"
+      effectImplemented: false
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: f3a41f02-0e85-4131-982c-19fd6ceaa6d5
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      implementation: 2
+      persistence: []
+      name: Posthumous Promotion
+      selfTarget: true
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 44f31caa-771c-4cf2-a6bb-b3baf82b7cfb
+        duration: 0
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: "5"
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4ba29ae6-d4f3-4b64-b700-9701a19438ac
+      abilityType: none
+      targetType: emptyspace
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targeting: direct
+      numTargets: "1"
+      name: Corrupted Ash Teleport
+      implementation: 3
+      description: The portalite teleports up to 5 squares and has an edge on strikes until the end of their turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    ongoingEffects: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        War Dog Portalite	Level 1 Horde Ambusher
+        Humanoid, War Dog	EV 3
+        <b>Stamina</b> 15
+        <b>Speed</b> 5 (teleport)	<b>Size</b> 1M/ <b>Stability</b> 0
+        	<b>Free Strike</b> 2
+        Might +0	Agility +2	Reason +0	Intuition +0	Presence +0
+        <b>Corrupted Ash Daggers</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	4 damage; slide 1
+        %E2%98%85	12%E2%80%9316	6 damage; slide 2
+        %E2%9C%B8	17+	7 damage; slide 3
+        <b>Effect </b>The portalite has an edge on this ability if an ally is adjacent to the target.
+        <b>1 Malice </b>The portalite teleports the target 3 squares before sliding them.
+
+        <b>Posthumous Promotion</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One war dog with a loyalty collar
+        <b>Effect </b>The target's loyalty collar detonates, killing them instantly.
+
+        <b>Corrupted Ash Teleport</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect </b>The portalite teleports up to 5 squares and has an edge on strikes until the end of their turn.
+
+        <b>Loyalty Collar</b>
+        When the portalite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:062bbf15-fe08-460d-8773-d6d8bb7327ff: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetFilter: Enemy
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          persistence: []
+          name: Loyalty Collar
+          targetType: all
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: When the portalite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the portalite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      guid: 062bbf15-fe08-460d-8773-d6d8bb7327ff
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Ambusher
+    equipment: []
+    skillRatings: []
+    resistances: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        74010fd0-f1dd-4044-a53d-d482f107b812:
+          note: Corrupted Ash Teleport
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+    opportunityAttack: 2
+    damage_taken: 0
+    monster_category: Monster
+    walkingSpeed: 5
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+    traitNames: []
+    creatureSize: 1M
+    movementSpeeds:
+      teleport: 5
+    keywords:
+      Humanoid: true
+      Dog: true
+      War: true
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        25a4cadc-9cc0-453f-9ab0-e1fd5f148e09:
+          note: Corrupted Ash Daggers
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        605e516d-6d90-49a1-af50-f90f83a8307b:
+          note: Corrupted Ash Daggers
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        9082b3a5-c4bd-466b-90c6-5e8ab3c04efc:
+          note: Corrupted Ash Daggers
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        59cdbf74-8a4c-49f1-8023-2222334fb829:
+          note: Corrupted Ash Daggers
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 9389822b-a15e-4e70-9fcd-9da3b561a7df-2888
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 974751ae-0131-44b0-ba82-e7c697ea7ae5
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: War Dog Portalite
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 7
+ctime: 1749972312764
+mtime: 1775201137032
+hidden: false

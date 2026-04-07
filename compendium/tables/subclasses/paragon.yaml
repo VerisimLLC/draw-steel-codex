@@ -1,0 +1,943 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727830927284
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Paragon Class Feature
+      guid: c7d9b983-b096-4a8a-b38b-8db51804fadb
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+      canHavePrerequisites: true
+      classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+      description: Your words take on the power of your deity, with all the authority that entails. If you convince a creature to take an oath, they can’t break it for 7 days. If you take an oath, you can’t break it for 7 days.
+      name: Vow
+      implementation: 4
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+      guid: 5567edac-ba79-4db0-864c-0712aa955407
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5567edac-ba79-4db0-864c-0712aa955407
+        modifyDescription: "**Paragon:** You can vertical pull the judged creature up to a number of squares equal to twice your Presence score."
+        source: Paragon Class Feature
+        filterAbility: Ability.name is Judgment	
+        behavior: modifyability
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        attributes: []
+        guid: 9795a72e-207f-4f70-b2e3-096c989b9ab3
+        description: You can vertical pull the judged creature up to a number of squares equal to twice your Presence score.
+        name: Judgment Order Benefit
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 93b60560-06aa-4d08-878a-ce60b364b853
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors:
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: judged
+            refresh: turn
+            guid: 5b5a9abe-76ac-426b-b634-78391e1dfa94
+            key: 97604ef6-7e4c-45aa-bfcd-77e3141970a8
+            applyto: caster
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: vertical pull {2*Presence}
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      name: Judgment Order Benefit
+      classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+      description: You can vertical pull the judged creature up to a number of squares equal to twice your Presence score.
+      source: Paragon Class Feature
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+      guid: 9a54db5a-ee11-4bb6-859a-4fd29335a230
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c8ca9c51-eb36-433a-8ff3-359b056369e4
+        source: Paragon Class Feature
+        behavior: proficiency
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        guid: 9d2f0024-b8a6-442e-8769-4803ca443304
+        equate: false
+        name: Lead
+        proficiency: proficient
+        description: You gain the Lead skill.
+        subtype: skill
+        skills:
+          27995005-8a25-435d-9f50-351c9d08a7b4: true
+      name: Lead
+      classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+      description: You gain the Lead skill.
+      source: Paragon Class Feature
+      implementation: 3
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+      guid: 8b880762-9d2b-4f6f-a7c2-81305e422182
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8b880762-9d2b-4f6f-a7c2-81305e422182
+        source: Paragon Class Feature
+        seq: 17496a95-75ca-422d-b84a-15696bf3dc82
+        aura:
+          __typeName: Aura
+          applyto: selfandfriends
+          modifiers:
+          - __typeName: CharacterModifier
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+            sourceguid: 8b880762-9d2b-4f6f-a7c2-81305e422182
+            description: Your divine spark grows in power, allowing you and your allies to focus and endure. At the start of each of your turns, you can spend 1d6 Stamina to end one effect on you that is ended by a saving throw or that ends at the end of your turn. Any ally who starts their turn within 5 squares of you can also spend Stamina to gain this benefit.
+            source: Paragon Class Feature
+            name: Stand Fast!
+            behavior: trigger
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              targetType: self
+              triggerPrompt: 'Censor - Stand Fast! you can spend 1d6 Stamina to end one effect on you that is ended by a saving throw or that ends at the end of your turn. '
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              mandatory: false
+              range: 1
+              persistence: []
+              abilityType: none
+              numTargets: "1"
+              modifiers: []
+              hasManualVersion: true
+              strain: []
+              guid: 6ceaaa06-385f-44a2-9630-33c984994aa9
+              trigger: beginturn
+              whenActive: combat
+              castImmediately: true
+              domains:
+                class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+                class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+              behaviors:
+              - __typeName: ActivatedAbilityPurgeEffectsBehavior
+                conditions: []
+                targetDuration: save|eot
+                damageToSelf: 1d6
+                purgeType: one
+              name: Stand Fast!
+              selfTarget: true
+              description: 'Censor - Stand Fast! you can spend 1d6 Stamina to end one effect on you that is ended by a saving throw or that ends at the end of your turn. '
+              subject: self
+              iconid: ui-icons/skills/1.png
+            guid: 626bf8ff-5109-4e78-be0f-3b6e4b7fff66
+          - __typeName: CharacterModifier
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+            sourceguid: 8b880762-9d2b-4f6f-a7c2-81305e422182
+            behavior: triggerdisplay
+            source: Paragon Class Feature
+            name: Stand Fast!
+            description: Your divine spark grows in power, allowing you and your allies to focus and endure. At the start of each of your turns, you can spend 1d6 Stamina to end one effect on you that is ended by a saving throw or that ends at the end of your turn. Any ally who starts their turn within 5 squares of you can also spend Stamina to gain this benefit.
+            guid: d8e94eb3-c091-4370-aa26-aca7273bec70
+            ability:
+              __typeName: TriggeredAbilityDisplay
+              target: Self and Ally
+              effect: You can spend 1d6 Stamina to end one effect on you that is ended by a saving throw or that ends at the end of your turn. Any ally who starts their turn within 5 squares of you can also spend Stamina to gain this benefit.
+              name: Stand Fast!
+              trigger: At the start of each of your turns
+              flavor: Your divine spark grows in power, allowing you and your allies to focus and endure.
+              guid: f5787649-7c06-4cd0-b5e2-0ab251ed03bb
+              distance: Ranged 5
+              keywords: []
+          name: Stand Fast!
+          guid: 7834e1c5-2cac-4e9e-851e-771987ee6cf5
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        radius: "5"
+        guid: cddea7fe-efc5-4a17-b23b-0f0ce1f320d2
+        description: Your divine spark grows in power, allowing you and your allies to focus and endure. At the start of each of your turns, you can spend 1d6 Stamina to end one effect on you that is ended by a saving throw or that ends at the end of your turn. Any ally who starts their turn within 5 squares of you can also spend Stamina to gain this benefit.
+        behavior: aura
+        name: Stand Fast!
+      name: Stand Fast!
+      classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+      description: Your divine spark grows in power, allowing you and your allies to focus and endure. At the start of each of your turns, you can spend 1d6 Stamina to end one effect on you that is ended by a saving throw or that ends at the end of your turn. Any ally who starts their turn within 5 squares of you can also spend Stamina to gain this benefit.
+      source: Paragon Class Feature
+      implementation: 3
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+          sourceguid: 33681e5e-de91-4b90-a1c8-89e25c8a0f31
+          description: You focus your allies’ wrath on a chosen foe.
+          source: Paragon Class Feature
+          name: Congregation
+          behavior: activated
+          guid: 086de096-ca50-4219-9a60-bb9c8d0bcf88
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You focus your allies’ wrath on a chosen foe.
+            sourceReference:
+              __typeName: SourceReference
+              page: 89
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 6be9838b-2456-4c0f-b8e7-243fca80f807
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 + M Damage; as a free action, one ally within 10 squares of the target can use a strike signature ability against the target
+              - 12 + M Damage; as a free action, one ally within 10 squares of the target can use a strike signature ability that gains an edge against the target
+              - 16 + M Damage; as a free action, two allies within 10 squares of the target can use a strike signature ability that gains an edge against the target
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: ally
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "10"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 04820c39-c119-4466-be71-8657de792261
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  abilityType: standard
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 8e1b4cb3-7c01-41bf-ad70-c15e82ff67fa
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                name: 'Congregation '
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Ally within 10 squares can use a strike signature ability against the target
+              standardAbilityParams:
+                hasedge: "<<Cast.Tier > 1>>"
+                targetcount: "<<2 when Cast.Tier = 3 else 1>>"
+                prompt: Ally within 10 squares can use a strike signature ability against the target
+                range: "10"
+                targetid: "<<Cast.Primary Target.id>>"
+              abilityType: standard
+              standardAbility: e11fbdc8-5d13-49ab-9c0f-acab39ffc044
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Congregation
+            categorization: Heroic Ability
+            description: Each ally can shift up to 2 squares and gains 2 surges before making the strike.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Paragon Class Feature
+        guid: 33681e5e-de91-4b90-a1c8-89e25c8a0f31
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        canHavePrerequisites: true
+        classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+        description: You focus your allies’ wrath on a chosen foe.
+        name: Congregation
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+          sourceguid: 1d2529ce-022a-4c58-bd1e-1371a6d2c0b8
+          behavior: triggerdisplay
+          source: Paragon Class Feature
+          name: Intercede
+          description: You take your ally’s place
+          guid: 3ba7ed4a-985d-4c10-85f2-36e5b1365543
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: The target is unaffected by the strike and you become the target instead, even if you aren’t a valid target for it. You take half the damage from the strike, and the target gains 3 surges.
+            guid: cacd8132-798b-4e07-a44b-ac093021a64e
+            keywords:
+              Ranged: true
+              Magic: true
+            target: One ally
+            trigger: A creature makes a strike against the target.
+            cost: 9 Wrath
+            flavor: You take your ally’s place
+            name: Intercede
+            type: free
+        - __typeName: CharacterModifier
+          sourceguid: 1d2529ce-022a-4c58-bd1e-1371a6d2c0b8
+          source: Paragon Class Feature
+          powerRollModifier:
+            __typeName: CharacterModifier
+            resourceCostType: cost
+            changeTargetRange: ability
+            modtype: none
+            triggerBefore:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 51ce3fba-225c-4fcc-b377-ae9d1d61374a
+              repeatTargets: false
+              abilityType: none
+              trigger: d20roll
+              targetType: self
+              numTargets: "1"
+              name: New Ability
+              behaviors: []
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            keywords:
+              Ranged: true
+              Magic: true
+            activationCondition: false
+            rollType: ability_power_roll
+            changeTarget: true
+            source: Trigger
+            hasTriggerBefore: false
+            resourceCostAmount: "9"
+            hasCustomTrigger: true
+            customTrigger:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 06b38e0b-da7a-4c2b-b76e-ff9c31778008
+              repeatTargets: false
+              abilityType: none
+              trigger: d20roll
+              targetType: self
+              numTargets: "1"
+              name: New Ability
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  objectTarget: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  strain: []
+                  guid: 07764a4b-3250-42e0-a8f2-9a42d85f4112
+                  repeatTargets: false
+                  abilityType: none
+                  behaviors:
+                  - __typeName: ActivatedAbilityReplenishBehavior
+                    resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+                    chatMessage: Intercede
+                    quantity: "3"
+                  targetType: target
+                  modifiers: []
+                  name: Invoked Ability
+                  persistence: []
+                  description: ""
+                  range: "20"
+                  iconid: ui-icons/skills/1.png
+                promptText: Give 3 Surges to Original Target
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            damageMultiplier: half
+            name: Intercede
+            rules: ""
+            guid: 44fb36c1-7022-4532-b09d-06770e7c7f2e
+            changeTargetFilter: Self
+            behavior: power
+          guid: ba74342e-896e-4381-80e3-691153abebbd
+          behavior: powertabletrigger
+          type: free
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+          targetType: ally
+          trigger: strike
+          name: Intercede
+          rules: ""
+          description: You take your ally’s place
+          range: 10
+          additionalCostModifiers: []
+        source: Paragon Class Feature
+        guid: 1d2529ce-022a-4c58-bd1e-1371a6d2c0b8
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        canHavePrerequisites: true
+        classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+        description: You take your ally’s place
+        name: Intercede
+        implementation: 3
+      classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+      guid: d097db4e-2f22-47b5-afea-31fe6d746ef0
+      description: Choose one of the following abilities.
+      name: 6th-Level Paragon Abilities
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+      guid: 34414d69-fd7f-45bc-84f1-c72da818892d
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 34414d69-fd7f-45bc-84f1-c72da818892d
+        source: Paragon Class Feature
+        value: 1
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        name: Lead by Example
+        guid: a0c89b55-a615-47ff-b3f1-486b5f29a09a
+        description: Your devotion to your deity allows you to take command of the battlefield, letting your allies benefit from your wisdom. While you are adjacent to a creature, your allies gain the benefits of flanking against that creature. Additionally, your allies gain an edge on tests made to aid other creatures with their tests.
+        behavior: attribute
+        attribute: db9d189c-9cfb-438e-b5db-1505f4d3d41e
+      - __typeName: CharacterModifier
+        sourceguid: 34414d69-fd7f-45bc-84f1-c72da818892d
+        source: Paragon Class Feature
+        seq: f8f5aa82-90f5-4fc4-a83c-4ffc86bd4fe6
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          modifiers: []
+          name: Lead by Example
+          guid: 832afc25-7d5c-48a4-b9b3-f30ddd953061
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: Your devotion to your deity allows you to take command of the battlefield, letting your allies benefit from your wisdom. While you are adjacent to a creature, your allies gain the benefits of flanking against that creature. Additionally, your allies gain an edge on tests made to aid other creatures with their tests.
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        radius: "1"
+        guid: 5af9076d-009d-4804-96ab-224568875099
+        description: Your devotion to your deity allows you to take command of the battlefield, letting your allies benefit from your wisdom. While you are adjacent to a creature, your allies gain the benefits of flanking against that creature. Additionally, your allies gain an edge on tests made to aid other creatures with their tests.
+        behavior: aura
+        name: Lead by Example
+      - __typeName: CharacterModifier
+        sourceguid: 34414d69-fd7f-45bc-84f1-c72da818892d
+        source: Paragon Class Feature
+        modtype: edge
+        keywords: []
+        activationCondition: ""
+        guid: 75427949-6e94-4410-9b79-8b61de3726a0
+        rollType: test_power_roll
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        description: Your devotion to your deity allows you to take command of the battlefield, letting your allies benefit from your wisdom. While you are adjacent to a creature, your allies gain the benefits of flanking against that creature. Additionally, your allies gain an edge on tests made to aid other creatures with their tests.
+        behavior: power
+        name: Lead by Example
+      name: Lead by Example
+      classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+      description: Your devotion to your deity allows you to take command of the battlefield, letting your allies benefit from your wisdom. While you are adjacent to a creature, your allies gain the benefits of flanking against that creature. Additionally, your allies gain an edge on tests made to aid other creatures with their tests.
+      source: Paragon Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+        class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+      guid: 3d853adb-85a6-42a5-8cb8-e0d38bc999b4
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3d853adb-85a6-42a5-8cb8-e0d38bc999b4
+        displayCondition: ""
+        source: Paragon Class Feature
+        guid: b28fa245-b972-4f40-ae39-4194b331d43a
+        keywords: []
+        activationCondition: true
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        behavior: power
+        rollType: test_power_roll
+        name: Stalwart Icon
+        description: You exhibit a small spark of your deity’s power, causing creatures to trust or fear you, depending on what you need. You gain an edge on tests made to intimidate or persuade others.
+        modtype: edge
+        skills:
+        - cb214a42-7f8c-4d02-b6ac-1399724a8b5f
+        - 28573ee3-e9df-47fe-98f1-2ac0bfee797a
+      name: Stalwart Icon
+      classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+      description: You exhibit a small spark of your deity’s power, causing creatures to trust or fear you, depending on what you need. You gain an edge on tests made to intimidate or persuade others.
+      source: Paragon Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+          sourceguid: ee9951c7-11c0-4063-8446-04d73fd5c792
+          description: ""
+          source: Paragon Class Feature
+          name: Blessing of the Faithful
+          behavior: activated
+          guid: 2d048288-e0dc-4012-8a97-d09a997364ba
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            targetTextOverride: Self and each ally in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 62441f04-39a4-46bc-b774-2d39bda853ee
+              duration: eoe_or_dying
+              ongoingEffectCustom: 62441f04-39a4-46bc-b774-2d39bda853ee
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.141249418258667
+                s: 0.94081974029541
+                v: 1.00238561630249
+                a: 1
+            flavor: The gods reward your faith.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            numTargets: "1"
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 100
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            strain: []
+            guid: 3a11dbc4-7bb9-4e1b-a31b-fac2e4b2ee2a
+            rangeTextOverride: 3 aura
+            description: Until the end of the encounter or until you are dying, each target gains 1 surge at the end of each of your turns.
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+            implementation: 3
+            targetType: self
+            name: Blessing of the Faithful
+            persistence: []
+            abilityFilters: []
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: a068e145-df2a-4664-9993-98e4bd189a3f
+        source: Paragon Class Feature
+        guid: ee9951c7-11c0-4063-8446-04d73fd5c792
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        canHavePrerequisites: true
+        classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+        description: ""
+        name: Blessing of the Faithful
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+          sourceguid: 9c46f1dc-18a4-4b5d-879c-5f89e6bed670
+          description: ""
+          source: Paragon Class Feature
+          name: Sentenced
+          behavior: activated
+          guid: 9d987df2-fd67-4f62-a92d-b151e8819c8b
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 5 + P damage; P < weak, restrained (save ends)
+              - '9 + P damage; P < average, restrained (save ends) '
+              - 12 + P damage; P < strong, restrained (save ends)
+              roll: 2d10 + Presence
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: The shock of your condemnation freezes your enemy in their boots.
+            sourceReference:
+              __typeName: SourceReference
+              page: 86
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 33a75c50-78d4-4787-a6ad-81da6cb89b26
+            numTargets: "1"
+            categorization: Heroic Ability
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+            implementation: 2
+            persistence: []
+            name: Sentenced
+            targetType: target
+            description: While the target is restrained this way, your abilities that impose forced movement can still move them.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Paragon Class Feature
+        guid: 9c46f1dc-18a4-4b5d-879c-5f89e6bed670
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        canHavePrerequisites: true
+        classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+        description: ""
+        name: Sentenced
+        implementation: 3
+      classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+      guid: 54bc33c3-44c9-4ced-b195-97d2ffd0bdc2
+      description: Choose one of the following abilities.
+      name: 2nd-Level Paragon Ability
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+          sourceguid: 85a569a5-3ca9-46e9-940f-b35c46a71467
+          description: You channel holy energy to seal an enemy’s fate.
+          source: Paragon Class Feature
+          name: Apostate
+          behavior: activated
+          guid: 32164cca-493c-4fef-80dc-e0f7c8d8d9a9
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You channel holy energy to seal an enemy’s fate.
+            sourceReference:
+              __typeName: SourceReference
+              page: 92
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 0653cf28-bf7f-4e0c-8bb7-7ab83e6f6c3a
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 13 + M holy damage
+              - 19 + M holy damage
+              - 26 + M holy damage
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: db8f6c0e-eac0-4ec5-a69b-713aa7bab905
+              duration: eoe_or_dying
+              ongoingEffectCustom: db8f6c0e-eac0-4ec5-a69b-713aa7bab905
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Apostate
+            categorization: Heroic Ability
+            description: Until the end of the encounter or until you are dying, the target has damage weakness 10.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Paragon Class Feature
+        guid: 85a569a5-3ca9-46e9-940f-b35c46a71467
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        canHavePrerequisites: true
+        classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+        description: You channel holy energy to seal an enemy’s fate.
+        name: Apostate
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+            class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+          sourceguid: 0e14ec17-ef89-4cd6-841a-092c1cc90cc1
+          description: You and your allies are clad in shimmering armor
+          source: Paragon Class Feature
+          name: 'Edict of Unyielding Resolve '
+          behavior: activated
+          guid: de13edc7-5767-4f62-84b0-66818bae7a20
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            targetTextOverride: Self and each ally in the area
+            repeatTargets: false
+            rangeTextOverride: 2 aura
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: 637f1782-6e15-4857-ab90-5a435e8e97b4
+              duration: eoe_or_dying
+              ongoingEffectCustom: 637f1782-6e15-4857-ab90-5a435e8e97b4
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You and your allies are clad in shimmering armor
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            castImmediately: true
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modifiers: []
+            numTargets: "1"
+            strain: []
+            guid: 255f5444-f5d8-444f-8533-fdfdca06818b
+            targetType: self
+            sourceReference:
+              __typeName: SourceReference
+              page: 92
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+              class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+            implementation: 3
+            keywords:
+              Magic: true
+              Area: true
+            name: 'Edict of Unyielding Resolve '
+            persistence: []
+            description: Until the end of the encounter or until you are dying, each target who starts their turn in the area gains 10 temporary Stamina.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Paragon Class Feature
+        guid: 0e14ec17-ef89-4cd6-841a-092c1cc90cc1
+        domains:
+          class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+          class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+        canHavePrerequisites: true
+        classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+        description: You and your allies are clad in shimmering armor
+        name: 'Edict of Unyielding Resolve '
+        implementation: 3
+      classid: 71541253-abbb-4032-b56f-0f3433baf3ab
+      guid: 860a949b-85f1-41d7-a827-a0529a535618
+      description: Choose one of the following abilities.
+      name: 9th-Level Paragon Abilities
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049: true
+      class:71541253-abbb-4032-b56f-0f3433baf3ab: true
+details: Without a strong example and a firm hand the weak will be corrupted. You specialize in setting a visible example for your holy order.
+name: Paragon
+mtime: 1772035942515
+id: 71541253-abbb-4032-b56f-0f3433baf3ab
+primaryClassId: 1df3a5c8-7b81-4db0-b9c8-8e9e39bc5049

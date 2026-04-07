@@ -1,0 +1,50 @@
+__typeName: ActivatedAbility
+targetFilter: not enemy
+id: c987c375-efaf-4728-91aa-d705557c099a
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: This will allow the caster to choose an ally to purge a save ends effect.
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  runOnController: true
+  promptText: ""
+  autoTarget: true
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0dc8789a-59fa-4dc5-ae8c-1aec7b38048b
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: 0b1cc306-e0b8-4898-836a-c84b0ee7df47
+ctime: 1745902434487
+numTargets: "<<targetcount>>"
+mtime: 1770290431566
+repeatTargets: false
+name: Purge Save Ends Effect on Ally
+guid: aec09417-fab6-4955-b348-c52d29da505c
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

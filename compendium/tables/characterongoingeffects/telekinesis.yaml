@@ -1,0 +1,16 @@
+__typeName: CharacterOngoingEffect
+modifiers: []
+source: Ongoing Effect
+guid: 86d6c1e8-f557-4741-9126-eca27359860f
+id: 86d6c1e8-f557-4741-9126-eca27359860f
+ctime: 1709978711637
+name: Telekinesis
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1709978714249
+custom: true
+description: ""
+iconid: 632c6632-2527-4fa9-bb62-5a2ab17b57cb

@@ -1,0 +1,97 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:5075a6ba-c1f0-4f89-8d0c-d1dd5bcb6c83: true
+  sourceguid: 5075a6ba-c1f0-4f89-8d0c-d1dd5bcb6c83
+  description: You cannot attack the Conduit with a Strike
+  source: Ongoing Effect
+  name: Sanctuary Ward
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 5075a6ba-c1f0-4f89-8d0c-d1dd5bcb6c83
+      mode: effect
+      conditions: []
+      applyto: caster
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 617f5c50-cee7-412d-bfe7-24511dfa1407
+      mode: effect
+      conditions: []
+      applyto: subject
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 618666f7-94d4-44f0-a3a1-6090d13b25ba
+    persistence: []
+    conditionFormula: Attacker = ConditionCaster("Sanctuary Ward")
+    subject: selfandallies
+    targetType: subject
+    trigger: losehitpoints
+    name: Sanctuary Ward
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 3008b050-4bb1-4a7a-a570-0a70cc7fd2d0
+- __typeName: CharacterModifier
+  sourceguid: 5075a6ba-c1f0-4f89-8d0c-d1dd5bcb6c83
+  modifyDescription: ""
+  source: Ongoing Effect
+  filterAbility: Ability.Has Attack
+  behavior: modifyability
+  domains:
+    CharacterOngoingEffect:5075a6ba-c1f0-4f89-8d0c-d1dd5bcb6c83: true
+  attributes:
+  - operation: Condition
+    value: You cannot attack the Conduit with a Strike
+    id: filter
+    condition: Ongoing Effects has not "Sanctuary Ward Protection"
+  guid: 52ab1f11-e0d8-4f5e-8265-8325eb64bfd6
+  description: You cannot attack the Conduit with a Strike
+  name: Sanctuary Ward
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: bb08bcd3-5fde-479a-a08e-7a0d0e069613
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+casterTracking: one
+guid: 5075a6ba-c1f0-4f89-8d0c-d1dd5bcb6c83
+id: 5075a6ba-c1f0-4f89-8d0c-d1dd5bcb6c83
+ctime: 1758988152175
+domains:
+  CharacterOngoingEffect:5075a6ba-c1f0-4f89-8d0c-d1dd5bcb6c83: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Sanctuary Ward
+custom: true
+description: You cannot attack the Conduit with a Strike
+mtime: 1760300995899
+iconid: ui-icons/skills/1.png

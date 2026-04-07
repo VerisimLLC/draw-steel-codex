@@ -1,0 +1,24 @@
+__typeName: ActivatedAbility
+id: 60b012ab-dde8-4246-afc2-5a9b32e660ef
+behaviors:
+- __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+  stamina: "<<tempstamina>>"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: 99c4d5b7-549c-4025-95a0-87c26ad18ba0
+ctime: 1746024676869
+targetType: self
+mtime: 1746597507720
+name: Grant Temporary Stamina
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

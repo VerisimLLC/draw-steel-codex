@@ -1,0 +1,138 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: a9b55e1c-0ed3-4a44-9675-db09bcd5f566
+  description: '21 when Level >= 9.0 else 12 when Level >= 5.0 else 6 is added to your Stamina Your Can Fly is Walking Speed.  '
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 396a8745-7055-4850-8b82-e44f7a24932d
+    sourceguid: a9b55e1c-0ed3-4a44-9675-db09bcd5f566
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "6"
+        threshold: 1
+      - script: "12"
+        threshold: 5
+      - script: "21"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    source: Item
+    name: Grand Scarab
+    behavior: attribute
+    description: '21 when Level >= 9.0 else 12 when Level >= 5.0 else 6 is added to your Stamina Your Can Fly is Walking Speed.  '
+    attribute: hitpoints
+  - __typeName: CharacterModifier
+    operation: set
+    sourceguid: a9b55e1c-0ed3-4a44-9675-db09bcd5f566
+    source: Item
+    value: Walking Speed
+    name: Grand Scarab
+    guid: d87d6011-4678-4b32-b0aa-8c6a6472d387
+    description: '21 when Level >= 9.0 else 12 when Level >= 5.0 else 6 is added to your Stamina Your Can Fly is Walking Speed.  '
+    behavior: attribute
+    attribute: fly
+  - __typeName: CharacterModifier
+    filterCondition: Level < 5
+    sourceguid: a9b55e1c-0ed3-4a44-9675-db09bcd5f566
+    description: '21 when Level >= 9.0 else 12 when Level >= 5.0 else 6 is added to your Stamina Your Can Fly is Walking Speed.  '
+    source: Item
+    name: Grand Scarab
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 38307513-918c-4068-b250-50b1b2fec2d7
+      repeatTargets: false
+      trigger: endturn
+      conditionFormula: Movement Type = "Fly"
+      targetType: self
+      persistence: []
+      name: Grand Scarab
+      behaviors:
+      - __typeName: ActivatedAbilityFloatTextBehavior
+        text: Fall!
+        color: "#ffffffff"
+      - __typeName: ActivatedAbilityChangeMovementTypeBehavior
+        movementType: walk
+      - __typeName: ActivatedAbilityFallBehavior
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    guid: 9fafe7eb-6dc5-4408-ba95-ac823125485b
+  - __typeName: CharacterModifier
+    filterCondition: Level >= 9
+    sourceguid: a9b55e1c-0ed3-4a44-9675-db09bcd5f566
+    description: '21 when Level >= 9.0 else 12 when Level >= 5.0 else 6 is added to your Stamina Your Can Fly is Walking Speed.  '
+    source: Item
+    name: Grand Scarab
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 386e65d9-5647-4f52-977e-97c26f3aaf79
+      repeatTargets: false
+      trigger: finishmove
+      conditionFormula: Movement Type = "Fly"
+      targetType: self
+      persistence: []
+      name: Grand Scarab
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: a9ef06ef-c643-4316-a177-b9f45291461e
+        duration: 0
+        ongoingEffectCustom: false
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    guid: f096540d-1bda-46bb-9f11-4e4b832e0aff
+  source: Item
+  name: Grand Scarab
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A giant scarab beetle carapace
+keywords:
+  Magic: true
+  Medium Armor: true
+projectSource: Texts or lore in Phaedran
+level5: The armor’s bonus to Stamina increases to +12. Additionally, you no longer need to end your turn on the ground to avoid falling.
+level9: The armor’s bonus to Stamina increases to +21. Additionally, if you fly any distance before making a strike, that strike gains an edge.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+projectGoal: "450"
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+implementation: 4
+ctime: 1758395294701
+domains:
+  item:d5cb6c31-7f79-4c8b-95ef-99847c2ec896: true
+description: While you wear this armor, you gain a +6 bonus to Stamina and you can fly. If you don’t end your turn on the ground, you fall.
+flavor: The blue-purple carapace and wings of a gigantic scarab beetle have been formed into an ornate breastplate.
+name: Grand Scarab
+id: d5cb6c31-7f79-4c8b-95ef-99847c2ec896
+mtime: 1774877659033
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: ea628407-35a0-466e-a4a2-e5c464a99aff

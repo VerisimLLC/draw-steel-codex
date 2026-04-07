@@ -1,0 +1,467 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2413f31e-e6a6-4237-948c-d89cae71b4df
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries:
+        3d45992d-e8b0-4fa1-b0b7-500fa7dc67da:
+          refreshid: ""
+          note: The Voice - Damage Immunity
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1
+        b1095571-68f1-4abb-b049-9e0cb3f7641c:
+          refreshid: ""
+          note: The Voice - Damage Immunity
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0
+    max_hitpoints: 20
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: War Dog Neuronite
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 8abf7e4f-6454-437d-a9af-9334deaed189
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 psychic damage; vertical slide 1
+        - 2 psychic damage; vertical slide 2
+        - 3 psychic damage; vertical slide 3
+        roll: 2d10 + Presence
+      implementation: 4
+      name: Synlirii Grafts
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Target has "Loyalty Collar"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: c4133c40-3a32-4a63-ba60-c470cbbba89f
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      implementation: 2
+      persistence: []
+      name: Posthumous Promotion
+      selfTarget: true
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: taunted (EoT)
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 9c08c144-d3a5-4310-ba19-b7cb6f7dff16
+          repeatTargets: false
+          targetFilter: not Enemy
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityConditionSourceBehavior
+            applyto: targets
+            condid: 85e26e12-e853-464d-bbbc-98ddf2c0071a
+          persistence: []
+          name: AllyTaunt
+          targetType: target
+          description: ""
+          range: "10"
+          iconid: ui-icons/skills/1.png
+        promptText: Select Ally who targets are taunted by
+        autoTarget: false
+        inheritRange: false
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: "5"
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - rules: Choose an ally within 10 squares by whom each target is taunted
+        text: Taunt Enemies
+        condition: ""
+      abilityType: none
+      targetType: all
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: "1"
+      guid: c730490b-4bbf-4491-82a6-e7777d9a5828
+      name: The Voice - Taunt
+      implementation: 3
+      description: The neuronite chooses an ally within 10 squares, the target is taunted by the ally until the start of the neuronite's next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 3ba95686-6af5-4436-8e2f-41c94714ff40
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: c63900b0-34a5-48d5-a419-67fc66b82a68
+        durationUntilEndOfTurn: false
+        duration: 1
+        ongoingEffectCustom: c63900b0-34a5-48d5-a419-67fc66b82a68
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          targetFilter: not Enemy
+          strain: []
+          guid: 6177d234-0631-4741-aac5-a820f68cc4c2
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 54a025f4-ea91-4c8f-ae4b-d2745603be3d
+            durationUntilEndOfTurn: false
+            duration: 1
+            ongoingEffectCustom: 54a025f4-ea91-4c8f-ae4b-d2745603be3d
+          targetType: target
+          name: The Voice - Ally Selection
+          categorization: Hidden
+          description: ""
+          range: "10"
+          iconid: ui-icons/skills/1.png
+        autoTarget: false
+        promptText: Select Ally to receive Damage Immunity
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 411c9f03-d6c9-442e-ab01-b92c54f6e727
+      abilityType: none
+      numTargets: "1"
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      implementation: 3
+      name: The Voice - Damage Immunity
+      targetType: all
+      description: The neuronite chooses an ally within 10 squares, the ally has damage immunity 3 whenever they're striken by a target until the start of the neuronite's next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 301
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 4d650a9d-6708-4c15-b2de-2fb901cff43e
+      abilityType: none
+      categorization: Ability
+      numTargets: 1
+      iconid: ui-icons/skills/1.png
+      name: The Voice
+      targetType: all
+      description: The neuronite chooses one ally within 10 squares. Each target is either taunted by the ally, or the ally has damage immunity 3 whenever any target makes a strike against them (the neuronite's choice). Either effect lasts until the start of the neuronite's next turn
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        War Dog Neuronite	Level 1 Horde Defender
+        Humanoid, War Dog	EV 3
+        <b>Stamina</b> 20	<b>Immunity</b> Psychic 2
+        <b>Speed</b> 5 (fly)	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 1
+        Might +0	Agility +1	Reason +0	Intuition +0	Presence +2
+        <b>Synlirii Grafts</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 1 burst	<b>Target</b> Each enemy in the burst
+        %E2%9C%A6	%E2%89%A411	1 psychic damage; vertical slide 1
+        %E2%98%85	12%E2%80%9316	2 psychic damage; vertical slide 2
+        %E2%9C%B8	17+	3 psychic damage; vertical slide 3
+
+        <b>Posthumous Promotion</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One war dog with a loyalty collar
+        <b>Effect </b>The target's loyalty collar detonates, killing them instantly.
+
+        <b>The Voice</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 5 burst	<b>Target</b> Each enemy in the burst
+        <b>Effect </b>The neuronite chooses an ally within 10 squares, then chooses whether each target is taunted by the ally or the ally has damage immunity 3 whenever they're striked by a target until the start of the neuronite's next turn.
+
+        <b>Loyalty Collar</b>
+        When the neuronite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e722b262-876c-48de-b0c7-13cf0e3f47e2: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetFilter: Enemy
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          persistence: []
+          name: Loyalty Collar
+          targetType: all
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: When the neuronite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the neuronite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      guid: e722b262-876c-48de-b0c7-13cf0e3f47e2
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Defender
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: psychic
+      apply: Damage Reduction
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        b6b34609-0a2f-4280-8337-3c70bd18caad:
+          refreshid: 08a320f9-a82e-46d7-99b8-164c78c506d8-1
+          note: The Voice - Damage Immunity
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        5e5d9168-7e99-4dea-a5ca-b4b11237d094:
+          note: The Voice
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+        58d469c5-6010-45f0-be31-575deff92834:
+          refreshid: 43327a9b-b86d-419c-b27b-db5ddecb69f2-1
+          note: The Voice - Damage Immunity
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        eed1db13-3228-499c-a06a-fcf7a417a032:
+          note: The Voice
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        8a2c3b28-96e1-409d-b1cc-62c9e5a996c0:
+          note: The Voice
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        e80e2563-5a99-4a34-801a-bff924e5d45c:
+          note: The Voice
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        765ed159-13c4-48d8-93c0-9fc6697ba1c7:
+          note: The Voice
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        cedc05d3-5c1f-4fc3-916b-4ede1a85a381:
+          note: The Voice
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+    damage_taken: 0
+    opportunityAttack: 1
+    resources:
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 08a320f9-a82e-46d7-99b8-164c78c506d8-1
+        used: 1
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds:
+      fly: 5
+    creatureSize: 1M
+    monster_category: Monster
+    animations:
+      anim:
+      - resources:
+          101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8: 1
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: d18838dd-bb90-4dee-9c0a-1bd9814f9819-57
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: df05049b-147c-45e0-a6c6-6ea84adadfe4
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961971173
+description: War Dog Neuronite
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 6
+ctime: 1749972315153
+mtime: 1775201137032
+hidden: false

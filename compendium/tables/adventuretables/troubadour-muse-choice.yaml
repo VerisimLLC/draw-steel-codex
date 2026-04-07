@@ -1,0 +1,28 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: adventureTables
+      key: b10bf4b7-a2fe-429a-ad74-69c75a0938c6
+  choiceName: Gain Drama
+  id: 08bd0d2a-9072-4d01-957f-928fbb37fa4a
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: adventureTables
+      key: f467aa03-77fb-43e9-a266-b40cc984a936
+  choiceName: Appeal to the Muses
+  id: a3680892-2ea3-4fe8-848c-2d81d8066494
+rollType: namedChoice
+name: Troubadour Muse Choice
+mtime: 1753664318689
+id: fea8816d-9682-4d44-9f69-a9b68e8bee30
+ctime: 1753664058100

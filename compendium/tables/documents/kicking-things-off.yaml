@@ -1,0 +1,123 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 5b94467d-349e-4c3b-b720-d1afe89352e4
+ctime: 1760435672232
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      |**Read and Name Heroes**|
+    W: |+
+      *You can then make sure everyone is on **this** map by right clicking on the map and choosing **Move Character Here**.*
+
+    X: |2
+
+    U: |+
+      You can introduce them to the adventure and the Codex by showing them the Inn. You can adjust the time of day in the Time of Day panel in the top-right corner.
+
+
+    S: |+
+      They can also create a new character via the button in the [New Player Welcome] Journal.
+
+    t: |+
+      *If they are not already present, make sure [Ashleigh], [Mara] & [Targon] are on the map for the next part.*
+
+    Q: |+
+      If your player chooses to create a character, right-click on the map, choose "Create Token -> Character" and then right-click on the new character and assign it to the player.
+
+    O: |+
+      If you have not already done so, tell your players to choose a pre-gen or choose to create a character. If they choose a pregen, you should click on the pregen they chose in the Character panel and click on the map to place it. Then, right-click on it and choose to assign it to the player of your choice.
+
+    M: |+
+      # Kicking Things Off
+
+    n: |+
+      > * “I’d like each of you to introduce your hero. Tell us your name, ancestry, class, and a bit about what they look like, their personality, and why they chose to become a hero.”
+
+    k: |
+      > * “You’re sitting in the common room of the Feather Bed Inn, the only one in town. Across from you, a twenty-something scowling human in gleaming platemail chats with another human wearing robes, who looks to be in her late fifties.”
+    q: |+
+      When you're ready to start, proceed to [A Mother's Plea].
+
+    I: |+
+      [Queen Bargnot] wants the cup to turn her ragtag band of goblins into elite soldiers who can then lay siege to the peaceful village of Broadhurst, claiming its farms and resources as her own. But there’s a problem—the cup lies in the lowest level of the tomb, which is behind two magically sealed passages. Unable to bash them down, [Queen Bargnot] ordered her retinue to capture a villager from Broadhurst and perform a wicked blood ritual to break the seals.
+
+
+    w: |+
+      :<>[[/spawn Mara 1 -5; spawn Targon 2 -4; showtoken Mara; showtoken Targon; spawn Ashleigh -7 2; hidetoken Ashleigh|Spawn Ashleigh, Mara & Targon]]
+
+
+    G: |+
+      Long has the Delian Tomb stood undisturbed—until [Queen Bargnot] and the Jagged Edge goblins found the site. A remnant of the longfallen Caelian Empire, the tomb’s frescoes reveal that the lower crypts held the [item:Cup of Iulius], a powerful treasure with the power to turn its drinkers into fearsome warriors.
+
+
+    h: |
+      > * “You’ve just arrived in the sleepy farming village, but so far no one seems willing to offer you more than a mumbled hello.”
+    e: |
+      > * "You’re a newly formed band of heroes who came to Broadhurst, a tiny village in the barony of [Dalrath], in search of adventure. There are rumors of bandits on the road and monsters prowling the nearby Silver Wood—there should be plenty of people in need of help.”
+    c: |+
+      You may want to share this information with them:
+
+
+    C: |+
+      # The Story So Far
+
+    K: |+
+      The goblins captured [Violet], the 18-year-old daughter and apprentice of [Ashleigh], the village’s blacksmith. The girl’s mother is worried about her daughter’s disappearance, and heads to Broadhurst’s tavern, looking for help.
+
+
+    a: |+
+      |Each player who is running a hero should review their chosen hero and give them a name.|
+
+
+    E: |+
+      *For The Director Only*
+
+parentFolder: 8e9d2508-af25-4e96-b407-46ac7ca3fc85
+updateid: 81a076fc-8eb3-4687-b5f7-014092b59c65
+mtime: 1764191740869
+content: |+
+  # The Story So Far
+
+  *For The Director Only*
+
+  Long has the Delian Tomb stood undisturbed—until [Queen Bargnot] and the Jagged Edge goblins found the site. A remnant of the longfallen Caelian Empire, the tomb’s frescoes reveal that the lower crypts held the [Cup of Iulius], a powerful treasure with the power to turn its drinkers into fearsome warriors.
+
+
+  [Queen Bargnot] wants the cup to turn her ragtag band of goblins into elite soldiers who can then lay siege to the peaceful village of Broadhurst, claiming its farms and resources as her own. But there’s a problem—the cup lies in the lowest level of the tomb, which is behind two magically sealed passages. Unable to bash them down, [Queen Bargnot] ordered her retinue to capture a villager from Broadhurst and perform a wicked blood ritual to break the seals.
+
+
+  The goblins captured [Violet], the 18-year-old daughter and apprentice of [Ashleigh], the village’s blacksmith. The girl’s mother is worried about her daughter’s disappearance, and heads to Broadhurst’s tavern, looking for help.
+
+
+  # Kicking Things Off
+
+  If you have not already done so, tell your players to choose a pre-gen or choose to create a character. If they choose a pregen, you should click on the pregen they chose in the Character panel and click on the map to place it. Then, right-click on it and choose to assign it to the player of your choice.
+
+  If your player chooses to create a character, right-click on the map, choose "Create Token -> Character" and then right-click on the new character and assign it to the player.
+
+  They can also create a new character via the button in the [New Player Welcome] Journal.
+
+  You can introduce them to the adventure and the Codex by showing them the Inn. You can adjust the time of day in the Time of Day panel in the top-right corner.
+
+
+  |**Read and Name Heroes**|
+  |Each player who is running a hero should review their chosen hero and give them a name.|
+
+
+  You may want to share this information with them:
+
+
+  > * "You’re a newly formed band of heroes who came to Broadhurst, a tiny village in the barony of [Dalrath], in search of adventure. There are rumors of bandits on the road and monsters prowling the nearby Silver Wood—there should be plenty of people in need of help.”
+  > * “You’ve just arrived in the sleepy farming village, but so far no one seems willing to offer you more than a mumbled hello.”
+  > * “You’re sitting in the common room of the Feather Bed Inn, the only one in town. Across from you, a twenty-something scowling human in gleaming platemail chats with another human wearing robes, who looks to be in her late fifties.”
+  > * “I’d like each of you to introduce your hero. Tell us your name, ancestry, class, and a bit about what they look like, their personality, and why they chose to become a hero.”
+
+  When you're ready to start, proceed to [A Mother's Plea].
+
+  *If they are not already present on the map, make sure [Mara] & [Targon] are in the room for the next part.*
+
+  :<>[[/spawn Mara 1 -5; spawn Targon 2 -4; showtoken Mara; showtoken Targon;|Spawn Mara & Targon]]
+
+
+description: Kicking Things Off

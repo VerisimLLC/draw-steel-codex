@@ -1,0 +1,420 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9c05678d-e053-4efd-91b9-417f133668ae
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.6340449
+    frameSaturation: 0.6012792
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 79527e44-035d-4a46-8105-25644514e3d1
+  properties:
+    __typeName: monster
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 40
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Greenskeeper	Level 1 Platoon Defender
+        Fey, Humanoid, Wode Elf	EV 6
+        <b>Stamina</b> 40
+        <b>Speed </b>7	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>Free Strike</b> 3
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Growing Longsword</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage
+        %E2%9C%B8	<b>17</b>	9 damage
+        <b>Effect</b> Taunted (EoT). The greenskeeper can shift 3 after making the attack.
+        <b>2 Malice</b> The distance increases to Melee 5.
+
+        <b>Overgrowth</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Ranged
+        <b>Distance</b> 3 cube within 10<b>Target</b> Special
+        <b>Effect </b>The affected area is overgrown with heavy brush and bramble. It provides cover and concealment for the greenskeeper and all allies, and is considered difficult terrain for enemies. An enemy that starts their turn in an affected square takes 3 damage<b>.</b>
+
+        <b>Masking Glamor</b>
+        The greenskeeper immediately hides at the end of their turn while in cover or concealment, even if they are observed.
+        Wode Elf Guerilla	Level 3 Platoon Ambusher
+        Fey, Humanoid, Wode Elf	EV 10
+        <b>Stamina</b> 50
+        <b>Speed </b>7 (teleport)	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 5
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Splinter Dagger</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage
+        %E2%9C%B8	<b>17</b>	14 damage; M<2 bleeding (save ends)
+        <b>Effect</b> The tree guerilla can teleport 3 after using this ability.
+        <b>3 Malice</b> The tree guerilla targets an additional creature or object. The tree guerilla deals an additional 3 damage if both targets are adjacent to each other.
+
+        <b>Do Not Hesitate in the Wode</b> (Free Triggered Action) %E2%97%86 3 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self and Squad<b>Target</b> Self and Squad
+        <b>Trigger </b>An ally ends their turn while the tree guerilla hasn't acted this round.
+        <b>Effect</b> The targets take their turn immediately. Each target has an edge on their abilities until the end of their turn.
+
+        <b>Hunter's Glamor</b>
+        The tree guerilla immediately hides at the end of their turn, even if they are observed.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:edfa938c-01dd-4009-a200-f39b0c2bdf68: true
+      modifiers: []
+      name: Hunter's Glamor
+      description: The tree guerilla immediately hides at the end of their turn, even if they are observed.
+      guid: edfa938c-01dd-4009-a200-f39b0c2bdf68
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+        CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+        CharacterFeature:ada9539c-8562-4387-8b48-038e5ec37d45: true
+        CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ada9539c-8562-4387-8b48-038e5ec37d45
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1)) and Self.Ignore Cover <= 0 '
+        guid: e1ef33e2-799f-40da-b428-42fcdce72c6b
+        name: Masking Glamor
+        domains:
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:ada9539c-8562-4387-8b48-038e5ec37d45: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        description: Abilities targeting the greenskeeper that would take a bane from cover have a double bane instead.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: ada9539c-8562-4387-8b48-038e5ec37d45
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Target.Conditions has "concealment"
+        domains:
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:ada9539c-8562-4387-8b48-038e5ec37d45: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the greenskeeper that would take a bane from concealment have a double bane instead.
+        behavior: power
+        guid: 691866f5-08bd-4030-8733-b82d90788340
+      source: Trait
+      description: Abilities targeting the greenskeeper that would take a bane from cover or concealment have a double bane instead.
+      guid: ada9539c-8562-4387-8b48-038e5ec37d45
+      name: Masking Glamor
+      implementation: 3
+    role: Platoon Defender
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    opportunityAttack: 3
+    availableTriggers: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Wode Elf: true
+    damage_taken: 0
+    savingThrowRatings: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-11
+        used: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 damage
+        - 9 damage
+        roll: 2d10 + Agility
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        applyto: targets
+        rule: taunted (eot)
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 92610fc1-d74a-437d-ae52-14841f394ac4
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        standardAbilityParams:
+          distance: "3"
+        abilityType: standard
+        applyto: caster
+      - __typeName: ActivatedAbilityReplenishBehavior
+        applyto: caster
+        mode: expend
+        modesSelected:
+        - 2
+        quantity: "2"
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 139
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5 when Mode = 2 else 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Standard
+      - rules: The distance increases to Melee 5.
+        text: 2 Malice
+        condition: Heroic Resources Available to Spend >= 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      guid: c0206ff8-268e-4c19-9e0c-e31a22f10d52
+      targetType: target
+      numTargets: 1
+      implementation: 4
+      name: Growing Longsword
+      categorization: Signature Ability
+      description: Taunted (EoT). The greenskeeper can shift 3 after making the attack.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          applyto: selfandfriends
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          blocks_line_of_effect: true
+          guid: 1e86325b-0cbf-475e-a47e-0968fff8c853
+          concealment: true
+        duration: eoe
+        aliveafterdeath: true
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          difficult_terrain: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: 3 damage
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: b8753f0b-4796-4a1c-90af-16c5602e1009
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Overgrowth Aura Trigger
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: e13a5c36-bcdb-40e2-b571-8842d088b574
+          modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 139
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: eff2688f-36a3-4015-9e5e-763bf8436e3e
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: cube
+      numTargets: 1
+      categorization: Malice
+      radius: "3"
+      name: Overgrowth
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      description: The affected area is overgrown with heavy brush and bramble. It provides cover and concealment for the greenskeeper and all allies, and is considered difficult terrain for enemies. An enemy that starts their turn in an affected square takes 3 damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      numTargets: "1"
+      modifiers: []
+      guid: a4ba4963-4140-4f7e-b8ba-cad849c342f4
+      abilityType: none
+      behaviors: []
+      name: Do Not Hesitate in the Wode
+      implementation: 0
+      description: The targets take their turn immediately. Each target has an edge on their abilities until the end of their turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    creatureSize: 1M
+    walkingSpeed: 7
+    monster_type: Wode Elf Greenskeeper
+    movementSpeeds: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        55ae31ec-9aa6-4a63-9ed0-9964a7a06800:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-11
+          note: Growing Longsword
+          userid: steam-76561198767161997
+          set: 0/1
+    initiativeGrouping: 1da2b282-e97e-43b2-b51d-f34769b544a1
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: bffac070-cd84-409a-bd91-a761b5a4c815-201
+    resistances: []
+  tokenType: null
+  bestiaryId: 85a742cb-5bcf-424d-b361-64898fd08f75
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Wode Elf Greenskeeper
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590276725
+mtime: 1775201137032
+hidden: false

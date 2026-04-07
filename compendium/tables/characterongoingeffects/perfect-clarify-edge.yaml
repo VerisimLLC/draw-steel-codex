@@ -1,0 +1,157 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: dd75794d-1cf7-468f-9fec-34bd6b747820
+  source: Ongoing Effect
+  domains:
+    CharacterOngoingEffect:dd75794d-1cf7-468f-9fec-34bd6b747820: true
+  guid: 28f42846-6f34-4e8c-97c8-597add0d6d10
+  adjustments: []
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    targetFilter: ConditionCaster("Perfect Clarify - Edge")
+    strain: []
+    guid: cad4f296-3a19-4b69-9230-4e7b8f4ed391
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      chatMessage: Perfect Clarify
+    targetType: all
+    name: New Ability
+    numTargets: "1"
+    description: ""
+    range: "100"
+    iconid: ui-icons/skills/1.png
+  rollType: ability_power_roll
+  name: Perfect Clarify - Edge
+  activationCondition: true
+  description: You have a double edge on your next power roll.
+  modtype: double_edge
+  behavior: power
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:dd75794d-1cf7-468f-9fec-34bd6b747820: true
+  sourceguid: dd75794d-1cf7-468f-9fec-34bd6b747820
+  description: You have a double edge on your next power roll.
+  source: Ongoing Effect
+  name: Perfect Clarify - Edge
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      targeting: formula
+      targetingFormula: target = caster.conditionCaster("Perfect Clarify - Edge")
+      customAbility:
+        __typeName: ActivatedAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        targetFilter: ""
+        strain: []
+        guid: e6e39daa-a942-48c7-b9b2-27bd97213493
+        repeatTargets: false
+        abilityType: none
+        persistence: []
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          chatMessage: Perfect Clarity
+        targetType: target
+        selfTarget: true
+        name: Talent Gains Clarity
+        description: ""
+        range: "100"
+        iconid: ui-icons/skills/1.png
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 106bbb8c-55ac-4a94-90cb-85229e887ccf
+    persistence: []
+    domains:
+      CharacterOngoingEffect:dd75794d-1cf7-468f-9fec-34bd6b747820: true
+    conditionFormula: TierThree
+    targetType: self
+    trigger: rollpower
+    name: Perfect Clarify - Edge
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 0556389b-dd9a-491d-a2ee-0d8ddda038cf
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:dd75794d-1cf7-468f-9fec-34bd6b747820: true
+  sourceguid: dd75794d-1cf7-468f-9fec-34bd6b747820
+  description: You have a double edge on your next power roll.
+  source: Ongoing Effect
+  name: Perfect Clarify - Edge
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: ab4463a7-476b-498a-a6b2-de20253df3ec
+    repeatTargets: false
+    abilityType: none
+    trigger: rollpower
+    targetType: self
+    numTargets: "1"
+    name: Perfect Clarify - Edge
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: dd75794d-1cf7-468f-9fec-34bd6b747820
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: 05cfc1b8-64de-4db1-947e-42b83bff7a24
+source: Ongoing Effect
+casterTracking: one
+guid: dd75794d-1cf7-468f-9fec-34bd6b747820
+id: dd75794d-1cf7-468f-9fec-34bd6b747820
+ctime: 1749179954899
+domains:
+  CharacterOngoingEffect:dd75794d-1cf7-468f-9fec-34bd6b747820: true
+custom: true
+description: You have a double edge on your next power roll.
+name: Perfect Clarify - Edge
+endTrigger: none
+mtime: 1749336247472
+iconid: ui-icons/skills/1.png
+implementation: 3

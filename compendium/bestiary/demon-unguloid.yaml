@@ -1,0 +1,191 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1c3047bb-864e-46c1-a3ee-3afe8d18c601
+    offtokenPortraitId: null
+    portraitFrameId: 9242a1db-25ff-403c-908c-010ef15dc821
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 30541104-52ae-4fc5-a374-18054518b6bf
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 17
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "17"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 5
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    monster_type: Demon Unguloid
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 71c6d817-f040-4076-8bed-26dc28256f43
+      modeList:
+      - text: Normal
+      - rules: If this ability is used as part of a charge for which the unguloid moves 2 squares or more, it deals an extra 10 damage.
+        text: Charging
+        condition: ""
+      persistence: []
+      implementation: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: 'Gore Horn '
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage, push 2
+        - 8 damage, push 4
+        - 10 damage, push 6
+        roll: 2d10 + 5
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage, push 2
+        - 18 damage, push 4
+        - 20 damage, push 6
+        guid: d78651d0-7249-42b6-966f-a4efae0d1ddd
+        modesSelected:
+        - 2
+        roll: 2d10 + 5
+      description: The unguloid deals an additional 10 damage if this ability is used while charging at least two squares.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: true
+    stability: 3
+    import:
+      type: mcdm
+      data: |+
+        Demon Unguloid	Level 10 Minion Brute
+        Abyssal, Demon	EV 12 for four minions
+        <b>Stamina</b> 17	<b>Weakness</b> Holy 5
+        <b>Speed</b> 8	<b>Size</b> 2 /<b> Stability </b>3
+        <b>With Captain </b>Double edge on strikes	<b>Free Strike</b> 5
+        Might +5	Agility +5	Reason -1	Intuition -1	Presence -1
+        <b>Gore Horn </b>(Action) %E2%97%86 2d10 + 5 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage, push 2
+        %E2%98%85	<b>12-16</b>	8 damage, push 4
+        %E2%9C%B8	<b>17</b>	10 damage, push 6
+        <b>Effect</b> The unguloid deals an additional 10 damage if this ability is used while charging at least two squares.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the unguloid can't be hidden from them.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0f98db3a-d959-4b1f-9d33-87257c8829c9: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the unguloid can't be hidden from them.
+      guid: 0f98db3a-d959-4b1f-9d33-87257c8829c9
+      source: Trait
+    role: Minion Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    withCaptain: Double edge on strikes
+    opportunityAttack: 5
+    damage_taken: 0
+    keywords:
+      Demon: true
+      Abyssal: true
+    resources: []
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    minionSquad: Demon Unguloid Squad 1
+    walkingSpeed: 8
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: "2"
+    initiativeGrouping: 555327cc-a84c-4ad2-89ca-0e786dcb6cb3
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 050f71fe-7fe5-4916-844a-dcaf046011f3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1737961965990
+description: Demon Unguloid
+parentFolder: 481cfcf5-4411-44af-8316-d740deca8552
+artist: null
+ord: 3
+ctime: 1741590215097
+mtime: 1775201137032
+hidden: false

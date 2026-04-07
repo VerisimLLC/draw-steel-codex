@@ -1,0 +1,87 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "4"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: 1d057f8c-fd3b-45bf-ac50-dc7e51abefcf
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 83f926ed-52b2-46f4-ab3f-d80f89bd6c79
+  castImmediately: true
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: The olothec takes an additional main action on their turn. They can use this feature even if they are dazed.
+  abilityType: none
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  objectTarget: false
+  repeatTargets: false
+  keywords:
+    Strike: true
+    Melee: true
+    Weapon: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: Target one slimed, transformed, or devolved creature
+  range: "3"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 66145823-7458-48bc-b0bd-933e32a22db3
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 11 psychic damage; A<2 grabbed
+    - 17 psychic damage; A<3 grabbed
+    - 20 psychic damage; A<4 grabbed
+    roll: 2d10 + 4
+  name: Writhing Envelopment
+  numTargets: "1"
+  description: The olothec can pull a target grabbed this way adjacent to them. While grabbed this way, a target can’t make saving throws to end any other effects, and the olothec has a double edge on strikes against them.
+  abilityType: none
+  iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "6"
+  strain: []
+  guid: 70e5f1ba-c6a5-49bd-ac80-6414904f5f0b
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Memory of Chaos
+  range: 1
+  description: The olothec broadcasts their memory of the universe in its primordial state—a sweeping cacophony of transcendental irrationality and unceasing change. Until the end of the encounter, any creature who starts their turn within 3 squares of the olothec and has R<3 is dazed and slowed until the end of their next turn).
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762958498383
+name: Olothec
+traits: []
+attacks: []
+id: 90d1c287-70e6-4218-8991-218899b0399a
+ctime: 1762958498383

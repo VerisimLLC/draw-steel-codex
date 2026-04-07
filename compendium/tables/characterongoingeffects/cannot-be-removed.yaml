@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: e36852f1-3cb9-4d2e-a4f2-ef14dfea96c5
+  sourceguid: 571e5c59-9af4-423e-8401-299de4d144cd
+  value: 1
+  source: Ongoing Effect
+  name: Cannot Be Removed
+  behavior: attribute
+  description: This creature cannot be removed from the board until they have finished their current action.
+  attribute: 7565750e-2376-4809-abc2-47eed82153d1
+source: Ongoing Effect
+guid: 571e5c59-9af4-423e-8401-299de4d144cd
+id: 571e5c59-9af4-423e-8401-299de4d144cd
+ctime: 1758840162452
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Cannot Be Removed
+description: This creature cannot be removed from the board until they have finished their current action.
+mtime: 1758840162452
+iconid: ui-icons/skills/1.png
+implementation: 3

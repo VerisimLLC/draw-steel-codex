@@ -1,0 +1,27 @@
+__typeName: CharacterFeature
+testCases:
+- text: Strike damage +2
+- text: +1 damage bonus to strikes
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a7c5c989-c24e-46dc-bd8b-db984559c2b4
+  source: Monster
+  modtype: none
+  keywords:
+    Strike: true
+  activationCondition: true
+  description: ""
+  name: Damage Bonus
+  behavior: power
+  damageModifier: "<<bonus>>"
+  rollType: ability_power_roll
+  guid: ac967a87-a5af-4049-9f6f-f5c3cc1bbf26
+source: Monster
+guid: a7c5c989-c24e-46dc-bd8b-db984559c2b4
+importMatch: (Strike damage \+<<bonus>>|\+<<bonus>> damage bonus to strikes)
+ctime: 1738391623263
+name: Damage Bonus
+id: e9becbf7-49ba-474f-b26a-f700daa7c8be
+description: ""
+mtime: 1758842233967
+implementation: 3

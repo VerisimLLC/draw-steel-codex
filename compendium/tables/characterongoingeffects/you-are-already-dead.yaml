@@ -1,0 +1,50 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 7370c67d-0415-41e7-8678-6d074eb7b551
+    repeatTargets: false
+    abilityType: none
+    trigger: endturn
+    targetType: self
+    numTargets: "1"
+    name: You are Already Dead
+    behaviors:
+    - __typeName: ActivatedAbilityDestroyBehavior
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: c53e9958-d8a4-4a47-b54b-2c1a150c9b38
+      mode: effect
+      conditions: []
+    description: Target that is not a leader or a solo creature is reduced to 0 stamina at the end of their turn.
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: Target is reduced to 0 stamina at the end of their next turn
+  source: Ongoing Effect
+  behavior: trigger
+  guid: bbb173ce-4b16-4b8b-990a-d4328c9d6788
+  name: You are Already Dead
+  sourceguid: c53e9958-d8a4-4a47-b54b-2c1a150c9b38
+source: Ongoing Effect
+guid: c53e9958-d8a4-4a47-b54b-2c1a150c9b38
+id: c53e9958-d8a4-4a47-b54b-2c1a150c9b38
+ctime: 1758156032049
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: You are Already Dead
+description: Target is reduced to 0 stamina at the end of their next turn
+custom: true
+mtime: 1758156032049
+iconid: ui-icons/skills/1.png

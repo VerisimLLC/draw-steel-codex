@@ -1,0 +1,44 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 6 psychic damage and is frightened (save ends). This replaces the benefit of Terrifying II.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: f2a3b4c5-d6e7-8901-fabc-012345678901
+    displayCondition: ability.doesdamage
+    source: Item
+    modtype: none
+    keywords:
+      Weapon: true
+    activationCondition: ability.doesdamage
+    guid: e1f2a3b4-c5d6-7890-efab-901234567890
+    name: Terrifying III
+    description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 6 psychic damage and is frightened (save ends). This replaces the benefit of Terrifying II.
+    addText: // // 6 psychic damage; frightened (save ends)
+    rollType: ability_power_roll
+    behavior: power
+  source: Item
+  name: Terrifying III
+  addText: Add Magical Property
+  itemAttached: true
+  guid: f2a3b4c5-d6e7-8901-fabc-012345678901
+itemPrerequisite: The central eye of an overmind
+imbuePrereq: 63a876a6-5a2a-4209-9f64-6b01dcc1ef81
+projectSource: Variac
+imbueLevel: 9
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: 4f94be64-434c-4d2e-b79b-6bfae7a99aed
+mtime: 1773922098023
+name: Terrifying III
+imbueTargetType: weapon
+description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 6 psychic damage and is frightened (save ends). This replaces the benefit of Terrifying II.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 0e722fed-2314-4e8d-aa51-a6f528fd2446

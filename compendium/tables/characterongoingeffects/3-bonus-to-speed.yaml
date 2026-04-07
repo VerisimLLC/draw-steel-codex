@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 56444b7b-a60c-4ccb-ab68-5a9e7e11239c
+  sourceguid: 25a1d78e-3ea8-47c4-a9bc-fa418767da6e
+  value: 3
+  source: Ongoing Effect
+  name: +3 bonus to speed
+  behavior: attribute
+  description: ""
+  attribute: speed
+source: Ongoing Effect
+guid: 25a1d78e-3ea8-47c4-a9bc-fa418767da6e
+id: 25a1d78e-3ea8-47c4-a9bc-fa418767da6e
+ctime: 1771976424871
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: +3 bonus to speed
+description: ""
+custom: true
+mtime: 1771976424871
+iconid: bc90bb09-9e3c-46d4-bf16-0e5c0134dbf8

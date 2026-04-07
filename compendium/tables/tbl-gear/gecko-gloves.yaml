@@ -1,0 +1,23 @@
+__typeName: equipment
+features: []
+id: d20ae94a-9917-43be-b69b-38113b36fc97
+keywords:
+  Hands: true
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: These scaled gloves have palms and fingers covered in near-invisible sticky hairs.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+ctime: 1759190482845
+projectGoal: "150"
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+itemPrerequisite: Ten gecko tails
+name: Gecko Gloves
+mtime: 1759400262095
+description: While you wear these gloves, your grip is all but impossible to break. You can’t be disarmed, you can’t lose your grip while climbing unless you are force moved, and any creature grabbed by you takes a bane on the test for the Escape Grab maneuver.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 66da8a2f-2f22-4a09-8cb3-6e2ba217a010

@@ -1,0 +1,204 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1143575d-8797-4fe0-9007-27ad2dc3a238
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+  name: Umbral Form
+  guid: f82ba535-5dc4-4de2-812d-43d2e9c89c8b
+  description: Creatures gain an edge on strikes against you. You take a bane on Presence tests made to interact with other creatures.
+  behavior: attribute
+  attribute: climb
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+  sourceguid: 1143575d-8797-4fe0-9007-27ad2dc3a238
+  description: Creatures gain an edge on strikes against you. You take a bane on Presence tests made to interact with other creatures.
+  source: Ongoing Effect
+  name: Umbral Form
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: Agility
+      damageType: corruption
+      chatMessage: Umbral Form passthrough damage
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: ca1b9a97-0203-40c9-86a5-f92fd112a141
+      duration: 0
+      ongoingEffectCustom: ca1b9a97-0203-40c9-86a5-f92fd112a141
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    hasManualVersion: true
+    strain: []
+    whenActive: combat
+    guid: 67be0fee-4952-476a-bf03-3b86c97cbeec
+    domains:
+      CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+    conditionFormula: Target.Ongoing Effects has not "Umbral Form passthrough"
+    trigger: movethrough
+    numTargets: "1"
+    name: Umbral Form
+    targetType: target
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: edd2c7a4-fc52-4a89-9eea-eac87b90a6f8
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+  sourceguid: 1143575d-8797-4fe0-9007-27ad2dc3a238
+  description: Creatures gain an edge on strikes against you. You take a bane on Presence tests made to interact with other creatures.
+  source: Ongoing Effect
+  name: Umbral Form
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 72328538-52f2-4ca0-8410-1fd6ed578f73
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+      chatMessage: Umbral Form surges
+    domains:
+      CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+    whenActive: combat
+    numTargets: "1"
+    trigger: beginturn
+    name: Umbral Form
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: e18762c4-29a4-402f-b7f6-c4d93073a221
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+  sourceguid: 1143575d-8797-4fe0-9007-27ad2dc3a238
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: 5 + Level
+    damageType: corruption
+    apply: Damage Reduction
+  guid: 511def18-5f74-4d37-be0e-cdf0bbb35df7
+  name: Umbral Form
+  description: Creatures gain an edge on strikes against you. You take a bane on Presence tests made to interact with other creatures.
+- __typeName: CharacterModifier
+  sourceguid: 1143575d-8797-4fe0-9007-27ad2dc3a238
+  source: Ongoing Effect
+  guid: bc03886e-f83b-43cb-9d01-ac34456a5a6b
+  keywords:
+    Strike: true
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+  filterCondition: Level < 10
+  rollType: enemy_ability_power_roll
+  modtype: edge
+  description: Creatures gain an edge on strikes against you. You take a bane on Presence tests made to interact with other creatures.
+  behavior: power
+  name: Umbral Form
+- __typeName: CharacterModifier
+  sourceguid: 1143575d-8797-4fe0-9007-27ad2dc3a238
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  modtype: bane
+  domains:
+    CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+  name: Umbral Form
+  rollType: test_power_roll
+  description: Creatures gain an edge on strikes against you. You take a bane on Presence tests made to interact with other creatures.
+  guid: 340dcce1-32ed-4ea4-b3df-1859e353e021
+  attribute: prs
+- __typeName: CharacterModifier
+  sourceguid: 1143575d-8797-4fe0-9007-27ad2dc3a238
+  source: Ongoing Effect
+  behavior: activated
+  filterCondition: Level = 10
+  name: Umbral Form
+  guid: 9117d038-fa1f-4d26-afc6-395ef027ef30
+  description: Creatures gain an edge on strikes against you. You take a bane on Presence tests made to interact with other creatures.
+  domains:
+    CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 1143575d-8797-4fe0-9007-27ad2dc3a238
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 706be1d2-017a-4afb-8e9f-897837585d3e
+    castImmediately: true
+    targetType: self
+    numTargets: "1"
+    name: End Umbral Form
+    domains:
+      CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+    description: ""
+    abilityType: none
+    iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80
+- __typeName: CharacterModifier
+  sourceguid: 1143575d-8797-4fe0-9007-27ad2dc3a238
+  source: Ongoing Effect
+  guid: fb1f8f23-3d13-4900-abd1-ea0aa53fbb64
+  conditionid: 13275b73-cd4e-4d33-ada3-647d7474facf
+  behavior: bestowcondition
+  name: Umbral Form
+  domains:
+    CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+  description: Creatures gain an edge on strikes against you. You take a bane on Presence tests made to interact with other creatures.
+  explanation: You are always wreathed in darkness that grants you concealment while in Umbral Form
+  filterCondition: Level = 10
+source: Ongoing Effect
+guid: 1143575d-8797-4fe0-9007-27ad2dc3a238
+id: 1143575d-8797-4fe0-9007-27ad2dc3a238
+ctime: 1767502691209
+domains:
+  CharacterOngoingEffect:1143575d-8797-4fe0-9007-27ad2dc3a238: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Umbral Form
+description: Creatures gain an edge on strikes against you. You take a bane on Presence tests made to interact with other creatures.
+mtime: 1775024528517
+emoji: 8e4ef70c-5757-4f45-82b6-90899ed5c24c
+iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80

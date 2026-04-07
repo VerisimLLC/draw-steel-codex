@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+modifiers: []
+source: Ongoing Effect
+guid: 8d778a99-2dbc-4b6c-8b2f-51f16bab6a74
+id: 8d778a99-2dbc-4b6c-8b2f-51f16bab6a74
+ctime: 1709478053155
+name: Flanked
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.967999994754791
+    v: 0.490196079015732
+    a: 1
+mtime: 1709478053155
+custom: true
+description: Vulnerable to melee attacks by assisted creatures.
+iconid: c4893538-9809-4de1-8ef9-2fa83a84fe2b

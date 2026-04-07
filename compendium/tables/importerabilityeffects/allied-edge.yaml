@@ -1,0 +1,40 @@
+__typeName: ActivatedAbility
+id: 6948f9d2-ff87-4eab-8041-dccfba358c0a
+behaviors:
+- __typeName: ActivatedAbilityModifyPowerRollBehavior
+  guid: 8cfdd519-08fc-4e28-9783-66db54958c0b
+  modifier:
+    __typeName: CharacterModifier
+    sourceguid: 8cfdd519-08fc-4e28-9783-66db54958c0b
+    modtype: edge
+    keywords: []
+    activationCondition: Count Nearby Friends(1) > 0
+    guid: d2276818-29c8-45ac-87cf-a7aa71325000
+    rollType: all
+    domains: []
+    description: Edge when Next to Ally	
+    name: Ally Edge
+    behavior: power
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: The sagittarius has an edge on this ability while adjacent to an ally
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: afd4b946-c8a0-476f-8e82-1e5e53646958
+importMatch: "<<monster>> has an edge on this ability while adjacent to an ally"
+ctime: 1741192143714
+targetType: self
+repeatTargets: false
+description: ""
+name: Allied Edge
+numTargets: "1"
+mtime: 1773102884975
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 4e609a4a-2153-4ee1-8192-6e81af460fca
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Brenwyn
+- __typeName: RollTableRow
+  id: f476b241-1daa-47a1-8503-7eccf06c5d20
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Demelza
+- __typeName: RollTableRow
+  id: 50999838-48ec-4d7e-9866-dc598e078a02
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Elzbeth
+- __typeName: RollTableRow
+  id: d724e57c-9e71-4c6c-b4b2-9be92aef5199
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gwynhyvyr
+- __typeName: RollTableRow
+  id: 5cb7b319-f003-4897-a5ad-16f34ff610ce
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Maerwyn
+- __typeName: RollTableRow
+  id: 62fa9be0-7c20-42e1-baf2-35d53b67307f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Margaret
+- __typeName: RollTableRow
+  id: a07637df-9013-4237-a002-14d8494a12dd
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Meliora
+- __typeName: RollTableRow
+  id: d0b0b4ba-02af-452d-b0dd-4da453f43f70
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Rowenna
+- __typeName: RollTableRow
+  id: 54faca3f-edaf-4c5c-9efd-98f889173dc5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Tamara
+- __typeName: RollTableRow
+  id: d4e1726f-b47c-4657-b124-2bd1856396be
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Wenna
+id: 570e3160-1d14-48a9-9a8d-8affb280509a
+name: Human Feminine Names
+subtable: true
+mtime: 1743455237473
+items: false
+ctime: 1743445339175

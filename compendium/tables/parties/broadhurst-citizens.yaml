@@ -1,0 +1,14 @@
+__typeName: Party
+noncombatant: false
+name: Broadhurst Citizens
+allyParties:
+  7870ffcb-c942-4db9-a831-bf0210aa11ea: true
+  MONSTER: true
+  e6110441-d9a2-4520-90ba-c9fa46f8a608: true
+  99875cc1-a5a6-491f-8af6-51b29f0da555: true
+  79a193bd-d32c-4932-9f12-93c1b20323d2: true
+  336f53d5-438e-4450-ac09-9e7a49412d53: true
+  0339ff3e-f288-4a85-a02c-a458c091684f: true
+mtime: 1773668639143
+id: 8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676
+ctime: 1763558968742

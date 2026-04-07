@@ -1,0 +1,65 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 00c339a7-3881-4895-88e2-f99c49dfb7d2
+  source: Ongoing Effect
+  modtype: edge
+  keywords:
+    Air: true
+  activationCondition: true
+  activationAfterRoll: false
+  rollType: ability_power_roll
+  guid: 8c3233bd-cd93-4bb8-a1ad-927ed08f6174
+  description: While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+  behavior: power
+  name: Elemental Attunement - Air
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 00c339a7-3881-4895-88e2-f99c49dfb7d2
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: a21ec438-a339-48af-b9ae-13487381e83b
+    persistence: []
+    conditionFormula: Used Ability.Keywords has "earth" or Used Ability.Keywords has "fire" or Used Ability.Keywords has "green" or Used Ability.Keywords has "rot" or Used Ability.Keywords has "void" or Used Ability.Keywords has "water"
+    targetType: self
+    castImmediately: true
+    trigger: useability
+    name: Purge Elemental Attunement - Air
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: a3583984-2bf6-49ab-8152-1d86ddfdfeee
+  name: New Ongoing Effect
+  sourceguid: 00c339a7-3881-4895-88e2-f99c49dfb7d2
+source: Ongoing Effect
+guid: 00c339a7-3881-4895-88e2-f99c49dfb7d2
+id: 00c339a7-3881-4895-88e2-f99c49dfb7d2
+ctime: 1774354976673
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+buffType: buff
+name: Elemental Attunement - Air
+custom: true
+description: While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+mtime: 1774355636322
+iconid: ui-icons/skills/1.png

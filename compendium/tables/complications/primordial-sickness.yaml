@@ -1,0 +1,60 @@
+__typeName: CharacterComplication
+drawback: Your number of Recoveries is permanently reduced by 1.
+mtime: 1767273623213
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You have corruption immunity 5 and poison immunity 5.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 441a8505-42de-489c-9b92-a4b71c85c746
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "5"
+        damageType: corruption
+        apply: Damage Reduction
+      description: You have corruption immunity 5 and poison immunity 5.
+      name: Primordial Sickness - Benefit
+      guid: c817dd4d-6436-4b6c-ad35-4a1a4c3f9923
+    - __typeName: CharacterModifier
+      sourceguid: 441a8505-42de-489c-9b92-a4b71c85c746
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "5"
+        damageType: poison
+        apply: Damage Reduction
+      description: You have corruption immunity 5 and poison immunity 5.
+      name: Primordial Sickness - Benefit
+      guid: 1c066808-e31d-4e95-8f56-bdce80cf000b
+    source: Feat
+    canHavePrerequisites: true
+    guid: 441a8505-42de-489c-9b92-a4b71c85c746
+    name: Primordial Sickness - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Your number of Recoveries is permanently reduced by 1.
+    modifiers:
+    - __typeName: CharacterModifier
+      resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+      sourceguid: f319ccb0-77cf-475f-a3f4-d83ccab3552c
+      behavior: resource
+      source: Feat
+      name: Primordial Sickness - Drawback
+      num: -1
+      description: Your number of Recoveries is permanently reduced by 1.
+      guid: 9cffebbf-dc34-41ca-9c82-20cdcfe8355a
+    source: Feat
+    canHavePrerequisites: true
+    guid: f319ccb0-77cf-475f-a3f4-d83ccab3552c
+    name: Primordial Sickness - Drawback
+    implementation: 3
+name: Primordial Sickness
+ctime: 1755516411291
+description: You once contracted a terrible illness for which no one could find a cure. You sought out a primordial swamp said to be either cursed or miraculously salubrious. It turned out to be both, keeping your illness at bay while corrupting your body with its unnatural energy
+id: 85ec8058-8b3f-49ae-8f3c-a052bd2b75f8
+benefit: You have corruption immunity 5 and poison immunity 5.

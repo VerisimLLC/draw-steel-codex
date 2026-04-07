@@ -1,0 +1,79 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    damageTypeMappings: []
+    description: ""
+    name: Lightning Treads Extra Damage
+    behavior: power
+    damageModifierType: lightning
+    modtype: none
+    rollType: ability_power_roll
+  source: Item
+  name: Lightning Treads Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 22d7d66e-5b29-4f14-b4f7-de3ff6d3eb37
+- __typeName: CharacterFeature
+  description: You gain a +2 bonus to speed.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 3f0be195-daa4-42c8-946a-a0ae0f9cdf0c
+    sourceguid: 1e27d9ae-c165-4188-92ca-19dae3250b32
+    value: 2
+    source: Item
+    name: Lightning Treads Speed Bonus
+    behavior: attribute
+    description: You gain a +2 bonus to speed.
+    attribute: speed
+  source: Item
+  name: Lightning Treads Speed Bonus
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 1e27d9ae-c165-4188-92ca-19dae3250b32
+itemPrerequisite: One jar of lightning
+keywords:
+  Magic: true
+  Feet: true
+projectSource: Texts or lore in Yllyric
+flavor: Sparks strike from these boots whenever they touch the ground, increasing in number as the wearer gathers speed.
+level9: The extra lightning damage granted by the treads increases to 3, and your movement can increase that extra damage to a maximum of 6. Additionally, you can use a maneuver to perform a flying lightning kick on one adjacent creature. That target is pushed up to 5 squares, and you can move to any square adjacent to the target after the push.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The extra lightning damage granted by the treads increases to 2. Additionally, for each square you move on your turn before you use a weapon ability that deals rolled damage using your unarmed strikes, this extra damage increases by 1 (to a maximum of 4).
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 6a21eae4-c9c9-4f35-a6ac-7123db6d6315
+ctime: 1759399250015
+name: Lightning Treads
+description: While you wear these boots, any weapon ability that deals rolled damage using your unarmed strikes deals an extra 1 lightning damage. Additionally, you gain a +2 bonus to speed.
+mtime: 1763593878139
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: ece9578f-c400-4529-8345-e0febfe2daf8

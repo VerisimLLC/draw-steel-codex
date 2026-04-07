@@ -1,0 +1,447 @@
+6450780b-d70f-4bf2-ae23-9620e047e693:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: creatureSize
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 6450780b-d70f-4bf2-ae23-9620e047e693
+  ctime: 1756099470349
+  name: Size Modification
+  description: ""
+  mtime: 1756099470349
+  implementation: 3
+40e5ed80-5331-420e-a981-affc55803b83:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: speed
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 40e5ed80-5331-420e-a981-affc55803b83
+  ctime: 1756054997797
+  name: Speed Modification
+  description: ""
+  mtime: 1756054997797
+  implementation: 3
+29575932-6b78-4a38-be65-fa0ad454a85f:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: rea
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 29575932-6b78-4a38-be65-fa0ad454a85f
+  ctime: 1756093918910
+  name: Reason Modification
+  description: ""
+  mtime: 1756093918910
+  implementation: 3
+a49cf8e6-1390-4768-936c-211ba8d52866:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: mgt
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: a49cf8e6-1390-4768-936c-211ba8d52866
+  ctime: 1756076096335
+  name: Might Modification
+  description: ""
+  mtime: 1756093891589
+  implementation: 3
+7c01cba8-8cfc-459d-a1f3-c024c4af4fd3:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+    guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+    source: Character
+    behavior: activated
+    description: ""
+    name: Ability
+    activatedAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 82ee09e3-0083-41f2-9d68-8cc9521847b3
+      repeatTargets: false
+      abilityType: none
+      domains: []
+      behaviors: []
+      persistence: []
+      name: Ability
+      targetType: self
+      description: ""
+      range: 5
+      iconid: ui-icons/skills/1.png
+  source: Character
+  guid: f09da83c-5843-497a-8316-d5fdca4349aa
+  id: 7c01cba8-8cfc-459d-a1f3-c024c4af4fd3
+  ctime: 1715748063870
+  name: Ability
+  description: ""
+  mtime: 1748489794783
+  implementation: 3
+fa6dff80-34f8-4413-8ee9-25c37fe55aff:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: forcedmoveresistance
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: fa6dff80-34f8-4413-8ee9-25c37fe55aff
+  ctime: 1756055028858
+  name: Stability Modification
+  description: ""
+  mtime: 1756055028858
+  implementation: 3
+101e2863-cdfa-42a2-9627-9df50d99b437:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 101e2863-cdfa-42a2-9627-9df50d99b437
+  ctime: 1756013546597
+  name: Disengage Speed Modification
+  description: ""
+  mtime: 1756046320740
+  implementation: 3
+80bfa213-ad91-449c-b4a9-2b56bb94e7e1:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: prs
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 80bfa213-ad91-449c-b4a9-2b56bb94e7e1
+  ctime: 1756093949844
+  name: Presence Modification
+  description: ""
+  mtime: 1756093949844
+  implementation: 3
+6b098b2d-4095-4c04-a0a0-b845d16e0cd3:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: 036da4db-4406-4038-ae7d-cf0b37890f5f
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 6b098b2d-4095-4c04-a0a0-b845d16e0cd3
+  ctime: 1756160325949
+  name: Wealth Modification
+  description: ""
+  mtime: 1756160325949
+  implementation: 3
+0188d764-32cf-43e4-841f-af13240fd218:
+  __typeName: CharacterFeature
+  mtime: 1760753355781
+  guid: ac73686b-2a60-45d8-9100-286fa6801abf
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ac73686b-2a60-45d8-9100-286fa6801abf
+    source: Character
+    behavior: power
+    keywords: []
+    activationCondition: false
+    name: Culture Lore Benefit
+    guid: 084a489c-9e94-4ddf-a607-e18503a3f462
+    description: You gain an edge on tests made to recall lore about your culture, and on tests made to influence and interact with people of your culture
+    modtype: edge
+    rollType: test_power_roll
+  source: Character
+  name: Culture Lore Benefit
+  description: ""
+  id: 0188d764-32cf-43e4-841f-af13240fd218
+  ctime: 1760753355781
+d1bec0aa-e2d9-415f-b130-dfb842eac32c:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+    sourceguid: efa2429c-5e24-46cc-b53a-60c590440d1f
+    behavior: resource
+    source: Character
+    name: Recoveries
+    num: "<<quantity>>"
+    description: ""
+    guid: 03032596-dca3-4f3e-8c59-27f437b7630b
+  source: Character
+  guid: efa2429c-5e24-46cc-b53a-60c590440d1f
+  id: d1bec0aa-e2d9-415f-b130-dfb842eac32c
+  ctime: 1715748325133
+  name: Recoveries
+  description: ""
+  mtime: 1715748325133
+  implementation: 3
+8e07fe5b-064a-4642-85c2-55b9970fa154:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: hitpoints
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 8e07fe5b-064a-4642-85c2-55b9970fa154
+  ctime: 1752128933555
+  name: Stamina Modification
+  description: ""
+  mtime: 1752128933555
+  implementation: 3
+c24d6c01-fc2b-460c-a3d4-ef0772219fe6:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    behavior: resource
+    source: Character
+    name: Recoveries Modification
+    num: 1
+    description: ""
+    guid: 2880c06c-5405-4485-934e-9643e91f0602
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: c24d6c01-fc2b-460c-a3d4-ef0772219fe6
+  ctime: 1756160428704
+  name: Recoveries Modification
+  description: ""
+  mtime: 1756160591206
+  implementation: 3
+96f9189e-bc3b-46f4-8684-2763b72d99fc:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: d97c2794-cb70-420f-b078-e260b43e154b
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 96f9189e-bc3b-46f4-8684-2763b72d99fc
+  ctime: 1756160336495
+  name: Renown Modification
+  description: ""
+  mtime: 1756160336495
+  implementation: 3
+c059a86f-6d09-432a-a258-e6118bcfd4ee:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    subtype: language
+    source: Character
+    behavior: proficiency
+    description: ""
+    equate: false
+    name: Language
+    sourceguid: 0d5cbb69-c811-4ed8-8f88-885b37101bf0
+    proficiency: proficient
+    guid: 8b5a3c5f-1343-41ce-bcaf-9a0bd3e01a88
+    skills:
+      5287d30a-3dff-404b-8e84-0087508a801b: true
+  source: Character
+  guid: 0d5cbb69-c811-4ed8-8f88-885b37101bf0
+  id: c059a86f-6d09-432a-a258-e6118bcfd4ee
+  ctime: 1730440160627
+  name: Language
+  description: ""
+  mtime: 1730440180259
+  implementation: 3
+18bbbe00-297e-4c34-9114-408f16ca7111:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: recoveryvalue
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 18bbbe00-297e-4c34-9114-408f16ca7111
+  ctime: 1756198910220
+  name: Recovery Value Modification
+  description: ""
+  mtime: 1756198910220
+  implementation: 3
+a32f5296-ffe9-4731-a2b8-aa413c79f53f:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    subtype: skill
+    source: Character
+    behavior: proficiency
+    description: ""
+    equate: false
+    name: Skill
+    sourceguid: 13993c3a-8a6a-4075-8c49-d533d42a653a
+    proficiency: proficient
+    guid: 6853b717-c46a-46ed-aed2-02b85e8baa70
+    skills: []
+  source: Character
+  guid: 13993c3a-8a6a-4075-8c49-d533d42a653a
+  id: a32f5296-ffe9-4731-a2b8-aa413c79f53f
+  ctime: 1730349485278
+  name: Skill
+  description: ""
+  mtime: 1730349485278
+  implementation: 3
+224927e1-2046-4538-b685-fd05193a6351:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: inu
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: 224927e1-2046-4538-b685-fd05193a6351
+  ctime: 1756093933063
+  name: Intuition Modification
+  description: ""
+  mtime: 1756672176522
+  implementation: 3
+a1b9daa7-34f3-4113-b4ed-bee452878652:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    operation: set
+    sourceguid: f4b29244-3307-40be-9220-526a9fbdfe96
+    source: Character
+    value: Walking Speed/2
+    filterCondition: Full Speed Grabbing = 0
+    name: Grabbing
+    guid: 0dde9604-5d02-4e19-8375-abd3e2259a78
+    description: ""
+    behavior: attribute
+    attribute: speed
+  - __typeName: CharacterModifier
+    text: You move half speed while grabbing another creature.
+    sourceguid: f4b29244-3307-40be-9220-526a9fbdfe96
+    source: Character
+    behavior: movementtext
+    filterCondition: Full Speed Grabbing = 0
+    name: Grabbing
+    description: ""
+    guid: 97dc5e2d-9223-478b-a7b0-0b314e1734af
+    color: red
+  - __typeName: CharacterModifier
+    text: You can move full speed even while grabbing, no matter the grabbed creature's size.
+    sourceguid: f4b29244-3307-40be-9220-526a9fbdfe96
+    source: Character
+    behavior: movementtext
+    filterCondition: Full Speed Grabbing > 0
+    name: Grabbing
+    description: ""
+    guid: 01bbd0d6-15dc-4b3f-8533-a95b933a68af
+    color: green
+  source: Character
+  guid: f4b29244-3307-40be-9220-526a9fbdfe96
+  id: a1b9daa7-34f3-4113-b4ed-bee452878652
+  ctime: 1751138607635
+  name: Grabbing
+  description: ""
+  mtime: 1752460413797
+  implementation: 3
+bfc4dc6c-d0cb-473c-a267-0997285617c7:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+    sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+    value: 1
+    source: Character
+    name: Stamina Modification
+    behavior: attribute
+    description: ""
+    attribute: agl
+  source: Character
+  guid: 2359108d-cb7d-4a79-8a98-38f577168092
+  id: bfc4dc6c-d0cb-473c-a267-0997285617c7
+  ctime: 1756093904502
+  name: Agility Modification
+  description: ""
+  mtime: 1756093904502
+  implementation: 3

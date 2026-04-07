@@ -1,0 +1,67 @@
+__typeName: Kit
+equipmentDescription: You wear no armor and wield a whip.
+kitManeuver: false
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+reach: 1
+weapons:
+  Whip: true
+speed: 3
+id: c9330271-a7e6-4dc4-9af9-2b1e75232792
+description: The Whirlwind kit makes effective use of whips, granting you mobility, damage, and reach. If you want to be a mobile warrior who uses a chain or whip, then this is the kit for you.
+type: martial
+portraitid: 7e2c3020-0ef7-411e-9dbd-72d9b82e3ed2
+imported: 3094f4fa-6c93-4268-9752-1c79593de670
+name: Whirlwind
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 4 + M or A damage; vertical pull 1
+    - 7 + M or A damage; vertical pull 2
+    - 10 + M or A damage; vertical pull 3
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: ""
+  sourceReference:
+    __typeName: SourceReference
+    page: 224
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 3
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  modifiers: []
+  strain: []
+  guid: 3290bbea-0367-480e-8ff3-183c0e153e14
+  categorization: Signature Ability
+  numTargets: 1
+  implementation: 4
+  persistence: []
+  name: Extension of My Arm
+  targetType: target
+  description: ""
+  abilityType: none
+  iconid: d26ac113-6273-4428-b804-16b3b2569896
+mtime: 1770565657371
+damageBonuses:
+  melee:
+  - 1
+  - 1
+  - 1
+disengage: 1

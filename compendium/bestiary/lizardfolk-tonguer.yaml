@@ -1,0 +1,167 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d3a3fae7-bba7-4667-957d-7289386b969d
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.8672638
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 76a77d51-a9e3-4552-805f-af80402f5b90
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Lizardfolk Tonguer	Level 1 Minion Artillery
+        Humanoid, Lizardfolk	EV 3 for four minions
+        <b>Stamina</b> 3
+        <b>Speed</b> 5 (swim)	<b>Size</b> 1S /<b> Stability</b> 0
+        <b>With Captain </b>Strike damage +1<b>Free Strike</b> 2
+        Might 0	Agility +2	Reason 0	Intuition +1	Presence 0
+        <b>Tonguelash</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 8<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage; shift 1 towards target or pull 1
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage; shift 2 towards target or pull 2
+        %E2%9C%B8	<b>17</b>	5 damage; shift 3 towards target or pull 3
+        <b>Effect</b> If the target ends up in a space adjacent to the tonguer, they are also grabbed.
+
+        <b>Reptilian Escape</b>
+        While the tonguer still has a tail, whenever the tonguer is grabbed, slowed, weakened, or knocked prone, the tonguer can lose their tail to immediately end the effect and shift 2.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ae73533b-233b-4c6e-8789-63a997d1f4f8: true
+      modifiers: []
+      name: Reptilian Escape
+      description: While the tonguer still has a tail, whenever the tonguer is grabbed, slowed, weakened, or knocked prone, the tonguer can lose their tail to immediately end the effect and shift 2.
+      guid: ae73533b-233b-4c6e-8789-63a997d1f4f8
+      source: Trait
+    role: Minion Artillery
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    walkingSpeed: 5
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: Lizardfolk Tonguer
+    squadpos:
+      y: 14.6193261718751
+      x: -20.9992712402344
+    withCaptain: +1 bonus to strikes
+    equipment: []
+    damage_taken: 0
+    levelChoices: []
+    resources: []
+    max_hitpoints: 3
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; pull 1, or the tonguer can shift 1 square toward the target
+        - 4 damage; pull 2, or the tonguer shifts up to 2 squares toward the target
+        - 5 damage; pull 3, or the tonguer shifts up to 3 squares toward the target
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 8
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0378b0f6-4f10-4123-8462-851614377b60
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Tonguelash
+      numTargets: 1
+      description: If the target ends up in a space adjacent to the tonguer, they are also grabbed.
+      abilityType: none
+      implementation: 3
+    keywords:
+      Humanoid: true
+      Lizardfolk: true
+    movementSpeeds:
+      swim: 5
+    groupid: d3456343-2a59-400e-af7d-dbb4bd9c8347
+    minion: true
+    monster_category: Monster
+    creatureSize: 1S
+  tokenType: null
+  bestiaryId: 1b2d11ef-6a70-4a4d-800f-ae43d27147f8
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Lizardfolk Tonguer
+parentFolder: 40714605-54b3-4a20-b782-f427973a5a25
+artist: null
+ord: 0
+ctime: 1741590224994
+mtime: 1775201137032
+hidden: false

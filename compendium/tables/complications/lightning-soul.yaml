@@ -1,0 +1,85 @@
+__typeName: CharacterComplication
+drawback: Whenever you are wet, you have damage weakness 5.
+mtime: 1770439628656
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        persistence: []
+        modifiers: []
+        abilityType: none
+        strain: []
+        whenActive: combat
+        repeatTargets: false
+        trigger: regainhitpoints
+        numTargets: "1"
+        targetType: self
+        guid: 2a41fcc7-3f2f-452d-966b-44932c16597b
+        name: Lightning Soul - Benefit
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          chatMessage: Lightning Soul - Benefit
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Complication
+      behavior: trigger
+      guid: 038e8e56-694e-463f-85b8-595ce90a9209
+      name: Lightning Soul - Benefit
+      sourceguid: 2da1e462-50ab-4980-9278-50d181799173
+    - __typeName: CharacterModifier
+      sourceguid: 2da1e462-50ab-4980-9278-50d181799173
+      source: Complication
+      behavior: power
+      keywords: []
+      rollRequirement: surges
+      guid: 0c21ae61-81f3-4b95-b09e-77607d87be43
+      rollType: ability_power_roll
+      name: Lightning Soul - Benefit
+      surgeDamageType: lightning
+      description: Whenever you spend a surge to deal extra damage, you can make that extra damage into lightning damage.
+      modtype: none
+      activationCondition: false
+    source: Complication
+    canHavePrerequisites: true
+    guid: 2da1e462-50ab-4980-9278-50d181799173
+    name: Lightning Soul - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Whenever you are wet, you have damage weakness 5.
+    modifiers:
+    - __typeName: CharacterModifier
+      filterCondition: (Ongoing Effects has "Wet") or InWater
+      sourceguid: 1e5c4579-2e6c-4e70-abe9-84a50e76ddd1
+      name: Lightning Soul - Drawback
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: all
+        apply: Damage Reduction
+      description: Whenever you are wet, you have damage weakness 5.
+      behavior: resistance
+      guid: 12d8c810-bb63-4080-b716-43647a4d3321
+    source: Feat
+    canHavePrerequisites: true
+    guid: 1e5c4579-2e6c-4e70-abe9-84a50e76ddd1
+    name: Lightning Soul - Drawback
+    implementation: 3
+name: Lightning Soul
+ctime: 1755515707172
+description: You were caught in a storm and struck by lightning—but something saved you from death. Perhaps it was a gods-given miracle, a latent psionic gift, or the magic of a helpful elementalist, but you absorbed the lightning into your body. It’s always there now, simmering under the surface.
+id: e87d0307-7197-41b7-a537-0cd3ced5d335
+benefit: Whenever you regain Stamina in combat, you gain 1 surge. Whenever you spend a surge to deal extra damage, you can make that extra damage into lightning damage.

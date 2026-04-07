@@ -1,0 +1,25 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: b9b52786-292c-4dad-9ac0-247bbfa77662
+id: b9b52786-292c-4dad-9ac0-247bbfa77662
+ctime: 1710619898637
+domains:
+  CharacterOngoingEffect:b9b52786-292c-4dad-9ac0-247bbfa77662: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+custom: true
+name: Weakened
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+description: A creature who is weakened takes a bane on power rolls.
+mtime: 1746378007057
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725

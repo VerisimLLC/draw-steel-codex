@@ -1,0 +1,619 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,4,2"
+        - __usertype: LuaLoc
+          loc: "-4,6,2"
+        - __usertype: LuaLoc
+          loc: "-2,5,2"
+        - __usertype: LuaLoc
+          loc: "-2,7,2"
+        - __usertype: LuaLoc
+          loc: "-2,3,2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "4,6,2"
+        - __usertype: LuaLoc
+          loc: "2,8,2"
+        - __usertype: LuaLoc
+          loc: "1,6,2"
+        - __usertype: LuaLoc
+          loc: "1,4,2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+      name: Wraith Raid 3
+    identifier: "3"
+  encounter:3H:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 3H
+  encounter:Farmers:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Lonely Civilian\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Vile Civilian\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Bored Civilian\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Obsessed Civilian\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Dastardly Civilian\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-10,-2,2"
+        - __usertype: LuaLoc
+          loc: "-8,1,2"
+        - __usertype: LuaLoc
+          loc: "6,0,2"
+        - __usertype: LuaLoc
+          loc: 5,-2,2
+        - __usertype: LuaLoc
+          loc: 4,-5,2
+        monsters:
+          50f884a7-8b66-4cf9-b7aa-f35cb3065cd8: 5
+      name: Farmers
+  encounter-4:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  encounter-3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      name: Round 4
+  encounter:6:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,4,2"
+        - __usertype: LuaLoc
+          loc: "-4,6,2"
+        - __usertype: LuaLoc
+          loc: "-2,3,2"
+        - __usertype: LuaLoc
+          loc: "-2,7,2"
+        - __usertype: LuaLoc
+          loc: "-2,5,2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "3,3,2"
+        - __usertype: LuaLoc
+          loc: "1,4,2"
+        - __usertype: LuaLoc
+          loc: "4,6,2"
+        - __usertype: LuaLoc
+          loc: "2,8,2"
+        - __usertype: LuaLoc
+          loc: "1,6,2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "8,6,2"
+        - __usertype: LuaLoc
+          loc: "8,8,2"
+        - __usertype: LuaLoc
+          loc: "7,7,2"
+        - __usertype: LuaLoc
+          loc: "7,9,2"
+        - __usertype: LuaLoc
+          loc: "9,7,2"
+        - __usertype: LuaLoc
+          loc: "8,10,2"
+        - __usertype: LuaLoc
+          loc: "10,8,2"
+        - __usertype: LuaLoc
+          loc: "10,9,2"
+        - __usertype: LuaLoc
+          loc: "6,5,2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          f9a140da-87f5-47e6-957b-f4fffa6811a8: 8
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      name: Wraith Raid 6
+    identifier: "6"
+  encounter:R:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: R
+  encounter:R3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      name: Round 4
+    identifier: R3
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: ""
+  encounter:Wraith:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Wraith
+  encounter-2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      name: Round 3
+  encounter-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      name: Round 2
+  encounter:W:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: W
+  encounter:Wraith Raid:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Wraith Raid
+  encounter:R2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      name: Round 3
+    identifier: R2
+  encounter:Wraith Raid-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Wraith Raid
+  encounter:Wraith Raid 3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Wraith Raid 3
+  encounter:second civs named:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:Second Floor:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,4,2"
+        - __usertype: LuaLoc
+          loc: "-2,7,2"
+        - __usertype: LuaLoc
+          loc: "-2,5,2"
+        - __usertype: LuaLoc
+          loc: "-4,6,2"
+        - __usertype: LuaLoc
+          loc: "-2,3,2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "3,3,2"
+        - __usertype: LuaLoc
+          loc: "4,6,2"
+        - __usertype: LuaLoc
+          loc: "1,6,2"
+        - __usertype: LuaLoc
+          loc: "1,4,2"
+        - __usertype: LuaLoc
+          loc: "2,8,2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          f9a140da-87f5-47e6-957b-f4fffa6811a8: 8
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "8,6,2"
+        - __usertype: LuaLoc
+          loc: "10,9,2"
+        - __usertype: LuaLoc
+          loc: "9,7,2"
+        - __usertype: LuaLoc
+          loc: "8,10,2"
+        - __usertype: LuaLoc
+          loc: "10,8,2"
+        - __usertype: LuaLoc
+          loc: "7,9,2"
+        - __usertype: LuaLoc
+          loc: "7,7,2"
+        - __usertype: LuaLoc
+          loc: "8,8,2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 5
+      name: Wraith Raid 4-5
+  encounter:R1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+          385a59fc-cee2-4734-b94e-f7d02f8b57c9: 1
+      name: Round 2
+    identifier: R1
+id: a506892a-3895-4f2a-9a04-558984f06e7b
+ctime: 1762147809183
+textStorage:
+  __typeName: TextStorage
+  sections:
+    QQ: |
+      |[[encounter:R2]]|
+    Qi: |+
+      |[[encounter:R3]]|
+
+    t: |2+
+       The encounter ends when all the farmers have either died or are safe and off the encounter map, at which point the remaining bandits flee. If the heroes save at least three of the farmers, they earn 1 Victory each. End Combat once the battle is over by right clicking on the combat orb.
+
+    x: If the heroes capture any bandits, the captured Forsaken Wraith reveals that [Brune] the butcher has been helping criminals to rob the village smokehouse. The bandit also reveals the location of their camp (see [Fort Forsaken])
+    r: |+
+      ## Ending the Encounter
+
+    v: |+
+      [[//awardvp 1|Award Victories]]
+
+    p: |+
+      If Reeve Rosamund hasn’t already asked the heroes to dispatch the Forsaken Wraiths, she does after this encounter.
+
+    m: |2+
+       The **brawlers** use *Haymaker* and the *Grab* maneuver so they can benefit from their *Shoot the Hostage* trait. The **raiders** take the *Charge* action to engage foes, then fight until that foe falls before moving to the next. The guards move into position so they can flank enemies and make additional *free strikes*.
+
+
+    n: |+
+      ## Aftermath and Rewards
+
+    k: |+
+      ## Tactics
+
+    l: |2+
+       The bandits harm whichever creature is nearest to them, prioritizing heroes over farmers. The humans spend Malice on Exploit Opening to gain an edge.
+
+    i: |+
+      ## Well
+
+    j: |2+
+       The well at the center of the town is 4 squares deep and has less than 1 square of water in it
+
+    g: |+
+      The farmers (five civilians) are slowed and take their turn at the end of each round. They move as quickly and as carefully as they can to reach the south end of the map. Once they are there, they're safe.
+
+    h: |+
+      A hero can use a maneuver to encourage a farmer to drop what they are holding. The farmer listens and drops their crops as a free triggered action, ending the slowed condition for them.
+
+    e: |+
+      * For three heroes, remove one human brawler and eight human guards from the start of the encounter.
+
+    f: |+
+      ## Farmer Run
+
+    c: |
+      * For six heroes, add one human brawler to the start of the encounter.
+    d: |
+      * For four heroes, remove eight human guards from the start of the encounter.
+    a: |
+      **Encounter Adjustments**
+    b: |+
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+
+    E: |+
+      ## Setting the Scene
+
+    J: |+
+      This encounter uses the [Wraith Raid Map]. The farmers are five **civilians**. They are chased by eight **human guards**, eight **human raiders**, and two **human brawlers**.
+
+    Nm: |
+      [[encounter:3]]
+    NF: |
+      [[encounter]]
+    Nf: |
+      ???query numheroes < 4
+    NL: |
+      ??????query numheroes > 5
+    Y: |
+      |3|Eight [human raider]s (minion squad)|
+    Z: |+
+      |4 (Reinforcements)|[Human brawler] (captain), Four [human raider]s (minion squad)|
+
+    W: |
+      |1|[Human brawler] (captain), Four [human raider]s (minion squad)|
+    X: |
+      |2|[Human brawler] (captain), Four [human raider]s (minion squad)|
+    U: |
+      **Wraith Raid Groups**
+    V: |
+      |Group|Creatures|
+    S: |+
+      [[encounter:Farmers]]
+
+    T: |+
+      When you are ready, [Draw Steel!]
+
+
+    Q: |
+      |[[encounter:R1]]|
+    R: |
+      **Civilians**
+    O: |+
+      ## Reinforcements
+
+    P: |2+
+       At the start of the second round of combat and each subsequent round, one **human brawler** captaining four **human raiders** appears on the map, at a map edge of your choice. These creatures are in their own group.
+
+    M: |+
+      [[setting:Number of Heroes]]
+
+    N: |
+      ???query (numheroes < 6) and (numheroes > 3) 
+    K: |+
+      ## Combat
+
+    L: |+
+      [[/activateobjects WR_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects WR_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    I: |+
+      > * “Behind them is an advancing force of armed marauders, their weapons drawn and raised high.”
+
+    Nt: |+
+      ???
+
+    G: |+
+      > * “As you pass through the village square in the evening, you suddenly hear shrieks for help.”
+
+    H: |+
+      > * “A group of farmers, their arms loaded with crops, run toward you, their goods weighing them down.”
+
+    NY: |
+      ???
+    F: |+
+      When the event begins, the heroes are passing through the village square. 
+
+    C: |+
+      * [Brune] (see [B8. Butcher]) warns the Forsaken Wraiths that the heroes are onto them.
+
+    D: |+
+      * The heroes don’t deal with the Forsaken Wraiths (see [Fort Forsaken]) and finish seven respites during the adventure. (see [Respite Tracker]]
+
+
+    NR: |
+      [[encounter:6]]
+    B: |+
+      The Forsaken Wraiths, a group of bandits, attempts to raid Broadhurst in the night to obtain supplies for their camp. This event can occur for any of the following reasons:
+
+parentFolder: adc1957d-673d-48d7-9eee-d101ac41857f
+updateid: d899a347-eb2d-4ce4-9cad-7f1887c07e19
+mtime: 1772541569113
+content: |-
+  The Forsaken Wraiths, a group of bandits, attempts to raid Broadhurst in the night to obtain supplies for their camp. This event can occur for any of the following reasons:
+
+  * [Brune] (see [B8. Butcher]) warns the Forsaken Wraiths that the heroes are onto them.
+
+  * The heroes don’t deal with the Forsaken Wraiths (see [Fort Forsaken]) and finish seven respites during the adventure. (see [Respite Tracker]]
+
+
+  ## Setting the Scene
+
+  When the event begins, the heroes are passing through the village square. 
+
+  > * “As you pass through the village square in the evening, you suddenly hear shrieks for help.”
+
+  > * “A group of farmers, their arms loaded with crops, run toward you, their goods weighing them down.”
+
+  > * “Behind them is an advancing force of armed marauders, their weapons drawn and raised high.”
+
+  This encounter uses the [Wraith Raid Map]. The farmers are five **civilians**. They are chased by eight **human guards**, eight **human raiders**, and two **human brawlers**.
+
+  ## Combat
+
+  [[setting:Number of Heroes]]
+
+  [[encounter]]
+
+  ## Reinforcements
+
+   At the start of the second round of combat and each subsequent round, one **human brawler** captaining four **human raiders** appears on the map, at a map edge of your choice. These creatures are in their own group.
+
+  |[[encounter]]|[[encounter]]|[[encounter]]|
+
+  **Civilians**
+  [[encounter:Farmers]]
+
+  When you are ready, [Draw Steel!]
+
+
+  **Wraith Raid Groups**
+  |Group|Creatures|
+  |1|[Human brawler] (captain), Four [human raider]s (minion squad)|
+  |2|[Human brawler] (captain), Four [human raider]s (minion squad)|
+  |3|Eight [human raider]s (minion squad)|
+  |4 (Reinforcements)|[Human brawler] (captain), Four [human raider]s (minion squad)|
+
+  **Encounter Adjustments**
+  If this encounter has more or fewer than five heroes, make the following adjustments:
+
+  * For six heroes, add one human brawler to the start of the encounter.
+  * For four heroes, remove eight human guards from the start of the encounter.
+  * For three heroes, remove one human brawler and eight human guards from the start of the encounter.
+
+  ## Farmer Run
+
+  The farmers (five civilians) are slowed and take their turn at the end of each round. They move as quickly and as carefully as they can to reach the south end of the map. Once they are there, they're safe.
+
+  A hero can use a maneuver to encourage a farmer to drop what they are holding. The farmer listens and drops their crops as a free triggered action, ending the slowed condition for them.
+
+  ## Well
+
+   The well at the center of the town is 4 squares deep and has less than 1 square of water in it
+
+  ## Tactics
+
+   The bandits harm whichever creature is nearest to them, prioritizing heroes over farmers. The humans spend Malice on Exploit Opening to gain an edge.
+
+   The **brawlers** use *Haymaker* and the *Grab* maneuver so they can benefit from their *Shoot the Hostage* trait. The **raiders** take the *Charge* action to engage foes, then fight until that foe falls before moving to the next. The guards move into position so they can flank enemies and make additional *free strikes*.
+
+
+  ## Aftermath and Rewards
+
+  If Reeve Rosamund hasn’t already asked the heroes to dispatch the Forsaken Wraiths, she does after this encounter.
+
+  ## Ending the Encounter
+
+   The encounter ends when all the farmers have either died or are safe and off the encounter map, at which point the remaining bandits flee. If the heroes save at least three of the farmers, they earn 1 Victory each. End Combat once the battle is over by right clicking on the combat orb.
+
+  [[/awardvp 1|Award Victories]]
+
+  If the heroes capture any bandits, the captured Forsaken Wraith reveals that [Brune] the butcher has been helping criminals to rob the village smokehouse. The bandit also reveals the location of their camp (see [Fort Forsaken])
+description: Wraith Raid

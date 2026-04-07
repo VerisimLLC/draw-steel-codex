@@ -1,0 +1,730 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1759349067034
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+        sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+        description: |
+          You gain the following elemental mote as a signature minion. Signature minions are summoned at the start of combat and at the start of your turn for free. You can also use Call Forth to summon any number of Signature minions for their essence cost.
+
+          **Elemental Mote**
+          A near-pure form of autonomous essence, just barely maintaining their form. They can shift their nature to match their surroundings.
+        source: Circle of Storms Class Feature
+        name: "Call Forth: Signature Minion"
+        behavior: activated
+        guid: 1ddcb31c-624b-42d1-8947-7cad848fb9f3
+        activatedAbility:
+          __typeName: ActivatedAbility
+          abilityType: none
+          targetTextOverride: Self
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Magic: true
+          iconid: ui-icons/skills/1.png
+          behaviors:
+          - __typeName: ActivatedAbilitySummonBehavior
+            modesSelected:
+            - 1
+            monsterType: 0544e196-72af-45a7-845d-0aabbe177bdb
+            bestiaryFilter: ""
+            numSummons: "1"
+            allCreaturesTheSame: true
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: A near-pure form of autonomous essence, just barely maintaining their form. They can shift their nature to match their surroundings.
+          categorization: Ability
+          range: SummonerRange
+          numTargets: 1 + Charges
+          maxChannel: Self.MaximumMinions-1
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          modifiers: []
+          rangeTextOverride: Summoner's Range
+          strain: []
+          modeList: []
+          targetType: emptyspace
+          guid: 10aa3021-6caf-405e-9d00-41295f847139
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+          persistence: []
+          channelDescription: You summon one Elemental Mote for each essence you spend on this ability.
+          name: "Call Forth: Elemental Mote"
+          description: You summon one Elemental Mote for each essence you spend on this ability.
+          channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          implementation: 2
+      source: Circle of Storms Class Feature
+      guid: cefa057e-cb2f-44f5-8a77-204d9ff5669c
+      domains:
+        class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+      canHavePrerequisites: true
+      classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+      description: |
+        You gain the following elemental mote as a signature minion. Signature minions are summoned at the start of combat and at the start of your turn for free. You can also use Call Forth to summon any number of Signature minions for their essence cost.
+
+        **Elemental Mote**
+        A near-pure form of autonomous essence, just barely maintaining their form. They can shift their nature to match their surroundings.
+      name: "Call Forth: Signature Minion"
+      implementation: 2
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: "1"
+      name: "Call Forth: Signature Minion"
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: The gales are twisting ribbons of cloud and debris endlessly dancing in place. They disrupt the air in the area and allow their allies to move freely.
+          source: Circle of Storms Class Feature
+          name: Brisk Gale
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: cab2d5e7-2f12-48bc-aa2f-a9278edf18e2
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: The gales are twisting ribbons of cloud and debris endlessly dancing in place. They disrupt the air in the area and allow their allies to move freely.
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+            persistence: []
+            channelDescription: You summon one Brisk Gale for each essence you spend on this ability.
+            name: "Call Forth: Brisk Gale"
+            description: You summon one Brisk Gale for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        source: Circle of Storms Class Feature
+        guid: 6c87c99c-44e1-4598-8446-8ad05178368d
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+        canHavePrerequisites: true
+        classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+        description: The gales are twisting ribbons of cloud and debris endlessly dancing in place. They disrupt the air in the area and allow their allies to move freely.
+        name: Brisk Gale
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: A fire plume burns so bright that their true shape is hard to discern from the flames. They sputter and spit motes of fire in high arcs.
+          source: Circle of Storms Class Feature
+          name: Fire Plume
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: bc8c69ce-a758-4065-b928-0e9c331519f6
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A fire plume burns so bright that their true shape is hard to discern from the flames. They sputter and spit motes of fire in high arcs.
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+            persistence: []
+            channelDescription: You summon one Pixie Bellringer for each essence you spend on this ability.
+            name: "Call Forth: Fire Plume"
+            description: You summon one Fire Plume for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        source: Circle of Storms Class Feature
+        guid: 86f9ef96-ba29-4a47-a297-56ee2acb777c
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+        canHavePrerequisites: true
+        classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+        description: A fire plume burns so bright that their true shape is hard to discern from the flames. They sputter and spit motes of fire in high arcs.
+        name: Fire Plume
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: A massive clod of animated stone that rolls above smaller piles of rocks that could be perceived as ‘legs’. Boulders are good for taking up space and building barricades.
+          source: Circle of Storms Class Feature
+          name: Walking Boulder
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: cb94d804-feb7-4ea7-808f-f31707d27982
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A massive clod of animated stone that rolls above smaller piles of rocks that could be perceived as ‘legs’. Boulders are good for taking up space and building barricades.
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+            persistence: []
+            channelDescription: You summon one Walking Boulder for each essence you spend on this ability.
+            name: "Call Forth: Walking Boulder"
+            description: You summon one Walking Boulder for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        source: Circle of Storms Class Feature
+        guid: eef7bec2-2c91-4413-8314-a26a06f74487
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+        canHavePrerequisites: true
+        classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+        description: A massive clod of animated stone that rolls above smaller piles of rocks that could be perceived as ‘legs’. Boulders are good for taking up space and building barricades.
+        name: Walking Boulder
+        implementation: 2
+      classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+      guid: e9d4d315-7f26-4295-b3e2-7f3cae7a9dc7
+      source: Circle of Storms Class Feature
+      description: You can also select one of the following signature minions.
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+      description: You can sense the presence of creatures with the elemental or dragon keywords within 1 mile of you. You can innately feel their emotions or pain, and you can’t obtain lower than a tier 2 outcome on any Intuition test made to socially interact with them.
+      modifiers: []
+      name: Heart of Nature
+      classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+      guid: 9b3da3af-5864-49b3-824e-300189e91568
+      source: Circle of Storms Class Feature
+      canHavePrerequisites: true
+    - __typeName: CharacterFeature
+      domains:
+        class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+      description: Whenever you use Call Forth to summon one or more non-signature elemental minions, you can summon one bonus signature minion at no cost. You can choose between a signature minion that shares an Element keyword with the minions you summoned (such as fire, earth, or air) or an elemental mote.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 360a52e0-4385-483f-abd6-34d9078764b3
+        source: Circle of Storms Class Feature
+        numCharges: ""
+        guid: cc0beada-6c4a-4e5f-8580-5399796827b2
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+        name: Start of Turn
+        resourceRefreshType: none
+        description: "At the start of each of your turns during combat, you summon up to your 'Start of Turn Minions' amount (default: three) of your signature minions at no cost into unoccupied spaces within your Summoner’s Range (no action required)."
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          rangeTextOverride: Summoner's Range
+          targetType: self
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.325598478317261
+              s: 1.00134801864624
+              v: 0.773358821868896
+              a: 1
+          mandatory: false
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: none
+            charges: ""
+            resourceid: cc0beada-6c4a-4e5f-8580-5399796827b2
+          trigger: useability
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          whenActive: combat
+          modeList: []
+          numTargets: "1"
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+          guid: a4eef73b-be50-472c-a79a-cd28a22352ef
+          castImmediately: true
+          name: Call Forth Elemental Affinity
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            runOnController: true
+            promptText: Summon Signature Minions within your Summoner's Range
+            customAbility:
+              __typeName: ActivatedAbility
+              repeatTargets: false
+              rangeTextOverride: Summoner's Range
+              behaviors:
+              - __typeName: ActivatedAbilitySummonBehavior
+                modesSelected:
+                - 1
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Demon" '
+              - __typeName: ActivatedAbilitySummonBehavior
+                guid: 18f10b1a-fb1e-4d99-97b5-cac0fdbbe1f4
+                modesSelected:
+                - 2
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Undead" '
+              - __typeName: ActivatedAbilitySummonBehavior
+                guid: acb80627-023c-4369-b162-7600d89d6821
+                modesSelected:
+                - 3
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Fey" '
+              - __typeName: ActivatedAbilitySummonBehavior
+                guid: 24f113df-36c2-4bfa-b536-0d33aa91a15c
+                modesSelected:
+                - 4
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Elemental" '
+              multipleModes: true
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: SummonerRange
+              numTargets: StartTurnSummon
+              modifiers: []
+              strain: []
+              modeList:
+              - text: Circle of Blight
+                condition: Subclasses has "Circle of Blight"
+              - text: Circle of Graves
+                condition: Subclasses has "Circle of Graves"
+              - text: Circle of Spring
+                condition: Subclasses has "Circle of Spring"
+              - text: Circle of Storms
+                condition: Subclasses has "Circle of Storms"
+              persistence: []
+              guid: 8f0182c4-664c-4e76-a760-f7ce10bbe67a
+              name: Summon Signature
+              targetType: emptyspace
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            namedAbility: ""
+            abilityType: custom
+            applyto: caster
+          description: Whenever you use Call Forth to summon one or more non-signature elemental minions, you can summon one bonus signature minion at no cost. You can choose between a signature minion that shares an Element keyword with the minions you summoned (such as fire, earth, or air) or an elemental mote.
+          abilityType: none
+          iconid: 56729dfc-0cf4-4b75-99db-61ae8ac81d71
+      name: Elemental Affinity
+      classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+      guid: f0f40fd7-988f-453a-af41-a789c1c398c6
+      source: Circle of Storms Class Feature
+      canHavePrerequisites: true
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: "2"
+      name: "Call Forth: 3-Essence Minion"
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: 'A curtain of billowing hot ash with an avian head. They cover their victims in a burning cloak of charcoal and soot. '
+          source: Circle of Storms Class Feature
+          name: Crux of Ash
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: 87dc0c69-0462-4be6-8853-c3e2db994a5f
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'A curtain of billowing hot ash with an avian head. They cover their victims in a burning cloak of charcoal and soot. '
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Crux of Ash"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Crux of Ash for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Circle of Storms Class Feature
+        guid: aed88419-e6d4-48d1-a624-9da4182ffaf4
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+        canHavePrerequisites: true
+        classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+        description: 'A curtain of billowing hot ash with an avian head. They cover their victims in a burning cloak of charcoal and soot. '
+        name: Crux of Ash
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: A long, serpentine creature of heated rock. They drool trails of lava from their fangs after biting their prey.
+          source: Circle of Storms Class Feature
+          name: Flow of Magma
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: fc2bdbe9-323c-4779-8163-a56b4f600f74
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A long, serpentine creature of heated rock. They drool trails of lava from their fangs after biting their prey.
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Flow of Magma"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Flows of Magma for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Circle of Storms Class Feature
+        guid: f01d3af5-ef95-49c9-ad26-fb6cf08dfd10
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+        canHavePrerequisites: true
+        classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+        description: A long, serpentine creature of heated rock. They drool trails of lava from their fangs after biting their prey.
+        name: Flow of Magma
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: The desolations have vaguely humanoid sand forms with no legs. Their glass hose “arms” shift and gristle before firing high pressure streams of sand at their foes.
+          source: Circle of Storms Class Feature
+          name: Desolation of Sand
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: 0414ebd8-307e-4c24-bf85-d97be7a755c9
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: The desolations have vaguely humanoid sand forms with no legs. Their glass hose “arms” shift and gristle before firing high pressure streams of sand at their foes.
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Desolation of Sand"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Desolations of Sand for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Circle of Storms Class Feature
+        guid: 4f5d8a1b-4096-48d3-a200-b85c239ed0a3
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+        canHavePrerequisites: true
+        classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+        description: The desolations have vaguely humanoid sand forms with no legs. Their glass hose “arms” shift and gristle before firing high pressure streams of sand at their foes.
+        name: Desolation of Sand
+        implementation: 2
+      classid: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+      guid: 39054c2c-7b8c-4677-837d-8a78a784037c
+      source: Circle of Storms Class Feature
+      description: |
+        Choose two of the following minions. You can use Call Forth to summon the listed number of 3-Essence minions for their essence cost.
+
+        **TRAITS WITH AN ESSENCE COST**
+        *Some minion stat blocks have traits that can only be activated if you spend the heroic resource listed in the top corner of the trait. For example, when a crux of ash is reduced to 0 Stamina, you can spend 1 essence to use their Ashen Cloud trait.*
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef: true
+details: The circle of storm casters who summon elementals from Quintessence. The portfolio contains forces of nature that leave a big impact on the environment. You can communicate with creatures that have the elemental keyword even if you don’t share a language.
+name: Circle of Storms
+mtime: 1760650330614
+id: eea09df2-bbd8-4100-a6e5-fdfeb1ff15ef
+primaryClassId: b41b7bcb-6246-4906-8115-831e55f62758

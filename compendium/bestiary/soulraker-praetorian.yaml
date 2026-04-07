@@ -1,0 +1,245 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: a16559d4-f3ba-4753-84a9-635bc7045b1b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Soulraker Praetorian	Level 7 Harrier
+        Abyssal, Demon, Soulraker	EV 27
+        <b>Stamina</b> 75	<b>Weakness</b> Holy 5
+        <b>Speed</b> 8	<b>Size</b> 1L / <b>Stability</b> 0
+        <b>	Free Strike</b> 6
+        Might +2	Agility +4	Reason 0	Intuition +2	Presence 0
+        <b>Barbed Stinger </b>(Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 poison damage; push 2
+        %E2%98%85	<b>12-16</b>	15 poison damage; push 2
+        %E2%9C%B8	<b>17</b>	19 poison damage; push 4; A<4 grabbed
+        <b>Effect</b> The praetorian shifts into each square the target leaves.
+
+        <b>Stinging Departure</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Triggering creature
+        <b>Trigger </b>A creature ends the praetorian's grab.
+        <b>Effect</b> The praetorian makes a free strike on the target, breaking off their stinger in their victim, and shifts up to half their speed. The target is bleeding until they remove the stinger as a free action, taking 6 damage in the process.
+
+        <b>Praetorian Buzzing</b>
+        A creature who starts their turn with 2 or more praetorians adjacent to them takes 6 sonic damage.
+
+        <b>Lethe</b>
+        While winded, the praetorian has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the praetorian can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2effe2ee-d668-4af0-90a3-56dd1c6b77b4: true
+      modifiers: []
+      name: Praetorian Buzzing
+      description: A creature who starts their turn with 2 or more praetorians adjacent to them takes 6 sonic damage.
+      guid: 2effe2ee-d668-4af0-90a3-56dd1c6b77b4
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ae3402c3-44e7-48ef-8bd7-1ae7932e7eb4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+        source: Trait
+        modtype: edge
+        keywords:
+          Attack: true
+        activationCondition: true
+        guid: 7d597fb7-e5d7-4b09-8970-f39bab3a58f1
+        name: Lethe
+        filterCondition: hitpoints <= Maximum Hitpoints/2
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+        source: Trait
+        modtype: edge
+        keywords:
+          Attack: true
+        activationCondition: true
+        guid: 5291759e-34d8-4db9-a54b-965c5ac91163
+        name: Lethe
+        filterCondition: Hitpoints <= Maximum Hitpoints/2
+        description: ""
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: While the praetorian is winded, they gain an edge on strikes, and any strike made against them gains an edge.
+      guid: ae3402c3-44e7-48ef-8bd7-1ae7932e7eb4
+      name: Lethe
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f701800b-9691-4a5e-9e58-dd4abaf76501: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the praetorian can't be hidden from them.
+      guid: f701800b-9691-4a5e-9e58-dd4abaf76501
+      source: Trait
+    role: Horde Harrier
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Soulraker: true
+      Demon: true
+    max_hitpoints_roll: "45"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 3
+    monster_type: Soulraker Praetorian
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 45
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 poison damage; push 2
+        - 10 poison damage; push 2
+        - 11 poison damage; A<4 grabbed; push 4
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 708329f9-2495-470e-a078-286098e8ea81
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: 'Barbed Stinger '
+      numTargets: 1
+      description: The praetorian shifts into each square the target leaves.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 45f5852f-f9cc-47ea-8140-74bf9f7359ca
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Stinging Departure
+      implementation: 0
+      description: The praetorian makes a free strike on the target, breaking off their stinger in their victim, and shifts up to half their speed. The target is bleeding until they remove the stinger as a free action, taking 6 damage in the process.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds: []
+    ev: 9
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: 859f368f-582d-47c7-927f-6f0cf845c1fb
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Soulraker Praetorian
+parentFolder: d28dbebc-b729-459f-858a-44e596d131e0
+artist: null
+ord: 8
+ctime: 1741590276407
+mtime: 1775201137032
+hidden: false

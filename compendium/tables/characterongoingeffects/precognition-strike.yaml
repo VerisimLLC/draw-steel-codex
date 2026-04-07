@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: d001643f-2880-4499-aa79-18b715f36828
+id: d001643f-2880-4499-aa79-18b715f36828
+ctime: 1758285875338
+domains:
+  CharacterOngoingEffect:d001643f-2880-4499-aa79-18b715f36828: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Precognition Strike
+statusEffect: false
+description: ""
+mtime: 1758287857320
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,181 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 586a58f5-9211-451e-bdd3-12369001cc1b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Minotaur Lackey	Level 8 Minion Harrier
+        Accursed, Humanoid, Minotaur	EV 10 for four minions
+        <b>Stamina</b> 13
+        <b>Speed</b> 8	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>With Captain</b> Speed +2	<b>Free Strike</b> 3
+        Might +3	Agility +4	Reason 0	Intuition +1	Presence -1
+        <b>Horn Vault</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12-16</b>	6 damage; slide 1
+        %E2%9C%B8	<b>17</b>	8 damage; slide 3
+        <b>Effect</b> A target that is force moved into an obstacle is <b>M<3</b> bleeding (save ends).
+
+        <b>Minotaur Sense</b>
+        The lackey cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:597cfa08-4aa6-4f1b-9465-001e582adb8d: true
+        CharacterFeature:0c007c70-9f61-4985-b665-0842d59b4d82: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 597cfa08-4aa6-4f1b-9465-001e582adb8d
+        source: Trait
+        modtype: nottierone
+        keywords: []
+        activationCondition: true
+        guid: 5eaba7b3-f08e-4c79-978c-3d594e6ae235
+        domains:
+          CharacterFeature:597cfa08-4aa6-4f1b-9465-001e582adb8d: true
+          CharacterFeature:0c007c70-9f61-4985-b665-0842d59b4d82: true
+        name: Minotaur Sense
+        rollType: test_power_roll
+        description: The minotaur cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+        behavior: power
+        skills:
+        - 0c7d0c53-2056-4579-8c83-1bec3098cc56
+        - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+      source: Trait
+      description: The minotaur cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+      guid: 597cfa08-4aa6-4f1b-9465-001e582adb8d
+      name: Minotaur Sense
+      implementation: 3
+    role: Minion Harrier
+    inflictedConditions: []
+    ev: 10
+    max_hitpoints_roll: "13"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    keywords:
+      Minotaur: true
+      Accursed: true
+      Humanoid: true
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    monster_type: Minotaur Lackey
+    equipment: []
+    withCaptain: +2 bonus to speed
+    max_hitpoints: 13
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    levelChoices: []
+    walkingSpeed: 8
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 6 damage; slide 1
+        - 8 damage; slide 3
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 31a30313-8c33-4640-902e-6f92d02567b7
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Horn Vault
+      numTargets: 1
+      description: A target that is force moved into an obstacle is M<3 bleeding (save ends).
+      abilityType: none
+      implementation: 3
+    groupid: 6efceb1a-994d-411b-a006-923df38066a7
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: "2"
+    opportunityAttack: 3
+  tokenType: null
+  bestiaryId: 0e7bd3c0-638c-4b08-afb3-7ab48ac16c17
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969465
+description: Minotaur Lackey
+parentFolder: 4e90b2cf-3242-46d6-9c01-ce1d199e1205
+artist: null
+ord: 0
+ctime: 1741590218848
+mtime: 1775201137032
+hidden: false

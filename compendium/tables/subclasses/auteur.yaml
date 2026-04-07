@@ -1,0 +1,1499 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1738540273789
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 74c13fd2-f258-4448-8422-2e996a320626
+        source: Auteur Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          hasTriggerBefore: true
+          name: Deleted Scene
+          displayCondition: "0"
+          resourceCostType: cost
+          behavior: power
+          modtype: none
+          triggerBefore:
+            __typeName: TriggeredAbility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 521b0b9f-7ef6-4f6f-8c83-80e3d5164707
+            repeatTargets: false
+            trigger: d20roll
+            castImmediately: true
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              guid: b8b0dd3f-df94-4af5-b89a-fe87c64fc061
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                abilityType: none
+                strain: []
+                guid: 937cd8d2-2fc5-4fdc-b144-c35cbd9696c0
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    modifyDescription: ""
+                    source: ""
+                    filterAbility: Ability.Name = "Dramatic Monologue - Tale of Victory" or Ability.Name = "Dramatic Monologue - High Stakes Heroics" or Ability.Name = "Dramatic Monologue - Insult"
+                    behavior: modifyability
+                    guid: 6cac6c63-2413-4c49-bbc3-348b22efa3bf
+                    name: Modify Attack
+                    attributes: []
+                    description: ""
+                    cannotModifyAction: true
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      guid: 92001104-e318-4c96-9ada-40111a5f38ab
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors: []
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                castImmediately: false
+                targetType: self
+                numTargets: "1"
+                name: Invoked Ability
+                description: ""
+                categorization: Hidden
+                range: 1
+                iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            name: Deleted Scene
+            targetType: self
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          keywords: []
+          hasCustomTrigger: false
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 26a99205-f9fa-4a65-9669-983edf61315d
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: Deleted Scene
+            behaviors: []
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          activationCondition: "1"
+          rollType: ability_power_roll
+          rules: ""
+          resourceCostAmount: "1"
+          guid: a39ff828-76a7-468d-b4c2-7ef41c927262
+          source: Trigger
+        guid: 0871f7f1-0f8f-40ed-83c1-ca7615c01492
+        type: free
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        targetType: anycreature
+        behavior: powertabletrigger
+        name: Deleted Scene
+        rules: Whenever a creature within distance of your Dramatic Monologue ability makes a power roll, you can spend 1 drama as a free triggered action to use Dramatic Monologue, targeting only one creature.
+        description: Whenever a creature within distance of your Dramatic Monologue ability makes a power roll, you can spend 1 drama as a free triggered action to use Dramatic Monologue, targeting only one creature.
+        range: 10
+        trigger: powerroll
+      source: Auteur Class Feature
+      guid: 74c13fd2-f258-4448-8422-2e996a320626
+      domains:
+        class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      canHavePrerequisites: true
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      description: Whenever a creature within distance of your Dramatic Monologue ability makes a power roll, you can spend 1 drama as a free triggered action to use Dramatic Monologue, targeting only one creature.
+      name: Deleted Scene
+      implementation: 4
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      guid: d0885a23-7092-4345-8de1-60f7dfca9a0b
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cda87c48-f01e-42e8-bd2d-bbfa70e0e88d
+        source: Auteur Class Feature
+        behavior: proficiency
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        guid: 59f9d725-6b78-414d-9bbc-ba96952f928b
+        equate: false
+        name: Brag Skill
+        proficiency: proficient
+        description: You gain the Brag skill.
+        subtype: skill
+        skills:
+          d533510d-0f1f-4ce3-a48c-cc21acadb6c6: true
+      name: Brag Skill
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      description: You gain the Brag skill.
+      source: Auteur Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      guid: f63fd9ca-9386-487a-b47d-3687cd66cea6
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        sourceguid: 2fe08c3f-e374-403a-a8b5-a99028892d73
+        description: ""
+        source: Auteur Class Feature
+        name: Dramatic Monologue
+        behavior: activated
+        guid: 8a8b54c9-feb1-4669-80f8-7679180242a4
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: not enemy
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Magic: true
+          targetType: target
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.811249792575836
+              s: 1.00166606903076
+              v: 1.00191080570221
+              a: 1
+          flavor: It doesn’t need to make sense. Just say it with emotionality.
+          sourceReference:
+            __typeName: SourceReference
+            page: 220
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          range: "10"
+          persistence: []
+          modifiers: []
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 3d0b375f-3314-495b-89ff-59d761fc2cba
+            durationUntilEndOfTurn: false
+            duration: 1
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            modesSelected:
+            - 2
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          strain: []
+          guid: a447b087-9251-49cf-8712-ea805c95edad
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          numTargets: mode
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          implementation: 3
+          modeList:
+          - text: Normal
+          - text: 1 Drama
+            rules: You choose two targets.
+            condition: Resources.Heroic Resource > 0
+          name: Dramatic Monologue - Tale of Victory
+          categorization: Heroic Ability
+          description: You orate a rousing tale of victory. One ally within distance gains an edge on the next power roll they make before the start of your next turn.
+          abilityType: none
+          iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+      - __typeName: CharacterModifier
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        sourceguid: 2fe08c3f-e374-403a-a8b5-a99028892d73
+        description: ""
+        source: Auteur Class Feature
+        name: Dramatic Monologue
+        behavior: activated
+        guid: cba12b72-db98-4913-a917-eeb875aa824e
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: not enemy
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Magic: true
+          targetType: target
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.518749713897705
+              s: 1.00166606903076
+              v: 1.00191080570221
+              a: 1
+          flavor: It doesn’t need to make sense. Just say it with emotionality.
+          sourceReference:
+            __typeName: SourceReference
+            page: 220
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          range: "10"
+          persistence: []
+          modifiers: []
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            modesSelected:
+            - 2
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: Dramatic Monologue
+          strain: []
+          guid: a447b087-9251-49cf-8712-ea805c95edad
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          numTargets: mode
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          implementation: 3
+          modeList:
+          - text: Normal
+          - text: 1 Drama
+            rules: You choose two targets.
+            condition: Resources.Heroic Resource > 0
+          name: Dramatic Monologue - High Stakes Heroics
+          categorization: Heroic Ability
+          description: You weave a tale of high-stakes heroics. One ally within distance gains 1 surge.
+          abilityType: none
+          iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+      - __typeName: CharacterModifier
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        sourceguid: 2fe08c3f-e374-403a-a8b5-a99028892d73
+        description: ""
+        source: Auteur Class Feature
+        name: Dramatic Monologue
+        behavior: activated
+        guid: 3de273eb-a63e-4e6f-b631-f668f1eba8a1
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: ""
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Magic: true
+          targetAllegiance: enemy
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: db4a514a-7380-47d7-a842-e5f09309d372
+            durationUntilEndOfTurn: false
+            duration: end_of_next_turn
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            modesSelected:
+            - 2
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.931249916553497
+              s: 1.00166606903076
+              v: 1.00191080570221
+              a: 1
+          flavor: It doesn’t need to make sense. Just say it with emotionality.
+          categorization: Heroic Ability
+          range: "10"
+          persistence: []
+          modifiers: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          strain: []
+          modeList:
+          - text: Normal
+          - text: 1 Drama
+            rules: You choose two targets.
+            condition: Resources.Heroic Resource > 0
+          guid: a447b087-9251-49cf-8712-ea805c95edad
+          numTargets: mode
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          sourceReference:
+            __typeName: SourceReference
+            page: 220
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          targetType: target
+          name: Dramatic Monologue - Insult
+          implementation: 3
+          description: You insult a foe where they’re most vulnerable. One enemy within distance takes a bane on the next power roll they make before the end of their next turn.
+          abilityType: none
+          iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+      name: Dramatic Monologue
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      description: ""
+      source: Auteur Class Feature
+      implementation: 3
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: Auteur Features
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 211e4d44-3903-4ab7-95f9-9c7554d04302
+          source: Auteur Class Feature
+          behavior: activated
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          name: Fix It in Post
+          resourceRefreshType: turn
+          description: "Once on each of your turns, you can use a free maneuver to change one condition affecting a creature within distance of your Dramatic Monologue ability. Choose one of the following conditions on the target: bleeding, frightened, prone, slowed, or taunted. You change that condition to another of those conditions, maintaining the duration and origin of the original condition. A target who is no longer prone can stand up."
+          guid: 453dd4d5-d7d9-49e3-8963-ef2699910558
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: false
+            repeatTargets: false
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            sourceReference:
+              __typeName: SourceReference
+              page: 211
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            usageLimitOptions:
+              resourceRefreshType: turn
+              charges: "1"
+              resourceid: 453dd4d5-d7d9-49e3-8963-ef2699910558
+              multicharge: false
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 12adc2ae-5fd1-44da-a4ef-13104ac3ccd8
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              conditions:
+              - 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+              - 1211270f-bfce-45a6-b937-d72f0e8a06a8
+              - da6867b1-01e3-4570-8d1b-1b94ea1ea343
+              - 68f455f5-135f-495c-822d-40d809d2b15f
+              - 85e26e12-e853-464d-bbbc-98ddf2c0071a
+              chatMessage: Fix It In Post
+              purgeType: replace
+              reminderText: ""
+            domains:
+              class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+            implementation: 4
+            name: Fix It in Post
+            categorization: Ability
+            description: "Once on each of your turns, you can use a free maneuver to change one condition affecting a creature within distance of your Dramatic Monologue ability. Choose one of the following conditions on the target: bleeding, frightened, prone, slowed, or taunted. You change that condition to another of those conditions, maintaining the duration and origin of the original condition. A target who is no longer prone can stand up."
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        source: Auteur Class Feature
+        guid: 211e4d44-3903-4ab7-95f9-9c7554d04302
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        canHavePrerequisites: true
+        classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+        description: "Once on each of your turns, you can use a free maneuver to change one condition affecting a creature within distance of your Dramatic Monologue ability. Choose one of the following conditions on the target: bleeding, frightened, prone, slowed, or taunted. You change that condition to another of those conditions, maintaining the duration and origin of the original condition. A target who is no longer prone can stand up."
+        name: Fix It in Post
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          sourceguid: 738a6be5-ff5c-4295-8dec-6dfdfbd574b2
+          behavior: routine
+          source: Auteur Class Feature
+          name: Take Two!
+          description: You have the following performance ability, which is usable with your Routines features.
+          guid: 08ad4d97-1a25-4310-9921-89522c4b4e6c
+          ability:
+            __typeName: RoutineDisplay
+            target: Self and each ally in the area
+            effect: While this performance is active, each target who starts their turn in the area can reroll the first power roll that turn that obtains a tier 2 outcome. They must use the new roll
+            type: No Action
+            name: Take Two!
+            flavor: One more, and this time make it interesting
+            guid: 328c629b-a631-4ee1-97b5-6b314a81093d
+            distance: 5 aura
+            keywords:
+              Area: true
+              Magic: true
+              Performance: true
+        - __typeName: CharacterModifier
+          sourceguid: 738a6be5-ff5c-4295-8dec-6dfdfbd574b2
+          source: Auteur Class Feature
+          seq: 5ff6ebea-4202-4292-b1aa-ee4ad635b4b6
+          aura:
+            __typeName: Aura
+            applyto: selfandfriends
+            modifiers:
+            - __typeName: CharacterModifier
+              sourceguid: 1d2d9bd3-64d4-428f-b294-426f6d955ce4
+              forceReroll: true
+              source: Aura
+              powerRollModifier:
+                __typeName: CharacterModifier
+                source: Trigger
+                behavior: power
+                keywords: []
+                activationCondition: false
+                guid: 247c9b17-9969-492c-8590-8d51b02a7416
+                rollType: ability_power_roll
+                rules: ""
+                description: While this performance is active, each target who starts their turn in the area can reroll the first power roll that turn that obtains a tier 2 outcome. They must use the new roll
+                modtype: none
+                name: Take Two!
+              guid: 8a2828e0-e316-41b8-ad05-e95d57e8b0e9
+              type: passive
+              targetType: self
+              behavior: powertabletrigger
+              name: Take Two!
+              rules: While this performance is active, each target who starts their turn in the area can reroll the first power roll that turn that obtains a tier 2 outcome. They must use the new roll
+              description: While this performance is active, each target who starts their turn in the area can reroll the first power roll that turn that obtains a tier 2 outcome. They must use the new roll
+              range: 10
+              trigger: powerroll
+            name: Take Two!
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            guid: 1d2d9bd3-64d4-428f-b294-426f6d955ce4
+            description: While this performance is active, each target who starts their turn in the area can reroll the first power roll that turn that obtains a tier 2 outcome. They must use the new roll
+            objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          radius: "5"
+          guid: 41b29777-0a7f-4a81-a743-e28124f0fc08
+          description: You have the following performance ability, which is usable with your Routines features.
+          behavior: aura
+          name: Take Two!
+        source: Auteur Class Feature
+        guid: 738a6be5-ff5c-4295-8dec-6dfdfbd574b2
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        canHavePrerequisites: true
+        classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+        description: You have the following performance ability, which is usable with your Routines features.
+        name: Take Two!
+        implementation: 3
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      guid: 166d809e-7ced-421b-894a-7d477cb1db49
+      source: Auteur Class Feature
+      description: Choose one of the following features.
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 6th-Level Auteur Ability
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          sourceguid: 65c15df3-2ca4-49a9-ae2a-cce0de84a947
+          description: ""
+          source: Auteur Class Feature
+          name: Here’s How Your Story Ends
+          behavior: activated
+          guid: f947dc27-89a8-492b-ba91-26c15a7c2263
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 psychic damage; P < Weak, frightened (save ends)
+              - 5 psychic damage; P < Average, frightened (save ends)
+              - 7 psychic damage; P < Strong, frightened (save ends)
+              roll: 2d10 + Presence
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You give away the ending of this battle, and it’s not great for them
+            categorization: Heroic Ability
+            range: "5"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 212
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain:
+              enabled: true
+            guid: 8a9d4bfd-09bf-4a55-92ad-653be43d3d4c
+            rangeTextOverride: ""
+            numTargets: "1"
+            domains:
+              class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            targetType: all
+            implementation: 3
+            name: Here’s How Your Story End
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Auteur Class Feature
+        guid: 65c15df3-2ca4-49a9-ae2a-cce0de84a947
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        canHavePrerequisites: true
+        classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+        description: ""
+        name: Here’s How Your Story Ends
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          sourceguid: 48080e37-8cb8-452a-9b39-67933587577e
+          description: ""
+          source: Auteur Class Feature
+          name: 'You’re All My Understudies '
+          behavior: activated
+          guid: c15d763e-b55e-4cc1-92f0-0c4271851378
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Each ally in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 1148cc36-88f2-41a4-ac4b-e8e051691292
+              duration: eoe
+              ongoingEffectCustom: 1148cc36-88f2-41a4-ac4b-e8e051691292
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: It’s important for everyone to know each other’s lines, just in case…
+            categorization: Heroic Ability
+            range: "5"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 212
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain: []
+            guid: 85bc8d75-c5de-4a36-ad04-88662f80a149
+            rangeTextOverride: ""
+            numTargets: "1"
+            domains:
+              class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            targetType: all
+            implementation: 3
+            name: 'You’re All My Understudies '
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: Until the end of the encounter, each target gains the speed bonus, weapon distance bonus, disengage bonus, and stability bonus of your currently equipped kit in addition to their own kit’s bonuses.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Auteur Class Feature
+        guid: 48080e37-8cb8-452a-9b39-67933587577e
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        canHavePrerequisites: true
+        classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+        description: ""
+        name: 'You’re All My Understudies '
+        implementation: 3
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      guid: 75625738-d21c-4323-aed2-91e6c0baf6fc
+      source: Auteur Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          sourceguid: a25c8cc6-2adf-4db5-8ae3-15f0c1d9f2f9
+          description: ""
+          source: Auteur Class Feature
+          name: Guest Star
+          behavior: activated
+          guid: d87a712d-ae47-4fa3-93c5-5a65e15ab7c8
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              groupInitiativeWithCaster: false
+              bestiaryFilter: beast.name = "Guest Star"
+              casterChoosesCreatures: false
+            - __typeName: ActivatedAbilityInitiativeBehavior
+              mode: add_to_initiative
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            sourceReference:
+              __typeName: SourceReference
+              page: 219
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "10"
+            numTargets: "1"
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 03227b33-0ef4-4e4d-ac4b-c4d3f6baec28
+            targetType: emptyspace
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            implementation: 3
+            categorization: Heroic Ability
+            name: Guest Star
+            persistence: []
+            description: |-
+              A guest star appears to help you during the encounter: either a bystander within distance uplifted by your magic, or a mysterious new hero who appears in an unoccupied space within distance. This guest star is controlled by you, has their own turn, and shares your characteristics. Their Stamina maximum is half yours. They have no abilities other than your melee and ranged free strikes. At the end of the encounter, or when the guest star is reduced to 0 Stamina, they retreat or revert to a bystander. The same bystander can’t be uplifted 
+              this way more than once during an encounter.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Auteur Class Feature
+        guid: a25c8cc6-2adf-4db5-8ae3-15f0c1d9f2f9
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        canHavePrerequisites: true
+        classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+        description: ""
+        name: Guest Star
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          sourceguid: 9f480078-1bc8-4e6d-83c7-6c8dbea31e0f
+          description: ""
+          source: Auteur Class Feature
+          name: Twist at the End
+          behavior: activated
+          guid: f612b77c-0169-4387-aa1f-29dee25adb92
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: false
+            targetFilter: (not target.solo) and (not target.leader) and (not friends(caster, target))
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            targetAllegiance: dead
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            sourceReference:
+              __typeName: SourceReference
+              page: 219
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: c9675e13-3651-439c-82da-449bd8b78def
+            categorization: Heroic Ability
+            numTargets: "1"
+            domains:
+              class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            implementation: 3
+            behaviors:
+            - __typeName: ActivatedAbilityRaiseCorpseBehavior
+            - __typeName: ActivatedAbilityInitiativeBehavior
+              mode: add_to_initiative
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: f420865b-9037-4007-a65f-3df5e4688c14
+              ongoingEffectCustom: f420865b-9037-4007-a65f-3df5e4688c14
+            name: Twist at the End
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: A target who is not a leader or solo creature comes back to life with half their Stamina and becomes an ally under the Director’s control. The players can work with the Director to determine when the target takes their turn each combat round. At the end of the encounter, the target turns to dust and is blown away.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Auteur Class Feature
+        guid: 9f480078-1bc8-4e6d-83c7-6c8dbea31e0f
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        canHavePrerequisites: true
+        classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+        description: ""
+        name: Twist at the End
+        implementation: 3
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      guid: ef960d15-3239-4f0f-8a3e-3caceae0dfec
+      description: Choose one of the following abilities.
+      name: 2nd-Level Auteur Ability
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      guid: 30c11193-7a07-4d6d-bfb1-b3846ca3722c
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 21e8aa15-4dd2-4b1b-b84a-a6d1b78779fc
+        source: Auteur Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          keywords: []
+          activationCondition: false
+          guid: 0f18a310-ba80-4771-95eb-260787f43769
+          rollType: ability_power_roll
+          rules: ""
+          name: Turnabout is Fair Play
+          modtype: edge_bane
+          rollRequirement: edge
+        guid: 327f3719-79f4-4651-9f13-987552ae0e42
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        targetType: enemy
+        trigger: powerroll
+        name: Turnabout is Fair Play
+        rules: An edge becomes a bane
+        description: ""
+        range: 10
+        additionalCostModifiers:
+        - __typeName: CharacterModifier
+          resourceCostType: cost
+          guid: 31c9679c-d32c-41c5-ba1a-c9704369212a
+          keywords: []
+          resourceCostAmount: 3
+          activationCondition: false
+          rollType: ability_power_roll
+          behavior: power
+          name: Turnabout is Fair Play+
+          rules: ""
+          modtype: bane
+          source: Trigger
+          rulesText: An edge becomes a double bane
+      - __typeName: CharacterModifier
+        sourceguid: 21e8aa15-4dd2-4b1b-b84a-a6d1b78779fc
+        source: Auteur Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          keywords: []
+          activationCondition: false
+          guid: 0f18a310-ba80-4771-95eb-260787f43769
+          rollType: ability_power_roll
+          rules: ""
+          name: Turnabout is Fair Play
+          modtype: bane_edge
+          rollRequirement: bane
+        guid: 8d2b0e86-1bca-4434-8307-8ac1c6af493a
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        targetType: selforally
+        trigger: powerroll
+        name: Turnabout is Fair Play
+        rules: A bane becomes an edge
+        description: ""
+        range: 10
+        additionalCostModifiers:
+        - __typeName: CharacterModifier
+          resourceCostType: cost
+          guid: 8841ce3f-2efb-4cd5-9f10-913cd098ed5e
+          keywords: []
+          resourceCostAmount: 3
+          activationCondition: false
+          rollType: ability_power_roll
+          behavior: power
+          name: Turnabout is Fair Play+
+          rules: ""
+          modtype: edge
+          source: Trigger
+          rulesText: A bane becomes a double edge
+      - __typeName: CharacterModifier
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        sourceguid: 21e8aa15-4dd2-4b1b-b84a-a6d1b78779fc
+        behavior: triggerdisplay
+        source: Auteur Class Feature
+        name: Turnabout is Fair Play
+        description: ""
+        guid: da20b018-c10d-4054-8f1a-2e30b0b69a0b
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: |
+            One of the edges becomes a bane or vice versa.
+            **Spend 3 Drama:** One of the edges becomes a double bane, or one of the attack’s banes becomes a double edge.
+          name: Turnabout Is Fair Play
+          flavor: All’s fair in love and whatever.
+          guid: f5d249e8-1533-4781-8d47-fd56819cdbc2
+          trigger: The target makes an ability power roll with at least one edge or bane.
+          keywords: []
+      name: Turnabout is Fair Play
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      description: ""
+      source: Auteur Class Feature
+      implementation: 3
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      guid: 11d843d7-3dcf-470b-86a0-d2ae4a3bc5d0
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        sourceguid: d2e97c85-1029-42cc-864a-1ea35d507bb3
+        behavior: routine
+        source: Auteur Class Feature
+        name: Blocking
+        description: ""
+        guid: b9bd4a73-b471-4d5c-a279-62733000f6ef
+        ability:
+          __typeName: RoutineDisplay
+          target: Special
+          effect: At the end of each of your turns while this routine is active, you can choose a number of creatures equal to your Presence score in the aura, causing those creatures to be teleported to unoccupied squares in the aura. A target can’t be teleported in a way that would harm them (such as over a cliff), leave them dying, or result in them suffering a condition or other negative effect.
+          type: No action
+          name: Blocking
+          flavor: No, no, no, you lose the audience that way. Try it like this...
+          guid: 3d73ea20-f405-4cdd-bbc0-7d2fea8e1180
+          distance: 2 Aura
+          keywords:
+            Area: true
+            Magic: true
+            Performance: true
+      - __typeName: CharacterModifier
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        sourceguid: d2e97c85-1029-42cc-864a-1ea35d507bb3
+        description: ""
+        source: Auteur Class Feature
+        name: Blocking
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            abilityType: standard
+            inheritRange: false
+            standardAbilityParams:
+              range: "2"
+              targetfilter: "1"
+            promptText: Teleport a creature (1/{Presence})
+            autoTarget: false
+            filterTarget: Presence > 0
+            standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2043b86c-44f7-4fb6-835e-cea6a567f366
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            promptText: Teleport a creature (2/{Presence})
+            guid: cc77fe41-f72d-4b93-b659-83a4ad34d87a
+            filterTarget: Presence > 1
+            abilityType: standard
+            standardAbilityParams:
+              range: "2"
+              targetfilter: "1"
+            autoTarget: false
+            inheritRange: false
+            standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2043b86c-44f7-4fb6-835e-cea6a567f366
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            promptText: Teleport a creature (3/{Presence})
+            guid: c30bb56c-939b-49a2-8a68-b952c8377801
+            filterTarget: Presence > 2
+            abilityType: standard
+            standardAbilityParams:
+              range: "2"
+              targetfilter: "1"
+            autoTarget: false
+            inheritRange: false
+            standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2043b86c-44f7-4fb6-835e-cea6a567f366
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            promptText: Teleport a creature (4/{Presence})
+            guid: 3f1ac18b-3d9a-4ab4-8741-fe7ad9a69d83
+            filterTarget: Presence > 3
+            abilityType: standard
+            standardAbilityParams:
+              range: "2"
+              targetfilter: "1"
+            autoTarget: false
+            inheritRange: false
+            standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2043b86c-44f7-4fb6-835e-cea6a567f366
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            promptText: Teleport a creature (5/{Presence})
+            guid: ad6c7858-0dbd-468c-a971-72084f15a245
+            filterTarget: Presence > 4
+            abilityType: standard
+            standardAbilityParams:
+              range: "2"
+              targetfilter: "1"
+            autoTarget: false
+            inheritRange: false
+            standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2043b86c-44f7-4fb6-835e-cea6a567f366
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          abilityType: none
+          guid: 9773da81-1d87-4036-8554-e72f05eaac45
+          repeatTargets: false
+          trigger: endturn
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          targetType: self
+          triggerPrompt: Teleport creatures within your Blocking aura.
+          name: Blocking
+          mandatory: false
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: e853fb3d-83aa-411a-a755-12cb1bad0443
+      - __typeName: CharacterModifier
+        sourceguid: 0827be19-5567-4536-893e-605200b2eb14
+        source: Auteur Class Feature
+        seq: 859584a5-4247-4266-b030-d1dba55b7bfb
+        aura:
+          __typeName: Aura
+          modifiers: []
+          source: Blocking
+          guid: 671931f9-c6c2-4e34-96be-7a2ab8e5023a
+          objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+          applyto: selfandfriends
+          name: Blocking
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.513999998569489
+              s: 1.00208103656769
+              v: 1.00238609313965
+              a: 1
+          description: The Troubadour may teleport creatures in this aura at the end of their turn.
+          implementation: 3
+          iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        radius: "2"
+        guid: 464aa718-b195-4b93-857b-bee9c3bf8db4
+        description: ""
+        behavior: aura
+        name: Choreography
+      name: Blocking
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      description: ""
+      source: Auteur Class Feature
+      implementation: 3
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          sourceguid: b3edf35c-6f7f-4930-8bd6-a546ceb9c37d
+          description: Your story tells a tale of the villain’s waning power and how the heroes rose to the occasion to stop them.
+          source: Auteur Class Feature
+          name: Epic
+          behavior: activated
+          guid: fefe7122-80f3-4d64-9275-7c3354ac4fec
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Melee: true
+            implementationDetails: 'If there are multiple troubadours using this ability in an encounter there may be issues with triggers firing for incorrect targets. '
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - The target takes a bane on ability rolls (save ends)
+              - The target has a double bane on ability rolls (save ends)
+              - The target has a double bane on power rolls (save ends)
+              roll: 2d10 + Presence
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 1
+              ongoingEffect: 9cf1fc5c-11a9-4507-84be-a15f3cbedf3f
+              duration: save_ends
+              ongoingEffectCustom: 9cf1fc5c-11a9-4507-84be-a15f3cbedf3f
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 2
+              ongoingEffect: c43a883d-d373-466e-9895-78b51a02f75d
+              duration: save_ends
+              ongoingEffectCustom: c43a883d-d373-466e-9895-78b51a02f75d
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 3
+              ongoingEffect: 2378b77e-dc66-4f7b-9851-ba4365a4d969
+              duration: save_ends
+              ongoingEffectCustom: false
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              inheritRange: true
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: ally
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "10"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 07437268-27cc-4d0d-9501-5dc9b3381d16
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: a0917c4a-202b-4416-924c-e776805c78e3
+                  ongoingEffectCustom: a0917c4a-202b-4416-924c-e776805c78e3
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: "Choose one ally within distance who can make a free strike \vwhenever the target of Epic uses an ability."
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your story tells a tale of the villain’s waning power and how the heroes rose to the occasion to stop them
+            categorization: Heroic Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: fc93c0b8-6ec3-44c6-9966-4fa7a6628923
+            numTargets: "1"
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            domains:
+              class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            targetType: target
+            sourceReference:
+              __typeName: SourceReference
+              page: 214
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Epic
+            implementation: 3
+            description: Choose one ally within distance. While the target is affected by this ability, each time they use an ability, that ally can make a free strike against them after the ability is resolved.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Auteur Class Feature
+        guid: b3edf35c-6f7f-4930-8bd6-a546ceb9c37d
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        canHavePrerequisites: true
+        classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+        description: Your story tells a tale of the villain’s waning power and how the heroes rose to the occasion to stop them.
+        name: Epic
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          sourceguid: 8520a9d6-1210-4b62-85c2-fce641c6b571
+          description: You narrate the tension of the scene and put all hope into your protagonist to turn things around.
+          source: Auteur Class Feature
+          name: Rising Tension
+          behavior: activated
+          guid: 1b75dbf0-f6ce-44a8-9a70-ed208137be97
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Melee: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+              chatMessage: Rising Tension
+              quantity: "3"
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              conditions:
+              - 567a3454-ead6-4416-b338-ed73d64b7805
+              - 68f455f5-135f-495c-822d-40d809d2b15f
+              filterTarget: (Conditions has "Weakened") or (Conditions has "Slowed")
+              chatMessage: Rising Tension
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 74655f6f-79e8-466b-92e9-f831467e6a4d
+              duration: end_of_next_turn
+              ongoingEffectCustom: 74655f6f-79e8-466b-92e9-f831467e6a4d
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You narrate the tension of the scene and put all hope into your protagonist to turn things around.
+            categorization: Heroic Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: c145594e-4c72-41ff-82cb-7386424fd396
+            numTargets: "1"
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            domains:
+              class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            targetType: target
+            sourceReference:
+              __typeName: SourceReference
+              page: 214
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Rising Tension
+            implementation: 4
+            description: The target gains 3 of their Heroic Resource, has a double edge on a power roll of their choice made during their next turn, is no longer slowed or weakened if they were before, and can immediately take their turn after yours if they have not taken their turn already this round.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Auteur Class Feature
+        guid: 8520a9d6-1210-4b62-85c2-fce641c6b571
+        domains:
+          class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        canHavePrerequisites: true
+        classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+        description: You narrate the tension of the scene and put all hope into your protagonist to turn things around.
+        name: Rising Tension
+        implementation: 4
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      guid: 0f7b3641-b67c-4745-b9db-4c20efa6f019
+      description: 'Choose one of the following abilities. '
+      name: 9th-Level Auteur Ability
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      description: If you aren’t surprised at the start of an encounter, you can choose one enemy within your line of effect who is not a leader or solo creature. The Director temporarily removes the chosen creature from the encounter. The chosen creature enters the encounter at the start of the second combat round. You must earn 3 Victories before you can use this feature again.
+      modifiers: []
+      name: Missed Cue
+      classid: 49d33333-8440-4da6-b602-b34eab70ef0d
+      guid: c58b07aa-69bc-4c7f-92a0-af8c9926b9eb
+      source: Auteur Class Feature
+      canHavePrerequisites: true
+    domains:
+      class:49d33333-8440-4da6-b602-b34eab70ef0d: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+details: You seek drama from story and recount, using your magic to manipulate the sequence of events unfolding before you. You gain the Brag skill.
+name: Auteur
+mtime: 1773583565094
+id: 49d33333-8440-4da6-b602-b34eab70ef0d
+primaryClassId: 97bd30e0-b670-41c7-9136-6a832625f049

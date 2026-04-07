@@ -1,0 +1,255 @@
+__typeName: Race
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers: []
+    name: "Signature Trait: Detect the Supernatural"
+    description: As a maneuver, you open your awareness to detect supernatural creatures and phenomena. Until the end of your next turn, you know the location of any supernatural object, undead, construct, or creature from another plane of existence within 5 squares of you, even if you don’t have line of effect to them. You know if you’re detecting an item or a creature, and you know if a creature is undead, a construct, or from another plane of existence. 
+    guid: 75d8f226-1848-4e98-b245-31d350c644d4
+    source: Human Race Feature
+    implementation: 4
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    costsPoints: true
+    options:
+    - __typeName: CharacterFeature
+      guid: 4081942d-fdb3-4975-9096-8bfa0c268832
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 2e99c428-4ef9-415c-bea1-b366d3ef5d8a
+        sourceguid: 4081942d-fdb3-4975-9096-8bfa0c268832
+        behavior: attribute
+        source: Human Race Feature
+        name: Can't Take Hold
+        description: 'Your connection to the natural world allows you resist supernatural effects. You ignore difficult terrain (but not other effects) created by magic and psionic abilities. Additionally, when you are force moved by a magic or psionic ability, you reduce the forced movement by 1. '
+        value: 1
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 4081942d-fdb3-4975-9096-8bfa0c268832
+        source: Human Race Feature
+        modtype: none
+        adjustments:
+        - type: push
+          value: "-1"
+        - type: pull
+          value: "-1"
+        - type: slide
+          value: "-1"
+        keywords:
+          Magic: true
+          Psionic: true
+        activationCondition: true
+        behavior: power
+        name: Can't Take Hold
+        rollType: enemy_ability_power_roll
+        description: 'When you are force moved by a magic or psionic ability, you reduce the forced movement by 1. '
+        matchAnyKeywords: true
+        guid: e518ff26-0b1a-48d3-b033-5424c0e34fda
+      source: Human Race Feature
+      name: Can't Take Hold
+      description: 'Your connection to the natural world allows you resist supernatural effects. You ignore difficult terrain (but not other effects) created by magic and psionic abilities. Additionally, when you are force moved by a magic or psionic ability, you reduce the forced movement by 1. '
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 7d540696-a16f-4852-8e36-c7c7339cf42d
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7d540696-a16f-4852-8e36-c7c7339cf42d
+        source: Human Race Feature
+        behavior: power
+        keywords: []
+        activationCondition: true
+        skills:
+        - a1a8f269-3223-476c-bae6-2f8904680e7f
+        modtype: edge
+        name: Perseverance
+        rollType: test_power_roll
+        description: Giving up is for other people. You gain an edge on tests made using the Endurance skill. Additionally, when you are slowed, your speed is reduced to 3 instead of 2.
+        guid: 0159bae7-9b5f-49b7-9bab-023551f1c64f
+        attribute: all
+      - __typeName: CharacterModifier
+        operation: max
+        sourceguid: 7d540696-a16f-4852-8e36-c7c7339cf42d
+        source: Human Race Feature
+        value: 3
+        name: Perseverance
+        guid: daae6975-2f51-4108-a19b-368decf39819
+        description: Giving up is for other people. You gain an edge on tests made using the Endurance skill. Additionally, when you are slowed, your speed is reduced to 3 instead of 2.
+        behavior: attribute
+        attribute: 9e41a093-bf02-4b65-aa0d-42ed091d7927
+      source: Human Race Feature
+      name: Perseverance
+      description: Giving up is for other people. You gain an edge on tests made using the Endurance skill. Additionally, when you are slowed, your speed is reduced to 3 instead of 2.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Your connection to the natural world protects you from unnatural forces. When you take damage that isn’t untyped, you can use your triggered action to half the damage.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7a066651-7e14-4d7e-8c00-23f2488bd7a5
+        guid: 434f99db-83c7-4061-ba04-8182e8b5c690
+        source: Human Race Feature
+        behavior: triggerdisplay
+        description: Your connection to the natural world protects you from unnatural forces. When you take damage that isn’t untyped, you can use your triggered action to half the damage.
+        name: Resist the Unnatural
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The damage is halved.
+          name: Resist the Unnatural
+          trigger: Take Damage that isn't untyped	
+          guid: 928ffdc3-e9e9-4aa7-8b8b-628d59bc2b0e
+          distance: Ranged 20
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 7a066651-7e14-4d7e-8c00-23f2488bd7a5
+        damageType: typed
+        source: Human Race Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          keywords: []
+          activationCondition: ""
+          damageMultiplier: half
+          rollType: ability_power_roll
+          rules: ""
+          guid: aa82ee99-810f-4907-be5d-a4f100d73981
+          modtype: none
+          name: Resist the Unnatural
+        guid: 7b8fa199-d567-45c2-a9f8-54b15032eeeb
+        type: trigger
+        targetType: self
+        trigger: takedamage
+        name: Resist the Unnatural
+        rules: When you take damage that isn’t untyped, you can use your triggered action to half the damage.
+        description: Your connection to the natural world protects you from unnatural forces. When you take damage that isn’t untyped, you can use your triggered action to half the damage.
+        range: 10
+        behavior: powertabletrigger
+      source: Human Race Feature
+      name: Resist the Unnatural
+      guid: 7a066651-7e14-4d7e-8c00-23f2488bd7a5
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 55c871ba-9b2b-4c8d-b1bf-cc12fe62af0e
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 55c871ba-9b2b-4c8d-b1bf-cc12fe62af0e
+        guid: b64610a3-68d3-450e-af6b-d7992c24b111
+        source: Human Race Feature
+        behavior: activated
+        description: Your anatomical tolerance for pain allows you to push through difficult situations. If you are frightened, slowed, or weakened, you can use a maneuver to immediately end the condition.
+        name: Determination
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: Your anatomical tolerance for pain allows you to push through difficult situations.
+          categorization: Ability
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          modeList: []
+          domains: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          guid: 3ad380ea-2067-4277-954d-8590c3bb9be1
+          name: Determination
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions:
+            - 1211270f-bfce-45a6-b937-d72f0e8a06a8
+            - df7da0be-bf4f-40bd-9cd8-2d250b62109b
+            - 567a3454-ead6-4416-b338-ed73d64b7805
+            - f3f4aa55-2d4d-4ab6-8f9f-fe27cb3c90a2
+            - 68f455f5-135f-495c-822d-40d809d2b15f
+            mode: conditions
+            purgeType: one
+          description: If you are frightened, slowed, or weakened, you can use a maneuver to immediately end the condition.
+          abilityType: none
+          iconid: 4fcc1b87-081c-4312-92c4-25be088c118a
+      source: Human Race Feature
+      name: Determination
+      description: Your anatomical tolerance for pain allows you to push through difficult situations. If you are frightened, slowed, or weakened, you can use a maneuver to immediately end the condition.
+      pointsCost: 2
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Human anatomy allows them to fight, run, and stay awake longer than others. Increase the number of Recoveries you get by 2.
+      modifiers:
+      - __typeName: CharacterModifier
+        resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+        sourceguid: d6b980bc-6e06-41a9-8a90-14a34ac7d64a
+        behavior: resource
+        source: Human Race Feature
+        name: Staying Power
+        num: 2
+        description: Human anatomy allows them to fight, run, and stay awake longer than others. Increase the number of Recoveries you get by 2.
+        guid: b67e185c-7549-4c7d-be62-0562a7bc0ef4
+      source: Human Race Feature
+      name: Staying Power
+      guid: 471a9430-3713-41fd-938f-79ac4c6ceba9
+      pointsCost: 2
+      implementation: 3
+    numChoices: "3	"
+    guid: c7fcd6a3-1b4a-4ed9-bc6f-13af37b6b9d8
+    description: You have 3 ancestry points to spend on the following traits.
+    name: Purchased Human Traits
+  domains:
+    race:6f995f3d-a4e3-456a-9294-ff2c9ec5cb95: true
+nameGenerator: 0726b8d5-8dfa-41d8-ae17-5ad93f50b7dc
+lifeSpan: 70–120
+id: 6f995f3d-a4e3-456a-9294-ff2c9ec5cb95
+ctime: 1699766891914
+moveSpeeds:
+  walk: 5
+lore: |-
+  So, we arrive here at the end of your first semester of Human Culture. I hope to see you next year in the Caelian Empire course, and though it may be hard to believe now, I often see former students’ names in our textbooks years later. Perhaps that will be some of you.
+
+  I will now answer the one question I am asked most often, and which I save answering until the last day of class. What do I think of humans?
+
+  I am a high elf, as you deem it in your tongue. A child of the solar celestials. And I have taught this class, mostly to young humans, for thirteen centuries. I have seen generations of your people come through this classroom, and that alone would well qualify me to answer this question.
+
+  What do I think of humans? Well, I will tell you.
+
+  I was here, teaching this class during the fire of Chaos 373. The fire leveled this city. Can you imagine that? Can you imagine the heat, the death, destruction that such a thing causes?
+
+  Six months after the Great Fire, your ancestors had rebuilt … everything. I have seen many miracles in my life. Witnessing that feat might be chief among them.
+
+  Liches are almost always humans. Did you know that? I think I know why. Your lives are so short—almost as soon as you’re born, you’re thinking about dying, and you refuse to yield.
+
+  That refusal to yield to death … to death … is what drives you, I think. Drives you to leave the world better than you found it. Causes ruined people to rebuild great city.
+
+  We studied human history in this room. Did you feel that those great ancestors of yours were perhaps made of finer stuff than you? Do not think thus. I knew them, and I know you, and your future is greater. I sometimes think each human generation greater than the last—more courageous, more generous. Quicker to forgive.
+
+  Today, Ajax’s name is on everyone’s tongue, but we learned of many great evils that plagued this world. We met the Pharaoh Khorsekef, desperate, his power failing, as he opened the Great Tet and drank of the time stored there, becoming the Ultralich. He was defeated, and now rules the Necropolitan Ruin in the Abyssal Waste.
+
+  We watched Cthrion Uroniziir try to reduce the timescape into one singular universe, wiping out reality as we know it. She was defeated, and we see her cage every day. (Professor Cilliarwn did not elaborate on this.)
+
+  Each of these great evils was defeated by a coalition. The armies and heroes of many speaking peoples. And all of them—all of them—were led … by humans. That’s a fact. That’s history. You can look it up.
+
+  Is there some rare trait that makes you uniquely qualified to lead disparate peoples, bring them together to achieve great things? I think … there must be.
+
+  Those great humans, your ancestors, did not focus on differences. They did not weigh different people and grade them based on arbitrary traits deemed virtues and flaws. That is what Ajax does. No, those humans focused on the future. On making a better world … for all of us. A world many of them knew they would not live to see. That is a sacrifice … I can scarcely imagine.
+
+  The people who stand against Ajax and tyrants like him will be just like you—normal people. Priests and scholars and merchants and farmers. Maybe even teachers.
+
+  Stopping Ajax will require you to become something else. You must become heroes. Conduits of saints, warmasters of great armies. Censors and shadows. That may seem unlikely now, but the future has a way of surprising us.
+
+  Some of your names, I will see written in future textbooks.
+
+  But some of your names, I will see written in the stars.
+details: "“Humans belong to the world in a way the other speaking peoples do not. You can sense the presence of magic—that … oily smell in the air, as I’ve heard it described. And the presence of deathless causes the hairs on the back of your neck to stand up. Or why do you think graveyards affect you so? Whatever magic is, its grip on you is light. Whatever drives the deathless, your nature rebels against it. \n\n“No one knows why this should be. We elves have no such senses. Nor do the elementals or the kanin … the dwarves and the orcs as you say. What is it that sets humans apart? I am an historian, not a physician. I cannot say. Perhaps some of you will one day find out and teach us all the reason.” "
+name: Human
+mtime: 1770562195183
+height: 5’0’’–6’0’’
+weight: 100–300
+portraitid: 79130d15-cff3-43de-b278-f1472e9f65cc

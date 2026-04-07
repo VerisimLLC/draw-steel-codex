@@ -1,0 +1,106 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: f0be14dc-ca9e-4264-b196-4249e5cf090e
+  description: 'Damage from fire attacks is reduced by Level. '
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: not (Ongoing Effects has "Red Cloak")
+    sourceguid: f0be14dc-ca9e-4264-b196-4249e5cf090e
+    name: Color Cloak (Red)
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: Level
+      damageType: fire
+      apply: Damage Reduction
+    description: 'Damage from fire attacks is reduced by Level. '
+    behavior: resistance
+    guid: e993037a-2528-41a8-a839-2df31c024520
+  - __typeName: CharacterModifier
+    filterCondition: not (Ongoing Effects has "Red Cloak")
+    sourceguid: f0be14dc-ca9e-4264-b196-4249e5cf090e
+    description: 'Damage from fire attacks is reduced by Level. '
+    source: Item
+    name: Color Cloak (Red)
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      hasManualVersion: true
+      strain: []
+      guid: 5a5d6619-b2c1-4a24-b557-8bb76ca737ea
+      numTargets: "1"
+      castImmediately: true
+      conditionFormula: HasAbility and (ability.damagetypes has "Fire") and not (ongoing Effects has "Red Cloak")
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: Shift {Level}
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 549035ce-e960-4a19-8a65-d194f68deb16
+        duration: endnextround
+        ongoingEffectCustom: 549035ce-e960-4a19-8a65-d194f68deb16
+      trigger: losehitpoints
+      name: Color Cloak (Red)
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: 18860925-b091-4a29-9b51-8c7d547d1951
+  - __typeName: CharacterModifier
+    sourceguid: f0be14dc-ca9e-4264-b196-4249e5cf090e
+    guid: 2f19694f-edcb-4abd-8182-81c2c80b3154
+    source: Item
+    behavior: triggerdisplay
+    description: 'Damage from fire attacks is reduced by Level. '
+    name: Color Cloak (Red)
+    ability:
+      __typeName: TriggeredAbilityDisplay
+      target: Self
+      effect: You shift a number of squares equal to your level. The fire immunity granted by the cloak becomes fire weakness with the same value until the end of the next round. You can't use this triggered action against until the fire weakness ends.
+      trigger: You are targeted by an effect that deals fire damage.
+      name: Color Cloak (Red)
+      guid: b6120cf1-785f-424a-b85e-5f3266057727
+      distance: Self
+      keywords: []
+  source: Item
+  name: Color Cloak (Red)
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: A pint of red ichor, soul chalk
+keywords:
+  Magic: true
+  Neck: true
+projectSource: Licensing agreements in Anjali
+flavor: This red woolen hooded cloak is emblazoned with a golden Anjali sigil meaning “fire.”
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+description: |-
+  While worn, a red Color Cloak grants you fire immunity equal to your level. 
+
+  Additionally, when you are targeted by any effect that deals fire damage, you can use a triggered action to reduce the damage to 0. If you do so, the fire immunity granted by this cloak becomes fire weakness with the same value until the end of the next round. You can’t use this triggered action again until this weakness ends.
+implementation: 3
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+domains:
+  item:7e31c6c9-18ff-4f44-bf68-f8032d08adb1: true
+id: b2f04f55-0275-4e4e-a6b4-23dc3ffce594
+projectGoal: "150"
+name: Color Cloak - Red
+ctime: 1759038338295
+mtime: 1763106961445
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 34bf3caf-cec1-4824-81c0-62bdf76006a9

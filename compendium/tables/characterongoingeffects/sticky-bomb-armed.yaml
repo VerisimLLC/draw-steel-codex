@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 5af9e6bb-40af-4796-a51b-87796d37ab8d
+id: 5af9e6bb-40af-4796-a51b-87796d37ab8d
+ctime: 1753164000252
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Sticky Bomb Armed
+statusEffect: false
+mtime: 1753164000252
+description: ""
+iconid: ui-icons/skills/1.png

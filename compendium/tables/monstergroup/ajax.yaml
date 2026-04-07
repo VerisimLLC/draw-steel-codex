@@ -1,0 +1,119 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 698fddd7-8e3b-428c-b1c9-1e9038096936
+  repeatTargets: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  abilityType: none
+  behaviors: []
+  targetType: self
+  name: Reason
+  numTargets: "1"
+  description: Ajax attempts to instill doubt into a creature within line of effect through logic and reason. The creature and Ajax make an opposed Reason test. If Ajax wins, he chooses to either deal 11 extra damage to one target on his next strike or to gain an additional triggered action during the current round. Ajax can’t use this feature against the same creature during the same encounter.
+  range: 1
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: a2c8a30c-821f-4bdb-b5ac-be29e5e86882
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Nexus Jewel
+  range: 1
+  description: |-
+    Until the end of the round, Ajax chooses one of the following environments he has previously visited and overlays that environment
+    on top of the encounter map, temporarily merging multiple realities.
+
+    Incredibly High Above the Ground: The winds whip and bluster.
+    Any creature who can’t fly takes a -3 penalty to stability, and forced movement effects gain a +3 bonus to their distance against such creatures.
+
+    Swamp: The ground is difficult terrain for enemies. Any creature who starts and ends their turn in the same space is restrained (save ends).
+
+    Volcanic Canyon: The air is stiflingly hot. Each enemy takes 5 fire damage for each square they enter.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: 1bc9cb70-6e2f-498d-ac1c-c3e93a59d5c1
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 3fe2584a-733e-403f-9878-2781aaf6f6fd
+  castImmediately: true
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: Ajax takes an additional main action on his turn. He can use this feature even if he is dazed.
+  abilityType: none
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  resourceNumber: "10"
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Area: true
+    Magic: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    isTest: true
+    roll: 2d10 + Might or Agility or Reason or Intuition or Presence
+    resistanceRoll: false
+    tiers:
+    - 26 damage; bleeding and slowed (save ends)
+    - 22 damage; bleeding (save ends)
+    - 16 damage
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "10"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 327cee02-3362-416d-b03f-6200c7139f7c
+  numTargets: "1"
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  radius: "4"
+  name: Draw Steel
+  targetType: cube
+  description: Ajax then raises his Blade of the Gol King above his head as four giant blades emerge from the ground to fill the area. Each target is pushed into an unoccupied space adjacent to the area after the power roll is resolved. Each blade blocks line of effect and can be dismissed by Ajax at will (no action required).
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+mtime: 1762940251143
+name: Ajax
+traits: []
+attacks: []
+id: 31119049-9afc-4432-a226-cb56efc03fc8
+ctime: 1762939572153

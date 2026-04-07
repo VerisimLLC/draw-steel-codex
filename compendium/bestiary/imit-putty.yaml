@@ -1,0 +1,530 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: a1d913af-5769-4de6-8380-df6bb2a173e5
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: "Null"
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8ae25daa-60d4-4ee7-a8ce-27aeb992e45f
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    keywords:
+      Ooze: true
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Imit Putty
+    levelChoices: []
+    deathSavingThrowFailures: 0
+    ongoingEffects: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        29b287a2-4e39-4d79-85eb-ec644ef86442:
+          note: 2 Damage
+          timestamp: 1763975421005
+          disposition: bad
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 13
+        fdeb372b-c051-4406-ad5e-ce5dcfdb6472:
+          note: 8 Healing
+          timestamp: 1763975429618
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        a697bb23-4f01-4ae8-ae2c-b27de2812f92:
+          note: 6 damage from Stupid Imit Putty's Split
+          disposition: bad
+          timestamp: 1763975425227
+          attackerid: 209e5a33-9ae7-4305-8764-a4429c114e67
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 7
+        91dc091f-5184-4c52-bc0d-28354557cf73:
+          note: 2 damage from Vex Test Elementalist's Practical Magic - Hurl; Damage Immunity reduced by 2 to 0
+          disposition: bad
+          timestamp: 1763543924942
+          attackerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+    minion: false
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f56db136-6035-43c8-9577-ea29597a474c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f56db136-6035-43c8-9577-ea29597a474c
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:f56db136-6035-43c8-9577-ea29597a474c: true
+        name: Climb Speed
+        guid: 0cb106f7-3407-45a8-8142-118f5adebeb4
+        description: ""
+        behavior: attribute
+        attribute: climb
+      source: Character Feature
+      description: ""
+      guid: f56db136-6035-43c8-9577-ea29597a474c
+      name: Climb Speed
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cabb28dc-3ba8-4a92-aab7-3d81137aa189: true
+        CharacterFeature:64f636e5-3c5d-4ff6-b02c-b0cc41395fa0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cabb28dc-3ba8-4a92-aab7-3d81137aa189
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:cabb28dc-3ba8-4a92-aab7-3d81137aa189: true
+          CharacterFeature:64f636e5-3c5d-4ff6-b02c-b0cc41395fa0: true
+        name: Gelatinous
+        guid: dc9d7e33-0eb9-4b9d-9b8e-1922997ccc6e
+        description: The imit putty can move through spaces as if they were a size 1T creature.
+        behavior: attribute
+        attribute: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+      source: Character Feature
+      description: The imit putty can move through spaces as if they were a size 1T creature.
+      guid: 64f636e5-3c5d-4ff6-b02c-b0cc41395fa0
+      name: Gelatinous
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:236f8a31-a2d3-4b92-9352-8cbea67ca8d4: true
+        CharacterFeature:5d004133-3f4e-42ff-b7ba-0f392c32ae52: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:236f8a31-a2d3-4b92-9352-8cbea67ca8d4: true
+          CharacterFeature:5d004133-3f4e-42ff-b7ba-0f392c32ae52: true
+        sourceguid: 236f8a31-a2d3-4b92-9352-8cbea67ca8d4
+        description: The imit putty splits to create another imit putty, each with half their current Stamina before splitting. The new putty has none of the benefits, effects, or conditions affecting the original.
+        source: Character Feature
+        name: Split
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: The creeping sludge splits to create another creeping sludge, each with half their current stamina before splitting.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 94ef1c9e-32f0-4db2-8ceb-67fbb4552d48
+              repeatTargets: false
+              abilityType: none
+              categorization: Hidden
+              behaviors:
+              - __typeName: ActivatedAbilitySummonBehavior
+                casterChoosesCreatures: false
+                groupInitiativeWithCaster: false
+                bestiaryFilter: Beast.Name = Invoker.Name
+                casterControls: false
+                monsterType: custom
+              - __typeName: ActivatedAbilityDamageBehavior
+                cannotBeReduced: true
+                roll: Maximum Stamina - (Invoker.Stamina * 0.5)
+                doesNotTrigger: true
+              numTargets: "1"
+              name: Invoked Ability
+              targetType: emptyspace
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            promptText: Split
+          - __typeName: ActivatedAbilityDamageBehavior
+            cannotBeReduced: true
+            roll: Stamina * 0.5
+            doesNotTrigger: true
+          trigger: losehitpoints
+          persistence: []
+          modifiers: []
+          mandatoryDifferentPlayer: false
+          strain: []
+          whenActive: always
+          guid: de665ad2-f0cc-401e-b410-107c12ddb165
+          hasManualVersion: true
+          castImmediately: false
+          numTargets: "1"
+          domains:
+            CharacterFeature:236f8a31-a2d3-4b92-9352-8cbea67ca8d4: true
+            CharacterFeature:5d004133-3f4e-42ff-b7ba-0f392c32ae52: true
+          name: Split
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          description: The creeping sludge splits to create another creeping sludge, each with half their current Stamina before splitting. The new sludge has  none of the benefits, effects, or conditions affecting the original.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: d90825c8-0e91-4456-bcd5-7f48f1198ab6
+      source: Character Feature
+      description: The imit putty splits to create another imit putty, each with half their current Stamina before splitting. The new putty has none of the benefits, effects, or conditions affecting the original.
+      guid: 5d004133-3f4e-42ff-b7ba-0f392c32ae52
+      name: Split
+      implementation: 3
+    role: Horde Ambusher
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: acid
+      apply: Damage Reduction
+    opportunityAttack: 2
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        8dcb203a-ff4a-45c4-870b-27f5ceb3df02:
+          timestamp: 1764848129120
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        8a92fb20-f84f-4326-a44e-22941cfb9840:
+          timestamp: 1764193564960
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        14a6a5bd-878d-4c1c-b77e-710e2d34ba58:
+          timestamp: 1764848314732
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        383cf257-0f98-4610-a29a-cc4638dbbf30:
+          timestamp: 1764847492553
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        78955380-706e-4b86-8970-23d8068d3a32:
+          timestamp: 1764167631960
+          note: Uncanny Impression
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        6bc0425b-2f39-4f72-929a-5d75f2ae1055:
+          timestamp: 1764194701966
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        61461025-2589-4147-b332-17dd84444a6c:
+          timestamp: 1764167620105
+          note: Uncanny Impression
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        45dbc19f-d125-4254-8744-13f1238deb7a:
+          timestamp: 1764847675020
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 07fd1e8c-cc7f-4c89-9524-ea7b5d82d003-314
+    monster_category: Monster
+    initiativeGrouping: bebb8ac3-95c3-418f-9dbb-8461c4b8e607
+    notes:
+    - text: ""
+      title: Monster Notes
+    damage_taken: 0
+    ev: 3
+    walkingSpeed: 5
+    groupid: 171c1ebf-ae57-4e86-bfd1-de9fdc4968f1
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+    damageEntries:
+      62b7c502-ab71-4ef6-9f6e-349203be700b:
+        damage: 2
+        id: 62b7c502-ab71-4ef6-9f6e-349203be700b
+        timestamp: 1763975421005
+      15c10f6f-cd4a-4de5-a8ec-e52f46543d6f:
+        damage: 6
+        timestamp: 1763975425227
+        id: 15c10f6f-cd4a-4de5-a8ec-e52f46543d6f
+        damage_type: push
+      ce749f26-c838-4b01-91e6-55411e279230:
+        timestamp: 1763975429618
+        id: ce749f26-c838-4b01-91e6-55411e279230
+        heal: 8
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage; shift 1
+        - 7 damage; shift 2
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.350750088691711
+          s: 0.91503918170929
+          v: 0.834138512611389
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 34
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: f9e4bc30-8d31-45cf-b830-78ed51d1d126
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d
+      targetType: target
+      name: Sputter
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: "5"
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDisguiseBehavior
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        duration: eoe
+        ongoingEffectCustom: false
+        ongoingEffect: 223a2c8a-ca4e-45f5-a93b-eb5e768f1d43
+        stacks: Cast.First Target.Size
+      - __typeName: ActivatedAbilityStealAbilityBehavior
+        duration: eoe
+        ongoingEffectCustom: false
+        ongoingEffect: 223a2c8a-ca4e-45f5-a93b-eb5e768f1d43
+        stacks: 1
+        abilityFilter: Ability.Usable as Signature Ability
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.380750060081482
+          s: 0.887695550918579
+          v: 0.867455303668976
+          a: 1
+      categorization: Ability
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: af4dde61-9dee-4522-8bec-b9a244c6a1ce
+      abilityType: none
+      iconid: f3ca1e31-fa85-4a4f-aa5d-36d4a551310f
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      sourceReference:
+        __typeName: SourceReference
+        page: 34
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      targetType: target
+      name: Uncanny Impression
+      persistence: []
+      description: Until the end of the encounter or until they use this ability again, the imit putty changes their size to match the target and replaces their signature ability with one of the target's signature abilities. If the ability has a power roll, the putty uses their highest characteristic for the roll.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    deathSavingThrowSuccesses: 0
+    inventory: []
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket9: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      leveled4: []
+      trinket3: []
+      trinket6: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    availableTriggers: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        04586e2c-7b5f-4b93-9bea-55ba68efbb35:
+          timestamp: 1764848151008
+          note: Afflict a Bountiful Decay
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        f55d03c2-6bb8-4082-a148-c48d7050b51e:
+          timestamp: 1764152876698
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        381cf854-2fc0-4ad1-976d-3fd500f095c6:
+          timestamp: 1764848336274
+          note: Faster than the Eye
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        d86a86da-5771-4732-8485-5d67e1aefa4e:
+          timestamp: 1764193544399
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        b7e56345-47f3-4a14-9ba0-ae4ea51908a6:
+          timestamp: 1764847518736
+          note: Afflict a Bountiful Decay
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        970c38a5-2997-4579-b875-5dfe8faeeba8:
+          timestamp: 1764194779410
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        d4930bb4-d4a4-4b63-b7b5-0d8b23487cbf:
+          timestamp: 1764193575732
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        e6d9a104-45b1-4205-a955-22f0be0ff475:
+          timestamp: 1764193526040
+          note: Uncanny Impression
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+  tokenType: null
+  bestiaryId: 4427f474-b4e8-4b22-acd7-316f55ceb2e3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1763543321628
+description: null
+parentFolder: 18b8aee2-b927-4c4f-b978-2526f38bdf87
+artist: null
+ord: 2
+ctime: 1763543410599
+mtime: 1775167447305
+hidden: false

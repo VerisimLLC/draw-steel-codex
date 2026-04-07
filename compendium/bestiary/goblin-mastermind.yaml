@@ -1,0 +1,336 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 42e47fbf-3ed0-4eb1-8518-adc3066d0015
+    offtokenPortraitId: 2775c45b-26c8-478f-b99c-eb4c9d35e957
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2628827
+    portraitOffset:
+      x: 0.375458
+      y: -0.1576324
+    frameHueShift: 0.2592382
+    frameSaturation: 0.6012795
+    frameBrightness: 0.2046107
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0a7f7868-e247-4eae-926a-edac8592123f
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 20
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        id: agl
+        baseValue: 2
+      prs:
+        id: prs
+        baseValue: 1
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+        baseValue: 1
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+        baseValue: 1
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+        baseValue: -1
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 009f71c7-0209-43f9-b1ce-9d9859c85426
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: a39e1c90-0573-4d2d-ba52-894f9f19852d
+          repeatTargets: false
+          behaviors: []
+          targetType: self
+          range: 1
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          name: Invoked Ability
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: e19f1d97-6e44-4366-8f35-418bd5c5ab8e
+        promptText: Choose an adjacent ally to attack the target
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 95
+      name: Swordplay
+      persistence: []
+      description: One ally adjacent to the target can make a free strike against them.
+      abilityType: none
+      implementation: 3
+    minion: false
+    stability: 1
+    import:
+      override: true
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+        CharacterFeature:d9a9556a-d874-4019-84a5-db2159c2c171: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        domains:
+          CharacterFeature:d9a9556a-d874-4019-84a5-db2159c2c171: true
+        name: Cunning
+        behavior: attribute
+        description: The mastermind doesn’t provoke opportunity attacks by moving. Whenever the mastermind is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the mastermind can use a triggered action to make an opportunity attack against the enemy.
+        value: 1
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+          CharacterFeature:d9a9556a-d874-4019-84a5-db2159c2c171: true
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          mandatory: false
+          range: 1
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 415e5fe2-a956-4f74-a0ac-619d0cba684c
+              repeatTargets: false
+              behaviors: []
+              targetType: self
+              range: 1
+              display:
+                brightness: 1
+                bgcolor: "#ffffffff"
+                hueshift: 0
+                saturation: 1
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+            abilityType: standard
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: bbaa0031-bfe4-4a85-a9a5-6de2f8bdf92f
+          name: Cunning
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          conditionFormula: 0 {Should this always be manual?}
+          numTargets: "1"
+          domains:
+            CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+            CharacterFeature:d9a9556a-d874-4019-84a5-db2159c2c171: true
+          trigger: finishmove
+          abilityType: none
+          description: Whenever the battleborn is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the battleborn can use a triggered action to make an opportunity attack against the enemy.
+          subject: self
+          iconid: ui-icons/skills/1.png
+        behavior: trigger
+        source: Trait
+        name: Cunning
+        guid: 24eaa045-059a-4a39-8482-d2c22e47175e
+        sourceguid: e89248a7-dfeb-4824-96c0-b3e10bb9baf9
+        description: The mastermind doesn’t provoke opportunity attacks by moving. Whenever the mastermind is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the mastermind can use a triggered action to make an opportunity attack against the enemy.
+      source: Trait
+      description: The mastermind doesn’t provoke opportunity attacks by moving. Whenever the mastermind is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the mastermind can use a triggered action to make an opportunity attack against the enemy.
+      guid: d9a9556a-d874-4019-84a5-db2159c2c171
+      name: Cunning
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:28bebf0f-fb0d-4778-8a6d-c52f24a2648a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:28bebf0f-fb0d-4778-8a6d-c52f24a2648a: true
+        sourceguid: 28bebf0f-fb0d-4778-8a6d-c52f24a2648a
+        behavior: conditionimmunity
+        source: Character Feature
+        conditions:
+        - ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+        guid: 1ee26417-4713-4ee4-99a4-fde8b581e16c
+        name: Saw You Coming
+        description: The mastermind can't be surprised
+      source: Character Feature
+      description: The mastermind can't be surprised
+      guid: 28bebf0f-fb0d-4778-8a6d-c52f24a2648a
+      name: Saw You Coming
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e69e9b58-25e4-4ea3-b890-58937bde5726: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e69e9b58-25e4-4ea3-b890-58937bde5726: true
+        sourceguid: e69e9b58-25e4-4ea3-b890-58937bde5726
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Goad
+        description: ""
+        guid: 2793a4b3-9455-4805-a1ed-20bf81a23921
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The mastermind chooses themself or another ally within distance to become the new target of the strike.
+          trigger: A creature uses a strike that targets the mastermind or an ally within distance
+          name: Goad
+          type: free
+          guid: cd2e0d72-e385-4deb-b54b-11496173e456
+          distance: Ranged 5
+          keywords:
+            Ranged: true
+      - __typeName: CharacterModifier
+        sourceguid: e69e9b58-25e4-4ea3-b890-58937bde5726
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          guid: 570b84c0-6632-48a4-8c7c-3a261e7f4849
+          behavior: power
+          keywords: []
+          activationCondition: false
+          modtype: none
+          rollType: ability_power_roll
+          name: Goad
+          rules: ""
+          description: The mastermind chooses themself or another ally within distance to become the new target of the strike.
+          changeTargetFilter: Friends(Trigger, Target)
+          changeTarget: true
+        guid: c7107cf8-eb4e-4869-9300-1d4d78d40da1
+        behavior: powertabletrigger
+        domains:
+          CharacterFeature:e69e9b58-25e4-4ea3-b890-58937bde5726: true
+        targetType: selforally
+        name: Goad
+        trigger: strike
+        rules: The mastermind chooses themself or another ally within distance to become the new target of the strike.
+        description: ""
+        range: "5"
+        type: free
+      source: Character Feature
+      description: ""
+      guid: e69e9b58-25e4-4ea3-b890-58937bde5726
+      name: Goad
+      implementation: 3
+    role: Horde Support
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    availableTriggers: []
+    traitNames: []
+    damage_taken: 0
+    opportunityAttack: 4
+    walkingSpeed: 6
+    creatureSize: 1M
+    monster_type: Goblin Mastermind
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    keywords:
+      Mystic Goblin: true
+      Goblin: true
+      Humanoid: true
+    movementSpeeds:
+      climb: 5
+    resources: []
+    initiativeGrouping: aa14348e-da18-49d3-b660-87b22c46ba0b
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    notes:
+    - title: Monster Notes
+      text: ""
+  tokenType: null
+  bestiaryId: d02daacd-edb7-44da-91f9-208ccce37171
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: null
+parentFolder: 116486c1-2208-4bb6-a244-b13ffe9d7ead
+artist: null
+ord: 6
+ctime: 1763582321273
+mtime: 1763628914957
+hidden: false

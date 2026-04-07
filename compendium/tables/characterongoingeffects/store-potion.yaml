@@ -1,0 +1,120 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 29a0922f-a6b8-4993-b7e4-a45d469289d0
+  guid: 17506e88-d65c-4351-8738-8c9477dcbe27
+  source: Ongoing Effect
+  behavior: activated
+  description: ""
+  name: Store Potion
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: 1
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    modifiers: []
+    strain: []
+    guid: 85fb93a6-a0e7-4c82-aefe-a68d303427b0
+    domains: []
+    persistence: []
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      standardAbilityParams:
+        numrecoveries: "2"
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 0ab1b446-0a4c-4b71-a025-dceba1f72492
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+      abilityType: standard
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 8624b5ad-68ae-41ab-ad80-5441c5d13365
+          modesSelected:
+          - 1
+          duration: eoe
+          ongoingEffectCustom: 8624b5ad-68ae-41ab-ad80-5441c5d13365
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: a8a9463c-e3ca-4efd-9239-72d6d028ab79
+          modesSelected:
+          - 2
+          duration: eoe
+          ongoingEffectCustom: a8a9463c-e3ca-4efd-9239-72d6d028ab79
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 410766ff-04aa-4cec-9d0c-e22c1e7e8afd
+          modesSelected:
+          - 3
+          duration: eoe
+          ongoingEffectCustom: 410766ff-04aa-4cec-9d0c-e22c1e7e8afd
+        multipleModes: true
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        modeList:
+        - text: Acid
+        - text: Fire
+        - text: 'Posion '
+        numTargets: "1"
+        guid: 0dd63f7b-9723-49dd-953a-998f28adc266
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      guid: 202541c4-210d-4ec9-a547-6a249d9818ab
+      modesSelected:
+      - 1
+      promptText: Select Acid, Fire, or Poison immunity
+    name: Consume One Vial Makes You Better
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 29a0922f-a6b8-4993-b7e4-a45d469289d0
+id: 29a0922f-a6b8-4993-b7e4-a45d469289d0
+ctime: 1767504370382
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: ""
+name: Store Potion
+hiddenOnToken: true
+mtime: 1767504677393
+custom: true
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,153 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Hag Hut
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7aa3e775-04af-4f0d-a87b-0f95b5434672
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:64cf6a22-6250-4ab3-9fa8-5327a4628b13: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 64cf6a22-6250-4ab3-9fa8-5327a4628b13
+        source: Character Feature
+        value: 7
+        domains:
+          CharacterFeature:64cf6a22-6250-4ab3-9fa8-5327a4628b13: true
+        name: Size
+        guid: c0186dde-043f-4130-a21f-1e0fa5109e2c
+        description: Your Creature Size is 7. (4 Squares)
+        behavior: attribute
+        attribute: creatureSize
+      name: Size
+      guid: 64cf6a22-6250-4ab3-9fa8-5327a4628b13
+      description: Your Creature Size is 7. (4 Squares)
+      source: Character Feature
+    role: Leader
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: all
+      apply: Damage Reduction
+    monster_category: Monster
+    levelChoices: []
+    walkingSpeed: 8
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      targetAllegiance: enemy
+      targetType: cube
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 169
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "2"
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 4e6ea528-a757-4fe5-ae32-79afbf4852fe
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; push 3; m<1 prone
+        - 10 damage; push 4; m<2 prone
+        - 13 damage; push 5; m<3 prone
+        roll: 2d10 + 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      implementation: 4
+      categorization: Signature Ability
+      persistence: []
+      name: Kick
+      radius: "2"
+      description: ""
+      abilityType: none
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    resources: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    damage_taken: 0
+    minion: false
+    max_hitpoints: 75
+    monster_type: Hag Hut
+  tokenType: null
+  bestiaryId: fb2d7868-55d9-40a9-9776-651cc29552ff
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1762950772786
+description: null
+parentFolder: 5648f5ad-a5c2-4e83-a398-705e92c75020
+artist: null
+ord: 2
+ctime: 1762950772786
+mtime: 1775167428140
+hidden: false

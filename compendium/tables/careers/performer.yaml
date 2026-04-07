@@ -1,0 +1,98 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 4e7d0c5f-7907-46fe-95c3-b14d1659d7c4
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Music or Performance Skill
+    numChoices: 1
+    guid: 717c47b0-7a92-4390-b91a-9345e0804987
+    description: Choose the Music or Perform skill.
+    options:
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Performer Career Feature
+        behavior: proficiency
+        description: ""
+        equate: false
+        name: Music Skill
+        sourceguid: 32b5273b-3f08-4c28-a365-b09fd4ea57b1
+        proficiency: proficient
+        guid: c9162f82-bb3a-4e3a-a38d-9b37d8b08483
+        skills:
+          d188b959-e993-4239-a350-5e7ad69d27b6: true
+      source: Performer Career Feature
+      canHavePrerequisites: true
+      guid: 32b5273b-3f08-4c28-a365-b09fd4ea57b1
+      name: Music Skill
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You are proficient with Perform.
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Performer Career Feature
+        behavior: proficiency
+        description: You are proficient with Perform.
+        equate: false
+        name: Perform Skill
+        sourceguid: 14485db6-af17-4d76-a218-983e3c4af4dd
+        proficiency: proficient
+        guid: 9f5425b6-b009-4038-9ccc-a7d508dab677
+        skills:
+          bd66a379-6ea9-4ecc-ad82-c9a2b82750d4: true
+      source: Performer Career Feature
+      canHavePrerequisites: true
+      guid: 14485db6-af17-4d76-a218-983e3c4af4dd
+      name: Perform Skill
+      implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      interpersonal: true
+    description: "Choose two skills from the interpersonal skill group. (Quick Build: Flirt, Music, Perform)"
+    name: Performer Interpersonal Skills
+    numChoices: 2
+    guid: d397f68b-9732-46ed-8fe7-5d31a1724cc5
+    source: Performer Career Feature
+  - __typeName: CharacterFeatChoice
+    guid: ff991cf3-7dcd-45d5-9bcb-307d46dd3e7c
+    description: "Choose one interpersonal perk. (Quick Build: Harmonizer)"
+    tag: interpersonal perk
+    name: Performer Interpersonal Perk
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 9e7c112d-1a2c-456b-9bce-53465c7f2016
+      source: Performer Career Feature
+      guid: f5115487-3576-400c-aa64-b1c06def47fc
+      name: Performer's Renown
+      value: 2
+      description: 2 is added to your Renown.
+      behavior: attribute
+      attribute: d97c2794-cb70-420f-b078-e260b43e154b
+    name: Performer's Renown
+    description: 2 is added to your Renown.
+    guid: 10212c62-6128-4b81-83de-c512d44bb6f2
+    source: Performer Career Feature
+    implementation: 3
+name: Performer
+mtime: 1757094955439
+description: |-
+  You can sing, act, or dance well enough that people actually pay you to do it. Imagine that! In defining your career, think about the following questions: 
+
+  What is the tone of your performances? 
+
+  What song, role, or dance are you most known for? 
+
+  Did you perform in the same place throughout your career, or did you travel? 
+
+  Were you part of a troupe, or were you a solo act?
+id: 03dd8d97-0a6d-4819-bcef-713e5db2c56d
+ctime: 1730561542571

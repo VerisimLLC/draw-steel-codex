@@ -1,0 +1,107 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 90f6be3d-e2c7-477f-af2a-6ab6cd0c2515
+  repeatTargets: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  abilityType: none
+  behaviors: []
+  targetType: self
+  name: Swordfall
+  numTargets: "1"
+  description: While the dragon is flying, they shape themself into a blade and fall. Each creature and object in the dragon’s space when they hit the ground and in a 6 × 4 line within 1 square of the dragon takes 7 damage. A creature who takes this damage and has A<4 takes 4 extra damage per square the dragon fell and is restrained (save ends). A creature not restrained this way can move into the nearest unoccupied space.
+  range: 1
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: true
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: agl
+    roll: 2d10 +  Agility
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 16 damage; bleeding (save ends)
+    - 13 damage; bleeding (EoT)
+    - 7 damage
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "6"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: bbd4f251-d01c-47ba-8e56-40d2714677d1
+  numTargets: "1"
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Shower of Blades
+  radius: "4"
+  targetType: line
+  description: The dragon shakes loose a cloud of shattered weapons in a 6 × 4 line within 1 square of them. Each creature and object in the area makes an Agility test.
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: 3b6c7222-2093-45e2-ac25-ded0a1e0b21c
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 6b470887-fa05-46ed-9787-e0ec47109050
+  castImmediately: true
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: The dragon takes an additional main action on their turn. They can use this feature even if they are dazed.
+  abilityType: none
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "7"
+  strain: []
+  guid: 77ad76fb-5b3b-4638-bcc7-90a68e370364
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Meltdown
+  range: 1
+  description: The dragon superheats the ground across the encounter map until the end of the round. Any enemy who starts their turn on the ground is slagged as if affected by the dragon’s Slag Spew ability.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762946886162
+name: Crucible Dragon
+traits: []
+attacks: []
+id: 3f227b9e-fa88-4838-9b88-274138bdbf70
+ctime: 1762943261201

@@ -1,0 +1,85 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:e5b9fa52-b2aa-4cc2-b46a-d18828bdcf9a: true
+  sourceguid: e5b9fa52-b2aa-4cc2-b46a-d18828bdcf9a
+  description: ""
+  source: Ongoing Effect
+  name: Loner Ally
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      targeting: formula
+      targetingFormula: Target = ConditionCaster("Loner Ally")
+      customAbility:
+        __typeName: ActivatedAbility
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 0535e611-7481-4573-9dd0-8897aa1e68c4
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityType: none
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          conditions:
+          - 85e26e12-e853-464d-bbbc-98ddf2c0071a
+          chatMessage: Loner Drawback Ended
+        targetType: self
+        name: Invoked Ability
+        numTargets: "1"
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: e5b9fa52-b2aa-4cc2-b46a-d18828bdcf9a
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 7a9d619a-9889-477f-826b-4e472e91ff22
+    persistence: []
+    domains:
+      CharacterOngoingEffect:e5b9fa52-b2aa-4cc2-b46a-d18828bdcf9a: true
+    conditionFormula: Stamina > 0
+    targetType: self
+    trigger: regainhitpoints
+    name: Loner Ally
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 2544aa11-39a7-4fac-968f-bd37a036e135
+source: Ongoing Effect
+casterTracking: one
+guid: e5b9fa52-b2aa-4cc2-b46a-d18828bdcf9a
+id: e5b9fa52-b2aa-4cc2-b46a-d18828bdcf9a
+ctime: 1768244394122
+domains:
+  CharacterOngoingEffect:e5b9fa52-b2aa-4cc2-b46a-d18828bdcf9a: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+name: Loner Ally
+description: ""
+custom: true
+mtime: 1768262734593
+iconid: ui-icons/skills/1.png

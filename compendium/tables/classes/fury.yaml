@@ -1,0 +1,3726 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: Victories
+  guid: ef98f582-4eac-4fdc-92f8-b8fd6735a11b
+  details: When combat begins you gain Ferocity equal to your Victories.
+  name: Start of Combat
+- mode: round
+  details: At the start of your turn you gain 1d3 Ferocity.
+  name: Start of Turn
+  guid: 746e467d-0775-40c3-b5c0-202f861691e7
+  quantity:
+    __typeName: GoblinScriptTable
+    entries:
+    - script: 1d Heroic Resource Gain at Start
+      threshold: 1
+    - script: 1d(Heroic Resource Gain at Start) +1
+      threshold: 7
+    editableField: true
+    field: Level
+    id: table
+- mode: encounter
+  details: The first time you become winded in an encounter, you gain 1d3 Ferocity.
+  name: Become Winded
+  guid: d5b919ec-7ad6-493a-bf13-55f87bfde1cb
+  quantity: 1d3
+- mode: encounter
+  details: The first time you become dying in an encounter, you gain 1d3 Ferocity.
+  name: Become Dying
+  guid: 7bd0744d-a628-41b4-9b75-defa2a1038d9
+  quantity: 1d3
+- mode: round
+  details: The first time each round that you take damage you gain 1 Ferocity.
+  name: Take Damage
+  guid: 96336e01-b1bf-4439-beef-61b3c91f3571
+  quantity:
+    __typeName: GoblinScriptTable
+    entries:
+    - script: "1"
+      threshold: 1
+    - script: "2"
+      threshold: 4
+    - script: "3"
+      threshold: 10
+    editableField: true
+    field: Level
+    id: table
+isSubclass: false
+abilityCategoryNames:
+  Heroic Ability:
+    plural: Heroic Onslaughts
+    singular: Heroic Onslaught
+  Signature Ability:
+    plural: Signature Onslaughts
+    singular: Signature Onslaught
+classColor:
+  __usertype: LuaColor
+  h: 0
+  s: 0.760000050067902
+  v: 0.588235318660736
+  a: 1
+heroicResourceIcon: drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_FEROCITY.png
+heroicResourceName: Ferocity
+epicResourceName: Primordial Power
+_fork: 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
+baseCharacteristics:
+  agl: 2
+  mgt: 2
+  arrays:
+  - - 2
+    - -1
+    - -1
+  - - 1
+    - 1
+    - -1
+  - - 1
+    - 0
+    - 0
+ctime: 1709667377781
+levels:
+  level-17:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-20:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-19:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-16:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0325e60e-f3ae-41da-b776-931c8279b912
+        source: Fury Class Feature
+        seq: 603530bb-fb8d-48bc-8ce3-3b4a8e5d88ce
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          creatureFilter: Keywords has "elemental"
+          name: Marauder of the Primordial Chaos
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              targetType: self
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 9c7df70d-ef29-4bb2-8a30-e40d71c7052f
+              trigger: onenter
+              conditionFormula: ""
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: frightened (save ends)
+                filterTarget: not Passes Potency("P", Caster.Average)
+              - __typeName: ActivatedAbilityConditionSourceBehavior
+                applyto: caster
+                filterTarget: ""
+                condid: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+              - __typeName: ActivatedAbilityLimitBehavior
+                keyOverride: Marauder of the Primordial Chaos
+                key: 1b81531c-13c4-4b8c-bf33-dc250f36cadd
+                refresh: encounter
+              numTargets: "1"
+              name: Marauder of the Primordial Chaos
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: e6719c07-e7f1-44a2-b09b-521c796d3d57
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers: []
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        radius: "50"
+        guid: df5d8fa1-1afc-4ae3-8d3f-a4353327e2ea
+        description: |-
+          As your connection to the power of the Primordial Chaos grows ever stronger, you automatically sense any elemental creatures or magic sources of elemental power, such as a lava pool or a lake overlapping with Quintessence, within 1 mile of you. 
+          Additionally, you can speak with elemental creatures, and when you are in a negotiation with an elemental, you treat your Renown as 1 higher than usual. This stacks with the increase to your effective Renown provided by the Nature's Knight aspect feature (see 3rd-Level Features). When any elemental first becomes aware of you in combat, if they have P < Average, they are frightened of you (save ends).
+        behavior: aura
+        name: Marauder of the Primordial Chaos
+      source: Fury Class Feature
+      guid: 0325e60e-f3ae-41da-b776-931c8279b912
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: |-
+        As your connection to the power of the Primordial Chaos grows ever stronger, you automatically sense any elemental creatures or magic sources of elemental power, such as a lava pool or a lake overlapping with Quintessence, within 1 mile of you. 
+        Additionally, you can speak with elemental creatures, and when you are in a negotiation with an elemental, you treat your Renown as 1 higher than usual. This stacks with the increase to your effective Renown provided by the Nature's Knight aspect feature (see 3rd-Level Features). When any elemental first becomes aware of you in combat, if they have P < Average, they are frightened of you (save ends).
+      name: Marauder of the Primordial Chaos
+      implementation: 2
+    - __typeName: CharacterFeatChoice
+      tag: feat,crafting perk,exploration perks,intrigue perk
+      name: Perk
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: c9d45d3b-2975-43ee-bef5-d6e7058c73f3
+      description: 'You gain one crafting, exploration, or intrigue perk of your choice. '
+      source: Fury Class Feature
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Fury Class Feature
+      guid: 3161b10f-6e7e-4f95-a53b-ac1e8ad104b8
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: As a main action, you can touch a magic source of elemental power and use it to create a portal to Quintessence. You can then use a main action to teleport yourself and any willing creatures within 10 squares of you through the portal and onto a safe island in Quintessence, or to teleport back again. You can maintain a number of portals equal to your Might score, each leading to the same safe island in Quintessence. If a portal in your network is destroyed, it is no longer part of the network. You can remove a portal from your network no matter your distance from it, including across different worlds (no action required). Exploring Quintessence is possible from your island, but continued safety is not guaranteed.
+      name: Primordial Portal
+      implementation: 4
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatChoice
+      tag: feat,crafting perk,exploration perks,intrigue perk
+      name: Perk
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 51a482bb-3767-4bc9-9000-82cecf578ac5
+      description: 'You gain one crafting, exploration, or intrigue perk of your choice. '
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-14:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+      name: 7-Rage Abilities
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 4991e3cd-7c22-43de-8d9d-f4a8428bb8aa
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Magic: true
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Foes tremble at the sight of you.
+            categorization: Heroic Ability
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: d71e4e17-e5ab-492a-bbf5-28c2e59aa060
+            iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 151
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            name: Demon Unleashed
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 482fe897-fd9d-440c-9368-baadd30d7de3
+              duration: eoe_or_dying
+              ongoingEffectCustom: 482fe897-fd9d-440c-9368-baadd30d7de3
+            description: Until the end of the encounter or until you are dying, each enemy who starts their turn adjacent to you and has P < strong is frightened until the end of their turn.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: 81128f0c-42c5-44ed-9c9a-4d59b28852dc
+        id: 81128f0c-42c5-44ed-9c9a-4d59b28852dc
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: A Demon Unleashed
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Magic: true
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Shocked in the face of your naked brutality, your enemy's instincts take over.
+            categorization: Heroic Ability
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 0728a555-8322-4839-a9f9-bab25baa9066
+            iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 151
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            name: Face the Storm!
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 5b020415-457a-477c-8961-9fe5d5676f1e
+              duration: eoe_or_dying
+              ongoingEffectCustom: 5b020415-457a-477c-8961-9fe5d5676f1e
+            description: Until the end of the encounter or until you are dying, each creature you make a melee strike against who has p < average is taunted until the end of their next turn. Additionally, when you use an ability that deals rolled damage against any enemy taunted by you, the ability deals extra damage equal to twice your Might score and increases its potency by 1.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: f6d3186b-93cd-4975-bb11-3d40b3d0f5a3
+        id: f6d3186b-93cd-4975-bb11-3d40b3d0f5a3
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Face the Storm!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Magic: true
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: See how useless their weapons are!
+            categorization: Heroic Ability
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 9ff15ce2-6aae-4150-a996-d3592a4a0e8a
+            iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 151
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            name: Steelbreaker
+            behaviors:
+            - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+              applyto: caster
+              stamina: "20"
+            description: You gain 20 Temporary Stamina.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Character
+        guid: fcff1148-3482-41b9-b7a1-35819f91c037
+        id: fcff1148-3482-41b9-b7a1-35819f91c037
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Steelbreaker
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: c53e9958-d8a4-4a47-b54b-2c1a150c9b38
+              filterTarget: not leader and not solo
+              ongoingEffectCustom: c53e9958-d8a4-4a47-b54b-2c1a150c9b38
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 5e551b7d-17fb-4099-a303-bafb3c146f98
+              filterTarget: Cast.Primary Target.leader or Cast.Primary Target.Solo
+              chatMessage: You Are Already Dead
+              quantity: "3"
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 3d74229f-5b08-47f4-86e7-5af52e8c7ce1
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Make Melee Free Strike
+              standardAbilityParams:
+                targetid: "<<Cast.Primary Target.id>>"
+              abilityType: standard
+              standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Slash. Walk away.
+            sourceReference:
+              __typeName: SourceReference
+              page: 151
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: f404d2b0-a938-40d0-ae0d-31fd2e7f024d
+            numTargets: 1
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            targetType: target
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: You Are Already Dead
+            categorization: Heroic Ability
+            description: If the target is not a leader or solo creature, they are reduced to 0 Stamina at the end of their next turn. If the target is a leader or solo creature, you gain 3 surges and can make a melee free strike against them.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: a5d094b6-cfc8-4630-9cb7-54183b2b9580
+        id: a5d094b6-cfc8-4630-9cb7-54183b2b9580
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: You Are Already Dead
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      description: Choose one heroic ability from the following options, each of which costs 7 rage to use.
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatChoice
+      tag: feat,crafting perk,exploration perks,supernatural perks,lore perks,interpersonal perk,intrigue perk
+      name: Perk
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 7316eb4a-2bf6-4ecc-a25f-9638f56456d7
+      description: 'You gain one perk of your choice. '
+      source: Fury Class Feature
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+      name: 11-Ferocity Ability
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 63361861-0a8a-4e03-b9a3-7997e0a0944d
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+              stamina: "10"
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: fb0fd79f-c24a-494a-8ada-fcc3940343cc
+              modesSelected:
+              - 1
+              duration: eoe_or_dying
+              ongoingEffectCustom: fb0fd79f-c24a-494a-8ada-fcc3940343cc
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 42586ef4-2230-4ee8-8f68-9717cec3438a
+              modesSelected:
+              - 2
+              duration: eoe_or_dying
+              ongoingEffectCustom: 42586ef4-2230-4ee8-8f68-9717cec3438a
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: ae330f33-9a91-4589-a129-665e5fbdbada
+              modesSelected:
+              - 3
+              duration: eoe_or_dying
+              ongoingEffectCustom: ae330f33-9a91-4589-a129-665e5fbdbada
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: fb179ff3-14dd-4905-90ff-c7040bcb5363
+              modesSelected:
+              - 4
+              duration: eoe_or_dying
+              ongoingEffectCustom: fb179ff3-14dd-4905-90ff-c7040bcb5363
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: ad43f758-1ea6-40ae-8f1b-3aa6dc3502cf
+              modesSelected:
+              - 5
+              duration: eoe_or_dying
+              ongoingEffectCustom: ad43f758-1ea6-40ae-8f1b-3aa6dc3502cf
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: dcde6554-5356-4dc7-98f3-9d772b85c466
+              modesSelected:
+              - 6
+              duration: eoe_or_dying
+              ongoingEffectCustom: dcde6554-5356-4dc7-98f3-9d772b85c466
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 55cf29a0-b770-493e-9e35-d8441d39ba16
+              modesSelected:
+              - 7
+              duration: eoe_or_dying
+              ongoingEffectCustom: 55cf29a0-b770-493e-9e35-d8441d39ba16
+            multipleModes: true
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your primordial energies make for instant retribution.
+            categorization: Heroic Ability
+            range: 1
+            effectImplemented: true
+            abilityType: none
+            persistence: []
+            modifiers: []
+            targetType: self
+            strain: []
+            guid: 7e7f4319-efec-4b55-84a0-aa33d8206f7a
+            numTargets: "1"
+            sourceReference:
+              __typeName: SourceReference
+              page: 140
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modeList:
+            - text: Acid
+              rules: ""
+              condition: ""
+            - text: Cold
+            - text: Corruption
+            - text: Fire
+            - text: Lightning
+            - text: Poison
+            - text: Sonic
+            name: Elemental Fury
+            iconid: ui-icons/skills/1.png
+            description: You gain 10 temporary Stamina. Additionally, choose acid, cold, corruption, fire, lightning, poison, or sonic damage. Until the end of the encounter or until you are dying, whenever an enemy damages you, they take 10 damage of the chosen type. If this damage reduces the enemy to 0 Stamina, you gain 10 temporary Stamina.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Character
+        guid: 983f8a36-e084-4b95-b674-d247e2eecf02
+        id: 983f8a36-e084-4b95-b674-d247e2eecf02
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Elemental Fury
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              applyto: caster
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: cfac7cb3-92ad-4e96-b5db-47d521a3bf64
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    persistence: []
+                    modifiers: []
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    strain: []
+                    guid: a5ff8341-6f0c-47a4-9856-70388ceeea32
+                    repeatTargets: false
+                    abilityType: none
+                    trigger: kill
+                    targetType: self
+                    numTargets: "1"
+                    name: HR Gain
+                    behaviors:
+                    - __typeName: ActivatedAbilityReplenishBehavior
+                      resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                  guid: 26d895df-5685-45cd-8080-26c9c3e04942
+                  source: Ongoing Effect
+                  behavior: trigger
+                  description: ""
+                  name: HR Gain
+                  sourceguid: cfac7cb3-92ad-4e96-b5db-47d521a3bf64
+                source: Ongoing Effect
+                name: HR Gain
+                description: ""
+                id: cfac7cb3-92ad-4e96-b5db-47d521a3bf64
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - Any target whose Stamina is equal to or less than 8 dies
+              - Any target whose Stamina is equal to or less than 11 dies
+              - Any target whose Stamina is equal to or less than 17 dies
+              filterTarget: 0 {Tooltip information}
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              targetMoveVicinity: true
+              vicinity: 1
+              movementType: shift
+              vicinityFilter: enemy
+            - __typeName: ActivatedAbilityDamageBehavior
+              roll: Might * 2
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "#Any target whose Stamina is equal to or less than 8 dies"
+              - "#Any target whose Stamina is equal to or less than 11 dies"
+              - "#Any target whose Stamina is equal to or less than 17 dies"
+              filterTarget: ""
+              roll: 2d10 + Might
+              guid: 7913d4bd-1f49-451c-998a-b4f6d4e989af
+            - __typeName: ActivatedAbilityDestroyBehavior
+              tiersSelected:
+              - 3
+              filterTarget: Stamina <= 17
+            - __typeName: ActivatedAbilityDestroyBehavior
+              tiersSelected:
+              - 2
+              filterTarget: Stamina <= 11
+              guid: c77c0763-a090-4cf8-8004-63d1d574a96c
+            - __typeName: ActivatedAbilityDestroyBehavior
+              tiersSelected:
+              - 3
+              - 1
+              filterTarget: Stamina <= 8
+              guid: 8c4340f7-d6cb-471b-91e7-47b4be111381
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You won't escape your fate
+            categorization: Heroic Ability
+            range: Walking Speed
+            effectImplemented: false
+            numTargets: "1"
+            persistence: []
+            modifiers: []
+            rangeTextOverride: Self; see below
+            strain: []
+            guid: 55164476-3c60-40b1-8afe-f48262e6ddf6
+            targetType: emptyspace
+            sourceReference:
+              __typeName: SourceReference
+              page: 140
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            targeting: pathfind
+            preDescription: |
+              You shift up to your speed. Each enemy you move adjacent to during this movement takes damage equal to twice your Might score. Then make one power roll that targets each enemy you move adjacent to during this shift. You gain 1 ferocity for each target who dies as a result of this ability (maximum 11 ferocity).
+            name: Relentless Death
+            iconid: ui-icons/skills/1.png
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: c7748ba7-016d-4548-8541-3f4796a3ed33
+        id: c7748ba7-016d-4548-8541-3f4796a3ed33
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Relentless Death
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: You strike so no damage is wasted.
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: d1d77216-af81-426f-9f88-6a0e57636141
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityRememberBehavior
+              calculation: Target.Stamina
+              memoryName: stamina
+            - __typeName: ActivatedAbilityDestroyBehavior
+              filterTarget: minion or (Winded and (not (leader or solo)))
+            - __typeName: ActivatedAbilityAddNewTargetsBehavior
+              applyto: targets
+              filterTarget: minion or (Winded and (not (leader or solo)))
+              promptText: Target Killed, Selected New Target
+              targetMode: replace
+              targetingAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 9abdd405-4a3e-4585-8703-add407634b29
+                repeatTargets: false
+                abilityType: none
+                behaviors: []
+                targetType: target
+                numTargets: "1"
+                name: Choose Additional Targets
+                categorization: Hidden
+                description: ""
+                range: "5"
+                iconid: ui-icons/skills/1.png
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + M damage
+              - 10 + M damage
+              - 14 + M damage
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: false
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                numTargets: "1"
+                objectTarget: false
+                abilityType: none
+                strain: []
+                guid: fa24247d-70a1-4b96-b10c-915a4496d471
+                repeatTargets: false
+                persistence: []
+                modifiers: []
+                targetType: target
+                behaviors:
+                - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                  rule: "<<remaining>> damage"
+                name: Invoked Ability
+                categorization: Hidden
+                description: ""
+                range: "5"
+                iconid: ui-icons/skills/1.png
+              promptText: Apply Remaining Damage to New Target
+              applyto: targets
+              filterTarget: Cast.Damage Dealt Against(target) > Cast.Memory("stamina")
+              standardAbilityParams:
+                remaining: "<<Cast.Damage Dealt Against(target) - Cast.Memory(\"stamina\")>>"
+              promptWhenResolving: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You strike so no damage is wasted.
+            sourceReference:
+              __typeName: SourceReference
+              page: 140
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: fad4b4ca-7dfc-4486-a66c-17c61078ba62
+            numTargets: 1
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            targetType: target
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Overkill
+            categorization: Heroic Ability
+            description: If the target is a minion or is winded but isn't a leader or solo creature, they are reduced to 0 Stamina before this ability's damage is dealt. If the target is killed by this damage, you can deal any damage over what was required to kill them to another creature within 5 squares of the target.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Fury Class Feature
+        guid: 263f298c-5b9c-41b6-b623-9eb4aa7d7243
+        id: f72295f7-3a35-49f2-99c5-868fa465de45
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Overkill
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: You strike so no damage is wasted.
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: Your ferocity manifests into primordial power.
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Magic: true
+            implementationDetails: You must manually select the correct target for both damage benefits of this ability.
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 8bf760b6-d0c2-4b5e-8d41-d19de8b75c35
+              modesSelected:
+              - 1
+              duration: eoe_or_dying
+              ongoingEffectCustom: 8bf760b6-d0c2-4b5e-8d41-d19de8b75c35
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              duration: eoe_or_dying
+              ongoingEffectCustom: false
+              ongoingEffect: 68ad99de-ef8b-4f65-9698-5c7446bb1e94
+              ongoingEffectSource: specific
+              modesSelected:
+              - 2
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              duration: eoe_or_dying
+              ongoingEffectCustom: false
+              ongoingEffect: 396645b7-62e3-4006-97fe-87659f687aac
+              ongoingEffectSource: specific
+              modesSelected:
+              - 3
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              duration: eoe_or_dying
+              ongoingEffectCustom: false
+              ongoingEffect: 26df3bf2-3d2e-4f84-8d07-e40b953d14eb
+              ongoingEffectSource: specific
+              modesSelected:
+              - 4
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              duration: eoe_or_dying
+              ongoingEffectCustom: false
+              ongoingEffect: f3cbd8c8-cf1a-4efe-bbaa-e41f1bc1c8c1
+              ongoingEffectSource: specific
+              modesSelected:
+              - 5
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              duration: eoe_or_dying
+              ongoingEffectCustom: false
+              ongoingEffect: fc4ecad6-93d5-4df5-9e04-b457b51397f3
+              ongoingEffectSource: specific
+              modesSelected:
+              - 6
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              duration: eoe_or_dying
+              ongoingEffectCustom: false
+              ongoingEffect: bcd7022b-d5f7-4bcd-8721-22824081872e
+              ongoingEffectSource: specific
+              modesSelected:
+              - 7
+            multipleModes: true
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your ferocity manifests into primordial power.
+            categorization: Heroic Ability
+            range: 1
+            effectImplemented: true
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            guid: c2a2a67a-e440-4232-bf56-2af41093d264
+            numTargets: "1"
+            targetType: self
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 140
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            modeList:
+            - text: Acid
+            - text: Cold
+            - text: Corruption
+            - text: Fire
+            - text: Lightning
+            - text: Poison
+            - text: Sonic
+            name: Primordial Rage
+            iconid: ui-icons/skills/1.png
+            description: Choose acid, cold, corruption, fire, lightning, poison, or sonic damage. Until the end of the encounter or until you are dying, you can choose one target of any ability you use, with that target taking an extra 15 damage of the chosen type. Additionally, whenever you gain ferocity from taking damage, the source of the damage takes 5 damage of the chosen type.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: e44078d0-cd73-4d88-935c-10ebb667c334
+        id: e44078d0-cd73-4d88-935c-10ebb667c334
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Primordial Fury
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: Your ferocity manifests into primordial power.
+        implementation: 3
+      description: Choose one heroic ability from the following options, each of which costs 11 ferocity to use.
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: efa2429c-5e24-46cc-b53a-60c590440d1f
+        source: Fury Class Feature
+        guid: 03032596-dca3-4f3e-8c59-27f437b7630b
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Recoveries
+        description: "10"
+        num: "10"
+        resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+        behavior: resource
+      source: Fury Class Feature
+      guid: 233e999c-c2b0-4569-ae00-17b77da528cc
+      id: d1bec0aa-e2d9-415f-b130-dfb842eac32c
+      ctime: 1715748325133
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+      name: Recoveries
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      mtime: 1715748325133
+      description: "10"
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      description: You have the Nature skill.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4f46e746-f220-4f15-9483-fc9555cde25f
+        source: Fury Class Feature
+        behavior: proficiency
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        guid: 209c2ed8-c822-48f4-b91f-e652b6d23bed
+        equate: false
+        name: Nature Skill
+        proficiency: proficient
+        description: You have the Nature skill.
+        subtype: skill
+        skills:
+          f15f5445-666a-4ea9-bdf3-fbed284bae85: true
+      name: Nature Skill
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 973513da-b5ba-441d-8275-8b72ed9cfaf8
+      source: Fury Class Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      source: Fury Class Feature
+      guid: f049daab-49cb-4401-ae06-91f25280b4ae
+      individualSkills: []
+      categories:
+        intrigue: true
+        exploration: true
+      name: Skills
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      numChoices: 2
+      description: "Nature, plus choose any two skills from the exploration or intrigue skill groups. *(Quick Build: Alertness, Jump)*"
+    - __typeName: CharacterSubclassChoice
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: "You are a product of customs older than warfare, older than civilization, older than most of the world. You have undergone a rite of passage that revealed the building blocks of the timescape--the Primordial Chaos--and that left an aspect of that chaos inside you. You choose a primordial aspect from the following options, each of which grants you a skill. *(Quick Build: Berserker.)*"
+      guid: e1fc38a8-0fcc-444b-81b3-82db3a25ed0f
+      name: Primordial Aspect
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      description: "Within the heat of battle, your determination and anger grow, fueling a Heroic Resource called ferocity.\n\nAt the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain ferocity equal to your Victories. At the start of each of your turns during combat, you gain 1d3 ferocity. Additionally, the first time each round that you take damage, you gain 1 ferocity. The first time in an encounter that you become winded or dying, you gain 1d3 ferocity. You lose any remaining rage at the end of the encounter. "
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: a64b2bca-c0af-4a37-bda3-7f391f517f09
+        description: "Within the heat of battle, your determination and anger grow, fueling a Heroic Resource called ferocity.\n\nAt the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain ferocity equal to your Victories. At the start of each of your turns during combat, you gain 1d3 ferocity. Additionally, the first time each round that you take damage, you gain 1 ferocity. The first time in an encounter that you become winded or dying, you gain 1d3 ferocity. You lose any remaining rage at the end of the encounter. "
+        source: Fury Class Feature
+        name: Ferocity
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: replenish
+            quantity: Victories
+            checklistid: ef98f582-4eac-4fdc-92f8-b8fd6735a11b
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Draw Steel
+          triggerPrompt: "Start of Combat: Gain Ferocity equal to your Victories."
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 8455fba0-5d32-4694-ad4f-8fa0fbc188fe
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          conditionFormula: Victories > 0
+          numTargets: "1"
+          targetType: self
+          trigger: rollinitiative
+          name: Start of Combat
+          description: At the start of a combat encounter you gain Ferocity equal to your Victories.
+          abilityType: none
+          iconid: cca6f849-0f76-471a-9264-8544564e7c07
+        guid: a44e22f2-2dcc-4a30-9f3f-612ec269e7ee
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: a64b2bca-c0af-4a37-bda3-7f391f517f09
+        description: "Within the heat of battle, your determination and anger grow, fueling a Heroic Resource called ferocity.\n\nAt the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain ferocity equal to your Victories. At the start of each of your turns during combat, you gain 1d3 ferocity. Additionally, the first time each round that you take damage, you gain 1 ferocity. The first time in an encounter that you become winded or dying, you gain 1d3 ferocity. You lose any remaining rage at the end of the encounter. "
+        source: Fury Class Feature
+        name: Ferocity
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Start of Turn: Gain 1d3 Ferocity."
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: aff7855a-98fb-4c02-9606-e0be4975bcd1
+          conditionFormula: Heroic Resource Gain at Start > 0
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          trigger: beginturn
+          numTargets: "1"
+          name: Start of Turn Ferocity
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            filterTarget: Heroic Resource Gain at Start > 0
+            quantity:
+              __typeName: GoblinScriptTable
+              entries:
+              - script: 1d Heroic Resource Gain at Start
+                threshold: 1
+              - script: (1d Heroic Resource Gain at Start) + 1
+                threshold: 7
+              editableField: true
+              field: Level
+              id: table
+            checklistid: 746e467d-0775-40c3-b5c0-202f861691e7
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Start of Turn
+          description: At the start of each of your turns during combat, you gain 1d3 Ferocity.
+          abilityType: none
+          iconid: cca6f849-0f76-471a-9264-8544564e7c07
+        guid: ef089281-340e-4425-ab9c-cc02c76102fd
+      - __typeName: CharacterModifier
+        sourceguid: a64b2bca-c0af-4a37-bda3-7f391f517f09
+        source: Fury Class Feature
+        guid: 124445c5-d3c1-4ee6-a223-21bd32a901d9
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Ferocity
+        description: "Within the heat of battle, your determination and anger grow, fueling a Heroic Resource called ferocity.\n\nAt the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain ferocity equal to your Victories. At the start of each of your turns during combat, you gain 1d3 ferocity. Additionally, the first time each round that you take damage, you gain 1 ferocity. The first time in an encounter that you become winded or dying, you gain 1d3 ferocity. You lose any remaining rage at the end of the encounter. "
+        num: 0
+        resourceType: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+        behavior: resource
+      - __typeName: CharacterModifier
+        sourceguid: e60180e0-173d-4234-9f76-e5873e9e6f59
+        source: Fury Class Feature
+        resourceCostId: FuryWinded
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Become Winded: Gain 1d3 Ferocity."
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0.428570556640625
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: abce9319-0e40-4124-adb7-6682c2caad79
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: d9b17890-ad90-41fb-b6fe-135e7aa903c6
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            checklistid: d5b919ec-7ad6-493a-bf13-55f87bfde1cb
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            quantity: 1d3
+            chatMessage: Become Winded
+          conditionFormula: ""
+          trigger: winded
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          name: Ferocity
+          numTargets: "1"
+          description: The first time you become winded or are dying in an encounter, you gain 1d3 ferocity.
+          abilityType: none
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        name: Ferocity
+        resourceRefreshType: encounter
+        description: "Within the heat of battle, your determination and anger grow, fueling a Heroic Resource called ferocity.\n\nAt the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain ferocity equal to your Victories. At the start of each of your turns during combat, you gain 1d3 ferocity. Additionally, the first time each round that you take damage, you gain 1 ferocity. The first time in an encounter that you become winded or dying, you gain 1d3 ferocity. You lose any remaining rage at the end of the encounter. "
+        behavior: trigger
+        guid: abce9319-0e40-4124-adb7-6682c2caad79
+      - __typeName: CharacterModifier
+        sourceguid: e60180e0-173d-4234-9f76-e5873e9e6f59
+        source: Fury Class Feature
+        behavior: trigger
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Ferocity
+        resourceRefreshType: round
+        description: "Within the heat of battle, your determination and anger grow, fueling a Heroic Resource called ferocity.\n\nAt the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain ferocity equal to your Victories. At the start of each of your turns during combat, you gain 1d3 ferocity. Additionally, the first time each round that you take damage, you gain 1 ferocity. The first time in an encounter that you become winded or dying, you gain 1d3 ferocity. You lose any remaining rage at the end of the encounter. "
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Take Damage: Gain Ferocity"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0.428570556640625
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 10f9ea97-7c3a-486c-8d09-994cb6e49a1c
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: d9b17890-ad90-41fb-b6fe-135e7aa903c6
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            checklistid: 96336e01-b1bf-4439-beef-61b3c91f3571
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            quantity:
+              __typeName: GoblinScriptTable
+              entries:
+              - script: "1"
+                threshold: 1
+              - script: "2"
+                threshold: 4
+              - script: "3"
+                threshold: 10
+              editableField: true
+              field: Level
+              id: table
+            chatMessage: Take Damage
+          conditionFormula: ""
+          trigger: losehitpoints
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          name: Ferocity
+          numTargets: "1"
+          description: |-
+            The first time in a round that you are damaged you gain 1 ferocity.
+
+            *Damaging Ferocity:* At level 4, gain 2 ferocity instead
+
+            *Primordial Ferocity* at level 10, gain 3 ferocity instead
+          abilityType: none
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        guid: 10f9ea97-7c3a-486c-8d09-994cb6e49a1c
+      - __typeName: CharacterModifier
+        sourceguid: e60180e0-173d-4234-9f76-e5873e9e6f59
+        source: Fury Class Feature
+        resourceCostId: FuryDying
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Become Dying: Gain 1d3 Ferocity"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0.428570556640625
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 00e1741a-f06b-4324-92f0-a70d418deb39
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: d9b17890-ad90-41fb-b6fe-135e7aa903c6
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            checklistid: 7bd0744d-a628-41b4-9b75-defa2a1038d9
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            quantity: 1d3
+            chatMessage: Become Dying
+          conditionFormula: ""
+          trigger: dying
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          name: Ferocity
+          numTargets: "1"
+          description: The first time you become winded or are dying in an encounter, you gain 1d3 ferocity.
+          abilityType: none
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        name: Ferocity
+        resourceRefreshType: encounter
+        description: "Within the heat of battle, your determination and anger grow, fueling a Heroic Resource called ferocity.\n\nAt the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain ferocity equal to your Victories. At the start of each of your turns during combat, you gain 1d3 ferocity. Additionally, the first time each round that you take damage, you gain 1 ferocity. The first time in an encounter that you become winded or dying, you gain 1d3 ferocity. You lose any remaining rage at the end of the encounter. "
+        behavior: trigger
+        guid: 00e1741a-f06b-4324-92f0-a70d418deb39
+      - __typeName: CharacterModifier
+        sourceguid: e60180e0-173d-4234-9f76-e5873e9e6f59
+        source: Fury Class Feature
+        value: 3
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Ferocity
+        guid: 13c86fc2-a6e4-4b9e-8d62-1fafa0d7057f
+        description: "Within the heat of battle, your determination and anger grow, fueling a Heroic Resource called ferocity.\n\nAt the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain ferocity equal to your Victories. At the start of each of your turns during combat, you gain 1d3 ferocity. Additionally, the first time each round that you take damage, you gain 1 ferocity. The first time in an encounter that you become winded or dying, you gain 1d3 ferocity. You lose any remaining rage at the end of the encounter. "
+        behavior: attribute
+        attribute: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+      name: Ferocity
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: e60180e0-173d-4234-9f76-e5873e9e6f59
+      source: Fury Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      description: |-
+        You can't obtain lower than a tier 2 outcome on any Might test made to 
+        jump.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2c2cbaac-10fe-44e8-a4b9-71c3c9b3808b
+        source: Fury Class Feature
+        behavior: power
+        guid: 3058270c-b22c-42c3-920e-cccbf447f8f2
+        adjustments: []
+        keywords: []
+        activationCondition: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        skills:
+        - 7edbc5b3-92f7-4c39-bd05-165bb2990924
+        name: Mighty Leaps
+        rollType: test_power_roll
+        description: You can't obtain lower than a tier 2 outcome on any Might test made to jump.
+        modtype: nottierone
+        attribute: mgt
+      name: Mighty Leaps
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 80ec23f5-2462-4107-92a9-c70a5487f652
+      source: Fury Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      source: Fury Class Feature
+      guid: ba76011e-4a58-4304-bf74-408fc14868c6
+      imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+      name: Signature Ability
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: Choose one signature ability from the following options. Signature abilities can be used at will. (<i>Quick Build:</i> To the Death)
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          source: Fury Class Feature
+          behavior: activated
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          name: Ability
+          description: ""
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.0510204024612904
+                s: 0.604938268661499
+                v: 0.317647069692612
+                a: 1
+            flavor: The heavy impact of your weapon attacks drives your foes ever backward.
+            sourceReference:
+              __typeName: SourceReference
+              page: 148
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            numTargets: 1
+            modifiers: []
+            strain: []
+            guid: 834ef027-a400-4538-b87c-04a850a99a11
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + M damage; push 1
+              - 6 + M damage; push 2
+              - 9 + M damage; push 4
+              roll: 2d10 + Might
+            categorization: Signature Ability
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Brutal Slam
+            persistence: []
+            description: ""
+            abilityType: none
+            iconid: 516f1bc6-09d4-4107-9ddb-0940f7d51a81
+        source: Fury Class Feature
+        guid: b08dde4a-a760-404d-b293-ec4a04e83b97
+        id: 7c88034b-ba7d-4e90-884b-96c18c3ec580
+        ctime: 1715748063870
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Brutal Slam
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.508749842643738
+                s: 0.272851228713989
+                v: 1.00306558609009
+                a: 1
+            flavor: Staying in constant motion helps you slip out of reach after a brutal assault.
+            sourceReference:
+              __typeName: SourceReference
+              page: 148
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: false
+            numTargets: 1
+            modifiers: []
+            strain: []
+            guid: 0580196d-b1a2-4b37-b2ab-2604b23e6231
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + M damage
+              - 5 + M damage
+              - 7 + M damage; A < strong, slowed (save ends)
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 70dff79b-21d6-4b2b-99a4-35b2d6e552a1
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              autoTarget: false
+              standardAbilityParams:
+                distance: "1"
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              abilityType: standard
+            persistence: []
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Hit and Run
+            categorization: Signature Ability
+            description: You can shift 1 square.
+            abilityType: none
+            iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+        source: Fury Class Feature
+        guid: 49017a2d-ea7c-4743-8849-0de13f23b3c6
+        id: 53dfb650-2464-4297-af6f-93abd3ebdc9a
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Hit and Run
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            targetTextOverride: One creature of your size or smaller
+            repeatTargets: false
+            reasonedFilters:
+            - formula: Target.Size <= Caster.Size
+              reason: Target must be your size or smaller
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You skewer your enemy like a boar upon a spit.
+            sourceReference:
+              __typeName: SourceReference
+              page: 148
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            persistence: []
+            modifiers: []
+            categorization: Signature Ability
+            strain:
+              enabled: true
+            guid: 1a73de9f-9d49-4a9c-ace5-500cee770b1e
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + M damage; M < weak, grabbed
+              - 5 + M damage; M < average, grabbed
+              - 7 + M damage; M < strong grabbed
+              roll: 2d10 + Might
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            numTargets: 1
+            implementation: 3
+            name: Impaled!
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        source: Fury Class Feature
+        guid: 46c324bf-26b3-46de-a942-a1cf7e0b266c
+        id: ab4ae331-ec0f-4ce8-8443-fbc7c1407ff0
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Impaled!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0
+                s: 0.913775205612183
+                v: 1.00191080570221
+                a: 1
+            flavor: Your reckless assault leaves you tactically vulnerable.
+            sourceReference:
+              __typeName: SourceReference
+              page: 148
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 686932fb-ea98-4927-a526-48bc0dae74d2
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + M damage
+              - 6 + M damage
+              - 9 + M damage
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityReplenishBehavior
+              applyto: caster
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              quantity: "2"
+              chatMessage: To the Death!
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 643afc87-edf0-41ca-b5c5-fd7523e0d067
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: To the Death! Make a free strike against the attacker.
+              autoTarget: false
+              standardAbilityParams:
+                targetid: "<<id>>"
+              abilityType: standard
+              standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+            categorization: Signature Ability
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            numTargets: 1
+            name: To the Death!
+            implementation: 3
+            description: You gain two surges. The enemy can make an opportunity attack against you as a free triggered action.
+            abilityType: none
+            iconid: df8e6c86-40a0-4101-8772-46a93ffcbea8
+        source: Fury Class Feature
+        guid: 0950c7e0-232b-491c-9789-5eb342085b53
+        id: e7e7ea0b-631c-4258-a2ec-dacdd5e3f013
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: To the Death!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      prefab: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+        source: Fury Class Feature
+        value: 1
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Characteristic Increase
+        guid: 533eae82-769a-4411-9ef4-acbe1e53b588
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+        source: Fury Class Feature
+        value: 1
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Characteristic Increase
+        guid: e0cb4c41-d2f3-4d60-9cfe-10e789c09957
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: inu
+      - __typeName: CharacterModifier
+        sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+        source: Fury Class Feature
+        value: 1
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Characteristic Increase
+        guid: 36c4fc4c-23e3-4d8a-acda-d5df5edb8c35
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+        source: Fury Class Feature
+        value: 1
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Characteristic Increase
+        guid: d2a96586-9502-46a0-a68d-952a3c28176c
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: prs
+      - __typeName: CharacterModifier
+        sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+        source: Fury Class Feature
+        value: 1
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Characteristic Increase
+        guid: bc3d4913-16f1-4e6e-a780-f15632c8085c
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: rea
+      source: Fury Class Feature
+      guid: 7e94a393-ab5c-4039-8798-682900ca3828
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      name: Characteristic Increase
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: Each of your characteristic scores increases by 1, to a maximum of 4.
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Fury Class Feature
+      guid: 89d92171-eaae-412e-ae2a-73c4ebad4f35
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: "When you gain ferocity at the start of each of your turns during combat,\nyou gain 1d3 + 1 ferocity instead of 1d3. "
+      name: Greater Ferocity
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Fury Class Feature
+      guid: 8d36ea18-4912-4e0e-a796-631c3ab470b5
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: |-
+        Your Growing Ferocity feature provides additional benefits when you
+        have 10 or more ferocity.
+
+        *Implemented under subclass Encounter 1 feature*
+      name: Growing Ferocity Improvement
+      implementation: 4
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+        crafting: true
+        exploration: true
+        intrigue: true
+        interpersonal: true
+      numChoices: 1
+      description: You gain one skill of your choice.
+      source: Fury Class Feature
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 4e2a6d42-d128-4c20-ad25-33bf8d24558b
+      name: Skills
+      individualSkills: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+      name: 9-Rage Heroic Abilities
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: f135eb59-dc78-410a-a839-8af8dec7415a
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 10 + M damage; M < Weak, slowed (save ends)
+              - 14 + M damage; M < Average, slowed (save ends)
+              - 20 + M damage; M < Strong, slowed (save ends)
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: 68f455f5-135f-495c-822d-40d809d2b15f
+              riderid: 7a38f33c-231c-49b0-a7b1-714f1f8344c3
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You need just one blow to sabotage your target.
+            sourceReference:
+              __typeName: SourceReference
+              page: 137
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 37899d76-18f4-4bbd-bc90-68983aae5849
+            numTargets: 1
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            targetType: target
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Debilitating Strike
+            categorization: Heroic Ability
+            description: While slowed this way, the target takes 1 damage for every square they move, including from forced movement.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: 31a29d49-013a-4eb0-9867-e5726e44aebb
+        id: 31a29d49-013a-4eb0-9867-e5726e44aebb
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Debilitating Strike
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 8f7aa542-5fe7-4824-a8e8-370c4b8d4adb
+          source: Character
+          resourceCostId: my turn
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          triggeredAbility:
+            __typeName: TriggeredAbility
+            resourceNumber: 9
+            repeatTargets: false
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + M damage
+              - 9 + M damage
+              - 13 + M damage
+              roll: 2d10 + Might Modifier
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 4d8af35d-b72a-4b3d-b63d-183b938cd5fc
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+              abilityType: standard
+              standardAbilityParams:
+                numrecoveries: "1"
+            triggerPrompt: Power Roll against triggering creature and spend a recovery
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            range: 1
+            usageLimitOptions:
+              resourceRefreshType: turn
+              charges: "1"
+              resourceid: 1c7b20c7-8442-4ddb-a717-7583b77d60ad
+            abilityType: none
+            persistence: []
+            modifiers: []
+            mandatoryDifferentPlayer: true
+            strain: []
+            guid: d329ad8c-89c5-46dd-961b-14294dd1563e
+            trigger: winded
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            conditionFormula: ""
+            targetType: attacker
+            numTargets: "1"
+            name: My Turn!
+            actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+          name: My Turn!
+          resourceRefreshType: turn
+          description: ""
+          behavior: trigger
+          guid: 1c7b20c7-8442-4ddb-a717-7583b77d60ad
+        - __typeName: CharacterModifier
+          sourceguid: 8f7aa542-5fe7-4824-a8e8-370c4b8d4adb
+          source: Character
+          resourceCostId: my turn
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          triggeredAbility:
+            __typeName: TriggeredAbility
+            resourceNumber: 9
+            repeatTargets: false
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + M damage
+              - 9 + M damage
+              - 13 + M damage
+              roll: 2d10 + Might Modifier
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 7307b61c-aa04-452e-9a16-35db6abce5d6
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+              abilityType: standard
+              standardAbilityParams:
+                numrecoveries: "1"
+            triggerPrompt: Power Roll against triggering creature and spend a recovery
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            range: 1
+            usageLimitOptions:
+              resourceRefreshType: turn
+              charges: "1"
+              resourceid: b96cae56-5f2a-4bf1-9de8-420021efd7fd
+            abilityType: none
+            persistence: []
+            modifiers: []
+            mandatoryDifferentPlayer: true
+            strain: []
+            guid: 452a21af-ef2d-4439-9c72-590fa17648e3
+            trigger: losehitpoints
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            conditionFormula: HasAttacker and Winded
+            targetType: attacker
+            numTargets: "1"
+            name: My Turn!
+            actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+          name: My Turn!
+          resourceRefreshType: turn
+          description: ""
+          behavior: trigger
+          guid: b96cae56-5f2a-4bf1-9de8-420021efd7fd
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: 8f7aa542-5fe7-4824-a8e8-370c4b8d4adb
+          description: ""
+          source: Character
+          name: My Turn!
+          behavior: triggerdisplay
+          guid: 70e2e9e3-000e-415b-8067-1ab8040125d4
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: Power Roll and you can spend a recovery
+            guid: b4da34e9-b783-4005-925a-5be5b21a6a3e
+            distance: Melee 1
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            target: The triggering creature
+            trigger: A creature causes you to be winded or dying, or damages you while you are winded or dying.
+            cost: "9"
+            flavor: You quickly strike back at a foe.
+            type: free
+            name: 'My Turn! '
+        source: Character
+        guid: 8f7aa542-5fe7-4824-a8e8-370c4b8d4adb
+        id: 8f7aa542-5fe7-4824-a8e8-370c4b8d4adb
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: My Turn!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You knock around enemies like playthings.
+            sourceReference:
+              __typeName: SourceReference
+              page: 1137
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: a8b5932d-c37c-49c3-b690-c4732acdf570
+            iconid: ui-icons/skills/1.png
+            numTargets: 2
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            categorization: Heroic Ability
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Rebounding Storm
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              lingerTime: 2
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 92a0e189-cfe7-4ec4-98da-0d25eb7df984
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    targetFilter: Target = Pusher
+                    repeatTargets: false
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      standardAbilityParams:
+                        prompt: Continue pushing creature
+                        distance: "<<speed>>"
+                        targetid: "<<self>>"
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        numTargets: "1"
+                        modifiers: []
+                        guid: 3f12b5a7-e683-45eb-bb9e-30bcf0526dc1
+                        repeatTargets: false
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        behaviors: []
+                        range: 1
+                        name: Invoked Ability
+                        targetType: self
+                        description: ""
+                        abilityType: none
+                        iconid: ui-icons/skills/1.png
+                      standardAbility: 75946ad2-cfe5-4d05-9e2a-5a70ed5173a6
+                      abilityType: standard
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    range: "100"
+                    persistence: []
+                    modifiers: []
+                    strain: []
+                    guid: 23b75051-6812-43b9-934e-adc632c5b303
+                    conditionFormula: Speed > 0
+                    targetType: all
+                    name: New Ongoing Effect
+                    trigger: collide
+                    numTargets: "1"
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  guid: d87428c2-ec6e-42bf-8dab-4d4686367e11
+                  source: Ongoing Effect
+                  behavior: trigger
+                  description: Creature keeps bouncing after colliding
+                  name: Rebounding push
+                  sourceguid: 92a0e189-cfe7-4ec4-98da-0d25eb7df984
+                source: Ongoing Effect
+                name: Rebounding push
+                description: Creature keeps bouncing after colliding
+                id: 92a0e189-cfe7-4ec4-98da-0d25eb7df984
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 9 damage; push 3
+              - 14 damage; push 5
+              - 19 damage; push 7
+              roll: 2d10 + Might
+            description: When a target would end this forced movement by colliding with a creature or object, they take damage as usual, then are pushed the remaining distance away from the creature or object in the direction they came from. As long as forced movement remains, this effect continues if the target collides with another creature or object
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        source: Character
+        guid: 3151bc02-f4ee-472d-ae39-972e041d8034
+        id: 3151bc02-f4ee-472d-ae39-972e041d8034
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Rebounding Storm
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 9 + M damage; M < weak, slowed (save ends)
+              - 13 + M damage; M < average, slowed (save ends)
+              - 18 + M damage; M < strong, restrained (save ends)
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: 68f455f5-135f-495c-822d-40d809d2b15f
+              riderid: 2dee9fce-0059-4357-b389-56441732b380
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+              riderid: 05dd3b3b-5b12-4ee4-aaa8-9fd5347241b6
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You channel the Primordial Chaos into blows that petrify your foe...literally.
+            sourceReference:
+              __typeName: SourceReference
+              page: 137
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: e6abe9cf-95b5-491e-92c6-63d7f90ae69e
+            numTargets: 1
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            targetType: target
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: To Stone!
+            categorization: Heroic Ability
+            description: While the target is slowed this way, any other effect that would make the target slowed instead makes them restrained by this ability. Additionally, a creature who fails the saving throw while restrained this way is petrified until they are given a supernatural cure or you choose to reverse the effect (no action required)
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: d0715b43-74ca-46d0-8c94-67d4fbd31467
+        id: d0715b43-74ca-46d0-8c94-67d4fbd31467
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: To Stone!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      description: Choose one heroic ability from the following options.
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Fury Class Feature
+      guid: 159f1b31-5096-478a-8366-891ed365821d
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: You can create a temporary source of elemental power as a respite activity. This source of elemental power lasts 24 hours after creation, and can be used to create a portal to Quintessence with your Primordial Portal feature. If you do so, the source of elemental power lasts as long as the portal is maintained in your network.
+      name: Harbinger of the Primordial Chaos
+      implementation: 0
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-11:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-12:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-10:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      description: |-
+        Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score. If you are a stormwight, your damage immunity from your Primordial Storm feature (see Stormwight Kits) increases to three times your Might score.
+        When any elemental or any other creature whose abilities deal acid, cold, corruption, fire, lightning, poison, or sonic damage first becomes aware of you in combat, if they have p<s , they are frightened of you (save ends).
+        Additionally, when you use Primordial Strike, you can spend up to 3 ferocity, gaining 1 surge per ferocity spent to use for that strike.**Immunities are in Subclass and Stormwight Kits**
+      modifiers: []
+      name: Chaos Incarnate
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 95a96a99-b19a-4cd5-86d5-44980ee03ae6
+      source: Fury Class Feature
+      canHavePrerequisites: true
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 18145bbd-0b61-4253-9657-cd6c98309e14
+        source: Fury Class Feature
+        value: 5
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: 10th Level Characteristic Increase
+        guid: c9fc5ffc-18a1-4485-a158-d1dbfac1b039
+        description: Your Might and Agility scores each increase to 5.
+        behavior: attribute
+        attribute: mgt
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 18145bbd-0b61-4253-9657-cd6c98309e14
+        source: Fury Class Feature
+        value: 5
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: 10th Level Characteristic Increase
+        guid: 8c94c08c-b225-4c55-9ead-cf8590814b72
+        description: Your Might and Agility scores each increase to 5.
+        behavior: attribute
+        attribute: agl
+      source: Fury Class Feature
+      guid: 18145bbd-0b61-4253-9657-cd6c98309e14
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: Your Might and Agility scores each increase to 5.
+      name: 10th Level Characteristic Increase
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Fury Class Feature
+      guid: f12c79a9-04e9-4622-8c13-3b2825cdde6c
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: |-
+        Your Growing Ferocity feature provides additional benefits when youhave 12 or more ferocity.
+        *Implemented under subclass Encounter 1 feature*
+      name: Growing Ferocity Improvement
+      implementation: 4
+    - __typeName: CharacterFeatChoice
+      tag: feat,crafting perk,exploration perks,intrigue perk
+      name: Perk
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 7f806cf6-6c19-45d7-8e79-21682102152f
+      description: You gain one crafting, exploration, or intrigue perk of your choice.
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Fury Class Feature
+      guid: 2b94d369-8c5e-4f24-ba78-65b13dbfc12c
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: |-
+        The first time you take damage each combat round, you gain 3 ferocity instead of 2.
+
+        *Implemented under Encounter 1 Ferocity Feature*
+      name: Primordial Ferocity
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 98749522-7f06-487b-b3d3-ee11a4dfd692
+        source: Fury Class Feature
+        guid: 28861f95-1075-4aec-aa71-f9c50f504f37
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Primordial Power
+        description: |-
+          You have an epic resource called primordial power. Each time you finish a respite, you gain primordial power equal to the XP you gain. You can spend primordial power on your abilities as if it were ferocity.
+          Additionally, you can spend any amount of primordial power as a free maneuver, ending one effect on you for each primordial power spent.
+          You can also spend 3 primordial power to create a portal to Quintessence without needing a source of elemental power.
+          Primordial power remains until you spend it.
+        num: 0
+        resourceType: e7b04a7e-61fc-4e17-b999-d95d7e751abb
+        behavior: resource
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: 98749522-7f06-487b-b3d3-ee11a4dfd692
+        description: |-
+          You have an epic resource called primordial power. Each time you finish a respite, you gain primordial power equal to the XP you gain. You can spend primordial power on your abilities as if it were ferocity.
+          Additionally, you can spend any amount of primordial power as a free maneuver, ending one effect on you for each primordial power spent.
+          You can also spend 3 primordial power to create a portal to Quintessence without needing a source of elemental power.
+          Primordial power remains until you spend it.
+        source: Fury Class Feature
+        name: Primordial Power
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          trigger: endrespite
+          strain: []
+          guid: 2e836e58-044d-4953-9334-b9b9c08a0b83
+          repeatTargets: false
+          abilityType: none
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          targetType: self
+          persistence: []
+          name: Primordial Power
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: e7b04a7e-61fc-4e17-b999-d95d7e751abb
+            chatMessage: Primordial Power Gained
+            quantity: XP Gained
+          description: You have an epic resource called primordial power. Each time you finish a respite, you gain primordial power equal to the XP you gain. You can spend primordial power on your abilities as if it were ferocity.
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 1801acba-766b-40a9-b0b9-5977431331b1
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: 98749522-7f06-487b-b3d3-ee11a4dfd692
+        description: |-
+          You have an epic resource called primordial power. Each time you finish a respite, you gain primordial power equal to the XP you gain. You can spend primordial power on your abilities as if it were ferocity.
+          Additionally, you can spend any amount of primordial power as a free maneuver, ending one effect on you for each primordial power spent.
+          You can also spend 3 primordial power to create a portal to Quintessence without needing a source of elemental power.
+          Primordial power remains until you spend it.
+        source: Fury Class Feature
+        name: Primordial Power
+        behavior: triggerdisplay
+        guid: 4b19d951-87a8-40f0-82d6-9f313a70fe7f
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: ""
+          effect: You have an epic resource called primordial power. Each time you finish a respite, you gain primordial power equal to the XP you gain. You can spend primordial power on your abilities as if it were ferocity.
+          name: Primordial Power
+          type: passive
+          guid: abf30abd-61b4-414c-9e0f-f78dcb7f665a
+          distance: ""
+          keywords: []
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: 98749522-7f06-487b-b3d3-ee11a4dfd692
+        description: |-
+          You have an epic resource called primordial power. Each time you finish a respite, you gain primordial power equal to the XP you gain. You can spend primordial power on your abilities as if it were ferocity.
+          Additionally, you can spend any amount of primordial power as a free maneuver, ending one effect on you for each primordial power spent.
+          You can also spend 3 primordial power to create a portal to Quintessence without needing a source of elemental power.
+          Primordial power remains until you spend it.
+        source: Fury Class Feature
+        name: Primordial Power
+        behavior: activated
+        guid: 3e2b7927-7aa9-4faf-8ab9-21067700f11f
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 142
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          description: |-
+            You have an epic resource called primordial power. Each time you finish a respite, you gain primordial power equal to the XP you gain. You can spend primordial power on your abilities as if it were ferocity. Additionally, you can spend any amount of primordial power as a free maneuver, ending one effect on you for each primordial power spent. You can also spend 3 primordial power to create a portal to Quintessence without needing a source of elemental power.
+            Primordial power remains until you spend it.
+          persistence: []
+          modifiers: []
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            maxChosenFormula: Charges
+            mode: conditions
+            reminderText: Select the effects you want to end.
+            conditions: []
+            value: Charges
+            purgeType: chosen
+            fromCaster: ""
+          strain: []
+          guid: b2af355b-4af8-46e1-8608-468460f06e5a
+          actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+          iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          categorization: Ability
+          channelDescription: End One Effect for each Primordial Power spent.
+          name: Primordial Power
+          numTargets: "1"
+          channeledResource: e7b04a7e-61fc-4e17-b999-d95d7e751abb
+          abilityType: none
+          implementation: 4
+      source: Fury Class Feature
+      guid: 98749522-7f06-487b-b3d3-ee11a4dfd692
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: |-
+        You have an epic resource called primordial power. Each time you finish a respite, you gain primordial power equal to the XP you gain. You can spend primordial power on your abilities as if it were ferocity.
+        Additionally, you can spend any amount of primordial power as a free maneuver, ending one effect on you for each primordial power spent.
+        You can also spend 3 primordial power to create a portal to Quintessence without needing a source of elemental power.
+        Primordial power remains until you spend it.
+      name: Primordial Power
+      implementation: 4
+    - __typeName: CharacterSkillChoice
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: You gain one skill of your choice.
+      guid: 40ff8fa0-b01a-42ba-8094-b2ee2f6922da
+      source: Fury Class Feature
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-15:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 8077fbc4-0011-47f3-9dbd-34c9a76774be
+        source: Fury Class Feature
+        value: 3
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Characteristic Increase
+        guid: b1e1bfb3-1ecb-4329-b9a5-81b236aa2fb6
+        description: Might and Agility each increase to 3
+        behavior: attribute
+        attribute: agl
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 8077fbc4-0011-47f3-9dbd-34c9a76774be
+        source: Fury Class Feature
+        value: 3
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        name: Characteristic Increase
+        guid: 6322f1b9-f426-4deb-a31c-e2ffd720944b
+        description: Might and Agility each increase to 3
+        behavior: attribute
+        attribute: mgt
+      source: Fury Class Feature
+      guid: 8077fbc4-0011-47f3-9dbd-34c9a76774be
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: Might and Agility each increase to 3
+      name: Characteristic Increase
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Fury Class Feature
+      guid: 5b8c4684-42ba-492c-9901-1e63e33358b5
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: The first time you take damage each combat round, you gain 2 ferocity instead of 1.
+      name: Damaging Ferocity
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Fury Class Feature
+      guid: 07abf41f-17a8-44eb-80f8-57a6f5194b99
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: Your Growing Ferocity feature provides additional benefits when you have 8 or more ferocity.
+      name: Growing Ferocity Improvement
+      implementation: 4
+    - __typeName: CharacterFeatChoice
+      tag: feat,crafting perk,exploration perks,intrigue perk,interpersonal perk,lore perks,supernatural perks
+      name: Perk
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 2dba7ee3-02e0-4750-9a3d-56231809b957
+      description: 'You gain one perk of your choice. '
+      source: Fury Class Feature
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Fury Class Feature
+      guid: 588959e3-2a26-477a-9090-20e558c926f3
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: As your ferocity manifests elemental forces created by the Primordial Chaos, you are aware of how elemental power interacts with those around you. You automatically sense whether any creature within 10 squares has damage immunity or damage weakness to acid, cold, corruption, fire, lightning, poison, or sonic damage, learning whether they have immunity or weakness, the value of that immunity or weakness, and the specific damage type. Additionally, you automatically sense any source of one of those damage types within 10 squares, such as a fire or a source of elemental power.
+      name: Primordial Attunement
+      implementation: 0
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6c00194b-c501-47eb-870b-6db43e318bd7
+        source: Fury Class Feature
+        modtype: none
+        resourceCostType: cost
+        keywords:
+          Strike: true
+        surges: "1"
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        rollType: ability_power_roll
+        name: Primordial Strike
+        activationCondition: false
+        description: You can manifest your ferocity directly as an elemental force created by the Primordial Chaos. As part of any strike, you can spend 1 ferocity to gain 1 surge that must be used for that strike. The extra damage dealt by the surge can be acid, cold, corruption, fire, lightning, poison, or sonic (your choice).
+        behavior: power
+        guid: f4f5339f-6dde-4f42-8ecf-1b37d0f636ea
+      - __typeName: CharacterModifier
+        sourceguid: 6c00194b-c501-47eb-870b-6db43e318bd7
+        source: Fury Class Feature
+        modtype: none
+        guid: e4d066f0-3c90-4dda-a0be-33185623ae84
+        keywords: []
+        rollRequirement: surges
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        activationCondition: false
+        name: Primordial Strike - Acid
+        surgeDamageType: acid
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 6c00194b-c501-47eb-870b-6db43e318bd7
+        source: Fury Class Feature
+        modtype: none
+        guid: 6b0ae050-5934-4822-a803-fde4cb467af8
+        keywords: []
+        rollRequirement: surges
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        activationCondition: false
+        name: Primordial Strike - Cold
+        surgeDamageType: cold
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 6c00194b-c501-47eb-870b-6db43e318bd7
+        source: Fury Class Feature
+        modtype: none
+        guid: 9d4bb8c1-043b-4878-9349-6121cbdd7cc9
+        keywords: []
+        rollRequirement: surges
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        activationCondition: false
+        name: Primordial Strike - Corruption
+        surgeDamageType: corruption
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 6c00194b-c501-47eb-870b-6db43e318bd7
+        source: Fury Class Feature
+        modtype: none
+        guid: 38c3ecb2-dcb5-49a1-9c8c-0e84b75b9d0a
+        keywords: []
+        rollRequirement: surges
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        activationCondition: false
+        name: Primordial Strike - Fire
+        surgeDamageType: fire
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 6c00194b-c501-47eb-870b-6db43e318bd7
+        source: Fury Class Feature
+        modtype: none
+        guid: 033fda95-8835-4fc6-b65a-eb48981fe513
+        keywords: []
+        rollRequirement: surges
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        activationCondition: false
+        name: Primordial Strike - Lightning
+        surgeDamageType: lightning
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 6c00194b-c501-47eb-870b-6db43e318bd7
+        source: Fury Class Feature
+        modtype: none
+        guid: f9d0cace-7938-40d7-a14e-c7a02e7648ff
+        keywords: []
+        rollRequirement: surges
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        activationCondition: false
+        name: Primordial Strike - Poison
+        surgeDamageType: poison
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 6c00194b-c501-47eb-870b-6db43e318bd7
+        source: Fury Class Feature
+        modtype: none
+        guid: d8905a8b-f8fb-49d1-90ae-d080646a3fab
+        keywords: []
+        rollRequirement: surges
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        activationCondition: false
+        name: Primordial Strike - Sonic
+        surgeDamageType: sonic
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      source: Fury Class Feature
+      guid: 6c00194b-c501-47eb-870b-6db43e318bd7
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: You can manifest your ferocity directly as an elemental force created by the Primordial Chaos. As part of any strike, you can spend 1 ferocity to gain 1 surge that must be used for that strike. The extra damage dealt by the surge can be acid, cold, corruption, fire, lightning, poison, or sonic (your choice).
+      name: Primordial Strike
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+        crafting: true
+        exploration: true
+        intrigue: true
+        interpersonal: true
+      numChoices: 1
+      description: You gain one skill of your choice.
+      source: Fury Class Feature
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      guid: 03f7d9d7-51e8-4c19-a4b7-a314dacf9402
+      name: Skills
+      individualSkills: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  level-18:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      source: Fury Class Feature
+      guid: 7a730d99-2e20-444d-921c-68c344eb0ec1
+      imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+      name: 3-Rage Heroic Abilities
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: Choose one heroic ability from the following options, each of which costs 3 rage to use. (<i>Quick Build:</i> Back)
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: You hew about you with your mighty weapon, hurling enemies backward.
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            objectTarget: false
+            targetFilter: ""
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Area: true
+              Melee: true
+              Weapon: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 5 damage
+              - 8 damage; push 1
+              - 11 damage; push 3
+              roll: 2d10 + Might
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You hew about you with your mighty weapon, hurling enemies backward
+            sourceReference:
+              __typeName: SourceReference
+              page: 148
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: f427bc74-979f-47d6-9042-978f800aae98
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            numTargets: 1
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            categorization: Heroic Ability
+            implementation: 3
+            name: Back!
+            targetType: all
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 69765e23-5ca6-4acd-ba46-6e0aa125c6af
+        source: Fury Class Feature
+        guid: 91f1c291-1857-4632-bef5-66112d599a06
+        id: 2461fef8-194e-4d44-8112-8240495e3782
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Back!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: You hew about you with your mighty weapon, hurling enemies backward.
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + M damage; slide 2
+              - 5 + M damage; slide 3
+              - 8 + M damage; slide 5
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                abilityType: none
+                strain: []
+                guid: ae3892c4-da4d-4f99-b2b6-b4462c0b8563
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                  movementType: move
+                numTargets: "1"
+                targetType: emptyspace
+                targeting: vacated
+                name: Invoked Ability
+                categorization: Hidden
+                description: ""
+                range: Movement Speed
+                iconid: ui-icons/skills/1.png
+              autoTarget: false
+              promptText: Move into a square that the target was pushed through
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your enemies will clear your path--whether they want to or not.
+            sourceReference:
+              __typeName: SourceReference
+              page: 148
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 9caadefb-9977-44ad-9036-4ab7d94cd2a2
+            numTargets: 1
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            targetType: target
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Out of the Way!
+            categorization: Heroic Ability
+            description: When you slide the target, you can move into any square they leave. If you take damage from an opportunity attack by moving this way, the target takes the same damage.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Fury Class Feature
+        guid: 6dd411c8-91b9-425d-9100-f00d0b648f3f
+        id: 3b85689e-3d40-4e75-bc34-7fe65d9179d5
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Out of the Way!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            numTargets: "1"
+            abilityType: none
+            targetFilter: ""
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Melee: true
+              Weapon: true
+            implementation: 3
+            behaviors:
+            - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              targetMoveVicinity: true
+              movementType: move
+              vicinityFilter: Enemy
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: targets
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 06649b34-15b1-42af-a235-8f4eed5f8b05
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: Distance(Target) = Cast.Spaces Moved
+              standardAbilityParams:
+                distance: "1"
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              abilityType: standard
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 damage
+              - 3 damage
+              - 5 damage
+              roll: 2d10 + Might
+            targetType: anyspace
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Teach them the folly of lining up for you.
+            categorization: Heroic Ability
+            range: Movement Speed
+            effectImplemented: false
+            preDescription: You move up to your speed in a straight line, and enemy squares are not difficult terrain for this movement. You can end this movement in a creature's space and move them to an adjacent unoccupied space. You make one power roll that targets each enemy whose space you move through.
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 148
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            strain: []
+            guid: 66c34f90-1f88-4867-b61c-71d2bda51e6f
+            name: Tide of Death
+            rangeTextOverride: Self; see below
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            targeting: straightpathignorecreatures
+            canChooseLowerRange: true
+            radius: 1
+            persistence: []
+            description: The last target you damage takes extra damage equal to your Might score for each opportunity attack you trigger during your move.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Fury Class Feature
+        guid: 2868df3c-7ed7-4576-8880-a237ae176cc4
+        id: 75619ff1-4256-48f6-a930-aec7163b924f
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Tide of Death
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0
+                s: 0.985741853713989
+                v: 1.0030654668808
+                a: 1
+            flavor: Hard for them to fight when they're busy holding in their giblets.
+            sourceReference:
+              __typeName: SourceReference
+              page: 148
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: f9d44af8-5d42-40a4-b341-0876cc280d06
+            iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+            numTargets: "1"
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            categorization: Heroic Ability
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Your Entrails Are Your Extrails!
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + M damage; M < weak, bleeding (save ends)
+              - 5 + M damage; M < average, bleeding (save ends)
+              - 8 + M damage; M < strong, bleeding (save ends)
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+              riderid: c57d30c6-80e1-4fce-a0f7-7fb9c85e54ed
+            description: While bleeding, the target takes damage equal to your Might score at the end of your turns.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Fury Class Feature
+        guid: 3c01daad-e3f6-4b5e-b97f-ebbfbde4839e
+        id: f4d9f2c5-e63e-4c95-87b6-edce7e5178bd
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Your Entrails Are Your Extrails!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      source: Fury Class Feature
+      guid: c46aa8be-727c-45da-bd73-8dc735520207
+      imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+      name: 5-Rage Heroic Abilities
+      classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+      description: Choose one heroic ability from the following options, each of which costs 5 rage to use. (<i>Quick Build:</i> Blood for Blood)
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0
+                s: -0.00166606903076172
+                v: 1.00191068649292
+                a: 1
+            flavor: See how well they fight after you've bled them dry.
+            sourceReference:
+              __typeName: SourceReference
+              page: 149
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: false
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 13ffdb9c-cd8c-4876-9053-d59604ba14c0
+            iconid: 444209fb-220c-47ad-8b68-891b0ed2cb10
+            numTargets: 1
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            categorization: Heroic Ability
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Blood for Blood!
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 4 + M damage; M < weak, bleeding and weakened (save ends)
+              - 6 + M damage; M < average, bleeding and weakened (save ends)
+              - 10 + M damage; M < strong, bleeding and weakened (save ends)
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: 5f25603c-aed4-48fa-858f-295d0cd7b3b5
+              modifier:
+                __typeName: CharacterModifier
+                sourceguid: 5f25603c-aed4-48fa-858f-295d0cd7b3b5
+                behavior: power
+                modtype: none
+                domains: []
+                keywords: []
+                activationCondition: false
+                customTrigger:
+                  __typeName: TriggeredAbility
+                  persistence: []
+                  modifiers: []
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  strain: []
+                  guid: abe84627-984a-4d7b-a893-6d64a7dc794e
+                  repeatTargets: false
+                  abilityType: none
+                  trigger: d20roll
+                  targetType: self
+                  numTargets: "1"
+                  name: New Ability
+                  behaviors:
+                  - __typeName: ActivatedAbilityDelayBehavior
+                  - __typeName: ActivatedAbilityDamageBehavior
+                    titleText: "Blood for Blood: damage to self"
+                    roll: 1d6
+                  description: ""
+                  range: 1
+                  iconid: ui-icons/skills/1.png
+                description: You can deal 1d6 damage to yourself to deal 1d6 bonus damage to the target.
+                name: Blood for Blood!
+                rollType: ability_power_roll
+                damageModifier: 1d6
+                hasCustomTrigger: true
+                guid: adec81db-3b62-43e5-91d8-e91b159337c5
+            description: You can deal 1d6 damage to yourself to deal an extra 1d6 damage to the target.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Fury Class Feature
+        guid: e4cb3892-4edd-4207-b115-fe1cdbd98184
+        id: 4a54ee53-3bec-4ff6-96f6-cdfeb71a5f94
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Blood for Blood!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords: []
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 8f2681a1-5ec7-4592-9477-62453792205c
+              duration: 0
+              ongoingEffectCustom: 8f2681a1-5ec7-4592-9477-62453792205c
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              chatMessage: Make Peace With Your God
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0
+                s: 1.00267481803894
+                v: 1.00306522846222
+                a: 1
+            flavor: Anger is an energy.
+            sourceReference:
+              __typeName: SourceReference
+              page: 149
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 49326be6-9b66-443c-a5e0-d7055d6bead2
+            abilityType: none
+            iconid: b6c78c6e-ac58-437c-a83d-2549d06a5412
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            categorization: Heroic Ability
+            numTargets: "1"
+            name: Make Peace With Your God!
+            targetType: self
+            description: You gain 1 surge, and the next ability roll you make this turn automatically obtains a tier 3 outcome.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Fury Class Feature
+        guid: c2d483dc-7bad-43bb-9923-24143a792b70
+        id: bd621ee5-9050-4f42-bec9-0ffafbd13385
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Make Peace With Your God!
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            objectTarget: false
+            targetFilter: ""
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Area: true
+              Melee: true
+              Weapon: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityOrderTargetsBehavior
+              orderFormula: Distance(Target, Self)
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 damage; push 2
+              - 9 damage; push 4
+              - 13 damage; push 6
+              roll: 2d10 + Might
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0
+                s: 1.00267481803894
+                v: 1.00306570529938
+                a: 1
+            flavor: You unleash a howl that hurls your enemies back.
+            categorization: Heroic Ability
+            range: 5
+            effectImplemented: false
+            abilityType: none
+            persistence: []
+            modifiers: []
+            targetType: line
+            strain: []
+            guid: 17eb53bf-5138-4a99-9915-0889760ed421
+            radius: 1
+            numTargets: 1
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            iconid: a337f5b1-3990-4565-8be2-c7861fb28d10
+            sourceReference:
+              __typeName: SourceReference
+              page: 149
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            name: Thunder Roar
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: The targets are force moved one at a time, starting with the target nearest to you, and can be pushed into other targets in the same line.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Fury Class Feature
+        guid: a9a74970-3096-4344-9e41-309b367fec0f
+        id: e890a232-6768-4c6d-a7a8-da63284aa08a
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: Thunder Roar
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Fury Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 7 + M damage
+              - 11 + M damage
+              - 16 + M damage
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: 14dd66cd-b596-4474-9a5f-4bf7cfcc6eab
+              modifier:
+                __typeName: CharacterModifier
+                sourceguid: 14dd66cd-b596-4474-9a5f-4bf7cfcc6eab
+                activationCondition: false
+                resourceCostType: multicost
+                domains: []
+                behavior: power
+                filterCondition: Winded and not Dying
+                keywords: []
+                hasCustomTrigger: true
+                customTrigger:
+                  __typeName: TriggeredAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: e81dc53e-7d51-4d80-a0d1-c0ed1d6ca524
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  range: 1
+                  targetType: self
+                  behaviors:
+                  - __typeName: ActivatedAbilityDelayBehavior
+                  - __typeName: ActivatedAbilityDamageBehavior
+                    titleText: "To The Uttermost End: Damage Self"
+                    roll: 1d6
+                  name: New Ability
+                  trigger: d20roll
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                description: You deal 1d6 bonus damage for each ferocity spent. You take 1d6 damage.
+                rollType: ability_power_roll
+                guid: b7fafa50-d427-4adc-b195-11225811cd63
+                damageModifier: charges d6
+                modtype: none
+                name: To The Uttermost End
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: 4fe6a7aa-5ba2-4575-9481-54738465b619
+              modifier:
+                __typeName: CharacterModifier
+                sourceguid: 14dd66cd-b596-4474-9a5f-4bf7cfcc6eab
+                activationCondition: false
+                resourceCostType: multicost
+                domains: []
+                behavior: power
+                filterCondition: dying
+                keywords: []
+                hasCustomTrigger: true
+                customTrigger:
+                  __typeName: TriggeredAbility
+                  persistence: []
+                  modifiers: []
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  strain: []
+                  guid: e81dc53e-7d51-4d80-a0d1-c0ed1d6ca524
+                  repeatTargets: false
+                  abilityType: none
+                  trigger: d20roll
+                  targetType: self
+                  numTargets: "1"
+                  name: "To the Uttermost End: Damage Self"
+                  behaviors:
+                  - __typeName: ActivatedAbilityDamageBehavior
+                    titleText: "To The Uttermost End: Damage Self"
+                    roll: 1d6
+                  description: ""
+                  range: 1
+                  iconid: ui-icons/skills/1.png
+                description: You deal 1d10 bonus damage for each ferocity spent. You take 1d6 damage.
+                rollType: ability_power_roll
+                guid: b7fafa50-d427-4adc-b195-11225811cd63
+                damageModifier: charges d10
+                modtype: none
+                name: To The Uttermost End
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0
+                s: 1.0026752948761
+                v: 1.00306522846222
+                a: 1
+            flavor: You gut your life force to ensure a foe's demise.
+            sourceReference:
+              __typeName: SourceReference
+              page: 134
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            implementation: 3
+            description: |-
+              **Spend 1+ Ferocity:** While you are winded, this ability deals an extra
+              1d6 damage for each ferocity spent. While you are dying, it deals an
+              extra 1d10 damage for each ferocity spent. In either case, you lose
+              1d6 Stamina after making this strike.
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            maxChannel: 100 when winded else 0
+            numTargets: 1
+            categorization: Heroic Ability
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            guid: 7f15f06b-96a8-4cda-a3a0-4aa6042c6cf7
+            channelDescription: ""
+            name: To the Uttermost End
+            targetType: target
+            channeledResource: none
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+        source: Fury Class Feature
+        guid: f29f2e41-ed6a-4fda-bcd8-d3a72866a47a
+        id: 0c496a36-d334-4ec2-b2ad-96bc37433a5d
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        imported: 066f0c62-fd6d-4352-a917-ccf460eb7705
+        name: To the Uttermost End
+        classid: ce18b1ba-363b-4403-945b-34a3ce08a465
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-13:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:9c970bda-6c07-4c8a-a0b1-de55091192c5: true
+id: ce18b1ba-363b-4403-945b-34a3ce08a465
+details: |-
+  You do not temper the heat of battle within you. You unleash it! Your experience in the wild taught you the secrets of predators, and now, like the raptor, the panther, the wolf, you channel unfettered anger into martial prowess. Primordial Chaos is your ally. Let others use finesse to clean up the wreckage left in your wake.
+
+  As a fury, you devastate foes with overwhelming might, hurl yourself and enemies around the battlefield, and grow stronger as your ferocity increases. Nature has no concept of fairness--and neither do you.
+name: Fury
+portraitid: 072759f5-8b2d-4483-afde-7f5b8c6c0ec1
+mtime: 1774108826249
+hitpointsCalculation: 21 + (Level - 1)*9
+quantity: 1d3

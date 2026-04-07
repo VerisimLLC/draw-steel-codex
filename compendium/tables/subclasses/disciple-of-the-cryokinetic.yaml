@@ -1,0 +1,1014 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727851141068
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Disciple of the Cryokinetic Class Feature
+      guid: 20b8fe03-e221-46d6-ab3c-f40079378f0b
+      domains:
+        class:4203e447-4531-467b-b270-c952806ce67f: true
+        class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+      canHavePrerequisites: true
+      classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+      description: As a free maneuver, you can spend 1d6 Stamina to remove one effect on you. Each creature of your choice in the area of your Null Field ability also gains this benefit.
+      name: Synaptic Triage
+      implementation: 3
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:4203e447-4531-467b-b270-c952806ce67f: true
+        class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+      guid: 0c0e1343-39bf-4e06-bb4e-26e88fff36ed
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        sourceguid: 6bf58942-36c8-43bc-b0cc-0d758b64fdf5
+        progression:
+        - level: 0
+          description: Knockback targets an additional creature. You can change untyped damage to cold damage.
+          resources: 2
+          tooltip: Whenever you use the Knockback maneuver, you can target one additional creature. Additionally, whenever you deal untyped damage with a psionic ability, you can change it to cold damage instead.
+        - level: 0
+          description: When you grab a creature or an enemy moves in your Null Field, you gain 1 surge (1/turn).
+          resources: 4
+          tooltip: The first time on a turn that you grab a creature or an enemy moves 1 or more squares in the area of your Null Field ability, you gain 1 surge.
+        - level: 0
+          description: You gain an edge on Grab and Knockback.
+          resources: 6
+          tooltip: You gain an edge on the Grab and Knockback maneuvers.
+        - level: 4
+          description: When you grab a creature or an enemy moves in your Null Field, you gain 2 surges (1/turn).
+          resources: 8
+          tooltip: The first time on a turn that you grab a creature or an enemy moves 1 or more squares in the area of your Null Field ability, you gain 2 surges.
+        - level: 7
+          description: You have a double edge on Grab and Knockback.
+          resources: 10
+          tooltip: You have a double edge on the Grab and Knockback maneuvers.
+        - level: 10
+          description: Forced movement +{Intuition}. When you use a heroic ability, gain 10 temporary Stamina.
+          resources: 12
+          tooltip: Whenever you force move a target, the forced movement distance gains a bonus equal to your Intuition score. Additionally, whenever you use a heroic ability, you gain 10 temporary Stamina.
+        source: Disciple of the Cryokinetic Class Feature
+        description: ""
+        behavior: growingresources
+        name: Cryokinetic Mastery
+        guid: 4cc4bcb7-8029-4349-bb9d-23caf80b2ddb
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: ability.name = "Knockback" or ability.name = "Grab"
+        source: Disciple of the Cryokinetic Class Feature
+        guid: 1428c8ae-8a9b-4405-8a72-e30959877c72
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or level < 7)
+        keywords: []
+        activationCondition: "1"
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        behavior: power
+        name: Cryokinetic Mastery
+        rollType: ability_power_roll
+        description: When you have 6 or more Discipline, you gain an edge on the Grab maneuver and the Knockback maneuver.
+        modtype: edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: ability.name = "Knockback" or ability.name = "Grab"
+        source: Disciple of the Cryokinetic Class Feature
+        guid: 9b235045-9a1a-435d-b559-6c908fce870c
+        filterCondition: Heroic Resources This Turn >= 10 and level >= 7
+        keywords: []
+        activationCondition: "1"
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        behavior: power
+        name: Cryokinetic Mastery
+        rollType: ability_power_roll
+        description: When you have 10 or more Discipline, you gain a double edge on the Grab maneuver and the Knockback maneuver.
+        modtype: double_edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 0c0e1343-39bf-4e06-bb4e-26e88fff36ed
+        modifyDescription: "Cryokinetic Mastery: when you have 2 or more discipline you can target one additional creature."
+        source: Disciple of the Cryokinetic Class Feature
+        filterAbility: Heroic Resources This Turn >= 2 and ability.name = "Knockback"
+        behavior: modifyability
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        attributes:
+        - operation: Add
+          value: "1"
+          id: numtargets
+        guid: 587e1c90-6c69-4b2c-b082-9d59202bdb2d
+        description: ""
+        name: Cryokinetic Mastery
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 75c722f2-1696-4227-a3b5-00e3f80a6e07
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors: []
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        sourceguid: 0c0e1343-39bf-4e06-bb4e-26e88fff36ed
+        source: Disciple of the Cryokinetic Class Feature
+        guid: 9c098e7e-9727-489b-a43a-43201ce6d58b
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        name: Cryokinetic Mastery
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 76948fcb-5b63-4759-bc16-505ad9d218de
+          conditionFormula: condition = "Grabbed" and HasAttacker and Attacker = self
+          subject: other
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: cyro_surge_gain
+            key: e0c5137c-34e2-4e7d-9ab9-9a490397d426
+            refresh: turn
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: 2 when Heroic Resources This Turn >= 8 and level >= 4 else 1
+            chatMessage: Grabbed a creature
+          trigger: inflictcondition
+          name: Cryokinetic Mastery
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        behavior: trigger
+        filterCondition: Heroic Resources This Turn >= 4
+      - __typeName: CharacterModifier
+        sourceguid: 0c0e1343-39bf-4e06-bb4e-26e88fff36ed
+        source: Disciple of the Cryokinetic Class Feature
+        guid: badf3969-e6a6-410f-97e5-8d2c13336c41
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        name: Cryokinetic Mastery
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 76948fcb-5b63-4759-bc16-505ad9d218de
+          conditionFormula: (ongoingEffects has "Null Field") and path.DistanceToCreature(self) <= Nullifying Aura Radius
+          subject: enemy
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: cyro_surge_gain
+            key: e0c5137c-34e2-4e7d-9ab9-9a490397d426
+            refresh: turn
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: 2 when Heroic Resources This Turn >= 8 and level >= 4 else 1
+            chatMessage: Enemy moved in Null Aura
+          trigger: finishmove
+          name: Cryokinetic Mastery
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        behavior: trigger
+        filterCondition: Heroic Resources This Turn >= 4
+      - __typeName: CharacterModifier
+        sourceguid: 0c0e1343-39bf-4e06-bb4e-26e88fff36ed
+        displayCondition: ability.damagetypes has "untyped"
+        source: Disciple of the Cryokinetic Class Feature
+        guid: 81a8f8ea-344c-4933-9ae6-b4def824d40a
+        keywords:
+          Psionic: true
+        activationCondition: "0"
+        damageTypeMappings:
+          untyped: cold
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        name: Cryokinetic Mastery
+        modtype: none
+        description: When you have 2 or more Discipline, whenever you deal untyped damage with a psionic ability, you can change it to cold damage instead.
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        sourceguid: 6bf58942-36c8-43bc-b0cc-0d758b64fdf5
+        description: ""
+        source: Disciple of the Cryokinetic Class Feature
+        name: Cryokinetic Mastery
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            namedAbility: Grab
+            standardAbilityParams:
+              distance: "<<disengage speed>>"
+            promptText: "Cryokinetic Mastery: Grab"
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 5b8dd9c5-7320-4c11-895e-c24b9d99b541
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            runOnController: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 8f3a3cd8-109e-49ca-b6d9-2a0e5bc22e3c
+          persistence: []
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          conditionFormula: TriggerName = "Used Inertial Shield"
+          targetType: self
+          trigger: custom
+          name: Cryokinetic Mastery
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 65470732-8bd6-4788-9ff6-76c34523143e
+      name: Cryokinetic Mastery
+      classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+      description: ""
+      source: Disciple of the Cryokinetic Class Feature
+      implementation: 3
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        sourceguid: 5c404582-25dd-4786-ace8-ab50cb8d6f61
+        description: You steel yourself for imminent danger by tapping into your body’s cold energy. At the start of any combat, you gain a number of surges equal to your Victories.
+        source: Disciple of the Cryokinetic Class Feature
+        name: Chilling Readiness
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: dc099b18-d971-4528-9767-5224f7e530a6
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: Chilling Readiness Surges gained
+            quantity: Victories
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          whenActive: always
+          numTargets: "1"
+          trigger: rollinitiative
+          name: Chilling Readiness
+          description: You steel yourself for imminent danger by tapping into your body’s cold energy. At the start of any combat, you gain a number of surges equal to your Victories.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: bf618dda-18dc-422e-b620-855b3909ce7e
+      source: Disciple of the Cryokinetic Class Feature
+      guid: 5c404582-25dd-4786-ace8-ab50cb8d6f61
+      domains:
+        class:4203e447-4531-467b-b270-c952806ce67f: true
+        class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+      canHavePrerequisites: true
+      classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+      description: You steel yourself for imminent danger by tapping into your body’s cold energy. At the start of any combat, you gain a number of surges equal to your Victories.
+      name: Chilling Readiness
+      implementation: 3
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          sourceguid: a4bc5b9b-6ccb-4f22-9182-029c607554f1
+          description: ""
+          source: Disciple of the Cryokinetic Class Feature
+          name: Ice Pillars
+          behavior: activated
+          guid: 515d71d0-72a4-4c3a-b8e4-1ad40d90e634
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Psionic: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Pillars of ice erupt from the ground and launch your foes into the air.
+            sourceReference:
+              __typeName: SourceReference
+              page: 155
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: dacb85e8-5959-40d9-9fe1-6addc745e7be
+            numTargets: "3"
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - Vertical slide 6
+              - Vertical slide 8
+              - Vertical slide 10
+              roll: 2d10 + Intuition
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Ice Pillars
+            categorization: Heroic Ability
+            description: The pillars vanish as soon as the effects of the forced movement are resolved.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Disciple of the Cryokinetic Class Feature
+        guid: a4bc5b9b-6ccb-4f22-9182-029c607554f1
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        canHavePrerequisites: true
+        classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+        description: ""
+        name: Ice Pillars
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          sourceguid: a723cf6f-40da-4206-983a-2802800614e4
+          description: ""
+          source: Disciple of the Cryokinetic Class Feature
+          name: Wall of Ice
+          behavior: activated
+          guid: a93d2dbb-ce01-45b0-96bb-e3ebf3787183
+          activatedAbility:
+            __typeName: ActivatedAbility
+            targetTextOverride: Special
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Area: true
+              Psionic: true
+            targetType: anyspace
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You create a wall of ice.
+            sourceReference:
+              __typeName: SourceReference
+              page: 155
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 3015e1f0-b368-4866-b1e2-c5f46806b874
+            categorization: Heroic Ability
+            numTargets: "10"
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+            targeting: contiguous_wall
+            rangeTextOverride: 10 wall within 10
+            name: Wall of Ice
+            behaviors:
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              filterTarget: not Object
+              rule: slide 1
+            - __typeName: ActivatedAbilityAuraBehavior
+              duration: eoe
+              aura:
+                __typeName: Aura
+                applyto: enemies
+                blocks_movement: true
+                modifiers:
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    repeatTargets: false
+                    behaviors:
+                    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                      rule: M < Average, restrained (save ends)
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    range: 1
+                    numTargets: "1"
+                    modifiers: []
+                    subjectRange: "1"
+                    strain: []
+                    guid: b41c9180-69c5-4590-8cdd-65ba926970fc
+                    persistence: []
+                    conditionFormula: not Friends(Caster, Subject)
+                    targetType: subject
+                    name: Wall of Ice
+                    trigger: forcemove
+                    subject: other
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  description: ""
+                  source: Aura
+                  behavior: trigger
+                  guid: 814c432c-04ac-4443-aa8c-6c4f80426169
+                  name: Wall of Ice
+                  sourceguid: fde671c3-99bc-40a4-8db4-9e749d69b5f0
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    repeatTargets: false
+                    behaviors:
+                    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                      rule: M < Average, slowed (save ends)
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    range: 1
+                    numTargets: "1"
+                    modifiers: []
+                    subjectRange: ""
+                    strain: []
+                    guid: ab493504-dd28-4769-84d5-b8e5ea542e97
+                    persistence: []
+                    conditionFormula: Path.Distance to Creature(self) <= 1
+                    targetType: subject
+                    name: Wall of Ice
+                    trigger: finishmove
+                    subject: other
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  description: ""
+                  source: Aura
+                  behavior: trigger
+                  guid: 3232d2ee-c0c2-485d-b925-8ffc6db6ff4c
+                  name: Wall of Ice
+                  sourceguid: fde671c3-99bc-40a4-8db4-9e749d69b5f0
+                name: Wall of Ice
+                guid: fde671c3-99bc-40a4-8db4-9e749d69b5f0
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                objectid: f1558a8b-97ad-4907-9696-8486f2c9b2b6
+            description: You can place this wall in occupied squares, sliding each creature in the area into the nearest unoccupied space of your choice. The wall remains until the end of the encounter or until you are dying. The wall’s squares are treated as stone squares for the purpose of damage, and you and allies can move freely through the wall. Each enemy who enters a square adjacent to the wall and has M < Average is slowed (save ends). Each enemy who is force moved into the wall and has M < Average is restrained (save ends).
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        name: Wall of Ice
+        classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+        guid: a723cf6f-40da-4206-983a-2802800614e4
+        source: Disciple of the Cryokinetic Class Feature
+        canHavePrerequisites: true
+      classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+      guid: a043e091-3e6f-4489-a23f-c192f928aff0
+      description: Choose one of the following abilities.
+      name: 6th-Level Cryokinetic Abilities
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  level-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        crafting: true
+      source: Disciple of the Cryokinetic Class Feature
+      classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+      guid: e9ea2208-02d8-42b2-ba63-fe3779d5b87c
+      description: Choose a Crafting Skill
+      name: Cryokinetic Crafting Skill
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          sourceguid: 0f6d58d4-2bd0-4031-a82b-0459e8f80627
+          description: You drastically increase the local entropy
+          source: Disciple of the Cryokinetic Class Feature
+          name: Entropic Field
+          behavior: activated
+          guid: 700900da-6d35-4855-8b6c-e035383f1389
+          activatedAbility:
+            __typeName: ActivatedAbility
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Area: true
+              Psionic: true
+              Weapon: true
+            targetType: cube
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You drastically increase the local entropy
+            sourceReference:
+              __typeName: SourceReference
+              page: 167
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            persistence: []
+            modifiers: []
+            categorization: Heroic Ability
+            strain: []
+            guid: 63153607-b87f-4971-92a7-323aec45defc
+            radius: "3"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+            numTargets: "1"
+            implementation: 3
+            name: Entropic Field
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 cold damage; A < weak, slowed (save ends)
+              - 9 cold damage; A < average, slowed (save ends)
+              - 13 cold damage; A < strong, slowed (save ends)
+              roll: 2d10 + Agility
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        source: Disciple of the Cryokinetic Class Feature
+        guid: 0f6d58d4-2bd0-4031-a82b-0459e8f80627
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        canHavePrerequisites: true
+        classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+        description: You drastically increase the local entropy
+        name: Entropic Field
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          sourceguid: 7816ced6-98e9-4d6f-82d2-62a7d9fa3191
+          description: You absorb ambient heat, coating the ground in frost and precipitating snow from the air.
+          source: Disciple of the Cryokinetic Class Feature
+          name: Heat Sink
+          behavior: activated
+          guid: 6cd3ea5d-7a3c-4500-8ca3-e5bcca6529b0
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Psionic: true
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You absorb ambient heat, coating the ground in frost and precipitating snow from the air.
+            sourceReference:
+              __typeName: SourceReference
+              page: 167
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 5a0bec6b-18ac-4088-a341-2c514a2ba75f
+            iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+            persistence: []
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 171eb906-9db8-4684-8dc5-94e17ab7bb0d
+              durationUntilEndOfTurn: false
+              duration: 1
+              ongoingEffectCustom: 171eb906-9db8-4684-8dc5-94e17ab7bb0d
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: e9227f65-5867-48b8-b3c5-4e573eced6f5
+              durationUntilEndOfTurn: false
+              duration: 1
+              ongoingEffectCustom: e9227f65-5867-48b8-b3c5-4e573eced6f5
+            name: Heat Sink
+            categorization: Heroic Ability
+            description: Until the start of your next turn, the size of your Null Field ability increases by 1, and you and any ally benefit from concealment while in the area. At the end of this turn, each enemy in the area takes cold damage equal to your Intuition score.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Disciple of the Cryokinetic Class Feature
+        guid: 7816ced6-98e9-4d6f-82d2-62a7d9fa3191
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        canHavePrerequisites: true
+        classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+        description: You absorb ambient heat, coating the ground in frost and precipitating snow from the air.
+        name: Heat Sink
+        implementation: 3
+      classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+      guid: d9c9f66d-92aa-43ca-a35d-44f04379cb7f
+      description: Choose one of the following two abilities.
+      name: 2nd-Level Cryokinetic Abilities
+    - __typeName: CharacterFeature
+      domains:
+        class:4203e447-4531-467b-b270-c952806ce67f: true
+        class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+      guid: df53defe-2638-4bc7-a90d-3490598feaf4
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: df53defe-2638-4bc7-a90d-3490598feaf4
+        source: Disciple of the Cryokinetic Class Feature
+        value: Walking Speed
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        name: Entropic Adaptability
+        guid: 37cb2b2d-0338-466c-8c02-e76d0eef7d8d
+        description: You have cold immunity equal to twice your Intuition score. Additionally, you ignore difficult terrain related to cold and ice, and you can automatically climb at full speed while moving.
+        behavior: attribute
+        attribute: climb
+      - __typeName: CharacterModifier
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        sourceguid: df53defe-2638-4bc7-a90d-3490598feaf4
+        behavior: resistance
+        source: Disciple of the Cryokinetic Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          keywords: []
+          dr: Intuition*2
+          damageType: cold
+          apply: Damage Reduction
+        guid: 467b783b-06fb-47f7-8181-8f3ac79709b1
+        name: Entropic Adaptability
+        description: You have cold immunity equal to twice your Intuition score. Additionally, you ignore difficult terrain related to cold and ice, and you can automatically climb at full speed while moving.
+      name: Entropic Adaptability
+      classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+      description: You have cold immunity equal to twice your Intuition score. Additionally, you ignore difficult terrain related to cold and ice, and you can automatically climb at full speed while moving.
+      source: Disciple of the Cryokinetic Class Feature
+      implementation: 2
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th-Level Cryokinetic Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          sourceguid: 315b55c9-8be4-4413-8809-5d5c0d8f0d9a
+          description: You become the coldest thing in the timescape.
+          source: Disciple of the Cryokinetic Class Feature
+          name: Absolute Zero
+          behavior: activated
+          guid: fd3ce477-2339-4c71-98ce-502055a61d0a
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            targetTextOverride: Self
+            repeatTargets: false
+            rangeTextOverride: Self
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - You gain 20 temporary Stamina
+              - You gain 30 temporary Stamina
+              - You gain 40 temporary Stamina
+              roll: 2d10 + Intuition
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: 4cb0bba7-8733-4256-b65d-a81fb9132d36
+              duration: eoe
+              ongoingEffectCustom: 4cb0bba7-8733-4256-b65d-a81fb9132d36
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.60824990272522
+                s: 0.969726622104645
+                v: 0.95375645160675
+                a: 1
+            flavor: 'You become the coldest thing in the timescape. '
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            strain: []
+            guid: 8d004c0c-4305-4af5-9eb3-5e7cc0f21fbe
+            keywords:
+              Psionic: true
+            numTargets: "1"
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 158
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            implementation: 4
+            name: Absolute Zero
+            targetType: self
+            description: Until the end of the encounter or until you are dead, you become an avatar of uttermost cold. You gain immunity to all damage equal to the cold damage immunity granted by your Entropic Adaptability trait, you ignore the negative effects of dying, and you have a +2 bonus to potencies
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 74c58e44-80b2-4f11-93d3-3ad2cd6755b3
+        source: Disciple of the Cryokinetic Class Feature
+        guid: 315b55c9-8be4-4413-8809-5d5c0d8f0d9a
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        canHavePrerequisites: true
+        classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+        description: You become the coldest thing in the timescape.
+        name: Absolute Zero
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+          sourceguid: 55f4cc21-6c7a-46c7-ae6f-842b089db900
+          description: You drain all the heat from the target.
+          source: Disciple of the Cryokinetic Class Feature
+          name: Heat Drain
+          behavior: activated
+          guid: eec54911-a687-403d-9a11-aee32c07bb57
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: One Creature
+            repeatTargets: false
+            keywords:
+              Psionic: true
+              Melee: true
+              Strike: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 + I cold damage; M < weak, restrained (save ends)
+              - 10 + I cold damage; M < average, restrained (save ends)
+              - 13 + I cold damage; M < strong, restrained (save ends)
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+              riderid: 771a0987-b0d6-431f-b785-72990d20f1a4
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You drain all the heat from the target.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 158
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain: []
+            guid: c053017e-2b2b-4f2d-b8b4-2d360da6d125
+            rangeTextOverride: Melee 1
+            numTargets: "1"
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+            targetType: target
+            implementation: 4
+            name: Heat Drain
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: While restrained this way, the target takes cold damage equal to your Intuition score at the start of each of your turns. Additionally, whenever the target damages another creature while restrained this way, any potency associated with the damage is reduced by 2.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Disciple of the Cryokinetic Class Feature
+        guid: 55f4cc21-6c7a-46c7-ae6f-842b089db900
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+        canHavePrerequisites: true
+        classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+        description: You drain all the heat from the target.
+        name: Heat Drain
+        implementation: 4
+      classid: 7ce0df52-44a0-4442-bd59-959340f23fc3
+      guid: 16925925-2db7-4716-b6aa-7aa81b13adb3
+      source: Disciple of the Cryokinetic Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:7ce0df52-44a0-4442-bd59-959340f23fc3: true
+details: You are able to tap into the most essential energy of the manifolds, absolute cold, and manifest those effects in your body. You gain a crafting skill.
+name: Disciple of the Cryokinetic
+mtime: 1772682478555
+id: 7ce0df52-44a0-4442-bd59-959340f23fc3
+primaryClassId: 4203e447-4531-467b-b270-c952806ce67f

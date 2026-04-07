@@ -1,0 +1,66 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 3830e963-dd70-4715-ac0f-6cdd5ac52ce7
+  sourceguid: c68b9ef9-a813-40e9-a23c-e6453b470233
+  value: 1
+  source: Ongoing Effect
+  name: Absorption Field
+  behavior: attribute
+  description: |-
+    Null Field ability increases by 1.
+    Enemies take a bane on ability rolls in the area
+  attribute: bd01a4c5-0758-4453-8d71-5d2257aa23fd
+- __typeName: CharacterModifier
+  sourceguid: c68b9ef9-a813-40e9-a23c-e6453b470233
+  source: Ongoing Effect
+  seq: 88faf9ec-a2ee-4f2c-9ff7-ac0fc645af63
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 4e92ccc2-26e8-4cef-8bd9-3f2f2c561693
+      source: Aura
+      behavior: power
+      keywords: []
+      activationCondition: true
+      name: Absorption Field
+      guid: ee260201-eac4-4bb0-8123-bee51e5635ea
+      description: While the area of that ability is enlarged this way, each enemy in the area takes a bane on ability rolls.
+      modtype: bane
+      rollType: ability_power_roll
+    name: Absorption Field
+    guid: 4e92ccc2-26e8-4cef-8bd9-3f2f2c561693
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: Your null field absorbs kinetic energy.
+  radius: Nullifying Aura Radius
+  guid: da774ca4-3b45-47a4-8826-713501de6bf2
+  description: |-
+    Null Field ability increases by 1.
+    Enemies take a bane on ability rolls in the area
+  behavior: aura
+  name: Absorption Field
+source: Ongoing Effect
+guid: c68b9ef9-a813-40e9-a23c-e6453b470233
+id: c68b9ef9-a813-40e9-a23c-e6453b470233
+ctime: 1757980375515
+sustainFormula: Ongoing Effects has "Null Field"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Absorption Field
+statusEffect: false
+description: |-
+  Null Field ability increases by 1.
+  Enemies take a bane on ability rolls in the area
+mtime: 1757982017445
+iconid: ui-icons/skills/1.png

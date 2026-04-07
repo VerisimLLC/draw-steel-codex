@@ -1,0 +1,188 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7e1a4778-e118-4d59-911d-089e780b7d3f
+  properties:
+    __typeName: monster
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 6
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "6"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Hunter	Level 1 Minion Support
+        Dwarf, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 6
+        <b>Speed </b>5	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>With Captain</b> Stamina +2<b>Free Strike</b> 1
+        Might +1	Agility +2	Reason 0	Intuition 0	Presence 0
+        <b>Snaring Javelin</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	1 damage; pull 1
+        %E2%98%85	<b>12%E2%80%9316</b>	2 damage; pull 2
+        %E2%9C%B8	<b>17</b>	3 damage; pull 4
+        <b>Effect</b> A target restrained by a dwarf can be pulled by this ability.
+
+
+    characterFeatures: []
+    role: Minion Support
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: 58fe51ac-23b6-4ca2-b51f-f76bdd8bd41a
+    opportunityAttack: 1
+    damage_taken: 0
+    keywords:
+      Dwarf: true
+      Humanoid: true
+    resources: []
+    savingThrowRatings: []
+    minionSquad: Dwarf Hunter Squad 3
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      implementationDetails: Implementation does not recognize if restrained inflicted by a Dwarf creature.
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: 8f07cf6e-abc3-4f01-9c4e-c06d0644a6e6
+            sourceguid: 4d0e08c4-472b-4efb-a8ed-2367ae65a726
+            behavior: attribute
+            source: Ongoing Effect
+            name: Restrained Target can be force moved
+            value: -1
+            description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained conditionunless the Director determines otherwise.
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          guid: 4d0e08c4-472b-4efb-a8ed-2367ae65a726
+          id: 4d0e08c4-472b-4efb-a8ed-2367ae65a726
+          name: Restrained Target can be force moved
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained conditionunless the Director determines otherwise.
+          implementation: 4
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage; pull 1
+        - 2 damage; pull 2
+        - 3 damage; pull 4
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 06a33baf-e31b-43e6-a149-2bfe4ccee202
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 107
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      implementation: 3
+      name: Snaring Javelin
+      persistence: []
+      description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained conditionunless the Director determines otherwise.
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    walkingSpeed: 5
+    movementSpeeds: []
+    availableTriggers: []
+    creatureSize: 1M
+    monster_type: Dwarf Hunter
+    withCaptain: +2 bonus to Stamina
+  tokenType: null
+  bestiaryId: d0426418-f23d-4fb4-8c60-e894c6b13e73
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Dwarf Hunter
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590310130
+mtime: 1775201137032
+hidden: false

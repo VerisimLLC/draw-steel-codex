@@ -1,0 +1,413 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Flow of Magma
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0b4f92a5-5bc9-4464-9dc2-ac926c4322bc
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 6
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: 6
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Summoner Heroic
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 4 damage
+        - 4 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 fire damage
+        - 4 fire damage
+        - 4 fire damage
+        roll: "12"
+        modesSelected:
+        - 2
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Fire
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: b9a8a3bd-94d2-4534-accb-6b0ae13c40c5
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 fire damage
+        - 6 fire damage
+        - 8 fire damage
+        roll: 2d10+2
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: f05cd142-c2ea-46cc-960a-6f2eb35d071b
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        standardAbilityParams:
+          distance: "<<cast.tier>>+2"
+        abilityType: standard
+        applyto: caster
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "2"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Fire
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Molten Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: ec7c0829-cd28-4a38-9d8d-b1e975332f95
+    opportunityAttack: 4
+    stability: 2
+    import:
+      type: mcdm
+      data: |
+        FLOW OF MAGMA Level 3 MINION HARRIER
+        Elemental EV 3 for two minions
+        1L 5 6 2 4
+        Size Speed Stamina Stability Free Strike
+        Immunity: Fire 2 Weakness: -
+        Movement: Climb With Captain:
+        M ight +2 A gility -2 R eason 0 I ntuition 0 P resence +1
+        m Molten Strike 2d10 + R Signature Ability
+        Magic, Melee, Strike Main Action
+        e Melee 2 %C3%97 One creature or object per minion
+        %C3%A1 4 fire damage; shift 3
+        %C3%A9 6 fire damage; shift 4
+        %C3%AD 8 fire damage; shift 5
+        Effect: Each square that the flow shifts into becomes wreathed in
+        flames until the start of the flow's next turn. An enemy that enters
+        an affected square takes 2 damage.
+        t Eruption 1 Essence
+        When the flow is reduced to 0 Stamina, they launch lava into an area
+        equal to 1 + their size within 5 squares. The affected area becomes
+        difficult terrain for enemies until the end of the encounter. An
+        enemy that enters an affected square or starts their turn there takes
+        4 fire damage.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5a33b3d4-7b50-45f5-87fb-7c5d262f9d8d: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5a33b3d4-7b50-45f5-87fb-7c5d262f9d8d
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:5a33b3d4-7b50-45f5-87fb-7c5d262f9d8d: true
+        name: Eruption 1 Essence
+        resourceRefreshType: encounter
+        description: When the flow is reduced to 0 Stamina, they launch lava into an area equal to 1 + their size within 5 squares. The affected area becomes difficult terrain for enemies until the end of the encounter. An enemy that enters an affected square or starts their turn there takes 4 fire damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              targetAllegiance: enemy
+              targetType: cube
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: "5"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 16b998fe-31dc-463c-9e2d-00784094b244
+              behaviors:
+              - __typeName: ActivatedAbilityAuraBehavior
+                applyto: targets
+                duration: none
+                aura:
+                  __typeName: Aura
+                  creatureFilter: Agility < 1
+                  difficult_terrain: true
+                  source: Eruption
+                  movedamage: fire
+                  guid: b06b6717-06c0-4caf-ba69-f725581de5ba
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor:
+                      __usertype: LuaColor
+                      h: 0.0121692419052124
+                      s: 0.940450549125671
+                      v: 0.964014112949371
+                      a: 1
+                  objectid: ee605659-fe39-4b6a-a60f-7c179541c791
+                  applyto: enemies
+                  relocateResource: none
+                  relocateRange: 1
+                  name: Eruption
+                  canrelocate: true
+                  modifiers: []
+                  damage: 4
+                  iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+                guid: 96af506f-4f36-47ac-bf70-6f855c0bbf20
+                aliveafterdeath: true
+              numTargets: "1"
+              name: Invoked Ability
+              radius: "2"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: dbc04a6c-e0e7-4c7c-bd0d-6b0ffee48f75
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 20e35e2f-096d-498a-aac1-158f66eff633
+          castImmediately: true
+          targetType: self
+          numTargets: "1"
+          trigger: creaturedeath
+          name: Eruption 1 Essence
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: dbc04a6c-e0e7-4c7c-bd0d-6b0ffee48f75
+      name: Eruption 1 Essence
+      guid: 5a33b3d4-7b50-45f5-87fb-7c5d262f9d8d
+      description: When the flow is reduced to 0 Stamina, they launch lava into an area equal to 1 + their size within 5 squares. The affected area becomes difficult terrain for enemies until the end of the encounter. An enemy that enters an affected square or starts their turn there takes 4 fire damage.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:555434c3-a2dc-4cd1-9a38-70b82cb591ec: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:555434c3-a2dc-4cd1-9a38-70b82cb591ec: true
+        sourceguid: 555434c3-a2dc-4cd1-9a38-70b82cb591ec
+        description: ""
+        source: Character Feature
+        name: Molten Strike Effect
+        behavior: activated
+        guid: 47acd674-b973-4bcc-811a-cf1380fca793
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: anyspace
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.0820901468396187
+              s: 0.242474555969238
+              v: 0.986351490020752
+              a: 1
+          categorization: Trigger
+          range: "5"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: bb5e6dcc-6fce-4cc4-80fb-b407555c4563
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          domains:
+            CharacterFeature:555434c3-a2dc-4cd1-9a38-70b82cb591ec: true
+          targeting: direct
+          numTargets: "1"
+          name: Molten Strike Effect
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            duration: nextturn
+            aura:
+              __typeName: Aura
+              modifiers: []
+              source: Molten Strike
+              movedamage: fire
+              guid: b06b6717-06c0-4caf-ba69-f725581de5ba
+              objectid: 5619c849-e671-40e6-9624-ce75771f8884
+              applyto: enemies
+              name: Molten Strike
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor:
+                  __usertype: LuaColor
+                  h: 0.0977984666824341
+                  s: 0.254746913909912
+                  v: 0.988791644573212
+                  a: 1
+              damage: 2
+              iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+          description: ""
+          abilityType: none
+          iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+      name: Molten Strike Effect
+      guid: 555434c3-a2dc-4cd1-9a38-70b82cb591ec
+      description: ""
+      source: Character Feature
+    role: Harrier Harrier
+    equipment: []
+    skillRatings: []
+    availableTriggers: []
+    damage_taken: 0
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    resources: []
+    minion: true
+    minionSquad: Flow of Magma Squad 2
+    walkingSpeed: 5
+    movementSpeeds:
+      Climb: 5
+    name: Flow of Magma
+    creatureSize: 1L
+    initiativeGrouping: 4b89b495-7d92-4da6-b8ed-d6be63c4a695
+    monster_type: Flow of Magma
+    keywords:
+      Summoner: true
+      Earth: true
+      Heroic: true
+      Elemental: true
+      Fire: true
+  tokenType: null
+  bestiaryId: fc2bdbe9-323c-4779-8163-a56b4f600f74
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: 3
+  createdTimestamp: 1757331495444
+description: null
+parentFolder: 8505c8ec-8446-4e6b-bf74-a645343d7cf4
+artist: null
+ord: 4
+ctime: 1759502729308
+mtime: 1775167537848
+hidden: false

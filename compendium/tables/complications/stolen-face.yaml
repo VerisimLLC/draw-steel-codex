@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: Whenever you take damage, your face becomes blank, with no eyes, nose, mouth, or ears. This doesn’t affect your senses or your ability to speak. Your face doesn’t return until you use the benefit of this complication to restore it.
+mtime: 1755604134630
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Stolen Face
+ctime: 1755517257531
+description: An evil fairy cursed you, leaving you with a blank visage instead of a face. Although you’re able to imitate other peoples’ features, you’d like to have your own back.
+id: 4c078ae2-4260-4d78-a739-0be216eb31cd
+benefit: You can spend 5 uninterrupted minutes to rearrange your face to resemble the face of another creature of your ancestry who you’ve observed before. You have a double edge on tests made to impersonate that creature or to disguise your identity. You are unable to change your hair or other nonfacial features.

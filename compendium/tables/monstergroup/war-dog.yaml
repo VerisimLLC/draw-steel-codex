@@ -1,0 +1,196 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: 3
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityHealBehavior
+    roll: 5*Level
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 9b3c64f8-f96e-440d-92ec-be34df1ea988
+  iconid: 59057dc1-7abf-4304-8375-46e5905a875a
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: self
+  name: Reconstitute
+  numTargets: "1"
+  description: |
+    One war dog acting this turn tears apart a nearby corpse of a humanoid and incorporates its body parts into their own. The war dog regains Stamina equal to 5 times their level.
+  abilityType: none
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: 5
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Area: true
+    Magic: true
+  targetType: cube
+  multipleModes: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "10"
+  persistence: []
+  modifiers: []
+  strain: []
+  modeList:
+  - rules: ""
+    text: Slowed
+  - text: Weakened
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+  numTargets: "1"
+  guid: c2058c67-c81c-4d69-a538-978719ee06ee
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    resistanceAttr: agl
+    roll: 2d10 + Might or Agility
+    tiers:
+    - 5 fire damage; slowed or weakened (save ends)
+    - 5 fire damage; slowed or weakened (EoT)
+    - 5 fire damage
+    resistanceRoll: true
+    isTest: false
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    tiersSelected:
+    - 1
+    rule: slowed (save ends)
+    modesSelected:
+    - 1
+    applyto: targets
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    tiersSelected:
+    - 2
+    rule: slowed (EoT)
+    modesSelected:
+    - 1
+    applyto: targets
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    tiersSelected:
+    - 1
+    rule: weakened (save ends)
+    modesSelected:
+    - 2
+    applyto: targets
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    tiersSelected:
+    - 2
+    rule: weakened (EoT)
+    modesSelected:
+    - 2
+  name: Fire for Effect
+  radius: "4"
+  description: Each target makes an Agility test. The same condition is imposed on each affected target.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: 7
+  targetFilter: (not enemy) and target.minion and target.Type is War Dog
+  repeatTargets: false
+  reasonedFilters: []
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 3f56dfe3-403a-405a-b9db-5c89b432fe21
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    targeting: inherit
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: c027eb06-3a8f-4b50-8a11-c1f685db8682
+      repeatTargets: false
+      abilityType: none
+      categorization: Hidden
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        targeting: self
+        promptText: Shift up to your speed
+        standardAbilityParams:
+          distance: "<<movement speed>>"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 4fead516-78f7-41f0-83db-8b2ad3769e61
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: c65311da-a5cb-46c4-865c-ad5a13cbebde
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+        promptText: Make a free strike
+      - __typeName: ActivatedAbilityDestroyBehavior
+      numTargets: "1"
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    promptText: ""
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Fodder Run
+  numTargets: "1"
+  description: Each war dog minion can shift up their speed, make a free strike, and then die.
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+mtime: 1770372036946
+name: War Dog
+traits: []
+attacks: []
+id: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+ctime: 1747452783193

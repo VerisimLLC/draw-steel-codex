@@ -1,0 +1,53 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: f8e04952-36d1-45be-94e5-2a0e073a0945
+  sourceguid: fbbbaae7-8d0b-457e-8f56-40dfdc9e59c9
+  value: 3
+  source: Ongoing Effect
+  name: Luminous Champion Aloft
+  behavior: attribute
+  description: Your speed is increased by 3, you can fly, and your abilities ignore concealment. When you gain a heroic resource, you gain 1 additional heroic resource.
+  attribute: speed
+- __typeName: CharacterModifier
+  guid: 3deac332-5991-445a-9d79-96671784356c
+  sourceguid: fbbbaae7-8d0b-457e-8f56-40dfdc9e59c9
+  value: 1
+  source: Ongoing Effect
+  name: Luminous Champion Aloft
+  behavior: attribute
+  description: Your speed is increased by 3, you can fly, and your abilities ignore concealment. When you gain a heroic resource, you gain 1 additional heroic resource.
+  attribute: fly
+- __typeName: CharacterModifier
+  guid: f5780814-f29b-414a-a41d-a75eff308206
+  sourceguid: fbbbaae7-8d0b-457e-8f56-40dfdc9e59c9
+  value: 1
+  source: Ongoing Effect
+  name: Luminous Champion Aloft
+  behavior: attribute
+  description: Your speed is increased by 3, you can fly, and your abilities ignore concealment. When you gain a heroic resource, you gain 1 additional heroic resource.
+  attribute: 16228928-9f29-4510-a703-65344f2356ef
+- __typeName: CharacterModifier
+  guid: b43a947f-96c6-4616-b47d-cbb54077bdca
+  sourceguid: fbbbaae7-8d0b-457e-8f56-40dfdc9e59c9
+  value: 1
+  source: Ongoing Effect
+  name: Luminous Champion Aloft
+  behavior: attribute
+  description: Your speed is increased by 3, you can fly, and your abilities ignore concealment. When you gain a heroic resource, you gain 1 additional heroic resource.
+  attribute: 61a3ee0a-353f-4407-a317-d05647551fa5
+source: Ongoing Effect
+guid: fbbbaae7-8d0b-457e-8f56-40dfdc9e59c9
+id: fbbbaae7-8d0b-457e-8f56-40dfdc9e59c9
+ctime: 1766760391889
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Luminous Champion Aloft
+description: Your speed is increased by 3, you can fly, and your abilities ignore concealment. When you gain a heroic resource, you gain 1 additional heroic resource.
+custom: true
+mtime: 1769127109788
+iconid: ui-icons/skills/1.png

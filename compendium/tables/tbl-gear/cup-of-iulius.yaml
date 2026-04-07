@@ -1,0 +1,102 @@
+__typeName: equipment
+implementation: 2
+category: Gear
+specialDescription: ""
+features:
+- __typeName: CharacterFeature
+  guid: e4bb2cd9-2fde-48e8-91b7-95b961eccee4
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: e4bb2cd9-2fde-48e8-91b7-95b961eccee4
+    behavior: activated
+    source: Item
+    name: Cup of Iulius
+    description: |-
+      You can fill the Cup of Iulius with a liquid and drink the entirety of the liquid as a maneuver. You gain the following benefits based on the liquid consumed if you drink a cup’s worth:
+
+      Caelian Wine Over 1,000 Years Old or the Blood of an Innocent Humanoid: Your level increases by 1 for the next 10 days. At the end of this time, roll a d10. On a result of 6 or higher, you die and can’t be returned to life. If you drink to gain this benefit again while it is currently active, the expiration resets.
+
+      Mead That is 100 Years Old or More: At the start of the next combat encounter you have, you gain surges equal to your highest characteristic score plus your Victories.
+
+      Water: You regain 1 Recovery. You can’t gain this benefit again until you complete a respite.
+    guid: edd58d1d-bc74-4d39-aa76-82b4d557bbda
+    activatedAbility:
+      __typeName: ActivatedAbility
+      targetTextOverride: Self
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+        chatMessage: ""
+        modesSelected:
+        - 2
+        quantity: Highest Characteristic + Victories
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+        modesSelected:
+        - 3
+        chooseResourceFromList: false
+      multipleModes: true
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      modeList:
+      - rules: Caelian Wine Over 1,000 Years Old or the Blood of an Innocent Humanoid
+        text: Level Increase
+      - rules: Mead That is 100 Years Old or More
+        text: Gain Surges
+      - rules: Water
+        text: Regain 1 Recovery
+      persistence: []
+      domains: []
+      guid: ea6ff89a-8ccd-4eba-b635-34bf74f4b5da
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Cup of Iulius
+      targetType: self
+      description: |-
+        You can fill the Cup of Iulius with a liquid and drink the entirety of the liquid as a maneuver. You gain the following benefits based on the liquid consumed if you drink a cup’s worth:
+
+        Caelian Wine Over 1,000 Years Old or the Blood of an Innocent Humanoid: Your level increases by 1 for the next 10 days. At the end of this time, roll a d10. On a result of 6 or higher, you die and can’t be returned to life. If you drink to gain this benefit again while it is currently active, the expiration resets.
+
+        Mead That is 100 Years Old or More: At the start of the next combat encounter you have, you gain surges equal to your highest characteristic score plus your Victories.
+
+        Water: You regain 1 Recovery. You can’t gain this benefit again until you complete a respite.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  name: Cup of Iulius
+  description: |-
+    You can fill the Cup of Iulius with a liquid and drink the entirety of the liquid as a maneuver. You gain the following benefits based on the liquid consumed if you drink a cup’s worth:
+
+    Caelian Wine Over 1,000 Years Old or the Blood of an Innocent Humanoid: Your level increases by 1 for the next 10 days. At the end of this time, roll a d10. On a result of 6 or higher, you die and can’t be returned to life. If you drink to gain this benefit again while it is currently active, the expiration resets.
+
+    Mead That is 100 Years Old or More: At the start of the next combat encounter you have, you gain surges equal to your highest characteristic score plus your Victories.
+
+    Water: You regain 1 Recovery. You can’t gain this benefit again until you complete a respite.
+  addText: Add Magical Property
+  itemAttached: true
+  source: Item
+keywords:
+  Magic: true
+id: 73a52ed7-1a8a-4c66-b80f-47b800c7de8f
+ctime: 1760183328957
+type: Gear
+mtime: 1761867151841
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+name: Cup of Iulius
+flavor: This silver chalice is carved with the image of kneeling Caelian knights and never seems to tarnish.
+description: |-
+  You can fill the Cup of Iulius with a liquid and drink the entirety of the liquid as a maneuver. You gain the following benefits based on the liquid consumed if you drink a cup’s worth:
+
+  Caelian Wine Over 1,000 Years Old or the Blood of an Innocent Humanoid: Your level increases by 1 for the next 10 days. At the end of this time, roll a d10. On a result of 6 or higher, you die and can’t be returned to life. If you drink to gain this benefit again while it is currently active, the expiration resets.
+
+  Mead That is 100 Years Old or More: At the start of the next combat encounter you have, you gain surges equal to your highest characteristic score plus your Victories.
+
+  Water: You regain 1 Recovery. You can’t gain this benefit again until you complete a respite.
+weight: 1
+iconid: abb85af5-ba0c-4a0a-905b-91a548a42228

@@ -1,0 +1,41 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: c12d0dba-5850-45db-be98-7be3dea99428
+      source: Water Global Rule Mod Feature
+      behavior: resistance
+      filterCondition: InWater
+      name: Underwater
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "5"
+        damageType: fire
+        apply: Damage Reduction
+      description: ""
+      guid: 48a7d56a-6687-4ae1-a009-b8db27dcdc9b
+    - __typeName: CharacterModifier
+      sourceguid: c12d0dba-5850-45db-be98-7be3dea99428
+      source: Water Global Rule Mod Feature
+      behavior: resistance
+      filterCondition: InWater
+      name: Underwater
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: lightning
+        apply: Damage Reduction
+      description: ""
+      guid: 24c8f5b8-2ddc-4752-ab16-c05f49660463
+    name: Underwater
+    description: ""
+    guid: c12d0dba-5850-45db-be98-7be3dea99428
+    canHavePrerequisites: true
+    source: Water Global Rule Mod Feature
+name: Underwater
+mtime: 1763980784925
+id: caa94136-426c-48e5-8c73-3c0fc75cd2a3
+ctime: 1763976726174

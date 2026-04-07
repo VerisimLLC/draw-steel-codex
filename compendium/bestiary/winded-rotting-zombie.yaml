@@ -1,0 +1,246 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5eef384c-9f82-46cc-a0bf-dec58635b244
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 6a478d1d-cff2-4825-860b-b847dc544bd1
+  properties:
+    __typeName: monster
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    keywords:
+      Undead: true
+      Soulless: true
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: -3
+        id: prs
+      rea:
+        baseValue: -5
+        id: rea
+      inu:
+        baseValue: -2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2d9de553-c63d-4ffe-8714-02ebd572aa5b: true
+        CharacterFeature:0e8b89eb-02fb-4a2d-a4f2-4fca74086f82: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:2d9de553-c63d-4ffe-8714-02ebd572aa5b: true
+          CharacterFeature:0e8b89eb-02fb-4a2d-a4f2-4fca74086f82: true
+        sourceguid: 2d9de553-c63d-4ffe-8714-02ebd572aa5b
+        description: 'When the rotting zombie is reduced to 0 Stamina, their space is difficult terrain. The first time any enemy who has M<2 enters this space, they are slowed (save ends) and the effect ends. '
+        source: Character Feature
+        name: Death Grasp
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          trigger: creaturedeath
+          strain: []
+          guid: 817e9fa9-19f4-4dda-a3c7-df9b5e7e9ee6
+          repeatTargets: false
+          abilityType: none
+          domains:
+            CharacterFeature:2d9de553-c63d-4ffe-8714-02ebd572aa5b: true
+            CharacterFeature:0e8b89eb-02fb-4a2d-a4f2-4fca74086f82: true
+          targetType: self
+          persistence: []
+          name: Death Grasp
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aliveafterdeath: true
+            aura:
+              __typeName: Aura
+              modifiers: []
+              source: Death Grasp
+              guid: 0978cf5d-1ad4-463e-afef-d96c0b8b2f26
+              objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+              applyto: enemies
+              creatureFilter: Might Potency Resistance < 2
+              name: Death Grasp
+              triggers:
+              - destroyaura: true
+                ability:
+                  __typeName: TriggeredAbility
+                  repeatTargets: false
+                  behaviors:
+                  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                    rule: Slowed (save ends)
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  silent: true
+                  range: 5
+                  persistence: []
+                  modifiers: []
+                  strain: []
+                  guid: 25fcb7b2-f467-47ab-ae96-ed8ce0725b7f
+                  trigger: onenter
+                  numTargets: "1"
+                  targetType: self
+                  name: Death Grasp
+                  radius: 0
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                trigger: onenter
+              description: The first time any enemy who has M<2 enters this space, they are slowed (save ends) and the effect ends.
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              iconid: 74db885f-d96e-4b14-af40-69292a0d6a22
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: f79de82a-7d9a-48be-8dbb-a1f02a6b250a
+      name: Death Grasp
+      guid: 0e8b89eb-02fb-4a2d-a4f2-4fca74086f82
+      description: 'When the rotting zombie is reduced to 0 Stamina, their space is difficult terrain. The first time any enemy who has M<2 enters this space, they are slowed (save ends) and the effect ends. '
+      source: Character Feature
+    role: Brute Brute
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    initiativeGrouping: 59e4ee30-63b7-41d0-bdca-85f1b1739bfd
+    opportunityAttack: 2
+    damage_taken: 0
+    walkingSpeed: 4
+    resources: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      persistence:
+        enabled: true
+      modifiers: []
+      strain: []
+      guid: 30f927af-13de-480d-a406-f9bd5cc42877
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage; effect
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        tiersSelected:
+        - 3
+        filterTarget: Size < 5
+        rule: M<2 prone
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        tiersSelected:
+        - 3
+        filterTarget: Size > 4
+        rule: M<2 slowed (save ends)
+      name: Rotting Fist
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: "On a Tier 3 result: M<2 prone if size 1, or slowed (save ends) otherwise. "
+      abilityType: none
+      iconid: b67b89e6-cc8a-40bd-848b-37aef0455137
+    minionSquad: Winded Rotting Zombie Squad 1
+    availableTriggers: []
+    savingThrowRatings: []
+    movementSpeeds: []
+    creatureSize: 1M
+    monster_type: Winded Rotting Zombie
+    withCaptain: +1 damage
+    ev: 3
+  tokenType: null
+  bestiaryId: 1c272b6d-aae4-42b1-9c3e-0fee7218fb1f
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: null
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 16
+ctime: 1761689093934
+mtime: 1775167529140
+hidden: false

@@ -1,0 +1,245 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 30fa7b8c-1fb8-4c5d-93e2-14f4f1a8c7be
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        War Dog Mischievite	Level 5 Horde Harrier
+        Humanoid, War Dog	EV 7
+        <b>Stamina</b> 35
+        <b>Speed</b> 6	<b>Size</b> 1M /<b>Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +1	Agility +3	Reason +0	Intuition +2	Presence +0
+        <b>Fuse-Iron Knives</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5<b>Target</b> 2 creatures
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12-16</b>	7 damage
+        %E2%9C%B8	<b>17</b>	8 damage; R<3 dazzled (save ends)
+        <b>Effect</b> A dazzled creature has a bane on strikes and can't have line of effect to targets who aren't adjacent to them.
+
+        <b>Misdirection</b> (Maneuver)
+        <b>Keywords</b> --
+        <b>Distance</b> Ranged 3	<b>Target</b> 1 ally or dazzled creature
+        <b>Effect </b>The mischievite swaps positions with the target. An ally targeted by this ability can make a free strike either before or after being swapped.
+        <b>2 Malice</b> The mischievite may use this ability as a triggered action when targeted by a strike or ability. The swapped target becomes the new target of the triggering strike or ability.
+
+        <b>Crafty</b>
+        The mischievite's movement does not trigger opportunity attacks.
+
+        <b>Loyalty Collar</b>
+        When the mischievite dies, they explode, dealing 2d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a9ad49bc-2fde-4081-bd12-5f358df105c0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        behavior: attribute
+        source: Trait
+        name: Crafty
+        value: 1
+        description: ""
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      source: Trait
+      description: The mischievite doesn't provoke opportunity attacks by moving.
+      guid: a9ad49bc-2fde-4081-bd12-5f358df105c0
+      name: Crafty
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:41e94d8c-a2f6-412b-8f53-43335551e72d: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 2d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the mischievite is reduced to 0 Stamina, their loyalty collar explodes, dealing 2d6 damage to each adjacent enemy and object.
+      guid: 41e94d8c-a2f6-412b-8f53-43335551e72d
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Harrier
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "35"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: War Dog Mischievite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 35
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 damage
+        - 8 damage; R<3 the target is dazzled (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 560a2106-5d8a-40bd-8462-606a40073896
+      meleeRange: 1
+      numTargets: 2
+      targetType: target
+      name: Fuse-Iron Knives
+      iconid: ui-icons/skills/1.png
+      description: A dazzled creature has a bane on strikes and can't have line of effect to targets who aren't adjacent to them.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        "--": true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 7e39a394-294b-4d1a-9095-410091c3473c
+      numTargets: 1
+      targetType: target
+      name: Misdirection
+      iconid: ui-icons/skills/1.png
+      description: The mischievite swaps positions with the target. An ally targeted by this ability can make a free strike either before or after being swapped.
+      abilityType: none
+      implementation: 0
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 7
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 5263ea94-c60d-4ab6-8e8d-034ee1aae227
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Mischievite
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 8
+ctime: 1749972309761
+mtime: 1775201137032
+hidden: false

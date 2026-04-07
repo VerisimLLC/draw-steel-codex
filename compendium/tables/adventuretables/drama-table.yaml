@@ -1,0 +1,31 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 47b75e2f-8b96-4a9f-8af8-2965bf4a0a83
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start} drama
+- __typeName: RollTableRow
+  id: d9eb6d82-8275-4a74-9b6b-7fc1f9471be8
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start+1} drama
+- __typeName: RollTableRow
+  id: 04ee11a0-cceb-4c52-a2ee-c9e32a839ddc
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start+2} drama
+name: Drama Table
+mtime: 1772712308579
+id: b10bf4b7-a2fe-429a-ad74-69c75a0938c6
+ctime: 1753664069905

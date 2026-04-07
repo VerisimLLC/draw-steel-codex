@@ -1,0 +1,90 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.590003662109375
+    halign: center
+    image: 1a4e4749-0381-4822-a775-e3381904e887
+id: 1a38f0b2-cc73-4848-9f9d-e2945f3ea107
+ctime: 1757491721893
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: |+
+      *(Make a note in the [Respite Tracker] for when she returns to the common room, if applicable)*
+
+    X: |
+      |{#The hero can tell that Illwyth is withholding the truth and that she’s bothered by something the rest of the Gilded Hand is doing. However, Illwyth can tell she is being scrutinized and leaves the conversation.}{ She doesn’t return to the common room until the heroes finish a respite and avoids the heroes entirely during that time.}
+    V: |
+      |Discern Illwyth’s Honesty: Intuition Test
+    S: |+
+      While interacting with [Illwyth], a hero who is suspicious of her motives can make an easy Intuition test to attempt to discern their level of honesty.
+
+    p: |
+      |{#Illwyth tells the hero she doesn’t want to talk about it anymore and deflects any future attempts to bring it up during this conversation.}
+    M: |
+      **Cressan Tomb:** "Ah, that was quite the victory for us. The folks in Wend will surely remember the name the Gilded Hand fondly for ages. That means something. Gold is good and all, but making your reputation last long after you’re gone is worth quite a bit."
+    K: |
+      **Gilded Hand:** "We don’t see eye to eye on every little subject, but when it comes down to it, we work together, and we do it well.  Disagreements are normal, but I’d trust any of them to have my back in a fight."
+    s: |+
+      |{#If asked about the Gilded Hand, llwyth tells the heroes that she’s starting to have some second thoughts about the Gilded Hand’s latest job, but she won’t reveal what it is.}{If asked about the ring, she says she believes the ring has some function that may be useful in the Delian Tomb, but refuses to offer more information, saying it has to do with her latest job.}
+
+    I: |+
+      After the initial meeting with the [Gilded Hand], the heroes notice that [Illwyth] eats alone at nights in the common room. If engaged in conversation, [Illwyth] is polite and shares the following information freely if the heroes ask about the following subjects:
+
+    j: |
+      |Press Illwyth for Information: Presence Test
+    g: |+
+      If a hero attempts to press [Illwyth] into revealing more about her relationship with the [Gilded Hand] or the ring she wears, the hero must make a hard Presence test.
+
+    G: |+
+      Use the [Gilded Hand Encounters Map]. Remove the rest of the Gilded Hand if they are present and place Illwyth down at a table with this button:[[/spawn Illwyth -2 10|Spawn Illwyth]]
+
+
+    E: |+
+      [[image]]
+
+    m: |
+      |{#Illwyth tells the hero she doesn’t want to talk anymore and gets up and leaves.}{She doesn’t return to the common room until the heroes finish a respite and avoids the heroes entirely during that time.}
+    C: |+
+      # Illwyth Alone
+
+    d: |+
+      |{#The hero can tell that Illwyth is withholding the truth and that she’s bothered by something the rest of the Gilded Hand is doing. They can also tell she seems overly protective of her ring.}
+
+    a: |
+      |{#The hero can tell that Illwyth is withholding the truth and that she’s bothered by something the rest of the Gilded Hand is doing.}
+    P: |+
+      **Her Ring:** "Ah, we found this in the Cressan Tomb. A bit large for my tastes, but it’s got a bit of magic, and I like that."
+
+parentFolder: eaf490ac-5c37-4c4b-9843-f2c26f95ec52
+updateid: a1b0b272-9176-4b3d-8d06-1fcb739c37e9
+mtime: 1775163346688
+content: |+
+  # Illwyth Alone
+
+  [[image]]
+
+  After the initial meeting with the [Gilded Hand], the heroes notice that [Illwyth] eats alone at nights in the common room. If engaged in conversation, [Illwyth] is polite and shares the following information freely if the heroes ask about the following subjects:
+
+  **Gilded Hand:** "We don’t see eye to eye on every little subject, but when it comes down to it, we work together, and we do it well.  Disagreements are normal, but I’d trust any of them to have my back in a fight."
+  **Cressan Tomb:** "Ah, that was quite the victory for us. The folks in Wend will surely remember the name the Gilded Hand fondly for ages. That means something. Gold is good and all, but making your reputation last long after you’re gone is worth quite a bit."
+  **Her Ring:** "Ah, we found this in the Cressan Tomb. A bit large for my tastes, but it’s got a bit of magic, and I like that."
+
+  While interacting with [Illwyth], a hero who is suspicious of her motives can make an easy Intuition test to attempt to discern their level of honesty.
+
+  |Discern Illwyth’s Honesty: Intuition Test
+  |{#The hero can tell that Illwyth is withholding the truth and that she’s bothered by something the rest of the Gilded Hand is doing. However, Illwyth can tell she is being scrutinized and leaves the conversation. She doesn’t return to the common room until the heroes finish a respite and avoids the heroes entirely during that time.}
+  |{#The hero can tell that Illwyth is withholding the truth and that she’s bothered by something the rest of the Gilded Hand is doing.}
+  |{#The hero can tell that Illwyth is withholding the truth and that she’s bothered by something the rest of the Gilded Hand is doing. They can also tell she seems overly protective of her ring.}
+
+  If a hero attempts to press [Illwyth] into revealing more about her relationship with the [Gilded Hand] or the ring she wears, the hero must make a hard Presence test.
+
+  |Press Illwyth for Information: Presence Test
+  |{#Illwyth tells the hero she doesn’t want to talk anymore and gets up and leaves. She doesn’t return to the common room until the heroes finish a respite and avoids the heroes entirely during that time.
+  |{#Illwyth tells the hero she doesn’t want to talk about it anymore and deflects any future attempts to bring it up during this conversation.}
+  |{#If asked about the Gilded Hand, llwyth tells the heroes that she’s starting to have some second thoughts about the Gilded Hand’s latest job, but she won’t reveal what it is. If asked about the ring, she says she believes the ring has some function that may be useful in the Delian Tomb, but refuses to offer more information, saying it has to do with her latest job.}
+
+  *(Make a note in the [Respite Tracker] for when she returns to the common room, if applicable)*
+
+description: Illwyth Alone

@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "0"
+category: Class Specific
+name: Heroic Resource Gain at Start
+documentation: Number of Heroic Resource the Class will gain at the start of their turn.
+mtime: 1768397507531
+id: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+ctime: 1759195947373

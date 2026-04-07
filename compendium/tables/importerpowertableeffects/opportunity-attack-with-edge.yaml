@@ -1,0 +1,78 @@
+__typeName: ActivatedAbility
+id: f3c4d46e-6b69-441e-90ee-5bf24634fbac
+behaviors:
+- __typeName: ActivatedAbilityModifyCastBehavior
+  applyto: caster
+  name: Assisted Attack +1
+  description: The inspiring leadership gives you a +1 in this assisted attack.
+  value: "1"
+  paramid: ability_boon
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: caster
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    targetFilter: not enemy
+    guid: 5d613fd3-a07a-4fed-a287-ec1c2118660f
+    repeatTargets: false
+    targetType: target
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      runOnController: true
+      promptText: Make an Opportunity Attack
+      standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+      abilityType: standard
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: cf018c0a-184a-45fe-b749-0d63f39e18a0
+        repeatTargets: false
+        targetType: self
+        behaviors: []
+        range: 5
+        name: Invoked Ability
+        display:
+          saturation: 1
+          brightness: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    range: 5*<<range>>
+    name: Invoked Ability
+    display:
+      saturation: 1
+      brightness: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  promptText: Choose an ally to join your attack
+display:
+  saturation: 1
+  brightness: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+targetType: self
+testCases:
+- text: an ally within 5 can make an opportunity attack with a +1 against the target as a free triggered action.
+numTargets: "1"
+modifiers: []
+_fork: H4sIAAAAAAAACs1W3W/bNhD/VwjtrZtSydZnUBTIgg3YQ9YXPxYITtRR5kKRAkm5NYr+7ztKcuI2dt2uRbE8BOQd7/S73335Q3R/7/cD/g09RtfRDfdyBx7bm0Yq6ffRbywiUdClZZpmq6JcZ1WekbgbZUsWnOfpqkiKuKw4xJloirgWoo7zPAGoeJ6vagxepsdizbM2KzAumqKOsyzFuE4Q47wRq6xYkzXw8LjBLeyksS66/hCl4d8XUd6ZVor9LTj/+2IYnMAwqL03ASNpcJLpxYFzkkQtu/Ee+AP7NQ3KFh23cvDSaHqz2SKT2g3SSt0xhdCidVs5sE7u0LG9GRmQIb1hfisdg4NPmHxeBY8DWOinyGFGet8Yck6aHagxIJk+fK9G2ECjSODtiB9JtLoY9F96Zx5wuRzHPVjTD36D7z1Z3W6NcchAM1Bqz7xh/xhCTOjtAvQcVXx03vSHOriEJlhYHBD8BmyHnjInQDl8KpS8LdK1aNcxJGUoFGxjWFVljDzlqzStiiIRwUsfkilxzv0RM5O7j99eHGd5WlKyIVMycx50C7YNmsP5MfgoEVVdNoLA86Il8BWdmhWPG1FmdYFJWa7LZ9zfwcPE/JthMNaPmlwtBTexNeo3+tZob41SRPmU+h/J+1Lrc/xU6k8GnzB4iuKLOWilGxRM8Bz40cLcNGlwbmW39RqdW+4dN4oYv45+EctfwLAdkbpJEE/J6Q6Q3OipcEYZh7N76R6kUu5lejXoLjqaQCJJK55AnFYZFVYuMG4oK3HSFmuxrjGtIJl6f+wfOYpONHyQ+OnBoSRQTVAt6I7u+bOa0Ubjmf79suiRx/l7f0oVmi449Aw19lOW/hccny+ib6ZzvhwRGuUvXr2azq9fP2/I7yf3JxB4GvKZhpR9mAN34Pk2bIRlJL+TtD40e2SCcdL0y+gwR6NjHtfTe9o8b9/S7oEOaEV5WkDIZnppDZFSWCQBxdihDRuJh8ivTudooDYPi0tzPNftjrZF0EZ3VCLLeugPvwryukryKk2SpAgZR+dpEePTcPbzMPws3Pwrw/xPQX5lfVyufuctffscLUtvPB/vM/g/2g5PN8qlKXNx/H4e4L8wHpEMxgkAAA==
+strain: []
+guid: cc512606-78ca-4fb6-9ff9-550aa8c5529e
+importMatch: an ally within <<range>> can make an opportunity attack with a \+1 against the target as a free triggered action.
+ctime: 1773659104179
+source: Monster
+repeatTargets: false
+persistence: []
+name: Opportunity Attack with Edge
+description: ""
+mtime: 1773659104179
+abilityType: none
+iconid: ui-icons/skills/1.png

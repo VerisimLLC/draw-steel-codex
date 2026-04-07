@@ -1,0 +1,228 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+    CharacterOngoingEffect:e406004c-0e2d-483f-b64e-4e7fb772753b: true
+  sourceguid: 50da0742-6908-498d-b884-6e6b7ca7db57
+  description: You and your companion share a primordial bond so intense that your hearts literally beat as one. If your partner is lost, you can rip out your beating heart and summon them back to your side.
+  source: Beastheart Class Feature
+  name: Heart of the Beast
+  behavior: activated
+  guid: 001128f9-9fed-4f7f-aa98-0b42f6e9d27d
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    targetFilter: ""
+    targetTextOverride: Self
+    repeatTargets: false
+    rangeTextOverride: Self
+    targetAllegiance: ally
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      applyto: caster
+      mode: expend
+      resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+      chatMessage: Heart of the Beast
+    - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+      stamina: Recovery Value
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: b8cdf4ee-b825-4286-bdc6-c5c808f2b671
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      modesSelected:
+      - 2
+      promptText: You rip your heart from your chest and throw it up to 5 squares to an unoccupied space. Your heart then transforms into your companion, teleporting them to that space instead of to your space.
+      standardAbilityParams:
+        range: "5"
+      standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+      abilityType: standard
+    - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+      stamina: Charges*target.Might
+      chatMessage: Heart of the Beast Ferocity
+    multipleModes: true
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: "100"
+    keywords:
+      Ranged: true
+      Magic: true
+    persistence: []
+    modifiers: []
+    targetType: target
+    strain: []
+    maxChannel: "5"
+    guid: 69546802-c8cc-4869-a582-e0291d7df3f6
+    numTargets: "1"
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      CharacterOngoingEffect:e406004c-0e2d-483f-b64e-4e7fb772753b: true
+    description: ""
+    modeList:
+    - text: Normal
+    - rules: You rip your heart from your chest and throw it up to 5 squares to an unoccupied space. Your heart then transforms into your companion, teleporting them to that space instead of to your space.
+      text: Beastheart Only - Spend 1 Ferocity
+    name: Heart of the Beast
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: e406004c-0e2d-483f-b64e-4e7fb772753b
+  source: Ongoing Effect
+  guid: 1479b9bc-49a2-4d19-b7d6-2bd85705eb16
+  domains:
+    CharacterOngoingEffect:e406004c-0e2d-483f-b64e-4e7fb772753b: true
+  name: Companion Creature
+  behavior: activated
+  description: This creature is a beastheart companion
+  suppressOthers: true
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    repeatTargets: false
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Signature Ability
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 19316df5-719a-492b-b5c8-6bec03602c3c
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      runOnController: true
+      promptText: Before taking this action, your companion moves a number of squares equal to their Intuition score straight toward the closest enemy they are aware of, avoiding damaging terrain and ending the movement when they are adjacent to an enemy.
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 2452eb4e-59bb-4bd4-87d7-d6fa49f6f0c6
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      abilityType: standard
+      standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 2 + M damage
+      - 4 + M damage
+      - 7 + M damage
+      roll: 2d10 + Might
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      filterTarget: self.Ongoing Effects has "Companion Guardian"
+      duration: 1
+      ongoingEffectCustom: false
+      ongoingEffect: 2677712b-9ca5-4e91-b354-293c5ab0c403
+      durationUntilEndOfTurn: false
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      filterTarget: self.Ongoing Effects has "Companion Prowler"
+      duration: 1
+      ongoingEffectCustom: false
+      ongoingEffect: b9b52786-292c-4dad-9ac0-247bbfa77662
+      guid: 408f79bc-4c29-4cf3-b938-746071cdf9a5
+      durationUntilEndOfTurn: false
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      filterTarget: self.Ongoing Effects has "Companion Punisher"
+      rule: slide M
+    domains:
+      CharacterOngoingEffect:e406004c-0e2d-483f-b64e-4e7fb772753b: true
+    numTargets: "1"
+    preDescription: Before taking this action, your companion moves a number of squares equal to their Intuition score straight toward the closest enemy they are aware of, avoiding damaging terrain and ending the movement when they are adjacent to an enemy.
+    name: Feral Strike!
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    description: Your companion gains an additional benefit based on your wild nature.
+    abilityType: none
+    iconid: a393d50b-bef4-4a90-a1bf-767971ef2117
+- __typeName: CharacterModifier
+  sourceguid: e406004c-0e2d-483f-b64e-4e7fb772753b
+  source: Ongoing Effect
+  seq: 3b1b0543-36d7-4c91-9a1e-1332ec638baa
+  aura:
+    __typeName: Aura
+    applyto: allother
+    modifiers: []
+    source: Adjacent to Beastheart Companion
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 887cb107-291e-4b8b-86c1-aee67c1d608a
+    name: Adjacent to Beastheart Companion
+    iconid: d2035312-afaa-4011-a88e-d812fc56cac3
+  domains:
+    CharacterOngoingEffect:e406004c-0e2d-483f-b64e-4e7fb772753b: true
+  radius: "1"
+  guid: 9e6e8e85-e672-4176-b0ee-b054abb048b9
+  description: This creature is a beastheart companion
+  behavior: aura
+  name: Companion Creature
+- __typeName: CharacterModifier
+  sourceguid: e406004c-0e2d-483f-b64e-4e7fb772753b
+  source: Ongoing Effect
+  behavior: resistance
+  filterCondition: self.Stacks("Beastheart Rampage") >= 12
+  name: Companion Creature
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: self.Intuition
+    damageType: all
+    apply: Damage Reduction
+  description: This creature is a beastheart companion
+  guid: 7382a060-3fa0-4964-b1fd-da07d3d096d6
+  domains:
+    CharacterOngoingEffect:e406004c-0e2d-483f-b64e-4e7fb772753b: true
+source: Ongoing Effect
+guid: e406004c-0e2d-483f-b64e-4e7fb772753b
+id: e406004c-0e2d-483f-b64e-4e7fb772753b
+ctime: 1770382304390
+domains:
+  CharacterOngoingEffect:e406004c-0e2d-483f-b64e-4e7fb772753b: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+name: Companion Creature
+custom: true
+description: This creature is a beastheart companion
+mtime: 1770386865836
+iconid: abf66472-df3a-4990-bf35-a1d1e8c9522c

@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: 7f68fcb6-6b95-491b-89ed-01872ec802e8
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: d9703a62-564a-42ee-8317-8886a473a6f8
+  ongoingEffectCustom: d9703a62-564a-42ee-8317-8886a473a6f8
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: the target takes a bane on their next attack
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 9e71271a-affd-4021-adb2-bbb7fcfe0ae5
+importMatch: "<<monster>> takes a bane on their next attack"
+ctime: 1749858409580
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Bane on next attack
+targetType: self
+mtime: 1770658300274
+abilityType: none
+iconid: ui-icons/skills/1.png

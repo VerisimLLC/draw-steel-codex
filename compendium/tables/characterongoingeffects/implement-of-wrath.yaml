@@ -1,0 +1,93 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1792bd24-93d4-4754-8511-02a63cb7bb29
+  source: Ongoing Effect
+  modtype: none
+  damageModifier: Highest Characteristic
+  keywords:
+    Strike: true
+    Weapon: true
+  activationCondition: true
+  guid: f881ca13-1b61-405b-8876-3165ceae2fd0
+  behavior: power
+  rollType: ability_power_roll
+  description: |-
+    • Strikes with the weapon deal extra holy damage equal to the wielder’s highest characteristic score.
+    • Any creature struck by the weapon who has holy weakness and has P < Strong frightened and weakened (save ends).
+    • Any minion targeted by a strike using the weapon dies. That minion’s Stamina maximum is removed from the minion Stamina pool before any damage is applied to the rest of the squad.
+    • The weapon’s wielder can’t be made frightened.
+  addText: P < strong, frightened (save ends) and weakened (save ends)
+  damageModifierType: holy
+  name: Implement of Wrath
+- __typeName: CharacterModifier
+  sourceguid: 1792bd24-93d4-4754-8511-02a63cb7bb29
+  source: Ongoing Effect
+  guid: 0fc717ad-71ee-44a7-97fb-2e583d8b98ea
+  keywords:
+    Strike: true
+    Weapon: true
+  replaceBehaviors: before
+  attributes: []
+  behavior: modifyability
+  description: |-
+    • Strikes with the weapon deal extra holy damage equal to the wielder’s highest characteristic score.
+    • Any creature struck by the weapon who has holy weakness and has P < Strong frightened and weakened (save ends).
+    • Any minion targeted by a strike using the weapon dies. That minion’s Stamina maximum is removed from the minion Stamina pool before any damage is applied to the rest of the squad.
+    • The weapon’s wielder can’t be made frightened.
+  name: Implement of Wrath
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: c2ca2d43-8b13-475f-8193-b9bd87a5551f
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityRemoveCreatureBehavior
+      filterTarget: Minion
+      waitForAbilitiesToFinish: false
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: 1792bd24-93d4-4754-8511-02a63cb7bb29
+  guid: 8e51e30d-0668-4e77-bf3c-e93404c19e13
+  source: Ongoing Effect
+  conditions:
+  - 1211270f-bfce-45a6-b937-d72f0e8a06a8
+  description: |-
+    • Strikes with the weapon deal extra holy damage equal to the wielder’s highest characteristic score.
+    • Any creature struck by the weapon who has holy weakness and has P < Strong frightened and weakened (save ends).
+    • Any minion targeted by a strike using the weapon dies. That minion’s Stamina maximum is removed from the minion Stamina pool before any damage is applied to the rest of the squad.
+    • The weapon’s wielder can’t be made frightened.
+  behavior: conditionimmunity
+  name: Implement of Wrath
+source: Ongoing Effect
+guid: 1792bd24-93d4-4754-8511-02a63cb7bb29
+id: 1792bd24-93d4-4754-8511-02a63cb7bb29
+ctime: 1764529191305
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Implement of Wrath
+description: |-
+  • Strikes with the weapon deal extra holy damage equal to the wielder’s highest characteristic score.
+  • Any creature struck by the weapon who has holy weakness and has P < Strong frightened and weakened (save ends).
+  • Any minion targeted by a strike using the weapon dies. That minion’s Stamina maximum is removed from the minion Stamina pool before any damage is applied to the rest of the squad.
+  • The weapon’s wielder can’t be made frightened.
+custom: true
+mtime: 1764529426689
+iconid: ui-icons/skills/1.png

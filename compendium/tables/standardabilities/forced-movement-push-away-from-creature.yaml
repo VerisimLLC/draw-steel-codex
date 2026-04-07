@@ -1,0 +1,49 @@
+__typeName: ActivatedAbility
+targetFilter: "<<filter>>"
+id: ac78198e-06c6-4b1b-b47c-137bea47cc7b
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 8464a70b-f5d9-4649-8551-2f036d901179
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  promptText: Push away from target
+  abilityType: standard
+  standardAbilityParams:
+    range: "<<distance>>"
+  standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<burst>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: cfdfa5a6-6366-4e51-9ecc-1b9dc8af9cea
+ctime: 1747374739566
+targetType: all
+numTargets: "1"
+description: ""
+name: "Forced Movement: Push Away From Creature"
+repeatTargets: false
+mtime: 1772113217618
+abilityType: none
+iconid: ui-icons/skills/1.png

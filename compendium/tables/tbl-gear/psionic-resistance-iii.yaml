@@ -1,0 +1,63 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: ce78d3ac-ab3b-40e6-b354-103ad0f4bb3c
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ce78d3ac-ab3b-40e6-b354-103ad0f4bb3c
+    source: Item
+    seq: 7244b3ec-4f1a-4520-912f-e698b713d24d
+    aura:
+      __typeName: Aura
+      applyto: selfandfriends
+      modifiers:
+      - __typeName: CharacterModifier
+        resistanceFormula: min(3, Resistance + 2)
+        sourceguid: f96c6584-62dc-4745-98a7-c06ea2a71da2
+        source: Aura
+        modtype: none
+        keywords:
+          Psionic: true
+        activationCondition: true
+        name: Aura
+        guid: 3e669291-cce3-4afd-ac06-4d08ce76f00c
+        description: ""
+        behavior: power
+        rollType: enemy_ability_power_roll
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: f96c6584-62dc-4745-98a7-c06ea2a71da2
+      implementation: 4
+    radius: "3"
+    guid: 3e4947de-4d47-4816-a757-9986c20853ee
+    description: ""
+    behavior: aura
+    name: Psionic Resistance III
+  source: Item
+  name: Psionic Resistance III
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 46a5e1be-4d5f-4747-a6b3-552f5cda34b3
+imbuePrereq: 8eaae4a5-79c7-4f77-aaf0-145498e86605
+projectSource: Voll
+imbueLevel: 9
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: The skull of a voiceless talker at least a century old
+mtime: 1772492932420
+name: Psionic Resistance III
+imbueTargetType: armor
+description: The benefit of the armor's Psionic Resistance II enhancement extends to each ally within 3 squares of you.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

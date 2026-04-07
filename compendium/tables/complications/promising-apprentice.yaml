@@ -1,0 +1,320 @@
+__typeName: CharacterComplication
+drawback: Whoever killed your mentor cursed you. You take a bane on any test that doesn’t use one of your skills.
+mtime: 1775221874615
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: Whoever killed your mentor cursed you. You take a bane on any test that doesn’t use one of your skills.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: b1e14ae2-0991-4eec-a867-10ab5709c92d
+      source: Feat
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: Promising Apprentice - Drawback
+      guid: 5e1e3ac2-1397-4cac-ab9e-dd870f08c702
+      description: Whoever killed your mentor cursed you. You take a bane on any test that doesn’t use one of your skills.
+      modtype: bane
+      rollType: test_power_roll
+    source: Feat
+    canHavePrerequisites: true
+    guid: b1e14ae2-0991-4eec-a867-10ab5709c92d
+    name: Promising Apprentice - Drawback
+    implementation: 3
+  - __typeName: CharacterFeatureList
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        crafting: true
+      name: Promising Apprentice - Crafting skill
+      description: Choose a skill from the Crafting Skill Group
+      guid: a9e7ca5b-5f2c-426e-a71a-391e6a188a2c
+      source: Feat
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Alchemy
+          skills:
+          - cdae52cd-ef20-461d-ae18-253023cdb827
+        source: Feat
+        name: Alchemy
+        guid: 2f958fbf-433c-4aa6-9e48-3717d039fa7a
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 94aac1b3-b988-4176-b289-7c4e1597162e
+          skill: cdae52cd-ef20-461d-ae18-253023cdb827
+        implementation: 4
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Architecture
+          skills:
+          - 078b501f-e549-4725-993f-7ed8d57fc2ae
+        source: Feat
+        name: Architecture
+        guid: 9f344a92-0efd-4e61-a9e5-5bf77a3f23d9
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 6d51ae7f-16d7-4e0e-92d2-ed24dcef5056
+          skill: 078b501f-e549-4725-993f-7ed8d57fc2ae
+        implementation: 4
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Blacksmithing
+          skills:
+          - 50ca6145-2d22-4496-a355-c7b2df2cf0de
+        source: Feat
+        name: Blacksmithing
+        guid: 2c42dd7e-c02e-4d3a-b65e-69f8451f1944
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 202b7ff3-4bda-42c5-b930-7262930cba7c
+          skill: 50ca6145-2d22-4496-a355-c7b2df2cf0de
+        implementation: 4
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Carpentry
+          skills:
+          - 436ea6c1-6386-43b2-b074-020992cc73fd
+        source: Feat
+        name: Carpentry
+        guid: d84d0590-4754-48de-abb4-1fa6a9e250c5
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 551be0f0-701a-486c-9524-6073ef46831e
+          skill: 436ea6c1-6386-43b2-b074-020992cc73fd
+        implementation: 4
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Cooking
+          skills:
+          - becbc5ec-de63-481b-8247-e62c2a6fd8cb
+        source: Feat
+        name: Cooking
+        guid: 6feb299b-d16c-44d7-a2c3-8e817cc3c2fc
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 5a584720-6673-4624-a374-f635db408bfa
+          skill: becbc5ec-de63-481b-8247-e62c2a6fd8cb
+        implementation: 4
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Fletching
+          skills:
+          - 5ca5c242-fe6d-43b3-86b0-b5314a9fe39a
+        source: Feat
+        name: Fletching
+        guid: 79a070ef-e171-4483-ba68-1381fd21d814
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: ca032528-2765-4eee-9846-6d3f6e4e2b3e
+          skill: 5ca5c242-fe6d-43b3-86b0-b5314a9fe39a
+        implementation: 4
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Forgery
+          skills:
+          - 75d64fef-b075-4221-8cbc-c6b6328ee22c
+        source: Feat
+        name: Forgery
+        guid: 25526e31-00f2-4688-9745-118899d5b4b2
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 9f5fc317-d59b-4326-8696-0cb59c062eea
+          skill: 75d64fef-b075-4221-8cbc-c6b6328ee22c
+        implementation: 4
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Jewelry
+          skills:
+          - 192827b0-ef39-4d5f-840a-b3c654e7b158
+        source: Feat
+        name: Jewelry
+        guid: fb2593b0-c60f-4132-bdbb-b6f25a405a34
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 923f471b-baa1-421f-b27d-1e25963d304f
+          skill: 192827b0-ef39-4d5f-840a-b3c654e7b158
+        implementation: 4
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Mechanics
+          skills:
+          - ac718c6f-05e2-4301-997c-b1c54aad9250
+        source: Feat
+        name: Mechanics
+        guid: 4dfc3a2a-ca29-4087-9a4b-ae24a4c4fc95
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: bca5c923-df8d-4916-95ea-8714069597e9
+          skill: ac718c6f-05e2-4301-997c-b1c54aad9250
+        implementation: 4
+      - __typeName: CharacterFeature
+        description: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: a0ed6a0c-bb1f-445a-8a81-772fd915a74a
+          source: Feat
+          guid: 2f8462fd-1581-4ed8-bd91-bcbec88b8b09
+          keywords: []
+          activationCondition: true
+          modtype: edge
+          activationAfterRoll: false
+          rollType: test_power_roll
+          behavior: power
+          description: You gain an edge on any test that uses this skill.
+          name: Tailoring
+          skills:
+          - 8b5a4de7-badf-4e23-8ff2-0f7a832ff754
+        source: Feat
+        name: Tailoring
+        guid: fdcc5520-9ddf-4f4e-b952-feef9a229c10
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: fe960040-a169-4c2f-b17a-5f5c3f6a6b18
+          skill: 8b5a4de7-badf-4e23-8ff2-0f7a832ff754
+        implementation: 4
+      guid: fbea7e6e-1fbe-4111-af4e-bb7af2b67639
+      description: Choose a skill from the crafting group. You gain an edge on any test that uses that skill
+      name: Promising Apprentice - Edge on crafting skill
+      source: Feat
+    guid: c2320a68-fbb3-48ca-a2af-c883afccc807
+    name: Promising Apprentice - Benefit
+    source: Feat
+name: Promising Apprentice
+ctime: 1755516488308
+description: You were apprenticed to learn a crafting trade. Your mentor said you had a special gift and might well become a master of your craft someday. But before your training was complete, your mentor was killed.
+id: ce0845d2-f856-4c78-bdee-d2c1847e7d9f
+benefit: You have one skill of your choice from the crafting skill group. Additionally, choose one of your skills from the crafting group. You gain an edge on any test that uses that skill.

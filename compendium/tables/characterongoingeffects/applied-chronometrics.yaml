@@ -1,0 +1,44 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 83e7b6a1-83dc-45a5-afab-fee16decb7ae
+  sourceguid: 3e9e7310-8af6-4dc7-ba57-009c07031fae
+  value: 5
+  source: Ongoing Effect
+  name: Applied Chronometrics
+  behavior: attribute
+  description: +5 bonus to speed. You cannot be made dazed, and can use an additional maneuver on your turn.
+  attribute: speed
+- __typeName: CharacterModifier
+  resourceType: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  sourceguid: 3e9e7310-8af6-4dc7-ba57-009c07031fae
+  behavior: resource
+  source: Ongoing Effect
+  name: Applied Chronometrics
+  num: 1
+  description: +5 bonus to speed. You cannot be made dazed, and can use an additional maneuver on your turn.
+  guid: 8004e7b3-63e8-42d1-8620-8be6afe6dc3c
+- __typeName: CharacterModifier
+  sourceguid: 3e9e7310-8af6-4dc7-ba57-009c07031fae
+  guid: 1ecda47a-9955-4849-a871-f4a57b8d4eb3
+  source: Ongoing Effect
+  conditions:
+  - c27e0b16-291a-45ad-8406-973e26576a44
+  description: +5 bonus to speed. You cannot be made dazed, and can use an additional maneuver on your turn.
+  behavior: conditionimmunity
+  name: Applied Chronometrics
+source: Ongoing Effect
+guid: 3e9e7310-8af6-4dc7-ba57-009c07031fae
+id: 3e9e7310-8af6-4dc7-ba57-009c07031fae
+ctime: 1757773913975
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Applied Chronometrics
+description: +5 bonus to speed. You cannot be made dazed, and can use an additional maneuver on your turn.
+custom: true
+mtime: 1757773913975
+iconid: ui-icons/skills/1.png

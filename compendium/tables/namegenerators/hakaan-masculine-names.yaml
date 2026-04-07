@@ -1,0 +1,81 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 41f7d50b-d624-45e3-b9e3-1341a31f8c99
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Adusiya
+- __typeName: RollTableRow
+  id: ec1f320f-6942-42bd-a0c1-7b1cfc705748
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Artabānu
+- __typeName: RollTableRow
+  id: 8ca8c83b-80c8-40f7-8365-7554592c5399
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Farnaspa
+- __typeName: RollTableRow
+  id: 16465d1e-983c-4326-9dcc-221b1545cefe
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Fravartiš
+- __typeName: RollTableRow
+  id: 55dfb0f3-5357-4e24-bf1d-f1a395b4ab1e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Jamaspa
+- __typeName: RollTableRow
+  id: 9991b352-5f8b-45fd-a38f-61ec51ef4263
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Khosrau
+- __typeName: RollTableRow
+  id: ccd4d939-59a8-4ce5-b94e-31aea4b4c470
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kithara
+- __typeName: RollTableRow
+  id: 15ddfed4-ccdc-4f66-82be-c6c7ff5f51c3
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Sarames
+- __typeName: RollTableRow
+  id: ebecebca-6991-4dac-b549-d4c33711dcd2
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Utana
+id: af90855e-ec00-439a-a236-c1aa91fe8dc5
+name: Hakaan Masculine Names
+subtable: true
+mtime: 1743455162077
+items: false
+ctime: 1743444409622

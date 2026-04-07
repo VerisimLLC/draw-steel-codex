@@ -1,0 +1,460 @@
+__typeName: Race
+weight: 20–50
+modifierInfo:
+  __typeName: ClassLevel
+  domains:
+    race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+  features:
+  - __typeName: CharacterFeature
+    domains:
+      race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+    modifiers: []
+    name: "Signature Trait: Small!"
+    source: Polder Race Feature
+    description: Your size is 1S.
+    guid: cda8b84d-3c4c-45ad-9317-e2ecbb20bd8a
+    implementation: 3
+  - __typeName: CharacterFeature
+    domains:
+      race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+    modifiers:
+    - __typeName: CharacterModifier
+      domains:
+        race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+      sourceguid: 82722346-456c-4bd3-ada9-9bea4b9a0f5c
+      source: Polder Race Feature
+      name: "Signature Trait: Shadowmeld"
+      guid: 2628a4bc-ed70-4652-9317-4a806027ab16
+      behavior: activated
+      description: You become an actual shadow.
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        keywords:
+          Magic: true
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          ongoingEffect: eb48d72b-3425-446b-a58b-dd965c79ec70
+          ongoingEffectCustom: eb48d72b-3425-446b-a58b-dd965c79ec70
+        display:
+          saturation: 1
+          brightness: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.665032684803009
+            s: 0.931506872177124
+            v: 0.858823537826538
+            a: 1
+        flavor: |
+          You flatten yourself into a shadow against a wall or floor you are touching, and become hidden from any creature you have cover or concealment from or who isn’t observing you. 
+          While in shadow form, you have full awareness of your surroundings, attacks against you and tests made to find you take a bane, and you can’t move or take actions or maneuvers except to exit this form. Any ability or effect that targets more than 1 square affects you in this form only if it explicitly affects the surface you are flattened against. You can exit this form as a maneuver.
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 6d6e1389-ba5a-42b3-afeb-d2000778f3a2
+        domains:
+          race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+        targetType: self
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        name: Shadowmeld
+        persistence: []
+        description: ""
+        abilityType: none
+        iconid: a1f8b8ab-a695-4b99-af22-02986221aec6
+    name: "Signature Trait: Shadowmeld"
+    source: Polder Race Feature
+    description: You become an actual shadow.
+    guid: 82722346-456c-4bd3-ada9-9bea4b9a0f5c
+    implementation: 2
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    costsPoints: true
+    name: Purchased Polder Traits
+    options:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+        sourceguid: e347c13c-02bc-4b63-8c6c-b225cd7574a2
+        source: Polder Race Feature
+        name: Corruption Immunity
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Level + 2
+          damageType: corruption
+          apply: Damage Reduction
+        description: Your innated shadow magic gives you corruption immunity equal to your level + 2.
+        behavior: resistance
+        guid: b8e0a2e2-ea57-4ae7-a9e8-88f0d9f38b1d
+      source: Polder Race Feature
+      guid: e347c13c-02bc-4b63-8c6c-b225cd7574a2
+      pointsCost: 1
+      domains:
+        race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+      canHavePrerequisites: true
+      description: Your innated shadow magic gives you corruption immunity equal to your level + 2.
+      name: Corruption Immunity
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 22e632c0-d0f0-47a9-b776-2ff3ac7e17b2
+        source: Polder Race Feature
+        guid: 2e4844e7-3737-4e15-8a1e-b9ba134a0b43
+        domains:
+          race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+        name: Graceful Retreat
+        value: 1
+        description: When you take the Disengage maneuver, you can shift 1 additional square as part of the maneuver.
+        behavior: attribute
+        attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+      source: Polder Race Feature
+      guid: 22e632c0-d0f0-47a9-b776-2ff3ac7e17b2
+      pointsCost: 1
+      domains:
+        race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+      canHavePrerequisites: true
+      description: When you take the Disengage maneuver, you can shift 1 additional square as part of the maneuver.
+      name: Graceful Retreat
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+      source: Polder Race Feature
+      modifiers: []
+      canHavePrerequisites: true
+      name: Polder Geist
+      description: Evading others’ notice gives you freedom to move. At the start of each of your turns during combat, if no enemy has line of effect to you or if you are hidden from or have concealment from any enemy with line of effect to you, you gain a +3 bonus to speed until the end of your turn.
+      pointsCost: 1
+      guid: da1db5b7-be4e-4464-8641-4746ee0ae95d
+    - __typeName: CharacterFeature
+      source: Polder Race Feature
+      guid: 94759ab2-b2e5-4065-9daf-89e00e7c312c
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 94759ab2-b2e5-4065-9daf-89e00e7c312c
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbilityParams:
+              distance: "1"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: b05e0880-08d6-4ab6-a239-a2b03cf87630
+              repeatTargets: false
+              targetType: self
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              display:
+                saturation: 1
+                brightness: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+          triggerPrompt: Tumble!
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: d360a683-d278-42e2-ba6f-990c5a1f3836
+          castImmediately: true
+          trigger: forcemove
+          targetType: self
+          name: Reactive Tumble
+          persistence: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        name: Reactive Tumble
+        source: Polder Race Feature
+        behavior: trigger
+        guid: 87abc949-a5f8-4a04-aa8b-912072dcc3e1
+        description: After you are force moved, you can shift 1 square as a free triggered action.
+      - __typeName: CharacterModifier
+        sourceguid: 94759ab2-b2e5-4065-9daf-89e00e7c312c
+        source: Polder Race Feature
+        name: Reactive Tumble
+        behavior: triggerdisplay
+        guid: c445bcef-93fc-470f-8463-84d59bd890c2
+        description: After you are force moved, you can shift 1 square as a free triggered action.
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: You shift one square after being moved.
+          type: free
+          trigger: You are force moved.
+          name: Reactive Tumble
+          target: Self
+          guid: 108c7156-d6c7-4a26-aa92-58572843a9b1
+          distance: Self
+          keywords: []
+      canHavePrerequisites: true
+      name: Reactive Tumble
+      description: After you are force moved, you can shift 1 square as a free triggered action.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+        sourceguid: 43fbab8d-2c6d-400f-a56d-bc40c2348b3e
+        source: Polder Race Feature
+        name: Fearless
+        conditions:
+        - 1211270f-bfce-45a6-b937-d72f0e8a06a8
+        behavior: conditionimmunity
+        guid: 7afef6a2-ded0-4cfa-86af-38bd54a4272f
+        description: Courage is all you know. You can’t be frightened.
+      source: Polder Race Feature
+      guid: 43fbab8d-2c6d-400f-a56d-bc40c2348b3e
+      pointsCost: 2
+      domains:
+        race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+      canHavePrerequisites: true
+      description: Courage is all you know. You can’t be frightened.
+      name: Fearless
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: add
+        sourceguid: beaef4ac-b563-4956-977d-ff5160da8245
+        source: Polder Race Feature
+        guid: e2cd5ebf-1af5-4d80-9949-0e73df81edae
+        domains:
+          race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+        name: Nimblestep
+        value: 1
+        description: Your light feet allow you to ignore the effects of difficult terrain and move at full speed while you are sneaking.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      source: Polder Race Feature
+      guid: beaef4ac-b563-4956-977d-ff5160da8245
+      pointsCost: 2
+      domains:
+        race:4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8: true
+      canHavePrerequisites: true
+      description: Your light feet allow you to ignore the effects of difficult terrain and move at full speed while you are sneaking.
+      name: Nimblestep
+      implementation: 3
+    description: You have 4 ancestry points to spend on the following traits.
+    numChoices: "4"
+    guid: a048a696-b9ba-432a-a93f-47f6067cd8c8
+_fork: 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
+mtime: 1771354845709
+portraitid: 300e4a77-9fef-4f9d-a0e5-7214a27df81e
+id: 4f1ecd6c-a675-4d64-b7e5-b544d06c5fd8
+ctime: 1771354845709
+nameGenerator: 10f375b4-a93b-433a-85fe-2c5eeca1547e
+lore: |-
+  The three peasants—Jago, his wife Sarah, and his sister Beth—sat
+  together watching the three heroes talk in the crowded common
+  room of the inn. Well, Jackson Bootblack seemed to be doing most of the
+  talking.
+
+  “This kind of shit doesn’t work if it’s just a bunch of ratcatchers like us,”
+  the polder said. “You need the people to rise up. Been fifteen years since
+  Omund died—fifteen years of fighting wolves and bandits and worse. The
+  people welcome a tyrant after that. They like order, you know? They adapt.”
+
+  “If you stand on the grass long enough, it learns to lie flat,” A Mist
+  Curls Around Dying Embers said. “But what do you say?”
+
+  “Eh?” the polder asked her. But he glanced at Sir John staring at him.
+
+  “You say the people have no stomach for rebellion,” Embers said. “But
+  what about you?”
+
+  “Oh,” the polder said, “I say it doesn’t matter much what I say. Why’s
+  he looking at me like that?” he asked the high elf and pointed at Sir John.
+  Realizing he was being rude, John shook his head to clear it. “Sorry, I just
+  … I never met a polder before,” he said.
+
+  “Are you kidding me?” Jackson said.
+
+  “No! Sorry, I just …”
+
+  “What are you, from the moon? Where you from that you never met
+  a polder before? There’s polder in every fucking village and town from
+  here to the sea.”
+
+  “Really? That’s weird. I’m from Tor, I’ve been all over—just never met
+  a polder before.”
+
+  Jackson looked at his friend, the high elf void mage. “Am I crazy?”
+
+  “You’re not crazy.” Embers smiled. She was enjoying watching two
+  of her friends get to know each other. “John’s just never run into one, it
+  seems.”
+
+  “Well, we’re adorable,” the polder said, and drank some ale.
+
+  “They must have been around I guess,” John said. “I probably just
+  never noticed.”
+
+  The polder put his drink down. “Oh, thank you. Thank you very
+  much. You know, it’s funny. I never have any problem noticing you big
+  assholes. One of you makes about as much noise as a cow, which … I
+  don’t even know how you manage that.”
+
+  “You’re talking just … my voice is just as loud as yours!" 
+
+  “I mean the way you walk around. Just the way you move, the way
+  you stand up and sit down. You make so much goddamn noise.”
+
+  Jago, Sarah, and Beth all smiled at the exchange.
+
+  “Humans are loud, yes,” Embers agreed.
+
+  “Do we have to … can we talk about something else, please?” John said.
+
+  “I just …” The polder wouldn’t let it go. “You seriously never … you
+  never been to an inn? Cavall’s teeth, I can’t count how many inns and
+  taverns I’ve been to run by polders, got polders in the kitchen or waiting
+  tables. One of the only two things we’re good at, I think.”
+
+  “Yeah?” John asked. “What’s the other one?”
+
+  The little man smiled. “Getting into places we ain’t supposed to be.”
+
+  “Now we’re talking,” Sir John said. “You were saying we need the
+  people behind us. I agree.”
+
+  “Yeah, okay. To business: How to rally the people.” The polder took
+  the question seriously. “It’s not hard. First, we need someone they’ll rally
+  around. I could make someone up, invent a local folk hero, but if we can
+  find the real thing? They just need to look the part, that’s all. I’ll take care
+  of the rest.”
+
+  “I’m working on that,” John said. “But it’s … slower going than I
+  thought. I’m betting on a long shot.”
+
+  “What’s the holdup?”
+
+  John thought about how to put what he knew into words. “You
+  know …” He shrugged. “Some people can only be heroes if they think
+  they’re better than everyone else. Some people can only be heroes once
+  they realize they’re not. And some people …”
+
+  He looked at his drink, at the expensive clear glass the innkeep had
+  given him because he recognized Sir John. He turned the glass slowly on
+  the table, and now he was mostly talking to himself. “Some people still
+  have to figure that out.”
+
+  “Which is best?” Jackson asked, and Embers could tell the little man
+  was testing John.
+
+  John took a deep breath and came back to reality. “Well. If we could
+  be picky, we wouldn’t need a hero,” he said.
+
+  The polder looked at the high elf and nodded, impressed. Test passed.
+
+  “Okay. Well, if you’ve already got a candidate, I could get things started.
+  The other half is: We need a good story—short, punchy. Something that’ll
+  catch on, needs to be easy to relate to, but bigger than life. A tax. A toll!
+  Bridge toll, classic. An ogre … no, three ogres. Yeah, three is better. Three
+  ogres in Ajax’s livery. A lone figure standing against them. See? Easy.”
+
+  “Where are we going to find three ogres?” John asked.
+
+  “What do you mean?” Now it was the polder’s turn to be confused.
+
+  “What do you mean, ‘What do I mean?’” John said.
+
+  “I’m not … we don’t need real ogres.” Jackson looked at the elf. “Is he
+  for real?”
+
+  “Trust me,” the void mage said.
+
+  “You mean you’re going to make it up?!” John exclaimed.
+
+  “I …” Jackson looked with incredulity at the high elf void mage, then
+  back at the human. “Yes, I do mean that. Does he know what I do?” he
+  asked the elf.
+
+  “He’ll learn.” Embers smiled.
+
+  The polder turned back to Sir John. “Hello. I lie for a living. And I’m
+  really good at it. Sometimes also kill people, but only if lying or running
+  away doesn’t work.”
+
+  John turned to Embers. “I thought he was a thief.”
+
+  “I was a thief,” the polder said.
+
+  “You were a thief.”
+
+  “Yeah, I was with the Clock. Probably still am—they don’t exactly let
+  you just walk away. We sort of have an agreement. I agree to do what
+  they tell me and they agree not to tell me to do anything.”
+
+  “Did they kick you out, or did you quit?”
+
+  “Depends on who you ask. I don’t like being told what to do. It’s sort
+  of a polder thing. Hereditary or ancestral or whatever. Everybody wants
+  a polder chef until they start trying to tell us what to cook.”
+
+  “So what are you now?”
+
+  “I’m annoying.”
+
+  The elf smiled. “He’s a troubadour—one of the best.”
+
+  Sir John looked at him, nodded. “No lute, I notice. And you don’t
+  seem the type to sit by the hearth telling stories.”
+
+  The polder grinned. “I ain’t that kind of troubadour. I’m the other
+  kind. I think the best story is the one people tell each other.”
+
+  “Propaganda,” Sir John said, a grin spreading across his face. The polder
+  pointed a finger at him and smiled. John heard the door to the inn open
+  behind him. This wasn’t notable, but the gasp from the customers was.
+  	
+  “Hey,” the polder said, looking past John to the doorway. “Hey, I
+  think our folk hero just showed up. Damn, he looks the part all right. Or
+  she, I can never tell with these guys.”
+
+  John turned to see.
+
+  Sir Vaantikalisax loomed just inside the doorway, his scales and
+  armor glowing in the light of the hearth fire. Sir John shot up out of his
+  chair, a huge smile on his face.
+
+  “I, uh …” Vaantikalisax said. The tall, broad draconian looked from
+  John to the three peasants. Jago, Sarah, and Beth were beaming with
+  even more joy than John, if that were possible.
+
+  The dragon knight stared at them for a moment, then turned back to
+  his friend.
+
+  “Maybe you’re right,” he said.
+details: |-
+  After humans, polder are the most numerous and diverse ancestry in Orden. They are not humans, but they live in and amongst humans and share their gods and culture. Almost every human culture in Orden has a polder saint or a human saint venerated by polder. 
+
+  Short, averaging three and a half feet tall, their origins are obscure. They are a young species who, like humans, have no single patron god. Their ability to shadowmeld means they enjoy a reputation as excellent spies and thieves. Many polder consider this a base slander and point out they’re also famed as chefs, though polder can be found in every profession, especially in cities.
+lifeSpan: 50–90
+name: Polder
+height: 3’3’’–3’9’’
+size: 1S
+moveSpeeds:
+  walk: 5

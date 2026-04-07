@@ -1,0 +1,89 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:1676bc99-e871-419b-8751-f97bc056b415: true
+  sourceguid: 1676bc99-e871-419b-8751-f97bc056b415
+  description: |
+    The first time any ally deals damage any target you’ve marked before the start of your next turn, that ally can spend a Recovery.
+  source: Ongoing Effect
+  name: The Mind Game
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: attacker
+    characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    characterConditionInflictedBySelf: true
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    guid: b30bc59d-3e02-475d-9252-cf5575229641
+    conditionFormula: HasAttacker and Attacker != self
+    domains:
+      CharacterOngoingEffect:1676bc99-e871-419b-8751-f97bc056b415: true
+    subject: other
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      targeting: self
+      autoTarget: true
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 29771a0a-216a-4457-ac40-f93928419bf0
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      abilityType: standard
+      standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 1676bc99-e871-419b-8751-f97bc056b415
+      mode: effect
+      conditions: []
+      applyto: caster
+    trigger: losehitpoints
+    name: The Mind Game
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 118c72a0-2f84-4c70-ade2-a061e4f8a177
+source: Ongoing Effect
+guid: 1676bc99-e871-419b-8751-f97bc056b415
+id: 1676bc99-e871-419b-8751-f97bc056b415
+ctime: 1746435344847
+domains:
+  CharacterOngoingEffect:1676bc99-e871-419b-8751-f97bc056b415: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.491999864578247
+    s: 1.00208103656769
+    v: 1.00238597393036
+    a: 1
+custom: true
+name: The Mind Game
+iconid: e85c9973-e817-4585-927d-f4585be68179
+description: |
+  The first time any ally deals damage any target you’ve marked before the start of your next turn, that ally can spend a Recovery.
+mtime: 1746513617509
+implementation: 3

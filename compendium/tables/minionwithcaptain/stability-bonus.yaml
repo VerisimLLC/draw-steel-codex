@@ -1,0 +1,13 @@
+__typeName: CharacterFeature
+testCases:
+- text: Stability +1
+- text: +1 bonus to stability
+modifiers: []
+source: Monster
+guid: 72fcd1a1-7712-4d97-b9f9-0bf05111db9a
+importMatch: Stability \+<<amount>>
+ctime: 1770313509460
+name: Stability Bonus
+description: ""
+id: 17a85e03-5be3-488b-9c19-77ee2337161e
+mtime: 1770313509460

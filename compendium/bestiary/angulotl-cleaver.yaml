@@ -1,0 +1,978 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: fc23a2c2-1ab6-44a2-9d28-d9b2cffce506
+    offtokenPortraitId: d54f4c75-f5bb-4c49-a6d2-da797a599b68
+    portraitFrameId: 9242a1db-25ff-403c-908c-010ef15dc821
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.383499
+    portraitOffset:
+      x: -0.1645456
+      y: 0.1874072
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.86
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 630787cd-2cd4-47e8-ab76-ab6a132f100d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: draw-steel-json
+      data: |
+        {
+          "folder": "VG4LRhUl5RB1EpzH",
+          "name": "Angulotl Cleaver",
+          "type": "npc",
+          "_id": "G1fUng66ZtDXk6Ts",
+          "img": "systems/draw-steel/assets/roles/minion.webp",
+          "system": {
+            "stamina": {
+              "value": 4,
+              "max": 4,
+              "temporary": 0
+            },
+            "characteristics": {
+              "might": {
+                "value": 0
+              },
+              "agility": {
+                "value": 2
+              },
+              "reason": {
+                "value": 0
+              },
+              "intuition": {
+                "value": 1
+              },
+              "presence": {
+                "value": 0
+              }
+            },
+            "combat": {
+              "save": {
+                "threshold": 6,
+                "bonus": ""
+              },
+              "size": {
+                "value": 1,
+                "letter": "S"
+              },
+              "stability": 0,
+              "turns": 1
+            },
+            "biography": {
+              "value": "",
+              "director": "",
+              "languages": [
+                "Filliaric"
+              ]
+            },
+            "movement": {
+              "value": 6,
+              "types": [
+                "walk",
+                "swim",
+                "climb"
+              ],
+              "hover": false,
+              "disengage": 1
+            },
+            "damage": {
+              "immunities": {
+                "all": 0,
+                "acid": 0,
+                "cold": 0,
+                "corruption": 0,
+                "fire": 0,
+                "holy": 0,
+                "lightning": 0,
+                "poison": 2,
+                "psychic": 0,
+                "sonic": 0
+              },
+              "weaknesses": {
+                "all": 0,
+                "acid": 0,
+                "cold": 0,
+                "corruption": 0,
+                "fire": 0,
+                "holy": 0,
+                "lightning": 0,
+                "poison": 0,
+                "psychic": 0,
+                "sonic": 0
+              }
+            },
+            "source": {
+              "book": "Monsters",
+              "page": "35",
+              "license": "Draw Steel Creator License"
+            },
+            "negotiation": {
+              "interest": 5,
+              "patience": 5,
+              "motivations": [],
+              "pitfalls": [],
+              "impression": 1
+            },
+            "monster": {
+              "freeStrike": 2,
+              "keywords": [
+                "angulotl",
+                "humanoid"
+              ],
+              "level": 1,
+              "ev": 3,
+              "role": "ambusher",
+              "organization": "minion",
+              "folder": "Angulotl"
+            }
+          },
+          "prototypeToken": {
+            "name": "Angulotl Cleaver",
+            "displayName": 20,
+            "actorLink": false,
+            "width": 1,
+            "height": 1,
+            "texture": {
+              "src": "systems/draw-steel/assets/roles/minion.webp",
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "offsetX": 0,
+              "offsetY": 0,
+              "fit": "contain",
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "tint": "#ffffff",
+              "alphaThreshold": 0.75
+            },
+            "lockRotation": true,
+            "rotation": 0,
+            "alpha": 1,
+            "disposition": -1,
+            "displayBars": 20,
+            "bar1": {
+              "attribute": "stamina"
+            },
+            "bar2": {
+              "attribute": "hero.resources"
+            },
+            "light": {
+              "negative": false,
+              "priority": 0,
+              "alpha": 0.5,
+              "angle": 360,
+              "bright": 0,
+              "color": null,
+              "coloration": 1,
+              "dim": 0,
+              "attenuation": 0.5,
+              "luminosity": 0.5,
+              "saturation": 0,
+              "contrast": 0,
+              "shadows": 0,
+              "animation": {
+                "type": null,
+                "speed": 5,
+                "intensity": 5,
+                "reverse": false
+              },
+              "darkness": {
+                "min": 0,
+                "max": 1
+              }
+            },
+            "sight": {
+              "enabled": false,
+              "range": 0,
+              "angle": 360,
+              "visionMode": "basic",
+              "color": null,
+              "attenuation": 0.1,
+              "brightness": 0,
+              "saturation": 0,
+              "contrast": 0
+            },
+            "detectionModes": [],
+            "occludable": {
+              "radius": 0
+            },
+            "ring": {
+              "enabled": false,
+              "colors": {
+                "ring": null,
+                "background": null
+              },
+              "effects": 1,
+              "subject": {
+                "scale": 1,
+                "texture": null
+              }
+            },
+            "turnMarker": {
+              "mode": 1,
+              "animation": null,
+              "src": null,
+              "disposition": false
+            },
+            "movementAction": null,
+            "flags": {},
+            "randomImg": false,
+            "appendNumber": false,
+            "prependAdjective": false
+          },
+          "items": [
+            {
+              "name": "Toxiferous",
+              "type": "feature",
+              "_id": "JaY3PYZYxl8oisGn",
+              "img": "icons/creatures/unholy/demon-hairy-winged-pink.webp",
+              "system": {
+                "description": {
+                  "value": "<p>Whenever an adjacent enemy grabs the cleaver or uses a melee ability against them, that enemy takes [[/damage 1 poison]] damage.</p>",
+                  "director": ""
+                },
+                "source": {
+                  "book": "Monsters",
+                  "page": "35",
+                  "license": "Draw Steel Creator License"
+                },
+                "_dsid": "toxiferous",
+                "advancements": {}
+              },
+              "effects": [],
+              "folder": null,
+              "sort": 0,
+              "ownership": {
+                "default": 0,
+                "R75FAhxK5fADaoJF": 3
+              },
+              "flags": {},
+              "_stats": {
+                "compendiumSource": null,
+                "duplicateSource": null,
+                "exportSource": null,
+                "coreVersion": "13.348",
+                "systemId": "draw-steel",
+                "systemVersion": "0.8.1",
+                "createdTime": 1757014230020,
+                "modifiedTime": null,
+                "lastModifiedBy": null
+              },
+              "_key": "!actors.items!G1fUng66ZtDXk6Ts.JaY3PYZYxl8oisGn"
+            },
+            {
+              "name": "Hop and Chop",
+              "type": "ability",
+              "system": {
+                "type": "main",
+                "source": {
+                  "book": "Monsters",
+                  "page": "35",
+                  "license": "Draw Steel Creator License"
+                },
+                "_dsid": "hop-and-chop",
+                "story": "",
+                "keywords": [
+                  "melee",
+                  "strike",
+                  "weapon"
+                ],
+                "category": "signature",
+                "resource": null,
+                "trigger": "",
+                "distance": {
+                  "type": "melee",
+                  "primary": 1
+                },
+                "damageDisplay": "melee",
+                "target": {
+                  "type": "creatureObject",
+                  "value": 1,
+                  "custom": "One creature or object per minion"
+                },
+                "power": {
+                  "roll": {
+                    "formula": "@chr",
+                    "characteristics": [
+                      "agility"
+                    ]
+                  },
+                  "effects": {
+                    "l2RRlgi2wdzeYEqp": {
+                      "name": "",
+                      "img": null,
+                      "type": "damage",
+                      "_id": "l2RRlgi2wdzeYEqp",
+                      "damage": {
+                        "tier1": {
+                          "value": "2"
+                        },
+                        "tier2": {
+                          "value": "4"
+                        },
+                        "tier3": {
+                          "value": "5"
+                        }
+                      }
+                    }
+                  }
+                },
+                "effect": {
+                  "before": "",
+                  "after": "<p>The cleaver jumps up to 4 squares before or after making this strike.</p>"
+                },
+                "spend": {
+                  "text": "",
+                  "value": null
+                }
+              },
+              "_id": "2IKLxcE72MlOLf99",
+              "img": "icons/skills/melee/strike-polearm-glowing-white.webp",
+              "effects": [],
+              "folder": null,
+              "sort": 0,
+              "ownership": {
+                "default": 0,
+                "R75FAhxK5fADaoJF": 3
+              },
+              "flags": {},
+              "_stats": {
+                "compendiumSource": null,
+                "duplicateSource": null,
+                "exportSource": null,
+                "coreVersion": "13.350",
+                "systemId": "draw-steel",
+                "systemVersion": "0.9.0",
+                "createdTime": 1757014262821,
+                "modifiedTime": null,
+                "lastModifiedBy": null
+              },
+              "_key": "!actors.items!G1fUng66ZtDXk6Ts.2IKLxcE72MlOLf99"
+            },
+            {
+              "folder": "QCHesWzKjphCQmCU",
+              "name": "Leapfrog",
+              "type": "ability",
+              "_id": "UZtOR8SSJC71RuS3",
+              "img": "icons/magic/unholy/silhouette-robe-evil-power.webp",
+              "system": {
+                "source": {
+                  "book": "Monsters",
+                  "page": "34",
+                  "license": "Draw Steel Creator License"
+                },
+                "_dsid": "leapfrog",
+                "story": "",
+                "keywords": [],
+                "type": "none",
+                "category": "heroic",
+                "resource": 3,
+                "trigger": "",
+                "distance": {
+                  "type": "special"
+                },
+                "damageDisplay": "melee",
+                "target": {
+                  "type": "special"
+                },
+                "power": {
+                  "roll": {
+                    "formula": "@chr",
+                    "characteristics": []
+                  },
+                  "effects": {}
+                },
+                "effect": {
+                  "before": "<p>Until the end of the round, when an angulotl moves through an inactive angulotl’s space, the inactive angulotl can use a free triggered action to jump 3 squares.</p>",
+                  "after": ""
+                },
+                "spend": {
+                  "text": "",
+                  "value": null
+                }
+              },
+              "effects": [],
+              "sort": 100000,
+              "ownership": {
+                "default": 0,
+                "R75FAhxK5fADaoJF": 3
+              },
+              "flags": {},
+              "_stats": {
+                "compendiumSource": "Compendium.draw-steel.monster-features.Item.UZtOR8SSJC71RuS3",
+                "duplicateSource": null,
+                "exportSource": null,
+                "coreVersion": "13.350",
+                "systemId": "draw-steel",
+                "systemVersion": "0.8.1",
+                "createdTime": 1757014340503,
+                "modifiedTime": null,
+                "lastModifiedBy": null
+              },
+              "_key": "!actors.items!G1fUng66ZtDXk6Ts.UZtOR8SSJC71RuS3"
+            },
+            {
+              "name": "Wet",
+              "type": "feature",
+              "_id": "LCVUFvkic3ekh34p",
+              "img": "icons/magic/water/water-drop-swirl-blue.webp",
+              "system": {
+                "description": {
+                  "value": "<p>Angulotls make use of a unique effect called “wet.” While wet, an angulotl doesn’t provoke opportunity attacks by moving. At the same time, any non-angulotl who is wet and ends their turn with none of their movement remaining slips and falls prone. Several angulotl abilities can impose this effect, but a creature in an encounter featuring angulotls can also become wet by entering water, as the Director determines.</p>",
+                  "director": ""
+                },
+                "source": {
+                  "book": "Monsters",
+                  "page": "35",
+                  "license": "Draw Steel Creator License"
+                },
+                "_dsid": "wet",
+                "advancements": {}
+              },
+              "effects": [
+                {
+                  "name": "Wet",
+                  "img": "icons/magic/water/water-drop-swirl-blue.webp",
+                  "type": "base",
+                  "origin": "Compendium.draw-steel.monsters.Actor.R1CEitcfoGyEwRZY.Item.LCVUFvkic3ekh34p",
+                  "disabled": true,
+                  "_id": "X66mp8MbRILfgKS6",
+                  "system": {
+                    "end": {
+                      "type": "",
+                      "roll": "1d10 + @combat.save.bonus"
+                    }
+                  },
+                  "changes": [],
+                  "duration": {
+                    "startTime": 0,
+                    "combat": null,
+                    "seconds": null,
+                    "rounds": null,
+                    "turns": null,
+                    "startRound": null,
+                    "startTurn": null
+                  },
+                  "description": "<p>While wet, an angulotl doesn’t provoke opportunity attacks by moving.</p><p>While wet, any non-angulotl who is wet and ends their turn with none of their movement remaining slips and falls prone.</p>",
+                  "tint": "#ffffff",
+                  "transfer": true,
+                  "statuses": [],
+                  "sort": 0,
+                  "flags": {},
+                  "_stats": {
+                    "compendiumSource": null,
+                    "duplicateSource": null,
+                    "exportSource": null,
+                    "coreVersion": "13.350",
+                    "systemId": "draw-steel",
+                    "systemVersion": "0.8.1",
+                    "lastModifiedBy": null,
+                    "modifiedTime": 1760843878543
+                  },
+                  "_key": "!actors.items.effects!G1fUng66ZtDXk6Ts.LCVUFvkic3ekh34p.X66mp8MbRILfgKS6"
+                }
+              ],
+              "folder": null,
+              "sort": 0,
+              "ownership": {
+                "default": 0,
+                "R75FAhxK5fADaoJF": 3
+              },
+              "flags": {},
+              "_stats": {
+                "compendiumSource": "Compendium.draw-steel.monsters.Actor.R1CEitcfoGyEwRZY.Item.LCVUFvkic3ekh34p",
+                "duplicateSource": null,
+                "exportSource": null,
+                "coreVersion": "13.348",
+                "systemId": "draw-steel",
+                "systemVersion": "0.8.1",
+                "createdTime": 1757014982217,
+                "modifiedTime": null,
+                "lastModifiedBy": null
+              },
+              "_key": "!actors.items!G1fUng66ZtDXk6Ts.LCVUFvkic3ekh34p"
+            },
+            {
+              "name": "Rainfall",
+              "type": "ability",
+              "_id": "chuInXNQ28dtiMPI",
+              "img": "icons/magic/unholy/silhouette-robe-evil-power.webp",
+              "system": {
+                "source": {
+                  "book": "Monsters",
+                  "page": "34",
+                  "license": "Draw Steel Creator License"
+                },
+                "_dsid": "rainfall",
+                "story": "",
+                "keywords": [],
+                "type": "none",
+                "category": "heroic",
+                "resource": 7,
+                "trigger": "",
+                "distance": {
+                  "type": "special"
+                },
+                "damageDisplay": "melee",
+                "target": {
+                  "type": "special",
+                  "custom": "",
+                  "value": null
+                },
+                "power": {
+                  "roll": {
+                    "formula": "@chr",
+                    "characteristics": []
+                  },
+                  "effects": {}
+                },
+                "effect": {
+                  "before": "<p>An angulotl calls clouds to cover the encounter map and unleash rain until the end of the round. Any creature or object that is exposed to the sky is [[/apply Du8EMyrd7nZQ66Yk encounter]] until the end of the encounter.</p>",
+                  "after": ""
+                },
+                "spend": {
+                  "text": "",
+                  "value": null
+                }
+              },
+              "effects": [
+                {
+                  "name": "Wet",
+                  "img": "icons/magic/water/water-drop-swirl-blue.webp",
+                  "origin": "Compendium.draw-steel.monster-features.Item.chuInXNQ28dtiMPI",
+                  "transfer": false,
+                  "_id": "Du8EMyrd7nZQ66Yk",
+                  "type": "base",
+                  "system": {
+                    "end": {
+                      "type": "encounter",
+                      "roll": "1d10 + @combat.save.bonus"
+                    }
+                  },
+                  "changes": [],
+                  "disabled": false,
+                  "duration": {
+                    "startTime": null,
+                    "combat": null,
+                    "seconds": null,
+                    "rounds": null,
+                    "turns": null,
+                    "startRound": null,
+                    "startTurn": null
+                  },
+                  "description": "<p>While wet, an angulotl doesn’t provoke opportunity attacks by moving.</p><p>While wet, any non-angulotl who is wet and ends their turn with none of their movement remaining slips and falls prone.</p>",
+                  "tint": "#ffffff",
+                  "statuses": [],
+                  "sort": 0,
+                  "flags": {},
+                  "_stats": {
+                    "compendiumSource": null,
+                    "duplicateSource": null,
+                    "exportSource": null,
+                    "coreVersion": "13.350",
+                    "systemId": "draw-steel",
+                    "systemVersion": "0.9.0",
+                    "lastModifiedBy": null
+                  },
+                  "_key": "!actors.items.effects!G1fUng66ZtDXk6Ts.chuInXNQ28dtiMPI.Du8EMyrd7nZQ66Yk"
+                }
+              ],
+              "flags": {},
+              "_stats": {
+                "compendiumSource": "Compendium.draw-steel.monster-features.Item.chuInXNQ28dtiMPI",
+                "duplicateSource": null,
+                "exportSource": null,
+                "coreVersion": "13.350",
+                "systemId": "draw-steel",
+                "systemVersion": "0.9.0",
+                "createdTime": 1760844296113,
+                "modifiedTime": null,
+                "lastModifiedBy": null
+              },
+              "ownership": {
+                "default": 0,
+                "R75FAhxK5fADaoJF": 3
+              },
+              "folder": null,
+              "sort": 300000,
+              "_key": "!actors.items!G1fUng66ZtDXk6Ts.chuInXNQ28dtiMPI"
+            },
+            {
+              "name": "Resonating Croak",
+              "type": "ability",
+              "_id": "kCADTziPpgpPe7gR",
+              "img": "icons/magic/unholy/silhouette-robe-evil-power.webp",
+              "system": {
+                "source": {
+                  "book": "Monsters",
+                  "page": "34",
+                  "license": "Draw Steel Creator License"
+                },
+                "_dsid": "resonating-croak",
+                "story": "",
+                "keywords": [],
+                "type": "none",
+                "category": "heroic",
+                "resource": 5,
+                "trigger": "",
+                "distance": {
+                  "type": "special"
+                },
+                "damageDisplay": "melee",
+                "target": {
+                  "type": "special",
+                  "custom": "",
+                  "value": null
+                },
+                "power": {
+                  "roll": {
+                    "formula": "@chr",
+                    "characteristics": []
+                  },
+                  "effects": {}
+                },
+                "effect": {
+                  "before": "<p>Each angulotl in the encounter puffs out their throat and starts loudly droning Any non-angulotl adjacent to an angulotl makes an <strong>Intuition test.</strong></p><dl class=\"power-roll-display\"><dt class=\"tier1\"><p>!</p></dt><dd><p>[[/damage 5 sonic]] damage; [[/apply slowed turn]]</p></dd><dt class=\"tier2\"><p>@</p></dt><dd><p>[[/damage 4 sonic]] damage</p></dd><dt class=\"tier3\"><p>#</p></dt><dd><p>No effect.</p></dd></dl>",
+                  "after": ""
+                },
+                "spend": {
+                  "text": "",
+                  "value": null
+                }
+              },
+              "effects": [],
+              "flags": {},
+              "_stats": {
+                "compendiumSource": "Compendium.draw-steel.monster-features.Item.SMNH5LxY8st7IyDf",
+                "duplicateSource": null,
+                "exportSource": null,
+                "coreVersion": "13.351",
+                "systemId": "draw-steel",
+                "systemVersion": "0.9.0",
+                "createdTime": 1763816500988,
+                "modifiedTime": null,
+                "lastModifiedBy": null
+              },
+              "ownership": {
+                "default": 0,
+                "CIQwmPP4Pjosq4Yp": 3
+              },
+              "folder": null,
+              "sort": 400000,
+              "_key": "!actors.items!G1fUng66ZtDXk6Ts.kCADTziPpgpPe7gR"
+            }
+          ],
+          "effects": [
+            {
+              "name": "With Captain",
+              "img": "icons/skills/social/intimidation-impressing.webp",
+              "type": "abilityModifier",
+              "origin": "Compendium.draw-steel.monsters.Actor.G1fUng66ZtDXk6Ts",
+              "_id": "kLQvgoJjRhTLLyWH",
+              "system": {
+                "end": {
+                  "type": "",
+                  "roll": "1d10 + @combat.save.bonus"
+                },
+                "filters": {
+                  "keywords": [
+                    "strike"
+                  ]
+                }
+              },
+              "changes": [
+                {
+                  "key": "damage.tier1.value",
+                  "mode": 2,
+                  "value": "1",
+                  "priority": null
+                },
+                {
+                  "key": "damage.tier2.value",
+                  "mode": 2,
+                  "value": "1",
+                  "priority": null
+                },
+                {
+                  "key": "damage.tier3.value",
+                  "mode": 2,
+                  "value": "1",
+                  "priority": null
+                }
+              ],
+              "disabled": true,
+              "duration": {
+                "startTime": 0,
+                "combat": null,
+                "startRound": 3,
+                "startTurn": 0,
+                "seconds": null,
+                "rounds": null,
+                "turns": null
+              },
+              "description": "<p>+1 damage bonus to strikes.</p>",
+              "tint": "#ffffff",
+              "transfer": false,
+              "statuses": [],
+              "sort": 0,
+              "flags": {},
+              "_stats": {
+                "compendiumSource": null,
+                "duplicateSource": null,
+                "exportSource": null,
+                "coreVersion": "13.348",
+                "systemId": "draw-steel",
+                "systemVersion": "0.8.1",
+                "createdTime": 1757276792324,
+                "modifiedTime": null,
+                "lastModifiedBy": null
+              },
+              "_key": "!actors.effects!G1fUng66ZtDXk6Ts.kLQvgoJjRhTLLyWH"
+            }
+          ],
+          "sort": 0,
+          "ownership": {
+            "default": 0
+          },
+          "flags": {},
+          "_stats": {
+            "compendiumSource": null,
+            "duplicateSource": null,
+            "exportSource": null,
+            "coreVersion": "13.350",
+            "systemId": "draw-steel",
+            "systemVersion": "0.9.0",
+            "createdTime": 1757014150222,
+            "modifiedTime": null,
+            "lastModifiedBy": null
+          },
+          "_key": "!actors!G1fUng66ZtDXk6Ts"
+        }
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8f55aa1d-e49a-4338-84df-bc79506aef0a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetTextOverride: 1 square
+          repeatTargets: false
+          rangeTextOverride: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous
+            roll: "1"
+            damageType: poison
+            chatMessage: Melee Ability Vs. Toxic Creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 0569f005-2683-4adc-92ff-2bc18f9c1c80
+          abilityType: none
+          conditionFormula: target = self and (Used Ability.Keywords has "Melee")
+          numTargets: "1"
+          name: Toxiferous
+          trigger: targetwithability
+          targetType: subject
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: b23da00d-6901-42f3-a9af-c18a93b6e496
+        source: Trait
+        behavior: trigger
+        description: ""
+        name: Toxiferous
+        sourceguid: 899d7be5-9c24-4936-b4a7-1133b5ee6fd5
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetTextOverride: 1 square
+          repeatTargets: false
+          rangeTextOverride: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous
+            roll: "1    "
+            damageType: poison
+            chatMessage: Grabbed by a Toxiferous Creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: bd4cc27c-afe1-45e6-9932-edbc03d52580
+          conditionFormula: Condition = "Grabbed" and (Has Attacker)
+          targetType: attacker
+          name: Toxiferous
+          trigger: inflictcondition
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f202e506-f5e0-425a-a09c-858ef3681bb1
+        source: Trait
+        behavior: trigger
+        description: ""
+        name: Toxiferous
+        sourceguid: 899d7be5-9c24-4936-b4a7-1133b5ee6fd5
+      name: Toxiferous
+      guid: 8f55aa1d-e49a-4338-84df-bc79506aef0a
+      description: Whenever an adjacent enemy grabs the cleaver or uses a melee ability against them, that enemy takes 1 poison damage.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c8d7c052-dbc5-4573-937b-e035e95a9f6f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        value: 1
+        source: Trait
+        name: Crafty
+        description: ""
+        behavior: attribute
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      source: Trait
+      description: Angulotls make use of a unique effect called "wet." While wet, an angulotl doesn't provoke opportunity attacks by moving. At the same time, any non-angulotl who is wet and ends their turn with none of their movement remaining slips and falls prone. Several angulotl abilities can impose this effect, but a creature in an encounter featuring angulotls can also become wet by entering water, as the Director determines.
+      guid: c8d7c052-dbc5-4573-937b-e035e95a9f6f
+      name: Wet
+      implementation: 3
+    role: Minion Ambusher
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    titles: []
+    innateLanguages:
+      e14c1512-fc48-4cb6-945c-18b3eb0b808d: true
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: Angulotl Cleaver
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    withCaptain: +1 damage bonus to strikes
+    keywords:
+      Humanoid: true
+      Angulotl: true
+    damage_taken: 0
+    max_hitpoints: 4
+    walkingSpeed: 6
+    traitNames:
+    - Toxiferous
+    - Wet
+    name: Angulotl Cleaver
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 35
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a31ef1e7-5372-494e-9f36-f8e4da4ed344
+      categorization: Signature Ability
+      implementation: 3
+      numTargets: 1
+      name: Hop & Chop
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + Agility
+      description: The cleaver jumps up to 4 squares before or after making this strike.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+    movementSpeeds:
+      swim: 6
+      climb: 6
+    creatureSize: 1S
+    opportunityAttack: 2
+    minion: true
+    monster_category: Angulotl
+  tokenType: null
+  bestiaryId: 5e24b500-babc-428b-907f-cd590872a5db
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Angulotl Cleaver
+parentFolder: b4d6a13f-3431-4ade-b564-2cc17bcde303
+artist: null
+ord: 0
+ctime: 1741590256651
+mtime: 1775184669617
+hidden: false

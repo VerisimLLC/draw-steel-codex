@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: a6d95e7c-82d0-4bd3-a06d-e7cdf5bbf841
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Askilli
+- __typeName: RollTableRow
+  id: 8dc3d931-23ce-40d2-bb69-d541f2134d23
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dorviath
+- __typeName: RollTableRow
+  id: 782615d3-bca6-4389-95d2-e882ca59266c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Jeddoar
+- __typeName: RollTableRow
+  id: 728d258d-4847-4626-9712-bc16c99060d9
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Karoskha
+- __typeName: RollTableRow
+  id: f8b796b1-ef9e-4356-9543-38260a7feb0f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Khorisa
+- __typeName: RollTableRow
+  id: 72beb97f-293e-4d1e-b65e-6c4ecc12db7f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Khorva
+- __typeName: RollTableRow
+  id: f9056e2b-3a5f-447d-893f-a3326d110631
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Moraska
+- __typeName: RollTableRow
+  id: 15b2781c-06ae-4c3f-aff9-daee2d6335ba
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vakarra
+- __typeName: RollTableRow
+  id: 2665c7ed-29a9-4bfb-b049-4565a6fbe50d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vhorovi
+- __typeName: RollTableRow
+  id: 775c4225-dec6-4217-a9c6-7d4a04c63f46
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Zhorva
+id: a1cd62d8-1856-4f89-a46d-e3d0706e612e
+name: Orc Feminine Names
+subtable: true
+mtime: 1743455464261
+items: false
+ctime: 1743445731765

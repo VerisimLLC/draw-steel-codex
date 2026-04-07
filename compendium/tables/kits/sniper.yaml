@@ -1,0 +1,109 @@
+__typeName: Kit
+name: Sniper
+kitManeuver: false
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+damageBonuses:
+  ranged:
+  - 0
+  - 0
+  - 4
+portraitid: e96c72cd-4529-42ed-9bc1-992e4ff47f9d
+speed: 1
+id: 62390395-f65a-4f08-9b5a-0a4131ac62dc
+description: The Sniper kit gives you the tools and techniques to take down enemies from afar. This kit can help you become the archer who lurks behind trees or down tunnels, picking off enemies with a bow or crossbow as they approach.
+type: martial
+weapons:
+  Bow: true
+imported: e3550728-d843-4ec7-a0a2-e6fb2a3b6f82
+equipmentDescription: You wear no armor and wield a bow.
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Kit: true
+    Strike: true
+    Weapon: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: Breathe ... aim ... wait... then strike!
+  sourceReference:
+    __typeName: SourceReference
+    page: 223
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 15
+  effectImplemented: false
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: f3dae59d-d3f7-4a12-9bb1-cf7a8e682c09
+  numTargets: 1
+  categorization: Signature Ability
+  implementation: 3
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 3 + M or A damage
+    - 6 + M or A damage
+    - 13 + M or A damage
+    roll: 2d10 + Might or Agility
+  - __typeName: ActivatedAbilityModifyPowerRollBehavior
+    guid: 2d66104d-0548-4859-b688-7edec8eb79c4
+    modifier:
+      __typeName: CharacterModifier
+      sourceguid: 2d66104d-0548-4859-b688-7edec8eb79c4
+      displayCondition: "1"
+      behavior: power
+      guid: ac13d4d6-2eae-4188-9ad6-570882893bf7
+      domains: []
+      keywords: []
+      hasCustomTrigger: true
+      customTrigger:
+        __typeName: TriggeredAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 27940c29-fbf0-4357-a5de-a4acbf00e07c
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        targetType: self
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          ongoingEffect: 53c0add3-ce83-4a74-a36a-cb442eb4de55
+          duration: 0
+          ongoingEffectCustom: 53c0add3-ce83-4a74-a36a-cb442eb4de55
+        name: New Ability
+        trigger: d20roll
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: If you don't take a move action this turn, this strike deals extra damage equal to your Might or Agility score (your choice).
+      name: Patient Shot
+      activationCondition: Moved This Turn = 0
+      damageModifier: Might or Agility
+      rollType: ability_power_roll
+      modtype: none
+  name: Patient Shot
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  description: If you don't take a move action this turn, this strike deals extra damage equal to your Might or Agility score (your choice).
+  abilityType: none
+  iconid: b5db9101-7d79-4166-b119-21a12922ffcd
+mtime: 1770565509353
+range: 10
+disengage: 1

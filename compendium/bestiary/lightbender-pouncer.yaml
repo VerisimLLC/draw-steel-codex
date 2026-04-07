@@ -1,0 +1,305 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: b7d642cb-4a50-4c7f-9f73-22e0956da7be
+    offtokenPortraitId: 098a856b-a264-4160-8778-dba265b86b21
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2566334
+    portraitOffset:
+      x: 0.110392
+      y: 0.1783739
+    frameHueShift: 0.7
+    frameSaturation: 0.37
+    frameBrightness: 1
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8babe9fb-4657-4a32-9963-8168073b3905
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Lightbender Pouncer	Level 3 Elite Harrier
+        Beast, Lightbender	EV 20
+        <b>Stamina</b> 100
+        <b>Speed</b> 10	<b>Size</b> 2 <b>Stability</b> 1
+        <b>	Free Strike</b> 5
+        Might +2	Agility +2	Reason -3	Intuition +1	Presence -1
+        <b>Pounce</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; A<1 prone
+        %E2%9C%B8	<b>17</b>	14 damage; A<2 prone
+        <b>Effect</b> The pouncer makes a free strike against each target they have knocked prone.
+
+        <b>Sparkling Tail Whip </b>(Action) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 2 burst	<b>Target</b> All enemies and objects in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage; A<1 dazzled (save ends)
+        %E2%9C%B8	<b>17</b>	10 damage; A<2 dazzled (save ends)
+        <b>Effect</b> A dazzled creature has a bane on strikes and can't have line of effect to targets who aren't adjacent to them.
+
+        <b>Illusory Feint </b>(Maneuver) %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 cube within 10	<b>Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	R<0 dazed (save ends)
+        %E2%98%85	<b>12-16</b>	R<1 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	R<2 dazed (save ends)
+        <b>Effect</b> 	Targets dazed by this ability have a speed of 0 while dazed. If a dazed target takes damage or if someone else spends an action to shake the creature out of their stupor, the condition ends.
+
+        <b>Striking Afterimage</b> (Triggered Action)
+        <b>Keywords</b> Magic
+        <b>Trigger</b> The pouncer takes damage from a strike.
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The pouncer halves the damage, doesn't suffer any effect associated with it, and teleports 5 squares. The pouncer makes a free strike if they teleport into a space adjacent to an enemy.
+
+        <b>Avoidance</b>
+        The pouncer always treats a save ends effect as an EoT effect.
+
+    skillProficiencies: []
+    role: Elite Harrier
+    inflictedConditions: []
+    ev: 20
+    max_hitpoints_roll: "100"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    walkingSpeed: 10
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -3
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Lightbender Pouncer
+    equipment: []
+    initiativeGrouping: ba9df171-9860-43db-87d8-9a0547d1a918
+    levelChoices: []
+    damage_taken: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4e603661-8ff5-4d48-9654-648160b8826f: true
+      modifiers: []
+      name: Avoidance
+      description: The pouncer always treats a save ends effect as an EoT effect.
+      guid: 4e603661-8ff5-4d48-9654-648160b8826f
+      source: Trait
+    resources: []
+    max_hitpoints: 100
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 11 damage; A<1 prone
+        - 14 damage; A<2 prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 39fb1945-af85-40ce-bfde-31ec5c0dd378
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Pounce
+      numTargets: 2
+      description: The pouncer makes a free strike against each target they have knocked prone.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage; A<1 the target is dazzled (save ends)
+        - 10 damage; A<2 the target is dazzled (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a8d737ee-a7f6-42cb-a5ce-3bec951c5c87
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: 'Sparkling Tail Whip '
+      numTargets: 1
+      description: A dazzled creature has a bane on strikes and can't have line of effect to targets who aren't adjacent to them.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - I<0 dazed (save ends)
+        - I<1 dazed (save ends)
+        - I<2 dazed (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 197
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 3
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 8588c4d8-19f7-489f-8ea7-e5a43d106372
+      abilityType: none
+      categorization: Ability
+      numTargets: 1
+      iconid: ui-icons/skills/1.png
+      name: Illusory Feint
+      targetType: target
+      description: While dazed this way, a target has speed 0. If a target takes damage, or if someone else uses a main action to shake the target out of their stupor, the dazed condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: df713b3f-a387-4215-90bb-f579088735bf
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Striking Afterimage
+      numTargets: 1
+      description: The pouncer halves the damage, doesn't suffer any effect associated with it, and teleports 5 squares. The pouncer makes a free strike if they teleport into a space adjacent to an enemy.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: 672a355d-1942-47cd-982d-93053abd4698
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Silent Prow
+      sourceReference:
+        __typeName: SourceReference
+        page: 196
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        Each lightbender acting this turn can teleport up to their speed as a move action and attempt to hide as a free maneuver, all until the start of their next turn.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 0
+    keywords:
+      Lightbender: true
+      Beast: true
+    movementSpeeds: []
+    groupid: 52f9b162-a295-441c-abbe-7c90fe140d40
+    minion: false
+    monster_category: Monster
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 188c4b11-fbef-487c-83dd-0179b273f8b3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Lightbender Pouncer
+parentFolder: 882ff1bd-d2b4-4311-afa2-280c30d51b58
+artist: null
+ord: 0
+ctime: 1741590223715
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,283 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 72cc88c7-313f-48ab-b22c-8c3f15f3b3a3
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 9
+    import:
+      type: mcdm
+      data: |+
+        Multivok Chief	Level 9 Elite Support
+        Construct, Multivok, Valok	EV 44
+        <b>Stamina</b> 220
+        <b>Speed</b> 5	<b>Size</b> 1L /<b> Stability</b> 3
+        <b>Free Strike</b> 9
+        Might +4	Agility +1	Reason -2	Intuition +1	Presence -3
+        <b>Pneumatic Punch</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	13 damage; push 3
+        %E2%98%85	<b>12%E2%80%9316</b>	18 damage; push 5
+        %E2%9C%B8	<b>17</b>	22 damage; push 8
+
+        <b>Targeting Beam</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 3 Malice
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	15 damage; A<2 slowed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	21 damage; A<3 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	26 damage; A<4 slowed (save ends)
+        <b>Effect</b> The damage can't be reduced in any way. Each strike made against a slowed target has a double edge until the condition ends.
+
+        <b>Chief's Command</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 ally
+        <b>Effect</b> The target shifts up to their speed and uses an action.
+
+        <b>Quick Shield</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self or Ranged 10<b>	Target</b> Self or 1 ally
+        <b>Trigger</b> The target is afflicted with an EoT or save ends effect
+        <b>Effect</b> The target receives 15 temporary Stamina. Each time this triggered action is used, the amount of temporary Stamina received decreases by 3 (to a minimum of 0).
+
+        <b>Multivok Maintenance</b>
+        At the start of the chief's turn, all servoks within 2 of the chie regains 15 Stamina.
+
+        <b>Crafted to Perfection</b>
+        The chief's shape can't change via any external effects.
+
+        <b>Valiar Might</b>
+        Each power roll made against the chief can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2d51782d-e2b4-42cf-a5f3-f6c9356a0b4b: true
+      modifiers: []
+      name: Multivok Maintenance
+      description: At the start of the chief's turn, all servoks within 2 of the chie regains 15 Stamina.
+      guid: 2d51782d-e2b4-42cf-a5f3-f6c9356a0b4b
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cf140dcf-3ab1-40b8-8536-e9713eaeacca: true
+      modifiers: []
+      name: Crafted to Perfection
+      description: The chief's shape can't change via any external effects.
+      guid: cf140dcf-3ab1-40b8-8536-e9713eaeacca
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:206c0442-c1db-4e04-adc2-6dd47080e677: true
+      modifiers: []
+      name: Valiar Might
+      description: Each power roll made against the chief can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+      guid: 206c0442-c1db-4e04-adc2-6dd47080e677
+      source: Trait
+    role: Elite Support
+    inflictedConditions: []
+    keywords:
+      Soulless: true
+      Valok: true
+      Construct: true
+      Multivok: true
+    max_hitpoints_roll: "220"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 9
+    monster_type: Multivok Chief
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -3
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 220
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 67269a8e-4914-46b7-b8b9-bbf68cb75478
+      implementation: 4
+      numTargets: 2
+      name: Pneumatic Punch
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 13 damage; push 3
+        - 18 damage; push 5
+        - 22 damage; push 8
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6ae8d258-3ca9-4e0f-8d61-7c338412a944
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; A<2 slowed (save ends)
+        - 21 damage; A<3 slowed (save ends)
+        - 26 damage; A<4 slowed (save ends)
+        roll: 2d10 + Might
+      name: Targeting Beam
+      implementation: 3
+      description: The damage can't be reduced in any way. Each strike made against a slowed target has a double edge until the condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: f202d759-7dd3-42e6-9301-c7e6dec21996
+      numTargets: 1
+      targetType: target
+      name: Chief's Command
+      iconid: ui-icons/skills/1.png
+      description: The target shifts up to their speed and uses an action.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 3391ef97-cbcd-47df-b79f-263d3e254564
+      numTargets: 1
+      targetType: target
+      name: Quick Shield
+      iconid: ui-icons/skills/1.png
+      description: The target receives 15 temporary Stamina. Each time this triggered action is used, the amount of temporary Stamina received decreases by 3 (to a minimum of 0).
+      abilityType: none
+      implementation: 0
+    groupid: d866d62f-f156-43bc-8dc6-b1a608559d4b
+    movementSpeeds: []
+    ev: 44
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: 42480694-be64-47a5-bbfd-673e070d4e77
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Multivok Chief
+parentFolder: 5d7591f8-2289-4a26-8fd5-14dcd72e6285
+artist: null
+ord: 0
+ctime: 1741590243859
+mtime: 1775201137032
+hidden: false

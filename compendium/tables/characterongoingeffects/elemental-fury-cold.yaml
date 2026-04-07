@@ -1,0 +1,54 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 68994ca4-cb55-4b35-b0aa-b296516b12b3
+    repeatTargets: false
+    trigger: losehitpoints
+    conditionFormula: HasAttacker
+    targetType: attacker
+    persistence: []
+    name: Elemental Fury - Cold
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "10"
+      damageType: cold
+      chatMessage: Elemental Fury Damage
+    - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+      applyto: subject
+      filterTarget: Cast.Damage Dealt >= Cast.Primary Target.Stamina
+      stamina: "10"
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: Until the end of the encounter or until you are dying, whenever an enemy damages you, they take 10 damage of the chosen type. If this damage reduces the enemy to 0 Stamina, you gain 10 temporary Stamina
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 4d6d7d19-ef43-4df6-9be8-8de4db40ed6c
+  name: Elemental Fury - Acid
+  sourceguid: fb0fd79f-c24a-494a-8ada-fcc3940343cc
+source: Ongoing Effect
+guid: 42586ef4-2230-4ee8-8f68-9717cec3438a
+id: 42586ef4-2230-4ee8-8f68-9717cec3438a
+ctime: 1770349999285
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Elemental Fury - Cold
+description: Until the end of the encounter or until you are dying, whenever an enemy damages you, they take 10 damage of the chosen type. If this damage reduces the enemy to 0 Stamina, you gain 10 temporary Stamina
+custom: true
+mtime: 1770350066357
+iconid: ui-icons/skills/1.png

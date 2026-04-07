@@ -1,0 +1,216 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: b596dccb-e782-4f8f-96c8-7f92f319db95
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.8539826
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 66dc5086-c052-46dc-b3bc-23ac373167d5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Lizardfolk Terrorsoar	Level 1 Harrier
+        Humanoid, Lizardfolk	EV 13
+        <b>Stamina</b> 30
+        <b>Speed</b> 7 (swim)	<b>Size</b> 1S /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +1	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Glaive Rush</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage
+        %E2%9C%B8	<b>17</b>	9 damage; prone
+        <b>Effect</b> The terrorsoar can shift 4 after using this ability if they are flying.
+
+        <b>Poison Blowdart</b> (Action) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 5	<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage; M<0 weakened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage; M<1 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	8 damage; M<2 weakened (save ends)
+        <b>Effect</b> A creature that ends their turn adjacent to a creature or object weakened by this ability is weakened (EoT).
+
+        <b>Glider</b>
+        The terrorsoar adds the flying keyword to their movement until the end of their next turn whenever they move at least 2 squares along the ground or fall at least 2 squares.
+
+        <b>Reptilian Escape</b>
+        While the terrorsoar still has a tail, whenever the terrorsoar is grabbed, slowed, weakened, or knocked prone, the terrorsoar can lose their tail to immediately end the effect and shift 2.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c38f4f64-ed66-480a-838f-83ca84b46d2b: true
+      modifiers: []
+      name: Glider
+      description: The terrorsoar adds the flying keyword to their movement until the end of their next turn whenever they move at least 2 squares along the ground or fall at least 2 squares.
+      guid: c38f4f64-ed66-480a-838f-83ca84b46d2b
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ae4cf7ca-a4f7-4805-a6bf-5c3c60cdfe0b: true
+      modifiers: []
+      name: Reptilian Escape
+      description: While the terrorsoar still has a tail, whenever the terrorsoar is grabbed, slowed, weakened, or knocked prone, the terrorsoar can lose their tail to immediately end the effect and shift 2.
+      guid: ae4cf7ca-a4f7-4805-a6bf-5c3c60cdfe0b
+      source: Trait
+    role: Harrier
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Lizardfolk: true
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    monster_type: Lizardfolk Terrorsoar
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 30
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 damage
+        - 9 damage; prone
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2cf6c70d-5343-4b32-875f-dce615c021af
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Glaive Rush
+      numTargets: 1
+      description: The terrorsoar can shift 4 after using this ability if they are flying.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage; M<0 weakened (save ends)
+        - 7 damage; M<1 weakened (save ends)
+        - 8 damage; M<2 weakened (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8c2a4d5b-ed22-44d2-9baf-c45dc774966f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Poison Blowdart
+      numTargets: 1
+      description: A creature that ends their turn adjacent to a creature or object weakened by this ability is weakened (EoT).
+      abilityType: none
+      implementation: 3
+    groupid: d3456343-2a59-400e-af7d-dbb4bd9c8347
+    movementSpeeds:
+      swim: 7
+    ev: 13
+    minion: false
+    levelChoices: []
+    creatureSize: 1S
+  tokenType: null
+  bestiaryId: ccdb4e2c-db7e-447e-b733-f846ae55ad91
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Lizardfolk Terrorsoar
+parentFolder: 40714605-54b3-4a20-b782-f427973a5a25
+artist: null
+ord: 0
+ctime: 1741590308336
+mtime: 1775201137032
+hidden: false

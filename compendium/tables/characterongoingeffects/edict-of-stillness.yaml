@@ -1,0 +1,70 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:197ac7fd-db03-47b5-b201-5099ad0ff166: true
+  sourceguid: 197ac7fd-db03-47b5-b201-5099ad0ff166
+  description: Until the end of the encounter or until you are dying, whenever a target moves or is force moved out of the area, they take holy damage equal to twice your Presence score. A target judged by you who moves willingly takes an extra 2d6 holy damage.
+  source: Ongoing Effect
+  name: Edict of Stillness
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      filterTarget: ConditionCaster("judged") = Caster and not Path.Forced
+      damageType: holy
+      roll: 2d6 + Presence*2
+      guid: 7fa184da-c0c9-4cae-9ab7-470129849f39
+      titleText: Edict of Stillness Damage
+      chatMessage: Edict of Stillness Damage
+    - __typeName: ActivatedAbilityDamageBehavior
+      filterTarget: Path.Forced or not ConditionCaster("judged") = caster
+      damageType: holy
+      roll: Presence*2
+      titleText: Edict of Stillness Damage
+      chatMessage: Edict of Stillness Damage
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    characterConditionInflictedBySelf: true
+    range: 1
+    domains:
+      CharacterOngoingEffect:197ac7fd-db03-47b5-b201-5099ad0ff166: true
+    abilityType: none
+    numTargets: "1"
+    modifiers: []
+    subjectRange: ""
+    strain: []
+    whenActive: combat
+    trigger: finishmove
+    targetType: subject
+    conditionFormula: Distance(Subject) > 2 and Path.Distance to Creature(Self) <= 2
+    hasManualVersion: true
+    persistence: []
+    name: Edict of Stillness
+    guid: 7d238290-4b83-4a76-bb9f-1ef95dea667f
+    description: Until the end of the encounter or until you are dying, whenever a target moves or is force moved out of the area, they take holy damage equal to twice your Presence score. A target judged by you who moves willingly takes an extra 2d6 holy damage.
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: 069f9324-2de7-4f52-b26b-f2aaf5130746
+source: Ongoing Effect
+guid: 197ac7fd-db03-47b5-b201-5099ad0ff166
+id: 197ac7fd-db03-47b5-b201-5099ad0ff166
+ctime: 1751135674097
+domains:
+  CharacterOngoingEffect:197ac7fd-db03-47b5-b201-5099ad0ff166: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Edict of Stillness
+custom: true
+description: Until the end of the encounter or until you are dying, whenever a target moves or is force moved out of the area, they take holy damage equal to twice your Presence score. A target judged by you who moves willingly takes an extra 2d6 holy damage.
+mtime: 1756952142988
+iconid: ui-icons/skills/1.png

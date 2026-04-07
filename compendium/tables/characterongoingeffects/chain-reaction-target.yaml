@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+id: 57d2432e-5d34-4bf6-a462-fc419043bff6
+guid: 57d2432e-5d34-4bf6-a462-fc419043bff6
+hiddenOnToken: true
+ctime: 1772897068330
+domains:
+  CharacterOngoingEffect:57d2432e-5d34-4bf6-a462-fc419043bff6: true
+description: ""
+custom: true
+name: Chain Reaction target
+statusEffect: true
+mtime: 1772898970488
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+iconid: ui-icons/skills/1.png

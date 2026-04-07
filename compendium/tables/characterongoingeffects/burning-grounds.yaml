@@ -1,0 +1,148 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:cfbbd0e7-dc44-40e2-b526-b5d619def4d6: true
+  sourceguid: cfbbd0e7-dc44-40e2-b526-b5d619def4d6
+  description: ""
+  source: Ongoing Effect
+  name: Burning Grounds
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: enemy
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Burning Grounds!
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00166618824005
+        v: 0.994157731533051
+        a: 1
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: "{Reason} fire damage"
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: Reason
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    guid: b96f4d13-6706-4fc9-b68c-52a76d36ff24
+    conditionFormula:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: Heroic Resources Available to Spend >= 3
+        threshold: 1
+      - script: Hero
+        threshold: 7
+      editableField: true
+      id: table
+      field: Level
+    domains:
+      CharacterOngoingEffect:cfbbd0e7-dc44-40e2-b526-b5d619def4d6: true
+    trigger: endturn
+    numTargets: "1"
+    name: Burning Grounds
+    targetType: all
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: b0788614-eea8-4836-9b23-8eff0d351b3b
+- __typeName: CharacterModifier
+  sourceguid: cb3859c6-ed31-4c59-942e-3342f7236239
+  source: Ongoing Effect
+  seq: dd1ca1e4-53a1-4c91-99a4-2385492da384
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers:
+    - __typeName: CharacterModifier
+      text: Creatures in the area of the mantle’s aura have their starting patience increased by 1 (to a maximum of 5) during any negotiation.  If you have 5 or more Victories, the bonus to patience increases to 2.
+      sourceguid: 35399000-f4ff-46aa-83b5-510c25cf2725
+      source: Aura
+      behavior: movementtext
+      name: Burning Grounds
+      texttype: negotiation
+      description: ""
+      guid: 86164612-6705-4d27-b7cc-e01a6af9c04f
+      color: white
+    - __typeName: CharacterModifier
+      sourceguid: 35399000-f4ff-46aa-83b5-510c25cf2725
+      source: Aura
+      guid: 5e7bcdd0-3979-4d03-b630-35f40cf9277a
+      keywords: []
+      activationCondition: true
+      filterCondition: Victories < 5
+      behavior: power
+      rollType: test_power_roll
+      name: Burning Grounds
+      description: While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, tests that use the Handle Animals skill have a double edge.
+      modtype: edge
+      skills:
+      - ff54a691-e0a0-4246-8ceb-7975b8826e92
+    - __typeName: CharacterModifier
+      sourceguid: 35399000-f4ff-46aa-83b5-510c25cf2725
+      source: Aura
+      guid: 8a527ba9-0ae2-4938-8c10-066d2afc5e72
+      keywords: []
+      activationCondition: true
+      filterCondition: Victories >= 5
+      behavior: power
+      rollType: test_power_roll
+      name: Burning Grounds
+      description: While in the area, you and any ally gain an edge on tests that use the Handle Animals skill. If you have 5 or more Victories, tests that use the Handle Animals skill have a double edge.
+      modtype: double_edge
+      skills:
+      - ff54a691-e0a0-4246-8ceb-7975b8826e92
+    name: Burning Grounds
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 35399000-f4ff-46aa-83b5-510c25cf2725
+    implementation: 3
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  domains:
+    CharacterOngoingEffect:cb3859c6-ed31-4c59-942e-3342f7236239: true
+    CharacterOngoingEffect:cfbbd0e7-dc44-40e2-b526-b5d619def4d6: true
+  radius: Reason
+  guid: 9535d1ec-431f-4369-a0ee-0ba611e2f72f
+  description: ""
+  behavior: aura
+  name: Quaking Earth
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: cfbbd0e7-dc44-40e2-b526-b5d619def4d6
+id: cfbbd0e7-dc44-40e2-b526-b5d619def4d6
+ctime: 1767215445077
+domains:
+  CharacterOngoingEffect:cfbbd0e7-dc44-40e2-b526-b5d619def4d6: true
+canEndWithAction: true
+description: ""
+sustainFormula:
+  __typeName: GoblinScriptTable
+  entries:
+  - script: Heroic Resources Available to Spend >=3
+    threshold: 1
+  - script: Heroic Resources Available to Spend >=0
+    threshold: 7
+  editableField: true
+  id: table
+  field: Level
+custom: true
+mtime: 1771248286435
+name: Burning Grounds
+iconid: ui-icons/skills/1.png

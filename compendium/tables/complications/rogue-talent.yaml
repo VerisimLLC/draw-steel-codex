@@ -1,0 +1,118 @@
+__typeName: CharacterComplication
+drawback: You have psychic weakness 5.
+mtime: 1768222359727
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 90d1586a-395e-448a-8342-9de3372089dd
+      guid: 754a70dc-e2e0-457f-a7a1-7b6f4cb3c78b
+      source: Feat
+      behavior: activated
+      description: ""
+      name: Rogue Talent - Benefit
+      activatedAbility:
+        __typeName: ActivatedAbility
+        objectTarget: true
+        repeatTargets: false
+        keywords:
+          Ranged: true
+          Psionic: true
+          Strike: true
+        implementationDetails: This ability will default to a Push. When making the Power Roll, you can select 'Change Push to Pull' to change this to a Pull.
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - "#Push or pull 1"
+          - "#Push or pull 2"
+          - "#Push or pull 3"
+          filterTarget: "0"
+          roll: 2d10 + Might or Intuition or Presence
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - Push 1
+          - Push 2
+          - Push 3
+          roll: 2d10 + Might or Intuition or Presence
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: 213d255d-363f-4c09-b0ca-c3ed496b5038
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: 213d255d-363f-4c09-b0ca-c3ed496b5038
+            behavior: power
+            modtype: none
+            adjustments: []
+            keywords: []
+            replaceText: Pull
+            domains: []
+            activationCondition: false
+            name: Change Push to Pull
+            rollType: ability_power_roll
+            description: Change the movement type from Push to Pull
+            guid: 53b2b316-24b5-4910-b4ce-cfe212e2a914
+            replacePattern: Push
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.79824560880661
+            s: 0.893162429332733
+            v: 0.917647063732147
+            a: 1
+        flavor: You reach out with your mind to move a creature or object.
+        sourceReference:
+          __typeName: SourceReference
+          page: 243
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: "10"
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        modifiers: []
+        strain: []
+        guid: 9e870ace-2554-4428-81da-8ad00a64c69f
+        categorization: Ability
+        persistence: []
+        domains: []
+        targetType: target
+        numTargets: "1"
+        name: Telekinetic Grasp
+        implementation: 3
+        description: ""
+        abilityType: none
+        iconid: 56729dfc-0cf4-4b75-99db-61ae8ac81d71
+    source: Feat
+    canHavePrerequisites: true
+    guid: 90d1586a-395e-448a-8342-9de3372089dd
+    name: Rogue Talent - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: bf2c5486-57d5-4ee8-bbb9-1adc1e8450f8
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: psychic
+        apply: Damage Reduction
+      description: ""
+      name: Rogue Talent - Drawback
+      guid: e82f1d54-e1ee-435c-9e56-b922c9d715b5
+    source: Feat
+    canHavePrerequisites: true
+    guid: bf2c5486-57d5-4ee8-bbb9-1adc1e8450f8
+    name: Rogue Talent - Drawback
+    implementation: 3
+name: Rogue Talent
+ctime: 1755516734058
+description: You are the only survivor of a cataclysmic psionic event—an experiment gone wrong, a voiceless talker attack, or some naturally occurring phenomenon of a far-off part of the timescape. It left you with a psionic talent, but also made you vulnerable to telepathic attacks.
+id: b68b52ab-3aa6-4b9e-b608-2c63e80101e1
+benefit: |-
+  You have the following ability, which you can use as a ranged free strike:
+  Telekinetic Grasp

@@ -1,0 +1,17 @@
+__typeName: CultureAspect
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      crafting: true
+      lore: true
+    name: Rural Skill
+    guid: f23ac9de-f6b9-4116-b0fc-9f3a39a88ba3
+    description: One skill from the crafting or lore skill groups. (*Quick Build:* Nature)
+    source: Rural Culture Feature
+name: Rural
+description: "A rural culture is one located in a town, village, or smaller settled enclave. People dwelling in such places often cultivate the land, trade goods or services with travelers passing through, harvest fish from the sea, or mine metals and gems from the earth.  \n\nLiving among a small population, most folks in a rural community learn a trade and are handed down bits of essential knowledge to help their community survive. For example, when a rural culture has only one blacksmith, it’s important to have an apprentice already learning at the anvil well before that smith starts to get old. If the only priest in town gets the sniffles, folks want an acolyte ready to wear the fancy robes should the worst occur.  "
+mtime: 1756163889697
+id: bc083000-3543-41ff-ad8d-332f73cd92aa
+ctime: 1730708022180

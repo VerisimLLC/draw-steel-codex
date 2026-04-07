@@ -1,0 +1,465 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 3feb7281-13de-4996-987a-311e099d7072
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Lord Syuul	Level 6 Solo
+        Horror, Voiceless Talker	EV 80
+        <b>Stamina</b> 450	<b>Immunity</b> psychic 10
+        <b>Speed</b> 7 (teleport, hover)	<b>Size</b> 1M /<b> Stability</b> 3
+        <b>Free Strike</b> 7
+        Might +1	Agility +3	Reason +4	Intuition +4	Presence +3
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> Lord Syuul takes up to two turns each round. He can't take turns consecutively.
+        <b>End Effect</b> At the end of his turn, Lord Syuul can take 10 damage to end one save ends effect affecting him. This damage can't be reduced in any way.
+
+        <b>Tentacle Grab</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 damage; A<2 grabbed
+        %E2%98%85	<b>12-16</b>	17 damage; A<3 grabbed
+        %E2%9C%B8	<b>17</b>	20 damage; A<4 grabbed
+        <b>2 Malice</b> The distance of this ability increases to Melee 10. Each target grabbed by Lord Syuul is immediately pulled 10.
+
+        <b>Dampening Grenade</b> (Action) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Psionic, Ranged
+        <b>Distance</b> 2 cube within 5<b>	Target</b> All enemies
+        <b>Effect</b> All psionic or magical abilities within the affected area have a double bane. All tests against psionic or magical effects within this area have a double edge.
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage; effect ends after 2 turns.
+        %E2%98%85	<b>12-16</b>	10 damage; effect ends after 1 round.
+        %E2%9C%B8	<b>17</b>	13 damage; effect ends with the encounter.
+
+        <b>Mind Blown</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 7 Malice
+        <b>Keywords</b> Melee, Psionic, Strike
+        <b>Distance</b> Melee 1 <b>	Target</b> One grabbed enemy
+        %E2%9C%A6	<b>%E2%89%A411</b>	12 damage
+        %E2%98%85	<b>12-16</b>	20 damage
+        %E2%9C%B8	<b>17</b>	24 damage
+        <b>Effect</b> If this action reduces the target to 0 Stamina and they have a brain, their brain explodes, instantly killing them.
+
+        <b>You Come With Me</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> Lord Syuul teleports 5 along with each creature and object he has grabbed. He can release them as part of this maneuver.
+
+        <b>Adaptability</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> Lord Syuul takes typed damage.
+        <b>Effect</b> Lord Syuul gains immunity 5 to the triggering type of damage until the start of his next turn.
+
+        <b>Mind Over Manners</b>
+        When Lord Syuul uses an ability with the Psionic keyword, he can do so as if he were in the space of any creature within line of effect he has observed using an ability with the Psionic keyword.
+
+        <b>See Only Me</b> (Villain Action 1)
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 10 burst<b>	Target</b> All enemies
+        <b>Effect</b> Each target makes an <b>Intuition test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	16 psychic damage; can't establish line of effect to creatures besides Lord Syuul, and strikes targeting Lord Syuul have a bane (save ends)
+        %E2%98%85	<b>12-16</b>	13 psychic damage; can't establish line of effect to creatures besides Lord Syuul (save ends)
+        %E2%9C%A6	<b>17</b>	7 psychic damage
+
+        <b>Phantom Pain </b>(Villain Action 2)
+        <b>Keywords</b> Psionic
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> Lord Syuul becomes invisible, teleports up to 10, and projects an illusory double within 10. The double can't move or act, but Lord Syuul can use psionic abilities as if he were in its space. When a creature touches or damages the double with a melee strike, they take 10 psionic damage. The double disappears and Lord Syuul loses invisibility when Lord Syuul takes damage.
+
+        <b>Mindshatter</b> (Villain Action 3) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 5 Burst<b>	Target</b> All creatures
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 psychic damage
+        %E2%98%85	<b>12-16</b>	13 psychic damage
+        %E2%9C%B8	<b>17</b>	16 psychic damage
+        <b>Effect</b> Each target gains damage weakness 3 until the end of the encounter.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1cc9c6c5-8c52-4194-8bb0-1afca5b90b1d: true
+      modifiers: []
+      name: Mind Over Manners
+      description: When Lord Syuul uses an ability with the Psionic keyword, he can do so as if he were in the space of any creature within line of effect he has observed using an ability with the Psionic keyword.
+      guid: 1cc9c6c5-8c52-4194-8bb0-1afca5b90b1d
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:74bc6fa9-c10f-4092-a308-aa09585f1894: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: "End Effect: At the end of each of his turns, Lord Syuul can take 10 damage to end one effect on him that can be ended by a saving throw. This damage can't be reduced in any way.Solo Turns: Lord Syuul can take two turns each round. He can't take turns consecutively."
+      guid: 74bc6fa9-c10f-4092-a308-aa09585f1894
+      name: Solo Monster
+      implementation: 3
+    role: Solo
+    inflictedConditions: []
+    keywords:
+      Horror: true
+      Voiceless Talker: true
+    max_hitpoints_roll: "450"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 10
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Lord Syuul
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 4
+        id: rea
+      inu:
+        baseValue: 4
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 450
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a65eba8a-d395-48f0-b545-e316c8a1c37c
+      implementation: 3
+      numTargets: 2
+      name: Tentacle Grab
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 damage; A<2 grabbed
+        - 17 damage; A<3 grabbed
+        - 20 damage; A<4 grabbed
+        roll: 2d10 + Reason
+      description: |-
+        Lord Syuul can have up to four targets grabbed at once
+        **2 Malice**: The distance of this ability increases to melee 10. Each target grabbed by Lord Syuul is pulled up to 10 squares.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Psionic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; the effect ends after 2 turns
+        - 10 damage; the effect ends at the end of Lord Syuul's next turn
+        - 13 damage; the effect lasts until the end of the encounter
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      guid: 1a24f8f5-11bf-4015-a4d3-95a72888f635
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: cube
+      implementation: 3
+      name: Dampening Grenade
+      radius: 2
+      description: All psionic or magical abilities within the affected area have a double bane. All tests against psionic or magical effects within this area have a double edge.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 7
+      repeatTargets: false
+      keywords:
+        Psionic: true
+        Melee: true
+        Strike: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c1aa552e-8173-4bce-b096-47a9ef98d94f
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 12 damage
+        - 20 damage
+        - 24 damage
+        roll: 2d10 + Reason
+      name: Mind Blown
+      implementation: 3
+      description: If this action reduces the target to 0 Stamina and they have a brain, their brain explodes, instantly killing them.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 45fc7f80-f18e-4da2-9aab-a818cb91a322
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: You Come With Me
+      numTargets: 1
+      description: Lord Syuul teleports 5 along with each creature and object he has grabbed. He can release them as part of this maneuver.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 7dc9f3a6-9526-4b82-9033-9d0226988387
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Adaptability
+      numTargets: 1
+      description: Lord Syuul gains immunity 5 to the triggering type of damage until the start of his next turn.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '12b6ce75-5e19-49f7-a3b"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: fb68e0ee-83b5-4310-b928-ec557b25ed4f
+      numTargets: 1
+      targetType: all
+      implementation: 0
+      name: See Only Me
+      effectImplemented: false
+      description: Each target makes an Intuition test.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Psionic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e908bd2e-1969-443a-b64a-592c495ece8a
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '56067ab8-2c27-4f68-990"
+      implementation: 0
+      behaviors: []
+      name: 'Phantom Pain '
+      numTargets: 1
+      description: Lord Syuul becomes invisible, teleports up to 10, and projects an illusory double within 10. The double can't move or act, but Lord Syuul can use psionic abilities as if he were in its space. When a creature touches or damages the double with a melee strike, they take 10 psionic damage. The double disappears and Lord Syuul loses invisibility when Lord Syuul takes damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d59f9ce7-f296-4049-955a-302d068731d1
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '7e050782-6f87-487a-ae8"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 psychic damage
+        - 13 psychic damage
+        - 16 psychic damage
+        roll: 2d10 + Reason
+      name: Mindshatter
+      numTargets: 1
+      description: Each target gains damage weakness 3 until the end of the encounter.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 2d9a554d-5f05-4fa2-a46b-e90b0735d7a3
+    movementSpeeds:
+      teleport: 7
+    ev: 96
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 52c946c5-219c-49d0-ab5e-68c12f29d705
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: Lord Syuul
+parentFolder: bd101336-f4e1-43da-9fd2-57eb5700365b
+artist: null
+ord: 0
+ctime: 1741590249821
+mtime: 1775201137032
+hidden: false

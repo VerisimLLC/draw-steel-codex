@@ -1,0 +1,178 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Rasquine
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: bab2dfe5-c5c5-4628-a90f-08ed05d05688
+  properties:
+    __typeName: monster
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    cr: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9dbbbb8d-4523-43cc-849a-4799803e51a3: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 9dbbbb8d-4523-43cc-849a-4799803e51a3
+        source: Character Feature
+        value: 4
+        domains:
+          CharacterFeature:9dbbbb8d-4523-43cc-849a-4799803e51a3: true
+        name: Rasquine
+        guid: c0575d34-8340-42bf-9b19-b5801a7bb768
+        description: ""
+        behavior: attribute
+        attribute: teleport
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 9dbbbb8d-4523-43cc-849a-4799803e51a3
+        source: Character Feature
+        value: 2
+        domains:
+          CharacterFeature:9dbbbb8d-4523-43cc-849a-4799803e51a3: true
+        name: Rasquine
+        guid: 2ee0a5d0-6e05-442c-af09-47804c9b399f
+        description: ""
+        behavior: attribute
+        attribute: creatureSize
+      name: Rasquine
+      guid: 9dbbbb8d-4523-43cc-849a-4799803e51a3
+      description: ""
+      source: Character Feature
+    role: Minion Ambusher
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Signature: true
+      Demon: true
+      Summoner: true
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -1
+      damageType: holy
+      apply: Damage Reduction
+    monster_type: Rasquine
+    opportunityAttack: 2
+    walkingSpeed: 4
+    damage_taken: 0
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: mgt
+    resources: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    notes:
+    - text: A skulking demon that shimmers in the light. They teleport into position before biting the necks of their prey.
+      title: Monster Notes
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 2 damage
+        - 2 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+    max_hitpoints: 2
+    monster_category: Monster
+    levelChoices: []
+    minion: true
+    savingThrowRatings: []
+    notesRevision: f52fb99d-7c4d-409e-8840-7cdc2bcb4ed9
+  tokenType: null
+  bestiaryId: 5f69e9f7-8376-46e4-912b-1388e2ea1d1f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1759616927732
+description: null
+parentFolder: 685eef72-4459-4dd3-9b2a-5c2821caec96
+artist: null
+ord: 1
+ctime: 1759616927732
+mtime: 1775167534570
+hidden: false

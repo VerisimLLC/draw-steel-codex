@@ -1,0 +1,33 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 751df6a0-2b1b-489b-95a3-78854c8cb797
+  sourceguid: 74e5faeb-661d-4138-8582-adef55c4f98b
+  value: 4
+  source: Ongoing Effect
+  name: Star Power
+  behavior: attribute
+  description: You gain a +4 bonus to speed and your next Power Roll this turn cannot have a result lower than tier 2.
+  attribute: speed
+source: Ongoing Effect
+guid: 74e5faeb-661d-4138-8582-adef55c4f98b
+id: 74e5faeb-661d-4138-8582-adef55c4f98b
+ctime: 1746172439243
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.192000150680542
+    s: 0.63867199420929
+    v: 1.00156188011169
+    a: 1
+custom: true
+iconid: 23d764ac-bf69-4d44-b0c7-3769c6b02ac7
+name: Star Power
+statusEffect: true
+description: You gain a +4 bonus to speed and your next Power Roll this turn cannot have a result lower than tier 2.
+mtime: 1756608261148
+implementation: 3

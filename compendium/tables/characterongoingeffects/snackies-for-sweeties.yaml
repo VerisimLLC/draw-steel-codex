@@ -1,0 +1,102 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    rangeTextOverride: "100"
+    targetType: all
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 201522fa-4d40-4e6e-8761-1584c6ef912e
+    conditionFormula: self
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      resistanceAttr: agl
+      filterTarget: Target.Ongoing Effects has "ornate pastry"
+      roll: 2d10 + Might or Agility
+      tiers:
+      - 6 poison damage
+      - 10 poison damage
+      - 13 poison damage
+      attrid: agl
+      resistanceRoll: true
+      isTest: false
+    name: Snackies for Sweeties
+    trigger: beginround
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: At the end of the round, the Hag makes one pwer roll against each creature with a pastry attached to them.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: bf88609d-3167-48e1-8695-e27fb53069de
+  name: Snackies for Sweeties
+  sourceguid: 8076d92f-7483-492f-aa03-781d3641b38e
+- __typeName: CharacterModifier
+  sourceguid: 8076d92f-7483-492f-aa03-781d3641b38e
+  guid: 6f578eea-2e26-4887-ab2a-d425bd0cd5b0
+  source: Ongoing Effect
+  behavior: activated
+  description: At the end of the round, the Hag makes one pwer roll against each creature with a pastry attached to them.
+  name: Snackies for Sweeties
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    targetFilter: Target.Ongoing Effects has "ornate pastry"
+    repeatTargets: false
+    targetType: all
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    sourceReference:
+      __typeName: SourceReference
+      page: 170
+      docid: cc66844a-04d0-49a0-8687-65ef83b15363
+    range: "100"
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 2c8bc1a0-d0ed-4326-a19a-fcb0c18054eb
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 6 poison damage
+      - 10 poison damage
+      - 13 poison damage
+      roll: 2d10 + 3
+    domains: []
+    iconid: 4ffdbf18-c0a0-41a4-a4d1-6978c7ce0ab3
+    categorization: Ability
+    name: Snackies for Sweeties Power Roll
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    implementation: 4
+source: Ongoing Effect
+guid: 8076d92f-7483-492f-aa03-781d3641b38e
+id: 8076d92f-7483-492f-aa03-781d3641b38e
+ctime: 1771599875459
+hiddenFromEnemies: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Snackies for Sweeties
+statusEffect: true
+mtime: 1771941793208
+description: At the end of the round, the Hag makes one pwer roll against each creature with a pastry attached to them.
+iconid: 4ffdbf18-c0a0-41a4-a4d1-6978c7ce0ab3

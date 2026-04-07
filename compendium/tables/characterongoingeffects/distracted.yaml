@@ -1,0 +1,46 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: d0b688cb-696b-4736-b935-c22ae9597788
+  sourceguid: e32ea406-5e35-4a31-8e08-249c6effde8b
+  value: 1
+  source: Ongoing Effect
+  name: Distracted
+  behavior: attribute
+  description: You can’t take triggered actions or free triggered actions, ability rolls made against you gain an edge, and your characteristic scores are considered 1 lower for the purpose of resisting potencies.
+  attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+- __typeName: CharacterModifier
+  sourceguid: e32ea406-5e35-4a31-8e08-249c6effde8b
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Distracted
+  guid: 05310022-51a6-4d1a-9d66-50d38c51adeb
+  description: Ability rolls made against you gain an edge
+  modtype: edge
+  rollType: enemy_ability_power_roll
+- __typeName: CharacterModifier
+  guid: b2bf1bd6-385d-44c6-80cc-67d583d1bba7
+  sourceguid: e32ea406-5e35-4a31-8e08-249c6effde8b
+  value: -1
+  source: Ongoing Effect
+  name: Distracted
+  behavior: attribute
+  description: You can’t take triggered actions or free triggered actions, ability rolls made against you gain an edge, and your characteristic scores are considered 1 lower for the purpose of resisting potencies.
+  attribute: 20009cb8-8c21-497f-9563-b2d8c99176dd
+source: Ongoing Effect
+guid: e32ea406-5e35-4a31-8e08-249c6effde8b
+id: e32ea406-5e35-4a31-8e08-249c6effde8b
+ctime: 1770411914200
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Distracted
+description: You can’t take triggered actions or free triggered actions, ability rolls made against you gain an edge, and your characteristic scores are considered 1 lower for the purpose of resisting potencies.
+custom: true
+mtime: 1770412009964
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: f67b66ae-8b0c-4b87-afee-91b66d10f820
+id: f67b66ae-8b0c-4b87-afee-91b66d10f820
+ctime: 1771899190916
+domains:
+  CharacterOngoingEffect:f67b66ae-8b0c-4b87-afee-91b66d10f820: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Persist Source of Earth
+custom: true
+description: ""
+mtime: 1771899817485
+iconid: ui-icons/skills/1.png

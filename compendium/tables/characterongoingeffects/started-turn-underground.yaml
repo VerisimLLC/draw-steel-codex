@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 4982ddf6-975b-44a6-aede-9a6ca2ea3fd9
+id: 4982ddf6-975b-44a6-aede-9a6ca2ea3fd9
+ctime: 1771953434778
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Started Turn Underground
+statusEffect: false
+mtime: 1771953434778
+description: This creature started their turn underground.
+iconid: ui-icons/skills/1.png

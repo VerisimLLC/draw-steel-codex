@@ -1,0 +1,229 @@
+info:
+  locInfo: null
+  appearanceVariations:
+  - portraitId: ebd6b8c6-73bb-46f7-a543-e5547bb536f3
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.474753
+    frameSaturation: 0.4419872
+    frameBrightness: 0.732461
+    characterName: Lonely Civilian
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: 612f8a21-42e7-44aa-9f6d-e6f36a5c3f3c
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.9901094
+    frameSaturation: 0.7605713
+    frameBrightness: 0.732461
+    characterName: Lonely Civilian
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: cbb21817-ee45-4efd-952f-adbd71cba5fa
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.218635
+    portraitOffset:
+      x: -0.04340452
+      y: -0.03733325
+    frameHueShift: 0
+    frameSaturation: 0.94485
+    frameBrightness: 0.7293375
+    characterName: Lonely Civilian
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: cdeb7123-ab25-4fb9-a125-b41a0a62948c
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.218635
+    portraitOffset:
+      x: 0.02687663
+      y: 0.03318596
+    frameHueShift: 0.2717332
+    frameSaturation: 0.6044022
+    frameBrightness: 0.4419869
+    characterName: Stupid Civilian
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: 3db8b91a-ff0f-4866-aebc-775545230466
+    offtokenPortraitId: 3db8b91a-ff0f-4866-aebc-775545230466
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.6376896
+    portraitOffset:
+      x: -0.195715
+      y: 0.05807507
+    frameHueShift: 0.06871383
+    frameSaturation: 0.6044022
+    frameBrightness: 0.4419869
+    characterName: Stupid Civilian
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: eedf529b-cbaa-458f-b666-dc48ae3a1bb4
+    offtokenPortraitId: eedf529b-cbaa-458f-b666-dc48ae3a1bb4
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.062467
+    portraitOffset:
+      x: 0.03730764
+      y: 0.04148254
+    frameHueShift: 0.623142
+    frameSaturation: 0.563799
+    frameBrightness: 0.3108053
+    characterName: Stupid Civilian
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: eedf529b-cbaa-458f-b666-dc48ae3a1bb4
+    offtokenPortraitId: 3db8b91a-ff0f-4866-aebc-775545230466
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.062467
+    portraitOffset:
+      x: 0.03730764
+      y: 0.04148254
+    frameHueShift: 0.623142
+    frameSaturation: 0.563799
+    frameBrightness: 0.3108053
+    characterName: Stupid Civilian
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  appearanceVariationIndex: 6
+  appearance:
+    portraitId: bac69a6e-d15b-4a4e-b823-5cc072b18c20
+    offtokenPortraitId: bac69a6e-d15b-4a4e-b823-5cc072b18c20
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.062467
+    portraitOffset:
+      x: 0.03730764
+      y: 0.04148254
+    frameHueShift: 0.8979991
+    frameSaturation: 0.563799
+    frameBrightness: 0.3108053
+    characterName: Civilian
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e748b8c1-e6e9-432c-aad9-ab25a31bc550
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    import: []
+    skillProficiencies: []
+    max_hitpoints: 8
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Monster
+    initiativeGrouping: 27947b54-e438-461f-916e-79fcdc33f4a3
+    damage_taken: 0
+    resources: []
+    keywords:
+      Animal: true
+      Humanoid: true
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    levelChoices: []
+    walkingSpeed: 5
+    availableTriggers: []
+    monster_type: Civilian
+  tokenType: null
+  bestiaryId: 50f884a7-8b66-4cf9-b7aa-f35cb3065cd8
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1759178517031
+description: null
+parentFolder: null
+artist: null
+ord: 0
+ctime: 1761782039572
+mtime: 1763386289101
+hidden: false

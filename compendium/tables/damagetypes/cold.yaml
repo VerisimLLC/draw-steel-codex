@@ -1,0 +1,11 @@
+__typeName: DamageType
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Cold
+ctime: 1699861583754
+mtime: 1699861587801
+id: 0b12569b-658f-43fb-9134-6cf136d04e44
+iconid: 5ea7c996-1408-4045-8f81-0856e84896b1

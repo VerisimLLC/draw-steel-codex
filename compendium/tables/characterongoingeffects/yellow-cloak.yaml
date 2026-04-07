@@ -1,0 +1,30 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ac142508-ddfd-4415-bbd9-47cafafd71d3
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-Level"
+    damageType: lightning
+    apply: Damage Reduction
+  description: You have lightning weakness equal to your level.
+  name: Yellow Cloak
+  guid: 7a8b9bf3-172c-4269-aa6e-93a0622601e7
+source: Ongoing Effect
+guid: ac142508-ddfd-4415-bbd9-47cafafd71d3
+id: ac142508-ddfd-4415-bbd9-47cafafd71d3
+ctime: 1759039496066
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Yellow Cloak
+iconid: ui-icons/skills/1.png
+description: You have lightning weakness equal to your level.
+mtime: 1759039496066
+implementation: 3

@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c53587cb-53a6-46e1-92ef-ac3eb5d35efb
+  source: Ongoing Effect
+  guid: 9117fb47-61c9-4869-a370-18ca5d86f060
+  domains:
+    CharacterOngoingEffect:c53587cb-53a6-46e1-92ef-ac3eb5d35efb: true
+  abilityFilter: not Ability.Name = "Posthumous Retirement"
+  name: Used Posthumous Retirement
+  description: You have used Posthumous Retirement, you can't use it again until you spend 1 uninterrupted minute out of combat resetting the collar.
+  explanation: You have used Posthumous Retirement and cannot use it again until you reset the collar outside of combat
+  behavior: suppressabilities
+source: Ongoing Effect
+guid: c53587cb-53a6-46e1-92ef-ac3eb5d35efb
+id: c53587cb-53a6-46e1-92ef-ac3eb5d35efb
+ctime: 1768308651673
+domains:
+  CharacterOngoingEffect:c53587cb-53a6-46e1-92ef-ac3eb5d35efb: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+name: Used Posthumous Retirement
+custom: true
+description: You have used Posthumous Retirement, you can't use it again until you spend 1 uninterrupted minute out of combat resetting the collar.
+mtime: 1768342454597
+iconid: ui-icons/skills/1.png

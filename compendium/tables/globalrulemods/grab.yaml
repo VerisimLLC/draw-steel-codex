@@ -1,0 +1,121 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 86a67591-f6b0-483e-972f-1a1cfff27d21
+      guid: 99f534af-3c62-4f7e-982f-40100f94bd54
+      source: Grab Global Rule Mod Feature
+      behavior: activated
+      description: ""
+      name: Grab
+      activatedAbility:
+        __typeName: ActivatedAbility
+        targetFilter: ""
+        repeatTargets: false
+        keywords:
+          Melee: true
+          Weapon: true
+        targetType: target
+        multipleModes: true
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0
+            s: 1.00267481803894
+            v: 1.00306558609009
+            a: 1
+        sourceReference:
+          __typeName: SourceReference
+          page: 273
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: Grab Range
+        modeList:
+        - text: Aggressive
+          rules: By grabbing aggressively, a tier 2 result means the target can use a Free Strike on you, but you will be able to grab them.
+          condition: ""
+        - rules: By grabbing safely, a tier 2 result means you won't grab the target, but they won't be able to make a Free Strike against you.
+          text: Safe
+        persistence: []
+        modifiers: []
+        reasonedFilters:
+        - formula: Caster.Grab Characteristic < 2 or (target.size <= caster.size or (caster.Grab Characteristic >= 2 and (target.TileSize) <= caster.Grab Characteristic))
+          reason: You cannot grab creatures that are larger than you and larger than your Might.
+        - formula: Caster.Grab Characteristic >= 2 or caster.size >= target.size
+          reason: You cannot grab creatures that are larger than you.
+        strain: []
+        guid: adc7542e-9f0f-488e-b8dc-47247339044d
+        numTargets: "1"
+        implementation: 3
+        domains: []
+        categorization: Common Ability
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        name: Grab
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - No effect
+          - The target is grabbed by you. They make a melee free strike against you immediately before becoming grabbed.
+          - The target is grabbed by you.
+          roll: 2d10 + Might
+          modesSelected:
+          - 1
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - No effect
+          - No effect
+          - The target is grabbed by you.
+          roll: 2d10 + Might
+          modesSelected:
+          - 2
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          runOnController: true
+          modesSelected:
+          - 1
+          promptText: Free Strike against grabbing creature
+          tiersSelected:
+          - 2
+          filterTarget: ""
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 7ae321ce-ff93-4f8c-aa26-7e2eab7f311f
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          autoTarget: false
+          abilityType: standard
+          standardAbilityParams:
+            targetid: "<<self.id>>"
+          standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          filterTarget: cast.Tier for Target(Target) > mode
+          rule: grabbed
+        description: ""
+        abilityType: none
+        iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+    name: Grab
+    description: ""
+    guid: 86a67591-f6b0-483e-972f-1a1cfff27d21
+    source: Grab Global Rule Mod Feature
+    implementation: 3
+name: Grab
+mtime: 1775024340174
+id: 1d642117-27c8-49c5-b37b-a8fc94b5ca5b
+ctime: 1745963144454

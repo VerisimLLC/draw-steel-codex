@@ -1,0 +1,45 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: b2c3d4e5-f6a7-8901-bcde-f12345678901
+  description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 3 cold damage.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: b2c3d4e5-f6a7-8901-bcde-f12345678901
+    displayCondition: ability.doesdamage
+    source: Item
+    modtype: none
+    keywords:
+      Weapon: true
+    activationCondition: ability.doesdamage
+    guid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+    name: Chilling I
+    description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 3 cold damage.
+    addText: // // 3 cold damage
+    rollType: ability_power_roll
+    behavior: power
+  source: Item
+  name: Chilling I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A piece of ice from Quintessence that never melts
+imbuePrereq: none
+projectSource: Yllyric
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: 82059991-8d38-4043-86d5-dd9339e97a44
+mtime: 1773921652174
+name: Chilling I
+imbueTargetType: weapon
+description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 3 cold damage.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 0701eed9-397f-404c-bf86-2a8535bb3e73

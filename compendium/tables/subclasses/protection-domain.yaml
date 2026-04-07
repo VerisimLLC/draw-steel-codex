@@ -1,0 +1,222 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 77e02ae3-129a-47cb-b34b-152f3f71091a
+  details: "You gain 2 piety the first time in an encounter that you or an ally within 10 squares of you gains temporary Stamina or uses a triggered action to reduce incoming damage or give an enemy a bane on a power roll.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: You or Ally Protected
+isSubclass: true
+ctime: 1728003818780
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 99c8f519-c33f-4c23-a32c-a7edeb767260
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: bd129f6e-6bb2-4b21-a005-75df7487a2ba
+        source: Protection Domain Class Feature
+        behavior: trigger
+        domains:
+          class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        name: Protection Domain Piety
+        resourceRefreshType: none
+        description: You gain 2 piety the first time in an encounter that you or an ally within 10 squares of you gains temporary Stamina or uses a triggered action to reduce incoming damage or give an enemy a bane on a power roll.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Gain Temporary Stamina: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: none
+            charges: "1"
+            resourceid: d610f07e-3817-4395-a226-eae79fd9e847
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          guid: 450b6a99-1ab1-4b62-81eb-a28f8776364a
+          abilityType: none
+          trigger: gaintempstamina
+          domains:
+            class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          hasManualVersion: true
+          persistence: []
+          name: Protection Domain Piety
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 2 + 1 when level >=4
+            checklistid: 77e02ae3-129a-47cb-b34b-152f3f71091a
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Protection Domain Piety
+          description: |-
+            You gain 2 piety the first time in an encounter that you or any ally within 10 squares gains temporary Stamina, or uses a triggered action to reduce incoming damage or to impose a bane or double bane on an enemy’s power roll.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: selfandallies
+          iconid: ui-icons/skills/1.png
+        guid: d610f07e-3817-4395-a226-eae79fd9e847
+      name: Protection Domain Piety
+      classid: 1c62d67a-d098-4039-b32e-190719fd2de2
+      description: You gain 2 piety the first time in an encounter that you or an ally within 10 squares of you gains temporary Stamina or uses a triggered action to reduce incoming damage or give an enemy a bane on a power roll.
+      source: Protection Domain Class Feature
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 008c5b5e-d15a-4974-898d-eff78141bacc
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: One ally within 10 squares of you gains temporary Stamina equal to four times your Intuition score.
+        source: Protection Domain Class Feature
+        name: Protection Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: not enemy
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: Intuition*4
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Trigger
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          domains:
+            class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          targetType: target
+          name: Protection Domain Effect
+          numTargets: "1"
+          description: One ally within 10 squares of you gains temporary Stamina equal to four times your Intuition score.
+          abilityType: none
+          iconid: 2dbee8c9-19b0-40da-acda-bf20c2401f4e
+      name: Protection Domain Effect
+      classid: 1c62d67a-d098-4039-b32e-190719fd2de2
+      description: One ally within 10 squares of you gains temporary Stamina equal to four times your Intuition score.
+      source: Protection Domain Class Feature
+      implementation: 3
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:1c62d67a-d098-4039-b32e-190719fd2de2: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+name: Protection Domain
+prerequisite: Deity.Domains has "Protection"
+mtime: 1768291497366
+id: 1c62d67a-d098-4039-b32e-190719fd2de2
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

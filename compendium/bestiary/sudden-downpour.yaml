@@ -1,0 +1,707 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a462570-ca52-4b46-b4db-6421e787e5ee
+    offtokenPortraitId: d3707549-4dc0-4e72-a7d8-4fb734270790
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: e3344131-ceaf-4db6-8631-d9e0b06ac91b
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3628253
+    portraitOffset:
+      x: -0.2321077
+      y: 0.2074126
+    frameHueShift: 0.5622071
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: true
+    saddlePositions:
+    - x: 0.6910943
+      y: -0.2776564
+    - x: 0.18
+      y: -0.18
+    - x: 0.18
+      y: 0.18
+    - x: -0.18
+      y: 0.18
+    - x: -0.3
+      y: 0
+    - x: 0.3
+      y: 0
+    - x: 0
+      y: 0.3
+    - x: 0
+      y: -0.3
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: cdedbde0-2802-4dcd-bf91-3180bedf6379
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    inventory: []
+    inflictedConditions: []
+    keywords:
+      Elemental: true
+      Water Wolf: true
+    aurasEntered:
+      3b9c241f-e7d5-4a9d-b473-7735196cc21e: true
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -3
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Sudden Downpour
+    aurasEnteredTurnId: 2bfbce61-b348-44f8-9645-d10bda79f930-1-072e75e8-163b-415c-87ee-fbf0fa3ba79e
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetTextOverride: One creature or object
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.205078125
+          v: 0.67504221200943
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 65
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      rangeTextOverride: Melee 1
+      strain: []
+      guid: 4a488dee-d674-46be-9ff0-59112190c67c
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        promptText: Jump up to 3 squares before using Leap Upon
+        standardAbilityParams:
+          distance: "3"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: ba3be547-3fd1-4e57-9502-39b03a1283f5
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 8010820f-6bf3-422f-985b-2af02f620113
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          repeatTargets: false
+          keywords:
+            Strike: true
+            Melee: true
+            Weapon: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 4 damage; A<0 bleeding (save ends)
+            - 6 damage; A<1 bleeding (save ends)
+            - 7 damage; A<2 bleeding (save ends)
+            guid: d7194e0a-058b-407a-88d3-e87d4282c216
+            roll: 2d10 + 2
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Signature Ability
+          range: 1
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          modifiers: []
+          strain: []
+          guid: 76f74364-9ecb-47b4-aff6-c225789656f0
+          castImmediately: true
+          targetType: target
+          numTargets: "1"
+          name: Leap Upon
+          persistence: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: ""
+      numTargets: "1"
+      castImmediately: true
+      iconid: fbfb413b-5378-48cc-9a8d-44af9bddd71c
+      categorization: Signature Ability
+      name: Leap Upon
+      persistence: []
+      description: The downpour can jump up to 3 squares before making the strike.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 65
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 7451112a-fb2a-4be7-8c23-e743dac2f646
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      iconid: a1f8b8ab-a695-4b99-af22-02986221aec6
+      castImmediately: true
+      categorization: Malice
+      numTargets: "1"
+      name: See Through
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+        duration: 0
+        ongoingEffectCustom: false
+      description: The downpour turns invisible until the end of their turn. This effect ends early if the downpour takes damage or uses an ability.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    damageEntries:
+      ab7d87db-ba72-4136-955a-67be538b547d:
+        damage: 4
+        timestamp: 1760065369499
+        attackerid: 7fe42b03-8339-480e-8df9-5588bf0e511c
+        id: ab7d87db-ba72-4136-955a-67be538b547d
+        damage_type: collide
+      cbe246b2-327f-4d42-9711-05493503a179:
+        timestamp: 1760065379741
+        id: cbe246b2-327f-4d42-9711-05493503a179
+        heal: 4
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        2dce1a7d-c4d2-4ee3-9b9f-64876ac9a31d:
+          note: 4 damage from Vile Sudden Downpour's Collision
+          disposition: bad
+          timestamp: 1760065369499
+          attackerid: e43084b9-99c5-479f-b5ac-537922e5bdd1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 11
+        4906ab33-0068-404d-9232-a2ea1aaeee21:
+          note: 6 damage from Fury's Ranged Free Strike
+          disposition: bad
+          timestamp: 1760057972671
+          attackerid: 33796017-5d13-4c74-bf96-0816cbab92a7
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 9
+        7c013618-b0ee-4007-a117-52780037416f:
+          note: 4 Healing
+          timestamp: 1760065379741
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        cf1ce585-f782-4584-8523-c1da8ce99aa1:
+          note: 15 Healing
+          timestamp: 1760058137818
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        438bfa91-1e65-466b-b84d-6c3a47c35d55:
+          note: 6 damage from Fury's Ranged Free Strike
+          disposition: bad
+          timestamp: 1760058134572
+          attackerid: 33796017-5d13-4c74-bf96-0816cbab92a7
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 3
+    minion: false
+    stability: 2
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+        CharacterFeature:2d8ca7d4-bb08-4e15-b2b1-abc89bd9ad70: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+        source: Monster Trait
+        value: 1
+        domains:
+          CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+          CharacterFeature:2d8ca7d4-bb08-4e15-b2b1-abc89bd9ad70: true
+        name: Aquavuken
+        guid: 23c8d184-e074-4b7d-bf8e-5678ad053e2f
+        description: The downpour ignores difficult terrain and can move on top of water as if it were solid ground.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+        source: Monster Trait
+        value: 1
+        domains:
+          CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+          CharacterFeature:2d8ca7d4-bb08-4e15-b2b1-abc89bd9ad70: true
+        name: Aquavuken
+        guid: 02fd9bbc-2a33-4ca1-bac9-2762c96b4eab
+        description: The downpour ignores difficult terrain and can move on top of water as if it were solid ground.
+        behavior: attribute
+        attribute: swim
+      - __typeName: CharacterModifier
+        sourceguid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+        source: Monster Trait
+        value: 1
+        domains:
+          CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+          CharacterFeature:2d8ca7d4-bb08-4e15-b2b1-abc89bd9ad70: true
+        name: Aquavuken
+        guid: 2083f030-beb3-4f59-9e6d-3024adb3f622
+        description: The downpour ignores difficult terrain and can move on top of water as if it were solid ground.
+        behavior: attribute
+        attribute: 6a081cac-d26a-4e1e-a26b-2ace8c92fb58
+      source: Monster Trait
+      description: The downpour ignores difficult terrain and can move on top of water as if it were solid ground.
+      guid: 2d8ca7d4-bb08-4e15-b2b1-abc89bd9ad70
+      name: Aquavuken
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:982bef8a-ad72-4def-8578-968b0cbdef5f: true
+        CharacterFeature:8cd34fc6-0e2e-4602-b09a-8e09d1d7844b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8cd34fc6-0e2e-4602-b09a-8e09d1d7844b
+        source: Monster Trait
+        value: 1
+        filterCondition: (Count Nearby Friends(1)) > 0
+        guid: 4ebb876c-6f7c-4fdf-b404-02c31aac9623
+        name: Pack Strong
+        domains:
+          CharacterFeature:982bef8a-ad72-4def-8578-968b0cbdef5f: true
+          CharacterFeature:8cd34fc6-0e2e-4602-b09a-8e09d1d7844b: true
+        description: While adjacent to any ally, the downpour can't be flanked or made frightened.
+        behavior: attribute
+        attribute: 0dede2a8-4f44-45aa-be20-342fdffd4916
+      - __typeName: CharacterModifier
+        sourceguid: 8cd34fc6-0e2e-4602-b09a-8e09d1d7844b
+        source: Monster Trait
+        behavior: conditionimmunity
+        domains:
+          CharacterFeature:982bef8a-ad72-4def-8578-968b0cbdef5f: true
+          CharacterFeature:8cd34fc6-0e2e-4602-b09a-8e09d1d7844b: true
+        name: Pack Strong
+        conditions:
+        - 1211270f-bfce-45a6-b937-d72f0e8a06a8
+        description: While adjacent to any ally, the downpour can't be flanked or made frightened.
+        guid: 9db9c505-e308-4bbd-bf24-42c98a162a60
+        filterCondition: (Count Nearby Friends(1)) > 0
+      source: Monster Trait
+      description: While adjacent to any ally, the downpour can't be flanked or made frightened.
+      guid: 982bef8a-ad72-4def-8578-968b0cbdef5f
+      name: Pack Strong
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1c8c1337-7854-475b-84aa-1715a2209f19: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1c8c1337-7854-475b-84aa-1715a2209f19
+        source: Character Feature
+        guid: 53b01932-e1a9-4984-a6d6-d2df66f89377
+        domains:
+          CharacterFeature:1c8c1337-7854-475b-84aa-1715a2209f19: true
+        name: See Through
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 3cb5ac95-8dea-47ab-9224-7061067f54e0
+          repeatTargets: false
+          abilityType: none
+          trigger: losehitpoints
+          targetType: self
+          numTargets: "1"
+          name: See Through
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+            mode: effect
+            conditions: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        behavior: trigger
+        filterCondition: Ongoing Effects has "Invisible"
+      - __typeName: CharacterModifier
+        sourceguid: 1c8c1337-7854-475b-84aa-1715a2209f19
+        source: Character Feature
+        guid: 26004ac2-cb92-426b-868e-2669fd216f45
+        domains:
+          CharacterFeature:1c8c1337-7854-475b-84aa-1715a2209f19: true
+        name: See Through
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          repeatTargets: false
+          abilityType: none
+          trigger: useability
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+            mode: effect
+            conditions: []
+          persistence: []
+          name: See Through
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        behavior: trigger
+        filterCondition: Ongoing Effects has "Invisible"
+      source: Character Feature
+      description: ""
+      guid: 1c8c1337-7854-475b-84aa-1715a2209f19
+      name: See Through
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7548f29d-c7c6-4bbe-b09a-81cc79598787: true
+        CharacterFeature:e0f8ade6-fa4d-4019-9a31-0c107802f793: true
+        CharacterFeature:3969e291-76ee-4a64-936b-9987a37595d8: true
+        CharacterFeature:bb609a6f-b0f8-43f5-80b1-17fa9f9e79fd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:7548f29d-c7c6-4bbe-b09a-81cc79598787: true
+          CharacterFeature:e0f8ade6-fa4d-4019-9a31-0c107802f793: true
+          CharacterFeature:3969e291-76ee-4a64-936b-9987a37595d8: true
+          CharacterFeature:bb609a6f-b0f8-43f5-80b1-17fa9f9e79fd: true
+        sourceguid: 7548f29d-c7c6-4bbe-b09a-81cc79598787
+        description: Once on their turn as a free maneuver, the downpour can enter an adjacent body of water and reappear in an unoccupied space adjacent to another body of water within 5 squares. Any other water elemental can be treated as a body of water for the purpose of using this ability.
+        source: Monster Trait
+        name: Water Weird
+        behavior: activated
+        guid: 8090ac66-c914-43ef-87ad-7a5f39ee5fd3
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: Self
+          targetTextOverride: 1 unoccupied space adjacent to water
+          repeatTargets: false
+          rangeTextOverride: 5 squares
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.573750078678131
+              s: 0.903710961341858
+              v: 0.883498311042786
+              a: 1
+          categorization: Signature Ability
+          preDescription: Once on their turn as a free maneuver, the flow can enter an adjacent body of water and reappear in an unoccupied space adjacent to another body of water within 5 squares. Any other water elemental can be treated as a body of water for the purpose of using this ability
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 31089149-4c73-4eee-bdab-0fda85fef0c7
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: The target square must be adjacent to a body of water. Another water elemental can be treated as a body of water for this ability.
+            standardAbilityParams:
+              range: "5"
+            abilityType: standard
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+            runOnController: true
+          persistence: []
+          modifiers: []
+          castImmediately: true
+          strain: []
+          guid: 7ec0660e-c126-4e25-b37e-5f652635d5b3
+          numTargets: "1"
+          range: "5"
+          domains:
+            CharacterFeature:7548f29d-c7c6-4bbe-b09a-81cc79598787: true
+            CharacterFeature:e0f8ade6-fa4d-4019-9a31-0c107802f793: true
+            CharacterFeature:3969e291-76ee-4a64-936b-9987a37595d8: true
+            CharacterFeature:bb609a6f-b0f8-43f5-80b1-17fa9f9e79fd: true
+          reasonedFilters: []
+          actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+          name: Water Weird
+          selfTarget: true
+          description: ""
+          abilityType: none
+          iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+      source: Monster Trait
+      description: Once on their turn as a free maneuver, the downpour can enter an adjacent body of water and reappear in an unoccupied space adjacent to another body of water within 5 squares. Any other water elemental can be treated as a body of water for the purpose of using this ability.
+      guid: 3969e291-76ee-4a64-936b-9987a37595d8
+      name: Water Weird
+      implementation: 3
+    role: Horde Ambusher
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 2
+    monster_category: Monster
+    ongoingEffects: []
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: b682a1ae-0966-4508-9096-a5bf219d14ad-1040
+    initiativeGrouping: ad976905-1a24-4a12-a18b-1214513f6848
+    max_hitpoints: 15
+    damage_taken: 0
+    groupid: f4e22b22-ff83-4443-a797-0dd3a7d0c496
+    walkingSpeed: 8
+    deathSavingThrowFailures: 0
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket9: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      leveled4: []
+      trinket3: []
+      trinket6: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 098f8701-b13b-4bbe-b3f1-8fefa8e855a6-1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        aa9341f3-758b-4374-bc09-f02809e6334b:
+          timestamp: 1760071723713
+          note: Knockback
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        0de0d66e-2f8d-4db0-bb08-ddc4cb518c06:
+          timestamp: 1760067306492
+          note: Knockback
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        417fee4a-5ce3-47b4-a192-562c74c5420c:
+          note: See Through
+          timestamp: 1760058065723
+          refreshid: 74b6082d-0791-4c04-83b2-6bb704dc9cad-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        8f758df1-5390-44b3-88b4-9a314af7a2ff:
+          timestamp: 1760067332359
+          note: Knockback
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        7dd3e2c6-ca60-45a8-8d29-145cb5b46dbb:
+          note: See Through
+          timestamp: 1760058103286
+          refreshid: 74b6082d-0791-4c04-83b2-6bb704dc9cad-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        98ded559-50a9-4c34-8912-a74d3e0f0908:
+          timestamp: 1760057957824
+          note: See Through
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    deathSavingThrowSuccesses: 0
+    innateAttacks: []
+    availableTriggers: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        bdf84d6a-e318-4faa-887e-58fb820fb334:
+          note: Leap Upon
+          timestamp: 1760065844731
+          refreshid: 098f8701-b13b-4bbe-b3f1-8fefa8e855a6-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        641b8738-b252-4d93-b777-d169b9d9c182:
+          timestamp: 1760056809638
+          note: Leap Upon
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        2628168a-186f-4917-934d-2cb58a2a0797:
+          note: Ranged Free Strike
+          timestamp: 1760058113670
+          refreshid: 74b6082d-0791-4c04-83b2-6bb704dc9cad-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        410a05e6-956a-4fff-807c-b40dd1891578:
+          timestamp: 1760056831157
+          note: Leap Upon
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        b4c49887-ea05-4489-acb3-80010283a447:
+          timestamp: 1760056809599
+          note: Leap Upon
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        1148357f-97f7-4370-adf4-08fbe5412aea:
+          timestamp: 1760056693049
+          note: Leap Upon
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        0bcb27bc-5136-42d6-bbae-3dfd45d85ea1:
+          timestamp: 1760056830544
+          note: Leap Upon
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        773f1d84-9143-4634-bf4b-abc60699c1f8:
+          timestamp: 1760056692415
+          note: Leap Upon
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    ev: 3
+  tokenType: null
+  bestiaryId: 54e3d953-a169-4127-8479-60b1f7c0e9e2
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1760055502102
+description: null
+parentFolder: 925dd5e3-050d-4020-912e-43234e811688
+artist: null
+ord: 1
+ctime: 1760055873677
+mtime: 1775167472771
+hidden: false

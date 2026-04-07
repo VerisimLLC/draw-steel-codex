@@ -1,0 +1,21 @@
+__typeName: equipment
+itemPrerequisite: One uncut opal
+keywords:
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: A woven metal drawstring seals this plain-looking leather bag, which is affixed with an opal brooch.
+weight: 1
+category: Gear
+specialDescription: ""
+id: ad61ab3a-a479-4038-85e5-fd0a80951097
+ctime: 1759192841725
+type: Gear
+projectGoal: "150"
+mtime: 1761705363103
+name: Quantum Satchel
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+description: When the brooch is removed from this bag and placed in a container or room, it magically entangles that location to the bag. Any item that can be placed in the Quantum Satchel appears near to the brooch and can be recovered by reaching inside while picturing the desired object. The capacity of the satchel is dictated by the size of the container or room where the entangled brooch is. If an item is removed from the container or room containing the brooch, it can’t be retrieved through the satchel.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 6e2f8917-d261-426c-8f4a-8a731d203ea1

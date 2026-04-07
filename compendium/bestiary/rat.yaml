@@ -1,0 +1,144 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    monster_category: Monster
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket9: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      leveled4: []
+      trinket3: []
+      trinket6: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    damage_taken: 0
+    walkingSpeed: 5
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a6cc18fc-34cb-4f22-93b8-c8ebf0dcc551: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a6cc18fc-34cb-4f22-93b8-c8ebf0dcc551
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:a6cc18fc-34cb-4f22-93b8-c8ebf0dcc551: true
+        name: Rat Features
+        guid: 66139be9-bd4b-4636-adc6-5ff9e3e7c307
+        description: As a rat, you have speed 5 and can automatically climb at full speed while moving, your size is 1T, and you can see in the dark. You can speak and keep your skills while in rat form, but your Might is -5 and you lose all your regular abilities, features, and benefits.
+        behavior: attribute
+        attribute: climb
+      name: Rat Features
+      guid: a6cc18fc-34cb-4f22-93b8-c8ebf0dcc551
+      description: As a rat, you have speed 5 and can automatically climb at full speed while moving, your size is 1T, and you can see in the dark. You can speak and keep your skills while in rat form, but your Might is -5 and you lose all your regular abilities, features, and benefits.
+      source: Character Feature
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: -5
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    levelChoices: []
+    resources: []
+    monster_type: Rat
+    retainer: false
+    creatureSize: 1T
+    inventory: []
+  tokenType: null
+  bestiaryId: f482c9d6-8157-4b73-bdda-eba0624ecc23
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1774445418753
+description: null
+parentFolder: 082f6b74-a48e-4d83-bcdb-725c4c2f097e
+artist: null
+ord: 11
+ctime: 1774445536695
+mtime: 1775167418109
+hidden: false

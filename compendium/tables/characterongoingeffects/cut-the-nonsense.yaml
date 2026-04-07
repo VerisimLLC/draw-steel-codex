@@ -1,0 +1,113 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a842e886-569c-4753-b8b3-a3281151f4da
+  source: Ongoing Effect
+  powerRollModifier:
+    __typeName: CharacterModifier
+    source: Trigger
+    modtype: none
+    keywords: []
+    activationCondition: false
+    guid: 0935940e-27e5-4e71-ab8a-f6c2ffe5a7a9
+    damageMultiplier: half
+    name: Incoming Damage Halved
+    rules: ""
+    description: Incoming Damage this turn is halved!
+    rollType: enemy_ability_power_roll
+    behavior: power
+  guid: ea4c7d82-735b-4905-b4f4-17d945acfd31
+  type: passive
+  targetType: self
+  behavior: powertabletrigger
+  name: Cut the ... Nonsense!
+  rules: ""
+  description: One minotaur acting this turn halves any damage they take, and can use the Knockback maneuver as a free triggered action whenever an enemy comes adjacent to them, all until the start of their next turn.
+  range: 10
+  trigger: takedamage
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: c543ecee-417f-42b2-85d4-e8c5d3ca478c
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      standardAbility: e4ffaca5-52ed-44e2-b880-da6f25e0c23c
+      abilityType: standard
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    targetType: subject
+    strain: []
+    whenActive: combat
+    abilityType: none
+    numTargets: "1"
+    conditionFormula: (not Friends(Moving Creature, Self)) and Moving Creature.Altitude <= (Self.Altitude + 1) and Subject.Distance(=1)
+    guid: 43b4ceb9-2a5d-4024-b4f3-e3fcc21be207
+    name: Cut the ... Nonsense!
+    trigger: custom
+    actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+    description: ""
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  description: One minotaur acting this turn halves any damage they take, and can use the Knockback maneuver as a free triggered action whenever an enemy comes adjacent to them, all until the start of their next turn.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: e748b1f1-c3b9-499a-bb5b-37e5857ef63a
+  name: Cut the ... Nonsense!
+  sourceguid: a842e886-569c-4753-b8b3-a3281151f4da
+- __typeName: CharacterModifier
+  sourceguid: a842e886-569c-4753-b8b3-a3281151f4da
+  guid: ff552d02-c625-4df6-a6cf-cabfc2022c72
+  source: Ongoing Effect
+  behavior: triggerdisplay
+  description: One minotaur acting this turn halves any damage they take, and can use the Knockback maneuver as a free triggered action whenever an enemy comes adjacent to them, all until the start of their next turn.
+  name: Cut the ... Nonsense!
+  ability:
+    __typeName: TriggeredAbilityDisplay
+    type: free
+    effect: The Minotaur may use the Knockback maneuver
+    trigger: Whenever an enemy comes adjacent to the Minotaur
+    cost: ""
+    guid: e99dcafb-8466-4a34-ba08-e5eec24fd04f
+    distance: "1"
+    keywords: []
+source: Ongoing Effect
+guid: a842e886-569c-4753-b8b3-a3281151f4da
+id: a842e886-569c-4753-b8b3-a3281151f4da
+ctime: 1765035829150
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Cut the ... Nonsense!
+iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+description: One minotaur acting this turn halves any damage they take, and can use the Knockback maneuver as a free triggered action whenever an enemy comes adjacent to them, all until the start of their next turn.
+mtime: 1765190921248
+implementation: 2

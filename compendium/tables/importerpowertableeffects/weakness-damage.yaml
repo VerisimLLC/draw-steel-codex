@@ -1,0 +1,32 @@
+__typeName: ActivatedAbility
+id: 0eedd0ba-fa66-46b8-89d7-4b177146e6a8
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: a5feff79-ba94-487f-be63-0db2898d05a2
+  stacks: "<<amount>>"
+  duration: save_ends
+  ongoingEffectCustom: false
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: the target has damage weakness 5 (save ends)
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: dad2429a-117f-4038-a80a-5d437c1ed044
+importMatch: the target has damage weakness <<amount>> \(save ends\)
+ctime: 1749564993187
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Weakness - Damage
+targetType: self
+mtime: 1766116574447
+abilityType: none
+iconid: ui-icons/skills/1.png

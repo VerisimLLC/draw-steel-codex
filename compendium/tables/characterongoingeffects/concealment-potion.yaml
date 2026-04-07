@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f0b9c782-bb2c-4180-9e65-ea1d655e701a
+  source: Ongoing Effect
+  modtype: double_edge
+  keywords: []
+  activationCondition: true
+  behavior: power
+  activationAfterRoll: false
+  name: Concealment Potion
+  guid: 02ba976c-228c-4adf-a6a7-066b99ad6d23
+  description: When you drink this potion as a maneuver, light shifts around your body, letting you blend into the environment around you for 10 minutes. While this effect is active, you have a double edge on tests made to hide and sneak, and you can use the Hide maneuver even while you are observed.
+  rollType: test_power_roll
+  skills:
+  - fdd43bde-6062-484d-aea6-3803d396ea8e
+  - ae13b5cf-718a-42a4-ab5e-18d46b289ac6
+source: Ongoing Effect
+guid: f0b9c782-bb2c-4180-9e65-ea1d655e701a
+id: f0b9c782-bb2c-4180-9e65-ea1d655e701a
+ctime: 1774792430045
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Concealment Potion
+description: When you drink this potion as a maneuver, light shifts around your body, letting you blend into the environment around you for 10 minutes. While this effect is active, you have a double edge on tests made to hide and sneak, and you can use the Hide maneuver even while you are observed.
+custom: true
+mtime: 1774792430045
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,72 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 02f12113-a2cb-47ca-87fb-0b61560f7678
+    repeatTargets: false
+    trigger: losehitpoints
+    conditionFormula: HasAttacker
+    targetType: attacker
+    persistence: []
+    name: Beacon of Grace
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: targets
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 74e20856-ad8e-4d6f-909c-7ce7d40155f3
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      promptText: You may spend a recovery
+      invokeOnCaster: true
+      standardAbilityParams:
+        numrecoveries: "1"
+      standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+      abilityType: standard
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: fcd898c5-8321-47ee-bd29-0ff2ded2aedb
+  name: Beacon of Grace
+  sourceguid: 699b523b-b087-4565-ab2e-26adfeca25c5
+source: Ongoing Effect
+guid: 699b523b-b087-4565-ab2e-26adfeca25c5
+id: 699b523b-b087-4565-ab2e-26adfeca25c5
+ctime: 1765339485289
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Beacon of Grace
+description: ""
+custom: true
+mtime: 1765339599656
+iconid: ui-icons/skills/1.png

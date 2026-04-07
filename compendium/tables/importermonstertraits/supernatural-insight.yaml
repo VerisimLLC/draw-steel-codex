@@ -1,0 +1,25 @@
+__typeName: CharacterFeature
+testCases:
+- text: "<<monster>> ignores concealment if it's granted by a supernatural effect."
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 2605afba-f361-420b-997e-6b5afb17642d
+  displayCondition: Target.Conditions has "concealment"
+  source: Monster
+  modtype: remove_bane
+  keywords: []
+  activationCondition: ""
+  activationAfterRoll: false
+  name: Supernatural Insight
+  rollType: ability_power_roll
+  description: ""
+  guid: 74c80afb-2814-4ac5-a394-d8ee19837c11
+  behavior: power
+source: Monster
+guid: 2605afba-f361-420b-997e-6b5afb17642d
+importMatch: The warrior ignores concealment if it's granted by a supernatural effect.
+ctime: 1774922885222
+name: Supernatural Insight
+description: ""
+id: c196efa0-2833-439e-bbdd-962b7e297743
+mtime: 1774923920952

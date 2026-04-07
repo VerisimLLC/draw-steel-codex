@@ -1,0 +1,302 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 4b704869-a59c-4574-bc54-0388e811424a
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2d1bf4dd-526c-4a97-b5b7-3d4aeb3fbabb
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      implementationDetails: Gold Implementation
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 349df454-c09c-4845-b983-fb1bab408911
+        duration: end_of_next_turn
+        ongoingEffectCustom: 349df454-c09c-4845-b983-fb1bab408911
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: e545cf10-1de1-4e57-9a7c-22a4c229860a
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 217
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      numTargets: 1
+      name: Lugged Spear
+      implementation: 4
+      description: The target takes 3 damage if they start their next turn adjacent to 3 or more blitzers.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Orc Blitzer	Level 1 Minion Harrier
+        Humanoid, Orc	EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed</b> 7	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Speed +2<b>Free Strike</b> 1
+        Might +1	Agility +2	Reason 0	Intuition 0	Presence 0
+        <b>Lugged Spear</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	1 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	2 damage
+        %E2%9C%B8	<b>17</b>	3 damage
+        <b>Effect</b> The target takes 3 damage if they start their next turn adjacent to 3 or more blitzers.
+
+        <b>Bloodfire Burn</b>
+        If the blitzer's Stamina drops to 0, they can make a free strike before dying.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+        sourceguid: 28bea37b-c3f2-4153-b5c2-ceb5779d112e
+        behavior: trigger
+        source: Trait
+        name: Bloodfire Burn
+        description: If the blitzer is reduced to 0 Stamina, they can make a free strike before dying.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: ec4e9bad-c0f4-4d1a-8e6c-e5b45e979402
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              description: ""
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              modifiers:
+              - __typeName: CharacterModifier
+                guid: ae958bca-9ab3-49fa-ba58-ef9d5409b429
+                sourceguid: d71088b7-51ae-41d4-9010-d8abc150f2de
+                behavior: attribute
+                source: Ongoing Effect
+                name: Cannot Be Removed
+                value: 1
+                description: ""
+                attribute: 7565750e-2376-4809-abc2-47eed82153d1
+              source: Ongoing Effect
+              name: Cannot Be Removed
+              guid: d71088b7-51ae-41d4-9010-d8abc150f2de
+              id: d71088b7-51ae-41d4-9010-d8abc150f2de
+              iconid: ui-icons/skills/1.png
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              objectTarget: false
+              abilityType: none
+              strain: []
+              guid: 02dc0e9a-8bc2-4526-8f83-3135121810b2
+              repeatTargets: false
+              targetTextOverride: ""
+              modifiers: []
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Free Strike
+                  behavior: modifyability
+                  guid: 53db4fee-5e88-4994-b3f0-71d57cab304e
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 57963f47-3a00-4e23-8172-aeccec133902
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              persistence: []
+              name: Invoked Ability
+              targetType: target
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            invokeOnCaster: true
+            promptText: select creature to free strike
+          targetType: self
+          name: Bloodfire Burn
+          numTargets: "1"
+          description: If the blitzer is reduced to 0 Stamina, they can make a free strike before dying.
+          range: 1
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 2941f416-fd64-49d6-94b6-2ca6cf0a916f
+      - __typeName: CharacterModifier
+        sourceguid: 28bea37b-c3f2-4153-b5c2-ceb5779d112e
+        source: Trait
+        value: 2
+        domains:
+          CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+        name: Bloodfire Burn
+        guid: a4643a70-ea33-457c-a212-116197083e22
+        description: If the blitzer is reduced to 0 Stamina, they can make a free strike before dying.
+        behavior: attribute
+        attribute: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+      source: Trait
+      description: If the blitzer is reduced to 0 Stamina, they can make a free strike before dying.
+      guid: 28bea37b-c3f2-4153-b5c2-ceb5779d112e
+      name: Bloodfire Burn
+      implementation: 3
+    role: Minion Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    withCaptain: +2 bonus to speed
+    damage_taken: 0
+    opportunityAttack: 1
+    resources: []
+    keywords:
+      Humanoid: true
+      Orc: true
+    minionSquad: Orc Blitzer Squad 5
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    walkingSpeed: 7
+    movementSpeeds: []
+    traitNames: []
+    creatureSize: 1M
+    initiativeGrouping: a5712cf7-5c1c-4d9f-9e55-a917d18442df
+    monster_type: Orc Blitzer
+  tokenType: null
+  bestiaryId: f9d78af7-f7b6-48a8-bf50-e17ab81fcb25
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Orc Blitzer
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590330807
+mtime: 1775201137032
+hidden: false

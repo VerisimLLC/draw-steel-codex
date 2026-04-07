@@ -1,0 +1,1445 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727142546066
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 10598502-1147-4a10-862c-6aa64188599f
+        source: Berserker Class Feature
+        guid: 6530fa3a-53e5-4926-83d4-bb96739a8033
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        keywords: []
+        replaceText: 3d10k2
+        rollType: test_power_roll
+        modtype: replaceroll
+        name: Strongest There Is
+        activationCondition: false
+        description: Your strength is unmatched. Whenever you make a Might test, you can roll three dice and choose which two to use.
+        behavior: power
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 10598502-1147-4a10-862c-6aa64188599f
+        displayCondition: Ability.name = "Knockback"
+        source: Berserker Class Feature
+        modtype: none
+        adjustments:
+        - type: push
+          value: Might
+        keywords: []
+        activationCondition: "1"
+        behavior: power
+        name: Strongest There Is
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        description: Whenever you use the Knockback maneuver, the forced movement distance gains a bonus equal to your Might score.
+        rollType: ability_power_roll
+        guid: 3ff98a70-1e99-4cd1-8c48-7cf438b69290
+      source: Berserker Class Feature
+      guid: 10598502-1147-4a10-862c-6aa64188599f
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      canHavePrerequisites: true
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: Your strength is unmatched. Whenever you make a Might test, you can roll three dice and choose which two to use. Additionally, whenever you use the Knockback maneuver, the forced movement distance gains a bonus equal to your Might score.
+      name: Strongest There Is
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      guid: 7482e135-77f3-4902-8402-60f0fc982e4e
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ef1f6512-84dd-44ac-9f25-181e51a9fe60
+        source: Berserker Class Feature
+        behavior: proficiency
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        guid: 78889544-1143-46d3-82bd-321f0957444a
+        equate: false
+        name: Primordial Aspect
+        proficiency: proficient
+        description: You channel your ferocity into physical might, acting as a living version of the forces that shape the world. You have the Lift skill.
+        subtype: skill
+        skills:
+          6d714e12-50c3-4202-955e-0fadaeb1f9a0: true
+      name: Primordial Aspect
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: You channel your ferocity into physical might, acting as a living version of the forces that shape the world. You have the Lift skill.
+      source: Berserker Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      guid: 17431864-59d1-4156-8406-db6146f7d3fb
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7fa59bd6-4146-410c-a3f6-219559976f19
+        displayCondition: Target.Object
+        source: Berserker Class Feature
+        modtype: none
+        keywords:
+          Weapon: true
+        activationCondition: Target.Object
+        behavior: power
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Primordial Strength
+        description: "Whenever you damage an object with a weapon strike, it takes additional damage equal to your Might score.\n\nAdditionally, whenever you push another creature into an object, they take additional damage equal to your Might score. "
+        damageModifier: Might
+        rollType: ability_power_roll
+        guid: bfbd49ad-9755-4dad-9972-090461d4463c
+      - __typeName: CharacterModifier
+        sourceguid: 7fa59bd6-4146-410c-a3f6-219559976f19
+        source: Berserker Class Feature
+        value: Might
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Primordial Strength
+        guid: 0d821028-8124-4bf4-8677-59705a8ab03b
+        description: "Whenever you damage an object with a weapon strike, it takes additional damage equal to your Might score.\n\nAdditionally, whenever you push another creature into an object, they take additional damage equal to your Might score. "
+        behavior: attribute
+        attribute: 734676b6-36c6-40a1-a4f6-9301377c6418
+      name: Primordial Strength
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: "Whenever you damage an object with a weapon strike, it takes additional damage equal to your Might score.\n\nAdditionally, whenever you push another creature into an object, they take additional damage equal to your Might score. "
+      source: Berserker Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      prefab: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+        behavior: kitaccess
+        source: Berserker Class Feature
+        name: Kit
+        description: You can use and gain the benefits of a kit.
+        kitType: martial
+        guid: ecf1b910-775f-418e-9bb2-65622277e378
+      source: Berserker Class Feature
+      guid: d20c752c-8658-4360-8a79-1a7c476de632
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      name: Kit
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: You can use and gain the benefits of a kit.
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      guid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: Heroic Resources This Turn >= 2 and ability.name = "Knockback"
+        source: Berserker Class Feature
+        modtype: none
+        adjustments:
+        - type: push
+          value: Might
+        - type: pull
+          value: Might
+        - type: slide
+          value: Might
+        keywords: []
+        activationCondition: "1"
+        behavior: power
+        name: Growing Ferocity
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        description: |
+          When you have 2 or more Ferocity, whenever you use the Knockback maneuver, the forced movement distance gains a bonus equal to your Might score. 
+        rollType: ability_power_roll
+        guid: 48b56fe8-94e0-4445-b130-9cae5cdfb959
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        source: Berserker Class Feature
+        behavior: trigger
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        filterCondition: Heroic Resources This Turn >= 4
+        name: Growing Ferocity
+        resourceRefreshType: turn
+        description: ""
+        guid: 16ff7ce1-495d-4cb9-b810-3332b7f0198f
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: targets
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: 2 When Level >= 4 else 1
+            chatMessage: You push a creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: 16ff7ce1-495d-4cb9-b810-3332b7f0198f
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 3f882e4a-5877-4a0e-bb20-a83eec1ee7bd
+          targetType: self
+          abilityType: none
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+          persistence: []
+          conditionFormula: Type = "push" and (Has Attacker) and Attacker = Self
+          trigger: forcemove
+          name: Growing Ferocity
+          description: ""
+          subject: other
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        source: Berserker Class Feature
+        guid: d52b138f-76bb-4be3-913d-d14422595040
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        keywords: []
+        activationCondition: true
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or level < 7)
+        behavior: power
+        rollType: test_power_roll
+        name: Growing Ferocity
+        description: When you have 6 or more Ferocity, you gain an edge on Might tests and the Knockback maneuver.
+        modtype: edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        source: Berserker Class Feature
+        guid: 3f75bd0b-a340-4e2c-874c-9c985a7676d8
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        keywords: []
+        activationCondition: true
+        filterCondition: Heroic Resources This Turn >= 10 and level >= 7
+        behavior: power
+        rollType: test_power_roll
+        name: Growing Ferocity
+        description: When you have 10 or more Ferocity, you gain a double edge on Might tests and the Knockback maneuver.
+        modtype: double_edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: ability.name = "Knockback"
+        source: Berserker Class Feature
+        guid: cb3d7365-dfee-41ef-b3b0-c92c52b08246
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or level < 7)
+        keywords: []
+        activationCondition: "1"
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        behavior: power
+        name: Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 6 or more Ferocity, you gain an edge on Might tests and the Knockback maneuver.
+        modtype: edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: ability.name = "Knockback"
+        source: Berserker Class Feature
+        guid: e6a60daf-f813-4853-91f2-59e8e4a81b33
+        filterCondition: Heroic Resources This Turn >= 10 and level >= 7
+        keywords: []
+        activationCondition: "1"
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        behavior: power
+        name: Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 10 or more Ferocity, you gain a double edge on Might tests and the Knockback maneuver.
+        modtype: double_edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        progression:
+        - level: 0
+          description: Knockback pushes +{Might} squares.
+          resources: 2
+          tooltip: Whenever you use the Knockback maneuver, the forced movement distance gains a bonus equal to your Might score.
+        - level: 0
+          description: When you push a creature, you gain 1 surge (1/turn).
+          resources: 4
+          tooltip: The first time you push a creature on a turn, you gain 1 surge.
+        - level: 0
+          description: Edge on Might tests and Knockback.
+          resources: 6
+          tooltip: You gain an edge on Might tests and the Knockback maneuver.
+        - level: 4
+          description: When you push a creature, you gain 2 surges (1/turn).
+          resources: 8
+          tooltip: The first time you push a creature on a turn, you gain 2 surges.
+        - level: 7
+          description: Double Edge on Might tests and Knockback.
+          resources: 10
+          tooltip: You have a double edge on Might tests and the Knockback maneuver.
+        - level: 10
+          description: When you use a heroic ability gain 10 temporary Stamina. Forced movement from power rolls +{Might}.
+          resources: 12
+          tooltip: Whenever you use a heroic ability, you gain 10 temporary Stamina. Additionally, whenever you make a power roll that imposes forced movement on a target, the forced movement distance gains a bonus equal to your Might score.
+        source: Berserker Class Feature
+        description: ""
+        behavior: growingresources
+        name: Berserker Growing Ferocity
+        guid: 38c836cc-e4a5-4e1b-ac10-327cb237a9fe
+      - __typeName: CharacterModifier
+        sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+        source: Berserker Class Feature
+        guid: 938be43e-a9f1-460e-a8e9-d180de54740e
+        adjustments:
+        - type: push
+          value: Might
+        - type: pull
+          value: Might
+        - type: slide
+          value: Might
+        keywords: []
+        activationCondition: false
+        behavior: power
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        rollType: ability_power_roll
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        description: |-
+          When you have 12 or more Ferocity, whenever you
+          make a power roll that imposes forced movement 
+          on a target, the forced movement distance gains a 
+          bonus equal to your Agility score.
+        modtype: none
+        name: Vuken Growing Ferocity
+      - __typeName: CharacterModifier
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        source: Berserker Class Feature
+        guid: b21e4283-c8c5-42a8-966c-219ca4915948
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Boren Growing Ferocity
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: "10"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: ae447302-faac-4610-8843-40262637abd5
+          persistence: []
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+          conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+          targetType: self
+          trigger: useability
+          name: Boren Growing Ferocity
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        behavior: trigger
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      name: Growing Ferocity
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: ""
+      source: Berserker Class Feature
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f73d907d-c09e-4e28-a0fc-e8b91efbddc1
+        source: Berserker Class Feature
+        value: Jump Distance
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Bounder
+        guid: 40e8db45-a482-400d-a728-3762e64b6843
+        description: "Your jump distance and height double (see Movement Types in Chapter 10: Combat). Additionally, when you fall, you reduce the effective height of your fall by a number of squares equal to your jump distance for the purpose of determining damage and whether you land prone (see Falling in Chapter 10). You are not prone after falling and landing on another creature."
+        behavior: attribute
+        attribute: 151ac2f1-5bd3-4070-8b16-e14896d6933b
+      - __typeName: CharacterModifier
+        sourceguid: f73d907d-c09e-4e28-a0fc-e8b91efbddc1
+        source: Berserker Class Feature
+        value: Jump Distance
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Bounder
+        guid: c1231ef0-a549-4df5-a6d9-8a109af74f59
+        description: "Your jump distance and height double (see Movement Types in Chapter 10: Combat). Additionally, when you fall, you reduce the effective height of your fall by a number of squares equal to your jump distance for the purpose of determining damage and whether you land prone (see Falling in Chapter 10). You are not prone after falling and landing on another creature."
+        behavior: attribute
+        attribute: 11650b6f-ee8f-4ab1-9a44-b56a3d43119a
+      source: Berserker Class Feature
+      guid: f73d907d-c09e-4e28-a0fc-e8b91efbddc1
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      canHavePrerequisites: true
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: "Your jump distance and height double (see Movement Types in Chapter 10: Combat). Additionally, when you fall, you reduce the effective height of your fall by a number of squares equal to your jump distance for the purpose of determining damage and whether you land prone (see Falling in Chapter 10). You are not prone after falling and landing on another creature."
+      name: Bounder
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: c7c4793e-e22d-497d-81ae-ac788f4dd8dd
+        behavior: resistance
+        source: Berserker Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: acid
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: cold
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: corruption
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: fire
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: lightning
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: poison
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Might
+          damageType: sonic
+          apply: Damage Reduction
+        guid: 53ea9741-b9de-4e8b-a1cc-8977cf0cab92
+        name: Elemental Form
+        description: |-
+          You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+          Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      source: Berserker Class Feature
+      guid: c7c4793e-e22d-497d-81ae-ac788f4dd8dd
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      canHavePrerequisites: true
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      name: Elemental Form
+      implementation: 4
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  level-10:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Berserker Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: acid
+          apply: Damage Reduction
+        guid: e942f9a5-1a21-4040-a1d7-d9ff3c72f275
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Berserker Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: cold
+          apply: Damage Reduction
+        guid: bde22c7c-e28b-47a2-9a04-c150afd38e4b
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Berserker Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: corruption
+          apply: Damage Reduction
+        guid: 01b87769-a933-4e42-a52e-91ca1f9af196
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Berserker Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: fire
+          apply: Damage Reduction
+        guid: 6b74f35b-c015-4a5d-839c-f6fd553cbab1
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Berserker Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: lightning
+          apply: Damage Reduction
+        guid: 846ce7c2-65ae-451c-9ae7-2c1bc238ceac
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Berserker Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: poison
+          apply: Damage Reduction
+        guid: 7fda5c3e-d1d7-4cf7-b933-cd91ebc4df4d
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: 6dd34c37-7c73-4fef-98cd-db658bace821
+        behavior: resistance
+        source: Berserker Class Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2
+          damageType: sonic
+          apply: Damage Reduction
+        guid: 4e87bfc6-96e0-4ee6-8a15-82830cbc4d59
+        name: Chaos Incarnate
+        description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      source: Berserker Class Feature
+      guid: 6dd34c37-7c73-4fef-98cd-db658bace821
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      canHavePrerequisites: true
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: Your mastery of elemental forces protects and emboldens you. If you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to twice your Might score.
+      name: Chaos Incarnate
+      implementation: 4
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 6th-Level Berserker Ability
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+          sourceguid: 6241520f-f210-4c28-b090-433134b07bf9
+          description: ""
+          source: Berserker Class Feature
+          name: Avalanche Impact
+          behavior: activated
+          guid: e84b4093-456f-4403-9a28-4b24e39d33a2
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            targetFilter: ""
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              movementType: jump
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              applyto: target_proximity
+              roll: 2d10 + Might
+              tiers:
+              - 4 damage; push 1
+              - 7 damage; push 2
+              - 11 damage; push 3
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You leap and crash down, causing a shockwave that devastates foes.
+            categorization: Heroic Ability
+            range: Jump Distance
+            abilityType: none
+            targetType: anyspace
+            persistence: []
+            modifiers: []
+            rangeTextOverride: Self
+            strain: []
+            guid: e079df53-00d6-4fcb-9b4a-d8c29dd70451
+            numTargets: "1"
+            sourceReference:
+              __typeName: SourceReference
+              page: 138
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+            targeting: straightpath
+            implementation: 3
+            name: Avalanche Impact
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: You jump up to your maximum jump distance and make one power roll that targets each creature adjacent to the space where you land.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Berserker Class Feature
+        guid: 892941ff-dcaf-429b-b1d1-d2b80930571e
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        canHavePrerequisites: true
+        classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+        description: ""
+        name: Avalanche Impact
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+          sourceguid: 12d28c11-4e64-46c8-8802-82aeeb2d77b1
+          description: ""
+          source: Berserker Class Feature
+          name: Force of Storms
+          behavior: activated
+          guid: caceb274-f4a3-497b-958f-a1a483933a37
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: ""
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 7 + M Damage; push 3
+              - 11 + M Damage; push 5
+              - 16 + M Damage; push 7
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: false
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                objectTarget: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 302a8a12-6db2-42db-9df3-4ed40f318d26
+                repeatTargets: false
+                abilityType: none
+                behaviors:
+                - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                  rule: push 3
+                targetType: all
+                modifiers: []
+                name: Invoked Ability
+                persistence: []
+                description: ""
+                range: "2"
+                iconid: ui-icons/skills/1.png
+              promptText: Push creatures within 2 of Target 3 squares
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You strike an enemy hard enough to be a projectile that knocks a crowd of creatures around.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 138
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain: []
+            guid: 4130ac8c-ea8d-434c-b922-5fa792c4d101
+            rangeTextOverride: ""
+            numTargets: "1"
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+            targetType: target
+            implementation: 3
+            name: Force of Storms
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: When the target ends this forced movement, each creature within 2 squares of the target is pushed 3 squares.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Berserker Class Feature
+        guid: 12d28c11-4e64-46c8-8802-82aeeb2d77b1
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        canHavePrerequisites: true
+        classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+        description: ""
+        name: Force of Storms
+        implementation: 3
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      guid: 31d4bd24-e12b-4121-bf29-cac4c5af3458
+      source: Berserker Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1a4b5c7e-1f39-4155-bbcd-19487e8988d0
+        source: Berserker Class Feature
+        value: 1
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Unstoppable Force
+        guid: cbf421ae-679c-40e5-ac9f-21a6aacd07ac
+        description: 'Whenever you use the Charge main action, you can use a strike signature ability or a strike heroic ability instead of a free strike. Additionally, you can jump as part of your charge. '
+        behavior: attribute
+        attribute: e6d8c298-116b-4c95-992f-89233f48a8c5
+      - __typeName: CharacterModifier
+        sourceguid: 1a4b5c7e-1f39-4155-bbcd-19487e8988d0
+        source: Berserker Class Feature
+        value: 1
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Unstoppable Force
+        guid: d51487a0-4453-4ddb-a149-016780c4ae2a
+        description: 'Whenever you use the Charge main action, you can use a strike signature ability or a strike heroic ability instead of a free strike. Additionally, you can jump as part of your charge. '
+        behavior: attribute
+        attribute: 03bcf2ae-075c-40f8-8dac-b2c73aa20402
+      source: Berserker Class Feature
+      guid: 1a4b5c7e-1f39-4155-bbcd-19487e8988d0
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      canHavePrerequisites: true
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: 'Whenever you use the Charge main action, you can use a strike signature ability or a strike heroic ability instead of a free strike. Additionally, you can jump as part of your charge. '
+      name: Unstoppable Force
+      implementation: 2
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+          sourceguid: aff9c29f-34a0-4032-8c73-7cc9cc5e9947
+          description: ""
+          source: Berserker Class Feature
+          name: Special Delivery
+          behavior: activated
+          guid: 5160c5d9-c536-45d1-b5eb-9743d9b9d6db
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: false
+            targetTextOverride: 1 willing ally
+            repeatTargets: false
+            keywords:
+              Melee: true
+              Weapon: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 6daef30b-2d59-4db6-8c79-39938fa7ca4e
+              duration: 0
+              ongoingEffectCustom: 6daef30b-2d59-4db6-8c79-39938fa7ca4e
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              rule: vertical push 4
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              abilityType: standard
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 7a9f110d-767a-4198-b2fc-9b754ae4fe53
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+              promptText: Make a Free Strike
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You ready?
+            categorization: Heroic Ability
+            range: 1
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 32b9ac6e-72e2-44bb-9db0-065491379bbf
+            sourceReference:
+              __typeName: SourceReference
+              page: 149
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            numTargets: "1"
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+            targetType: target
+            implementation: 3
+            name: Special Delivery
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: You vertically push the target up to 4 squares. This forced movement ignores the target’s stability, and the target takes no damage from colliding with creatures or objects. At the end of this movement, the target can make a free strike that deals extra damage equal to your Might score.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Berserker Class Feature
+        guid: aff9c29f-34a0-4032-8c73-7cc9cc5e9947
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        canHavePrerequisites: true
+        classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+        description: ""
+        name: Special Delivery
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+          sourceguid: 8339ab77-d52e-4573-98cf-fa80476c3c2e
+          description: ""
+          source: Berserker Class Feature
+          name: Wrecking Ball
+          behavior: activated
+          guid: cfbb9c63-42d2-45a6-b83c-126c6fccfa37
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: true
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Melee: true
+              Weapon: true
+            name: Wrecking Ball
+            behaviors:
+            - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              targetMoveVicinity: true
+              vicinity: 1
+              movementType: move
+              vicinityFilter: Enemy
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - push 1
+              - push 2
+              - push 3
+              roll: 2d10 + Might
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: It’s easier to destroy than to create. Much easier, in fact!
+            categorization: Heroic Ability
+            range: Walking Speed
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            numTargets: "1"
+            persistence: []
+            modifiers: []
+            preDescription: |-
+              You move up to your speed in a straight line. During this movement, you can move through mundane structures, including walls, which are difficult terrain for you. You automatically destroy each square of structure you move through and leave behind a square of difficult terrain. 
+              Additionally, you make one power roll that targets each enemy you move adjacent to during this movement.
+            strain: []
+            guid: 7b94c8ae-32ff-4d11-9aa6-bff45327e23b
+            sourceReference:
+              __typeName: SourceReference
+              page: 150
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            targetType: emptyspace
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+            targeting: straightpath
+            canChooseLowerRange: true
+            radius: "1"
+            implementation: 2
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Berserker Class Feature
+        guid: 8339ab77-d52e-4573-98cf-fa80476c3c2e
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        canHavePrerequisites: true
+        classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+        description: ""
+        name: Wrecking Ball
+        implementation: 2
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      guid: 374e048f-db4a-49c0-a8fe-01f7f04250bd
+      description: Choose one of the following abilities.
+      name: 2nd-Level Berserker Ability
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      guid: 81163b0e-2456-4fdb-9e5b-d0dab1f4e599
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f3139e98-7bea-46cd-a3f3-7c888796f5c5
+        source: Berserker Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          changeTargetEffect: forcemove
+          source: Trigger
+          behavior: power
+          adjustments:
+          - type: push
+            value: Triggerer.Might
+          - type: pull
+            value: Triggerer.Might
+          - type: slide
+            value: Triggerer.Might
+          keywords: []
+          activationCondition: false
+          name: Lines of Force
+          changeTargetFilter: Current.SizeWhenForceMoved >= Target.SizeWhenForceMoved
+          rollType: ability_power_roll
+          rules: ""
+          guid: 1c9c2ed5-309f-435e-b4db-4feefdae4654
+          modtype: none
+          changeTarget: true
+        guid: 3baf9146-743f-4a42-931b-4fd837603332
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        targetType: anycreature
+        trigger: forcemoved
+        name: Lines of Force
+        rules: You can select a new target of the same size or smaller within distance to be force moved instead. You become the source of the forced movement, determine the new target’s destination, and can push the target instead of using the original forced movement type.
+        description: ""
+        range: "1"
+        additionalCostModifiers:
+        - __typeName: CharacterModifier
+          source: Trigger
+          guid: 9ec117b1-b02c-4d6c-a698-a9f92a582270
+          adjustments:
+          - type: push
+            value: Triggerer.Might
+          - type: pull
+            value: Triggerer.Might
+          - type: slide
+            value: Triggerer.Might
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          behavior: power
+          name: Lines of Force+
+          rules: ""
+          modtype: none
+          resourceCostType: cost
+          rulesText: The forced movement distance increases by {2*Might}
+      - __typeName: CharacterModifier
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        sourceguid: f3139e98-7bea-46cd-a3f3-7c888796f5c5
+        behavior: triggerdisplay
+        source: Berserker Class Feature
+        name: Lines of Force
+        description: ""
+        guid: bf3b2df6-b540-44b4-9959-98249e911e51
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or one creature
+          effect: You can select a new target of the same size or smaller within distance to be force moved instead. You become the source of the forced movement, determine the new target’s destination, and can push the target instead of using the original forced movement type. Additionally, the forced movement distance gains a bonus equal to your Might score.
+          name: Lines of Force
+          trigger: The target would be force moved.
+          flavor: You redirect the energy of motion.
+          guid: d9ceee45-fb78-499f-bef7-18b991aaab0c
+          distance: Melee 1
+          keywords: []
+      name: Lines of Force
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: ""
+      source: Berserker Class Feature
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th-Level Berserker Ability
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+          sourceguid: 914609dc-74c3-427c-a1f0-493071a08d1d
+          description: ""
+          source: Berserker Class Feature
+          name: Death Comes for You All!
+          behavior: activated
+          guid: 4d36c571-6d93-48a5-97d1-ddc33f707550
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Melee: true
+              Area: true
+              Magic: true
+              Weapon: true
+            implementationDetails: The Codex does not automate applying the extra damage. Player manually selects targets the damage applies to.
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 7 damage; push 3
+              - 10 damage; push 5
+              - 15 damage; push 7
+              roll: 2d10 + Might
+              promptWhenResolvingText: Select Target Order
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              inheritRange: true
+              promptText: Select Targets Hurled Through an Object
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: enemy
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: fff64584-87ac-4c6a-8dee-aba36255066c
+                behaviors:
+                - __typeName: ActivatedAbilityDamageBehavior
+                  roll: "10"
+                  chatMessage: Hurled Through Object
+                name: Invoked Ability
+                numTargets: "<<targetcount>>"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              inheritKeywords: true
+              standardAbilityParams:
+                targetcount: "<<Cast.Target Count>>"
+              filterTarget: ""
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You use your weapon to create a destructive shockwave
+            categorization: Heroic Ability
+            range: "3"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            targetAllegiance: enemy
+            strain: []
+            guid: 5f3c46bf-44ed-4939-8ffb-21441ac37aa0
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            numTargets: "1"
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+            targetType: all
+            rangeTextOverride: ""
+            name: Death Comes for You All!
+            implementation: 3
+            description: If this forced movement causes a target to be hurled through an object, that target takes an extra 10 damage.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Berserker Class Feature
+        guid: 914609dc-74c3-427c-a1f0-493071a08d1d
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        canHavePrerequisites: true
+        classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+        description: ""
+        name: Death Comes for You All!
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+          sourceguid: 1047fc6f-902b-4f35-aae1-1ad21427b2ef
+          description: ""
+          source: Berserker Class Feature
+          name: Primordial Vortex
+          behavior: activated
+          guid: d1714fa6-8777-4e9c-a114-ccaf231f8399
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            rangeTextOverride: ""
+            implementationDetails: The Codex does not apply extra collision damage to the targets
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              applyto: caster
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 4779a791-06a9-4a5a-a744-4789b97467b1
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  guid: 08274b6a-5898-4452-9ca0-01cc63cf3173
+                  sourceguid: 4779a791-06a9-4a5a-a744-4789b97467b1
+                  value: 1
+                  source: Ongoing Effect
+                  name: Collision Damage Immunity
+                  behavior: attribute
+                  description: ""
+                  attribute: f97461b9-3424-4479-8c46-e48c835c5d68
+                source: Ongoing Effect
+                name: Collision Damage Immunity
+                description: ""
+                id: 4779a791-06a9-4a5a-a744-4789b97467b1
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 damage; vertical pull 3
+              - 5 damage; vertical pull 5
+              - 8 damage; vertical pull 7
+              roll: 2d10 + Might
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'You channel the power of the Primordial Chaos to pull foes to you. '
+            categorization: Heroic Ability
+            range: "3"
+            abilityType: none
+            targetAllegiance: enemy
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 65901244-998d-4c16-a8e9-dadf3d2e2abd
+            iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            domains:
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 141
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            keywords:
+              Melee: true
+              Area: true
+              Magic: true
+              Weapon: true
+            name: Primordial Vortex
+            targetType: all
+            description: If this forced movement causes a target to slam into you, you take no damage from the collision and the target takes the damage you would have taken.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        source: Berserker Class Feature
+        guid: 1047fc6f-902b-4f35-aae1-1ad21427b2ef
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        canHavePrerequisites: true
+        classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+        description: ""
+        name: Primordial Vortex
+        implementation: 2
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      guid: f3736184-6557-4893-9502-59514ea98598
+      source: Berserker Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      guid: 651c33dc-1ba9-4256-aef2-c08d5e5394c1
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 651c33dc-1ba9-4256-aef2-c08d5e5394c1
+        source: Berserker Class Feature
+        value: Might
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Immovable Object
+        guid: c1f01185-3f21-40ec-a797-a8f9c7da3005
+        description: |-
+          You add your level to your effective size for the purpose of interacting
+          with creatures and objects, including determining whether you can lift
+          an object, are affected by forced movement, and so forth. This has no
+          effect on whether you can be grabbed.
+
+          Additionally, you have a bonus to stability equal to your Might score
+        behavior: attribute
+        attribute: creaturesizewhenforcemoved
+      - __typeName: CharacterModifier
+        sourceguid: 651c33dc-1ba9-4256-aef2-c08d5e5394c1
+        source: Berserker Class Feature
+        value: Might
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Immovable Object
+        guid: d94abccc-180f-4365-be99-29e2f97c56d6
+        description: |-
+          You add your level to your effective size for the purpose of interacting
+          with creatures and objects, including determining whether you can lift
+          an object, are affected by forced movement, and so forth. This has no
+          effect on whether you can be grabbed.
+
+          Additionally, you have a bonus to stability equal to your Might score
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        sourceguid: 651c33dc-1ba9-4256-aef2-c08d5e5394c1
+        source: Berserker Class Feature
+        value: Might
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        name: Immovable Object
+        guid: 667dc12a-f982-4ee6-bb93-a7788cf81f7f
+        description: |-
+          You add your level to your effective size for the purpose of interacting
+          with creatures and objects, including determining whether you can lift
+          an object, are affected by forced movement, and so forth. This has no
+          effect on whether you can be grabbed.
+
+          Additionally, you have a bonus to stability equal to your Might score
+        behavior: attribute
+        attribute: 4888254a-c40b-4e13-ac30-b505622d5e91
+      name: Immovable Object
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: |-
+        You add your level to your effective size for the purpose of interacting
+        with creatures and objects, including determining whether you can lift
+        an object, are affected by forced movement, and so forth. This has no
+        effect on whether you can be grabbed.
+
+        Additionally, you have a bonus to stability equal to your Might score
+      source: Berserker Class Feature
+      implementation: 3
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+details: You channel your ferocity into physical might, acting as a living version of the forces that shape the world. You have the Lift skill.
+name: Berserker
+mtime: 1774663435398
+id: 965c7b2d-4cff-4198-8ad2-86c446db40be
+primaryClassId: ce18b1ba-363b-4403-945b-34a3ce08a465

@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: one
+guid: 96da4284-ef35-4495-8604-9b8414b0de54
+id: 96da4284-ef35-4495-8604-9b8414b0de54
+ctime: 1770868313839
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Lightning Lord Target
+statusEffect: false
+description: ""
+mtime: 1770868313839
+iconid: ui-icons/skills/1.png

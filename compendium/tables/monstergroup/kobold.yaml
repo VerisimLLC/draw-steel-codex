@@ -1,0 +1,164 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: 3
+  objectTarget: false
+  targetFilter: target.type = "Kobold"
+  repeatTargets: false
+  targetAllegiance: ally
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 02f615a7-e86e-4bd1-a646-15937fd071de
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: target.type = "Kobold"
+      repeatTargets: false
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        movementType: shift
+        swapCreatures: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 5a78ccbd-5011-4ad6-abcf-cfceeeaa6aa7
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+        promptText: Make a Free Strike
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: b5bf3d13-9685-492a-bf43-ae038580a688
+      targetType: target
+      name: Invoked Ability
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Swap positions with an adjacent Kobold
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  numTargets: "3"
+  modifiers: []
+  strain: []
+  guid: 48376b85-4094-430e-97a7-f0ca016258c1
+  abilityType: none
+  persistence: []
+  targetType: target
+  selfTarget: true
+  name: Maniple Tactics
+  description: |
+    Up to 3 kobolds make a free strike, swaps positions with an adjacent kobold, and then that kobold makes a free strike.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ui-icons/skills/1.png
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  targetFilter: type = "kobold"
+  repeatTargets: false
+  targetAllegiance: ally
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "100"
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: 600f9290-b1a9-4fdc-8d3c-dbdd848c33c8
+  abilityType: none
+  persistence: []
+  name: 'Set the Initiative '
+  behaviors:
+  - __typeName: ActivatedAbilityInitiativeBehavior
+    mode: set_priority
+  description: |
+    Two kobolds take their turns in a row.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ui-icons/skills/1.png
+- __typeName: MaliceAbility
+  resourceNumber: 7
+  targetFilter: Target.Type = "Kobold" and (Target has "Shield? Shield!")
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 35799c8b-a969-4053-932e-bccba5f951e8
+    duration: endround
+    ongoingEffectCustom: 35799c8b-a969-4053-932e-bccba5f951e8
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.846249520778656
+      s: 1.00267434120178
+      v: 1.00306570529938
+      a: 1
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: a40ffea4-260f-48c1-9f9d-c618df11f0ce
+  numTargets: "1"
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Shield Wall
+  selfTarget: true
+  targetType: map
+  description: Until the end of the round, all kobolds with Shield? Shield! Impose an additional bane on incoming strikes and abilities.
+  abilityType: none
+  iconid: 4ea2f7d6-a30f-47f1-aa36-ca319b5c90f9
+mtime: 1764976579057
+name: Kobold
+traits: []
+attacks: []
+id: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+ctime: 1741132174372

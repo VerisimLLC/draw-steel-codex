@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 8d47002f-f6d3-47f2-b6ee-cb2977d17fa0
+id: 8d47002f-f6d3-47f2-b6ee-cb2977d17fa0
+ctime: 1763766307072
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Temp Stamina
+description: ""
+custom: true
+mtime: 1763766307072
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,35 @@
+__typeName: ActivatedAbility
+id: 10030ffd-d334-416d-b3b5-98dd148b88ee
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  durationUntilEndOfTurn: false
+  duration: save_ends
+  ongoingEffectCustom: false
+  ongoingEffect: c7e6ec1c-5d74-4248-957d-e6a4eddcfaac
+  guid: 2c7e2db5-55b1-448a-91e0-d19c42048ff6
+  stacks: "<<number>>"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+repeatTargets: false
+testCases:
+- text: the target has fire weakness 7 (save ends)
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 91fd0d0a-6639-4c03-aa91-065d0da8cffc
+importMatch: the target has fire weakness <<number>> \(save ends\)
+ctime: 1744958242484
+description: ""
+implementation: 3
+targetType: self
+name: Weakness - Fire
+numTargets: "1"
+mtime: 1758977976093
+abilityType: none
+iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d

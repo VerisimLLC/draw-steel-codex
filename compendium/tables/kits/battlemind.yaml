@@ -1,0 +1,74 @@
+__typeName: Kit
+stability: 1
+armor: Light
+health: 3
+id: 5f2a0f4a-8859-42f4-85ae-fc7b7a985866
+weapons:
+  Medium: true
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Battlemind
+description: Who says lightly armored heroes can't also be hard to move? You just need to employ some psionics! You use the Battlemind kit harnesses the power of your mind to make yourself harder to move and your foes easier to push around.
+mtime: 1771497459604
+type: martial
+speed: 2
+imported: 96a0a5cf-c673-403a-b6bc-c9f0c7a67d11
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Weapon: true
+    Kit: true
+    Psionic: true
+    Strike: true
+    Melee: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 + M, R, I, or P damage
+    - 8 + M, R, I, or P damage
+    - 11 + M, R, I, or P damage
+    roll: 2d10 + Might or Reason or Intuition or Presence
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: ef1858e7-4e73-4b1e-9a1c-58388a3c4921
+    stacks: "2"
+    duration: end_of_next_turn
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.5718954205513
+      s: 1
+      v: 1
+      a: 1
+  flavor: "Your weapon unleashes psionic energy that reduces your target's weight. "
+  sourceReference:
+    __typeName: SourceReference
+    page: 219
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  modifiers: []
+  strain: []
+  guid: 21638be4-32b5-4e56-ae89-7d3c79fb2dfd
+  categorization: Signature Ability
+  numTargets: 1
+  implementation: 4
+  persistence: []
+  name: Unmooring
+  targetType: target
+  description: Whenever an effect with forced movement targets the target, the forced movement value is increased by 2 (EoT).
+  abilityType: none
+  iconid: 32077eeb-5e0b-4dd8-b538-4bab491da0ed
+kitManeuver: false
+equipmentDescription: You wear light armor and wield a medium weapon.
+portraitid: ""

@@ -1,0 +1,107 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 6b37f572-075a-473e-9973-d60b8ec376b9
+  description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 15 damage at the start of your next turn. This replaces the benefit of Lingering I.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      targetFilter: ""
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          objectTarget: false
+          abilityType: none
+          strain: []
+          guid: 7be2e76a-4d1e-4273-9324-1894f27a7a93
+          repeatTargets: false
+          modifiers: []
+          numTargets: "1"
+          targetType: target
+          categorization: Hidden
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            filterTarget: ""
+            ongoingEffectCustom: afc47b1e-192e-4330-81d8-490555bd2a61
+            ongoingEffect: d6625347-fa57-49cb-ac80-def67791b05f
+            guid: b8686175-36d6-47f1-bb6a-9d864c6bff22
+            ongoingEffectSource: specific
+          description: ""
+          range: "100"
+          iconid: ui-icons/skills/1.png
+        promptText: Select creature you damaged to apply the effects of Lingering II
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: ""
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 2f3b1637-eb43-4b9a-a74f-8de5f78d5fc5
+      numTargets: "1"
+      conditionFormula: Used Ability.doesdamage and (Used Ability.Keywords has "magic" or Used Ability.Keywords has "psionic") and cast.tier = 3
+      subject: self
+      name: Lingering II
+      trigger: useability
+      targetType: self
+      description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 15 damage at the start of your next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 15 damage at the start of your next turn. This replaces the benefit of Lingering I.
+    source: Lingering II Imbuement
+    behavior: trigger
+    guid: 87648ced-3ec0-4daf-aaac-bb482318c514
+    name: Lingering II
+    sourceguid: 6b37f572-075a-473e-9973-d60b8ec376b9
+  - __typeName: CharacterModifier
+    sourceguid: 6b37f572-075a-473e-9973-d60b8ec376b9
+    guid: bbe72121-f884-4287-a7d5-45c933e4eb66
+    source: Lingering II Imbuement
+    behavior: triggerdisplay
+    description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 15 damage at the start of your next turn. This replaces the benefit of Lingering I.
+    name: Lingering II
+    ability:
+      __typeName: TriggeredAbilityDisplay
+      target: ""
+      effect: 'Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 15 damage at the start of your next turn. '
+      name: Lingering II
+      type: passive
+      guid: f0c9ccae-bdfe-4317-8949-08fc0b513090
+      distance: ""
+      keywords: []
+  source: Lingering II Imbuement
+  name: Lingering II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+id: 114f1efe-bd66-4105-908a-69a0de61f719
+imbuePrereq: 53048901-fedd-4645-b733-d72ec8ff781f
+projectSource: Szetch
+imbueLevel: 9
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: A venom gland from a mature dragon
+mtime: 1774703558455
+name: Lingering II
+imbueTargetType: implement
+description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 15 damage at the start of your next turn. This replaces the benefit of Lingering I.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 3

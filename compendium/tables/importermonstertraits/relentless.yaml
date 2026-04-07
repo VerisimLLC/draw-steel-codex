@@ -1,0 +1,129 @@
+__typeName: CharacterFeature
+testCases:
+- text: If the bloodrunner is reduced to 0 Stamina, they can make a free strike before dying. If the target of the free strike is reduced to 0 Stamina, the bloodrunner is reduced to 1 Stamina instead.
+- text: |
+    If the garroter is reduced to 0 Stamina, they can make a free strike before dying. If the target of the free strike is reduced to 0 Stamina, the garroter is reduced to 1 Stamina instead.
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    whenActive: combat
+    repeatTargets: false
+    trigger: zerohitpoints
+    numTargets: "1"
+    targetType: self
+    guid: e168a528-282a-4e55-8e54-d78f6ac8cec9
+    name: Relentless
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      invokeOnCaster: true
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        strain: []
+        guid: b0717a35-062b-4d19-aeee-388b4f032e41
+        repeatTargets: false
+        abilityType: none
+        persistence: []
+        behaviors:
+        - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+          modifier:
+            __typeName: CharacterModifier
+            modifyDescription: ""
+            source: ""
+            filterAbility: Ability.Free Strike
+            behavior: modifyability
+            guid: 4b791ce6-bd11-4d62-83c7-18eed493ecc2
+            name: Modify Attack
+            attributes: []
+            description: ""
+            cannotModifyAction: true
+            ability:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              strain: []
+              guid: 919b46fc-57c6-4671-a2a5-d3702e28e3f1
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityModification: true
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                invokeOnCaster: true
+                filterTarget: target.stamina <=0	
+                customAbility:
+                  __typeName: ActivatedAbility
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  persistence: []
+                  modifiers: []
+                  abilityType: none
+                  strain: []
+                  guid: 7d006c85-411f-41fb-94be-7ec8f9fcfcc1
+                  repeatTargets: false
+                  numTargets: "1"
+                  targetType: self
+                  behaviors:
+                  - __typeName: ActivatedAbilityHealBehavior
+                    applyto: caster
+                    roll: "1"
+                  implementation: 3
+                  name: Relentless - Heal if target of free strike dies
+                  preDescription: The dying Orc selects a creature to Free Strike. If the target is reduced to 0 stamina, the orc lives and drops to 1 stamina instead.
+                  description: ""
+                  range: 1
+                  iconid: ui-icons/skills/1.png
+                promptText: ""
+              abilityType: none
+              name: New Ability
+              targetType: self
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+        targetType: self
+        name: Relentless Free Strike
+        implementation: 3
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      promptText: Select a creature to free strike. If the target is reduced to 0 stamina, the orc lives and drops to 1 stamina instead.
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Monster
+  behavior: trigger
+  guid: 32ac037e-27b0-4b45-8249-b297c4bd920e
+  name: Relentless
+  sourceguid: 10f8614c-92cb-4493-8f21-180e3b53721f
+source: Monster
+guid: 10f8614c-92cb-4493-8f21-180e3b53721f
+importMatch: If <<monster>> is reduced to 0 Stamina, they can make a free strike before dying. If the target of the free strike is reduced to 0 Stamina, <<monster>> is reduced to 1 Stamina instead.
+ctime: 1775012335140
+name: Relentless
+id: 94fd1eac-721d-4130-b623-ccca038d7fab
+description: ""
+mtime: 1775012335140
+implementation: 3

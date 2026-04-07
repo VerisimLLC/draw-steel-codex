@@ -1,0 +1,231 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0e37aa46-f3cc-4396-b813-093844140cba
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Wraith	Level 4 Horde Hexer
+        Undead	EV 6
+        <b>Stamina</b> 25	<b>Immunity</b> corruption 4, poison 4
+        <b>Speed</b> 8 (fly, hover)	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 2
+        Might -2	Agility +2	Reason +1	Intuition +1	Presence +3
+        <b>Chilling Gravetouch</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 cold damage; P<1 slowed (save ends)
+        %E2%98%85	<b>12-16</b>	7 cold damage; P<2 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	9 cold damage; P<3 slowed (save ends)
+        <b>Effect</b> Living creatures killed by this ability return as a <b>ghoul craver</b> the next round, under the Director's control.
+
+        <b>Hidden Movement</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The specter turns invisible, moves up to their speed, and becomes visible again.
+
+        <b>Stolen Vitality</b> (Free Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5	<b>Target</b> 1 enemy
+        <b>Trigger</b> The target regains Stamina.
+        <b>Effect</b> The target only regains half the Stamina they would normally. The wraith regains the remaining Stamina.
+
+        <b>Agonizing Phasing</b>
+        The wraith can move through other creatures and objects at normal speed. The first time in a round that the shade passes through a creature, that creature takes 5 corruption damage and has a bane on their next attack. The wraith doesn't take damage from being force moved into objects.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2b18d5a9-f09f-46fe-8617-db9b61d6c94c: true
+      modifiers: []
+      name: Agonizing Phasing
+      description: The wraith can move through other creatures and objects at normal speed. The first time in a round that the shade passes through a creature, that creature takes 5 corruption damage and has a bane on their next attack. The wraith doesn't take damage from being force moved into objects.
+      guid: 2b18d5a9-f09f-46fe-8617-db9b61d6c94c
+      source: Trait
+    role: Horde Hexer
+    inflictedConditions: []
+    keywords:
+      Undead: true
+    max_hitpoints_roll: "25"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    monster_type: Wraith
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: -2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 25
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Magic: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 cold damage; P<1 slowed (save ends)
+        - 7 cold damage; P<2 slowed (save ends)
+        - 9 cold damage; P<3 slowed (save ends)
+        roll: 2d10 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 09968acb-0963-464a-8875-1869c13b6887
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Chilling Gravetouch
+      numTargets: 1
+      description: Living creatures killed by this ability return as a ghoul craver the next round, under the Director's control.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 0c7c9145-85ec-4376-a2f8-ea48818643c0
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Hidden Movement
+      numTargets: 1
+      description: The specter turns invisible, moves up to their speed, and becomes visible again.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 6f6a632e-dfd6-4f5f-979d-45333fd334a9
+      abilityType: none
+      numTargets: 1
+      implementation: 0
+      name: Stolen Vitality
+      behaviors: []
+      description: The target only regains half the Stamina they would normally. The wraith regains the remaining Stamina.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    movementSpeeds:
+      fly: 8
+    ev: 6
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: fb0ecb9a-eb6b-40f3-ac4a-335538ef36c3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969981
+description: Wraith
+parentFolder: 68f67367-de21-43f0-8448-61d0408cd721
+artist: null
+ord: 10
+ctime: 1741590331640
+mtime: 1775201137032
+hidden: false

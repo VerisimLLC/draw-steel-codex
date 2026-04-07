@@ -1,0 +1,263 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9d345fd9-cc60-4f68-8c95-f63bb8a7bf5f
+    offtokenPortraitId: 987152a2-7039-4cde-946a-3ab54d70426a
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4752736
+    portraitOffset:
+      x: 0.232301
+      y: 0.1381708
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.8407074
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f042ef80-fded-4bc3-919d-32e57cc467ce
+  properties:
+    __typeName: monster
+    groupid: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: -2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: -2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Angulotl
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 4524f83e-3ee1-44da-9857-7dbe871a92a3
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Nip
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 poison damage
+        - 2 poison damage; the pollywog can shift 1 square
+        - 3 poison damage; the pollywog shifts up to 3 squares
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Angulotl Pollywog	Level 1 Minion Harrier
+        Angulotl	EV 3 for four minions
+        <b>Stamina</b> 4	<b>Immunity</b> poison 2
+        <b>Speed </b>6 (swim, climb)	<b>Size</b> 1S /<b> Stability</b> 0
+        <b>With Captain</b> Speed +2<b>Free Strike</b> 1
+        Might 0	Agility +2	Reason -2	Intuition -2	Presence 0
+        <b>Nip</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	1 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	2 poison damage; shift 1
+        %E2%9C%B8	<b>17</b>	3 poison damage; shift 3
+
+        <b>Quick Snack</b>
+        An angulotl that can reach the pollywog can eat them as a maneuver, regaining 4 Stamina and becoming wet (EoT) (see Wet)
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:35ed783b-4803-4170-b12b-e85d8dad9dbe: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 35ed783b-4803-4170-b12b-e85d8dad9dbe
+        source: Trait
+        seq: 254194b5-eff1-4220-8953-1c99802321cb
+        guid: 713dfb27-5065-40c2-ad38-72f13739cffc
+        domains:
+          CharacterFeature:35ed783b-4803-4170-b12b-e85d8dad9dbe: true
+        radius: "3"
+        behavior: aura
+        description: An angulotl that can reach the pollywog can eat them as a maneuver, regaining 4 Stamina and becoming wet (EoT) (see Wet)
+        aura:
+          __typeName: Aura
+          applyto: friends
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 3222336b-1081-4d7f-92c5-4fc06db51196
+            source: Aura
+            name: Quick Snack
+            behavior: activated
+            description: ""
+            guid: 687f5cb1-f776-4cc0-868f-aa0de23747b0
+            activatedAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: target.name = "Angulotl Pollywog"
+              repeatTargets: false
+              targetType: target
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 42
+                docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+              range: Reach
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 74928e2b-a007-4993-b7df-5cafc31b9e99
+              behaviors:
+              - __typeName: ActivatedAbilityHealBehavior
+                applyto: caster
+                roll: "4"
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                applyto: caster
+                ongoingEffect: b936df43-5c0e-4046-9221-ce360fa5131b
+                duration: end_of_next_turn
+                ongoingEffectCustom: false
+              - __typeName: ActivatedAbilityRemoveCreatureBehavior
+              categorization: Signature Ability
+              domains: []
+              iconid: ui-icons/skills/1.png
+              numTargets: "1"
+              name: Quick Snack
+              actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+              description: Consume a nearby Pollywog to regain 4 Stamina and become wet until the end of your next turn.
+              abilityType: none
+              implementation: 3
+          name: Quick Snack
+          guid: 3222336b-1081-4d7f-92c5-4fc06db51196
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          implementation: 3
+        name: Quick Snack
+      source: Trait
+      description: An angulotl that can reach the pollywog can eat them as a maneuver, regaining 4 Stamina and becoming wet (EoT) (see Wet)
+      guid: 35ed783b-4803-4170-b12b-e85d8dad9dbe
+      name: Quick Snack
+      implementation: 3
+    role: Minion Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 1
+    innateLanguages:
+      e14c1512-fc48-4cb6-945c-18b3eb0b808d: true
+    initiativeGrouping: a990e072-515a-4586-9d9e-cbdb0deedd5f
+    keywords:
+      Angulotl: true
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 6
+    resources: []
+    minionSquad: Angulotl Pollywog Squad 1
+    traitNames: []
+    withCaptain: +2 bonus to speed
+    movementSpeeds:
+      climb: 6
+      swim: 6
+    monster_type: Angulotl Pollywog
+    availableTriggers: []
+    creatureSize: 1S
+    equipmentMeta:
+      offhand0: []
+  tokenType: null
+  bestiaryId: 4cd8d006-9363-4449-8562-1ae34751b158
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Angulotl Pollywog
+parentFolder: b4d6a13f-3431-4ade-b564-2cc17bcde303
+artist: null
+ord: 0
+ctime: 1741590246998
+mtime: 1775201137032
+hidden: false

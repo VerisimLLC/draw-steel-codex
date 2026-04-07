@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Dunquat
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: ea682b18-f361-438a-8cad-4e14218e5823
+annotations:
+  image:
+    __typeName: RichImage
+id: ff7deac4-0db3-43da-b599-e2adef3666e1
+mtime: 1761421933846
+content: |-
+  # Dunquat
+
+  [[image]]
+
+  *A stone-skinned dwarf woman with an anxious expression mutters to herself as she putters about the yard putting tools into a large burlap sack.*
+  {
+  Secret: See [B13. Mason]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761395620698

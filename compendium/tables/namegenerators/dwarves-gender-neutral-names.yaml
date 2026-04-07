@@ -1,0 +1,49 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: f55420ed-8da4-4f29-92f9-b2b191b67551
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Arzak
+- __typeName: RollTableRow
+  id: 826b935e-57c7-49d7-b26a-55f3ba3a054d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Keth
+- __typeName: RollTableRow
+  id: 0e663126-ffa0-4b21-b29d-fc708547336d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Orikk
+- __typeName: RollTableRow
+  id: f5e5450c-3e73-4ce7-8289-b924756a6301
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Q'ir
+- __typeName: RollTableRow
+  id: ac9acd66-b9fa-42cc-8362-032c51562bdd
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Qoroth
+id: 7a6e6c32-7436-45f8-ab4a-ecf14cbf909d
+name: Dwarves Gender Neutral Names
+subtable: true
+mtime: 1743455089385
+items: false
+ctime: 1743444217749

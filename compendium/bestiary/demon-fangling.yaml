@@ -1,0 +1,327 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2e6a56fe-1ab0-4902-b624-37d77c383200
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Demon Fangling    Level 4 Horde Harrier
+        Abyssal, Demon    EV 6
+        <b>Stamina</b> 30    <b>Weakness</b> Holy 5
+        <b>Speed</b> 8    <b>Size</b> 1L / <b>Stability</b> 0
+        <b>    Free Strike</b> 2
+        Might +3    Agility +2    Reason 0    Intuition +0    Presence 0
+        <b>Tooth! Tusk! Claw!</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>    Target</b> 1 creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    5 damage
+        %E2%98%85    <b>12-16</b>    7 damage
+        %E2%9C%B8    <b>17</b>    9 damage
+        <b>Effect </b>Each enemy adjacent to the fangling takes 2 damage.
+
+        <b>Tumbling Gore</b> (Maneuver) %E2%97%86 2d10 + 3 %E2%97%86 2 Malice
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 8 x 3 line within 1<b>    Target</b> All enemies
+        %E2%9C%B8    <b>%E2%89%A411</b>    2 damage; pull 1; A<1 bleeding (save ends)
+        %E2%98%85    <b>12-16</b>    3 damage; pull 2; A<2 bleeding (save ends)
+        %E2%9C%A6    <b>17</b>    4 damage; pull 3; A<3 bleeding (save ends)
+
+        <b>Made of Teeth</b>
+        Whenever an enemy makes physical contact with the fangling or uses a melee ability against the fangling, they take 2 damage.
+
+        <b>Lethe</b>
+        While winded, the skitirin has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the fangling can't be hidden from them.
+        Demon Gunge    Level 4 Horde Controller
+        Abyssal, Demon    EV 6
+        <b>Stamina</b> 25    <b>Weakness</b> Holy 5
+        <b>Speed</b> 6    <b>Size</b> 3 /<b> Stability</b> 0
+        <b>Free Strike</b> 2
+        Might +3    Agility +2    Reason +1    Intuition +2    Presence -1
+        <b>Bilious Expulsion</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Area, Melee, Ranged, Weapon
+        <b>Distance</b> 1 burst or 3 cube within 5<b>    Target</b> One creature or object in the area
+        %E2%9C%A6    <b>%E2%89%A411</b>    5 acid damage; M<1 slowed (save ends)
+        %E2%98%85    <b>12-16</b>    7 acid damage; M<2 slowed (save ends)
+        %E2%9C%B8    <b>17</b>    9 acid damage; M<3 restrained (save ends)
+        <b>Effect</b> The affected area pools with slime. The slime is difficult terrain for enemies, and an enemy is bleeding while occupying an affected square.
+
+        <b>Spew Slide</b> (Free Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> Self    <b>Target</b> Self
+        <b>Trigger </b>The gunge takes damage from a melee strike.
+        <b>Effect </b>The gunge vomits and shifts up to their speed, ignoring any additional effects from the strike. Each square they started in is covered in slime. The slime is difficult terrain for enemies, and an enemy is bleeding while occupying an affected square.
+
+        <b>Lethe</b>
+        While winded, the gunge has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the gunge can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9310eb31-a7eb-454b-9767-8a8717a34f4f: true
+      modifiers: []
+      name: Made of Teeth
+      description: Whenever an enemy makes physical contact with the fangling or uses a melee ability against the fangling, they take 2 damage.
+      guid: 9310eb31-a7eb-454b-9767-8a8717a34f4f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6668e901-abd8-4311-996e-dcc71ed06819: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the skitirin has an edge on strikes, and strikes have an edge against them.
+      guid: 6668e901-abd8-4311-996e-dcc71ed06819
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0ef9e19e-8922-4001-9e7a-18cbb32cde17: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the fangling can't be hidden from them.Demon Gunge    Level 4 Horde ControllerAbyssal, Demon    EV 6
+      guid: 0ef9e19e-8922-4001-9e7a-18cbb32cde17
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:960bf4b2-3d00-467f-807a-140fc157851b: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the gunge has an edge on strikes, and strikes have an edge against them.
+      guid: 960bf4b2-3d00-467f-807a-140fc157851b
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:92dc7df6-f2bc-4ac9-9f3e-e56b38a6f460: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the gunge can't be hidden from them.
+      guid: 92dc7df6-f2bc-4ac9-9f3e-e56b38a6f460
+      source: Trait
+    role: Horde Harrier
+    inflictedConditions: []
+    keywords:
+      Demon: true
+      Abyssal: true
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 2
+    monster_type: Demon Fangling
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 30
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 damage
+        - 9 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a29bb76b-67bb-4e86-a52c-d3897880705f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Tooth! Tusk! Claw!
+      numTargets: 1
+      description: Each enemy adjacent to the fangling takes 2 damage.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; pull 1; A<1 bleeding (save ends)
+        - 3 damage; pull 2; A<2 bleeding (save ends)
+        - 4 damage; pull 3; A<3 bleeding (save ends)
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 8
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 4ccf7502-5b9e-4ab7-9d2f-6a565d56ba3f
+      abilityType: none
+      numTargets: 1
+      implementation: 4
+      targetType: line
+      name: Tumbling Gore
+      radius: 3
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 acid damage; M<1 slowed (save ends)
+        - 7 acid damage; M<2 slowed (save ends)
+        - 9 acid damage; M<3 restrained (save ends)
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: cd228c4f-c8b8-45f0-86a6-83c0f57e7781
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Bilious Expulsion
+      numTargets: 1
+      description: The affected area pools with slime. The slime is difficult terrain for enemies, and an enemy is bleeding while occupying an affected square.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      numTargets: "1"
+      modifiers: []
+      guid: 37dab1e3-18e7-43cb-995a-6ba2f78f47e9
+      abilityType: none
+      behaviors: []
+      name: Spew Slide
+      implementation: 0
+      description: The gunge vomits and shifts up to their speed, ignoring any additional effects from the strike. Each square they started in is covered in slime. The slime is difficult terrain for enemies, and an enemy is bleeding while occupying an affected square.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds: []
+    ev: 6
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: 3dbb573c-b633-4833-8e22-b09497022ceb
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Demon Fangling
+parentFolder: d2197625-9db6-4f37-8d6f-353a079bffdf
+artist: null
+ord: 5
+ctime: 1741590241104
+mtime: 1775201137032
+hidden: false

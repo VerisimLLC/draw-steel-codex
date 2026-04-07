@@ -1,0 +1,197 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: e0f2bd6a-158f-479a-be1d-cfb902babf99
+    offtokenPortraitId: b57fdcc6-6973-4753-b342-1e97c0a12e55
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2628849
+    portraitOffset:
+      x: -0.1117934
+      y: 0.0704852
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: Goblin Spinecleaver
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0a16bd00-ea29-4c8f-b7c8-77fa16c6e1dd
+  properties:
+    __typeName: monster
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 5
+    inflictedConditions: []
+    keywords:
+      Goblin: true
+      Humanoid: true
+    max_hitpoints_roll: "5"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    attackNames:
+    - Medium Melee
+    monster_type: Goblin Spinecleaver
+    levelChoices: []
+    pr: 0
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Goblin Spinecleaver	Level 1 Minion Brute
+        Goblin, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 5
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1S / <b>Stability</b> 0
+        <b>With Captain</b> Strike damage +1<b>Free Strike</b> 2
+        Might +2	Agility +0	Reason +0	Intuition +0	Presence -1
+        <b>Axe</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 damage; push 1
+        %E2%98%85	12%E2%80%9316	4 damage; push 3
+        %E2%9C%B8	17+	5 damage; push 4
+
+        <b>Crafty</b>
+        The spinecleaver doesn't provoke opportunity attacks by moving.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b1d0cab1-cecd-499d-8b8d-e34a8e0a7adb: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        behavior: attribute
+        source: Trait
+        name: Crafty
+        value: 1
+        description: The spinecleaver doesn't provoke opportunity attacks by moving.
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Crafty: you do not provoke opportunity attacks while moving."
+        sourceguid: eae4d953-c53f-41d8-aae3-cc9de122b1f8
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        description: The spinecleaver doesn't provoke opportunity attacks by moving.
+        guid: d9b95b50-49f2-4bfc-aa43-836d80c04a6a
+        color: green
+      source: Trait
+      description: The spinecleaver doesn't provoke opportunity attacks by moving.
+      guid: b1d0cab1-cecd-499d-8b8d-e34a8e0a7adb
+      name: Crafty
+      implementation: 3
+    role: Minion Brute
+    equipment: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    initiativeGrouping: 2f326197-df6e-4234-8072-e0c6105563df
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    damage_taken: 0
+    ev: 3
+    walkingSpeed: 5
+    savingThrowRatings: []
+    minionSquad: Goblin Spinecleaver Squad 1
+    resources: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 4bd90066-c057-40ee-bf53-c913c509844d
+      implementation: 4
+      numTargets: 1
+      name: Axe
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; push 1
+        - 4 damage; push 3
+        - 5 damage; push 4
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    movementSpeeds:
+      climb: 5
+    fmr: 1
+    creatureSize: 1S
+    withCaptain: +1 damage bonus to strikes
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: 3fe52476-756f-4fdf-8ec3-79bb23a3b732
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1715748088616
+description: Goblin Spinecleaver
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590242624
+mtime: 1775201137032
+hidden: false

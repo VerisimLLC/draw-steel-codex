@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: With a tier 1 outcome, you receive a painful vision that is fractal and inscrutable. When you finish the respite, you lose 1 Recovery
+mtime: 1755604177656
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Waking Dreams
+ctime: 1755518181880
+description: You broke a magic amulet, immersing your mind in weird energy that granted you the power of premonition. However, you struggle to control this new gift. Whenever you take a respite, make a Reason test to determine whether you gain this complication’s benefit or drawback.
+id: f5ecb6f1-a29d-4d83-900c-f6829309bed6
+benefit: With a tier 2 outcome, you experience a vision of an event currently happening in your world. The vision lasts for only a few seconds, but the information you glean is helpful to you. With a tier 3 outcome, the vision lasts for 1 minute or more.

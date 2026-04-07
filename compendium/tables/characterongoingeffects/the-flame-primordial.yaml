@@ -1,0 +1,75 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:02e6bc81-7426-42a0-a306-77f3b572cc97: true
+  sourceguid: 02e6bc81-7426-42a0-a306-77f3b572cc97
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-ConditionCaster(\"The Flame Primordial\").Reason"
+    damageType: fire
+    apply: Damage Reduction
+  guid: 5329161b-1435-463f-b070-18b19fff03e7
+  name: The Flame Primordial
+  description: "Started turn adjacent to Elementalist, fire weakness equal to Elementalist reason score until start of creature's next turn. "
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:02e6bc81-7426-42a0-a306-77f3b572cc97: true
+  sourceguid: 02e6bc81-7426-42a0-a306-77f3b572cc97
+  description: "Started turn adjacent to Elementalist, fire weakness equal to Elementalist reason score until start of creature's next turn. "
+  source: Ongoing Effect
+  name: The Flame Primordial
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 02e6bc81-7426-42a0-a306-77f3b572cc97
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: f10091be-e68e-4457-8963-43f5fbc51f6d
+    persistence: []
+    conditionFormula: ""
+    targetType: self
+    castImmediately: true
+    trigger: beginturn
+    name: The Flame Primordial
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: b0904cd9-e962-4420-9928-5ebfaa5ce27b
+source: Ongoing Effect
+guid: 02e6bc81-7426-42a0-a306-77f3b572cc97
+id: 02e6bc81-7426-42a0-a306-77f3b572cc97
+ctime: 1771837455234
+domains:
+  CharacterOngoingEffect:02e6bc81-7426-42a0-a306-77f3b572cc97: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0544998161494732
+    s: 0.925781488418579
+    v: 0.81695169210434
+    a: 1
+endTrigger: none
+name: The Flame Primordial
+custom: true
+mtime: 1771838657633
+description: "Started turn adjacent to Elementalist, creature has fire weakness equal to the Elementalist's Reason score until the start of the creature's next turn. "
+iconid: 3617c071-3c3d-4348-bcaf-f90a35e4ff62

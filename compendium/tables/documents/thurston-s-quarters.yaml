@@ -1,0 +1,407 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-1,14,3"
+        balancing:
+        - stamina: 30
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          a33dca8a-70c7-4f11-83e2-6fa7515754f7: 1
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-6,13,3"
+        monsters:
+          baf66366-7d32-4172-8484-99dfb52fb188: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,17,3"
+        - __usertype: LuaLoc
+          loc: "-7,15,3"
+        - __usertype: LuaLoc
+          loc: "-4,15,3"
+        - __usertype: LuaLoc
+          loc: "-7,17,3"
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 4
+  image:
+    __typeName: RichImage
+id: 6f0d01d7-1f8c-4597-9f28-40a1a32d5968
+ctime: 1761639942268
+textStorage:
+  __typeName: TextStorage
+  sections:
+    yR: |+
+      ## F1 Groups
+
+    yV: |+
+      Group 1: Four **Human Raiders** (Minion Squad)
+
+    y: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+    w: |+
+      If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+    x: |
+      |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+    u: |
+      |Patience decreases by 1
+    v: |
+      |Interest increases by 1, Patience decreases by 1
+    yB: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls.
+    t: |
+      |Interest decreases by 1, Patience decreases by 1
+    q: |
+      |Interest increases by 1, Patience decreases by 1
+    r: |+
+      |Interest increases by 1, Patience does not change.
+
+    o: |
+      |Appeal to Motivation: Reason, Intuition, or Presence
+    p: |
+      |Patience decreases by 1
+    m: |
+      #### Pitfall Used: Automatic failure:
+    n: |2+
+       **Both Interest and Patience decrease by 1.**
+
+    k: |+
+      If the heroes end the negotiation with Thurston’s interest at 4 or 5, they earn 1 Victory each.
+
+    l: |+
+      [[//awardvp 1|Award Heroes 1 Victory]]
+
+      }
+
+    yo: |+
+      If combat breaks out in this room, [Thurston] and the raiders start fighting, with [Thurston] taking on the hero with the highest Stamina while the raiders spread out to fight as many heroes as possible.
+
+
+    j: |+
+      |Interest 0 | Thurston doesn’t trust the heroes and immediately attacks them. See Encounter F1 in the Encounters Book.||
+
+    g: |
+      |Interest 3 | Thurston agrees to help the heroes, but only if they return with a signed letter from the reeve guaranteeing a pardon for him and his followers. If asked, Rosamund does this for the heroes provided they’ve completed at least one other quest. With this letter in hand, Thurston takes action (see **Thurston’s Plot**).||
+    h: |
+      |Interest 2 |Thurston is reluctant to help the heroes. He can’t remove most of the bandits from the camp, but he promises to take himself, Skewra, and the other four bandits in the room with him away and stay out of the heroes’ way, but he won’t help further.|| 
+    e: |
+      |Interest 5 |Thurston agrees to help the heroes by removing most of the forces from the fort that very night (see **Thurston's Plot**), leaving the heroes to deal with Aldiva. He gives them two [item:Healing Potion]s to help with the job.||
+    f: |
+      |Interest 4 |Thurston agrees to help the heroes by removing most of the forces from the fort that very night (see **Thurston’s Plot**), leaving the heroes to deal with Aldiva.||
+    c: |
+      {Thurston refuses to face any justice for his crimes or those who pledge loyalty to him. Trying to convince him to consider surrender if it means imprisonment or punishment invokes this pitfall.}
+
+
+      {
+    yN: |+
+      # Combat
+
+    a: |+
+      {Thurston understands that wealth equals power. He wants as much of the ill-gotten gains as he can walk away with. Giving up more than that isn’t an option for Thurston. If the heroes suggest that he sacrifice his wealth and power, they invoke this pitfall.}
+
+    b: |
+      {**Justice**}
+    Y: |
+      **Pitfalls**
+    Z: |
+      {**Benevelonce**}
+    W: |
+      {**Peace**}
+    yx: |-
+      [[//awardvp 1|Award 1 Victory]] or [[//awardvp 2|Award 2 Victories]] 
+
+
+      }
+    U: |
+      {**Freedom**}
+    V: |+
+      {Thurston has grown tired of what he sees as Aldiva’s inept leadership. He wants just as much power as he has now, but in a legitimate business or enterprise. If the heroes suggest that he could even become the leader of Broadhurst one day—the bandit who became the leader—they appeal to this motivation.}
+
+    S: |+
+      [[image]]
+
+    T: |
+      **Motivations**
+    Q: |
+      INTEREST:  [[##---]] 
+    R: |+
+      PATIENCE:  [[###--]]
+      }
+
+    yl: |+
+      ## Tactics
+
+    P: |
+      Native Language: Vaslorian
+      }
+
+      {!
+    M: |2
+
+    N: |
+      ## Thurston Negotiation Stats 
+
+      {
+    K: |+
+      # Negotiation
+
+    L: |+
+      *(see Negotiation on page 283 in [pdf:Draw Steel Heroes:283])*
+
+    yd: |+
+      [[encounter]]
+
+    J: |+
+      Thurston realizes that the heroes are likely powerful as opponents,but potential allies with regard to dealing with the people in charge in Broadhurst. 
+      }
+
+
+    G: |2+
+
+
+    H: |+
+      ## Mutiny
+
+    E: |
+      > * “A few bedrolls are scattered around the edge of this room.” 
+
+      {
+    F: |
+      [Thurston], a **human knave** and the second-in-command, sulks in his quarters as he contemplates his next move with four **human raiders**. He’s unhappy with the leadership of [Aldiva], who wants to keep raiding Broadhurst for food. [Thurston] regrets the bandit life and would like to rejoin society. Many of the Forsaken Wraiths agree with him, but he knows [Aldiva] and those loyal to her wouldn’t let them go back to a quiet life. After all, the best way to obtain a pardon for crimes is turning in other criminals.
+    C: |2
+
+    yh: |+
+      ## Reinforcements
+
+    B: |+
+      ## Thurston’s Quarters
+
+    yX: |+
+      [[/activateobjects F1_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects F1_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+
+    yT: |
+      Group 1: One **Human Knave** (Thurston; captain)
+    yu: |+
+      [End Combat] When [Thurston] is reduced to 0 Stamina, the raiders flee unless other reinforcements have arrived. Otherwise, all bandits fight to the death. If the heroes win the battle, they earn 1 Victory each, or 2 Victories each if they also defeat the reinforcements.
+
+    yD: |+
+      |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+
+
+      {
+
+    yH: |+
+      [Thurston]’s plan to betray [Aldiva] involves telling her that he’s going to take most of the Forsaken Wraiths to raid Broadhurst that evening. His followers will ambush hers in the darkness once away from the island. [Aldiva] stays away from raids, so the only people left in the camp during that time are herself and her bodyguard [Laesi] (see F2. [Aldiva’s Quarters]), and Berrick and Kora (see Guard Post). If [Brune] is in the fort, he also remains here during the raid.
+
+
+    yL: |+
+      If the heroes already took care of [Aldiva], [Thurston] thanks them and then proposes a deal—he’ll flee the region with any remaining bandits as long as he gets the goods in the storage room (see F3. [Storage]). If the heroes don’t agree to these terms, he attacks them.
+
+
+    yP: |+
+      The heroes fight [Thurston] of the Forsaken Wraiths.
+
+
+    yr: |+
+      ## Ending the Encounter
+
+    yj: |+
+      At the start of the third round of combat, **[Aldiva]** and **[Laesi]** (see [Aldiva's Quarters]) arrive to help if they're alive.
+
+
+
+    yb: |+
+      [[setting:Number of Heroes]]
+
+    X: |+
+      {Thurston is neither benevolent nor kind. If banditry paid better, he’d cut down the heroes without a second thought. However, banditry turns out to be hard work, and Thurston wants to walk away from this life with a good cut of the current earnings, a promise of immunity, and/or a well-paying job in Broadhurst. If the heroes offer to help him find a way out, they appeal to this motivation.}
+
+
+    D: |
+      > * “A human with his head in his hands sits with a group of humans, all seated on crates. The others seem afraid to speak.”
+    i: |
+      |Interest 1 | Thurston won’t work with the heroes, and tells them to leave. If he sees them again, he attacks.||
+    d: |+
+      **Negotiation outcomes**
+
+    I: |+
+      If the heroes don’t immediately attack [Thurston] when they encounter him, the bandit lieutenant considers how he might be able to use them to get what he wants whether they are pretending to be bandits or not. He hints at the unhappiness of the bandits, saying things like, “[Aldiva]’s plan is ambitious, but I’m not sure it’s what everyone wants…” If the heroes pick up [Thurston]’s hints and offer to aid him, a negotiation begins.
+
+    O: |
+      Impression: 3
+    yZ: |+
+      Allow easy adjustment of the number of heroes to balance for:
+
+    s: |
+      |No Motivation or Pitfall: Reason, Intuition, or Presence
+    yJ: |+
+      ## Aldiva’s Done
+
+    yF: |+
+      ## Thurston’s Plot
+
+    yf: |+
+      When you are ready, [Draw Steel!]
+
+
+parentFolder: 3869de06-287d-49b3-b58a-e783f2d757c0
+updateid: 9889d980-c096-4b9b-917d-34dbb3d15366
+mtime: 1765840450912
+content: |+
+  ## Thurston’s Quarters
+
+  * “A human with his head in his hands sits with a group of humans, all seated on crates. The others seem afraid to speak.”
+
+  *  “A few bedrolls are scattered around the edge of this room.” 
+
+  Thurston, a **human knave** and the second-in-command, sulks in his quarters as he contemplates his next move with four **human raiders**. He’s unhappy with the leadership of Aldiva, who wants to keep raiding Broadhurst for food. Thurston regrets the bandit life and would like to rejoin society. Many of the Forsaken Wraiths agree with him, but he knows Aldiva and those loyal to her wouldn’t let them go back to a quiet life. After all, the best way to obtain a pardon for crimes is turning in other criminals.
+
+  ## Mutiny
+
+  If the heroes don’t immediately attack Thurston when they encounter him, the bandit lieutenant considers how he might be able to use them to get what he wants whether they are pretending to be bandits or not. He hints at the unhappiness of the bandits, saying things like, “Aldiva’s plan is ambitious, but I’m not sure it’s what everyone wants …” If the heroes pick up Thurston’s hints and offer to aid him, a negotiation begins.
+
+  Thurston realizes that the heroes are likely powerful as opponents,but potential allies with regard to dealing with the people in charge in Broadhurst. 
+
+  # Negotiation
+
+  *(see Negotiation on page 298 in [Draw Steel Heroes])*
+
+  ## Thurston Negotiation Stats 
+
+  {
+  Impression: 3
+  Native Language: Vaslorian
+  }
+
+  INTEREST:  [[-----]] 
+  PATIENCE:  [[-----]]
+
+  [[image]]
+
+   Motivations
+  {****}
+  {Freedom}
+  Thurston has grown tired of what he sees as Aldiva’s inept leadership. He wants just as much power as he has now, but in a legitimate business or enterprise. If the heroes suggest that he could even become the leader of Broadhurst one day—the bandit who became the leader—they appeal to this motivation.
+  {****}
+  {Peace}
+  Thurston is neither benevolent nor kind. If banditry paid better, he’d cut down the heroes without a second thought. However, banditry turns out to be hard work, and Thurston wants to walk away from this life with a good cut of the current earnings, a promise of immunity, and/or a well-paying job in Broadhurst. If the heroes offer to help him find a way out, they appeal to this motivation.
+
+  Pitfalls 
+  {****}
+  {Benevelonce}
+  Thurston understands that wealth equals power. He wants as much of the ill-gotten gains as he can walk away with. Giving up more than that isn’t an option for Thurston. If the heroes suggest that he sacrifice his wealth and power, they invoke this pitfall.
+  {****}
+  {Justice}
+  Thurston refuses to face any justice for his crimes or those who pledge loyalty to him. Trying to convince him to consider surrender if it means imprisonment or punishment invokes this pitfall.
+
+  {
+  **Negotiation outcomes**
+
+  |Interest 5 |Thurston agrees to help the heroes by removing most of the forces from the fort that very night (see Thurston’s Plot), leaving the heroes to deal with Aldiva. He gives them two Healing Potions to help with the job.||
+  |Interest 4 |Thurston agrees to help the heroes by removing most of the forces from the fort that very night (see Thurston’s Plot), leaving the heroes to deal with Aldiva.||
+  |Interest 3 | Thurston agrees to help the heroes, but only if they return with a signed letter from the reeve guaranteeing a pardon for him and his followers. If asked, Rosamund does this for the heroes provided they’ve completed at least one other quest. With this letter in hand, Thurston takes action (see Thurston’s Plot).||
+  |Interest 2 |Thurston is reluctant to help the heroes. He can’t remove most of the bandits from the camp, but he promises to take himself, Skewra, and the other four bandits in the room with him away and stay out of the heroes’ way, but he won’t help further.|| 
+  |Interest 1 | Thurston won’t work with the heroes, and tells them to leave. If he sees them again, he attacks.||
+  |Interest 0 | Thurston doesn’t trust the heroes and immediately attacks them. See Encounter F1 in the Encounters Book.||
+
+  If the heroes end the negotiation with Thurston’s interest at 4 or 5, they earn 1 Victory each.
+
+  [[/awardvp 1|Award Heroes 1 Victory]]
+
+  }
+
+  **Pitfall Used: Automatic failure:
+   Both Interest and Patience decrease by 1.**
+
+  |Appeal to Motivation: Reason, Intuition, or Presence
+  |Patience decreases by 1
+  |Interest increases by 1, Patience decreases by 1
+  |Interest increases by 1, Patience does not change.
+
+  |No Motivation or Pitfall: Reason, Intuition, or Presence
+  |Interest decreases by 1, Patience decreases by 1
+  |Patience decreases by 1
+  |Interest increases by 1, Patience decreases by 1
+  If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+  |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+  |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+  |The hero learns no information regarding the NPC’s motivations or pitfalls.
+  |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+
+  ## Thurston’s Plot
+
+   Thurston’s plan to betray Aldiva involves telling her that he’s going to take most of the Forsaken Wraiths to raid Broadhurst that evening. His followers will ambush hers in the darkness once away from the island. Aldiva stays away from raids, so the only people left in the camp during that time are herself and her bodyguard Laesi (see 
+
+  F2. Aldiva’s Quarters), and Berrick and Kora (see Guard Post). If Brune is in the fort, he also remains here during the raid.
+
+  ## Aldiva’s Done
+
+   If the heroes already took care of Aldiva, Thurston thanks them and then proposes a deal—he’ll flee the region with any remaining bandits as long as he gets the goods in the storage room (see F3. Storage). If the heroes don’t agree to these terms, he attacks them.
+
+  # Combat
+
+  The heroes fight Thurston of the Forsaken Wraiths.
+
+  ## F1 Groups
+
+  Group 1: One **Human Knave** (Thurston; captain)
+  Group 1: Four **Human Raiders** (Minion Squad)
+
+  ## Reinforcements
+
+  At the start of the third round of combat, **Aldiva** and **Laesi** (see Encounter F2) arrive to help if they're alive.
+
+  ## Combat
+
+  Allow easy adjustment of the number of heroes to balance for:
+
+  [[setting:Number of Heroes]]
+
+  [[encounter]]
+  [[encounter]]
+
+  When you are ready, [Draw Steel!]
+
+  ## Tactics
+
+  If combat breaks out in this room, Thurston and the raiders start fighting, with Thurston taking on the hero with the highest Stamina while the raiders spread out to fight as many heroes as possible.
+
+  ## Ending the Encounter
+
+  [End Combat] When Thurston is reduced to 0 Stamina, the raiders flee unless other [reinforcements have arrived. Otherwise, all bandits fight to the death. If [the heroes win the battle, they earn 1 Victory each, or 2 Victories each if they also defeat the reinforcements.
+
+  [[/awardvp 1|Award Victories]]
+
+description: " Thurston’s Quarters"

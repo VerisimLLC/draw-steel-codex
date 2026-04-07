@@ -1,0 +1,49 @@
+__typeName: ActivatedAbility
+targetFilter: not enemy
+id: 7fe11a31-aa56-4479-abe3-06c7b51da51f
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: Allows a creature to delegate one of their allies within a certain range to make a free strike.
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  runOnController: true
+  autoTarget: false
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 63cbaa24-aa44-4a0f-b3bd-88358a9a44f3
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+ctime: 1742768427138
+numTargets: "<<numcreatures>>"
+mtime: 1760485290638
+repeatTargets: false
+name: Delegate Free Strike
+guid: 28fbc177-4007-49d2-9e89-198d7078aa4a
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

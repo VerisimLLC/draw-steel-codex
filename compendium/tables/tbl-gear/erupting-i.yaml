@@ -1,0 +1,113 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: fe5c13be-fcef-49be-8733-7bb8c4df5e9c
+  description: Whenever you damage a creature using a magic or psionic ability that targets only a single creature and obtain a tier 3 outcome, each enemy within 2 squares of the creature takes 3 fire damage after the ability's effects resolve.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          objectTarget: false
+          abilityType: none
+          strain: []
+          guid: 4e3a5a48-8b70-4f6f-8e37-c8c1d39f8f65
+          repeatTargets: false
+          modifiers: []
+          numTargets: "1"
+          targetType: target
+          categorization: Hidden
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 8cac6a58-dfd7-439d-b93c-9fbb604378b1
+              repeatTargets: false
+              abilityType: none
+              categorization: Hidden
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: "3"
+                damageType: fire
+                chatMessage: Erupting I
+              numTargets: "1"
+              name: Erupting I
+              targetType: all
+              description: ""
+              range: "2"
+              iconid: ui-icons/skills/1.png
+          description: ""
+          range: "100"
+          iconid: ui-icons/skills/1.png
+        promptText: Select creature you damaged.
+      triggerPrompt: Whenever you damage a creature using a magic or psionic ability that targets only a single creature and obtain a tier 3 outcome, each enemy within 2 squares of the creature takes 3 fire damage after the ability's effects resolve.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a1c220e1-50e9-4723-b12e-71a9b270805f
+      castImmediately: true
+      conditionFormula: Ability.doesdamage and (Ability.Keywords has "magic" or Ability.Keywords has "psionic") and Tier Three
+      numTargets: "1"
+      targetType: self
+      trigger: rollpower
+      name: Erupting I
+      description: Whenever you damage a creature using a magic or psionic ability that targets only a single creature and obtain a tier 3 outcome, each enemy within 2 squares of the creature takes 3 fire damage after the ability's effects resolve.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you damage a creature using a magic or psionic ability that targets only a single creature and obtain a tier 3 outcome, each enemy within 2 squares of the creature takes 3 fire damage after the ability's effects resolve.
+    source: Erupting I Imbuement
+    behavior: trigger
+    guid: 4862b661-bd8e-4b1e-b9df-af7b2d7d8bb3
+    name: Erupting I
+    sourceguid: fe5c13be-fcef-49be-8733-7bb8c4df5e9c
+  source: Erupting I Imbuement
+  name: Erupting I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: Obsidian from an active volcano
+imbuePrereq: none
+projectSource: Vastariax
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 3
+ctime: 1770699205313
+projectGoal: "150"
+id: 313e38de-bef1-41f2-9c6b-026e5f4f8bbe
+mtime: 1774701804843
+name: Erupting I
+imbueTargetType: implement
+description: Whenever you damage a creature using a magic or psionic ability that targets only a single creature and obtain a tier 3 outcome, each enemy within 2 squares of the creature takes 3 fire damage after the ability's effects resolve.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 7236b4b5-d910-4da5-92d6-c29a9a7347b7

@@ -1,0 +1,112 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Knight Benefit
+    numChoices: 1
+    guid: 1074bb22-9c9f-48bf-add2-97238e021c03
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      description: You earn 1 Renown.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 9839368a-b70b-42f5-872e-264cf0252201
+        sourceguid: 5d43d3df-bba0-4cf8-9692-1cf966559ebf
+        value: 1
+        source: Feat
+        name: Heraldic Fame
+        behavior: attribute
+        description: You earn 1 Renown.
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      source: Feat
+      canHavePrerequisites: true
+      guid: 5d43d3df-bba0-4cf8-9692-1cf966559ebf
+      name: Heraldic Fame
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: Your Stamina maximum increases by 6.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: b8ddde71-e7fb-4169-8572-8f57b5eb783e
+        sourceguid: d21334a1-4307-4b5e-8cae-e784c23753c9
+        value: 6
+        source: Title
+        name: Knightly Aegis
+        behavior: attribute
+        description: Your Stamina maximum increases by 6.
+        attribute: hitpoints
+      source: Title
+      canHavePrerequisites: true
+      guid: d21334a1-4307-4b5e-8cae-e784c23753c9
+      name: Knightly Aegis
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: "You have the following ability, which can be paid for using the Heroic Resource of your class.\v\v**Special:** If you take this title, you might occasionally be called upon to perform duties for the person who knighted you."
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 99e09a83-e69b-4b37-be2b-83486650c6a4
+        guid: 78f36096-2674-4c38-8afc-c08af1fbb5e8
+        source: Title
+        behavior: activated
+        description: "You have the following ability, which can be paid for using the Heroic Resource of your class.\v\v**Special:** If you take this title, you might occasionally be called upon to perform duties for the person who knighted you."
+        name: Knightly Challenge
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "5"
+          objectTarget: false
+          repeatTargets: false
+          keywords:
+            Strike: true
+            Melee: true
+            Weapon: true
+          implementationDetails: Effect is not implemented.
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: Have at thee!
+          categorization: Heroic Ability
+          range: 1
+          abilityType: none
+          persistence: []
+          modifiers: []
+          numTargets: "1"
+          strain: []
+          guid: 582f957b-683d-4cf1-ac9d-c8c4906e58ce
+          preDescription: ""
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          domains: []
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 7 damage; taunted (save ends)
+            - 11 damage; taunted (save ends)
+            - 16 damage; taunted (save ends)
+            roll: 2d10 + Might or Agility
+          sourceReference:
+            __typeName: SourceReference
+            page: 345
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          name: Knightly Challenge
+          implementation: 2
+          description: You can end the taunted condition on the target as a free maneuver
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+      source: Title
+      canHavePrerequisites: true
+      guid: 99e09a83-e69b-4b37-be2b-83486650c6a4
+      name: Knightly Challenge
+      implementation: 2
+id: 693da925-e453-4405-81cf-bafb475cdf81
+ctime: 1762351627293
+name: Knight
+description: Kneel, heroes. Arise, knights of Tor, and may your swords be ever sharp in our service.
+mtime: 1775108004694
+echelon: "2"
+prerequisite: A noble or monarch grants you knighthood or a similar rank.

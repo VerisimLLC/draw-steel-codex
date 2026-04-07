@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 7496ebbc-834b-43fb-8bf1-9c9d72829054
+id: 7496ebbc-834b-43fb-8bf1-9c9d72829054
+ctime: 1774577371717
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Wingbane - Grounded
+statusEffect: false
+mtime: 1774577371717
+description: Started turn on the ground
+iconid: ui-icons/skills/1.png

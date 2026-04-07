@@ -1,0 +1,336 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter-5:
+    __typeName: RichEncounter
+    identifier: false
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-17,-24,3"
+        - __usertype: LuaLoc
+          loc: "-17,-21,3"
+        - __usertype: LuaLoc
+          loc: "-19,-21,3"
+        - __usertype: LuaLoc
+          loc: "-17,-23,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-19,-24,3"
+        - __usertype: LuaLoc
+          loc: "-20,-23,3"
+        - __usertype: LuaLoc
+          loc: "-18,-23,3"
+        - __usertype: LuaLoc
+          loc: "-19,-22,3"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+      name: 5th Reinforcement
+  encounter-3:
+    __typeName: RichEncounter
+    identifier: false
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-21,-20,3"
+        - __usertype: LuaLoc
+          loc: "-22,-15,3"
+        - __usertype: LuaLoc
+          loc: "-22,-19,3"
+        - __usertype: LuaLoc
+          loc: "-22,-17,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-15,-24,3"
+        - __usertype: LuaLoc
+          loc: "-15,-20,3"
+        - __usertype: LuaLoc
+          loc: "-20,-18,3"
+        - __usertype: LuaLoc
+          loc: "-19,-19,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      name: 3rd Reinforcement
+  encounter-1:
+    __typeName: RichEncounter
+    identifier: false
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-14,-25,3"
+        - __usertype: LuaLoc
+          loc: "-22,-18,3"
+        - __usertype: LuaLoc
+          loc: "-18,-25,3"
+        - __usertype: LuaLoc
+          loc: "-22,-20,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-22,-25,3"
+        - __usertype: LuaLoc
+          loc: "-16,-25,3"
+        - __usertype: LuaLoc
+          loc: "-20,-25,3"
+        - __usertype: LuaLoc
+          loc: "-22,-16,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      name: 1st Reinforcement
+  encounter-2:
+    __typeName: RichEncounter
+    identifier: false
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-22,-22,3"
+        - __usertype: LuaLoc
+          loc: "-22,-24,3"
+        - __usertype: LuaLoc
+          loc: "-22,-20,3"
+        - __usertype: LuaLoc
+          loc: "-22,-18,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-15,-25,3"
+        - __usertype: LuaLoc
+          loc: "-17,-25,3"
+        - __usertype: LuaLoc
+          loc: "-19,-25,3"
+        - __usertype: LuaLoc
+          loc: "-21,-25,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      name: 2nd Reinforcement
+  encounter-4:
+    __typeName: RichEncounter
+    identifier: false
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-13,-23,3"
+        - __usertype: LuaLoc
+          loc: "-12,-21,3"
+        - __usertype: LuaLoc
+          loc: "-10,-23,3"
+        - __usertype: LuaLoc
+          loc: "-12,-25,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-15,-25,3"
+        - __usertype: LuaLoc
+          loc: "-16,-23,3"
+        - __usertype: LuaLoc
+          loc: "-17,-22,3"
+        - __usertype: LuaLoc
+          loc: "-15,-21,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      name: 4th Reinforcement
+  encounter:
+    __typeName: RichEncounter
+    identifier: false
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-20,-19,3"
+        - __usertype: LuaLoc
+          loc: "-18,-19,3"
+        - __usertype: LuaLoc
+          loc: "-15,-21,3"
+        - __usertype: LuaLoc
+          loc: "-15,-23,3"
+        - __usertype: LuaLoc
+          loc: "-15,-24,3"
+        - __usertype: LuaLoc
+          loc: "-16,-19,3"
+        - __usertype: LuaLoc
+          loc: "-21,-24,3"
+        - __usertype: LuaLoc
+          loc: "-21,-22,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 8
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-14,-18,3"
+        - __usertype: LuaLoc
+          loc: "-14,-24,3"
+        - __usertype: LuaLoc
+          loc: "-14,-22,3"
+        - __usertype: LuaLoc
+          loc: "-22,-25,3"
+        - __usertype: LuaLoc
+          loc: "-22,-20,3"
+        - __usertype: LuaLoc
+          loc: "-19,-18,3"
+        - __usertype: LuaLoc
+          loc: "-17,-18,3"
+        - __usertype: LuaLoc
+          loc: "-21,-17,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 8
+id: 6d22639f-eac1-4866-90b9-b864031b9723
+ctime: 1764259349349
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      [[encounter]]
+    w: "[[/awardvp 1|Award Victories]]"
+    U: |
+      [[encounter]]
+    S: |
+      [[encounter]]
+    t: |2+
+       When the heroes arrive safely on the island, they earn 1 Victory each.
+
+    q: |
+      ## Ending the Encounter
+    O: |+
+      [[/activateobjects Fx_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects Fx_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    M: |+
+      [[setting:Number of Heroes]]
+
+    n: |2+
+       The clawfish rush the nearest hero and attack, fighting to the death! If Skewra wakes and sees the heroes approaching on a raft, she lights a torch, and shoots a burning arrow toward the raft, hoping to ignite it. She continues peppering the heroes with arrows until at least two of them make it to shore, then she runs toward the gate to raise the alarm.
+
+    k: |
+      ## Tactics
+    I: |+
+      At the start of each round if a hero is in the water, another eight clawfish appear. Reinforcements continue to arrive in this way until all clawfish are dead or a total of forty-eight clawfish have appeared.
+
+    K: |
+      To start this encounter, click [Draw Steel!]
+    G: |2+
+       Creatures falling into the lake or swims between the logs alert eight clawfish, which swarm and attack. At the start of each round a hero remains in the water, another eight clawfish appear until all clawfish 
+
+    h: |2+
+       At the start of each round if a hero is in the water, another eight clawfish appear. Reinforcements continue to arrive in this way until all clawfish are dead or a total of forty-eight clawfish have appeared.
+
+    E: |2+
+       If one or more heroes fall into the water or elect to swim to the fort, they must swim to shore while dealing with the clawfish.
+
+    W: |
+      [[encounter]]
+    C: |+
+      ## Lake Combat
+
+    Q: |
+      [[encounter]]
+    e: |+
+      ## Reinforcements
+
+    b: |+
+      [[encounter]]
+
+parentFolder: 3869de06-287d-49b3-b58a-e783f2d757c0
+updateid: 23c083dc-fc52-4ecd-8536-373531d0b543
+mtime: 1765816755689
+content: "# Room 2"
+description: Lake Combat

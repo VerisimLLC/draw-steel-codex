@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: e3d46c80-9e32-41ad-aecc-3e0fb4141a40
+id: e3d46c80-9e32-41ad-aecc-3e0fb4141a40
+ctime: 1765340032848
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Sanctuary
+description: Your are removed from the encounter and cannot be targeted
+custom: true
+mtime: 1765340051804
+iconid: ui-icons/skills/1.png

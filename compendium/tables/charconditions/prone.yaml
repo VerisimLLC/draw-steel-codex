@@ -1,0 +1,121 @@
+__typeName: CharacterCondition
+display:
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+  source: Condition
+  modtype: bane
+  keywords:
+    Strike: true
+  activationCondition: true
+  guid: 7fc19018-c9a5-44f0-a4f4-47f201cdc7be
+  rollType: ability_power_roll
+  domains:
+    CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+  description: |-
+    While you are prone, attacks you make suffer a bane, and melee attacks made against you gain an edge. You must crawl to move along the ground, which costs you 1 extra square of movement for every square you crawl. 
+
+    When this condition ends, you can choose to immediately stand up as no action or remain prone (see Crawl).
+  behavior: power
+  name: Prone
+- __typeName: CharacterModifier
+  sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+  source: Condition
+  modtype: edge
+  keywords:
+    Strike: true
+    Melee: true
+  activationCondition: true
+  guid: 7112b01b-339e-4343-84fa-c23f383d7518
+  rollType: enemy_ability_power_roll
+  domains:
+    CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+  description: |-
+    While you are prone, attacks you make suffer a bane, and melee attacks made against you gain an edge. You must crawl to move along the ground, which costs you 1 extra square of movement for every square you crawl. 
+
+    When this condition ends, you can choose to immediately stand up as no action or remain prone (see Crawl).
+  behavior: power
+  name: Prone
+- __typeName: CharacterModifier
+  sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+  source: Condition
+  value: 1
+  filterCondition: not Ignore Prone Difficulty
+  guid: aa22fbbf-639a-46b7-a36f-886d9e57f2a1
+  name: Prone
+  domains:
+    CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+  description: |-
+    While you are prone, attacks you make suffer a bane, and melee attacks made against you gain an edge. You must crawl to move along the ground, which costs you 1 extra square of movement for every square you crawl. 
+
+    When this condition ends, you can choose to immediately stand up as no action or remain prone (see Crawl).
+  behavior: attribute
+  attribute: movementDifficulty
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+  sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+  description: |-
+    While you are prone, attacks you make suffer a bane, and melee attacks made against you gain an edge. You must crawl to move along the ground, which costs you 1 extra square of movement for every square you crawl. 
+
+    When this condition ends, you can choose to immediately stand up as no action or remain prone (see Crawl).
+  source: Condition
+  name: Prone
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 9967ce59-d59d-422a-b76d-6ac3049fd7ef
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions:
+      - da6867b1-01e3-4570-8d1b-1b94ea1ea343
+      filterTarget: not Cannot Stand
+    name: Prone
+    trigger: teleport
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 1f1f5f39-df90-4f0b-8192-522750876ebe
+- __typeName: CharacterModifier
+  sourceguid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+  source: Condition
+  value: -99
+  domains:
+    CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+  name: Prone
+  guid: 1e1f85e2-41d1-4776-aa96-b678f2c0b855
+  description: |-
+    While a creature is prone, they are flat on the ground, any strike they make takes a bane, and melee abilities used against them gain an edge. A prone creature must crawl to move along the ground, which costs 1 additional square of movement for every square crawled. A creature can’t climb, jump, swim, or fly while prone. If they are climbing, flying, or jumping when knocked prone, they fall. 
+
+    Unless the ability or effect that imposed the prone condition says otherwise, a prone creature can stand up using the Stand Up maneuver (see Maneuvers in Chapter 10: Combat). A creature adjacent to a willing prone creature can likewise use the Stand Up maneuver to make that creature stand up.
+  behavior: attribute
+  attribute: fly
+guid: 4bfcd63f-45fa-4f1d-968a-43834d91ccdd
+iconid: 4ed2da23-daf5-416c-bbc2-4e826483a00a
+stackable: true
+id: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+ctime: 1699988385502
+domains:
+  CharacterCondition:da6867b1-01e3-4570-8d1b-1b94ea1ea343: true
+indefiniteDuration: true
+powertable: true
+name: Prone
+mtime: 1771985883905
+description: |-
+  While a creature is prone, they are flat on the ground, any strike they make takes a bane, and melee abilities used against them gain an edge. A prone creature must crawl to move along the ground, which costs 1 additional square of movement for every square crawled. A creature can’t climb, jump, swim, or fly while prone. If they are climbing, flying, or jumping when knocked prone, they fall. 
+
+  Unless the ability or effect that imposed the prone condition says otherwise, a prone creature can stand up using the Stand Up maneuver (see Maneuvers in Chapter 10: Combat). A creature adjacent to a willing prone creature can likewise use the Stand Up maneuver to make that creature stand up.
+trackCaster: false
+implementation: 3

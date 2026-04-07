@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: e2b6ae5d-c15a-4576-bf04-7ecd7f43e6e0
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765469959166
+ctime: 1765469959166
+name: Star-Hunter Recipe
+flavor: Text or lore in Voll
+description: The project source necessary to craft Star-Hunter
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

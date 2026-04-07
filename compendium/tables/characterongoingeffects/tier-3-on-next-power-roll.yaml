@@ -1,0 +1,56 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 45233f5a-56ac-488a-bb64-9b2b45382316
+  source: Ongoing Effect
+  modtype: tier3
+  behavior: power
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 1435746a-9abd-4e3d-a8b0-d61eee31eddb
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 45233f5a-56ac-488a-bb64-9b2b45382316
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  activationAfterRoll: false
+  name: Tier 3 on next power roll
+  rollType: all
+  description: You receive a Tier 3 result on your next power roll
+  guid: e86ba87a-514a-4854-8139-6c987469f14a
+  activationCondition: true
+source: Ongoing Effect
+guid: 45233f5a-56ac-488a-bb64-9b2b45382316
+id: 45233f5a-56ac-488a-bb64-9b2b45382316
+ctime: 1774058330427
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+buffType: neutral
+name: Tier 3 on next power roll
+custom: true
+description: ""
+mtime: 1774058488415
+iconid: 32077eeb-5e0b-4dd8-b538-4bab491da0ed

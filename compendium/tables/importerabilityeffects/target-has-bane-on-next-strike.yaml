@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+insertAtStart: false
+id: 28985220-f5b4-47fb-9d9e-44743add47e6
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: bf68e539-df8f-4e11-97dc-1b2d11c7b02e
+  ongoingEffectCustom: false
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: The target has a bane on their next strike.
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: 52907980-7f7f-48da-b5d4-ef0611ac8972
+importMatch: The target has a bane on their next strike.
+ctime: 1740886587908
+targetType: self
+repeatTargets: false
+name: Target has Bane on Next Strike
+mtime: 1743460289962
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

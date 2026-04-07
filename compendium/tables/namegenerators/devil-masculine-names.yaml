@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: d400066c-2464-45cc-92c7-9a70527b2fbc
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Bulliarvik
+- __typeName: RollTableRow
+  id: 1bdc8378-5436-48ef-806c-3a3f3f428e69
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cenoph
+- __typeName: RollTableRow
+  id: 47ca2e52-25cd-4cdd-acda-b6ef9606d79a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dhult
+- __typeName: RollTableRow
+  id: b5446699-f223-4a7a-8d4c-f19220534b4c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Jjaro
+- __typeName: RollTableRow
+  id: 02a6bf70-f792-41b3-9487-c16e6d6d322e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kuryalkin
+- __typeName: RollTableRow
+  id: 856a1c6f-8e1a-440d-90e0-efa55acd5138
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Radiarsk
+- __typeName: RollTableRow
+  id: f0930df5-35d9-498e-bcc8-44e19c7a76b6
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Tessiar
+- __typeName: RollTableRow
+  id: 809e1742-e33a-4aca-9b60-c95512f3ff3d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Turayvik
+- __typeName: RollTableRow
+  id: a660a745-0763-467f-a3db-8bcaa51e98db
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ullian
+- __typeName: RollTableRow
+  id: c5326a70-fdcf-45da-a28c-04036af3fb54
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Villyroth
+id: 705aeb9f-2fda-4abe-a2e5-3dd615077eb0
+name: Devil Masculine Names
+subtable: true
+mtime: 1743448562138
+items: false
+ctime: 1743442175903

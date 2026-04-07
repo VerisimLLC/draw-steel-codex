@@ -1,0 +1,11 @@
+__typeName: DamageType
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Poison
+ctime: 1699861824611
+mtime: 1699861829724
+id: 8044ff30-3d7a-4183-9c42-9dfd4b9e98cf
+iconid: ec4447c3-b89a-4ae0-9b02-37d21993b497

@@ -1,0 +1,309 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: de4c682c-91aa-4a6a-ae13-7fa22c7fc859
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 3
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    damage_taken_minion_count: 4
+    monster_category: Monster
+    levelChoices: []
+    damage_taken_seq: 7
+    traitNames: []
+    damageEntries:
+      96cf26b8-2156-47ff-a54b-ab10288f1cda:
+        damage: 3
+        id: 96cf26b8-2156-47ff-a54b-ab10288f1cda
+        seq: 24
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Elemental Mote	Level 1 Minion Hexer
+        Elemental, High Elf	EV 3 for four minions
+        <b>Stamina</b> 3
+        <b>Speed</b> 5 (fly)	<b>Size</b> 1T /<b> Stability</b> 0
+        <b>With Captain</b> Speed +2<b>Free Strike</b> 1
+        Might 0	Agility 0	Reason 0	Intuition 0	Presence +2
+        <b>Dweomer Plume</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	1 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	2 damage; R<1 damage weakness 3 (save ends)
+        %E2%9C%B8	<b>17</b>	3 damage; R<2 damage weakness 3 (save ends)
+
+        <b>Spark of Life</b>
+        On their turn, the mote can choose to die to revive a dead soot crow, brambleguard, or ceramic horse within 1, returning with 3 Stamina.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:365fc05b-2a7e-4319-98c4-8ffa2560d53c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:365fc05b-2a7e-4319-98c4-8ffa2560d53c: true
+        sourceguid: 365fc05b-2a7e-4319-98c4-8ffa2560d53c
+        behavior: activated
+        source: Trait
+        name: Spark of Life
+        guid: d00dcaeb-cb95-4030-8a47-a30bed5bc9db
+        description: On their turn, the mote can choose to die to revive a dead soot crow, brambleguard, or ceramic horse within 1, returning with 3 Stamina.
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: name is "soot crow" or name is "ceramic horse" or name is "brambleguard"
+          repeatTargets: false
+          implementationDetails: ""
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 121
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          preDescription: On their turn, the mote can choose to die to revive a dead soot crow, brambleguard, or ceramic horse within 1, returning with 3 Stamina.
+          persistence: []
+          modifiers: []
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: a1b3aa78-9c8b-4323-8e2f-8385e1d89dde
+              repeatTargets: false
+              persistence: []
+              targetType: self
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: fb68dbaf-d61d-4294-b035-af3333546be7
+                duration: 0
+                ongoingEffectCustom: fb68dbaf-d61d-4294-b035-af3333546be7
+              - __typeName: ActivatedAbilityDelayBehavior
+                delay: "1"
+              - __typeName: ActivatedAbilityRemoveCreatureBehavior
+              iconid: ui-icons/skills/1.png
+              name: Spark of Life
+              description: ""
+              sourceReference:
+                __typeName: SourceReference
+                page: 121
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: 1
+              implementation: 2
+            applyto: caster
+          - __typeName: ActivatedAbilityRaiseCorpseBehavior
+            restoreStamina: false
+          - __typeName: ActivatedAbilityHealBehavior
+            roll: (-Target.Stamina) + 3
+          strain: []
+          guid: 5247b5f7-2dfb-402d-9f83-2f6678ef24f3
+          targetAllegiance: dead
+          categorization: Signature Ability
+          domains:
+            CharacterFeature:365fc05b-2a7e-4319-98c4-8ffa2560d53c: true
+          range: 1
+          numTargets: "1"
+          name: Spark of Life
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+          description: ""
+          abilityType: none
+          implementation: 4
+      source: Trait
+      description: On their turn, the mote can choose to die to revive a dead soot crow, brambleguard, or ceramic horse within 1, returning with 3 Stamina.
+      guid: 365fc05b-2a7e-4319-98c4-8ffa2560d53c
+      name: Spark of Life
+      implementation: 4
+    role: Minion Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 1
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 2140fede-6943-4f36-bc5b-4b8663543d35
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    damage_taken: 0
+    resources: []
+    walkingSpeed: 5
+    availableTriggers: []
+    minionSquad: Elemental Mote Squad 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Magic: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 121
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: ce6410be-dfe5-42b8-b555-04edba0bc26f
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage; R<1 Magic weakness 3 (save ends)
+        - 3 damage; R<2 Magic weakness 3 (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        tiersSelected:
+        - 2
+        - 3
+        duration: save_ends
+        ongoingEffectCustom: false
+        ongoingEffect: a5feff79-ba94-487f-be63-0db2898d05a2
+        stacks: "3"
+      implementation: 4
+      persistence: []
+      categorization: Signature Ability
+      name: Dweomer Plume
+      numTargets: 1
+      description: ""
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    withCaptain: +2 bonus to speed
+    movementSpeeds:
+      fly: 5
+    equipmentMeta:
+      offhand0: []
+    creatureSize: 1T
+    monster_type: Elemental Mote
+    keywords:
+      High Elf: true
+      Elemental: true
+      Soulless: true
+  tokenType: null
+  bestiaryId: ac08627e-4c78-4a9e-a787-3826c6691c44
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 0
+  createdTimestamp: 1726301040866
+description: Elemental Mote
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590294330
+mtime: 1775201137032
+hidden: false

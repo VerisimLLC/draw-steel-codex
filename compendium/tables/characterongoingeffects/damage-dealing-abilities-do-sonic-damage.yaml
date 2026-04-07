@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+canEndWithAction: true
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.144500374794006
+    s: 0.927734553813934
+    v: 0.934368073940277
+    a: 1
+guid: 5135d211-9fec-4748-94ed-d93388bd91f1
+id: 784f8f13-1a67-44f0-adf3-97a32b656911
+ctime: 1765801527890
+domains:
+  CharacterOngoingEffect:5135d211-9fec-4748-94ed-d93388bd91f1: true
+description: Damage dealing abilities deal sonic damage
+endActionType: none
+name: Damage-Dealing Abilities do Sonic Damage
+custom: true
+mtime: 1765801774828
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5135d211-9fec-4748-94ed-d93388bd91f1
+  displayCondition: Ability.doesdamage
+  source: Ongoing Effect
+  guid: f846a4a9-7d28-4c99-8c06-fbec450fc5f1
+  keywords: []
+  activationCondition: Ability.doesdamage
+  damageTypeMappings:
+    all: sonic
+  domains:
+    CharacterOngoingEffect:5135d211-9fec-4748-94ed-d93388bd91f1: true
+  name: Damage-Dealing Abilities do Sonic Damage
+  modtype: none
+  description: Damage dealing abilities deal sonic damage
+  rollType: ability_power_roll
+  behavior: power
+iconid: d55a0ed1-c2c8-4a7c-8f24-8db4136ae90c

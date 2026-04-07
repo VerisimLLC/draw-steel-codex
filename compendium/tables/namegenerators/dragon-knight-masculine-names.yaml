@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 3b8f79ed-f171-4632-bbf4-550966114aee
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Aarkizovar
+- __typeName: RollTableRow
+  id: 9808bcd1-576b-4e10-a45d-477b1b80f40d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dannorax
+- __typeName: RollTableRow
+  id: aa525526-a945-40b6-bbaa-acae689e16ff
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Denoxavinaax
+- __typeName: RollTableRow
+  id: bb59ac5c-e49d-4c07-8dbb-c44b59bccf9c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Killexiriax
+- __typeName: RollTableRow
+  id: b1de46ec-1f74-419b-b119-ea654e84cc48
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Koraavinam
+- __typeName: RollTableRow
+  id: b0221e83-961f-4ef1-8723-59264d310e9e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Raijorozaan
+- __typeName: RollTableRow
+  id: 554d41fa-3343-444b-8bb8-7f4125ea0274
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vanazor
+- __typeName: RollTableRow
+  id: 9fffaec0-5414-4c39-a67c-d0b3e42c0826
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vorokazinaar
+- __typeName: RollTableRow
+  id: 89dbe4a9-ec52-495a-bfc0-4f6a7d384367
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Zakaarior
+- __typeName: RollTableRow
+  id: aef94470-4c32-4da3-832c-24967b961a41
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Zexijorovox
+id: 3e33c6d0-b603-49aa-916b-c783cf7f7b52
+name: Dragon Knight Masculine Names
+subtable: true
+mtime: 1743454971752
+items: false
+ctime: 1743443927548

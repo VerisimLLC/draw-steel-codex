@@ -1,0 +1,44 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.343137264251709
+    s: 0.795321643352509
+    v: 0.670588254928589
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  modtype: edge
+  keywords:
+    Attack: true
+  surges: stacks when Hero else 0
+  behavior: power
+  domains:
+    CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+    CharacterOngoingEffect:44f31caa-771c-4cf2-a6bb-b3baf82b7cfb: true
+  name: Edge on Strikes
+  rollType: ability_power_roll
+  description: Has an Edge on Strikes
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  activationCondition: true
+source: Ongoing Effect
+endTrigger: none
+stackable: true
+id: 44f31caa-771c-4cf2-a6bb-b3baf82b7cfb
+ctime: 1740892791598
+domains:
+  CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+  CharacterOngoingEffect:44f31caa-771c-4cf2-a6bb-b3baf82b7cfb: true
+implementation: 3
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+name: Edge on Strikes
+categorization: common
+description: Has an Edge on Strikes
+mtime: 1772948593054
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e

@@ -1,0 +1,61 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    damageTypeMappings: []
+    description: 1/2/3
+    name: Displacer Extra Damage
+    behavior: power
+    damageModifierType: psychic
+    modtype: none
+    rollType: ability_power_roll
+  source: Item
+  name: Displacer Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 661e27b4-81e5-44a9-9252-4a0660cb5834
+itemPrerequisite: An ancient bronze gear covered in indecipherable runes
+keywords:
+  Medium Weapon: true
+  Psionic: true
+projectSource: Texts in Zaliac
+flavor: This crystal battleaxe seems to pull at the hands that wield it, as if anxious to leap across the battlefield.
+level9: The weapon’s extra psychic damage increases to 3. Additionally, whenever you deal rolled damage to a creature, you can use a maneuver to trade places with that creature or any creature within 8 squares of them, provided you both fit into each other’s spaces. Additionally, you can cause the creature you traded places with to be weakened until the end of their next turn, or you can spend a Recovery.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The weapon’s extra psychic damage increases to 2. Additionally, whenever you deal rolled damage to a creature, you can use a maneuver to trade places with that creature or any creature within 4 squares of them, provided you both fit into each other’s spaces.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 896ad5e8-c29d-4f99-8cd2-2892c66603e4
+ctime: 1759276728866
+name: Displacer
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 psychic damage. Additionally, whenever you deal rolled damage to a creature, you can use a maneuver to teleport you and that creature, letting you trade places provided you both fit into each other’s spaces.
+mtime: 1759400788700
+projectRollCharacteristic:
+  mgt: true
+  inu: true
+iconid: de48a745-de9d-447e-a38b-992c43b8f6ae

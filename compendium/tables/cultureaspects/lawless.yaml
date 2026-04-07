@@ -1,0 +1,17 @@
+__typeName: CultureAspect
+mtime: 1756162962869
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+    name: Lawless Skill
+    guid: b1f90d54-9ada-4e8f-8980-f19dce2d9372
+    description: Choose one skill from the intrigue skill group. (*Quick Build:* Sneak)
+    source: Lawless Culture Feature
+name: Lawless
+category: upbringing
+description: Your hero grew up among folk who performed activities that other people—whether within or outside their culture—considered unlawful. A band of pirates, a guild of assassins, or an organization of spies all commit unlawful acts for money. And under tyranny, people engaged in rebellion are often considered lawless in their actions and activities. People brought up in a lawless culture typically don’t mind breaking the rules when it suits them—and are good at making sure no one finds out they did.
+id: b791f023-6852-426e-aeef-7eac5d04aa7b
+ctime: 1756162664252

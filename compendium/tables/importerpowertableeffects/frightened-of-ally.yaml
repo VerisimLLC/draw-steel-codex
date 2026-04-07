@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: aa0dd410-76e4-4c9c-b973-1a4890b36681
+behaviors:
+- __typeName: ActivatedAbilityDrawSteelCommandBehavior
+  rule: Frightened (Save Ends)
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 191adfb8-d41a-47bb-a1b8-0639bb5f0160
+testCases:
+- text: the target is frightened of an ally of your choice within range (save ends)
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: Note that this requires an invocation to select the ally to make them frightened.
+importMatch: the target is frightened of an ally of your choice within range \(save ends\)
+ctime: 1745475941381
+repeatTargets: false
+numTargets: "1"
+mtime: 1759792926585
+name: Frightened of Ally
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

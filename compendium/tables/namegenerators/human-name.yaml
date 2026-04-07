@@ -1,0 +1,39 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: f18fea72-9406-4cf4-9f09-c45cda0dc83b
+  choiceName: Human Masculine
+  id: 8bd5b014-92b5-4275-b6f2-8c293a421dd6
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 54ba997a-14af-450f-95fc-2ab3966b4782
+  choiceName: Human Gender Neutral
+  id: d941e987-448d-4bfd-9789-d5619056ab1a
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 570e3160-1d14-48a9-9a8d-8affb280509a
+  choiceName: Human Feminine
+  id: b217a26d-2561-47c9-8dc2-49a224a17302
+id: 0726b8d5-8dfa-41d8-ae17-5ad93f50b7dc
+rollType: namedChoice
+name: Human Name
+mtime: 1743455233210
+items: false
+ctime: 1743455233210

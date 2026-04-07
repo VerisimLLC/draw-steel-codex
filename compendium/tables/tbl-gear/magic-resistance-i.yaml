@@ -1,0 +1,43 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 08e06633-8882-4bd2-99b5-7bb6fe872bd0
+  description: Your characteristic scores are treated as 1 higher (to a maximum of 2) for the purpose of resisting the potencies of magic abilities.
+  modifiers:
+  - __typeName: CharacterModifier
+    resistanceFormula: min(2, Resistance + 1)
+    sourceguid: 08e06633-8882-4bd2-99b5-7bb6fe872bd0
+    source: Item
+    modtype: none
+    keywords:
+      Magic: true
+    activationCondition: true
+    name: Magic Resistance I
+    guid: b54ed35a-06ab-4227-be06-e5d1e5a00b76
+    description: Your characteristic scores are treated as 1 higher (to a maximum of 2) for the purpose of resisting the potencies of magic abilities.
+    behavior: power
+    rollType: enemy_ability_power_roll
+  source: Item
+  name: Magic Resistance I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: f102a730-76d8-4302-8ff4-609b8dfd4074
+imbuePrereq: none
+projectSource: 'The First Language '
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770698928353
+type: Gear
+itemPrerequisite: A scale from a dragon
+mtime: 1773725017510
+name: Magic Resistance I
+imbueTargetType: armor
+description: Your characteristic scores are treated as 1 higher (to a maximum of 2) for the purpose of resisting the potencies of magic abilities.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

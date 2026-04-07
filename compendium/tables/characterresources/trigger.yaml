@@ -1,0 +1,39 @@
+__typeName: CharacterResource
+usageLimit: round
+id: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+ctime: 1699694727937
+display:
+  expended:
+    brightness: 0.5
+    saturation: 0.5
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.849499762058258
+      s: 0.810546875
+      v: 1.00136590003967
+      a: 1
+  highlight:
+    brightness: 1.5
+    saturation: 1
+    hueshift: 1
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.849499762058258
+      s: 0.810546875
+      v: 1.00136590003967
+      a: 1
+  normal:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.849499762058258
+      s: 0.810546875
+      v: 1.00136590003967
+      a: 1
+grouping: Actions
+mtime: 1699694790889
+name: Trigger
+iconid: dafaacac-bebe-4693-88f1-c0429c8b0f53

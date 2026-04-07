@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4e58600f-249e-42c3-aa04-9641756a0661
+  displayCondition: Friends(Target, ConditionCaster("Bane on Ability Rolls which Harm the Caster"))
+  source: Ongoing Effect
+  modtype: double_bane
+  keywords: []
+  activationCondition: "1"
+  rollType: ability_power_roll
+  guid: 6df9a6a0-deff-491d-9d04-8afb9868a662
+  description: ""
+  behavior: power
+  name: Double Bane on Ability Rolls which Harm the Caster
+source: Ongoing Effect
+guid: e767dfb9-bb64-4402-8565-5ee48f7bfa8d
+id: e767dfb9-bb64-4402-8565-5ee48f7bfa8d
+ctime: 1770265709328
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Double Bane on Ability Rolls which Harm the Caster
+description: ""
+custom: true
+mtime: 1770265729639
+iconid: ui-icons/skills/1.png

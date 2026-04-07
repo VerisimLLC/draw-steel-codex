@@ -1,0 +1,185 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Shrieker
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 808b86d0-876e-4bb9-b757-9dde55e72914
+  properties:
+    __typeName: monster
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9dae792e-7036-44d5-acc6-eac38886a99e: true
+        CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:9dae792e-7036-44d5-acc6-eac38886a99e: true
+          CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+        sourceguid: 75924d49-b4ef-40a9-b484-fc878d6eaf4c
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: corruption
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: poison
+          apply: Damage Reduction
+        guid: cb78119f-6013-4e1a-9301-6d3a74d6c01e
+        name: Summoner Buffs
+        description: ""
+      name: Summoner Buffs
+      guid: 9dae792e-7036-44d5-acc6-eac38886a99e
+      description: ""
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4d9f6dcd-15c8-418f-a5d4-11756c4fa77e: true
+      modifiers: []
+      name: " Shrill Alarm"
+      guid: 4d9f6dcd-15c8-418f-a5d4-11756c4fa77e
+      description: |
+        Each enemy within 2 squares of the shrieker can’t hide or be hidden
+      source: Character Feature
+    max_hitpoints: 1
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: 'The shrieker expresses their unending pain in a way that can be heard and felt for miles. A white hot fire rests within each of their sunken eye sockets. '
+      title: Monster Notes
+    monster_category: Monster
+    opportunityAttack: 2
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 4
+    keywords:
+      Summoner: true
+      Signature: true
+      Undead: true
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: mgt
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 1 damage
+        - 1 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 sonic damage
+        - 1 sonic damage
+        - 1 sonic damage
+        roll: "12"
+        modesSelected:
+        - 2
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "12"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: |
+        Howling Strike	
+        The shrieker’s ranged free strikes have a distance of 12.
+      abilityType: none
+      iconid: 6f538843-7dab-46ad-904e-e099607244dd
+    levelChoices: []
+    resources: []
+    monster_type: Shrieker
+    minion: true
+    role: Minion Artillery
+    notesRevision: ac726106-7b94-4be1-a79f-94ee6568a540
+  tokenType: null
+  bestiaryId: 3050ad16-7a49-4fdb-931d-cb7589fb9634
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1759618054352
+description: null
+parentFolder: 4715f842-1482-418c-b5dc-80b01183b25f
+artist: null
+ord: 2
+ctime: 1759618054352
+mtime: 1775167533489
+hidden: false

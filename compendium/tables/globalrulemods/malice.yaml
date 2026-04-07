@@ -1,0 +1,28 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      resourceType: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      source: Villain Points Global Rule Mod Feature
+      behavior: resource
+      name: Malice
+      guid: cdb4d1da-696e-460d-8ed9-b7a05961b178
+      num: 0
+      description: ""
+      sourceguid: 687ec453-7dda-4f46-ada7-5a9320d36c21
+    name: Malice
+    description: ""
+    guid: 687ec453-7dda-4f46-ada7-5a9320d36c21
+    source: Villain Points Global Rule Mod Feature
+    implementation: 3
+applyRetainers: false
+applyMonsters: true
+ctime: 1728879980477
+name: Malice
+id: fb02522c-2c9a-42e1-8116-01b743d7ad14
+mtime: 1768341312164
+applyCharacters: false
+applyCompanions: false

@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 5cf5ebd4-7048-4875-80af-ac78e42fb769
+id: 5cf5ebd4-7048-4875-80af-ac78e42fb769
+ctime: 1757250692141
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.786753058433533
+    v: 0.91884571313858
+    a: 1
+mtime: 1757250692141
+description: 'You must complete the Find a Cure downtime project to end this effect. '
+name: Insatiably Hungry For Flesh
+iconid: 203a4a90-8d38-4e2e-a043-48a113540ca9

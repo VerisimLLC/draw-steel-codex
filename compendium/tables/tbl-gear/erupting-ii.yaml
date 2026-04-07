@@ -1,0 +1,113 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 92408142-09b7-4617-b6b4-66228ec10abb
+  description: "Whenever you damage a creature using a magic or psionic ability that targets only a single creature and obtain a tier 3 outcome, each enemy within 2 squares of the creature takes 3 fire damage after the ability's effects resolve.\v\vThe fire damage dealt by the implement's Erupting I enhancement increases to 6."
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          objectTarget: false
+          abilityType: none
+          strain: []
+          guid: deef6d3e-a379-4545-8f99-8a6fb0c7b869
+          repeatTargets: false
+          modifiers: []
+          numTargets: "1"
+          targetType: target
+          categorization: Hidden
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 9c907c64-96dd-4719-b18c-c5951f35b63a
+              repeatTargets: false
+              abilityType: none
+              categorization: Hidden
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: "6"
+                damageType: fire
+                chatMessage: Erupting II
+              numTargets: "1"
+              name: Erupting II
+              targetType: all
+              description: ""
+              range: "2"
+              iconid: ui-icons/skills/1.png
+          description: ""
+          range: "100"
+          iconid: ui-icons/skills/1.png
+        promptText: Select creature you damaged.
+      triggerPrompt: Whenever you damage a creature using a magic or psionic ability that targets only a single creature and obtain a tier 3 outcome, each enemy within 2 squares of the creature takes 6 fire damage after the ability's effects resolve.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: f5ec7933-ded8-40d4-8e5b-97096651db5e
+      castImmediately: true
+      conditionFormula: Ability.doesdamage and (Ability.Keywords has "magic" or Ability.Keywords has "psionic") and Tier Three
+      numTargets: "1"
+      targetType: self
+      trigger: rollpower
+      name: Erupting I
+      description: Whenever you damage a creature using a magic or psionic ability that targets only a single creature and obtain a tier 3 outcome, each enemy within 2 squares of the creature takes 6 fire damage after the ability's effects resolve.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: "Whenever you damage a creature using a magic or psionic ability that targets only a single creature and obtain a tier 3 outcome, each enemy within 2 squares of the creature takes 3 fire damage after the ability's effects resolve.\v\vThe fire damage dealt by the implement's Erupting I enhancement increases to 6."
+    source: Erupting II Imbuement
+    behavior: trigger
+    guid: 53e7ee26-31e1-4642-a965-5d96c192a2ce
+    name: Erupting II
+    sourceguid: 92408142-09b7-4617-b6b4-66228ec10abb
+  source: Erupting II Imbuement
+  name: Erupting II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+id: a00fb850-006c-41e0-ae1c-c580e724f839
+imbuePrereq: 313e38de-bef1-41f2-9c6b-026e5f4f8bbe
+projectSource: Vastariax
+imbueLevel: 9
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1774701876464
+type: Gear
+ctime: 1770699205313
+projectGoal: "150"
+itemPrerequisite: A sealed geode containing explosive gas
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Erupting II
+imbueTargetType: implement
+description: The fire damage dealt by the implement's Erupting I enhancement increases to 6.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 3

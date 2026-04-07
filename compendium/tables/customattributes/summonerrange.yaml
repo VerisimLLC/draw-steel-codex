@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: 5 + Reason
+category: Class Specific
+name: SummonerRange
+documentation: A Summoner’s Range defines the maximum distance they can summon minions and use specific conjuring abilities. A Summoner’s Range is equal to 5 + their Reason score.
+mtime: 1760384942458
+id: 114c4ff1-d773-4518-8c94-d3c00e690909
+ctime: 1760384942458

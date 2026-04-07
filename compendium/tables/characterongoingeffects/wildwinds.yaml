@@ -1,0 +1,41 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 9678a711-b008-41be-a82f-5b126039a4a6
+  sourceguid: ef1858e7-4e73-4b1e-9a1c-58388a3c4921
+  value: 5
+  source: Ongoing Effect
+  name: Forced Movement Increase
+  behavior: attribute
+  description: Forced movement effects against this creature move the creature further.
+  attribute: ba15f0e1-b50c-4324-af08-ce8f2b8f2cf0
+- __typeName: CharacterModifier
+  guid: abb17300-fbd2-49dc-b191-ba209ff6b84e
+  sourceguid: ef1858e7-4e73-4b1e-9a1c-58388a3c4921
+  value: -3
+  source: Ongoing Effect
+  name: Wild Winds
+  behavior: attribute
+  description: Any creature who cna't fly or isn't mounted on a flying creature takes a -3 penalty to stability, and any forced movement effect targeting such a creature moves them an additional 5 squares
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+guid: ef1858e7-4e73-4b1e-9a1c-58388a3c4921
+id: 268ef8c6-6e69-4dd5-8992-f5208a4d8392
+ctime: 1771341932671
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.0020809173584
+    v: 1.00238585472107
+    a: 1
+implementation: 4
+name: Wildwinds
+stackable: true
+description: Any creature who cna't fly or isn't mounted on a flying creature takes a -3 penalty to stability, and any forced movement effect targeting such a creature moves them an additional 5 squares
+mtime: 1771876401383
+iconid: 11d94f0a-d2cb-4f82-a64e-b36bc75e8670

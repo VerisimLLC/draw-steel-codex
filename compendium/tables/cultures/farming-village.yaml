@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Farming Village
+id: 0b28ef83-1458-4832-b146-eec6268578ff
+mtime: 1769349251612
+aspects:
+  upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+  environment: bc083000-3543-41ff-ad8d-332f73cd92aa
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796338835

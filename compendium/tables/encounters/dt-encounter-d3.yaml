@@ -1,0 +1,18 @@
+__typeName: Encounter
+groups:
+- monsters:
+    9584f1f7-037a-42eb-aeed-e68c51a30ebd: 2
+- monsters:
+    9584f1f7-037a-42eb-aeed-e68c51a30ebd: 2
+- monsters:
+    9584f1f7-037a-42eb-aeed-e68c51a30ebd: 2
+- monsters:
+    602ac1db-482d-47f1-998a-59e6da0c0128: 2
+- monsters:
+    602ac1db-482d-47f1-998a-59e6da0c0128: 2
+- monsters:
+    0c566b64-d70c-4f40-b1d9-64523154e15e: 1
+name: DT - Encounter D3
+mtime: 1752702730631
+id: bcb81202-3d9c-4e91-9005-a1f52db78977
+ctime: 1752702730631

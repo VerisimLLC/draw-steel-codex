@@ -1,0 +1,227 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 1a47733c-03e3-4f80-8c3e-d7d76c05d0e9
+  details: "You gain 2 piety the first time in an encounter that the Director uses an ability or feature that costs Malice.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: Malice Used
+isSubclass: true
+ctime: 1728003741609
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: fb921a9b-1d81-4bcb-8994-973fa511b0c4
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d702bdb3-3d1a-4f29-8e96-71dbcd5a6ad6
+        source: Knowledge Domain Class Feature
+        behavior: trigger
+        domains:
+          class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        name: Knowledge Domain Piety
+        resourceRefreshType: encounter
+        description: You gain 2 piety the first time in an encounter that the Director uses an ability or feature that costs Malice.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 0dcea730-33ef-4fa9-8ede-9a7bba0ec6b8
+          persistence: []
+          modifiers: []
+          conditionFormula: resource = "Malice"
+          strain: []
+          guid: 69135acd-0101-4369-adc1-bffd854b02b2
+          abilityType: none
+          trigger: useresource
+          domains:
+            class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            checklistid: 1a47733c-03e3-4f80-8c3e-d7d76c05d0e9
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Malice used
+            quantity: 2 + 1 when level >= 4
+          name: Knowledge Domain Piety
+          whenActive: combat
+          description: |-
+            You gain 2 piety the first time in an encounter that the Director uses an ability or feature that costs Malice.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 0dcea730-33ef-4fa9-8ede-9a7bba0ec6b8
+      name: Knowledge Domain Piety
+      classid: f73fcc45-165b-47d8-9df5-32899ac19aec
+      description: You gain 2 piety the first time in an encounter that the Director uses an ability or feature that costs Malice.
+      source: Knowledge Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 363ecea6-b61a-4a0f-a01b-08078e81ee74
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: Choose up to three allies, including yourself, within 10 squares of you. Each target gains a surge.
+        source: Knowledge Domain Class Feature
+        name: Knowledge Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: not Enemy
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.373749732971191
+              s: 1.00208020210266
+              v: 1.00238573551178
+              a: 1
+          flavor: You call on the forces of fate to create a reliable future.
+          categorization: Trigger
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          domains:
+            class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          targetType: target
+          numTargets: "5"
+          name: Knowledge Domain Effect
+          selfTarget: true
+          description: Choose up to three allies, including yourself, within 10 squares of you. Each target gains a surge.
+          abilityType: none
+          iconid: fbfb413b-5378-48cc-9a8d-44af9bddd71c
+      name: Knowledge Domain Effect
+      classid: f73fcc45-165b-47d8-9df5-32899ac19aec
+      description: Choose up to three allies, including yourself, within 10 squares of you. Each target gains a surge.
+      source: Knowledge Domain Class Feature
+      implementation: 3
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f73fcc45-165b-47d8-9df5-32899ac19aec: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+name: Knowledge Domain
+prerequisite: Deity.Domains has "Knowledge"
+mtime: 1768291412107
+id: f73fcc45-165b-47d8-9df5-32899ac19aec
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

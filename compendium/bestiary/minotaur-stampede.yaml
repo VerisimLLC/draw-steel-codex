@@ -1,0 +1,166 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: 72f0634e-8d6a-4afc-884b-b9c824746cc8
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 20ae8b42-7288-4d9b-99af-0e9968f6b102
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 10
+    import:
+      type: mcdm
+      data: |
+        Minotaur Stampede	Level 10 Minion Defender
+        Accursed, Humanoid, Minotaur, Swarm	EV 12 for four minions
+        <b>Stamina</b> 17
+        <b>Speed</b> 8	<b>Size</b> 4 /<b> Stability</b> 2
+        <b>With Captain</b> Edge on strikes<b>Free Strike</b> 4
+        Might +5	Agility +5	Reason 0	Intuition +2	Presence -1
+        <b>Bull Rush</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12-16</b>	7 damage; prone
+        %E2%9C%B8	<b>17</b>	9 damage; prone and M<5 can't stand (save ends)
+        <b>Effect</b> Each creature that the stampede moves through as a part of charging with this ability is <b>M<4</b> knocked prone.
+
+        <b>Swarm</b>
+        The stampede can move through squares as if they were size-2, and can occupy other creatures' spaces. At the start of the stampede's turn, they can make a free strike against each creature they share a square with.
+
+
+        Retainer
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b69b4a6b-e9a3-4a89-ba77-b4494e50475f: true
+      modifiers: []
+      name: Swarm
+      description: The stampede can move through squares as if they were size-2, and can occupy other creatures' spaces. At the start of the stampede's turn, they can make a free strike against each creature they share a square with.
+      guid: b69b4a6b-e9a3-4a89-ba77-b4494e50475f
+      source: Trait
+    role: Minion Defender
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "17"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    keywords:
+      Minotaur: true
+      Accursed: true
+      Swarm: true
+      Humanoid: true
+    attributes:
+      agl:
+        baseValue: 5
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: mgt
+    monster_type: Minotaur Stampede
+    equipment: []
+    withCaptain: Gain an edge on strikes
+    max_hitpoints: 17
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    levelChoices: []
+    walkingSpeed: 8
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage; prone
+        - 9 damage; prone and M<5 can't stand (save ends)
+        roll: 2d10 + 5
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: fb5c7f85-8233-4584-9e29-c0ca28b16161
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Bull Rush
+      numTargets: 1
+      description: Each creature that the stampede moves through as a part of charging with this ability is M<4 knocked prone.
+      abilityType: none
+      implementation: 3
+    groupid: 6efceb1a-994d-411b-a006-923df38066a7
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: "4"
+    opportunityAttack: 4
+  tokenType: null
+  bestiaryId: b13efc76-8ae2-4417-b80f-1e54627e7de2
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969465
+description: Minotaur Stampede
+parentFolder: 4e90b2cf-3242-46d6-9c01-ce1d199e1205
+artist: null
+ord: 0
+ctime: 1741590296811
+mtime: 1775201137032
+hidden: false

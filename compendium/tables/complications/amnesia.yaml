@@ -1,0 +1,44 @@
+__typeName: CharacterComplication
+drawback: You take a bane on any test made to recall lore.
+mtime: 1765791293002
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You take a bane on any test made to recall lore.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 9810875b-2549-49a9-b998-287ec8c829dc
+      source: Complication
+      modtype: bane
+      keywords: []
+      activationCondition: true
+      guid: 1c4a21f1-6bd7-402e-b2a7-c984f8376165
+      name: Amnesia - Drawback
+      behavior: power
+      description: You take a bane on any test made to recall lore.
+      rollType: test_power_roll
+      skills:
+      - 80526c1a-3cfd-40dc-9065-eb840df8601d
+      - 61709a09-1a95-4726-b722-c40639cae405
+      - 0df23459-ab2f-4659-8a2d-ae5820dc889f
+      - 57101165-410a-4734-98ee-d4e5b656d3df
+      - bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+      - f15f5445-666a-4ea9-bdf3-fbed284bae85
+      - 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+      - afd26a9a-22e2-4341-b171-f7e3182c8744
+      - f014760c-c987-4436-81ba-5e6acfdf6905
+      - 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+      - 1c837bdc-17cc-4c7a-9814-f2f8b92cf55a
+      - 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+    source: Complication
+    canHavePrerequisites: true
+    guid: 9810875b-2549-49a9-b998-287ec8c829dc
+    name: Amnesia - Drawback
+    implementation: 3
+name: Amnesia
+ctime: 1755510392923
+description: You have no memory of your past before the … incident. Hopefully, you’ll regain your memory soon and find out what the incident was. In the meantime, you need friends so you won’t be alone when your past catches up to you.
+id: 47255932-d0cd-4c76-b49a-0d31b53789b0
+benefit: |
+  You have a supernatural possession—a 1st-echelon trinket of your choice (see Treasures in Chapter 13: Rewards) that might have some connection with your former life.

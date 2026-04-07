@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 1f065b44-8c53-4df9-adbf-34a9b017e50b
+  sourceguid: 7a357b0b-12ee-4a51-b6b1-ce9953b9f7ac
+  value: 1
+  source: Ongoing Effect
+  name: Nature's Bounty - Saving Throws
+  behavior: attribute
+  description: You have a +1 bonus to saving throws
+  attribute: 34e099f4-afe1-4b99-abd0-8784cac7f857
+source: Ongoing Effect
+guid: 7a357b0b-12ee-4a51-b6b1-ce9953b9f7ac
+id: 7a357b0b-12ee-4a51-b6b1-ce9953b9f7ac
+ctime: 1773028083642
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Nature's Bounty - Saving Throws
+description: You have a +1 bonus to saving throws
+custom: true
+mtime: 1773028105626
+iconid: 11d94f0a-d2cb-4f82-a64e-b36bc75e8670

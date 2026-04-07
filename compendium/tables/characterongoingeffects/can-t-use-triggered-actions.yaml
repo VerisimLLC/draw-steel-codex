@@ -1,0 +1,30 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4dadd12e-2887-430c-8f3b-40909bbfa85b
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:4dadd12e-2887-430c-8f3b-40909bbfa85b: true
+  name: Cant use triggered actions
+  guid: 945a4188-b4f2-4679-ab10-dfc561640711
+  description: This creature cannot use triggered actions.
+  behavior: attribute
+  attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+source: Ongoing Effect
+guid: 4dadd12e-2887-430c-8f3b-40909bbfa85b
+id: 4dadd12e-2887-430c-8f3b-40909bbfa85b
+ctime: 1749180094164
+domains:
+  CharacterOngoingEffect:4dadd12e-2887-430c-8f3b-40909bbfa85b: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Can't use triggered actions
+custom: true
+description: This creature cannot use triggered actions.
+mtime: 1772032860060
+iconid: 87c16b08-7f2e-46b2-9647-f9b092d836a0

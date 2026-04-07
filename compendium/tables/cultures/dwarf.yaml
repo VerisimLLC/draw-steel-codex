@@ -1,0 +1,11 @@
+__typeName: Culture
+id: cc759bf2-9dfa-4399-8d9d-6bede4f08fb6
+group: Ancestry Cultures
+name: Dwarf
+languageid: e110c3b1-3799-4179-b542-f842079b77f1
+mtime: 1769349215554
+aspects:
+  upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+  environment: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796038984

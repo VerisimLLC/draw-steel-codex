@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Merchant Caravan
+id: 542c875c-4444-4eea-909d-b69323bb3b61
+mtime: 1769349262540
+aspects:
+  upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+  environment: 184b0626-5e2d-48bd-8877-2072df0f374f
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796414055

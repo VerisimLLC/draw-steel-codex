@@ -1,0 +1,96 @@
+__typeName: MarkdownDocument
+annotations: []
+id: f4707d8e-1bcd-41fd-b540-21fa71a31083
+ctime: 1761751485549
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      |Avoid the Fire Trap: Agility Test
+    W: |
+      If the trap is triggered, the helmets of the two knights expel a fire that fills this area. Each creature caught in the blast must make an Agility test.
+    U: |+
+      |{#The hero unlocks the door without triggering the trap.}
+
+
+    S: |
+      |{#The hero unlocks the door, but triggers the trap in the process.}
+    t: |
+      # What’s Next?
+    q: |+
+      If the [Gilded Hand] has already been here, the door is unlocked.
+
+
+    O: |
+      |Pick the Lock: Agility Test
+    M: |+
+      The double doors are magic and can’t be damaged or destroyed. They can be unlocked with the silver key from the control panel in [D12. Kill Room]. The trap does not trigger if opened in this way. Alternatively, the lock can be picked with a moderate Agility test.
+
+    n: |
+      # After the Hand
+    K: |
+      ## Locked Doors
+    l: |+
+      :<> [[/objectcommand d14_door.Door opendoor|Open Door]][[/objectcommand d14_door.Door closedoor|Close Door]] 
+
+    I: |+
+      {Secret: The double doors are locked and trapped.}
+
+    j: |+
+      If the heroes fail to unlock the door, it jams, and the only way to open it is to double back and search for the key.
+
+    G: |+
+      > * “The double doors have a pair of armored knights carved into them, and a big heavy lock in the middle.”
+
+    h: |+
+      |{#The creature takes 9 fire damage.}
+
+    E: |
+      > * “This corridor diverges in two directions: there is a single door to the south, and a grand set of double doors to the west.”
+    e: |
+      |{#The creature takes 12 fire damage.} 
+    C: |+
+      # D13. A Moment’s Reprieve
+
+    Q: |
+      |{#The hero fails to unlock the door and triggers the trap.}
+    w: |
+      Beyond the double doors lies the chamber that holds the [item:Cup of Iulius]. This chamber is quite different depending on whether the heroes arrive before or after the Gilded Hand. Use [D14.1 Cup Room Untouched] if the [Gilded Hand] hasn’t claimed the cup already. Use [D14.2 Cup Room Raided] if the mercenaries have the cup.
+    b: |
+      |{#The creature takes 15 fire damage.}
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 2ff46a8b-b400-44d8-bc3c-a0410604404b
+description: D13. A Moment's Reprieve
+content: |
+  # D13. A Moment’s Reprieve
+
+  > * “This corridor diverges in two directions: there is a single door to the south, and a grand set of double doors to the west.”
+  > * “The double doors have a pair of armored knights carved into them, and a big heavy lock in the middle.”
+
+  {Secret: The double doors are locked and trapped.}
+
+  ## Locked Doors
+  The double doors are magic and can’t be damaged or destroyed. They can be unlocked with the silver key from the control panel in [D12. Kill Room]. The trap does not trigger if opened in this way. Alternatively, the lock can be picked with a moderate Agility test.
+
+  |Pick the Lock: Agility Test
+  |{#The hero fails to unlock the door and triggers the trap.}
+  |{#The hero unlocks the door, but triggers the trap in the process.}
+  |{#The hero unlocks the door without triggering the trap.}
+
+
+  If the trap is triggered, the helmets of the two knights expel a fire that fills this area. Each creature caught in the blast must make an Agility test.
+  |Avoid the Fire Trap: Agility Test
+  |{#The creature takes 15 fire damage.}
+  |{#The creature takes 12 fire damage.} 
+  |{#The creature takes 9 fire damage.}
+
+  If the heroes fail to unlock the door, it jams, and the only way to open it is to double back and search for the key.
+
+
+  # After the Hand
+  If the [Gilded Hand] has already been here, the door is unlocked.
+
+
+  # What’s Next?
+  Beyond the double doors lies the chamber that holds the [Cup of Iulius]. This chamber is quite different depending on whether the heroes arrive before or after the Gilded Hand. Use [D14.1 Cup Room Untouched] if the [Gilded Hand] hasn’t claimed the cup already. Use [D14.2 Cup Room Raided] if the mercenaries have the cup.
+mtime: 1770122561513

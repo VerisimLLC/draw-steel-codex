@@ -1,0 +1,42 @@
+__typeName: CharacterFeature
+testCases:
+- text: When the skeleton dies, each enemy within 1 square takes 1 damage.
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: b89503e3-6691-4f22-8dc5-65c89f7daf60
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "<<distance>>*5"
+    targetType: all
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "<<damage>>"
+    name: Hail of Bones
+    trigger: zerohitpoints
+    description: ""
+    abilityType: none
+    iconid: 74db885f-d96e-4b14-af40-69292a0d6a22
+  description: ""
+  source: Monster
+  behavior: trigger
+  guid: 6911a5e6-a903-4e27-aabf-df4cb6db73f5
+  name: Hail of Bones
+  sourceguid: 009c76dc-6425-4355-a5bd-3df14aa55a93
+source: Monster
+importMatchType: rules
+importMatch: When <<monster>> dies, each enemy within <<distance>> square takes <<damage>> damage.
+ctime: 1709487128182
+id: c148a928-e69b-43bc-bc52-16a03285f95b
+name: Hail of Bones
+guid: 009c76dc-6425-4355-a5bd-3df14aa55a93
+mtime: 1709535982786
+description: ""
+implementation: 3

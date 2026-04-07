@@ -1,0 +1,240 @@
+__typeName: MarkdownDocument
+annotations:
+  "encounter: Encounter D14 ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: Encounter ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: Encounter D14 1":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: Encounter D14A":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-17,5,1"
+        monsters:
+          8906eb64-ba29-4e79-92ad-f9489dec9962: 1
+      - appearances:
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Curious Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-20,10,1:2"
+        - __usertype: LuaLoc
+          loc: "-20,9,1"
+        - __usertype: LuaLoc
+          loc: "-20,11,1"
+        - __usertype: LuaLoc
+          loc: "-20,12,1"
+        - __usertype: LuaLoc
+          loc: "-17,8,1:2"
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 1
+          1f720515-3604-4c45-b58f-9ae58328669d: 4
+      - appearances:
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Sinister Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-20,6,1:2"
+        - __usertype: LuaLoc
+          loc: "-20,7,1"
+        - __usertype: LuaLoc
+          loc: "-20,4,1"
+        - __usertype: LuaLoc
+          loc: "-20,5,1"
+        - __usertype: LuaLoc
+          loc: "-17,7,1:2"
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 1
+          1f720515-3604-4c45-b58f-9ae58328669d: 4
+      - appearances:
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cowardly Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-20,0,1:2"
+        - __usertype: LuaLoc
+          loc: "-20,1,1"
+        - __usertype: LuaLoc
+          loc: "-20,2,1"
+        - __usertype: LuaLoc
+          loc: "-20,-1,1"
+        - __usertype: LuaLoc
+          loc: "-17,2,1:2"
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 1
+          1f720515-3604-4c45-b58f-9ae58328669d: 4
+      - appearances: []
+        monsters:
+          eb1dd295-16cf-4e44-9e1b-622c0c029297: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-17,0,1"
+        - __usertype: LuaLoc
+          loc: "-17,2,1"
+        minHeroes: 4
+      - appearances: []
+        monsters:
+          eb1dd295-16cf-4e44-9e1b-622c0c029297: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-17,11,1"
+        - __usertype: LuaLoc
+          loc: "-17,9,1"
+        minHeroes: 5
+      - appearances: []
+        monsters:
+          eb1dd295-16cf-4e44-9e1b-622c0c029297: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-22,3,1"
+        - __usertype: LuaLoc
+          loc: "-22,8,1"
+        minHeroes: 6
+      name: Encounter D14 A
+    spawns:
+    - e3e926a0-9446-4a34-a069-ff84dc1f5966
+    - 5600d926-5c7b-4518-9e94-82e578aee55f
+    - f7eb7be1-e3e1-4d82-8f64-f71663cd5b6a
+    - 061d7cb8-342a-4ea9-97bd-1a7607565af9
+    - 46920187-2a58-4491-8435-2ab4be692078
+    - c4a2e5b8-bc77-454c-8ff1-f43513c3eff6
+    - c665b22b-fe5d-4377-833c-da29f296f817
+    - db23ae69-e7ef-4499-a1ec-a4e188883c84
+    - a6f41861-7c22-4891-9be1-69568f3cc2f7
+    - 01c1737c-103a-4b11-aec3-d8e40e746fa9
+    - 744a7ace-e361-4175-af9b-70b427db648d
+    - 1d31f69a-4d34-4a7f-9038-e0524242bf9b
+    - bcbedfa5-cead-4458-abba-56f5d7233f7b
+    - fe9b34e3-932a-4237-8e09-4fb4e41843e2
+    - 170b05eb-bd88-4e06-ae6b-bd7a342a1162
+    - 006a718d-59c0-48f9-8e9e-5c1d7d1a2287
+    - d78ae8eb-2b03-4cea-b72f-12a10e6eafc1
+    - 126c840e-a47f-4a7e-8b79-c3dc58d83a2c
+    - 3db8565b-d8b9-46a4-a36d-e5527b1b5b77
+    - ab433bd6-70f2-4c0a-b3bd-e1208ccc75b7
+    - 7a4a9c24-72cb-4dc5-910b-af6e95b9d9c3
+    - 8bc180c4-51e7-4a6b-a125-eb447b40cb87
+  "encounter: Encounter D14":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: Encounter D":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: d4745788-ce07-4ec4-ac78-eca52d06b602
+ctime: 1761751559686
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: |+
+      [[//awardvp 1|Award Heroes 1 Victory]]
+
+
+    u: |
+      When Dame Cornelia is destroyed or if the heroes grab the [item:Cup of Iulius] and leave the chamber, the remaining undead in this room crumble to dust and the heroes earn 1 Victory each.
+    Y: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    s: |+
+      ## Ending the Encounter
+
+    W: |
+      **Encounter Adjustments**
+    q: |+
+      Dame Cornelia, the soulwights, and the zombies aim to hold the line at the top of the stairs, using forced movement and the Knockback maneuver to push heroes down the stairs and give the skeletons plenty of space to make ranged strikes.
+
+
+    U: "|6	|Two [soulwight]s|\n\n \n"
+    o: |+
+      ## Tactics
+
+    S: |
+      |5	|Two [soulwight]s|
+    m: |+
+      If a creature is force moved down the stairs, they end their movement prone.
+
+
+    Q: |
+      |4	|One [zombie] (captain), Four [decrepit skeleton]s (minion squad)|
+    C: |+
+      The heroes face the undead guardians of the [item:Cup of Iulius].
+
+    O: |
+      |3	|One [zombie] (captain), Four [decrepit skeleton]s (minion squad)|
+    c: |
+      * For four heroes, remove two soulwights.
+    M: |
+      |2	|One [zombie] (captain), Four [decrepit skeleton]s (minion squad)|
+    g: |+
+      ## Braziers
+
+    k: |+
+      ## Stairs
+
+    L: |
+      |1	|[Dame Cornelia]|
+    i: |+
+      Each time a creature touches a heavy iron brazier or starts their turn touching it, they take 2 fire damage.
+
+
+    J: |
+      |Group	|Creatures|
+    G: |2
+
+    H: |
+      **D14.1 Groups**
+    e: |+
+      * For three heroes, remove all four soulwights.
+
+
+    F: |+
+      [[encounter: Encounter D14A]]
+
+    GZ: |+
+      [[/activateobjects E14_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects E14_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    D: |+
+      [[setting:Number of Heroes]]
+
+    a: |
+      * For six heroes, add two soulwights.
+    B: |
+      # Encounter D14.1	
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: cca3f352-ef0d-4b3f-b48d-8a9251b99377
+mtime: 1768581433648
+content: "# Encounter D14.1	\nThe heroes face the undead guardians of the [Cup of Iulius].\n\n[[encounter: Encounter D14A]]\n\n**D14.1 Groups**\n|Group	|Creatures|\n|1	|Dame Cornelia|\n|2	|One zombie (captain), Four decrepit skeletons (minion squad)|\n|3	|One zombie (captain), Four decrepit skeletons (minion squad)|\n|4	|One zombie (captain), Four decrepit skeletons (minion squad)|\n|5	|Two soulwights|\n|6	|Two soulwights|\n\n \n**Encounter Adjustments**\nIf this encounter has more or fewer than five heroes, make the following adjustments:\n* For six heroes, add two soulwights.\n* For four heroes, remove two soulwights.\n* For three heroes, remove all four soulwights.\n\n\n## Braziers\n\nEach time a creature touches a heavy iron brazier or starts their turn touching it, they take 2 fire damage.\n\n\n## Stairs\n\nIf a creature is force moved down the stairs, they end their movement prone.\n\n\n## Tactics\n\nDame Cornelia, the soulwights, and the zombies aim to hold the line at the top of the stairs, using forced movement and the Knockback\nmaneuver to push heroes down the stairs and give the skeletons plenty of space to make ranged strikes.\n\n\n## Ending the Encounter\n\nWhen Dame Cornelia is destroyed or if the heroes grab the [Cup of Iulius] and leave the chamber, the remaining undead in this room crumble to dust and the heroes earn 1 Victory each.\n[[/awardvp 1|Award Heroes 1 Victory]]\n\n\n"
+description: Encounter D14.1

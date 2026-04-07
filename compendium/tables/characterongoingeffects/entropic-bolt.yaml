@@ -1,0 +1,37 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 01a625a9-0f25-40d2-8d0c-4b09dedf91ce
+  displayCondition: ability.name = "Entropic Bolt"
+  source: Ongoing Effect
+  guid: 5c8e9971-6f79-4127-9efc-64947c23f399
+  keywords: []
+  activationCondition: ability.name = "Entropic Bolt"
+  behavior: power
+  name: Entropic Bolt
+  description: You take extra damage each time you are targeted by Entropic Bolt.
+  damageModifier: stacks
+  rollType: enemy_ability_power_roll
+  modtype: none
+source: Ongoing Effect
+stackable: true
+id: 01a625a9-0f25-40d2-8d0c-4b09dedf91ce
+ctime: 1748318123017
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.502000153064728
+    s: 0.7109375
+    v: 1.00306534767151
+    a: 1
+guid: 01a625a9-0f25-40d2-8d0c-4b09dedf91ce
+custom: true
+name: Entropic Bolt
+iconid: 4db2911c-324d-47f4-a105-065dc93c6369
+description: You take extra damage each time you are targeted by Entropic Bolt.
+mtime: 1765954145640
+implementation: 3

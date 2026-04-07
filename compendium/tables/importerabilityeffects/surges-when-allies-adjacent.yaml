@@ -1,0 +1,32 @@
+__typeName: ActivatedAbility
+insertAtStart: true
+id: 2117f25e-c608-411c-ba9e-d884fb071f32
+behaviors:
+- __typeName: ActivatedAbilityModifyCastBehavior
+  applyto: caster
+  filterTarget: target.Count Nearby Friends(1)
+  name: Adjacent Allies
+  paramid: ability_surges
+  description: "Has :surge: on this attack while adjacent to an ally."
+  value: "<<surges>>"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: "The sagittarius has :surge: on this attack while adjacent to an ally."
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: 1ebffd0c-0745-4de0-9a62-552ffddc5998
+importMatch: "<<monster>> has <<surges>> on this attack while adjacent to an ally."
+ctime: 1731819564416
+targetType: self
+repeatTargets: false
+name: Surges when allies adjacent
+mtime: 1747094015786
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

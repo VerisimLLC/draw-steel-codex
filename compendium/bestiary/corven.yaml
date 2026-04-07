@@ -1,0 +1,89 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 31ba7973-e0f1-445c-ad2e-76c1b4b9266f
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.05859375
+      y: 0.003906399
+    frameHueShift: 0.6352944
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9da45589-d15d-4a5b-a4e0-7c4792776a3b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 11
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_type: Corven
+    damage_taken: 0
+    walkingSpeed: 30
+    resources: []
+    levelChoices: []
+    skillRatings: []
+    creatureSize: 1T
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: 02eeea00-8dee-4452-882e-fdd53369564f
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 0
+  createdTimestamp: 1727318633370
+description: null
+parentFolder: efced4b0-e906-40b3-ac6a-704c432d83f9
+artist: null
+ord: 2
+ctime: 1741590213112
+mtime: 1775167553239
+hidden: false

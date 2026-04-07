@@ -1,0 +1,100 @@
+__typeName: Title
+effect: |-
+  Choose one of the following benefits:
+
+  At Home in the Dungeon: While in an artificial underground structure, you can’t be surprised. 
+
+  Knight Scholar: When negotiating with knights or other nobles who reached their standing through military service, your renown is considered to be 2 higher than usual.
+
+  Mail Breaker: When you make a melee strike against a creature with the leader role, the strike gains a +2 rolled damage bonus.
+prerequisite: Reach the final room of the Delian Tomb
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Benefit
+    options:
+    - __typeName: CharacterFeature
+      source: Title
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6431f5e4-7ba8-4499-b2b1-f10ae5cfa408
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions:
+            - ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+            mode: conditions
+            chatMessage: One with the Wilderness
+          triggerPrompt: While in an artificial underground structure, you can’t be surprised.
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 3783a0d6-51ac-4190-907b-4b5a1cfec6e8
+          trigger: inflictcondition
+          castImmediately: true
+          targetType: self
+          persistence: []
+          name: At Home in the Dungeon
+          conditionFormula: Condition is "Surprised"
+          description: While in an artificial underground structure, you can’t be surprised.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        name: One with the Wilderness
+        source: Title
+        behavior: trigger
+        guid: abce3a5c-b585-4681-8f29-9004a4c9adca
+        description: While you are outdoors and not in a settlement, you can’t be surprised.
+      canHavePrerequisites: true
+      name: At Home in the Dungeon
+      description: While in an artificial underground structure, you can’t be surprised.
+      guid: 8e01f938-d2f3-4e27-b207-fd0ff855f57a
+      implementation: 2
+    - __typeName: CharacterFeature
+      source: Title
+      modifiers: []
+      canHavePrerequisites: true
+      name: Knight Scholar
+      description: When negotiating with knights or other nobles who reached their standing through military service, your renown is considered to be 2 higher than usual.
+      guid: 4dc409fc-1bbf-407b-96b5-eff764bef396
+      implementation: 1
+    - __typeName: CharacterFeature
+      source: Title
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 886240d1-d3b1-46ca-ac3e-d92738bad0ba
+        source: Title
+        modtype: none
+        keywords:
+          Melee: true
+          Strike: true
+        activationCondition: Target.Leader
+        rollType: ability_power_roll
+        name: Mail Breaker
+        damageModifier: "2"
+        description: When you make a melee strike against a creature with the leader role, the strike gains a +2 rolled damage bonus.
+        behavior: power
+        guid: dc1f0ee9-795d-4edb-b576-36ab5d572e60
+      canHavePrerequisites: true
+      name: Mail Breaker
+      description: When you make a melee strike against a creature with the leader role, the strike gains a +2 rolled damage bonus.
+      guid: 886240d1-d3b1-46ca-ac3e-d92738bad0ba
+      implementation: 3
+    description: "Choose one of the following benefits:"
+    numChoices: 1
+    guid: f4497670-fc41-4f25-8996-4a682e2a96b4
+name: Delian Delver
+mtime: 1770129629354
+description: The famous tomb was once thought impenetrable. That is, until I came along.
+id: e4c18a3f-f359-4a4f-b31c-67410c9ae8cf
+ctime: 1764025469473

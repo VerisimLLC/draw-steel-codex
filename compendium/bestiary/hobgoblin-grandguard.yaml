@@ -1,0 +1,222 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: a774b9f4-c42d-4da5-bd20-5ef9d195bc34
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.7808439
+    frameSaturation: 0.6189479
+    frameBrightness: 1
+    popoutScale: 0.853978
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: bf0883ec-9a9f-422e-a78e-62f5596ffa04
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 4
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Grandguard	Level 6 Platoon Defender
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 16
+        <b>Stamina</b> 111	<b>Immunity</b> fire 6
+        <b>Speed</b> 4	<b>Size</b> 2 /<b> Stability</b> 4
+        <b>Free Strike</b> 6
+        Might +3	Agility +2	Reason +3	Intuition 0	Presence +2
+        <b>Tower Shield Smash</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	14 damage
+        %E2%9C%B8	<b>17</b>	17 damage; prone
+        <b>3 Malice</b> Each ally adjacent to a target that is knocked prone can make a free strike.
+
+        <b>Thunder Rush</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Charge, Melee, Weapon
+        <b>Distance</b> 1 x 2 line within 1	<b>Target</b> All enemies and objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage
+        %E2%9C%B8	<b>17</b>	14 damage
+        <b>Effect</b> Push 10. The grandguard shifts into every 2 squares left behind by targets.
+
+        <b>Wide Guard</b>
+        The grandguard imposes a bane on strikes against each ally within 2.
+
+        <b>Infernal Ichor</b>
+        If the grandguard's Stamina drops to 0, they spray burning blood. Each creature within 1 of the grandguard takes 3 fire damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7c0f47b5-5522-4f7f-b1a7-21050c483178: true
+      modifiers: []
+      name: Wide Guard
+      description: The grandguard imposes a bane on strikes against each ally within 2.
+      guid: 7c0f47b5-5522-4f7f-b1a7-21050c483178
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ebba3aa0-c0dd-4336-8e24-20e0acee0e45: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the grandguard's Stamina drops to 0, they spray burning blood. Each creature within 1 of the grandguard takes 3 fire damage.
+      guid: ebba3aa0-c0dd-4336-8e24-20e0acee0e45
+      source: Trait
+    role: Platoon Defender
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    max_hitpoints_roll: "111"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Hobgoblin Grandguard
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 4
+    resources: []
+    max_hitpoints: 111
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 08545c6b-0e8f-434f-9f3c-603f1f900733
+      implementation: 3
+      numTargets: 1
+      name: Tower Shield Smash
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 14 damage
+        - 17 damage; prone
+        roll: 2d10 + Might
+      description: |2-
+
+        **3 Malice**: Each ally adjacent to a prone target can make a free strike against that target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Charge: true
+        Area: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 83e8960a-2128-4815-b6b4-0f9a5d77f23b
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 11 damage
+        - 14 damage
+        roll: 2d10 + Might
+      name: Thunder Rush
+      implementation: 3
+      description: Push 10. The grandguard shifts into every 2 squares left behind by targets.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds: []
+    ev: 16
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 6fc4b2aa-7659-49db-9cbf-ac8b7d4ae3af
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Hobgoblin Grandguard
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590265404
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,538 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 38721fe9-e4c8-4ff4-bbcd-78becfcbd0cf
+    offtokenPortraitId: 884b7c5f-710d-4786-9db6-22ce18b7e2fe
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2786047
+    portraitOffset:
+      x: 0.02013171
+      y: 0.2032067
+    frameHueShift: 0.4966156
+    frameSaturation: 0.6626756
+    frameBrightness: 1
+    popoutScale: 0.99
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 943dce0c-ef02-470c-8a93-27b3b4394592
+  properties:
+    __typeName: monster
+    groupid: ad734f83-9fbe-4f7d-b0f9-7a6b67917513
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 60
+    inflictedConditions: []
+    ev: 16
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Bugbear Channeler	Level 2 Elite Controller
+        Bugbear, Goblin, Humanoid, Fey	EV 16
+        <b>Stamina</b> 60
+        <b>Speed</b> 5	<b>Size</b> 1L /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +1	Agility +1	Reason +2	Intuition +2	Presence +2
+        <b>Shadow Drag</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Strike, Ranged
+        <b>Distance</b> Ranged 8<b>	Target</b> 2 creatures or objects on the ground
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; pull 2
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; pull 3
+        %E2%9C%B8	<b>17</b>	13 damage; pull 4
+        <b>Effect</b> Each square that a target is pulled through becomes difficult terrain for enemies.
+
+        <b>Blistering Element</b> (Action)%E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage; M<0 bleeding (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	3 damage; M<1 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	4 damage; M<2 bleeding (save ends)
+        <b>Effect</b> The channeler chooses one of the following damage types for the damage: acid, cold, corruption, fire, or poison.
+
+        <b>Twist Shape</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 5 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 corruption damage; P<0 slowed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	8 corruption damage; P<1 shapechanged (save ends)
+        %E2%9C%B8	<b>17</b>	11 corruption damage; P<2 shapechanged (save ends)
+        <b>Effect</b> A shapechanged creature has their limbs violently stretched and their skin becomes paper thin. They are slowed and have fire weakness 10 while they have this effect.
+
+        <b>Throw</b> (Maneuver)
+        <b>Keywords</b> Attack, Melee
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object grabbed by the channeler
+        <b>Effect</b> Vertical push 3. An ally target doesn't take damage from being force moved.
+
+        <b>Catcher</b> (Free Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> 1 size 1 creature or object
+        <b>Trigger</b> The target is force moved into a square adjacent to the channeler.
+        <b>Effect</b> The target is grabbed by the channeler.
+
+        <b>Shadow Veil</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 ally
+        <b>Trigger</b> The target takes damage.
+        <b>Effect</b> The channeler collapses the target into their shadow and halves the damage. The target can't be targeted by strikes until they reform from the shadows at the start of their next turn.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+        sourceguid: 46e1891f-8463-4676-978f-4685cb36d5ef
+        behavior: trigger
+        source: Character Feature
+        name: Catcher
+        description: " "
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          hasManualVersion: true
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "20"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: finishmove
+          conditionFormula: ((Not Friends(self, Subject)) and Path.DistanceToCreature(Self) <= 1 and path.Forced) or (Friends(self, subject) and Path.DistanceToCreature(Self) <= 1)
+          persistence: []
+          guid: 2b11cf4f-6079-4cf1-abec-7776c0a0f170
+          name: Catcher
+          behaviors:
+          - __typeName: ActivatedAbilityRevertLocBehavior
+            distance: 1
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: grabbed
+          description: |-
+            Trigger: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+            Effect: The target is grabbed by the channeler.
+          subject: other
+          iconid: ui-icons/skills/1.png
+        guid: 9fc4bb35-16f5-44ff-bea7-c2c247300f33
+      source: Character Feature
+      description: " "
+      guid: 46e1891f-8463-4676-978f-4685cb36d5ef
+      name: Catcher
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:498279d6-8f60-4e38-9675-09279f0ed8ed: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:498279d6-8f60-4e38-9675-09279f0ed8ed: true
+        sourceguid: 498279d6-8f60-4e38-9675-09279f0ed8ed
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Shadow Veil
+        description: ""
+        guid: 4c3eb1f5-6bab-400c-8dbf-d7f3f956f2d5
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The target is wrapped in shadow and halves the damage. The target can't be targeted by strikes until the start of their next turn.
+          name: Shadow Veil
+          trigger: An ally within distance takes damage.
+          guid: 7f57dd49-47f3-43c5-bb7b-ceb909cbe4ac
+          distance: Ranged 5
+          keywords:
+            Ranged: true
+            Magic: true
+      - __typeName: CharacterModifier
+        sourceguid: 498279d6-8f60-4e38-9675-09279f0ed8ed
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          modtype: none
+          keywords: []
+          activationCondition: false
+          damageMultiplier: half
+          name: Shadow Veil
+          rules: ""
+          guid: be85179a-68ef-49ec-a108-25ccd642e7ad
+          rollType: ability_power_roll
+          behavior: power
+        guid: 7dda16f2-0a0f-4f58-8d78-7966c7ffdbde
+        type: trigger
+        domains:
+          CharacterFeature:498279d6-8f60-4e38-9675-09279f0ed8ed: true
+        targetType: ally
+        trigger: takedamage
+        name: Shadow Veil
+        rules: ""
+        description: ""
+        range: "5"
+        behavior: powertabletrigger
+      source: Character Feature
+      description: ""
+      guid: 498279d6-8f60-4e38-9675-09279f0ed8ed
+      name: Shadow Veil
+      implementation: 2
+    role: Elite Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        24f5c9ad-fdd8-412e-80fd-ebc6dcf9c5c6:
+          refreshid: 93444110-e2e9-483b-b681-b37606d62941-1
+          note: Twist Shape
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    initiativeGrouping: c6638cd5-df9c-4c76-afad-9e68a044a212
+    keywords:
+      Fey: true
+      Bugbear: true
+      Goblin: true
+      Humanoid: true
+    damage_taken: 0
+    savingThrowRatings: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 93444110-e2e9-483b-b681-b37606d62941-1
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      implementationDetails: 'Squares are not made to be difficult terrain cuurently. '
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; pull 2
+        - 10 damage; pull 3
+        - 13 damage; pull 4
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 8
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: d093b007-9e60-4489-b48c-d182d7a79b8e
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 2
+      targetType: target
+      name: Shadow Drag
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      description: Each target must be on the ground, and each square a target is pulled through is difficult terrain for enemies.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      implementationDetails: 'Select the damage type after selecting the ability. '
+      targetType: all
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      preDescription: "The channeler chooses one of the following damage types: acid, cold, corruption, fire, or poison."
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: bbc6b6f4-6352-4784-91a1-5fb6cea19b88
+      modeList:
+      - text: Acid
+      - text: Cold
+      - text: Corruption
+      - text: Fire
+      - text: Poison
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      range: 3
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      name: Blistering Element
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 acid damage; M<0 bleeding (save ends)
+        - 3 acid damage; M<1 bleeding (save ends)
+        - 4 acid damage; M<2 bleeding (save ends)
+        roll: 2d10 + 2
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 cold damage; M<0 bleeding (save ends)
+        - 3 cold damage; M<1 bleeding (save ends)
+        - 4 cold damage; M<2 bleeding (save ends)
+        guid: deb02ff0-7b68-4e8c-b4ce-70beab962d10
+        modesSelected:
+        - 2
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage; M<0 bleeding (save ends)
+        - 3 corruption damage; M<1 bleeding (save ends)
+        - 4 corruption damage; M<2 bleeding (save ends)
+        guid: 319e5730-518e-4417-859a-e1e58cf7ef17
+        modesSelected:
+        - 3
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 fire damage; M<0 bleeding (save ends)
+        - 3 fire damage; M<1 bleeding (save ends)
+        - 4 fire damage; M<2 bleeding (save ends)
+        guid: 4ce93d98-6cb3-4b59-9685-9b94534d640f
+        modesSelected:
+        - 4
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 poison damage; M<0 bleeding (save ends)
+        - 3 poison damage; M<1 bleeding (save ends)
+        - 4 poison damage; M<2 bleeding (save ends)
+        guid: 38727b61-c654-4b86-88b3-20dc405b71e6
+        modesSelected:
+        - 5
+        roll: 2d10 + 2
+      description: ""
+      abilityType: none
+      implementation: 2
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      implementationDetails: ""
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 corruption damage; P<0 slowed (save ends)
+        - 8 corruption damage; P<1 the target is shapechanged (save ends)
+        - 11 corruption damage; P<2 the target is shapechanged (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 2f1f3167-ff79-4f70-b72a-4a4b5f0db8c6
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      targetType: target
+      numTargets: 1
+      name: Twist Shape
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: |-
+        A shapechanged creature is slowed and has fire
+        weakness 10 as their limbs stretch and their skin becomes
+        paper thin.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: Conditions has "grabbed"
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+      implementationDetails: 'It checks that the target is grabbed, but does not limit it to targets grabbed by the channeler. '
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Friends(caster,Target)
+        duration: 0
+        ongoingEffectCustom: false
+        ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+        stacks: "3"
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: vertical push 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: c2236f41-1036-4bac-a7ca-569003d6ad8b
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      implementation: 3
+      name: Throw
+      persistence: []
+      description: |-
+        Vertical push 3. An ally target doesn't take damage from being force moved.
+
+        **Special:** The target must be grabbed by you.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilityRevertLocBehavior
+        distance: 1
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: grabbed
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 07a44f21-3f1b-4fb4-baca-f41ed23bcdf6
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Catcher
+      sourceReference:
+        __typeName: SourceReference
+        page: 53
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The target is grabbed by the channeler.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    creatureSize: 1L
+    walkingSpeed: 5
+    monster_type: Bugbear Channeler
+    movementSpeeds: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        d0330210-5077-4cb9-a661-7a973af84b26:
+          note: Throw
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        2c5c9754-74b2-400f-a44b-de2a6a67c957:
+          note: Grab
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        0e6ddef0-55a2-47ea-b863-577429fb79d9:
+          note: Grab
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        83c817b1-8a61-4fb8-87d9-cdeceb93f59a:
+          refreshid: 93444110-e2e9-483b-b681-b37606d62941-1
+          note: Throw
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    availableTriggers: []
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: 448ad595-c654-40d0-9c34-5116b2eaaa69-828
+  tokenType: null
+  bestiaryId: 26bf65f9-f313-4e28-a2ac-ff6bf252ebf3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1726301040866
+description: Bugbear Channeler
+parentFolder: 48e8f60e-8ed1-400a-83c2-e4170481f4b4
+artist: null
+ord: 0
+ctime: 1741590232346
+mtime: 1775201137032
+hidden: false

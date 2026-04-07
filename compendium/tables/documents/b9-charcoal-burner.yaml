@@ -1,0 +1,172 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 45e75e29-e804-4d51-9eb5-f2f8ef2d9c31
+ctime: 1761388330176
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: |
+      > * If a hero elects to join the Coursers, Orson gives them a steel brooch that resembles a twelve-stringed lute, a symbol of their membership in the organization. They also earn the [title:Courser Chanterelle] title.
+    u: |
+      > * Since the heroes have aided Orson, they can join the organization if they wish. At least two heroes must join, as Coursers work in numbers of two or greater.
+    s: |
+      > * Most members of the organization are traveling heroes who go from place to place looking for evil within the wilds to combat. These adventuring Coursers travel in pairs (or sometimes as a larger party of heroes).
+    q: |
+      > * The organization consists of heroes of all kinds, but the most common folks to join are those with connections to nature—green elementalists, furies, and conduits with the nature domain.
+    o: |
+      > * The Coursers are a somewhat secret society—not because they hide their existence, but because they don’t announce it or claim credit for their achievements.
+    m: |
+      > * The Coursers are an organization dedicated to defending the wild places of the world. This means defending forests, rivers, plains, oceans, deserts, and other natural places from cultists, demons, and those who would destroy or corrupt the wilderness.
+    k: |+
+      If a hero wishes to learn more about the Coursers, [Orson] provides the following information:
+
+
+    i: |+
+      ## Becoming a Courser
+
+    g: |+
+      > * “In the meantime, if you folks are interested in becoming Coursers yourselves, let me know. I can give you more information about it. You’ve proven yourselves worthy of membership.”
+
+
+    e: |
+      > * “This amulet—the Amulet of the Delian Order—I actually want you to have it. It will get you deeper into the Delian Tomb, and I know what’s going on there. I’ve kept my ear to the ground. [Abbott Loric] left some notes out in the chapel I happened to see.”
+    c: |
+      > * “I’m part of an organization called the Coursers. I basically help out traveling heroes who are part of the organization, and those who are outside of it—like yourselves.”
+    a: |+
+      If the heroes return [Orson]’s lost amulet, which is the [item:Amulet of the Delian Order], he drops the act, speaking plainly with them. He’s direct, friendly, and warm. With his amulet in hand, he shares the following information:
+
+
+    b: |
+      > * “Thank you for this. I know. I’m not who I pretend to be. I’m actually like you, an adventurer. Well, I used to be.”
+    Y: |+
+      If the heroes go to [Ellery]’s farm, proceed to [Arixx Nest].
+
+
+    Z: |+
+      ## The Real Orson
+
+    W: |
+      |{#The hero knows that Orson speaks of an arixx—a subterranean insect the size of a horse that pops out of the ground to devour victims. They also know the arixx breathes fire }{(which isn’t true, the arixx breathes acid, but the hero gets this information wrong as a complication for the test).}
+    X: |+
+      |{#As 12–16, except the hero knows the arixx breathes acid, not fire.}
+
+    U: |
+      |Recall Big Bug Lore: Reason Test
+    V: |
+      |{#The hero can’t identify the bug based on Orson’s description.}
+    S: |+
+      > * “I thought it was lost, but then I just heard that [Ellery]’s farm had something strange happen. Something jumping out of the ground eating her pigs! She doesn’t trust the reeve, but if you go asking, you might find the bug, squash it, and get my necklace! If you can get it back, I’d be so grateful.”
+
+
+    T: |
+      A hero who wants to know more about the bug [Orson] is describing can make a moderate Reason test.
+    Q: |
+      > * “Anyways, your pal [Orson] is wandering the woods for wood when all of a suddenly a big bug jumps out from the ground! Chasing me! Trying to eat me and spitting burning goop!”
+    R: |
+      > * “I barely got away, but mister mean bug took my necklace. Oh, it’s a thing of beauty. Big. Brass. Looks like the sky fire!”
+    O: |
+      > * “See, I was out there gathering wood. Old Vaughn refuses to search for wood. Says its dane-jer-us! He’s right. So very correcto.”
+    P: |
+      > * “But I didn’t know that then, see? Not days ago when I went out searching for my own stuff to burn. Brought my axe and everything. Shiny.”
+    M: |+
+      If the heroes speak with Orson, he eagerly provides the following information:
+
+
+    N: |
+      > * Folks, folks, folks, folks, folks, folks. I need your help. There’s a big bug in the forest. Big. Bug. Huge!”
+    K: |+
+      If asked about the façade, [Orson] doesn’t deny that he puts up a false persona, but he does maintain it until the heroes retrieve his amulet.
+
+
+    L: |+
+      ## Lost Amulet
+
+    I: |
+      |{#The hero can’t tell if Orson is putting on a façade or not.} 
+    J: |+
+      |{#The hero can tell that Orson is much more observant and sharp-witted than he seems and that his kindness is genuine.}
+
+    G: |
+      |Read Orson: Intuition Test
+    H: |
+      |{#The hero believes that Orson is exactly who he seems to be.}
+    E: |+
+      The old man is [Orson], a seemingly eccentric charcoal burner who is covered in soot. He’s not as out there as he seems. [Orson] plays the doddering old man, but he belongs to a semisecret organization of adventuring heroes called the Coursers. Retired from performing heroic deeds, Orson stays in Broadhurst and operates a safehouse for adventuring Coursers passing through the village. His put-on persona keeps the other villagers away and his waystation a secret.
+
+    F: |
+      When he first meets the heroes, [Orson] maintains his façade but is kind to them and immediately asks for their help while praising them as brave heroes who help those in need. A hero who is suspicious of Orson’s act can make a hard Intuition test.
+    C: |
+      > * “A small hut stands near a large mound of dirt and moss that has a wide opening at the top releasing smoke.”
+    D: |+
+      > * “A ladder leans against the mound and atop it sits an old man who is looking into the smoke and smiling.”
+
+    B: |+
+      # B9. Charcoal Burner
+
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: d07a659d-7bb4-4073-8ebd-3a3ef0969c5c
+mtime: 1775200680963
+content: |
+  # B9. Charcoal Burner
+
+
+  > * “A small hut stands near a large mound of dirt and moss that has a wide opening at the top releasing smoke.”
+  > * “A ladder leans against the mound and atop it sits an old man who is looking into the smoke and smiling.”
+
+  The old man is [Orson], a seemingly eccentric charcoal burner who is covered in soot. He’s not as out there as he seems. [Orson] plays the doddering old man, but he belongs to a semisecret organization of adventuring heroes called the Coursers. Retired from performing heroic deeds, Orson stays in Broadhurst and operates a safehouse for adventuring Coursers passing through the village. His put-on persona keeps the other villagers away and his waystation a secret.
+
+  When he first meets the heroes, [Orson] maintains his façade but is kind to them and immediately asks for their help while praising them as brave heroes who help those in need. A hero who is suspicious of Orson’s act can make a hard Intuition test.
+  |Read Orson: Intuition Test
+  |{#The hero believes that Orson is exactly who he seems to be.}
+  |{#The hero can’t tell if Orson is putting on a façade or not.} 
+  |{#The hero can tell that Orson is much more observant and sharp-witted than he seems and that his kindness is genuine.}
+
+  If asked about the façade, [Orson] doesn’t deny that he puts up a false persona, but he does maintain it until the heroes retrieve his amulet.
+
+
+  ## Lost Amulet
+
+  If the heroes speak with Orson, he eagerly provides the following information:
+
+
+  > * Folks, folks, folks, folks, folks, folks. I need your help. There’s a big bug in the forest. Big. Bug. Huge!”
+  > * “See, I was out there gathering wood. Old Vaughn refuses to search for wood. Says its dane-jer-us! He’s right. So very correcto.”
+  > * “But I didn’t know that then, see? Not days ago when I went out searching for my own stuff to burn. Brought my axe and everything. Shiny.”
+  > * “Anyways, your pal [Orson] is wandering the woods for wood when all of a suddenly a big bug jumps out from the ground! Chasing me! Trying to eat me and spitting burning goop!”
+  > * “I barely got away, but mister mean bug took my necklace. Oh, it’s a thing of beauty. Big. Brass. Looks like the sky fire!”
+  > * “I thought it was lost, but then I just heard that [Ellery]’s farm had something strange happen. Something jumping out of the ground eating her pigs! She doesn’t trust the reeve, but if you go asking, you might find the bug, squash it, and get my necklace! If you can get it back, I’d be so grateful.”
+
+
+  A hero who wants to know more about the bug [Orson] is describing can make a moderate Reason test.
+  |Recall Big Bug Lore: Reason Test
+  |{#The hero can’t identify the bug based on Orson’s description.}
+  |{#The hero knows that Orson speaks of an arixx—a subterranean insect the size of a horse that pops out of the ground to devour victims. They also know the arixx breathes fire (which isn’t true, the arixx breathes acid, but the hero gets this information wrong as a complication for the test).}
+  |{#As 12–16, except the hero knows the arixx breathes acid, not fire.}
+
+  If the heroes go to [Ellery]’s farm, proceed to [Arixx Nest].
+
+
+  ## The Real Orson
+
+  If the heroes return [Orson]’s lost amulet, which is the Amulet of the Delian Order (see Treasure in Handouts), he drops the act, speaking plainly with them. He’s direct, friendly, and warm. With his amulet in hand, he shares the following information:
+
+
+  > * “Thank you for this. I know. I’m not who I pretend to be. I’m actually like you, an adventurer. Well, I used to be.”
+  > * “I’m part of an organization called the Coursers. I basically help out traveling heroes who are part of the organization, and those who are outside of it—like yourselves.”
+  > * “This amulet—the Amulet of the Delian Order—I actually want you to have it. It will get you deeper into the Delian Tomb, and I know what’s going on there. I’ve kept my ear to the ground. [Abbott Loric] left some notes out in the chapel I happened to see.”
+  > * “In the meantime, if you folks are interested in becoming Coursers yourselves, let me know. I can give you more information about it. You’ve proven yourselves worthy of membership.”
+
+
+  ## Becoming a Courser
+
+  If a hero wishes to learn more about the Coursers, [Orson] provides the following information:
+
+
+  > * The Coursers are an organization dedicated to defending the wild places of the world. This means defending forests, rivers, plains, oceans, deserts, and other natural places from cultists, demons, and those who would destroy or corrupt the wilderness.
+  > * The Coursers are a somewhat secret society—not because they hide their existence, but because they don’t announce it or claim credit for their achievements.
+  > * The organization consists of heroes of all kinds, but the most common folks to join are those with connections to nature—green elementalists, furies, and conduits with the nature domain.
+  > * Most members of the organization are traveling heroes who go from place to place looking for evil within the wilds to combat. These adventuring Coursers travel in pairs (or sometimes as a larger party of heroes).
+  > * Since the heroes have aided Orson, they can join the organization if they wish. At least two heroes must join, as Coursers work in numbers of two or greater.
+  > * If a hero elects to join the Coursers, Orson gives them a steel brooch that resembles a twelve-stringed lute, a symbol of their membership in the organization. They also earn the Courser: Chanterelle title (see Titles in [Delian Tomb Handout Treasures, Titles, and Followers v1]).
+description: B9. Charcoal Burner

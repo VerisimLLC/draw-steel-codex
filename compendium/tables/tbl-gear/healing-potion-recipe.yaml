@@ -1,0 +1,12 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 4e7907de-f6b8-4ace-a582-4643bc18a608
+ctime: 1765457718841
+type: Gear
+mtime: 1765457718841
+name: Healing Potion Recipe
+flavor: This appears to be a recipe for a potion
+description: A recipe written in Caelian that describes how to make a Healing Potion and counts as a project source for that item. (See Downtime Projects in the Starter Rules, or Draw Steel Heroes for more information)
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

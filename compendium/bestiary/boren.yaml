@@ -1,0 +1,87 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8b02c6d7-deb8-4ad7-836b-03ccd5d26bbc
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.8392884
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: aeaaacce-f7e3-4005-81d9-b40f5a8afd2d
+  properties:
+    __typeName: monster
+    creatureSize: "2"
+    cr: 1
+    damage_taken: 0
+    levelChoices: []
+    max_hitpoints: 9
+    walkingSpeed: 30
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    monster_type: Boren
+    skillRatings: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    savingThrowRatings: []
+    resources: []
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: f5272042-0333-4560-b67d-1c8582dbb6f2
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1727316309736
+description: null
+parentFolder: efced4b0-e906-40b3-ac6a-704c432d83f9
+artist: null
+ord: 1
+ctime: 1741590327899
+mtime: 1775167550798
+hidden: false

@@ -1,0 +1,18 @@
+__typeName: CultureAspect
+mtime: 1756163815925
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      crafting: true
+      exploration: true
+    name: Communal Skill
+    guid: 09ab831a-6fe0-4f1f-94f4-68a934425b46
+    description: Choose one Skill from the crafting or exploration skill groups. (*Quick Build:* Jump)
+    source: Communal Culture Feature
+name: Communal
+category: organization
+description: "A communal culture is a place where all members of the culture are considered equal. The community works together to make important decisions that affect the majority of the culture. While they elect leaders to carry out these decisions and organize their efforts, each person has a relatively equal say in how the culture operates, and everyone contributes to help their people survive and thrive. Individuals often share the burdens of governing, physical labor, childcare, and other duties. A collective of farmers who work together to cultivate and protect their land without a noble, a city of pirates where each person can do as they wish, and a traveling theatrical troupe whose members vote on every artistic and administrative decision are all communal cultures. \n\nMany communal cultures operate outside settled lands, sticking to the wilds, a specific district in a larger settlement, city sewers, forgotten ruins, or other isolated places. For even when such cultures are harmless, their members know that outsiders might try to impose rules upon them if they live in the same place. As such, many folks in communal cultures focus on fending for themselves while avoiding the danger that other groups can represent. "
+id: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+ctime: 1730729843237

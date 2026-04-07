@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 0f7c3b13-b6ce-40fe-9964-6235e7862a89
+  source: Ongoing Effect
+  value: Walking Speed/2
+  domains:
+    CharacterOngoingEffect:0f7c3b13-b6ce-40fe-9964-6235e7862a89: true
+  name: Strained Applied Chronometrics
+  guid: 63715ebc-af6d-4fbb-9868-2e93f4d37cad
+  description: Your speed is halved
+  behavior: attribute
+  attribute: speed
+source: Ongoing Effect
+guid: 0f7c3b13-b6ce-40fe-9964-6235e7862a89
+id: 0f7c3b13-b6ce-40fe-9964-6235e7862a89
+ctime: 1757775539790
+domains:
+  CharacterOngoingEffect:0f7c3b13-b6ce-40fe-9964-6235e7862a89: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Strained Applied Chronometrics
+custom: true
+description: Your speed is halved
+mtime: 1757776563066
+iconid: ui-icons/skills/1.png

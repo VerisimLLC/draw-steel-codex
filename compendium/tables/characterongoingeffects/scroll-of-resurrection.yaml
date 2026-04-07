@@ -1,0 +1,70 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 3a6cc5fe-cab9-4190-8e27-6f04d466067c
+  source: Ongoing Effect
+  guid: 100ebbc7-0154-4666-b04d-485b4597a1b2
+  explanationText: |-
+    As a respite activity, you repeatedly chant the contents of this scroll over the remains of a creature who has been dead for less than 1 year. The creature’s soul must be willing to return to life for the scroll to work. If they are not willing, you instinctively understand that as you start the respite activity and can cease it immediately. The scroll is not consumed, and you can undertake a new respite activity. 
+    A creature with a willing soul returns to life at the end of the respite with full Stamina and half their Recoveries. You regain only half your Recoveries at the end of the respite, and the scroll is consumed.
+  name: Scroll of Resurrection
+  description: |-
+    As a respite activity, you repeatedly chant the contents of this scroll over the remains of a creature who has been dead for less than 1 year. The creature’s soul must be willing to return to life for the scroll to work. If they are not willing, you instinctively understand that as you start the respite activity and can cease it immediately. The scroll is not consumed, and you can undertake a new respite activity. 
+    A creature with a willing soul returns to life at the end of the respite with full Stamina and half their Recoveries. You regain only half your Recoveries at the end of the respite, and the scroll is consumed.
+  targetDocId: 2fbc8f4d-eba7-4a15-822c-3e26afe19ce1
+  heading: Scroll of Resurrection
+  behavior: journalexplanation
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: a4580579-5fe0-4a6d-8f7e-c2b4c1b65d54
+    repeatTargets: false
+    trigger: endrespite
+    castImmediately: true
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 3a6cc5fe-cab9-4190-8e27-6f04d466067c
+      mode: effect
+      conditions: []
+    numTargets: "1"
+    name: Scroll of Resurrection
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: |-
+    As a respite activity, you repeatedly chant the contents of this scroll over the remains of a creature who has been dead for less than 1 year. The creature’s soul must be willing to return to life for the scroll to work. If they are not willing, you instinctively understand that as you start the respite activity and can cease it immediately. The scroll is not consumed, and you can undertake a new respite activity. 
+    A creature with a willing soul returns to life at the end of the respite with full Stamina and half their Recoveries. You regain only half your Recoveries at the end of the respite, and the scroll is consumed.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: ab9700e2-ea6f-438a-9011-74671d82cdc1
+  name: Scroll of Resurrection
+  sourceguid: 3a6cc5fe-cab9-4190-8e27-6f04d466067c
+source: Ongoing Effect
+guid: 3a6cc5fe-cab9-4190-8e27-6f04d466067c
+id: 3a6cc5fe-cab9-4190-8e27-6f04d466067c
+ctime: 1774828780479
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+buffType: buff
+name: Scroll of Resurrection
+description: |-
+  As a respite activity, you repeatedly chant the contents of this scroll over the remains of a creature who has been dead for less than 1 year. The creature’s soul must be willing to return to life for the scroll to work. If they are not willing, you instinctively understand that as you start the respite activity and can cease it immediately. The scroll is not consumed, and you can undertake a new respite activity. 
+  A creature with a willing soul returns to life at the end of the respite with full Stamina and half their Recoveries. You regain only half your Recoveries at the end of the respite, and the scroll is consumed.
+mtime: 1774831988452
+iconid: ui-icons/skills/1.png
+implementation: 2

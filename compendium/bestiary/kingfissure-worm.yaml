@@ -1,0 +1,566 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 044ec392-117b-414f-b163-3f833f0413f2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Kingfissure Worm	Level 7 Solo
+        Beast, Worm	EV 90
+        <b>Stamina</b> 420
+        <b>Speed</b> 10 (burrow)	<b>Size</b> 5 /<b> Stability</b> 5
+        <b>Free Strike</b> 8
+        Might +5	Agility +1	Reason -5	Intuition +2	Presence -3
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The kingfissure worm takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the kingfissure worm can take 15 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Multiple Tongues</b>
+        The kingfissure worm has three tongues. A tongue is a 5 x 1 line within 1 of the kingfissure worm, has 35 Stamina, psychic immunity all, and can't be force moved. Each tongue enables the kingfissure worm to grab one Size-3 or smaller creature or object, and can only be targeted by strikes and abilities while it's grabbing a target.
+
+        <b>Tongue Grab</b> (Action) %E2%97%86 2d10 + 5 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 5<b>	Target</b> One creature or object per tongue
+        %E2%9C%A6	%E2%89%A411	13 damage; M<3 grabbed
+        %E2%98%85	12%E2%80%9316	18 damage; M<4 grabbed
+        %E2%9C%B8	17	22 damage; M<5 grabbed, target has a bane on escaping the grab
+        <b>Special</b> The kingfissure worm requires one or more tongues to use this ability.
+        <b>Effect</b> The kingfissure worm may pull up to 2 grabbed creatures adjacent to them using their maneuver.
+
+        <b>Maw</b> (Action) %E2%97%86 2d10 + 5
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance </b>Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	15 damage; push 3
+        %E2%98%85	12%E2%80%9316	20 damage; push 5; prone
+        %E2%9C%B8	17	25 damage; swallowed (see Swallowed)
+        <b>2 Malice </b>While charging, the kingfissure worm ignores difficult terrain and can move through enemies and objects at normal speed. A creature takes 8 damage and is pushed 3 the first time the kingfissure worms passes through their space on a turn.
+
+        <b>Swallow</b> (Action) %E2%97%86 2 Malice
+        <b>Keywords</b> %E2%80%93
+        <b>Distance</b> Melee 1 <b>	Target</b> One grabbed creature
+        <b>Effect</b> The target becomes swallowed (see Swallowed).
+
+        <b>Tongue Whip</b> (Maneuver)
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 5 or Ranged 10 (while grabbing a creature or object)<b>	Target</b> One creature or object
+        <b>Effect</b> The kingfissure worm slams what they're grabbing against the target, dealing 13 damage to both. The kingfissure worm deals an additional 5 damage if they use the ranged distance and they release the grabbed creature or object.
+
+        <b>Tearing Recoil</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Special
+        <b>Trigger</b> A tongue takes damage that does not immediately destroy it.
+        <b>Effect</b> The kingfissure worm pulls the damaged tongue back into their mouth, releasing and dealing 5 damage to whatever the tongue had grabbed.
+
+        <b>Titanic Tunneler</b>
+        The kingfissure worm can burrow through solid rock at half their burrowing speed and leaves a stable, size 3 tunnel in their wake.
+
+        <b>Seismic King</b>
+        The kingfissure worm can't establish line of effect beyond 3 squares, but ignores concealment and doesn't need line of effect to target creatures touching the ground with strikes and abilities.
+
+        <b>Swallowed</b>
+        A swallowed creature is restrained. At the start of each turn of combat, the swallowed creature takes 1d6 acid damage. If the kingfissure worm takes 25 or more damage in a single round from swallowed creatures, they immediately regurgitate all swallowed creatures, who land prone in an unoccupied square within 3 of the kingfissure worm.
+
+        <b>Unstoppable Crawler</b>
+        The kingfissure worm can't be frightened or knocked prone. While the kingfissure worm is restrained or slowed, their speed is reduced by 2 instead of suffering the condition's normal effects.
+
+        <b>King's Fissure</b> (Villain Action 1)
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 20 x 4 line within 1<b>Target</b> All grounded creatures and objects in the line
+        <b>Effect</b> The affected area becomes a 10 square deep fissure in the earth. Each target makes an <b>Agility test.</b>
+        %E2%9C%B8	%E2%89%A411	10 damage; target falls; prone can't stand (EoT)
+        %E2%98%85	12%E2%80%9316	10 damage; target is prone hanging on the edge
+        %E2%9C%A6	17	The target shifts to the nearest unoccupied square outside the area
+
+        <b>Earth Breach </b>(Villain Action 2)
+        <b>Keywords</b> Weapon
+        <b>Distance</b> Self (while burrowing)<b>	Target</b> All creatures and objects
+        <b>Effect</b> The worm burrows up to half their speed, then breaches the surface and moves five squares straight up into the air before diving back into the ground. Each target that the worm passes through during this movement takes 10 damage and is <b>A<4 </b>knocked prone. Any creature that is winded after taking this damage is swallowed (see Swallowed).
+
+        <b>Better Out Than In</b> (Villain Action 3) %E2%97%86 2d10 + 5
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies and objects
+        %E2%9C%A6	%E2%89%A411	8 acid damage; P<3 weakened (save ends)
+        %E2%98%85	12%E2%80%9316	13 acid damage; P<4 weakened (save ends)
+        %E2%9C%B8	17	17 acid damage; P<5 weakened (save ends)
+        <b>Effect</b> Each swallowed creature is regurgitated, taking the tier-3 result and landing prone in an unoccupied square within distance.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c5227c2d-b56f-468b-b88a-6654e843842e: true
+      modifiers: []
+      name: Multiple Tongues
+      description: The kingfissure worm has three tongues. A tongue is a 5 x 1 line within 1 of the kingfissure worm, has 35 Stamina, psychic immunity all, and can't be force moved. Each tongue enables the kingfissure worm to grab one Size-3 or smaller creature or object, and can only be targeted by strikes and abilities while it's grabbing a target.
+      guid: c5227c2d-b56f-468b-b88a-6654e843842e
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d396abf7-bc0c-4f46-9d8b-0bef6f451830: true
+      modifiers: []
+      name: Titanic Tunneler
+      description: The kingfissure worm can burrow through solid rock at half their burrowing speed and leaves a stable, size 3 tunnel in their wake.
+      guid: d396abf7-bc0c-4f46-9d8b-0bef6f451830
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:663cfb13-04a9-4c75-b65b-7d9dfd0dfc05: true
+      modifiers: []
+      name: Seismic King
+      description: The kingfissure worm can't establish line of effect beyond 3 squares, but ignores concealment and doesn't need line of effect to target creatures touching the ground with strikes and abilities.
+      guid: 663cfb13-04a9-4c75-b65b-7d9dfd0dfc05
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:31cff03a-ecbf-4da0-9a78-a96e9342b0d2: true
+      modifiers: []
+      name: Swallowed
+      description: A swallowed creature is restrained. At the start of each turn of combat, the swallowed creature takes 1d6 acid damage. If the kingfissure worm takes 25 or more damage in a single round from swallowed creatures, they immediately regurgitate all swallowed creatures, who land prone in an unoccupied square within 3 of the kingfissure worm.
+      guid: 31cff03a-ecbf-4da0-9a78-a96e9342b0d2
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5e819fe8-6852-4f04-a892-20c34bcfe1ea: true
+      modifiers: []
+      name: Unstoppable Crawler
+      description: The kingfissure worm can't be frightened or knocked prone. While the kingfissure worm is restrained or slowed, their speed is reduced by 2 instead of suffering the condition's normal effects.
+      guid: 5e819fe8-6852-4f04-a892-20c34bcfe1ea
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:87665c2c-2ad7-4faa-9441-f1ec317726a0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: "End Effect: At the end of each of their turns, the kingfissure worm can take 10 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.Solo Turns: The kingfissure worm can take two turns each round. They can't take turns consecutively."
+      guid: 87665c2c-2ad7-4faa-9441-f1ec317726a0
+      name: Solo Monster
+      implementation: 3
+    role: Solo
+    inflictedConditions: []
+    keywords:
+      Worm: true
+      Beast: true
+    max_hitpoints_roll: "420"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 8
+    monster_type: Kingfissure Worm
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -3
+        id: prs
+      rea:
+        baseValue: -5
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 10
+    resources: []
+    max_hitpoints: 420
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 13 damage; M<3 grabbed
+        - 18 damage; M<4 grabbed
+        - 22 damage; M<5 grabbed and the target takes a bane on the Escape Grab maneuver
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2cb9a785-6af8-4fa7-ae63-35ef7d592af3
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Tongue Grab
+      numTargets: 1
+      description: The kingfissure worm may pull up to 2 grabbed creatures adjacent to them using their maneuver.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 187
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: When the kingfissure worm uses the Charge main action, they ignore difficult terrain and automatically destroy mundane size 3 and smaller objects in the path of their charge. The first time the kingfissure worm moves through a creature's space during this charge, that creature takes 8 damage and is pushed up to 3 squares.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; push 3
+        - 20 damage; push 5, prone
+        - 25 damage; the target is swallowed (see Swallowed)
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 5af830a0-d2ba-42ca-bccb-707d7cffb444
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "8"
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: When the kingfissure worm uses the Charge main action, they ignore difficult terrain and automatically destroy mundane size 3 and smaller objects in the path of their charge. The first time the kingfissure worm moves through a creature's space during this charge, that creature takes 8 damage and is pushed up to 3 squares."
+        autoTarget: false
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Ability
+      name: Maw
+      guid: bdd8bdbd-2232-4b97-8edd-f4c2c87d4d19
+      description: |2-
+
+        **2 Malice**: When the kingfissure worm uses the Charge main action, they ignore difficult terrain and automatically destroy mundane size 3 and smaller objects in the path of their charge. The first time the kingfissure worm moves through a creature's space during this charge, that creature takes 8 damage and is pushed up to 3 squares.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        "%E2%80%93": true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5034f951-bccf-4157-a3dc-4f9b08fcf60e
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Swallow
+      implementation: 0
+      description: The target becomes swallowed (see Swallowed).
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: b63ccac5-61ab-45e1-af79-2a6e5cb75187
+      meleeRange: 5
+      numTargets: 1
+      targetType: target
+      name: Tongue Whip
+      iconid: ui-icons/skills/1.png
+      description: The kingfissure worm slams what they're grabbing against the target, dealing 13 damage to both. The kingfissure worm deals an additional 5 damage if they use the ranged distance and they release the grabbed creature or object.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: c42fedf2-ed97-4dca-8f86-da706c202c32
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Tearing Recoil
+      numTargets: 1
+      description: The kingfissure worm pulls the damaged tongue back into their mouth, releasing and dealing 5 damage to whatever the tongue had grabbed.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6e00e9cf-b52f-4f65-88a4-89ad618cd069
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '61feffe8-e8c4-4bdb-9e9"
+      implementation: 0
+      behaviors: []
+      name: King's Fissure
+      numTargets: 1
+      description: The affected area becomes a 10 square deep fissure in the earth. Each target makes an Agility test.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0cee9b62-9161-47ca-8af4-b2a66155350d
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '3712793f-1724-4fc6-bf7"
+      implementation: 0
+      behaviors: []
+      name: 'Earth Breach '
+      numTargets: 1
+      description: The worm burrows up to half their speed, then breaches the surface and moves five squares straight up into the air before diving back into the ground. Each target that the worm passes through during this movement takes 10 damage and is A<4 knocked prone. Any creature that is winded after taking this damage is swallowed (see Swallowed).
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8267f93b-f5d6-4a61-974e-79d959dcf7c4
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '714e523b-1f36-478d-836"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 acid damage; P<3 weakened (save ends)
+        - 13 acid damage; P<4 weakened (save ends)
+        - 17 acid damage; P<5 weakened (save ends)
+        roll: 2d10 + Might
+      name: Better Out Than In
+      numTargets: 1
+      description: Each swallowed creature is regurgitated, taking the tier-3 result and landing prone in an unoccupied square within distance.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: 482b3e17-500c-4d72-bf9b-26d0d42685af
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Consume
+      sourceReference:
+        __typeName: SourceReference
+        page: 187
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The target is swallowed (see Swallowed).
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 0
+    groupid: d3e4dbe0-fc58-4dd8-a21c-94ee1697285c
+    movementSpeeds:
+      burrow: 10
+    ev: 108
+    minion: false
+    levelChoices: []
+    creatureSize: "5"
+  tokenType: null
+  bestiaryId: 85771be8-ab2d-4525-a0d9-935a9047644e
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961968408
+description: Kingfissure Worm
+parentFolder: 3b9f5b85-c79b-4e20-a7cc-f63e3a119e5c
+artist: null
+ord: 0
+ctime: 1741590276187
+mtime: 1775201137032
+hidden: false

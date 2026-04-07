@@ -1,0 +1,81 @@
+__typeName: equipment
+id: c8c69f5c-5901-4887-a5d0-a78159b88537
+type: Gear
+category: Gear
+specialDescription: ""
+features:
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: c14ca485-1098-4267-bd3a-7d2cb966f2b7
+    guid: 3d43c63f-6512-4b90-b62b-ce008037ebe1
+    source: Item
+    behavior: activated
+    description: ""
+    name: Mirage Band
+    activatedAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+      targetAllegiance: ally
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: A blanket of illusion twists around you and your allies, making you seem as if you belong wherever you are.
+      sourceReference:
+        __typeName: SourceReference
+        page: 325
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4ff6c97d-6280-4ba6-b7a1-ea19c4a3a5f8
+      selfTarget: true
+      categorization: Ability
+      domains: []
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: "1"
+      name: Hallucination Field
+      targetType: target
+      description: Each target is covered by an illusion causing them to appear exactly as any creature (humanoid, animal, undead, and so forth) an observer most expects to see. The illusion ends for all targets if any creature under its effect harms or physically interacts with any creature not affected by the illusion, if you use this ability again, or if you choose to end the effect (no action required). The illusion also ends for any affected ally who moves more than the distance of this ability away from you.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  source: Item
+  name: Mirage Band
+  addText: Add Magical Property
+  itemAttached: true
+  guid: c14ca485-1098-4267-bd3a-7d2cb966f2b7
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+itemPrerequisite: A sable blue circlet shimmers with finely woven threads of sparkling white.
+ctime: 1775047512629
+projectGoal: "450"
+projectSource: Texts or lore in Higaran
+echelon: 3
+name: Mirage Band
+projectRollCharacteristic:
+  rea: true
+  inu: true
+description: |-
+  While wearing the Mirage Band, you automatically perceive illusions for what they are, you can see invisible creatures, and supernatural effects can’t conceal creatures and objects from you.Additionally, you have the following ability.
+  Hallucination Field
+  A blanket of illusion twists around you and your allies, making you seem as if you belong wherever you are.
+  Psionic, Ranged Maneuver
+  o Ranged 10 x Self and any ally
+  Effect: Each target is covered by an illusion causing them to appear
+  exactly as any creature (humanoid, animal, undead, and so forth)
+  an observer most expects to see. The illusion ends for all targets if
+  any creature under its effect harms or physically interacts with any
+  creature not affected by the illusion, if you use this ability again, or
+  if you choose to end the effect (no action required). The illusion also
+  ends for any affected ally who moves more than the distance of this
+  ability away from you.
+weight: 1
+mtime: 1775047512629

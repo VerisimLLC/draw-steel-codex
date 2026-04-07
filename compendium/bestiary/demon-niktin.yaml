@@ -1,0 +1,206 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: a15ab8ab-ceb6-424f-870a-1962476e5794
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Demon Niktin	Level 5 Horde Ambusher
+        Abyssal, Demon	EV 7
+        <b>Stamina</b> 35	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +2	Agility +2	Reason +2	Intuition +1	Presence +3
+
+        <b>Violent Transformation</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%B8	<b>%E2%89%A411</b>	3 corruption damage
+        %E2%98%85	<b>12-16</b>	6 corruption damage
+        %E2%9C%A6	<b>17</b>	7 corruption damage; I<3 dazed (save ends)
+        <b>Effect</b> The niktin violently changes shape. The niktin deals an additional 6 damage to each target they were hidden from with their Aggressive Mimicry ability.
+
+        <b>Aggressive Mimicry</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The niktin can become a mundane object the same size or smaller and is hidden. They can change back as a free action.
+
+        <b>Lethe</b>
+        While winded, the niktin has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the niktin can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5fc11f5c-2818-4312-9b24-04fa7b7d0a9d: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the niktin has an edge on strikes, and strikes have an edge against them.
+      guid: 5fc11f5c-2818-4312-9b24-04fa7b7d0a9d
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c5ea49e4-0b0d-427c-99ca-1d490c0380ae: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the niktin can't be hidden from them.
+      guid: c5ea49e4-0b0d-427c-99ca-1d490c0380ae
+      source: Trait
+    role: Horde Ambusher
+    inflictedConditions: []
+    keywords:
+      Demon: true
+      Abyssal: true
+    max_hitpoints_roll: "35"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 3
+    monster_type: Demon Niktin
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 35
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage
+        - 6 corruption damage
+        - 7 corruption damage; I<3 dazed (save ends)
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 66bb9f05-f353-44d2-b8a1-9143c77bcdc7
+      numTargets: 1
+      targetType: all
+      name: Violent Transformation
+      iconid: ui-icons/skills/1.png
+      description: The niktin violently changes shape. The niktin deals an additional 6 damage to each target they were hidden from with their Aggressive Mimicry ability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 826d4a7e-a9c0-4f6a-8f61-8e8363331b70
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Aggressive Mimicry
+      implementation: 0
+      description: The niktin can become a mundane object the same size or smaller and is hidden. They can change back as a free action.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds: []
+    ev: 7
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: fb28b46a-18da-4a88-b4df-be08c7aead8d
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Demon Niktin
+parentFolder: d2197625-9db6-4f37-8d6f-353a079bffdf
+artist: null
+ord: 8
+ctime: 1741590331966
+mtime: 1775201137032
+hidden: false

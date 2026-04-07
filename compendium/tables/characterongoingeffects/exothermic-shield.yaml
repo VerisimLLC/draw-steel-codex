@@ -1,0 +1,82 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1eb8cef6-6a0e-415f-9e63-1bfc2f4b7d3c
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "10"
+    damageType: cold
+    apply: Damage Reduction
+  - __typeName: ResistanceEntry
+    dr: "10"
+    damageType: fire
+    apply: Damage Reduction
+  description: You gain 10 fire and cold immunity, and your strikes deal extra fire damage. Whenever an enemy uses a melee ability against you, they take 5 fire damage
+  name: Exothermic Shield
+  guid: 53c928e8-c9da-4eb8-a478-47450e86586e
+- __typeName: CharacterModifier
+  sourceguid: 1eb8cef6-6a0e-415f-9e63-1bfc2f4b7d3c
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Strike: true
+  activationCondition: true
+  damageModifier: Ongoing Effect.Caster.Reason *2
+  description: You gain 10 fire and cold immunity, and your strikes deal extra fire damage. Whenever an enemy uses a melee ability against you, they take 5 fire damage
+  name: Exothermic Shield
+  rollType: ability_power_roll
+  damageModifierType: fire
+  behavior: power
+  guid: b9e63869-a059-4df8-ab96-98b89a5504e1
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "5"
+      damageType: fire
+      chatMessage: Exothermic Shield Damage
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: aa4046fa-c0d8-4956-a26d-e35dd3adeafd
+    persistence: []
+    conditionFormula: Attack.Melee
+    subject: self
+    targetType: attacker
+    trigger: attacked
+    name: Exothermic Shield
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: You gain 10 fire and cold immunity, and your strikes deal extra fire damage. Whenever an enemy uses a melee ability against you, they take 5 fire damage
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 35488da7-9154-4c69-bf70-69f38d74f24b
+  name: Exothermic Shield
+  sourceguid: 1eb8cef6-6a0e-415f-9e63-1bfc2f4b7d3c
+source: Ongoing Effect
+casterTracking: one
+guid: 1eb8cef6-6a0e-415f-9e63-1bfc2f4b7d3c
+id: 1eb8cef6-6a0e-415f-9e63-1bfc2f4b7d3c
+ctime: 1765943243746
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Exothermic Shield
+description: You gain 10 fire and cold immunity, and your strikes deal extra fire damage. Whenever an enemy uses a melee ability against you, they take 5 fire damage
+custom: true
+mtime: 1765943243746
+iconid: ui-icons/skills/1.png

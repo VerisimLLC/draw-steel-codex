@@ -1,0 +1,286 @@
+__typeName: MarkdownDocument
+annotations:
+  Party:Acted Players:
+    __typeName: RichParty
+    partyid: false
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Available Players:
+    __typeName: RichParty
+    partyid: false
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Current Player:
+    __typeName: RichParty
+    partyid: false
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+id: d0fea479-21a6-4934-8cae-8a17f545f5c6
+ctime: 1761751373377
+textStorage:
+  __typeName: TextStorage
+  sections:
+    y: |
+      *Suggested Skills:* Alchemy, Magic, Mechanics.
+      }
+      {
+    Vv: |+
+      :<>[[Party:Acted Players]]
+
+    x: |
+      *Suggested Characteristics:* Reason.
+    u: |
+      |Navigate the Maze: Reason Test (Navigate or Search or Strategy)
+    v: |
+      |Medium
+      }
+
+
+      {#
+    s: |
+      *Suggested Skills:* Navigate, Search, Strategy.
+    Vr: |
+      :<>[[Party:Available Players]]
+    q: |
+      **Navigate the Maze:** The heroes must find a way out of the maze.
+    r: |
+      *Suggested Characteristics:*  Reason
+    o: |
+      |Avoid the Oil: Agility Test (Endurance, Gymnastics, Jump)
+    Un: |
+      |||
+    UE: |
+      |||
+    n: |
+      *Suggested Skills:*  Endurance, Gymnastics, Jump
+      }
+      {
+    k: |
+      |Medium
+      }
+
+
+
+      {#
+    l: |
+      **Avoid the Oil:**  Slippery oil covers the floor that the heroes must contend with.
+    i: |
+      *Suggested Skills:* Alchemy, Gymnastics, Jump, Sabotage.
+      }
+      {
+    j: |
+      |Avoid the Fire: Agility or Reason Test (Alchemy or Gymnastics or Jump or Sabotage)
+    g: |
+      **Avoid the Fire:** The heroes must dodge or extinguish the flame jets in their path.
+    h: |
+      *Suggested Characteristics:* Agility or Reason. 
+    e: |
+      |Avoid the Blades: Might or Agility Test (Endurance or Gymnastics or Jump or Sabotage)
+    f: |
+      |Medium
+      }
+
+
+
+      {#
+    c: |
+      *Suggested Skills:* Endurance, Gymnastics, Jump, Sabotage  
+    d: |
+      *Special: This obstacle can be overcome twice during the montage.*
+      }
+      {
+    a: |
+      **Avoid the Blades:**  The heroes must find a way to get past the blades.
+    b: |
+      *Suggested Characteristics:*  Might, Agility
+    yQ: |+
+      ## Montage Test Outcomes
+
+    yU: |+
+      The montage test has the following outcomes:
+
+    Y: |
+      {*(Edit the document to change the test difficulty before having the players roll, if you want. They are all set to Medium by default. You can also reveal the text before the power roll by changing the # to an !)*
+    Z: |
+      Also read [Consequences and Rewards] before starting the montage test. }
+
+      {#
+    W: |+
+      ## Montage Challenges
+
+    X: |
+      The following challenges can be part of the montage test:
+    U: |+
+      *Use the buttons below to adjust the montage difficulty*
+
+    S: |
+      * For four or fewer heroes, decrease the success limit and failure limits by 1 (to a minimum of 2) for every hero fewer than five.
+    UX: |
+      |||
+    Q: |+
+      |Six|7|5|
+
+
+    R: |
+      **Montage Test Adjustment**
+    O: |
+      |Four|5|3|
+    P: |
+      |Five|6|4|
+    M: |
+      |Heroes|Success Limit|Failure Limit|
+    N: |
+      |Three|4|2|
+    K: |+
+      The Gauntlet Test Difficulty table shows this montage test’s success and failure limit based on the number of heroes in the test.
+
+    L: |
+      **Gauntlet Test Difficulty**
+    I: |+
+      # Montage Test: The Gauntlet
+
+    J: |+
+      The corridor ahead winds and curls back on itself in a complex labyrinth that threatens to have the heroes running in circles. The heroes must make a montage test to get through the gauntlet of traps.
+
+
+      {
+
+    G: |
+      > * “Then the crystals in the ceiling providing light extinguish in the hall, leaving you without a way to see.”
+    H: |+
+      > * “You’ve entered a gauntlet of mechanical traps!”
+
+    E: |
+      > * “As you enter, a heavy clunk sounds from behind the walls. A blade swings right past you, and a guillotine falls between the members of your group, and flames burst out of the floor on either side of you. Ahead of you looks much the same as behind.”
+    UP: |
+      |||
+    C: |+
+      {Secret: You may present this page to your players as part of the montage.}
+
+
+    D: |
+      > * “This twisting corridor is full of dead ends.”
+    B: |+
+      # D11. The Gauntlet
+
+    Vx: |+
+      {Add all your players to the available players party at the start. When a player is acting move them to the current player party by dragging their image. Then to acted players once they are done. At the end of the round move all players back to available players}
+
+
+
+    Vt: |
+      :<>[[Party:Current Player]]
+    UG: |
+      |||
+    Up: |+
+      ???
+
+      }
+
+    Ul: |
+      |Failures: |[[-----]]|
+    Uh: |
+      |Successes: |[[-------]]|
+    Ud: |
+      ???
+    yw: |
+      The [Gilded Hand] has jammed and disrupted the mechanism in the process of coming through here. The success limit is decreased by 1, but Agility tests made to navigate the gauntlet take a bane due to the irregular patterns of the machinery.
+
+      }
+    ys: |+
+      # After the Hand
+
+    yo: |+
+      **Total Failure:** The heroes make it out by the skin of their teeth. Each hero loses 2 Recoveries. If they have only 1 Recovery remaining, they instead lose that Recovery and are weakened until they finish a respite. If they have no Recoveries, they instead are dazed until they finish a respite.
+
+
+
+    yk: |+
+      [[/awardvp 1|Award The Heroes 1 Victory]]
+
+    UZ: |
+      |Failures: |[[----]]|
+    yg: |
+      **Partial Success:** The heroes make it to the other side of the labyrinth, having narrowly avoided dismemberment on multiple occasions. Each hero loses 1 Recovery. If they have no Recoveries to lose, they are instead weakened until they finish a respite. Each hero gains 1 Victory.
+    UR: |
+      ???
+    yc: |+
+      [[/awardvp 1|Award The Heroes 1 Victory]]
+
+    yY: |
+      **Total Success:** The heroes make it to the other side of the gauntlet and each gain 1 Victory.
+    yM: |
+      **Common Tests you may present to your players during a montage:**[Tests]
+      }
+      {
+    yI: |
+      [[/objectcommand D11_light.Light turnlighton; |Lights On]][[/objectcommand D11_light.Light turnlightoff; |Lights Off]]
+      }
+
+      {
+    yF: |+
+      |Medium
+
+    yC: |
+      |Restore the Lights: Reason Test (Alchemy or Magic or Mechanics)
+    w: |
+      **Restore the Lights:** The heroes can attempt to restore the magic of the illumination crystals in the ceiling.
+    t: |
+      *Special: This obstacle can be overcome twice during the montage.*
+      }
+      {
+    p: |
+      |Medium
+      }
+
+
+      {#
+    m: |
+      *Suggested Characteristics:*  Agility
+    UV: |
+      |Successes: |[[------]]|
+    UB: |2
+
+    UC: |
+      ???query numheroes < 4
+    UL: |
+      |||
+    UF: |
+      |Failures: |[[--]]|
+    F: |
+      > * “Holes in the wall suddenly release oil on the ground, creating a slippery and hazardous surface.”
+    UT: |
+      ???query numheroes = 5
+    UD: |
+      |Successes: |[[----]]|
+    UH: |
+      ???
+    T: |+
+      * For six or more heroes, increase the success and failure limits by 1 for every hero more than five.
+
+    UN: |
+      |Failures: |[[---]]|
+    UI: |
+      ???query numheroes = 4
+    Uf: |
+      ???query numheroes > 5
+    Ub: |
+      |||
+    Uj: |
+      |||
+    UJ: |
+      |Successes: |[[-----]]|
+    UA: |
+      [[setting:Number of Heroes]] 
+
+      }
+
+      {!
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 84ba70b1-563b-42bd-b630-ebcea0bf396d
+mtime: 1775224905115
+content: "# D11. The Gauntlet\n\n{Secret: You may present this page to your players as part of the montage.}\n\n\n> * “This twisting corridor is full of dead ends.”\n> * “As you enter, a heavy clunk sounds from behind the walls. A blade swings right past you, and a guillotine falls between the members of your group, and flames burst out of the floor on either side of you. Ahead of you looks much the same as behind.”\n> * “Holes in the wall suddenly release oil on the ground, creating a slippery and hazardous surface.”\n> * “Then the crystals in the ceiling providing light extinguish in the hall, leaving you without a way to see.”\n> * “You’ve entered a gauntlet of mechanical traps!”\n\n# Montage Test: The Gauntlet\n\nThe corridor ahead winds and curls back on itself in a complex labyrinth that threatens to have the heroes running in circles. The heroes must make a montage test to get through the gauntlet of traps.\n\n\n{\n\nThe Gauntlet Test Difficulty table shows this montage test’s success and failure limit based on the number of heroes in the test.\n\n**Gauntlet Test Difficulty**\n|Heroes|Success Limit|Failure Limit|\n|Three|4|2|\n|Four|5|3|\n|Five|6|4|\n|Six|7|5|\n\n}\n\n\n## Party\n|Successes:  |  [[------]]|\n|Failures:  |  [[----]]|\n\n  \n[[Party:Available Players]] :<>[[Party:Current Player]] :>[[Party:Acted Players]]\n \n\n{Add all your players to the available players party at the start. When a player is acting move them to the current player party. Then to acted players once they are done. At the end of the round move all players back to available players}\n\n\n## Montage Challenges\n\nThe following challenges can be part of the montage test:\n{*(Edit the document to change the test difficulty before having the players roll, if you want. They are all set to Medium by default. You can also reveal the text before the power roll by changing the # to an !)*\nAlso read [Consequences and Rewards] before starting the montage test. }\n\n{#\n**Avoid the Blades:**  The heroes must find a way to get past the blades.\n*Suggested Characteristics:*  Might, Agility\n*Suggested Skills:* Endurance, Gymnastics, Jump, Sabotage  \n*Special: This obstacle can be overcome twice during the montage.*\n}\n{\n|Avoid the Blades: Might or Agility Test (Endurance or Gymnastics or Jump or Sabotage)\n|Medium\n}\n\n\n\n{#\n**Avoid the Fire:** The heroes must dodge or extinguish the flame jets in their path.\n*Suggested Characteristics:* Agility or Reason. \n*Suggested Skills:* Alchemy, Gymnastics, Jump, Sabotage.\n}\n{\n|Avoid the Fire: Agility or Reason Test (Alchemy or Gymnastics or Jump or Sabotage)\n|Medium\n}\n\n\n\n{#\n**Avoid the Oil:**  Slippery oil covers the floor that the heroes must contend with.\n*Suggested Characteristics:*  Agility\n*Suggested Skills:*  Endurance, Gymnastics, Jump\n}\n{\n|Avoid the Oil: Agility Test (Endurance, Gymnastics, Jump)\n|Medium\n}\n\n\n{#\n**Navigate the Maze:** The heroes must find a way out of the maze.\n*Suggested Characteristics:*  Reason\n*Suggested Skills:* Navigate, Search, Strategy.\n*Special: This obstacle can be overcome twice during the montage.*\n}\n{\n|Navigate the Maze: Reason Test (Navigate or Search or Strategy)\n|Medium\n}\n\n\n{#\n**Restore the Lights:** The heroes can attempt to restore the magic of the illumination crystals in the ceiling.\n*Suggested Characteristics:* Reason.\n*Suggested Skills:* Alchemy, Magic, Mechanics.\n}\n{\n|Restore the Lights: Reason Test (Alchemy or Magic or Mechanics)\n|Medium\n\n[[/objectcommand D11_light.Light turnlighton; |Lights On]][[/objectcommand D11_light.Light turnlightoff; |Lights Off]]\n}\n\n{\n**Common Tests you may present to your players during a montage:**[Tests]\n}\n{\n## Montage Test Outcomes\n\nThe montage test has the following outcomes:\n\n**Total Success:** The heroes make it to the other side of the gauntlet and each gain 1 Victory.\n[[/awardvp 1|Award The Heroes 1 Victory]]\n\n**Partial Success:** The heroes make it to the other side of the labyrinth, having narrowly avoided dismemberment on multiple occasions. Each hero loses 1 Recovery. If they have no Recoveries to lose, they are instead weakened until they finish a respite. Each hero gains 1 Victory.\n[[/awardvp 1|Award The Heroes 1 Victory]]\n\n**Total Failure:** The heroes make it out by the skin of their teeth. Each hero loses 2 Recoveries. If they have only 1 Recovery remaining, they instead lose that Recovery and are weakened until they finish a respite. If they have no Recoveries, they instead are dazed until they finish a respite.\n\n\n\n# After the Hand\n\nThe [Gilded Hand] has jammed and disrupted the mechanism in the process of coming through here. The success limit is decreased by 1, but Agility tests made to navigate the gauntlet take a bane due to the irregular patterns of the machinery.\n\n}\n"
+description: D11. The Gauntlet

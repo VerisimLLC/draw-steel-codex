@@ -1,0 +1,59 @@
+__typeName: ActivatedAbility
+id: e3dd7313-0f31-44c6-89d1-3d68865afb55
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  autoTarget: true
+  targeting: prompt
+  standardAbilityParams:
+    range: "<<squares>>"
+  customAbility:
+    __typeName: ActivatedAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 221fa5cb-3e34-4ece-a3c6-1b580c932537
+    repeatTargets: false
+    targetFilter: not enemy
+    abilityType: none
+    targetType: all
+    numTargets: "1"
+    name: Invoked Ability
+    behaviors:
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: Frightened (save ends)
+    description: ""
+    range: "<<range>>"
+    iconid: ui-icons/skills/1.png
+- __typeName: ActivatedAbilityConditionSourceBehavior
+  applyto: caster
+  condid: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 46bb3643-817e-4813-b049-edd936deee9b
+testCases:
+- text: each enemy within 2 squares of them is frightened of you (save ends)
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: ""
+importMatch: each enemy within <<squares>> squares of them is frightened of you \(save ends\)
+ctime: 1748494664651
+repeatTargets: false
+numTargets: "1"
+mtime: 1759805795776
+name: Proximity Enemies Frightened
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

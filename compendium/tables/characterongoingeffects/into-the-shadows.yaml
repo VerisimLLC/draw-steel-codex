@@ -1,0 +1,92 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 3e6db3b5-f165-4b1e-8b01-7c58c775b5aa
+  sourceguid: e6f4bcbb-1a4d-440f-afbc-3b2063d7d9c3
+  value: 1
+  source: Ongoing Effect
+  name: Into the Shadows
+  behavior: attribute
+  description: You are removed from the encounter and cannot be targeted
+  attribute: e8a97ea6-d2e2-4d59-a1d3-11124a104147
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 85dd7d81-4e9b-45d6-a6ec-a5faf202fdfa
+    repeatTargets: false
+    trigger: beginturn
+    conditionFormula: Self = ConditionCaster("Into the Shadows")
+    targetType: self
+    persistence: []
+    name: Into the Shadows
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        targetFilter: ConditionCaster("Into the Shadows") = Caster
+        repeatTargets: false
+        targetType: target
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: b9b03b36-1273-4d18-b301-91c572350aab
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - 8 + A corruption damage
+          - 13 + A corruption damage
+          - 17 + A corruption damage
+          filterTarget: ""
+          roll: 2d10 + Agility
+          guid: 6772e1c1-46b5-4fe6-8ff3-11795cf4cc58
+        name: Invoked Ability
+        numTargets: "1"
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      targeting: prompt
+      targetingFormula: Target.ConditionCaster("Into the Shadows") = Self and not Target = Self
+      promptText: Power Roll Against Target
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You are removed from the encounter and cannot be targeted
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 8b1a6a20-0575-41c5-8c07-415b965f5288
+  name: Into the Shadows
+  sourceguid: e6f4bcbb-1a4d-440f-afbc-3b2063d7d9c3
+source: Ongoing Effect
+casterTracking: one
+guid: e6f4bcbb-1a4d-440f-afbc-3b2063d7d9c3
+id: e6f4bcbb-1a4d-440f-afbc-3b2063d7d9c3
+ctime: 1767203149962
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+condition: none
+name: Into the Shadows
+custom: true
+description: You are removed from the encounter and cannot be targeted
+mtime: 1767203614941
+iconid: ui-icons/skills/1.png

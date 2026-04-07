@@ -1,0 +1,76 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: b6fee1e1-98dd-41d4-a9f7-1b89c4ffc045
+  source: Ongoing Effect
+  behavior: modifyability
+  domains:
+    CharacterOngoingEffect:b6fee1e1-98dd-41d4-a9f7-1b89c4ffc045: true
+  replaceBehaviors: before
+  attributes: []
+  name: New Ongoing Effect
+  description: ""
+  guid: 6ed8c0c5-0521-4aa8-b07c-701e022f575d
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: cdf1cc20-47b1-41c5-ad4a-59937d4e65ff
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+      filterTarget: Friends(Caster.ConditionCaster("Synaptic Dissipation"), target)
+      momentaryEffect:
+        __typeName: CharacterOngoingEffect
+        guid: a0607025-78d1-4f58-9949-fec6a5f2d710
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        modifiers:
+        - __typeName: CharacterModifier
+          conditionid: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+          sourceguid: a0607025-78d1-4f58-9949-fec6a5f2d710
+          source: Ongoing Effect
+          guid: aa3c7d8b-756f-49f0-9b64-69328de24b47
+          description: 'Targets '
+          behavior: bestowcondition
+          name: Invisible
+        source: Ongoing Effect
+        name: Invisible
+        description: 'Targets '
+        id: a0607025-78d1-4f58-9949-fec6a5f2d710
+        iconid: ui-icons/skills/1.png
+      name: Ability Duration Effect
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+casterTracking: one
+guid: b6fee1e1-98dd-41d4-a9f7-1b89c4ffc045
+id: b6fee1e1-98dd-41d4-a9f7-1b89c4ffc045
+ctime: 1770050406209
+domains:
+  CharacterOngoingEffect:b6fee1e1-98dd-41d4-a9f7-1b89c4ffc045: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Synaptic Dissipation
+custom: true
+description: ""
+mtime: 1770051018694
+iconid: ui-icons/skills/1.png

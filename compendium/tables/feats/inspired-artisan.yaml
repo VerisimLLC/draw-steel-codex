@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Crafting Perk
+name: Inspired Artisan
+description: When you make a project roll using a skill from the crafting skill group, you can spend a hero token to make another project roll for the same project as part of the same respite activity. You can’t use this perk more than once per respite.
+mtime: 1755373453938
+id: 5615fd42-2ef7-4a3b-bb50-0d312fcf2e44
+ctime: 1730700419018

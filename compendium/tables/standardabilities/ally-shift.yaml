@@ -1,0 +1,54 @@
+__typeName: ActivatedAbility
+targetFilter: not enemy
+id: 090c096b-0841-45db-bb48-175f51a3bf75
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+testCases:
+- text: An ally within 4 shifts 5 squares
+numTargets: "<<count>>"
+modifiers: []
+source: Monster
+strain: []
+guid: e56f905e-5669-4dea-ae8a-dd03c5042a06
+importMatch: "<<count>> (ally|allies) within <<distance>> shifts? <<range>> squares?"
+ctime: 1743559927444
+repeatTargets: false
+persistence: []
+description: ""
+name: Ally Shift
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: ac286ca0-1b21-46a1-8885-2ce015d18d50
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  promptText: Choose where to shift
+  autoTarget: false
+  standardAbilityParams:
+    distance: "<<distance>>"
+    targetfilter: "<<locationfilter>>"
+  abilityType: standard
+  standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+mtime: 1751515097216
+abilityType: none
+iconid: ui-icons/skills/1.png

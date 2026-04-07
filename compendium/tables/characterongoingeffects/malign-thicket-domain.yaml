@@ -1,0 +1,61 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: 1d3
+      damageType: poison
+      chatMessage: Malign Thicket Domain
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00208115577698
+        v: 0.76165783405304
+        a: 1
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 5a508a6f-a3b3-4352-b583-58ef109ed48a
+    persistence: []
+    conditionFormula: Movement Type is not "Fly"
+    targetType: self
+    castImmediately: true
+    trigger: beginturn
+    name: Malign Thicket Domain
+    description: ""
+    abilityType: none
+    iconid: 39d88090-e456-4d36-b141-87e933ac8d06
+  description: 'If the Thorn Dragon’s Domain trait is in effect, any creature other than the dragon who starts their turn on the encounter map takes 1d3 poison damage. '
+  source: Ongoing Effect
+  behavior: trigger
+  guid: af582f4d-8522-4b35-b319-1ac95e3b0f90
+  name: Malign Thicket Domain
+  sourceguid: 4ae0abcb-aa88-491c-aeba-62b273fe9d06
+source: Ongoing Effect
+guid: 4ae0abcb-aa88-491c-aeba-62b273fe9d06
+id: 4ae0abcb-aa88-491c-aeba-62b273fe9d06
+ctime: 1770200731837
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00208115577698
+    v: 0.742071151733398
+    a: 1
+name: Malign Thicket Domain
+description: 'If the Thorn Dragon’s Domain trait is in effect, any creature other than the dragon who starts their turn on the encounter map takes 1d3 poison damage. '
+custom: true
+mtime: 1770200731837
+iconid: 6d6770f0-ca18-4f66-9f91-ef3f624a538d

@@ -1,0 +1,150 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 78eed05f-53d0-4828-8430-75beaaf55583
+  source: Ongoing Effect
+  domains:
+    CharacterOngoingEffect:78eed05f-53d0-4828-8430-75beaaf55583: true
+  guid: e3a10be2-fac8-425d-8de9-3cf1f2cb0d4a
+  adjustments: []
+  keywords: []
+  hasCustomTrigger: false
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 0ee75215-4e64-4654-8582-2d9283145217
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: Precognition
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      invokeOnCaster: false
+      runOnController: false
+      abilityType: standard
+      standardAbilityParams:
+        targetid: invoker
+      filterTarget: ""
+      applyto: none
+      standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 782a4955-05dc-4666-8975-a7ab31ab9fd8
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  rollType: enemy_ability_power_roll
+  name: Precognition
+  activationCondition: true
+  description: Ability power rolls against you have a bane until the start of the caster's next turn. Whenever you take damage while under this effect, you can use a triggered action to make a free strike against the source of the damage.
+  modtype: bane
+  behavior: power
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:d001643f-2880-4499-aa79-18b715f36828: true
+  sourceguid: d001643f-2880-4499-aa79-18b715f36828
+  description: Ability power rolls against you have a bane until the start of the caster's next turn. Whenever you take damage while under this effect, you can use a triggered action to make a free strike against the source of the damage.
+  source: Ongoing Effect
+  name: Precognition
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: Make a free strike against your attacker
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    conditionFormula: HasAttacker
+    guid: ffa7f0e5-48bc-4779-8296-52c6f95ff59e
+    actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+    modifiers: []
+    hasManualVersion: true
+    strain: []
+    whenActive: combat
+    trigger: losehitpoints
+    domains:
+      CharacterOngoingEffect:d001643f-2880-4499-aa79-18b715f36828: true
+    castImmediately: true
+    numTargets: "1"
+    persistence: []
+    name: Precognition Strike
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      invokeOnCaster: false
+      runOnController: false
+      guid: 53ccefc2-9000-44fa-af1b-19ea8effdb6a
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 782a4955-05dc-4666-8975-a7ab31ab9fd8
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      filterTarget: ""
+      autoTarget: false
+      standardAbilityParams:
+        targetid: "<<attacker.id>>"
+      abilityType: standard
+      standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: fc58e366-23c0-4054-be81-7692d808660e
+source: Ongoing Effect
+guid: 78eed05f-53d0-4828-8430-75beaaf55583
+id: 78eed05f-53d0-4828-8430-75beaaf55583
+ctime: 1749178446331
+domains:
+  CharacterOngoingEffect:78eed05f-53d0-4828-8430-75beaaf55583: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Precognition
+custom: true
+description: Ability power rolls against you have a bane until the start of the caster's next turn. Whenever you take damage while under this effect, you can use a triggered action to make a free strike against the source of the damage.
+mtime: 1758308065437
+iconid: ui-icons/skills/1.png

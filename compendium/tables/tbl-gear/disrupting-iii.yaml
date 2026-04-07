@@ -1,0 +1,20 @@
+__typeName: equipment
+id: 9d6f44e9-bca0-4824-883b-65f93f125c40
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: Whenever you damage an undead using this weapon and leave that undead with 50 Stamina or less, they immediately drop to 0 Stamina. If you instead leave the undead with 100 Stamina or less, they are frightened (save ends). This replaces the benefit of Disrupting II.
+itemPrerequisite: Wrappings from a mummy buried at least a century ago
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Anjali
+imbuePrereq: 7b1acd7b-c5a2-48a4-9868-b09d0515acf6
+name: Disrupting III
+imbueTargetType: weapon
+mtime: 1770782857821
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+imbueLevel: 9

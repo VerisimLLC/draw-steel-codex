@@ -1,0 +1,568 @@
+078b501f-e549-4725-993f-7ed8d57fc2ae:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  name: Architecture
+  mtime: 1768772487582
+  description: Create buildings and vehicles
+  id: 078b501f-e549-4725-993f-7ed8d57fc2ae
+  ctime: 1699861074047
+0df23459-ab2f-4659-8a2d-ae5820dc889f:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: lore
+  name: History
+  mtime: 1768772833364
+  description: Knowing about significant past events
+  id: 0df23459-ab2f-4659-8a2d-ae5820dc889f
+  ctime: 1715751161480
+4f4b7168-8702-469d-b001-65d250fd4082:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: interpersonal
+  name: Lie
+  mtime: 1768772688910
+  description: Convince someone that a falsehood is true
+  id: 4f4b7168-8702-469d-b001-65d250fd4082
+  ctime: 1715750935045
+ac718c6f-05e2-4301-997c-b1c54aad9250:
+  __typeName: Skill
+  specializations:
+  - __typeName: SkillSpecialization
+    text: Magic
+    id: dbfd3faa-0a46-4d12-8fce-752316d91d9e
+  attribute: rea
+  name: Mechanics
+  mtime: 1768772544730
+  description: Build machines and clockwork items
+  id: ac718c6f-05e2-4301-997c-b1c54aad9250
+  ctime: 1699740134721
+cb214a42-7f8c-4d02-b6ac-1399724a8b5f:
+  __typeName: Skill
+  specializations: []
+  attribute: mgt
+  category: interpersonal
+  name: Intimidate
+  mtime: 1768772672009
+  description: Awe or scare a creature
+  id: cb214a42-7f8c-4d02-b6ac-1399724a8b5f
+  ctime: 1715750910481
+81442e8b-10cb-41f5-8aa9-110a2256b663:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: interpersonal
+  name: Gamble
+  mtime: 1768772653282
+  description: Make bets with others
+  id: 81442e8b-10cb-41f5-8aa9-110a2256b663
+  ctime: 1715750874651
+61709a09-1a95-4726-b722-c40639cae405:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: lore
+  name: Culture
+  mtime: 1768772828256
+  description: Knowing about a culture’s customs, folktales, and taboos
+  id: 61709a09-1a95-4726-b722-c40639cae405
+  ctime: 1715751140291
+9522f7af-6d83-4b82-a962-075ac80a367d:
+  __typeName: Skill
+  specializations: []
+  attribute: agl
+  category: exploration
+  name: Ride
+  mtime: 1768772619566
+  description: Ride and control a nonsapient mount, such as a horse
+  id: 9522f7af-6d83-4b82-a962-075ac80a367d
+  ctime: 1715750819246
+ff54a691-e0a0-4246-8ceb-7975b8826e92:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: interpersonal
+  name: Handle Animals
+  mtime: 1768772659984
+  description: Interact with nonsapient animal wildlife
+  id: ff54a691-e0a0-4246-8ceb-7975b8826e92
+  ctime: 1715750885307
+04c5099c-526b-4ebd-a2cc-6e59ff4e17ad:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: lore
+  name: Timescape
+  mtime: 1768772902645
+  description: Knowing about the many worlds of the timescape
+  id: 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+  ctime: 1715751236451
+772f0953-2cee-4aad-a2ed-de9af9fa9b47:
+  __typeName: Skill
+  specializations: []
+  attribute: agl
+  category: intrigue
+  name: Escape Artist
+  mtime: 1768772758554
+  description: Escape from bonds such as rope or manacles
+  id: 772f0953-2cee-4aad-a2ed-de9af9fa9b47
+  ctime: 1715751058621
+47a38ee9-41ad-4173-a010-adf9e185e221:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: interpersonal
+  name: Empathize
+  mtime: 1768772642300
+  description: Relate to someone on a personal level
+  id: 47a38ee9-41ad-4173-a010-adf9e185e221
+  ctime: 1715750855505
+fdd43bde-6062-484d-aea6-3803d396ea8e:
+  __typeName: Skill
+  specializations: []
+  attribute: agl
+  category: intrigue
+  name: Hide
+  mtime: 1768772764721
+  description: Conceal yourself from others’ observation
+  id: fdd43bde-6062-484d-aea6-3803d396ea8e
+  ctime: 1715751069636
+bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: lore
+  name: Monsters
+  mtime: 1768772843967
+  description: Knowing monster ecology, strengths, and weaknesses
+  id: bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+  ctime: 1715751179962
+cdae52cd-ef20-461d-ae18-253023cdb827:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  name: Alchemy
+  mtime: 1768772481184
+  description: Make bombs and potions
+  id: cdae52cd-ef20-461d-ae18-253023cdb827
+  ctime: 1699774846758
+4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: lore
+  name: Psionics
+  mtime: 1768772866877
+  description: Knowing about psionic places, spells, rituals, items, and phenomena
+  id: 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+  ctime: 1715751198602
+becbc5ec-de63-481b-8247-e62c2a6fd8cb:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: crafting
+  name: Cooking
+  mtime: 1768772511158
+  description: Create delicious dishes
+  id: becbc5ec-de63-481b-8247-e62c2a6fd8cb
+  ctime: 1740693761140
+f15f5445-666a-4ea9-bdf3-fbed284bae85:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: lore
+  name: Nature
+  mtime: 1768772853106
+  description: Knowing about natural flora, fauna, and weather
+  id: f15f5445-666a-4ea9-bdf3-fbed284bae85
+  ctime: 1715751190195
+192827b0-ef39-4d5f-840a-b3c654e7b158:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  name: Jewelry
+  mtime: 1768772538745
+  description: Create bracelets, crowns, rings, and other jewelry
+  id: 192827b0-ef39-4d5f-840a-b3c654e7b158
+  ctime: 1699861195761
+98af721e-8904-496a-b4df-a581f09f5af7:
+  __typeName: Skill
+  specializations: []
+  attribute: agl
+  category: exploration
+  name: Gymnastics
+  mtime: 1768772577577
+  description: Move across unsteady or narrow surfaces; tumble
+  id: 98af721e-8904-496a-b4df-a581f09f5af7
+  ctime: 1715750773843
+db532974-aa0a-41a9-aacf-4adc1e6121d3:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: intrigue
+  name: Alertness
+  mtime: 1768772724482
+  description: Intuitively sense the details of your surroundings
+  id: db532974-aa0a-41a9-aacf-4adc1e6121d3
+  ctime: 1715751014240
+fc095c29-84cd-4e3f-8f65-03cd7a7736ad:
+  __typeName: Skill
+  specializations: []
+  attribute: agl
+  category: intrigue
+  name: Pick Lock
+  mtime: 1768772770163
+  description: Open a lock without using the key
+  id: fc095c29-84cd-4e3f-8f65-03cd7a7736ad
+  ctime: 1715751078983
+d188b959-e993-4239-a350-5e7ad69d27b6:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: interpersonal
+  name: Music
+  mtime: 1768772693810
+  description: Perform music vocally or with an instrument
+  id: d188b959-e993-4239-a350-5e7ad69d27b6
+  ctime: 1715750944907
+8b5a4de7-badf-4e23-8ff2-0f7a832ff754:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  name: Tailoring
+  mtime: 1768772550325
+  description: Craft clothing of cloth or leather
+  id: 8b5a4de7-badf-4e23-8ff2-0f7a832ff754
+  ctime: 1699861290660
+d533510d-0f1f-4ce3-a48c-cc21acadb6c6:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: interpersonal
+  name: Brag
+  mtime: 1768772632746
+  description: Impress others with stories of your deeds
+  id: d533510d-0f1f-4ce3-a48c-cc21acadb6c6
+  ctime: 1715750843496
+cab282ce-2063-4ce3-b94c-209e81b22e0b:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: intrigue
+  name: Sabotage
+  mtime: 1768772786277
+  description: Disable a mechanical device such as a trap
+  id: cab282ce-2063-4ce3-b94c-209e81b22e0b
+  ctime: 1715751097479
+afd26a9a-22e2-4341-b171-f7e3182c8744:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: lore
+  name: Religion
+  mtime: 1768772877639
+  description: Knowing about religious mythology, practices, and rituals
+  id: afd26a9a-22e2-4341-b171-f7e3182c8744
+  ctime: 1715751209569
+c9eb14a5-e283-448a-80f1-7ea071e0d883:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: intrigue
+  name: Eavesdrop
+  mtime: 1768772748498
+  description: Actively listen to something that is hard to hear, such as a whispered conversation through a door
+  id: c9eb14a5-e283-448a-80f1-7ea071e0d883
+  ctime: 1715751049132
+bd66a379-6ea9-4ecc-ad82-c9a2b82750d4:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: interpersonal
+  name: Perform
+  mtime: 1768772698256
+  description: Engage in dance, oratory, acting, or some other physical performance
+  id: bd66a379-6ea9-4ecc-ad82-c9a2b82750d4
+  ctime: 1730561580870
+28573ee3-e9df-47fe-98f1-2ac0bfee797a:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: interpersonal
+  name: Persuade
+  mtime: 1768772707781
+  description: Convince someone to agree with you through use of your charms and grace
+  id: 28573ee3-e9df-47fe-98f1-2ac0bfee797a
+  ctime: 1715750950461
+1c837bdc-17cc-4c7a-9814-f2f8b92cf55a:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: lore
+  name: Strategy
+  mtime: 1768772900749
+  description: Knowing about battle tactics and logistics
+  id: 1c837bdc-17cc-4c7a-9814-f2f8b92cf55a
+  ctime: 1740693848138
+978652ee-5553-40ee-97d8-44c607ecdf15:
+  __typeName: Skill
+  specializations: []
+  attribute: agl
+  category: intrigue
+  name: Pick Pocket
+  mtime: 1768772778345
+  description: Steal an item that another person wears or carries without them noticing
+  id: 978652ee-5553-40ee-97d8-44c607ecdf15
+  ctime: 1715751088596
+a1a8f269-3223-476c-bae6-2f8904680e7f:
+  __typeName: Skill
+  specializations: []
+  attribute: mgt
+  category: exploration
+  name: Endurance
+  mtime: 1768772569853
+  description: Remain engaged in strenuous activity over a long period of time
+  id: a1a8f269-3223-476c-bae6-2f8904680e7f
+  ctime: 1715750756131
+b115d70f-3fc2-4d5d-a328-b9bc9d050fca:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: exploration
+  name: Drive
+  mtime: 1768772562764
+  description: Control vehicles
+  id: b115d70f-3fc2-4d5d-a328-b9bc9d050fca
+  ctime: 1715750746218
+b0bf2f97-6776-4a9e-b691-4845275df2f8:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: intrigue
+  name: Disguise
+  mtime: 1768772743618
+  description: Change your appearance to look like a different person
+  id: b0bf2f97-6776-4a9e-b691-4845275df2f8
+  ctime: 1715751037654
+54c39860-b658-4563-9ae1-66d36f26e50f:
+  __typeName: Skill
+  specializations: []
+  attribute: agl
+  category: intrigue
+  name: Conceal Object
+  mtime: 1768772730099
+  description: Hide an object on your person or in your environment
+  id: 54c39860-b658-4563-9ae1-66d36f26e50f
+  ctime: 1715751024761
+a27ca113-bc01-49d0-9864-3316e6f525f4:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: intrigue
+  name: Track
+  mtime: 1768772808416
+  description: Follow a trail that another creature has left behind
+  id: a27ca113-bc01-49d0-9864-3316e6f525f4
+  ctime: 1715751124054
+7edbc5b3-92f7-4c39-bd05-165bb2990924:
+  __typeName: Skill
+  specializations: []
+  attribute: mgt
+  category: exploration
+  name: Jump
+  mtime: 1768772594760
+  description: Leap vertical and horizontal distances
+  id: 7edbc5b3-92f7-4c39-bd05-165bb2990924
+  ctime: 1715750794106
+75d64fef-b075-4221-8cbc-c6b6328ee22c:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  name: Forgery
+  mtime: 1768772532382
+  description: Create false badges, documents, and other items
+  id: 75d64fef-b075-4221-8cbc-c6b6328ee22c
+  ctime: 1699861143034
+5052a2e5-938c-46f9-81fd-68a98fe363b5:
+  __typeName: Skill
+  specializations: []
+  attribute: agl
+  category: exploration
+  name: Climb
+  mtime: 1768772555672
+  description: Move up vertical surfaces
+  id: 5052a2e5-938c-46f9-81fd-68a98fe363b5
+  ctime: 1715750737230
+30a30090-3699-48f1-b252-ce7d0445abee:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: interpersonal
+  name: Read Person
+  mtime: 1768772721745
+  description: Read the emotions and body language of other creatures
+  id: 30a30090-3699-48f1-b252-ce7d0445abee
+  ctime: 1715750958602
+f014760c-c987-4436-81ba-5e6acfdf6905:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: lore
+  name: Rumors
+  mtime: 1768772884156
+  description: Knowing gossip, legends, and uncertain truths
+  id: f014760c-c987-4436-81ba-5e6acfdf6905
+  ctime: 1715751218456
+3bde0e06-2d96-4048-bc15-dea8815fb9b0:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: lore
+  name: Society
+  mtime: 1768772890020
+  description: Knowing noble etiquette and the leadership and power dynamics of noble families
+  id: 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+  ctime: 1715751226897
+91ee7ea9-f331-42df-8f4b-e4a475d37a98:
+  __typeName: Skill
+  specializations: []
+  attribute: mgt
+  category: exploration
+  name: Swim
+  mtime: 1768772623296
+  description: Move through deep liquid
+  id: 91ee7ea9-f331-42df-8f4b-e4a475d37a98
+  ctime: 1715750828779
+27995005-8a25-435d-9f50-351c9d08a7b4:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: interpersonal
+  name: Lead
+  mtime: 1768772682601
+  description: Inspire people to action
+  id: 27995005-8a25-435d-9f50-351c9d08a7b4
+  ctime: 1715750918280
+50ca6145-2d22-4496-a355-c7b2df2cf0de:
+  __typeName: Skill
+  specializations: []
+  attribute: mgt
+  name: Blacksmithing
+  mtime: 1768772495840
+  description: Forge metal armor and weapons
+  id: 50ca6145-2d22-4496-a355-c7b2df2cf0de
+  ctime: 1699861125978
+7f6d9375-0ab0-415c-8196-4d99e98aa12b:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: intrigue
+  name: Search
+  mtime: 1768772793597
+  description: Actively search an environment for important details and items
+  id: 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+  ctime: 1715751107242
+436ea6c1-6386-43b2-b074-020992cc73fd:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: crafting
+  name: Carpentry
+  mtime: 1768772501674
+  description: Create items out of wood
+  id: 436ea6c1-6386-43b2-b074-020992cc73fd
+  ctime: 1740693748212
+80526c1a-3cfd-40dc-9065-eb840df8601d:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: lore
+  name: Criminal Underworld
+  mtime: 1768772822148
+  description: Knowing about criminal organizations, their crimes, their relationships, and their leaders
+  id: 80526c1a-3cfd-40dc-9065-eb840df8601d
+  ctime: 1715751150372
+ae13b5cf-718a-42a4-ab5e-18d46b289ac6:
+  __typeName: Skill
+  specializations: []
+  attribute: agl
+  category: intrigue
+  name: Sneak
+  mtime: 1768772804372
+  description: Move silently1
+  id: ae13b5cf-718a-42a4-ab5e-18d46b289ac6
+  ctime: 1715751116517
+57101165-410a-4734-98ee-d4e5b656d3df:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: lore
+  name: Magic
+  mtime: 1768772841782
+  description: Knowing about magical places, spells, rituals, items, and phenomena
+  id: 57101165-410a-4734-98ee-d4e5b656d3df
+  ctime: 1715751170233
+6d714e12-50c3-4202-955e-0fadaeb1f9a0:
+  __typeName: Skill
+  specializations: []
+  category: exploration
+  id: 6d714e12-50c3-4202-955e-0fadaeb1f9a0
+  ctime: 1715750804239
+  name: Lift
+  description: Pick up, carry, and throw heavy obj
+  mtime: 1768772603219
+  hasPassive: false
+  attribute: mgt
+0c7d0c53-2056-4579-8c83-1bec3098cc56:
+  __typeName: Skill
+  specializations: []
+  attribute: inu
+  category: exploration
+  name: Navigate
+  mtime: 1768772609354
+  description: Read a map and travel without becoming lost
+  id: 0c7d0c53-2056-4579-8c83-1bec3098cc56
+  ctime: 1715750810411
+463d3662-5dee-4445-91bb-c9cd1db46a70:
+  __typeName: Skill
+  specializations: []
+  attribute: rea
+  category: exploration
+  name: Heal
+  mtime: 1768772592865
+  description: Use mundane first aid
+  id: 463d3662-5dee-4445-91bb-c9cd1db46a70
+  ctime: 1715750784279
+5ca5c242-fe6d-43b3-86b0-b5314a9fe39a:
+  __typeName: Skill
+  specializations: []
+  _fork: H4sIAAAAAAAACmWOwU7DMBBEfwX5jCVv7Dh2bxV3LuUerZ01WDilSjYSpeLfsYuQKFzm8PQ0Mxcxjnw+0SPOJHbi8JpLEfd3YubcAFjvh14PQ2+9rThPVeoj9rEznUxkJ2l00NLZoGToNRj0ibTH1hF/dRgF1gwGKj5+Tz0smLhpyLzksHGD+HxdX08UM5b8gZzfjqvYXQS0+P/1cGOKn4sqoas3vVSglDQAk3QxJNkBhM656DxRk5neuer7El9oPjcylg2fMJS6wMtGn7coYVn/sqv2BTg3RLtIAQAA
+  id: 5ca5c242-fe6d-43b3-86b0-b5314a9fe39a
+  ctime: 1704682349571
+  hasPassive: false
+  mtime: 1768772526487
+  description: Make ranged weapons and ammunition
+  name: Fletching
+  attribute: agl
+4290580d-9e08-4bd2-859c-7ac147f108aa:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: interpersonal
+  name: Interrogate
+  mtime: 1768772665621
+  description: Obtain information from a creature withholding it
+  id: 4290580d-9e08-4bd2-859c-7ac147f108aa
+  ctime: 1715750900502
+9f41a684-4b8c-4026-8175-df136fc5134f:
+  __typeName: Skill
+  specializations: []
+  attribute: prs
+  category: interpersonal
+  name: Flirt
+  mtime: 1768772647784
+  description: Attract romantic attention from someone
+  id: 9f41a684-4b8c-4026-8175-df136fc5134f
+  ctime: 1715750863807

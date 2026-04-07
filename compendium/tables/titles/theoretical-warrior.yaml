@@ -1,0 +1,73 @@
+__typeName: Title
+effect: |-
+  Your choice of your Reason or Intuition increases by 1 (to a maximum of 6).
+
+  Additionally, choose a heroic ability belonging to any class. You gain this heroic ability, which can be paid for using the Heroic Resource of your class. You can’t use a heroic ability that requires a class feature you don’t have.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Characteristic Increase
+    numChoices: 1
+    description: Your choice of your Reason or Intuition increases by 1 (to a maximum of 6).
+    guid: d5ec8a6e-e918-4b03-bcb4-2d249b43392a
+    options:
+    - __typeName: CharacterFeature
+      description: 1 is added to your Reason
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: ce031b52-6c2b-4e5f-b42f-86142dfb3737
+        sourceguid: 64cac9c8-44cb-4d28-bfe8-b9ffc1ffa42c
+        behavior: attribute
+        source: Feat
+        name: Reason Increase
+        description: 1 is added to your Reason
+        value: 1
+        attribute: rea
+      source: Feat
+      name: Reason Increase
+      guid: 64cac9c8-44cb-4d28-bfe8-b9ffc1ffa42c
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 6d4e1fc7-423a-4b54-8deb-de6a4e1aa2d7
+        filter: Reason < 6
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: 1 is added to your Intuition
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 9c162430-c566-4fbd-9ba9-ead8f692ad6c
+        sourceguid: 65c0186e-a967-4176-80ee-3e603069d413
+        behavior: attribute
+        source: Feat
+        name: Intuition Increase
+        description: 1 is added to your Intuition
+        value: 1
+        attribute: inu
+      source: Feat
+      name: Intuition Increase
+      guid: 65c0186e-a967-4176-80ee-3e603069d413
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 5cd8820b-b30a-43d9-8033-3f94b1236f4f
+        filter: Intuition < 6
+      implementation: 4
+  - __typeName: CharacterFeature
+    modifiers: []
+    name: Theoretical Warrior
+    description: Choose a heroic ability belonging to any class. You gain this heroic ability, which can be paid for using the Heroic Resource of your class. You can’t use a heroic ability that requires a class feature you don’t have.
+    guid: 950577db-f36a-444e-9ab0-ec240c304141
+    canHavePrerequisites: true
+    source: Feat
+id: 15c87612-2c8d-4525-921b-ce141073bab2
+ctime: 1762352398914
+name: Theoretical Warrior
+description: I’ve read about this tactic in books—it looks fairly straightforward.
+mtime: 1775218928255
+echelon: "4"
+prerequisite: You have the Master Librarian title, and you complete a Learn From a Master project with a project goal of 1,000.

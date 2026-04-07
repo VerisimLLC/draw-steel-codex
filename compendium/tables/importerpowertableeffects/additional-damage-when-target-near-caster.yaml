@@ -1,0 +1,31 @@
+__typeName: ActivatedAbility
+id: d11b5822-4dd0-48c6-ae96-c417e000db0d
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+flavor: ""
+categorization: Hidden
+range: "<<distance>>"
+description: ""
+testCases:
+- text: This ability deals an additional 3 damage if the target is within 2 squares of the sweeper.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 6edb6759-75ca-4759-9550-8dc2bc3fbb56
+importMatch: This ability deals an additional <<num>> damage if the target is within <<distance>> squares of the <<monster>>.
+ctime: 1747618698859
+repeatTargets: false
+numTargets: "1"
+implementation: 3
+name: Additional Damage when target near caster
+behaviors:
+- __typeName: ActivatedAbilityDamageBehavior
+  roll: "<<num>>"
+mtime: 1774013690691
+abilityType: none
+iconid: ui-icons/skills/1.png

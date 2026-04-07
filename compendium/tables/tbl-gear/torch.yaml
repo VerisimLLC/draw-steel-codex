@@ -1,0 +1,30 @@
+__typeName: equipment
+id: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+weight: 1
+emitLight:
+  __typeName: Light
+  radius: 4
+  color:
+    __usertype: LuaColor
+    h: 0.118052825331688
+    s: 0.519042015075684
+    v: 0.983781933784485
+    a: 1
+  angle: 360
+  size: 0.1
+  innerRadius: 4
+category: Gear
+specialDescription: ""
+_fork: H4sIAAAAAAAACo1STWvcMBD9K8LnOOjDsrV7KymEQGih5L6MpfGuGlvaynLCNvS/V2OnpIEcctHH89ObN8/zUh0O+XLGbzBhta/w1+LPE4ZcXbG3yw1kPMZ0KYQ5Q3CQXH1ESESixwW/fb06nG3y5+xjKOgXlmOyJ9YvKcxsiIkJdopLumLnFJ+88+HI+uSPp8zGdfWBAZO8HmLMLIHzy8xKQeb89MogESgs5zwVgbHQ2YCYr9ndwC5xYRM8YlGZcMSy5wz2kT37fCoY+aCamysSPvl8xXxmDmGci7vBJ2QOJjjiNfXjXWlDSui1HHS907qvG25NbbhVtZHtYKRCDrpfA5t8vieX1f7lfa4bWihbT9W+KWcbx5g26jJjek3yfoGb9UNhnKo9vxbCcC2N1EqJ1pgCzwRrseON5ELzTreG9J4I3hnVGbFTZW0aowsM1V78oT0cx1JAtZz6CgHTj//MzP43rtXK+TAu8AA9sXNakB6HrY8HCq5avc/5LtzGseRDT3zG6Xv/E22+o8SU7XoyUHOAoW6kGeqdU33dOsUF77Bz2pDMlD3pirbrlBCKy9IpmTmj9TB+fTdMxH/GLV4qad+m8t/0+ek8Ik0sbG8UTWScwIeZciaT+0/9zLXvj5PwNoZ1KgYzgJW2q3nfFCHZFCHDseaaq9Y5oWDXVB9o/AVw3UewcwMAAA==
+description: A torch for lighting dark places.
+equipmentCategory: 4c9fc2bb-1c17-4072-babe-c2e3a55faa65
+ctime: 1698981124658
+type: Gear
+costInGold: 1
+iconid: f8fac2c7-0b4b-4248-880e-05036dd13a94
+name: Torch
+domains:
+  item:22ab52f5-955b-40c8-80c3-826f823e0a5b: true
+mtime: 1759152905257
+itemObjectId: 3c7b7844-0aaf-428f-9d3b-6d30107e7d58
+implementation: 2

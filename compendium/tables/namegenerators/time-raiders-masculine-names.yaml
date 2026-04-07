@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: dc516644-eca4-4c1d-879e-f49b5afcb9ff
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Astro'ogor
+- __typeName: RollTableRow
+  id: 00e97f25-2f66-4869-9992-4e4fd53c5f48
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dak'kara
+- __typeName: RollTableRow
+  id: 5231773d-3506-44d9-8422-1ef864c27c19
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ik'koq
+- __typeName: RollTableRow
+  id: 82476900-f18e-4821-8479-d667ce28366f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Jel'lek
+- __typeName: RollTableRow
+  id: 90b1a2b1-8303-45fe-bf18-6450a2e25289
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kes'slik
+- __typeName: RollTableRow
+  id: 3767df37-82ef-4320-9476-3dbbb10c9f65
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Laz'zir
+- __typeName: RollTableRow
+  id: fafc5cb3-d0b6-4478-9dc0-4f5789dc9def
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Mav'vikek
+- __typeName: RollTableRow
+  id: 8a8f6523-0d1d-444e-9612-c3833feb36c7
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Thork'kar
+- __typeName: RollTableRow
+  id: fe1563a4-55c2-46e9-a0bd-0494e8c104c3
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Uv'vik
+- __typeName: RollTableRow
+  id: d1af55cb-da7b-4da2-b10c-7af6f29cf5c6
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Va'antak
+id: 38aa81f3-051f-45e2-bdca-129bdedbd2f1
+name: Time Raiders Masculine Names
+subtable: true
+mtime: 1743456105750
+items: false
+ctime: 1743446348060

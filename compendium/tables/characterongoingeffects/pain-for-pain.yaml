@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+trackCasterSet: true
+modifiers: []
+source: Ongoing Effect
+casterTracking: set
+guid: 822aee05-801b-42a7-bea4-f9bbaaed388b
+id: 822aee05-801b-42a7-bea4-f9bbaaed388b
+ctime: 1745126772223
+domains:
+  CharacterOngoingEffect:822aee05-801b-42a7-bea4-f9bbaaed388b: true
+name: Pain for Pain
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.863727450370789
+    v: 0.598814308643341
+    a: 1
+statusEffect: true
+description: Inflicts an extra {Might or Agility} damage to these creatures.
+mtime: 1747282572156
+iconid: 903ef403-92f5-4480-a958-b53c0f30c17f

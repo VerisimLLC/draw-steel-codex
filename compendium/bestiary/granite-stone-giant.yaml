@@ -1,0 +1,313 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: 72f0634e-8d6a-4afc-884b-b9c824746cc8
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b2922095-0ef5-4046-9b86-b7742d95bc30
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 10
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Granite Stone Giant	Level 8 Elite Defender
+        Giant, Stone Giant	EV 40
+        <b>Stamina</b> 247
+        <b>Speed</b> 7 (burrow)	<b>Size</b> 4 /<b> Stability</b> 10
+        <b>Free Strike</b> 8
+        Might +4	Agility +1	Reason +1	Intuition +2	Presence +1
+        <b>Jagged Stoneclub</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	12 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	17 damage; R<3 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	21 damage; R<4 weakened (save ends)
+        <b>Effect</b> This attack inflicts bleeding (save ends) if the target is already weakened.
+
+        <b>Crag Burst</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 3 Malice
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies and objects in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage; push 2
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; push 4
+        %E2%9C%B8	<b>17</b>	14 damage; vertical push 4
+        <b>Effect</b> The affected area becomes difficult terrain. A creature takes 3 damage whenever they enter an affected square.
+
+        <b>Castle Stone Shape</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The granite stone giant moves up to their speed and creates a 14 wall of stone. Each segment must include one of the squares the granite stone giant touched.
+
+        <b>Pillar</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 3<b>	Target</b> 1 creature or object
+        <b>Trigger</b> The target moves or shifts away from the granite stone giant.
+        <b>Effect</b> A 1 square wide pillar of stone juts 5 squares out of the ground beneath the target, raising them and then vertically pushing them 5. The forced movement is entirely straight up.
+
+        <b>Stone Steps</b>
+        The granite stone giant ignores difficult terrain.
+
+        <b>Stonebreaker Flesh</b>
+        Whenever an enemy gets a tier 1 result on a melee strike against the granite stone giant, they have a bane on all subsequent uses of that ability until the end of the encounter.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:88ed4a8f-9bb8-499c-ad1f-63dcbdc2e74b: true
+      modifiers: []
+      name: Stone Steps
+      description: The granite stone giant ignores difficult terrain.
+      guid: 88ed4a8f-9bb8-499c-ad1f-63dcbdc2e74b
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ea7670bd-1984-436b-8d0b-b07d3b544365: true
+      modifiers: []
+      name: Stonebreaker Flesh
+      description: Whenever an enemy gets a tier 1 result on a melee strike against the granite stone giant, they have a bane on all subsequent uses of that ability until the end of the encounter.
+      guid: ea7670bd-1984-436b-8d0b-b07d3b544365
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:693ce15b-22b8-4873-b617-6942883a5dc2: true
+      modifiers: []
+      name: Stone Swim
+      description: The granite stone giant can burrow through stone, but can't drag other creatures underground when they do so.
+      guid: 693ce15b-22b8-4873-b617-6942883a5dc2
+      source: Trait
+    role: Elite Defender
+    inflictedConditions: []
+    keywords:
+      Stone Giant: true
+      Giant: true
+    max_hitpoints_roll: "247"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 8
+    monster_type: Granite Stone Giant
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 247
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 12 damage
+        - 17 damage; R<3 weakened (save ends)
+        - 21 damage; R<4 weakened (save ends)
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5a126981-9906-4b49-98b8-1bbcaff11604
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Jagged Stoneclub
+      numTargets: 2
+      description: This attack inflicts bleeding (save ends) if the target is already weakened.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 3dd406c8-50a7-4762-b8a8-2e5c136c1ec1
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; push 2
+        - 10 damage; push 4
+        - 14 damage; vertical push 4
+        roll: 2d10 + Might
+      name: Crag Burst
+      implementation: 3
+      description: The affected area becomes difficult terrain. A creature takes 3 damage whenever they enter an affected square.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 2646d3da-0894-40fa-a186-607ee28201c0
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Castle Stone Shape
+      numTargets: 1
+      description: The granite stone giant moves up to their speed and creates a 14 wall of stone. Each segment must include one of the squares the granite stone giant touched.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 0067eeec-0abf-4d8f-933c-561568b185e7
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Pillar
+      numTargets: 1
+      description: A 1 square wide pillar of stone juts 5 squares out of the ground beneath the target, raising them and then vertically pushing them 5. The forced movement is entirely straight up.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 12 damage
+        - 17 damage; R<3 weakened (save ends)
+        - 21 damage; R<4 weakened (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2991e483-d149-4bb9-85ca-38c70345b843
+      targetType: target
+      implementation: 3
+      numTargets: 2
+      name: Jagged Stone Club
+      sourceReference:
+        __typeName: SourceReference
+        page: 149
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: If the target is already weakened, they are also bleeding (save ends).
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    movementSpeeds:
+      burrow: 7
+    ev: 40
+    minion: false
+    levelChoices: []
+    creatureSize: "4"
+  tokenType: null
+  bestiaryId: 77a64c43-bb04-45df-a8eb-4b3019198076
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Granite Stone Giant
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590268109
+mtime: 1775201137032
+hidden: false

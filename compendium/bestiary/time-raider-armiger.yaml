@@ -1,0 +1,217 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 6e642b1d-7c06-4bb5-a8fe-7e4c2970a577
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d9c3aef4-26a1-4442-9aa5-0110cb80d01b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 3
+    import:
+      override: true
+      data: |+
+        Time Raider Armiger	Level 3 Platoon Defender
+        Humanoid, Time Raider	EV 10
+        <b>Stamina</b> 60	<b>Immunity</b> Psychic 3
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +0	Agility +2	Reason +2	Intuition +2	Presence +0
+        <b>Serrated Saber</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Psionic, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	7 damage
+        %E2%98%85	12%E2%80%9316	10 damage
+        %E2%9C%B8	17+	13 damage; R<2 weakened (save ends)
+        <b>2 Malice</b> A creature is bleeding while weakened from this ability.
+
+        <b>Shared Sickness</b> (Triggered Action) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Psionic, Ranged
+        <b>Distance</b> Ranged 20	<b>Target</b> Triggering creature
+        <b>Trigger</b> A creature deals damage to any ally of the armiger to whom the armiger has line of effect.
+        %E2%9C%A6	%E2%89%A411	4 psychic damage; R<0 5 poison damage
+        %E2%98%85	12%E2%80%9316	6 psychic damage; R<1 5 poison damage
+        %E2%9C%B8	17+	9 psychic damage; R<2 5 poison damage
+
+        <b>Foresight </b>
+        The armiger doesn't have a bane on strikes against concealed creatures.
+
+        <b>Kuran'zoi Heraldry</b>
+        While any time raider starts their turn with line of effect to the armiger, that time raider can end one condition affecting them.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0812fd4b-a871-42e9-a7a8-ddf271870034: true
+      modifiers: []
+      name: 'Foresight '
+      description: The armiger doesn't have a bane on strikes against concealed creatures.
+      guid: 0812fd4b-a871-42e9-a7a8-ddf271870034
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f450c11b-5868-425e-b41f-9bc303f96604: true
+      modifiers: []
+      name: Kuran'zoi Heraldry
+      description: While any time raider starts their turn with line of effect to the armiger, that time raider can end one condition affecting them.
+      guid: f450c11b-5868-425e-b41f-9bc303f96604
+      source: Trait
+    role: Platoon Defender
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Time Raider: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Time Raider Armiger
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 60
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 06aded4d-a201-409f-b2c7-308648778d0a
+      implementation: 3
+      numTargets: 1
+      name: Serrated Saber
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage
+        - 13 damage; R<2 weakened (save ends)
+        roll: 2d10 + Agility
+      description: |2-
+
+        **2 Malice**: A creature weakened this way is also bleeding.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 75371f37-51c0-47f2-9aee-b73ba12c4a9c
+      implementation: 4
+      numTargets: 1
+      name: Shared Sickness
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 psychic damage; R<0 5 poison damage
+        - 6 psychic damage; R<1 5 poison damage
+        - 9 psychic damage; R<2 5 poison damage
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 0fd6ab3a-e0ae-4c61-86e3-82f06865d109
+    movementSpeeds: []
+    ev: 10
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 9bf9fbc6-6c9d-4bb9-81a5-372f77d40ee7
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Time Raider Armiger
+parentFolder: 37d52d89-62a2-4615-ad94-8549d23e461a
+artist: null
+ord: 0
+ctime: 1741590287220
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,199 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0ccc2ec0-66ac-46bc-b0cd-879c05a86f32
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Time Raider Hijack	Level 3 Platoon Ambusher
+        Humanoid, Time Raider	EV 0
+        <b>Stamina</b> 50	<b>Immunity</b> Psychic 3
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +0	Agility +2	Reason +2	Intuition +2	Presence +1
+        <b>Golden Sickles</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Psionic, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature
+        %E2%9C%A6	%E2%89%A411	7 damage
+        %E2%98%85	12%E2%80%9316	11 damage
+        %E2%9C%B8	17+	14 damage; A<2 bleeding (save ends)
+        <b>Effect</b> The hijack is hidden from creatures bleeding from this ability until the condition ends.
+
+        <b>Psi-Sickle</b> (Maneuver)
+        <b>Keywords</b> Psionic, Ranged, Weapon
+        <b>Distance</b> Ranged 5	<b>Target</b> One creature or object
+        <b>Effect</b> The hijack psychically latches their sickle onto the target and closes the distance between them. If the target is larger than the hijack, the hijack moves adjacent to the target. Otherwise, the target is pulled 4 squares toward the hijack.
+
+        <b>Foresight </b>
+        The hijack doesn't have a bane on strikes against concealed creatures.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:58eb4f0c-ef49-4e60-80fb-ab6f769bbdf0: true
+      modifiers: []
+      name: 'Foresight '
+      description: The hijack doesn't have a bane on strikes against concealed creatures.
+      guid: 58eb4f0c-ef49-4e60-80fb-ab6f769bbdf0
+      source: Trait
+    role: Platoon Ambusher
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Time Raider: true
+    max_hitpoints_roll: "50"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Time Raider Hijack
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 50
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 11 damage
+        - 14 damage; A<2 bleeding (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b26bbc53-71bd-429f-a25e-6a1b294c52f2
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Golden Sickles
+      numTargets: 1
+      description: The hijack is hidden from creatures bleeding from this ability until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: f6535fa1-1e38-411f-a676-22ebbf4d8dca
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Psi-Sickle
+      numTargets: 1
+      description: The hijack psychically latches their sickle onto the target and closes the distance between them. If the target is larger than the hijack, the hijack moves adjacent to the target. Otherwise, the target is pulled 4 squares toward the hijack.
+      abilityType: none
+      implementation: 0
+    groupid: 0fd6ab3a-e0ae-4c61-86e3-82f06865d109
+    movementSpeeds: []
+    ev: 10
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 8e9464d9-5037-4e51-bb04-eae8b04a0835
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Time Raider Hijack
+parentFolder: 37d52d89-62a2-4615-ad94-8549d23e461a
+artist: null
+ord: 0
+ctime: 1741590280655
+mtime: 1775201137032
+hidden: false

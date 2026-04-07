@@ -1,0 +1,316 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 019a5068-692f-48d8-8d1e-35866f3adaca
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Wyvern Lurker	Level 4 Elite Ambusher
+        Beast, Wyvern	EV 24
+        <b>Stamina</b> 120	<b>Immunity</b> Acid 5
+        <b>Speed</b> 9 (fly)	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>Free Strike</b> 6
+        Might +2	Agility +3	Reason -1	Intuition +1	Presence 0
+        <b>Agonizing Stinger</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	9 damage
+        %E2%98%85	12%E2%80%9316	14 damage; M<2 bleeding (save ends)
+        %E2%9C%B8	17	17 damage; M<3 bleeding (save ends)
+        <b>1 Malice</b> The lurker deals an additional 6 acid damage to one target if they were hidden from them.
+
+        <b>Acidic Anguish</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 3 Malice
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%B8	%E2%89%A411	10 acid damage; M<1 weakened (save ends)
+        %E2%98%85	12%E2%80%9316	16 acid damage; M<2 weakened (save ends)
+        %E2%9C%A6	17	20 acid damage; M<3 weakened (save ends)
+        <b>Effect</b> A target weakened from this ability takes 1d4 acid damage at the start of each of their turns until the condition ends.
+
+        <b>Swooping Torment</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The lurker flies up to their speed and hides. Each enemy that comes within 1 square of the lurker during this movement can choose to take 3 sonic damage or fall prone.
+
+        <b>Retaliatory Dive</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 5<b>	Target</b> Triggering creature
+        <b>Trigger</b> A creature deals damage to the lurker with a ranged ability.
+        <b>Effect</b> The lurker flies into a square adjacent to the target and makes a free strike against them.
+
+        <b>Ruthless Rage</b>
+        The lurker deals an additional 3 damage on strikes while within 10 squares of another wyvern.
+
+        <b>Tenacious Hunter</b>
+        Any creature suffering a condition inflicted by a wyvern can't be hidden from the lurker.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:577a6fca-5cde-4c6b-86da-ffffb632e731: true
+      modifiers: []
+      name: Ruthless Rage
+      description: The lurker deals an additional 3 damage on strikes while within 10 squares of another wyvern.
+      guid: 577a6fca-5cde-4c6b-86da-ffffb632e731
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1271d948-3e8f-4956-8082-4dac9fb82aec: true
+      modifiers: []
+      name: Tenacious Hunter
+      description: Any creature suffering a condition inflicted by a wyvern can't be hidden from the lurker.
+      guid: 1271d948-3e8f-4956-8082-4dac9fb82aec
+      source: Trait
+    role: Elite Ambusher
+    keywords:
+      Wyvern: true
+      Beast: true
+    max_hitpoints_roll: "120"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: acid
+      apply: Damage Reduction
+    monster_type: Wyvern Lurker
+    opportunityAttack: 6
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    levelChoices: []
+    groupid: ab7a9ca9-83a4-43ca-b9b1-43b420932892
+    walkingSpeed: 9
+    max_hitpoints: 120
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 1 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Magic: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 324
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      numTargets: 2
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: One target hidden from the lurker takes an extra 6 acid damage.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 14 damage; M<2 bleeding (save ends)
+        - 17 damage; M<3 bleeding (save ends)
+        roll: 2d10 + Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 26af496c-cfa3-4480-8c2c-4983b1817698
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "2"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: acid
+            roll: "6"
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: One target hidden from the lurker takes an extra 6 acid damage."
+        autoTarget: false
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Agonizing Stinger
+      guid: 51b875a7-502a-48d0-acfd-25bcb1ea40a6
+      description: |2-
+
+        **1 Malice**: One target hidden from the lurker takes an extra 6 acid damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 51362643-84d5-498a-923d-1367181ca0ca
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 acid damage; M<1 weakened (save ends)
+        - 16 acid damage; M<2 weakened (save ends)
+        - 20 acid damage; M<3 weakened (save ends)
+        roll: 2d10 + Agility
+      name: Acidic Anguish
+      implementation: 3
+      description: A target weakened from this ability takes 1d4 acid damage at the start of each of their turns until the condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: c4ad601b-c556-402f-87c0-2af164182886
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Swooping Torment
+      numTargets: 1
+      description: The lurker flies up to their speed and hides. Each enemy that comes within 1 square of the lurker during this movement can choose to take 3 sonic damage or fall prone.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 50b5a116-d21c-4983-95f0-d54423c702ee
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Retaliatory Dive
+      numTargets: 1
+      description: The lurker flies into a square adjacent to the target and makes a free strike against them.
+      abilityType: none
+      implementation: 0
+    monster_category: Monster
+    movementSpeeds:
+      fly: 9
+    damage_taken: 0
+    minion: false
+    ev: 24
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 84531202-1ed6-44e5-9d93-c6482b882aee
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Wyvern Lurker
+parentFolder: 3343aa43-c50f-4db2-ab7b-dc2db7192c7a
+artist: null
+ord: 0
+ctime: 1741590274849
+mtime: 1775201137032
+hidden: false

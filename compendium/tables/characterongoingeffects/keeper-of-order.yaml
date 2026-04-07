@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 35253481-b7f6-4d1f-85b6-800f31ea7849
+id: 35253481-b7f6-4d1f-85b6-800f31ea7849
+ctime: 1750060496747
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+iconid: ui-icons/skills/1.png
+name: Keeper of Order
+statusEffect: false
+description: You have used Keeper of Order this round.
+mtime: 1750060496747
+implementation: 3

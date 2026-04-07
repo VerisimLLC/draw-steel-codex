@@ -1,0 +1,45 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: 309ca31b-6ed0-4130-a561-2b9848a691ea
+ctime: 1761136929228
+textStorage:
+  __typeName: TextStorage
+  sections:
+    G: |+
+      ## Mohler Cage
+
+    M: |2+
+       If a creature is force moved into one of the mohler cages, the door can be shut and the creature trapped inside. Each cage has 25 Stamina and is immune to poison and psychic damage. If a creature is inside a cage A when it is destroyed, they take 2 damage. A creature outside the cage who can reach it can unlock it as a maneuver.  
+
+    e: |
+      |{#The door doesn't open.}
+    S: |+
+      *Anytime a Hero is forced moved inside one of the cages, have them roll on the below test as a maneuver to unlock before they can move out:*
+
+    l: |
+      |{#The door opens, but the lock is destroyed. The door can't be locked again.}
+    Y: |
+      |Unlatch Cage Door: Agility Test
+    s: |+
+      |{#The door opens, and creatures inside can exit. Future attempts to open the latch from the inside have a double edge.}
+
+parentFolder: 7cb5c634-6ed3-43bd-970d-7877c47b4772
+updateid: 9be6e1f6-1990-46b9-9957-ba0f541dcf1e
+description: Mohler Cage
+content: |+
+  ## Mohler Cage
+
+   If a creature is force moved into one of the mohler cages, the door can be shut and the creature trapped inside. Each cage has 25 Stamina and is immune to poison and psychic damage. If a creature is inside a cage A when it is destroyed, they take 2 damage. A creature outside the cage who can reach it can unlock it as a maneuver.  
+
+  *Anytime a Hero is forced moved inside one of the cages, have them roll on the below test as a maneuver to unlock before they can move out:*
+
+  |Unlatch Cage Door: Agility Test
+  |The door doesn't open.
+  |The door opens, but the lock is destroyed. The door can't be locked again.
+  |The door opens, and creatures inside can exit. Future attempts to open the latch from the inside have a double edge.
+
+mtime: 1765833626559

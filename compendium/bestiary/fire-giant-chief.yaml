@@ -1,0 +1,437 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: eb08ac3e-93a6-42f6-9175-53bc82830eea
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 10
+    cr: 9
+    import:
+      type: mcdm
+      data: |
+        Fire Giant Chief	Level 9 Boss
+        Fire Giant, Giant	EV 104
+        <b>Stamina</b> 240	<b>Immunity</b> fire 10
+        <b>Speed</b> 10	<b>Size</b> 5 /<b>Stability</b> all
+        <b>Free Strike</b> 9
+        Might +5	Agility +3	Reason 0	Intuition +2	Presence +3
+        <b>Roiling Fist</b> (Action) %E2%97%86 AGL or INU RR %E2%97%86 Signature
+        <b>Keywords</b> Area, Melee, Resistance, Weapon
+        <b>Distance</b> 3 Cube within 4<b>Target</b> All enemies and objects
+        %E2%9C%B8	<b>%E2%89%A411</b>	19 fire damage; burning (MGT ends)
+        %E2%98%85	<b>12-16</b>	14 fire damage; prone
+        %E2%9C%A6	<b>17</b>	9 fire damage
+        <b>Effect</b> A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+
+        <b>Lava Pillar</b> (Action) %E2%97%86 AGL RR %E2%97%86 3 VP
+        <b>Keywords</b> Area, Ranged, Resistance
+        <b>Distance</b> 3 Cube within 10<b>Target</b> All enemies and objects
+        %E2%9C%B8	<b>%E2%89%A411</b>	18 fire damage; vertical push 10; prone
+        %E2%98%85	<b>12-16</b>	14 fire damage; vertical push 5
+        %E2%9C%A6	<b>17</b>	8 fire damage; vertical push 3
+
+        <b>Sweltering Heat</b> (Maneuver) %E2%97%86 MGT RR
+        <b>Keywords</b> Area, Melee, Resistance
+        <b>Distance</b> 3 Burst<b>Target</b> All enemies
+        %E2%9C%B8	<b>%E2%89%A411</b>	Weakened (MGT ends)
+        %E2%98%85	<b>12-16</b>	Weakened (EoT)
+        %E2%9C%A6	<b>17</b>	No effect
+        <b>Effect</b> Targets with a fire immunity have a double edge on the roll.
+
+        <b>Fuel the Fire</b> (Triggered Action) %E2%97%86 1 VP
+        <b>Keywords</b> -
+        <b>Trigger</b> The target makes an attack. The chief can use this after seeing the result.
+        <b>Distance</b> Ranged 12<b>Target</b> 1 fire giant ally
+        <b>Effect</b> The attack gains a double edge and deals an extra 9 fire damage.
+
+        <b>Forward!</b> (Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 Burst<b>Target</b> Self and all allies
+        <b>Effect</b> Each target shifts up to their speed and takes a free strike.
+
+        <b>Burning Legion </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 15<b>Target</b> Special
+        <b>Effect</b> The chief shifts up to their speed and 5 fire giant troopers appear in unoccupied spaces.
+
+        <b>All to Cinders</b> (Villain Action 3) %E2%97%86 AGL RR
+        <b>Keywords</b> Area
+        <b>Distance</b> Self and 10 Burst<b>Target</b> All fire giant allies
+        <b>Effect</b> Each target unleashes a 2 burst fire wave. Enemies within distance of a target's burst make an <b>Agility resistance roll</b>:
+        %E2%9C%B8	<b>%E2%89%A411</b>	16 fire damage
+        %E2%98%85	<b>12-16</b>	12 fire damage
+        %E2%9C%A6	<b>17</b>	8 fire damage
+
+        <b>Searing Skin</b>
+        Whenever an enemy makes physical contact with the chief or uses a melee ability against the chief, they take 9 fire damage.
+
+        <b>End Effect</b>
+        The chief takes 5 damage and ends one EoE effect affecting them at the end of their turn.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8f44b5aa-7736-4f44-a558-fb265fa5e16f: true
+      modifiers: []
+      name: Searing Skin
+      description: Whenever an enemy makes physical contact with the chief or uses a melee ability against the chief, they take 9 fire damage.
+      guid: 8f44b5aa-7736-4f44-a558-fb265fa5e16f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a01d510d-208a-49c6-ab5e-733acac23c71: true
+      modifiers: []
+      name: End Effect
+      description: The chief takes 5 damage and ends one EoE effect affecting them at the end of their turn.
+      guid: a01d510d-208a-49c6-ab5e-733acac23c71
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3e2affa4-91a3-40f0-b0a5-fa4a24489fda: true
+      modifiers: []
+      name: Scorching Skin
+      description: Whenever an adjacent enemy grabs the chief or uses a melee ability against them, that enemy takes 9 fire damage, and if they have M<4 they are weakened (save ends)
+      guid: 3e2affa4-91a3-40f0-b0a5-fa4a24489fda
+      source: Trait
+    role: Leader
+    inflictedConditions: []
+    keywords:
+      Giant: true
+      Fire Giant: true
+    max_hitpoints_roll: "240"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 10
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 9
+    monster_type: Fire Giant Chief
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 10
+    resources: []
+    max_hitpoints: 240
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: inu
+        roll: 2d6 + Might or Agility
+        resistanceRoll: true
+        tiers:
+        - 18 fire damage; prone; weakened (save ends)
+        - 14 fire damage; burning (EoT)
+        - 9 fire damage
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8aa13639-8941-44e1-93b8-910b6b4a56e2
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Roiling Fist
+      numTargets: 1
+      description: A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Resistance: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 13c0479e-5ceb-4102-9c51-c42b1c1d96b7
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: agl
+        roll: 2d10 + Might
+        resistanceRoll: true
+        tiers:
+        - 5 fire damage; M<3 vertical push 3
+        - 7 fire damage; M<4 vertical push 4
+        - 9 fire damage; M<5 vertical push 5
+      name: Lava Pillar
+      numTargets: 1
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Resistance: true
+        Area: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: mgt
+        roll: 2d6 + Might or Agility
+        resistanceRoll: true
+        tiers:
+        - Weakened (MGT ends)
+        - Weakened (EoT)
+        - No effect
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 969267d0-7442-40f6-ac86-e7a11ec5af52
+      numTargets: 1
+      targetType: all
+      name: Sweltering Heat
+      iconid: ui-icons/skills/1.png
+      description: Targets with a fire immunity have a double edge on the roll.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 08a46882-8f32-4367-b2dc-358c7fd8070c
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Fuel the Fire
+      implementation: 0
+      description: The attack gains a double edge and deals an extra 9 fire damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ac4825f5-ce54-4c06-a989-7668a6b41be0
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '179d934d-1224-45e7-96c"
+      implementation: 0
+      behaviors: []
+      name: Forward!
+      numTargets: 1
+      description: Each target shifts up to their speed and takes a free strike.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 150524bd-860d-40bf-b3f9-90f4d580c98d
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '7b999a2e-8bb0-445e-a1d"
+      implementation: 0
+      behaviors: []
+      name: 'Burning Legion '
+      numTargets: 1
+      description: The chief shifts up to their speed and 5 fire giant troopers appear in unoccupied spaces.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6ad5dcb1-6a6a-40da-84bf-9ffc7f533043
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'e34686e8-6e48-4b17-be0"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: agl
+        roll: 2d6 + Might or Agility
+        resistanceRoll: true
+        tiers:
+        - 16 fire damage
+        - 12 fire damage
+        - 8 fire damage
+      name: All to Cinders
+      numTargets: 1
+      description: "Each target unleashes a 2 burst fire wave. Enemies within distance of a target's burst make an Agility resistance roll:"
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 14 damage; push 5; A<3 9 fire damage
+        - 19 damage; push 10; A<4 9 fire damage
+        - 23 damage; push 15; A<5 9 fire damage
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 4
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 13d8c547-9ac6-4732-8a23-630b18936176
+      targetType: target
+      implementation: 4
+      numTargets: 2
+      name: Burning Kick
+      sourceReference:
+        __typeName: SourceReference
+        page: 152
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    movementSpeeds: []
+    ev: 44
+    minion: false
+    levelChoices: []
+    creatureSize: "5"
+  tokenType: null
+  bestiaryId: ee06a587-3058-43bd-b1b4-cb47f93048aa
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Fire Giant Chief
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590326061
+mtime: 1775201137032
+hidden: false

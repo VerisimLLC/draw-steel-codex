@@ -1,0 +1,31 @@
+__typeName: ActivatedAbility
+id: 11c8c638-36ff-4f27-a492-17d8b73dffbf
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: 43d0bce9-9f35-473c-be69-3d6f44de5709
+  stacks: "<<surges>>"
+  ongoingEffectCustom: false
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: "the next attack against the target has a :surge:"
+- text: "the next attack against the target has :surge:"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 01b94f51-f6ff-43ad-814d-d6f4fe687526
+importMatch: the next attack against the target has ?a? <<surges>>
+ctime: 1730100511011
+targetType: self
+repeatTargets: false
+description: ""
+name: Next Attack Against Has Surge
+numTargets: "1"
+mtime: 1772545102617
+abilityType: none
+iconid: ui-icons/skills/1.png

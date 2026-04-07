@@ -1,0 +1,55 @@
+__typeName: CharacterOngoingEffect
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 1c2bd660-5808-4e2d-9bd0-9bf0c18051c6
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.550537645816803
+        s: 0.679824590682983
+        v: 0.894117653369904
+        a: 1
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      damageType: lightning
+      roll: 1d10
+    name: Lightning Damage
+    trigger: attack
+    description: ""
+    abilityType: none
+    iconid: 1c1b85b7-98f3-423c-8d45-705e86fc0227
+  description: You take lightning damage the next time you deal damage to another creature.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 9f6f5a90-1e2d-44b8-8eb2-7aa0dba411bf
+  name: Lightning Damage
+  sourceguid: a4448cf3-c752-44ab-863e-63595a05b82b
+source: Ongoing Effect
+guid: a4448cf3-c752-44ab-863e-63595a05b82b
+id: a4448cf3-c752-44ab-863e-63595a05b82b
+ctime: 1732091579406
+name: Lightning Damage
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.550749599933624
+    s: 0.680663466453552
+    v: 0.895932555198669
+    a: 1
+mtime: 1732092117066
+custom: true
+description: You take lightning damage the next time you deal damage to another creature.
+iconid: 1c1b85b7-98f3-423c-8d45-705e86fc0227

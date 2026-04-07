@@ -1,0 +1,58 @@
+bcb81202-3d9c-4e91-9005-a1f52db78977:
+  __typeName: Encounter
+  groups:
+  - monsters:
+      9584f1f7-037a-42eb-aeed-e68c51a30ebd: 2
+  - monsters:
+      9584f1f7-037a-42eb-aeed-e68c51a30ebd: 2
+  - monsters:
+      9584f1f7-037a-42eb-aeed-e68c51a30ebd: 2
+  - monsters:
+      602ac1db-482d-47f1-998a-59e6da0c0128: 2
+  - monsters:
+      602ac1db-482d-47f1-998a-59e6da0c0128: 2
+  - monsters:
+      0c566b64-d70c-4f40-b1d9-64523154e15e: 1
+  name: DT - Encounter D3
+  mtime: 1752702730631
+  id: bcb81202-3d9c-4e91-9005-a1f52db78977
+  ctime: 1752702730631
+e862aa1b-5846-46cb-b058-144ebc781ef3:
+  __typeName: Encounter
+  groups:
+  - monsters:
+      fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+      3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+  - monsters:
+      fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+      3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+  - monsters:
+      fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+      cd5f724b-4707-46d5-821e-a8d172c986f6: 4
+  - monsters:
+      fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+      cd5f724b-4707-46d5-821e-a8d172c986f6: 4
+  - monsters:
+      fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+  name: DT - Encounter D1
+  mtime: 1757287325978
+  id: e862aa1b-5846-46cb-b058-144ebc781ef3
+  ctime: 1752702646959
+b13c90c6-16df-47ad-b443-685a514c9f9b:
+  __typeName: Encounter
+  groups:
+  - monsters:
+      fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+  - monsters:
+      fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+  - monsters:
+      fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+  - monsters:
+      fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+  - monsters:
+      9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+      806915da-99a4-45fb-88a9-60ec110f9d18: 1
+  name: DT - Goblin Warriors
+  mtime: 1757271799120
+  id: b13c90c6-16df-47ad-b443-685a514c9f9b
+  ctime: 1752702553811

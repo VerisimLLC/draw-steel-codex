@@ -1,0 +1,62 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    damageTypeMappings: []
+    description: 1/2/3
+    name: Molten Constrictor Extra Damage
+    behavior: power
+    damageModifierType: fire
+    modtype: none
+    rollType: ability_power_roll
+  source: Item
+  name: Molten Constrictor Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 2a7a0d1a-a249-45e6-b41b-c38886c950c4
+itemPrerequisite: Four iron bars coated in magma slag
+keywords:
+  Magic: true
+  Net: true
+projectSource: Texts or lore in Caelian
+flavor: This flexible black-iron net burns with the heat of a volcano.
+level9: The weapon’s extra fire damage increases to 3, and the damage taken by a grabbed creature attempting to escape increases to 15. Additionally, you can use a maneuver to make a free strike with another weapon against a target grabbed using the net.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The weapon’s extra fire damage increases to 2. Additionally, a target grabbed by a strike using the net takes 8 fire damage each time they attempt to escape using the Escape Grab maneuver.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 0fab2312-e2ab-4bf4-bb14-d71dfd9bd678
+ctime: 1759360438635
+name: Molten Constrictor
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 fire damage. Additionally, whenever you make a strike using the net and obtain a tier 3 outcome, you can automatically grab the target. A target grabbed in this way takes a bane when using the Escape Grab maneuver.
+mtime: 1759396587793
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: c49ead6e-af05-4f58-842e-8cae5bb7543f

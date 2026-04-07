@@ -1,0 +1,30 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4215bc4c-75c2-4feb-a260-5762ff046e21
+  source: Ongoing Effect
+  modtype: appendroll
+  keywords: []
+  replaceText: 1d10 + {Caster.Intuition}
+  guid: 64fe5f2f-b3c1-4e18-a48b-71653f4f3183
+  name: Conduit's Saint's Epiphany
+  rollType: project_roll
+  description: You gain 1d10 + the Caster's Intuition on your next project roll
+  behavior: power
+  activationCondition: true
+source: Ongoing Effect
+casterTracking: one
+guid: 4215bc4c-75c2-4feb-a260-5762ff046e21
+id: 4215bc4c-75c2-4feb-a260-5762ff046e21
+ctime: 1767234875248
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Conduit's Saint's Epiphany
+description: You gain 1d10 + the Caster's Intuition on your next project roll
+custom: true
+mtime: 1767234875248
+iconid: ui-icons/skills/1.png

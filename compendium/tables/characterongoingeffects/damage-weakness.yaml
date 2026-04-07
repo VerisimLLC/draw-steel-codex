@@ -1,0 +1,39 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a5feff79-ba94-487f-be63-0db2898d05a2: true
+  sourceguid: a5feff79-ba94-487f-be63-0db2898d05a2
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-Stacks"
+    damageType: all
+    apply: Damage Reduction
+  guid: 0ead142c-d32e-4a8d-aa11-53c9086df28f
+  name: Damage Weakness
+  description: ""
+source: Ongoing Effect
+guid: a5feff79-ba94-487f-be63-0db2898d05a2
+id: a5feff79-ba94-487f-be63-0db2898d05a2
+ctime: 1744954985066
+domains:
+  CharacterOngoingEffect:a5feff79-ba94-487f-be63-0db2898d05a2: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.971375107765198
+    s: 0.0097658634185791
+    v: 0.813839614391327
+    a: 1
+name: Damage Weakness
+description: ""
+mtime: 1758750836607
+stackable: true
+iconid: 38bcfa07-4082-40cd-b1c0-fd6fe2122dce

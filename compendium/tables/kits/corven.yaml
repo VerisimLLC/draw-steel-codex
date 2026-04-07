@@ -1,0 +1,617 @@
+__typeName: Kit
+disengage: 1
+health: 3
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+id: eed9a7a3-accd-4dbc-a839-cadc02735b53
+ctime: 1727311314727
+type: stormwight
+portraitid: 31ba7973-e0f1-445c-ad2e-76c1b4b9266f
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You gain an edge on tests made to hide and sneak. Additionally, whenever you fall, you can use a free triggered action to use your Aspect of the Wild ability
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: db2f8627-8860-4063-984c-bde442e7846b
+      source: Corven Kit Feature
+      modtype: edge
+      keywords: []
+      activationCondition: true
+      guid: 6faab3b3-e221-4816-81a5-be5f6c12902e
+      name: Aspect Benefits
+      behavior: power
+      description: You gain an edge on tests made to hide and sneak. Additionally, whenever you fall, you can use a free triggered action to use your Aspect of the Wild ability
+      rollType: test_power_roll
+      skills:
+      - fdd43bde-6062-484d-aea6-3803d396ea8e
+      - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+    source: Corven Kit Feature
+    canHavePrerequisites: true
+    guid: db2f8627-8860-4063-984c-bde442e7846b
+    name: Aspect Benefits
+    implementation: 2
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+      guid: 22dc5b3b-db68-4068-9fd4-b3bcf77d9b7a
+      source: Corven Kit Feature
+      behavior: activated
+      description: |-
+        **Animal Form: Crow**
+        While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Crow**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+      name: Corven Form
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 006d8a10-8d42-4853-907a-5bd8dfa41b51
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: cae4de28-d561-4dbf-b6cd-cc484a38c464
+          mode: effect
+          guid: c6e4a3c1-508e-4939-b573-2eaf75daefb5
+          conditions: []
+        - __typeName: ActivatedAbilityDisguiseBehavior
+          monsterType: 02eeea00-8dee-4452-882e-fdd53369564f
+          mode: bestiary
+          appearanceName: Corven Form
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 519d8db4-254d-4445-a476-733eaf6c111b
+          ongoingEffectCustom: 519d8db4-254d-4445-a476-733eaf6c111b
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          page: 143
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        modifiers: []
+        domains: []
+        strain: []
+        guid: 9040df39-4255-4009-bad3-4872d076edef
+        numTargets: "1"
+        iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+        castImmediately: true
+        targetType: self
+        categorization: Hidden
+        name: "Animal Form: Corven"
+        persistence: []
+        description: "**Corven:** While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild."
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      filterCondition: Ongoing Effects has "Corven Form" or Ongoing Effects has "Hybrid Corven Form"
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      description: |-
+        **Animal Form: Crow**
+        While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Crow**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+      source: Corven Kit Feature
+      name: Bear Form
+      behavior: activated
+      guid: 03f026a2-e483-4b66-84d4-482d8ba120c4
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        implementationDetails: ""
+        targetType: self
+        multipleModes: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        modeList: []
+        guid: 820333ae-fce7-445e-87d1-4e44231b3f8a
+        domains: []
+        castImmediately: true
+        iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: cae4de28-d561-4dbf-b6cd-cc484a38c464
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 519d8db4-254d-4445-a476-733eaf6c111b
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 006d8a10-8d42-4853-907a-5bd8dfa41b51
+          mode: effect
+          guid: 477e0a86-42f6-4cf6-9da2-9dfa0d34f4ed
+          conditions: []
+        name: True Form
+        numTargets: "1"
+        description: Revert to your original form
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      sourceguid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+      guid: df3418e6-89cd-4a52-afc0-2b90fb4acbf6
+      source: Corven Kit Feature
+      behavior: activated
+      description: |-
+        **Animal Form: Crow**
+        While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Crow**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+      name: Corven Form
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        targetType: self
+        multipleModes: true
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          page: 143
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        categorization: Hidden
+        numTargets: "1"
+        modifiers: []
+        modeList:
+        - rules: You will be size 1S while in hybrid form.
+          text: Size 1S
+        - rules: You will be size 1M while in hybrid form.
+          text: Size 1M
+        strain: []
+        guid: 93caa15a-7f0d-4d0e-a4b8-a81bb6b49a63
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 519d8db4-254d-4445-a476-733eaf6c111b
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 006d8a10-8d42-4853-907a-5bd8dfa41b51
+          modesSelected:
+          - 1
+          ongoingEffectCustom: 006d8a10-8d42-4853-907a-5bd8dfa41b51
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: cae4de28-d561-4dbf-b6cd-cc484a38c464
+          modesSelected:
+          - 2
+          ongoingEffectCustom: cae4de28-d561-4dbf-b6cd-cc484a38c464
+        - __typeName: ActivatedAbilityDisguiseBehavior
+          monsterType: 02eeea00-8dee-4452-882e-fdd53369564f
+          mode: bestiary
+          appearanceName: Hybrid Corven Form
+        castImmediately: false
+        domains: []
+        iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+        persistence: []
+        name: "Hybrid Form: Corven"
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        description: "**Corven:** While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly."
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      description: |-
+        **Animal Form: Bear**
+        While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+        **Hybrid Form: Bear**
+        While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      behavior: alternateappearance
+      name: Bear Form
+      source: Corven Kit Feature
+      guid: 0ce37225-4257-4bf1-8336-f813043a23e2
+      monsterDefault: 02eeea00-8dee-4452-882e-fdd53369564f
+      appearance: Corven Form
+    - __typeName: CharacterModifier
+      description: |-
+        **Animal Form: Crow**
+        While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Crow**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+      sourceguid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+      behavior: alternateappearance
+      name: Corven Form
+      source: Corven Kit Feature
+      guid: 8cd7b655-e0cf-4de0-841d-f610911efc27
+      monsterDefault: 02eeea00-8dee-4452-882e-fdd53369564f
+      appearance: Hybrid Corven Form
+    name: Corven Form
+    description: |-
+      **Animal Form: Crow**
+      While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+      **Hybrid Form: Crow**
+      While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+    guid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+    source: Corven Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Corven Kit Feature
+      value: Agility
+      filterCondition: Heroic Resources This Turn >= 2
+      name: Corven Growing Ferocity
+      guid: f5082f1d-6538-4d48-93fc-9fd046ab3fa1
+      description: ""
+      behavior: attribute
+      attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Corven Kit Feature
+      behavior: trigger
+      filterCondition: Heroic Resources This Turn >= 4
+      name: Corven Growing Ferocity
+      resourceRefreshType: turn
+      description: ""
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        usageLimitOptions:
+          resourceRefreshType: turn
+          charges: "1"
+          resourceid: f258a444-df0a-4ab2-a47d-7d65c2d6c4ec
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: b04d837b-4e68-49d1-a177-06039b72f0c0
+        conditionFormula: path.shift
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          chatMessage: "Growing Ferocity: Gain 1 surge when shifting"
+          quantity: 2 when Heroic Resources This Turn >= 8 and Level >= 4 else 1
+        name: Corven Growing Ferocity
+        trigger: move
+        numTargets: "1"
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      guid: f258a444-df0a-4ab2-a47d-7d65c2d6c4ec
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Corven Kit Feature
+      behavior: power
+      keywords: []
+      activationCondition: false
+      modtype: edge
+      filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+      name: Corven Growing Ferocity
+      rollType: test_power_roll
+      description: When you have 6 or more Ferocity, you gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      guid: c3e4bc74-5a06-46ea-85a5-d821bd5d292a
+      attribute: agl
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      displayCondition: ability.name = "Escape Grab" or ability.name = "Knockback"
+      source: Corven Kit Feature
+      modtype: edge
+      keywords: []
+      activationCondition: "1"
+      filterCondition: Heroic Resources This Turn >= 6
+      name: Corven Growing Ferocity
+      rollType: ability_power_roll
+      description: When you have 6 or more Ferocity, you gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      guid: 947dbfe8-abee-4a90-8199-a68eb3568f5b
+      behavior: power
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Corven Kit Feature
+      behavior: power
+      keywords: []
+      activationCondition: false
+      modtype: double_edge
+      filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+      name: Corven Growing Ferocity
+      rollType: test_power_roll
+      description: When you have 10 or more Ferocity, you gain a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      guid: b00dc73c-5842-4bff-b59a-43f5bc31de57
+      attribute: agl
+    - __typeName: CharacterModifier
+      filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      description: ""
+      source: Corven Kit Feature
+      name: Boren Growing Ferocity
+      behavior: trigger
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: ae447302-faac-4610-8843-40262637abd5
+        repeatTargets: false
+        trigger: useability
+        conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+        targetType: self
+        persistence: []
+        name: Corven Growing Ferocity
+        behaviors:
+        - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+          stamina: "10"
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      guid: a11bf5fe-091a-48cc-ad2f-770470932277
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Corven Kit Feature
+      modtype: none
+      keywords: []
+      activationCondition: false
+      filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      description: |-
+        When you have 12 or more Ferocity, the potency of any 
+        effects targeting you is reduced by 2 for you.
+      name: Corven Growing Ferocity
+      rollType: enemy_ability_power_roll
+      potencymod: "-2"
+      behavior: power
+      guid: 58dc3ecc-c27c-4da9-a2b8-e4f6b5b68623
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      progression:
+      - level: 0
+        description: Disengage speed +{Agility}.
+        resources: 2
+        tooltip: Whenever you use the Disengage move action, the distance you can shift gains a bonus equal to your Agility score.
+      - level: 0
+        description: First shift on a turn, you gain 1 surge.
+        resources: 4
+        tooltip: 'The first time you shift on a turn, you gain 1 surge. '
+      - level: 0
+        description: Edge on Agility tests, Escape Grab, and Knockback.
+        resources: 6
+        tooltip: You gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      - level: 4
+        description: First shift on a turn, you gain 2 surges.
+        resources: 8
+        tooltip: |-
+          The first time you shift on a turn, you gain 2 surges 
+          instead of 1.
+      - level: 7
+        description: Double Edge on Agility tests, Escape Grab, and Knockback.
+        resources: 10
+        tooltip: You have a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      - level: 10
+        description: When you use a heroic ability gain 10 temporary Stamina. Potency of effects targeting you reduced by 2.
+        resources: 12
+        tooltip: |-
+          Whenever you use a heroic ability, you gain 10 
+          temporary Stamina. Additionally, the potency of any effects targeting you is reduced by 2 for you.
+      source: Corven Kit Feature
+      description: ""
+      guid: 4f255165-78a5-45e5-942f-89324df5613e
+      behavior: growingresources
+      name: Corven Growing Ferocity
+    name: Corven Growing Ferocity
+    description: ""
+    guid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+    source: Corven Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Your primordial damage type is fire.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: cf7ca5c1-d78d-41cd-b504-08536e8232dc
+      displayCondition: Ability.name is Visceral Roar or Ability.name is Deluge	
+      source: Corven Kit Feature
+      guid: 558b6314-858a-44e6-93ff-68444ebad156
+      keywords: []
+      activationCondition: "1"
+      damageTypeMappings:
+        untyped: fire
+      rollType: ability_power_roll
+      modtype: none
+      description: Your primordial damage type is fire.
+      behavior: power
+      name: "Primordial Storm: Anabatic Wind"
+    source: Corven Kit Feature
+    canHavePrerequisites: true
+    guid: cf7ca5c1-d78d-41cd-b504-08536e8232dc
+    name: "Primordial Storm: Anabatic Wind"
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+      source: Corven Kit Feature
+      behavior: resistance
+      filterCondition: Level >= 7
+      name: Elemental Form
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: Might*2 when Level < 10 else Might*3
+        damageType: fire
+        apply: Damage Reduction
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      guid: 9817a60d-103f-4788-89f9-e451d78ff4da
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+    source: Corven Kit Feature
+    guid: 2f4b8259-ae86-4961-b23a-3274e7642d86
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+    canHavePrerequisites: true
+    classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+    description: |-
+      You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+      Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+    name: Elemental Form
+    implementation: 4
+name: Corven
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  targetTextOverride: Each enemy in the area
+  repeatTargets: false
+  keywords:
+    Area: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: shift
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    inheritKeywords: true
+    customAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Hidden
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 7c9d44d3-3056-4a3b-916b-13b5ab2adf7c
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 6 damage
+        - 8 damage
+        guid: d26f4b28-0c07-4f60-878f-a4d124724693
+        roll: 2d10 + Agility
+      name: Wing Buffet
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Wing Buffet Burst
+  multipleModes: variations
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: |
+    Foes who try to close around you do so at their peril.
+  categorization: Signature Ability
+  range: "2"
+  guid: 350a3e2f-dce7-4c08-9846-6464ed1cb684
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  numTargets: "1"
+  modifiers: []
+  sourceReference:
+    __typeName: SourceReference
+    page: 144
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  strain: []
+  modeList:
+  - text: Shift Before
+  - variation:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 6 damage
+        - 8 damage
+        guid: ad376d4c-881a-4702-a020-0b19bf1cf263
+        roll: 2d10 + Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: d2b196d1-25d2-46db-bf4f-048588dc31ab
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Shift up to 2 squares
+        standardAbilityParams:
+          distance: "2"
+        abilityType: standard
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 1fbabeaa-884f-4fb2-a3d5-a5c0e8eab7ef
+      domains: []
+      numTargets: "1"
+      name: Wing Buffet
+      targetType: all
+      description: ""
+      abilityType: none
+      iconid: bfaf7457-ee3f-4b4f-ab0e-cedc82a816a4
+    hasAbility: true
+    text: Shift After
+  rangeTextOverride: 1 burst
+  targetType: emptyspace
+  sequentialTargeting: true
+  targeting: pathfind
+  implementation: 4
+  name: Wing Buffet
+  persistence: []
+  description: You can shift up to 2 squares before or after making the power roll.
+  abilityType: none
+  iconid: bfaf7457-ee3f-4b4f-ab0e-cedc82a816a4
+mtime: 1773366625734
+description: With this stormwight kit, you channel your primordial ferocity into the form of a crow, becoming stealthy and quick. Corven are tied to the mountain passes and the hot winds that flow through them. This aspect is associated with the warm and fast-rising anabatic wind.
+speed: 3

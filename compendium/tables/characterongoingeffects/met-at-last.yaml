@@ -1,0 +1,78 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5095b28d-7b64-4194-aa61-daf17d0093c0
+  guid: 1ddb1216-d70d-4e93-aa79-456fd5e32de5
+  source: Ongoing Effect
+  behavior: activated
+  description: |-
+    Both you and the target can target each other with abilities even if you are beyond distance, with the distance of this ability replacing those abilities' distances. The target can't be force moved by an ability used beyond distance this way.
+
+    Additionally, once on each of your turns, you can use a free maneuver to communicate a motivating or dispirting message to the target, either granting them 2 surges or forcing them to take a bane on the next ability roll they make before the start of your next turn.
+  name: Met at Last
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    targetFilter: (target has "We Meet at Last") and (Target.ConditionCaster("We Meet at Last") = caster)
+    repeatTargets: false
+    targetType: target
+    multipleModes: true
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Signature Ability
+    range: "100"
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    modeList:
+    - text: Motivating Message
+    - text: Dispiriting Message
+    actionResourceId: none
+    iconid: ui-icons/skills/1.png
+    domains: []
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+      modesSelected:
+      - 1
+      quantity: "2"
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      durationUntilEndOfTurn: false
+      duration: 1
+      ongoingEffectCustom: 0b8a032e-2bdf-4115-8e09-189c48e970db
+      ongoingEffect: 641ff88c-6fb7-412c-953f-ab2394fb3d7e
+      modesSelected:
+      - 2
+    persistence: []
+    name: Communicate Message
+    guid: aa232277-0338-4495-8cfb-a631914f9333
+    description: Communicate a motivating or dispirting message to the target of your We Meet at Last ability. That creature either gains 2 surges or takes a bane on their next ability roll they make before the start of your next turn.
+    abilityType: none
+    implementation: 3
+source: Ongoing Effect
+guid: 5095b28d-7b64-4194-aa61-daf17d0093c0
+id: 5095b28d-7b64-4194-aa61-daf17d0093c0
+ctime: 1755033270616
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.837000072002411
+    s: 1.00166594982147
+    v: 1.00191068649292
+    a: 1
+custom: true
+name: Met at Last
+iconid: 68eecff7-6407-4fde-adbe-ee829a72b1ad
+description: |-
+  Both you and the target can target each other with abilities even if you are beyond distance, with the distance of this ability replacing those abilities' distances. The target can't be force moved by an ability used beyond distance this way.
+
+  Additionally, once on each of your turns, you can use a free maneuver to communicate a motivating or dispirting message to the target, either granting them 2 surges or forcing them to take a bane on the next ability roll they make before the start of your next turn.
+mtime: 1755033646977
+implementation: 3

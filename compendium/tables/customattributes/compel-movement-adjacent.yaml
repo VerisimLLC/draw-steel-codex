@@ -1,0 +1,7 @@
+__typeName: CustomAttribute
+baseValue: "0"
+name: Compel Movement Adjacent
+mtime: 1760750399663
+documentation: The creature is compelled to end movement adjacent to the creature with this id.
+id: 3b730c1c-2818-4876-b6d1-949969e04572
+ctime: 1760750363524

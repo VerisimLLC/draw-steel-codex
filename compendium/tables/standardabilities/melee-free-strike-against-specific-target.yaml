@@ -1,0 +1,50 @@
+__typeName: ActivatedAbility
+targetFilter: ""
+id: 491c36e6-a36b-47be-9134-788b071fa7ca
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  targeting: formula
+  namedAbility: Melee Free Strike
+  targetingFormula: Target.id = <<targetid>>
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 9959a5d2-9f4d-41a7-931a-e71fd56a92fa
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: 9b123334-6d7c-4848-8b17-db3255c4012c
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+targetType: self
+ctime: 1745972523343
+castImmediately: true
+persistence: []
+description: ""
+name: Melee Free Strike Against Specific Target
+repeatTargets: false
+mtime: 1771184461166
+abilityType: none
+iconid: ui-icons/skills/1.png

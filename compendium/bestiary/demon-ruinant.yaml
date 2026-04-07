@@ -1,0 +1,263 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 239a2c0a-fdad-41ca-91ba-dff70f110bcb
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.008026128
+      y: 0.09765586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.43
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 37b349d7-7c21-405f-8d71-373825c638e1
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    opportunityAttack: 1
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Demon Ruinant	Level 1 Horde Harrier
+        Abyssal, Demon	EV 3
+        <b>Stamina</b> 15	<b>Weakness</b> Holy 3
+        <b>Speed</b> 6	<b>Size</b> 1M/ <b>Stability</b> 0
+        	<b>Free Strike</b> 1
+        Might +0	Agility +2	Reason +0	Intuition +0	Presence +1
+        <b>Bloodletting Claws</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	3 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage; M<2 bleeding (save ends)
+
+        <b>Salt Wounds</b> (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> Three creatures without full Stamina
+        %E2%9C%A6	%E2%89%A411	1 corruption damage
+        %E2%98%85	12%E2%80%9316	2 corruption damage
+        %E2%9C%B8	17+	3 corruption damage
+
+        <b>Lethe</b>
+        While winded, the ruinant has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the ruinant can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c6ae4a51-d69b-4ebc-98b5-865f092adb77: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the ruinant can't be hidden from them.
+      guid: c6ae4a51-d69b-4ebc-98b5-865f092adb77
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+        CharacterFeature:b4917be5-0a83-4849-8c57-d04a2a71397d: true
+        CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+        CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: self.Winded = 1
+        guid: b3a5c8ff-7a20-4669-b11c-1b280fdb0cc0
+        name: Lethe
+        domains:
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:b4917be5-0a83-4849-8c57-d04a2a71397d: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the ruinant has an edge on strikes, and strikes have an edge against them.
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: Target.Winded = 1
+        guid: e8a78661-f90d-4ba7-b1f2-c9c9d2f03014
+        name: Lethe
+        domains:
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:b4917be5-0a83-4849-8c57-d04a2a71397d: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the ruinant has an edge on strikes, and strikes have an edge against them.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: While winded, the ruinant has an edge on strikes, and strikes have an edge against them.
+      guid: b4917be5-0a83-4849-8c57-d04a2a71397d
+      name: Lethe
+      implementation: 3
+    role: Horde Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -3
+      damageType: holy
+      apply: Damage Reduction
+    damage_taken: 0
+    monster_type: Demon Ruinant
+    resources: []
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    minion: false
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: cb6f1b7f-f6ee-45c0-b86c-c4e3bfcbdaaf
+      numTargets: 2
+      implementation: 4
+      persistence: []
+      name: Bloodletting Claws
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage
+        - 5 damage; M<2 bleeding (save ends)
+        roll: 2d10 + 2
+      description: ""
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: target.Stamina < Target.Maximum Stamina
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: c26000d0-8886-41c1-b70a-ec328dd57e41
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 corruption damage
+        - 2 corruption damage
+        - 3 corruption damage
+        roll: 2d10 + 2
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 3
+      implementation: 4
+      name: Salt Wounds
+      preDescription: Each target must be at less than full Stamina.
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    walkingSpeed: 6
+    movementSpeeds: []
+    creatureSize: 1M
+    keywords:
+      Demon: true
+      Abyssal: true
+    notes:
+    - text: Ruinants (rew-in-ANSE) are possessed of glowing eyes and tendrilringed maws, their bodies covered in inflamed scars and their breath coming as a sickening wheeze. A ruinant can inflict fresh wounds and burns on their victims in a pattern mirroring those on the demon's own body.
+      title: Monster Notes
+    notesRevision: 466ffd58-a4e4-48ad-a683-fc64ef32e555
+  tokenType: null
+  bestiaryId: 279d55bc-aeed-4c02-8748-3cfaa9d7c061
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Demon Ruinant
+parentFolder: 003daf5c-52f0-4ea2-9283-a547f7b2422e
+artist: null
+ord: 7
+ctime: 1741590232853
+mtime: 1775201137032
+hidden: false

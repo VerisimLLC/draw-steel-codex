@@ -1,0 +1,1051 @@
+388bbd0f-7ed1-413e-b2e9-53ecd1d278f2:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 6c8e3b5f-d9d4-488b-b587-cd8f95eca2f3
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Explorer Career Feature
+        behavior: proficiency
+        description: ""
+        equate: false
+        name: Navigate Skill
+        sourceguid: fe348222-87cf-4f2a-b913-5c0777819622
+        proficiency: proficient
+        guid: 57201ba1-0ab1-4b0d-ae9e-a41e33d78ea4
+        skills:
+          0c7d0c53-2056-4579-8c83-1bec3098cc56: true
+      name: Navigate Skill
+      description: ""
+      guid: fe348222-87cf-4f2a-b913-5c0777819622
+      source: Explorer Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        exploration: true
+      numChoices: 2
+      source: Explorer Career Feature
+      description: "Choose two skills from the exploration skill group. (Quick Build: Climb, Heal)"
+      guid: 909d9cd7-6d0f-4ee5-b00b-39bce306003d
+      name: Explorer Exploration Skills
+      individualSkills: []
+    - __typeName: CharacterLanguageChoice
+      name: Explorer Languages
+      numChoices: 2
+      description: Choose two Languages.
+      source: Explorer Career Feature
+      guid: 78a0621d-5922-40f9-b221-b458b2cc052c
+    - __typeName: CharacterFeatChoice
+      guid: 344648d4-0074-41ef-ad64-79b50b8961eb
+      description: "Choose one perk from the exploration perk type. (Quick build: Wood Wise)"
+      tag: exploration perks
+      name: Explorer Exploration Perk
+  name: Explorer
+  mtime: 1768796526647
+  description: "You ventured into uncharted areas and made your living as a cartographer, researcher, or resource or treasure hunter. In defining your career, think about the following questions: \n\nFor what purpose did you explore the unknown? \n\nWho else was part of your exploration team? \n\nWhat types of environments did you explore? \n\nWhat legend or rumor did you search for but never found? \n\nWhat is your greatest discovery? \n\n\nYou gain the following career benefits:  "
+  id: 388bbd0f-7ed1-413e-b2e9-53ecd1d278f2
+  ctime: 1730559204002
+b34ec71e-91bd-44b9-ba39-d3ce2f1095f3:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: e124598d-1aae-44f2-9814-5ca31eb53fc2
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        interpersonal: true
+      name: Aristocrat Interpersonal Skill
+      description: "Choose one Skill from the interpersonal skill group. (Quick Build: Brag)"
+      guid: 42715176-c263-4ebc-9b2f-c581c5b2f691
+      source: Aristocrat Career Feature
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+      name: Aristocrat Lore Skill
+      description: "Choose a Skill from the lore skill group. (Quick Build: Society)"
+      guid: b509bacd-1afb-45a2-b683-f7f137138c6e
+      source: Aristocrat Career Feature
+    - __typeName: CharacterLanguageChoice
+      source: Aristocrat Career Feature
+      guid: 952f3219-f4ad-40f4-83f8-37bf6a7db8db
+      name: Aristocrat Language
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+        source: Aristocrat Career Feature
+        guid: 30b57377-c2ea-4038-a778-6fd5c3ed0371
+        name: Aristocrat's Renown and Wealth
+        value: 1
+        description: ""
+        behavior: attribute
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      - __typeName: CharacterModifier
+        sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+        source: Aristocrat Career Feature
+        guid: 5573cf4e-b220-4633-adff-74a3cf9b3efe
+        name: Aristocrat's Renown and Wealth
+        value: 1
+        description: ""
+        behavior: attribute
+        attribute: 036da4db-4406-4038-ae7d-cf0b37890f5f
+      name: Aristocrat's Renown and Wealth
+      description: ""
+      guid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+      source: Aristocrat Career Feature
+      implementation: 3
+    - __typeName: CharacterFeatChoice
+      guid: f3735484-db29-48ef-ac96-725e88a7e5d9
+      description: "Choose one lore perk (Quick Build: I’ve Read About this Place)"
+      tag: lore perks
+      name: Aristocrat Lore Perk
+  name: Aristocrat
+  mtime: 1767409564180
+  description: "Career? Who needs a career when you’re born into money! Or marry into it! Or con your way into it! Whatever the case, you didn’t need to work thanks to (someone’s) generational wealth. In defining your career, think about the following questions: \n\nHow did you become an aristocrat? \n\nWhat did you do to fill your days? \n\nWhich aristocrats and people who worked for you were your best friends and greatest enemies? \n\nWhat sentimental heirloom from your old estate do you carry, and what does it mean to you? "
+  id: b34ec71e-91bd-44b9-ba39-d3ce2f1095f3
+  ctime: 1730555391826
+a35ed182-3a29-404c-935e-7d2afbd263f9:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 7fdce810-0dce-4209-b392-ac164b80c441
+  projectpoints: "120"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Criminal Career Feature
+        behavior: proficiency
+        description: You have the Criminal Underworld skill.
+        equate: false
+        name: Criminal Underworld Skill
+        sourceguid: 72220b8a-f175-4d4f-a481-e4fc50fd2f9e
+        proficiency: proficient
+        guid: b2c9274c-f2b1-4d35-b59e-eaaeb4a93843
+        skills:
+          80526c1a-3cfd-40dc-9065-eb840df8601d: true
+      name: Criminal Underworld Skill
+      description: You have the Criminal Underworld skill.
+      guid: 72220b8a-f175-4d4f-a481-e4fc50fd2f9e
+      source: Criminal Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        intrigue: true
+      name: Criminal Intrigue Skills
+      numChoices: 2
+      guid: f34c5551-9ab8-4ec0-8e40-5bc5812fa793
+      description: "Choose two skills from the intrigue skill group. (Quick Build: Pick Lock, Pick Pocket)"
+      source: Criminal Career Feature
+    - __typeName: CharacterLanguageChoice
+      description: choose one language
+      guid: ac124dd7-7445-4fa7-9f8d-3f6ead074476
+      source: Criminal Career Feature
+      name: Criminal Language
+    - __typeName: CharacterFeatChoice
+      guid: 971fd3ad-db05-45fd-a560-a42006c737b4
+      description: "Choose one intrigue perk type. (Quick Build: Criminal Contacts)"
+      tag: intrigue perk
+      name: Criminal Intrigue Perk
+  name: Criminal
+  mtime: 1767841773741
+  description: |-
+    You once worked as a bandit, insurgent, smuggler, outlaw, or even as an assassin. In defining your career, think about the following questions: 
+
+    What crimes did you commit, and why? 
+
+    Did anyone help you perform your illicit activities? 
+
+    What is one crime you botched? 
+
+    Who was your nemesis while you were a criminal?
+  id: a35ed182-3a29-404c-935e-7d2afbd263f9
+  ctime: 1730557808351
+3e30d9cc-9548-40dd-831d-2b68eb50895b:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 4d077e74-38e5-4e0b-b98a-3cd7ebe73bb1
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Agent Career Feature
+        behavior: proficiency
+        description: You gain the Sneak skill.
+        equate: false
+        name: Sneak
+        sourceguid: 692ce4cb-a654-4099-adc1-24cd73c9d915
+        proficiency: proficient
+        guid: 991d94f8-8a7e-4cfc-b1d6-483a61e1bb3c
+        skills:
+          ae13b5cf-718a-42a4-ab5e-18d46b289ac6: true
+          a635556e-37aa-4799-ae2c-3df22fff3688: true
+      name: Sneak
+      description: You gain the Sneak skill.
+      guid: 692ce4cb-a654-4099-adc1-24cd73c9d915
+      source: Agent Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        intrigue: true
+      source: Agent Career Feature
+      description: "Choose one skill from the intrigue skill group (Quick Build: Disguise)"
+      guid: e89cc971-8f87-4fea-bf9c-d17be4aa2405
+      name: Agent Intrigue Skill
+      individualSkills: []
+    - __typeName: CharacterSkillChoice
+      categories:
+        interpersonal: true
+      source: Agent Career Feature
+      numChoices: 1
+      description: "Choose one skill from the interpersonal skill group (Quick Build: Lie)"
+      name: Agent Interpersonal Skill
+      guid: d760383a-866b-435a-a48c-a9abd987b742
+    - __typeName: CharacterLanguageChoice
+      name: Agent Languages
+      numChoices: 2
+      description: Choose two languages
+      source: Agent Career Feature
+      guid: ac4e73c1-f350-49cc-aeca-b8ef435c2f9c
+    - __typeName: CharacterFeatChoice
+      guid: 97a5995d-b522-47e5-97c4-b35fc144cb1c
+      description: Choose one perk from the intrigue perk type
+      tag: intrigue perk
+      name: Agent Perk
+  name: Agent
+  mtime: 1757094889906
+  description: |-
+    You worked as a spy for a government or organization. In defining your career, think about the following questions:
+    Who did you work for?
+    Who did you spy on?
+    Who shouldn’t know your true identity and allegiance but does?
+    Who did you have to burn or leave behind to get a job done?
+  id: 3e30d9cc-9548-40dd-831d-2b68eb50895b
+  ctime: 1730270133412
+03dd8d97-0a6d-4819-bcef-713e5db2c56d:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 4e7d0c5f-7907-46fe-95c3-b14d1659d7c4
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      name: Music or Performance Skill
+      numChoices: 1
+      guid: 717c47b0-7a92-4390-b91a-9345e0804987
+      description: Choose the Music or Perform skill.
+      options:
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          subtype: skill
+          source: Performer Career Feature
+          behavior: proficiency
+          description: ""
+          equate: false
+          name: Music Skill
+          sourceguid: 32b5273b-3f08-4c28-a365-b09fd4ea57b1
+          proficiency: proficient
+          guid: c9162f82-bb3a-4e3a-a38d-9b37d8b08483
+          skills:
+            d188b959-e993-4239-a350-5e7ad69d27b6: true
+        source: Performer Career Feature
+        canHavePrerequisites: true
+        guid: 32b5273b-3f08-4c28-a365-b09fd4ea57b1
+        name: Music Skill
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: You are proficient with Perform.
+        modifiers:
+        - __typeName: CharacterModifier
+          subtype: skill
+          source: Performer Career Feature
+          behavior: proficiency
+          description: You are proficient with Perform.
+          equate: false
+          name: Perform Skill
+          sourceguid: 14485db6-af17-4d76-a218-983e3c4af4dd
+          proficiency: proficient
+          guid: 9f5425b6-b009-4038-9ccc-a7d508dab677
+          skills:
+            bd66a379-6ea9-4ecc-ad82-c9a2b82750d4: true
+        source: Performer Career Feature
+        canHavePrerequisites: true
+        guid: 14485db6-af17-4d76-a218-983e3c4af4dd
+        name: Perform Skill
+        implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        interpersonal: true
+      description: "Choose two skills from the interpersonal skill group. (Quick Build: Flirt, Music, Perform)"
+      name: Performer Interpersonal Skills
+      numChoices: 2
+      guid: d397f68b-9732-46ed-8fe7-5d31a1724cc5
+      source: Performer Career Feature
+    - __typeName: CharacterFeatChoice
+      guid: ff991cf3-7dcd-45d5-9bcb-307d46dd3e7c
+      description: "Choose one interpersonal perk. (Quick Build: Harmonizer)"
+      tag: interpersonal perk
+      name: Performer Interpersonal Perk
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 9e7c112d-1a2c-456b-9bce-53465c7f2016
+        source: Performer Career Feature
+        guid: f5115487-3576-400c-aa64-b1c06def47fc
+        name: Performer's Renown
+        value: 2
+        description: 2 is added to your Renown.
+        behavior: attribute
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      name: Performer's Renown
+      description: 2 is added to your Renown.
+      guid: 10212c62-6128-4b81-83de-c512d44bb6f2
+      source: Performer Career Feature
+      implementation: 3
+  name: Performer
+  mtime: 1757094955439
+  description: |-
+    You can sing, act, or dance well enough that people actually pay you to do it. Imagine that! In defining your career, think about the following questions: 
+
+    What is the tone of your performances? 
+
+    What song, role, or dance are you most known for? 
+
+    Did you perform in the same place throughout your career, or did you travel? 
+
+    Were you part of a troupe, or were you a solo act?
+  id: 03dd8d97-0a6d-4819-bcef-713e5db2c56d
+  ctime: 1730561542571
+09ed87b8-d480-48f3-80c2-104e3e229ce1:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 1be6e0ad-56e6-44b3-9fbd-eaa39cdef6e9
+  projectpoints: "120"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Farmer Career Feature
+        behavior: proficiency
+        description: You have the Handle Animals skill.
+        equate: false
+        name: Handle Animals Skill
+        sourceguid: 982689c1-972b-40eb-9e46-f9154b5ff185
+        proficiency: proficient
+        guid: 62cf7819-5529-46e0-90c7-6fce5f7110fe
+        skills:
+          ff54a691-e0a0-4246-8ceb-7975b8826e92: true
+      name: Handle Animals Skill
+      description: You have the Handle Animals skill.
+      guid: 982689c1-972b-40eb-9e46-f9154b5ff185
+      source: Farmer Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        exploration: true
+      numChoices: 2
+      source: Farmer Career Feature
+      description: "Choose two Exploration Skills. (Quick Build: Drive, Lift)"
+      guid: 83bd168d-ccf5-4075-83d7-93933c011387
+      name: Farmer Exploration Skills
+      individualSkills: []
+    - __typeName: CharacterLanguageChoice
+      guid: 86ef28fd-2e84-44f4-81a1-d781f35d3757
+      source: Farmer Career Feature
+      name: Farmer Language
+    - __typeName: CharacterFeatChoice
+      guid: a3ef0649-6987-4277-92a3-1ca59fb215ae
+      description: "Choose one exploration perk. (Quick Build: Monster Whisperer)"
+      tag: exploration perks
+      name: Farmer Exploration Perk
+  name: Farmer
+  mtime: 1768796301457
+  description: "You grew crops or cared for livestock. In defining your career, think about the following questions: \n\nDid you own the land you farmed, or did you farm for another? \n\nWhat crops or livestock did you cultivate? \n\nWho else worked on the farm with you? \n\nWhat ill omen did you witness that caused you to have a poor season of farming? "
+  id: 09ed87b8-d480-48f3-80c2-104e3e229ce1
+  ctime: 1730559789366
+57e6cb85-b782-4c95-bc45-934d273a4042:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 24679de3-64f1-47e2-9c01-3005d01354b1
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        exploration: true
+      name: Beggar Exploration Skill
+      guid: 362480fe-965b-4d34-ace9-49ded411023a
+      description: "Choose one exploration Skill (Quick Build: Endurance)"
+      source: Beggar Career Feature
+    - __typeName: CharacterSkillChoice
+      categories:
+        interpersonal: true
+      name: Beggar Interpersonal Skill
+      guid: a4189c7b-39d5-4b95-8e6a-d688c0d1d54f
+      description: "Choose one interpersonal Skill. (Quick Build: Empathize)"
+      source: Beggar Career Feature
+    - __typeName: CharacterFeatChoice
+      guid: 246312d8-9d9b-4905-81d1-1a2a5160c4c8
+      description: "Select a Interpersonal Perk. (Quick Build: Spot the Tell)"
+      tag: interpersonal perk
+      name: Beggar Interpersonal Perk
+    - __typeName: CharacterLanguageChoice
+      name: Beggar Languages
+      numChoices: 2
+      description: Choose two Languages
+      source: Beggar Career Feature
+      guid: 1d64b03c-1629-4d71-a0c0-b55a4df22ee7
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Beggar Career Feature
+        behavior: proficiency
+        description: You have the Rumors skill.
+        equate: false
+        name: Rumours Skill
+        sourceguid: 30b22139-0555-472e-a573-7721c30c5657
+        proficiency: proficient
+        guid: eb324513-9d15-41c2-8a6b-c90e9b0267ec
+        skills:
+          f014760c-c987-4436-81ba-5e6acfdf6905: true
+      name: Rumours Skill
+      description: You have the Rumors skill.
+      guid: 30b22139-0555-472e-a573-7721c30c5657
+      source: Beggar Career Feature
+      implementation: 3
+  name: Beggar
+  mtime: 1768796515682
+  description: |-
+    You lived by going to a tavern, crossroads, city street, or other busy area and begging passersby for money or food. In defining your career, think about the following questions: 
+
+    What unfortunate circumstances led you to become a beggar? 
+
+    Where did you beg? 
+
+    Who made sport out of bullying you? 
+
+    Who showed you the most kindness?
+  id: 57e6cb85-b782-4c95-bc45-934d273a4042
+  ctime: 1730557191264
+2065f359-de24-4fd8-b242-a88b6a8aa159:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 6fbd275b-9519-49db-946b-070126b9a888
+  projectpoints: "240"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+      name: Sage Lore Skills
+      numChoices: 2
+      guid: 2333d018-0d85-48ce-80de-f725ed471c77
+      description: "Choose two Skills from the lore skill group (Quick Build: History, Magic)"
+      source: Sage Career Feature
+    - __typeName: CharacterLanguageChoice
+      guid: 72f41698-8f3d-4de0-affa-3c8ef6837f79
+      source: Sage Career Feature
+      name: Sage Language
+    - __typeName: CharacterFeatChoice
+      guid: d934a618-605a-4ad1-aa79-b9345d83e9b3
+      description: "One lore perk (Quick Build: Expert Sage)"
+      tag: lore perks
+      name: Sage Lore Perk
+  name: Sage
+  mtime: 1768796386193
+  description: "You worked as a leader within a formal, bureaucratic organization or government. You might have been appointed, born, or elected into your position, but getting people to agree and making decisions for the people you serve (or who served you) was your job. In defining your career, think about the following questions: \n\nWho were you responsible for ruling or representing? \n\nWhat was your official title and how did you earn it? \n\nWho was your greatest political rival? \n\nWhat secret do you know that could tear apart the entire system you worked within? "
+  id: 2065f359-de24-4fd8-b242-a88b6a8aa159
+  ctime: 1730562772089
+f19b68c6-6dfb-4d23-986b-32e5229b217c:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 268e9d5e-b6d9-4b42-93c2-d662d08e5e52
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        exploration: true
+      name: Soldier Exploration Skill
+      description: "Choose one skill from the exploration skill group (Quick Build: Endurance) "
+      guid: 46c4c253-c10d-4954-8c45-861338f13084
+      source: Soldier Career Feature
+    - __typeName: CharacterSkillChoice
+      categories:
+        intrigue: true
+      name: Soldier Intrigue Skill
+      description: "Choose one skill from the intrigue skill group (Quick Build: Alertness)"
+      guid: 98daa3eb-7fd9-4d28-bb94-3a7194589587
+      source: Soldier Career Feature
+    - __typeName: CharacterLanguageChoice
+      name: Soldier Languages
+      numChoices: 2
+      description: Choose two Languages
+      source: Soldier Career Feature
+      guid: 78d6e12a-f104-42ea-820d-8d2172586a98
+    - __typeName: CharacterFeatChoice
+      guid: 1adf1f63-337a-4371-a866-0a669f308617
+      description: "Choose one perk from the exploration perk type. (Quick Build: Teamwork)"
+      tag: exploration perks
+      name: Soldier Exploration Perk
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+        source: Soldier Career Feature
+        guid: 30b57377-c2ea-4038-a778-6fd5c3ed0371
+        name: Soldier's Renown
+        value: 1
+        description: ""
+        behavior: attribute
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      name: Soldier's Renown
+      guid: 1f231659-2f97-440e-bf1e-3740cb11b0c2
+      description: ""
+      source: Soldier Career Feature
+  name: Soldier
+  mtime: 1768796544626
+  description: "In your formative years, you fought tirelessly in skirmishes and campaigns against enemy forces. In defining your career, think about the following questions: \n\nWhich army and company did you serve? \n\nWhat conflicts were you a part of? \n\nWhat rank did you achieve? \n\nWhat heroics did you perform in the heat of battle? \n\nYou gain the following career benefits: \n\nRenown: +1  "
+  id: f19b68c6-6dfb-4d23-986b-32e5229b217c
+  ctime: 1730564554830
+3f61fd9d-456d-4053-8f5c-d9628817ed94:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: ed37eda8-3394-40f4-8771-95a12106cfe6
+  projectpoints: "120"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Laborer Career Feature
+        behavior: proficiency
+        description: ""
+        equate: false
+        name: Endurance Skill
+        sourceguid: ac5599dc-10c4-4af6-8f11-5c0e9f183e15
+        proficiency: proficient
+        guid: 7486ad23-2026-4376-877a-7aaa046d276c
+        skills:
+          a1a8f269-3223-476c-bae6-2f8904680e7f: true
+      name: Endurance Skill
+      description: ""
+      guid: ac5599dc-10c4-4af6-8f11-5c0e9f183e15
+      source: Laborer Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        crafting: true
+        exploration: true
+      numChoices: 2
+      source: Laborer Career Feature
+      description: Choose two skills from either the crafting group or the exploration group.
+      guid: d0c739b2-6653-4c23-b794-98907161f6c4
+      name: Laborer Crafting or Exploration Skills
+      individualSkills: []
+    - __typeName: CharacterLanguageChoice
+      guid: 0be4d049-f66e-4b1d-b40c-11eb81b0a089
+      source: Laborer Career Feature
+      name: Laborer Language
+    - __typeName: CharacterFeatChoice
+      guid: dd6296b3-4ccb-4996-a696-92566f538480
+      description: "Choose one exploration perk. (Quick Build: Brawny)"
+      tag: exploration perks
+      name: Laborer Exploration Perk
+  name: Laborer
+  mtime: 1768796315071
+  description: "You worked as a farmer, builder, clothes washer, forester, miner, or some other profession engaged in hard manual labor. In defining your career, think about the following questions: \n\nWhat type of manual labor did you do? \n\nWhat important friendship did you make on the job? \n\nWhere did you go with your coworkers to blow off steam when the job was done? \n\nWhat aspect of the job was most difficult for you? \n\nYou gain the following career benefits: \n\nSkills: The Endurance skill (from the exploration skill group), plus two skills from either the crafting group or the exploration group (Quick Build: Blacksmithing, Endurance, Lift) \n\nLanguages: One language \n\nProject Points: 120 \n\nPerk: One exploration perk (Quick Build: Brawny) "
+  id: 3f61fd9d-456d-4053-8f5c-d9628817ed94
+  ctime: 1730560508456
+b33ce4be-bde3-40fa-90ee-4b6ea6728610:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: cdb0b934-8df0-4760-839b-335fb859f282
+  projectpoints: "240"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Disciple Career Feature
+        behavior: proficiency
+        description: You have the Religion skill
+        equate: false
+        name: Religion Skill
+        sourceguid: 5a40632f-c8c8-4146-8604-055347bf7ab7
+        proficiency: proficient
+        guid: 94af98dd-46a5-4f52-adaf-9743993ca64f
+        skills:
+          afd26a9a-22e2-4341-b171-f7e3182c8744: true
+      name: Religion Skill
+      description: You have the Religion skill
+      guid: 5a40632f-c8c8-4146-8604-055347bf7ab7
+      source: Disciple Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+      name: Disciple Lore Skills
+      numChoices: 2
+      guid: 9abf5e74-b10c-4c46-b70d-486f4d2ca353
+      description: "Choose two Skills from the lore skill group (Quick Build: Culture, Magic)"
+      source: Disciple Career Feature
+    - __typeName: CharacterFeatChoice
+      guid: ea636e05-5cd4-42a0-857b-c93fd762f355
+      description: "Choose one supernatural perk. (Quick Build: Ritualist)"
+      tag: supernatural perks
+      name: Disciple Supernatural Perk
+  name: Disciple
+  mtime: 1757094916889
+  description: "You worked in a church, temple, or other religious institution as part of the clergy. In defining your career, think about the following questions: \n\nWhat gods or saints did your institution venerate? \n\nWhat initiation rites did you undergo to get the job? \n\nWhat were your responsibilities as a disciple? \n\nHow was your institution viewed by members of the local culture? "
+  id: b33ce4be-bde3-40fa-90ee-4b6ea6728610
+  ctime: 1730558252726
+959e38ca-fef7-4468-9de7-410d4ef8ea54:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 1da00bec-b97e-4e37-b5a5-02bcc52a220e
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        interpersonal: true
+      name: Politician Interpersonal Skill
+      numChoices: 2
+      guid: 5a64479b-57ee-4ad1-a296-1ab7f3bc4cf4
+      description: "Choose two skills from the interpersonal skill group. (Quick Build: Lead, Lie)"
+      source: Politician Career Feature
+    - __typeName: CharacterLanguageChoice
+      guid: fc949022-fb00-4add-a6f2-68b5e4ff671b
+      source: Politician Career Feature
+      name: Politician Language
+    - __typeName: CharacterFeatChoice
+      guid: a3af2c62-0c99-4783-ba46-586d7ca871eb
+      description: "Choose one Interpersonal perk. (Quick Build: Engrossing Monologue)"
+      tag: interpersonal perk
+      name: Politician Interpersonal Perk
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 30b57377-c2ea-4038-a778-6fd5c3ed0371
+        sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+        value: 1
+        source: Politician Career Feature
+        name: Politician's Renown and Wealth
+        behavior: attribute
+        description: ""
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      - __typeName: CharacterModifier
+        guid: 5573cf4e-b220-4633-adff-74a3cf9b3efe
+        sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+        value: 1
+        source: Politician Career Feature
+        name: Politician's Renown and Wealth
+        behavior: attribute
+        description: ""
+        attribute: 036da4db-4406-4038-ae7d-cf0b37890f5f
+      name: Politician's Renown and Wealth
+      guid: 99bc1d29-c045-430d-b9d5-91e0142dbd82
+      description: ""
+      source: Politician Career Feature
+  name: Politician
+  mtime: 1768796379742
+  description: |-
+    You worked as a leader within a formal, bureaucratic organization or government. You might have been appointed, born, or elected into your position, but getting people to agree and making decisions for the people you serve (or who served you) was your job. In defining your career, think about the following questions: 
+
+    Who were you responsible for ruling or representing? 
+
+    What was your official title and how did you earn it? 
+
+    Who was your greatest political rival? 
+
+    What secret do you know that could tear apart the entire system you worked within?
+  id: 959e38ca-fef7-4468-9de7-410d4ef8ea54
+  ctime: 1730561339107
+e59ff8e5-1017-4ffa-a81e-14ffe39ec25d:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: cba7d5fe-9585-4706-8188-30956b7c38fd
+  projectpoints: "120"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Warden Career Feature
+        behavior: proficiency
+        description: You have the Nature skill.
+        equate: false
+        name: Nature Skill
+        sourceguid: c646b10b-19fa-46dc-8200-d6f87f6ea7c1
+        proficiency: proficient
+        guid: a4105a81-341e-4f91-b829-c47bf8454b8b
+        skills:
+          f15f5445-666a-4ea9-bdf3-fbed284bae85: true
+      name: Nature Skill
+      description: You have the Nature skill.
+      guid: c646b10b-19fa-46dc-8200-d6f87f6ea7c1
+      source: Warden Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        exploration: true
+      name: Warden Exploration Skill
+      description: Choose one skill from the exploration skill group.
+      guid: bb8f5003-73ff-4bfe-b800-2cf1cc54a4d6
+      source: Warden Career Feature
+    - __typeName: CharacterSkillChoice
+      categories:
+        intrigue: true
+      name: Warden Intrigue Skill
+      description: Choose one skill from the intrigue skill group.
+      guid: 5c07d90c-960d-4902-bb1d-c25e4a52da77
+      source: Warden Career Feature
+    - __typeName: CharacterLanguageChoice
+      source: Warden Career Feature
+      guid: 663496f0-1444-4d21-9ea9-7d8c1a70ef6e
+      name: Warden Language
+    - __typeName: CharacterFeatChoice
+      guid: fa9b12d8-921e-4963-ae5a-4cd8e09a0396
+      description: "Choose one perk from the exploration perk type. (Quick Build: Camouflage Hunter)"
+      tag: exploration perks
+      name: Warden Exploration Perk
+  name: Warden
+  mtime: 1768796399878
+  description: |-
+    You protected a wild region from those who sought to harm it, such as poachers and cultists bent on the destruction of the natural world. Knowing your land well, you could also serve as a guide or the leader of a rescue party for those wandering the wilds. In defining your career, think about the following questions: 
+
+    What environment did you protect? 
+
+    Were you part of a formal group of wardens or did you take the job upon yourself? 
+
+    Which animal became your constant companion while you worked in the wild? 
+
+    What mysterious creature or wanderer did you meet in the forest, and what prophecy did they share with you?
+  id: e59ff8e5-1017-4ffa-a81e-14ffe39ec25d
+  ctime: 1730564579040
+8c7ec183-e690-494c-b9c2-ac61a871c595:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: ee81b38d-b730-4138-b33d-a2efce9834bf
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        exploration: true
+      name: Gladiator Exploration Skills
+      numChoices: 2
+      guid: 66f57513-a328-47a3-96ec-de331d1adb94
+      description: "Choose two skills from the exploration skill group (Quick Build: Gymnastics, Jump)"
+      source: Gladiator Career Feature
+    - __typeName: CharacterLanguageChoice
+      name: Gladiator Language
+      numChoices: 1
+      description: Choose one Languages
+      source: Gladiator Career Feature
+      guid: 47264844-32c4-4bc5-b6de-4bece5fe6d23
+    - __typeName: CharacterFeatChoice
+      guid: cc690a60-7141-4c8d-bcbb-7f96f126f7a5
+      description: "Choose one exploration perk. (Quick Build: Friend Catapult)"
+      tag: exploration perks
+      name: Gladiator Exploration Perk
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 30b57377-c2ea-4038-a778-6fd5c3ed0371
+        sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+        value: 2
+        source: Gladiator Career Feature
+        name: Gladiator Renown
+        behavior: attribute
+        description: 2 is added to your Renown.
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      name: Gladiator Renown
+      description: 2 is added to your Renown.
+      guid: 9686f59d-2395-4414-a620-be110e5bb7a6
+      source: Gladiator Career Feature
+      implementation: 3
+  name: Gladiator
+  mtime: 1768796325164
+  description: |-
+    In the past, you entertained the masses with flashy displays of violence in the arena. In defining your career, think about the following questions: 
+
+    What led you to this life of violent entertainment? 
+
+    What was your gladiator name and persona? 
+
+    Who was your biggest rival? 
+
+    What happened during your most famous match?
+  id: 8c7ec183-e690-494c-b9c2-ac61a871c595
+  ctime: 1730560180694
+a1609f19-e593-4631-9c79-1266122e54d3:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 6549663f-c804-4fce-a565-fa6581b4f897
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Sailor Career Feature
+        behavior: proficiency
+        description: ""
+        equate: false
+        name: Swim Skill
+        sourceguid: e89aa41a-8f86-455b-88b9-3b7584c0a440
+        proficiency: proficient
+        guid: 946cbb3e-e93b-4a15-b714-1c1098536ac1
+        skills:
+          91ee7ea9-f331-42df-8f4b-e4a475d37a98: true
+      name: Swim Skill
+      description: ""
+      guid: e89aa41a-8f86-455b-88b9-3b7584c0a440
+      source: Sailor Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        exploration: true
+      name: Sailor Exploration Skills
+      numChoices: 2
+      guid: f654a24d-e3ba-4491-8ae0-1f53458b8802
+      description: "Choose two more skills from the exploration group (Quick Build: Climb, Gymnastics)"
+      source: Sailor Career Feature
+    - __typeName: CharacterLanguageChoice
+      name: Sailor Language
+      numChoices: 2
+      description: Choose two Languages
+      source: Sailor Career Feature
+      guid: 4dcb406e-50f7-43d9-b56e-fd4372d66595
+    - __typeName: CharacterFeatChoice
+      guid: cd98f60a-f598-44bb-b65d-1ee99025bf08
+      description: "One exploration perk (Quick Build: Put Your Back Into It)"
+      tag: exploration perks
+      name: Sailor Exploration Perk
+  name: Sailor
+  mtime: 1768796392480
+  description: "You worked on a ship, whether a merchant cog, a mercenary or military craft, or a pirate vessel. You might have been a deckhand, a mate, or even the captain. In defining your career, think about the following questions: \n\nWhat is the name of the vessel you sailed on, and what type of business was the crew engaged in? \n\nWhat was your job aboard the ship? \n\nWhat’s the longest amount of time you’ve spent at sea? \n\nWho or what did you lose on your maritime journeys? "
+  id: a1609f19-e593-4631-9c79-1266122e54d3
+  ctime: 1730564218336
+03e01769-3c8e-4306-b5c9-25a0555fb276:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: 99b28c07-c2d6-4011-8b42-cc56bfec023b
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Watch Officer Career Feature
+        behavior: proficiency
+        description: ""
+        equate: false
+        name: Alertness
+        sourceguid: 32995400-35e8-4d11-a686-109dd1f374a4
+        proficiency: proficient
+        guid: 3d1748ad-245b-4652-bd47-4391bb7c2450
+        skills:
+          db532974-aa0a-41a9-aacf-4adc1e6121d3: true
+      name: Alertness
+      description: ""
+      guid: 32995400-35e8-4d11-a686-109dd1f374a4
+      source: Watch Officer Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        intrigue: true
+      numChoices: 2
+      source: Watch Officer Career Feature
+      description: "In addition to Alertness, choose two more skills from the intrigue skill group. (Quick Build: Search, Track)"
+      guid: 02f8ee02-5eca-4a09-9b7c-a0642c8f48db
+      name: Watch Officer Intrigue Skills
+      individualSkills: []
+    - __typeName: CharacterLanguageChoice
+      name: Watch Officer Languages
+      numChoices: 2
+      description: Choose two Languages.
+      source: Watch Officer Career Feature
+      guid: b75e7eb3-e435-43cb-bd01-1bcc763bed15
+    - __typeName: CharacterFeatChoice
+      guid: b02ec6b9-b222-460d-b3d3-f46fc9d9f11c
+      description: "Choose one perk from the exploration perk type. (Quick Build: Team Leader)"
+      tag: exploration perks
+      name: Watch Officer Exploration Perk
+  name: Watch Officer
+  mtime: 1768796558365
+  description: |-
+    You served as an officer of the law for a local government. You might have been a single person in a much larger city watch or the only constable patrolling a small village. In defining your career, think about the following questions: 
+
+    What type of settlement did you protect? 
+
+    What was your law enforcement style like? Were you a by-the-book officer, a more lenient-but-fair type, or totally corrupt? 
+
+    What criminal still eludes your grasp to this day? 
+
+    Whose life did you save in the line of duty? 
+
+    What is the most absurd call you ever responded to and how did you handle it?
+  id: 03e01769-3c8e-4306-b5c9-25a0555fb276
+  ctime: 1730565399090
+082d6a5a-ca97-48e9-9928-c134069a96a4:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: d94cf3e3-ca21-47be-9b61-546aa7191a90
+  projectpoints: "0"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: skill
+        source: Mage's Apprentice Career Feature
+        behavior: proficiency
+        description: You have the Magic skill.
+        equate: false
+        name: Magic Skill
+        sourceguid: 624686dc-e4b1-4b73-8328-d6c981cbc2f1
+        proficiency: proficient
+        guid: 420996ae-98af-4573-96aa-9416df0c2d39
+        skills:
+          57101165-410a-4734-98ee-d4e5b656d3df: true
+      name: Magic Skill
+      description: You have the Magic skill.
+      guid: 624686dc-e4b1-4b73-8328-d6c981cbc2f1
+      source: Mage's Apprentice Career Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+      name: Mage's Apprentice Lore Skills
+      numChoices: 2
+      guid: 1fd37ca8-78c8-4d67-b931-4f3c6401d6ca
+      description: "Choose two Skills from the lore skill group. (Quick Build: Monsters, Timescape)"
+      source: Mage's Apprentice Career Feature
+    - __typeName: CharacterLanguageChoice
+      guid: dc32f1fc-66a2-40f3-b8ac-74fff93f4b80
+      source: Mage's Apprentice Career Feature
+      name: Mage's Apprentice Language
+    - __typeName: CharacterFeatChoice
+      guid: 700e41cf-d980-49a8-a90f-5d3a8310d19b
+      description: "Choose one Supernatural perk. (Quick Build: Arcane Trick)"
+      tag: supernatural perks
+      name: Mage's Apprentice Supernatural Perk
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: f5115487-3576-400c-aa64-b1c06def47fc
+        sourceguid: 9e7c112d-1a2c-456b-9bce-53465c7f2016
+        value: 1
+        source: Mage's Apprentice Career Feature
+        name: Mage's Apprentice Renown
+        behavior: attribute
+        description: 1 is added to your Renown.
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      name: Mage's Apprentice Renown
+      description: 1 is added to your Renown.
+      guid: 9e7c112d-1a2c-456b-9bce-53465c7f2016
+      source: Mage's Apprentice Career Feature
+      implementation: 3
+  name: Mage's Apprentice
+  mtime: 1768796364130
+  description: |-
+    For long years, you studied magic under the mentorship of a more experienced mage. In defining your career, think about the following questions: 
+
+    Who did you study under, and what kind of person were they? 
+
+    What were your mentor’s areas of expertise? 
+
+    What aspects of magic did you struggle to comprehend? 
+
+    What is your current relationship with your mentor?
+  id: 082d6a5a-ca97-48e9-9928-c134069a96a4
+  ctime: 1730561334876
+2a5dbd17-45fd-4a20-ade2-edf9c700c883:
+  __typeName: Background
+  characteristics:
+  - __typeName: BackgroundCharacteristic
+    tableid: c2fe5348-6939-477d-a62c-4fc9cc6d11a3
+  projectpoints: "240"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        crafting: true
+      source: Artisan Career Feature
+      numChoices: 2
+      description: "Choose two skills from the crafting skill group (Quick Build: Blacksmithing, Carpentry) "
+      name: Artisan Crafting Skills
+      guid: b831297c-e585-4e51-a014-aa080936444a
+    - __typeName: CharacterLanguageChoice
+      description: Choose one Language
+      guid: 8f509549-501d-48f5-a9df-8b60a1d403b7
+      name: Artisan Language
+      source: Artisan Career Feature
+    - __typeName: CharacterFeatChoice
+      guid: e00e1bda-e0ac-4b49-aabc-3961532f2364
+      description: "Choose one crafting perk. (Quick Build: Area of Expertise)"
+      tag: crafting perk
+      name: Crafting Perk
+  name: Artisan
+  mtime: 1765484680983
+  description: "You made and sold useful wares. In defining your career, think about the following questions: \n\nWhat did you create? \n\nWho taught you your craft? \n\nWas there any particular creation you were known for? \n\nDid you have a shop, or did you travel to sell your wares? "
+  id: 2a5dbd17-45fd-4a20-ade2-edf9c700c883
+  ctime: 1730556230455

@@ -1,0 +1,265 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: c12b3109-1067-45a3-bf96-4bfe606e08b2
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.4726895
+    frameSaturation: 0.7838851
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 968066b2-8f3e-4ebf-8a09-97a80d566748
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Frost Giant Wind Sprinter	Level 8 Elite Harrier
+        Frost Giant, Giant	EV 40
+        <b>Stamina</b> 200	<b>Immunity</b> cold 8
+        <b>Speed</b> 10	<b>Size</b> 4 /<b> Stability</b> 5
+        <b>Free Strike</b> 8
+        Might +4	Agility +4	Reason -1	Intuition 0	Presence 0
+        <b>Cold Axe</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	12 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	17 damage; A<3 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	21 damage; A<4 bleeding (save ends)
+        <b>Effect</b> This ability deals an additional 1d6 cold damage if the target is already bleeding.
+
+        <b>Blizzard Surge</b> (Action)%E2%97%86 5 Melee
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The wind sprinter shifts up to their speed and uses their Cold Axe against each enemy who comes within 2 squares of them during the move. The wind sprinter makes one power roll against all targets.
+
+        <b>Ice Dance</b> (Maneuver)
+        <b>Keywords</b> Attack, Melee
+        <b>Distance</b> Melee 1<b>	Target</b> 1 giant ally
+        <b>Effect</b> Both giants shift 6, staying adjacent to each other. The wind sprinter allows the target to jump 5 and make a free strike.
+
+        <b>Begone, Smallfolk!</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger</b> The wind sprinter takes damage.
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The wind sprinter moves up to their speed and uses their Cold Axe on a single target.
+
+        <b>Crush Underfoot</b>
+        The wind sprinter can move through enemies and objects at normal speed. A creature can choose to fall prone or take 8 damage the first time the wind sprinter passes through their space on a turn.
+
+        <b>Kingdom of Isolation</b>
+        The wind sprinter is surrounded by a snowstorm. An enemy that starts their turn within 2 squares of the wind sprinter can't shift.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fd5e47d1-eeb4-4a65-8fb4-9f6c812106d3: true
+      modifiers: []
+      name: Crush Underfoot
+      description: The wind sprinter can move through enemies and objects at normal speed. A creature can choose to fall prone or take 8 damage the first time the wind sprinter passes through their space on a turn.
+      guid: fd5e47d1-eeb4-4a65-8fb4-9f6c812106d3
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:61f8eaac-9596-4368-bedc-3bfab9568d3e: true
+      modifiers: []
+      name: Kingdom of Isolation
+      description: The wind sprinter is surrounded by a snowstorm. An enemy that starts their turn within 2 squares of the wind sprinter can't shift.
+      guid: 61f8eaac-9596-4368-bedc-3bfab9568d3e
+      source: Trait
+    role: Elite Harrier
+    keywords:
+      Giant: true
+      Frost Giant: true
+    max_hitpoints_roll: "200"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 8
+      damageType: cold
+      apply: Damage Reduction
+    opportunityAttack: 8
+    monster_type: Frost Giant Wind Sprinter
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    damage_taken: 0
+    max_hitpoints: 200
+    resources: []
+    traitNames: []
+    ev: 40
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 12 damage
+        - 17 damage; A<3 bleeding (save ends)
+        - 21 damage; A<4 bleeding (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 91fdc1fd-6ce9-49ca-a63a-90b22958e515
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Cold Axe
+      numTargets: 2
+      description: This ability deals an additional 1d6 cold damage if the target is already bleeding.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b37dc78c-ec0b-4050-8162-fa1b65bbdb7d
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Blizzard Surge
+      numTargets: 1
+      description: The wind sprinter shifts up to their speed and uses their Cold Axe against each enemy who comes within 2 squares of them during the move. The wind sprinter makes one power roll against all targets.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 91c37815-37af-41a8-be45-0d10d2ad039b
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Ice Dance
+      numTargets: 1
+      description: Both giants shift 6, staying adjacent to each other. The wind sprinter allows the target to jump 5 and make a free strike.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 57f96644-1522-440a-8f06-06cadfa8c829
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Begone, Smallfolk!
+      numTargets: 1
+      description: The wind sprinter moves up to their speed and uses their Cold Axe on a single target.
+      abilityType: none
+      implementation: 0
+    monster_category: Monster
+    movementSpeeds: []
+    levelChoices: []
+    minion: false
+    creatureSize: "4"
+    walkingSpeed: 10
+  tokenType: null
+  bestiaryId: 9da6b164-f9ee-4c5d-9316-c93a41c31558
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 6
+  createdTimestamp: 1726301040866
+description: Frost Giant Wind Sprinter
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590287782
+mtime: 1775201137032
+hidden: false

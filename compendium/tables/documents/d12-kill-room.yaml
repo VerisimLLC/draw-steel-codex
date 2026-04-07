@@ -1,0 +1,27 @@
+__typeName: MarkdownDocument
+description: D12. Kill Room
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 1feab9cb-b465-4709-b74e-ec46ef533f44
+annotations: []
+id: 1fdf967c-04ea-4940-b773-3942acda290c
+mtime: 1761759051203
+content: |
+  # D12. Kill Room
+
+  > * “This room’s walls are noticeably pockmarked with many small holes. There are two corridors connected to it: one to the west, and one to the south that looks too small to comfortably move through.”
+  > * “Before you can explore further, however, you are beset by attackers. Dark, loping slimes approach!”
+
+
+  Two **gummy balls** and two **creeping sludges** assault the heroes as soon as they enter, accompanied by eight **black ichors**. Down the narrow passage to the south, one **crawling claw** is operating a control panel of levers. A door that can only be noticed and opened from this chamber leads back to area [D10. The First Trick]
+  See [Encounter D12].
+
+
+  ## Silver Key
+
+  Anyone who inspects the control room finds a large and ornate silver key sitting on it (unless the [Gilded Hand] has already been here).
+
+
+  # After the Hand
+
+  If the [Gilded Hand] has already been here, the oozes have been dispatched before the heroes arrive, and the silver key is not on the control panel. The [Gilded Hand] captured then re-released the crawling claw to work the control panel.
+ctime: 1761751407509

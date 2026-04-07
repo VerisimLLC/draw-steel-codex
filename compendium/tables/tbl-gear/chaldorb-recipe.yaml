@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 3bd5173f-8209-4272-bc24-294d72ae1139
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765470045137
+ctime: 1765470045137
+name: Chaldorb Recipe
+flavor: Text or lore in Zaliac
+description: The project source necessary to craft Chaldorb
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

@@ -1,0 +1,490 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8fa0a4de-2441-47ea-bffc-bfaf9f82a7d2
+    offtokenPortraitId: 55b44dfe-8c84-4732-98a1-1a01a92f4d08
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3940631
+    portraitOffset:
+      x: -0.144228
+      y: 0.04563057
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.41
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 268cca35-5f34-4673-97dc-a4efe3a3e05a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 300
+    inflictedConditions: []
+    ev: 60
+    max_hitpoints_roll: "300"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 3
+        id: mgt
+    monster_type: Chimera
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 13 damage
+        - 16 damage
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: b8d4f2a3-1e95-4c7f-9b26-4a3f8d0e5c29
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: b8d4f2a3-1e95-4c7f-9b26-4a3f8d0e5c29
+          modtype: none
+          behavior: power
+          keywords: []
+          rollRequirement: edge
+          domains: []
+          description: This strike deals an extra 3 damage if it gains an edge or has a double edge.
+          name: Bonus Edge Damage
+          rollType: ability_power_roll
+          damageModifier: "3"
+          guid: a7c3e1f2-9d84-4b6e-8a15-3f2e7c9d4b18
+          activationCondition: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: true
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: de3e2893-eb2c-4ffd-a963-76d228495f9b
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Bite
+      numTargets: 2
+      description: This attack deals an additional 3 damage if the chimera has an edge on the attack.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 7
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8fca9ec8-2b80-4b09-8d0b-5afbed4a0a21
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 fire damage; A<1 3 fire damage
+        - 5 fire damage; A<2 5 fire damage
+        - 7 fire damage; A<3 7 fire damage
+        roll: 2d10 + Might
+      name: Dragon's Eruption
+      numTargets: 1
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: f374fd6a-99b2-4e5c-a6a1-1c4f69b1d094
+      implementation: 4
+      numTargets: 1
+      name: "Lion's Toss "
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - vertical push 2
+        - verticalpush 3
+        - push 5
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 psychic damage
+        - 8 psychic damage; I<2 frightened (save ends)
+        - 10 psychic damage; I<3 frightened (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a9d45dfc-97db-4a72-8e29-b19f5ce44de8
+      abilityType: none
+      implementation: 4
+      numTargets: 1
+      name: Roar
+      targetType: all
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; M<1 slowed (save ends)
+        - 8 damage; prone; M<2 slowed
+        - 10 damage; prone; M<3 slowed
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: ca18fbc1-a91f-4599-ad0e-1170eb0546de
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Ram's Defiance
+      numTargets: 1
+      description: The chimera shifts 5. If they end this movement adjacent to the target, roll power.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'c68c87f1-c68f-45a0-acb"
+      villainAction: Villain Action 1
+      actionResourceId: none
+      modifiers: []
+      guid: 2432ab86-32e1-4fb8-9798-4326cb98050d
+      numTargets: 1
+      targetType: all
+      implementation: 0
+      name: 'Overture of Destruction '
+      effectImplemented: false
+      description: The chimera uses Bite and Lion's Toss against each target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: none
+      modifiers: []
+      guid: 3337ad3c-9a10-4a93-8c91-35294581cef4
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'f0204bd3-41fc-4ebb-a34"
+      implementation: 0
+      behaviors: []
+      name: 'Fire Solo '
+      numTargets: 1
+      description: The chimera uses Dragon's Eruption and Roar without spending malice.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: none
+      modifiers: []
+      guid: ae3d8d1c-5983-4eeb-a471-6c1bf6b402fa
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'bf8239a4-44b0-454b-9e9"
+      implementation: 0
+      behaviors: []
+      name: 'Chorus of Destruction '
+      numTargets: 1
+      description: The chimera uses Roar. The chimera then shifts their speed and can make a free strike against each enemy who comes within 1 of them during the move. When the chimera ends this movement, they use Dragon's Eruption.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    opportunityAttack: 6
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Chimera	Level 3 Solo
+        Beast, Chimera	EV 50
+        <b>Stamina</b> 300	<b>Immunity </b>Fire 6
+        <b>Speed</b> 10 (fly)	<b>Size</b> 2 / <b>Stability</b> 1
+        <b>	Free Strike</b> 6
+        Might +3	Agility +2	Reason -2	Intuition +1	Presence 0
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The chimera takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the chimera can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Volant</b>
+        When the chimera makes a creature winded or reduces them to 0 Stamina or less, the chimera can move their speed towards one enemy within line of effect.
+
+        <b>Bite</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	13 damage
+        %E2%9C%B8	<b>17</b>	16 damage
+        <b>Effect</b> This attack deals an additional 3 damage if the chimera has an edge on the attack.
+
+        <b>Dragon's Eruption</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 7 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 cube within 10<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 fire damage; A<1 3 fire damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 fire damage; A<2 5 fire damage
+        %E2%9C%B8	<b>17</b>	7 fire damage; A<3 7 fire damage
+
+        <b>Lion's Toss </b>(Maneuver) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Melee, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	vertical push 2
+        %E2%98%85	<b>12%E2%80%9316</b>	vertical push 3
+        %E2%9C%B8	<b>17</b>	vertical vertical push 5
+
+        <b>Roar</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 5 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 psychic damage
+        %E2%98%85	<b>12%E2%80%9316</b>	8 psychic damage; I<2 frightened (save ends)
+        %E2%9C%B8	<b>17</b>	10 psychic damage; I<3 frightened (save ends)
+
+        <b>Ram's Defiance</b> (Triggered Action)%E2%97%86 2d10 + 3
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature
+        <b>Trigger</b> The target attacks the chimera and gets a tier-1 result.
+        <b>Effect</b> 	The chimera shifts 5. If they end this movement adjacent to the target, roll power.
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage; M<1 slowed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	8 damage; prone; M<2 slowed (save ends) (save ends)
+        %E2%9C%B8	<b>17</b>	10 damage; prone; M<3 slowed (save ends) (save ends)
+
+        <b>Overture of Destruction </b>(Villain Action 1)
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 burst<b>	Target</b> All enemies in the burst
+        <b>Effect</b> The chimera uses Bite and Lion's Toss against each target.
+
+        <b>Fire Solo </b>(Villain Action 2)
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The chimera uses Dragon's Eruption and Roar without spending malice.
+
+        <b>Chorus of Destruction </b>(Villain Action 3)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The chimera uses Roar. The chimera then shifts their speed and can make a free strike against each enemy who comes within 1 of them during the move. When the chimera ends this movement, they use Dragon's Eruption.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:286fb973-d423-4376-93a4-0d7dc1993c07: true
+      modifiers: []
+      name: Volant
+      description: When the chimera makes a creature winded or reduces them to 0 Stamina or less, the chimera can move their speed towards one enemy within line of effect.
+      guid: 286fb973-d423-4376-93a4-0d7dc1993c07
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:818e0832-584c-4041-b528-a7fa2c5105a0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "5"
+            purgeType: one
+          triggerPrompt: End effect for 5
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: "End Effect: At the end of each of their turns, the chimera can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.Solo Turns: The chimera can take two turns each round. They can't take turns consecutively."
+      guid: 818e0832-584c-4041-b528-a7fa2c5105a0
+      name: Solo Monster
+      implementation: 3
+    role: Solo
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: fire
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    resources: []
+    groupid: 5f6bfa43-6ff9-4bd4-9f13-a584199ef449
+    minion: false
+    walkingSpeed: 10
+    traitNames: []
+    movementSpeeds:
+      fly: 10
+    creatureSize: "2"
+    initiativeGrouping: 131833a1-8e7b-4932-9a21-179dbbbc955b
+    monster_category: Monster
+    keywords:
+      Chimera: true
+      Beast: true
+  tokenType: null
+  bestiaryId: e3b5cb4a-74ea-4f7d-bdd6-12b7142acc5d
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Chimera
+parentFolder: e34699cf-8de0-4325-a4bc-dc7eda627b75
+artist: null
+ord: 0
+ctime: 1741590321007
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,62 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 18a8a24f-bb4b-4879-9af8-2f5ec64fe329
+    repeatTargets: false
+    trigger: targetwithability
+    conditionFormula: target = ConditionCaster("Acid Grasp") and (UsedAbility.keywords has "Strike")
+    targetType: self
+    persistence: []
+    name: Acid Grasp
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "4"
+      damageType: acid
+      chatMessage: Acid Grasp
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 35e301cf-3db0-41f5-8598-37a2befbd9d7
+      mode: effect
+      purgeType: one
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: The next time you make a strike against the daybringer, you take 4 acid damage after the strike is resolved.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 2f0878a8-62f6-4b85-9383-a64d8c1b9ec0
+  name: Acid Grasp
+  sourceguid: 35e301cf-3db0-41f5-8598-37a2befbd9d7
+source: Ongoing Effect
+casterTracking: one
+guid: 35e301cf-3db0-41f5-8598-37a2befbd9d7
+id: 35e301cf-3db0-41f5-8598-37a2befbd9d7
+ctime: 1754551373743
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.381999731063843
+    s: 1.00267541408539
+    v: 1.00306534767151
+    a: 1
+custom: true
+name: Acid Grasp
+iconid: 52b11daa-6280-40b3-bf57-7eb8b7a1828f
+description: The next time you make a strike against the daybringer, you take 4 acid damage after the strike is resolved.
+mtime: 1754551373743
+implementation: 3

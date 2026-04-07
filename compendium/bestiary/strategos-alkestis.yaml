@@ -1,0 +1,424 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f8514f9e-c2d0-430f-93f0-f64d49438420
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Strategos Alkestis	Level 10 Leader
+        Humanoid, War Dog	EV 48
+        <b>Stamina</b> 260
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 10
+        Might +4	Agility +4	Reason +5	Intuition +5	Presence +5
+        <b>Houndgun and Houndblade</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Attack, Melee, Ranged, Weapon
+        <b>Distance</b> Melee 1 or Ranged 10<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	15 damage; M<4 bleeding (save ends)
+        %E2%98%85	<b>12-16</b>	21 damage; M<5 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	25 damage; M<6 bleeding (save ends)
+        <b>Effect</b> Each target loses 1d3 Recoveries.
+        <b>2 Malice</b> Each ally adjacent to a bleeding enemy makes a free strike.
+
+        <b>Focus Fire</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 15	<b>Target</b> One creature or object
+        <b>Effect</b> Until the start of Alkestis' next turn, the target can't reduce incoming damage dealt to them.
+
+        <b>Artillery Enfilade</b> (Triggered Action) %E2%97%86 2d10 + 5 %E2%97%86 2 Malice
+        <b>Keywords</b> Area, Ranged, Weapon
+        <b>Distance</b> 7 x 3 line within 10<b>	Target</b> All creatures and objects
+        <b>Trigger </b>An ally dies within 10 of Alkestis.
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; A<4 slowed (save ends)
+        %E2%98%85	<b>12-16</b>	13 damage; A<5 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	16 damage; A<6 slowed (save ends)
+        <b>Effect</b> The affected area becomes difficult terrain until the start of the next round.
+
+        <b>End Effect</b>
+        At the end of her turn, Alkestis can take 20 damage to end one save ends effect affecting her. This damage can't be reduced in any way.
+
+        <b>Tactical Brilliance</b>
+        At the start of Alkestis' turn, the Director gains 2 malice. The Director also gains 1 malice whenever a war dog gets a tier-3 result on a power roll.
+
+        <b>Fog of War</b> (Villain Action 1)
+        <b>Keywords</b> -
+        <b>Distance</b> Special<b>	Target</b> All allies
+        <b>Effect</b> Each target gains a double edge on their next power roll, disappears, and reappears anywhere on the encounter map further than 3 squares away from all enemies.
+
+        <b>Send in the Second Wave </b>(Villain Action 2)
+        <b>Keywords</b> --
+        <b>Distance</b> Ranged 15<b>	Target</b> Special
+        <b>Effect</b> For each war dog that has died this combat, Alkestis summons a 3rd Echelon <b>War Dog Shriketrooper</b> into an unoccupied square within distance.
+
+        <b>The Silver Wolf's Final Stratagem</b> (Villain Action 3)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>	Target</b> Special
+        <b>Effect</b> Each enemy within distance becomes <b>I<4</b> dazed, <b>M<4</b> restrained, and <b>A<4</b> cannot use triggered actions until the start of the next round. Until the end of the encounter, Alkestis and each ally within distance has damage immunity 3 and deals an additional 5 damage on strikes.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ac212cfb-6c69-4b02-8665-a2d04a4dc2c6: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "20"
+            purgeType: one
+          triggerPrompt: End effect for 20
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of her turns, Alkestis can take 20 damage to end one effect on her that can be ended by a saving throw. This damage can't be reduced in any way.
+      guid: ac212cfb-6c69-4b02-8665-a2d04a4dc2c6
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d8bafeb5-5b94-4a95-afb0-42bc37cf9155: true
+      modifiers: []
+      name: Tactical Brilliance
+      description: At the start of Alkestis' turn, the Director gains 2 malice. The Director also gains 1 malice whenever a war dog gets a tier-3 result on a power roll.
+      guid: d8bafeb5-5b94-4a95-afb0-42bc37cf9155
+      source: Trait
+    role: Leader
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "260"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 10
+    monster_type: Strategos Alkestis
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 5
+        id: prs
+      rea:
+        baseValue: 5
+        id: rea
+      inu:
+        baseValue: 5
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    damage_taken: 0
+    max_hitpoints: 260
+    resources: []
+    traitNames: []
+    ev: 48
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; M<4 bleeding (save ends)
+        - 21 damage; M<5 bleeding (save ends)
+        - 25 damage; M<6 bleeding (save ends)
+        roll: 2d10 + 5
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 195fc3a7-dea2-4b10-ab53-613790690f09
+      meleeRange: 1
+      numTargets: 2
+      targetType: target
+      name: Houndgun and Houndblade
+      iconid: ui-icons/skills/1.png
+      description: Each target loses 1d3 Recoveries.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 0a60ebcd-5ef9-443f-8a02-45654cb9d84c
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Focus Fire
+      numTargets: 1
+      description: Until the start of Alkestis' next turn, the target can't reduce incoming damage dealt to them.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      targetType: line
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 7
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      guid: a6cdf4a6-2dff-421c-89ba-4f4279b614d4
+      abilityType: none
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; A<4 slowed (save ends)
+        - 13 damage; A<5 slowed (save ends)
+        - 16 damage; A<6 slowed (save ends)
+        roll: 2d10 + Reason
+      name: Artillery Enfilade
+      radius: 3
+      description: The affected area becomes difficult terrain until the start of the next round.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '225d0001-ce06-4eea-9b0"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 15d625f0-84b3-4201-8227-351c71e880cf
+      numTargets: 1
+      targetType: self
+      implementation: 0
+      name: Fog of War
+      effectImplemented: false
+      description: Each target gains a double edge on their next power roll, disappears, and reappears anywhere on the encounter map further than 3 squares away from all enemies.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        "--": true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ed0dced9-88d9-49e1-a433-89e6c13f8720
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'd9af5660-f729-44da-b41"
+      implementation: 0
+      behaviors: []
+      name: 'Send in the Second Wave '
+      numTargets: 1
+      description: For each war dog that has died this combat, Alkestis summons a 3rd Echelon War Dog Shriketrooper into an unoccupied square within distance.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8e23282a-eacd-45c0-bfc0-b32e82d06d25
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'beb36042-8b47-4490-aa4"
+      implementation: 0
+      behaviors: []
+      name: The Silver Wolf's Final Stratagem
+      numTargets: 1
+      description: Each enemy within distance becomes I<4 dazed, M<4 restrained, and A<4 cannot use triggered actions until the start of the next round. Until the end of the encounter, Alkestis and each ally within distance has damage immunity 3 and deals an additional 5 damage on strikes.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 320
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      abilityType: none
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: When a target is made bleeding this way, each ally adjacent to them can make a free strike against the target.
+        text: Malice
+        condition: ""
+      guid: f9c2f227-695b-4ab8-9cb6-6c562adb3a7a
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; M<4 bleeding (save ends)
+        - 21 damage; M<5 bleeding (save ends)
+        - 25 damage; M<6 bleeding (save ends)
+        roll: 2d10 + Reason
+      numTargets: 2
+      iconid: ui-icons/skills/1.png
+      categorization: Signature Ability
+      name: Houndgun & Houndblade
+      meleeRange: 1
+      description: |-
+        Each target loses 1d3 Recoveries.
+        **2 Malice**: When a target is made bleeding this way, each ally adjacent to them can make a free strike against the target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    monster_category: Monster
+    movementSpeeds: []
+    levelChoices: []
+    minion: false
+    creatureSize: 1M
+    walkingSpeed: 5
+  tokenType: null
+  bestiaryId: 7a58baa9-ca9e-45af-9c4d-99f25658f0e3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: Strategos Alkestis
+parentFolder: 59c9947d-a228-4d1c-8cc3-a2a4185851ab
+artist: null
+ord: 0
+ctime: 1741590269615
+mtime: 1775201137032
+hidden: false

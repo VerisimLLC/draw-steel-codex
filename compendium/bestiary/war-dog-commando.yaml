@@ -1,0 +1,229 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: c672d41b-107a-4ebd-92d5-0cbc5e8916cd
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: War Dog Commando
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 84f7832a-1a8a-4ca7-ac50-b594002f2a7c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: War Dog Commando
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 84f7f110-9013-4841-8773-502c302c3235
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 003a1b5e-0b14-4c99-b948-0f0fc715bbf2
+        abilityType: standard
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 1ce17325-e103-48d5-a890-00d937efe019
+      meleeRange: 1
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Daggers
+      targetType: target
+      description: The commando can take the Hide maneuver after using this ability, even if observed.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        War Dog Commando	Level 1 Minion Ambusher
+        Humanoid, War Dog	EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Strike damage +1	<b>Free Strike</b> 2
+        Might +0	Agility +2	Reason +0	Intuition +0	Presence +0
+        <b>Daggers</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5	<b>Target</b> One creature per minion
+        %E2%9C%A6	%E2%89%A411	2 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage
+        <b>Effect</b> The commando can take the Hide maneuver after using this ability, even if observed.
+
+        <b>Loyalty Collar</b>
+        When the commando dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0f750900-c30d-46e5-a58e-5d391f389519: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d3
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: When the commando dies, they explode, dealing 1d3 damage to each adjacent enemy.
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the commando dies, they explode, dealing 1d3 damage to each adjacent enemy.
+      guid: 0f750900-c30d-46e5-a58e-5d391f389519
+      name: Loyalty Collar
+      implementation: 3
+    role: Minion Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    withCaptain: +1 damage bonus to strikes
+    opportunityAttack: 2
+    damage_taken: 0
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    resources: []
+    walkingSpeed: 5
+    minionSquad: War Dog Commando Squad 1
+    creatureSize: 1M
+    traitNames: []
+    movementSpeeds: []
+    initiativeGrouping: 9d48a5fd-5d51-4b40-a9d9-e535219b11be
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+  tokenType: null
+  bestiaryId: 4746b7c4-9bc0-4d42-82d6-b83cf637181b
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: War Dog Commando
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 2
+ctime: 1749972309560
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,472 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ea525521-7bc5-4645-a3d8-5645295f7674
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 6
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Meteor Dragon	Level 10 Solo
+        Dragon, Elemental	EV 120
+        <b>Stamina</b> 650
+        <b>Speed</b> 15 (fly)	<b>Size</b> 3 /<b> Stability</b> 6
+        <b>Free Strike</b> 10
+        Might +5	Agility +5	Reason +3	Intuition +3	Presence +5
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The dragon takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the dragon can take 20 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Voidshroud Wyrmscale Aura</b>
+        The dragon's scales emit a 1 aura that transforms the area into the void of space. An enemy that starts their turn in an affected square takes 10 cold damage and begins to suffocate.
+        Each time the dragon takes damage, the area of the aura increases by 1 (to a maximum of 5) and the dragon deals an additional 5 damage on their next ability.
+
+        <b>Gravity Well </b>(Action) %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 4 cube within 10<b>	Target</b> All enemies and objects
+        <b>Effect</b> Each target makes a <b>Might test.</b>
+        %E2%9C%B8	%E2%89%A411	20 sonic damage; dragonsealed (save ends)
+        %E2%98%85	12%E2%80%9316	16 sonic damage; dragonsealed (save ends)
+        %E2%9C%A6	17	10 sonic damage
+        <b>Effect</b> Each dragonsealed target emits a golden aura and takes an additional 2 damage per square moved from falling or from forced movement into obstacles until the condition ends.
+
+        <b> Cosmic Tail Ray</b> (Action) %E2%97%86 2d10 + 5
+        <b>Keywords</b> Magic, Melee, Ranged, Strike
+        <b>Distance</b> Melee 2 or Ranged 15<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	15 holy damage; A<4 weakened (save ends)
+        %E2%98%85	12%E2%80%9316	21 holy damage; A<5 weakened (save ends)
+        %E2%9C%B8	17	25 holy damage; A<6 weakened (save ends)
+        <b>Effect</b> A target is dazed (EoT) if they are already weakened.
+
+        <b>Investiture of Gravity</b> (Maneuver) %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 15 burst <b>	Target</b> All dragonsealed enemies
+        <b>Effect</b> The dragon chooses a direction. All targets vertically slide 10, ignoring stability, in that direction as if falling downward.
+
+        <b>Crescent Claws </b>(Free Maneuver)
+        Once per turn, the dragon chooses a target within 3 and makes a free strike against them. The dragon ignores banes when using abilities against the target until the start of their next turn.
+
+        <b>A Hero Faces the Void</b> (Triggered Action) %E2%97%86 2d10 + 5 %E2%97%86 2 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 15<b>	Target</b> 1 creature
+        <b>Trigger</b> The target spends Heroic Resources on an ability.
+        %E2%9C%A6	%E2%89%A411	10 psychic damage; P<4 frightened (save ends)
+        %E2%98%85	12%E2%80%9316	16 psychic damage; P<5 frightened (save ends)
+        %E2%9C%B8	17	20 psychic damage; P<6 frightened (save ends)
+        <b>Effect</b> A creature frightened by this ability can't use the ability that triggered it again until the condition ends.
+
+        <b>Field Collapse</b> (Free Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Special<b>	Target</b> All enemies and objects
+        <b>Trigger</b> The dragon is targeted by an attack or an ability while their wyrmscale aura has an area of 2 or more.
+        <b>Effect</b> The dragon halves the damage. Each target within the dragon's wyrmscale aura takes 5 sonic damage and is pulled 5. The area of the wyrmscale aura reduces to 1.
+
+        <b>Meteor Dragon's Domain</b>
+        If the encounter map is a location the dragon has occupied for 1 week or more, each creature and object other than the dragon has their stability reduced to 0 and they automatically get a tier-1 result on Agility tests. Additionally, suffocating in the area deals an additional 1d6 damage at the end of each round.
+
+        <b>Impactful Arrival</b> (Villain Action 1)
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 1 mile burst<b>	Target</b> All creatures and objects
+        <b>Effect</b> The target takes 30 fire damage and is <b>M<5</b> knocked prone.
+        <b>Special</b> This ability is used before initiative is rolled.
+
+        <b>Burning Aurora </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> Until the end of the encounter, each dragonsealed and weakened enemy within line of effect to the dragon loses 1 Heroic Resource at the start of each of their turns (to a minimum of 0). The dragon then uses their Cosmic Tail Ray ability targeting four creatures or objects with a double edge.
+
+        <b>Voidlight Breath</b> (Villain Action 3)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> %E2%88%9E x 3 line within 1<b>	Target</b> All enemies and objects
+        <b>Effect</b> Each target makes an <b>Agility test.</b>
+        %E2%9C%B8	%E2%89%A411	25 damage; I<6 annihilated
+        %E2%98%85	12%E2%80%9316	21 damage; I<5 annihilated
+        %E2%9C%A6	17	15 damage; I<4 annihilated
+        <b>Effect</b> An annihilated target must make the test again. Each subsequent time the target makes the test, the potency decreases by 2 for them. A creature reduced to 0 Stamina in this way is instantly killed, their soul utterly destroyed.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ccd84128-c7e2-4437-8d6b-ada57e46a2d9: true
+      modifiers: []
+      name: Voidshroud Wyrmscale Aura
+      description: The dragon's scales emit a 1 aura that transforms the area into the void of space. An enemy that starts their turn in an affected square takes 10 cold damage and begins to suffocate.Each time the dragon takes damage, the area of the aura increases by 1 (to a maximum of 5) and the dragon deals an additional 5 damage on their next ability.
+      guid: ccd84128-c7e2-4437-8d6b-ada57e46a2d9
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:43ab46c4-4d01-4c44-a404-f9bd946f27db: true
+      modifiers: []
+      name: Meteor Dragon's Domain
+      description: If the encounter map is a location the dragon has occupied for 1 week or more, each creature and object other than the dragon has their stability reduced to 0 and they automatically get a tier-1 result on Agility tests. Additionally, suffocating in the area deals an additional 1d6 damage at the end of each round.
+      guid: 43ab46c4-4d01-4c44-a404-f9bd946f27db
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2f6fe612-c291-4201-8abd-ad87f92ff459: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "20"
+            purgeType: one
+          triggerPrompt: End effect for 20
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the dragon can take 20 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.The dragon can take two turns each round. They can't take turns consecutively.
+      guid: 2f6fe612-c291-4201-8abd-ad87f92ff459
+      name: Solo Monster
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0d598246-544e-4a19-9ccf-82a0810513e7: true
+      modifiers: []
+      name: Crescent Claws
+      description: Once per turn, the dragon chooses a target within 3 squares. The dragon can make a free strike against the target, and ignores banes when using abilities against the target until the start of their next turn.
+      guid: 0d598246-544e-4a19-9ccf-82a0810513e7
+      source: Trait
+    role: Solo
+    inflictedConditions: []
+    keywords:
+      Elemental: true
+      Dragon: true
+    max_hitpoints_roll: "650"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 10
+    monster_type: Meteor Dragon
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 5
+        id: agl
+      prs:
+        baseValue: 5
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 15
+    resources: []
+    max_hitpoints: 650
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: da32b953-0388-4f4d-b189-5294be6e1e36
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: 'Gravity Well '
+      numTargets: "1"
+      description: Each dragonsealed target emits a golden aura and takes an additional 2 damage per square moved from falling or from forced movement into obstacles until the condition ends.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 holy damage; A<4 weakened (save ends)
+        - 21 holy damage; A<5 weakened (save ends)
+        - 25 holy damage; A<6 weakened (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 3430d325-0094-48c7-9dab-0a698a9cfc2a
+      meleeRange: 2
+      numTargets: 2
+      targetType: target
+      name: " Cosmic Tail Ray"
+      iconid: ui-icons/skills/1.png
+      description: A target is dazed (EoT) if they are already weakened.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: ca51bb14-156a-4636-9073-f3667ba13753
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Investiture of Gravity
+      implementation: 0
+      description: The dragon chooses a direction. All targets vertically slide 10, ignoring stability, in that direction as if falling downward.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 5fb2a4cc-bff5-4a0b-b532-412c87acd7f9
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 psychic damage; P<4 frightened (save ends)
+        - 16 psychic damage; P<5 frightened (save ends)
+        - 20 psychic damage; P<6 frightened (save ends)
+        roll: 2d10 + Might
+      name: A Hero Faces the Void
+      implementation: 3
+      description: A creature frightened by this ability can't use the ability that triggered it again until the condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: aaa0efc7-d63a-496b-9ec6-d08d3c895b49
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Field Collapse
+      numTargets: 1
+      description: The dragon halves the damage. Each target within the dragon's wyrmscale aura takes 5 sonic damage and is pulled 5. The area of the wyrmscale aura reduces to 1.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ef0c8087-279b-4b14-b71a-71302f17d742
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'a16e51d2-ef45-4e7c-a82"
+      implementation: 0
+      behaviors: []
+      name: Impactful Arrival
+      numTargets: 1
+      description: The target takes 30 fire damage and is M<5 knocked prone.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 734839e6-d838-4845-b88b-10ba7e2a469b
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'ab4bec95-28ad-47fa-ad7"
+      implementation: 0
+      behaviors: []
+      name: 'Burning Aurora '
+      numTargets: 1
+      description: Until the end of the encounter, each dragonsealed and weakened enemy within line of effect to the dragon loses 1 Heroic Resource at the start of each of their turns (to a minimum of 0). The dragon then uses their Cosmic Tail Ray ability targeting four creatures or objects with a double edge.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 772224f8-912c-4fb6-b950-e54de457f925
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'f3bec3c3-2206-4501-aa6"
+      implementation: 0
+      behaviors: []
+      name: Voidlight Breath
+      numTargets: 1
+      description: An annihilated target must make the test again. Each subsequent time the target makes the test, the potency decreases by 2 for them. A creature reduced to 0 Stamina in this way is instantly killed, their soul utterly destroyed.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: d11a2aeb-a6d6-4975-9f21-f889191d18b3
+    movementSpeeds:
+      fly: 15
+    ev: 144
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 6b415224-530e-4c82-8d58-3cbb42f37dfd
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Meteor Dragon
+parentFolder: aa240fca-4fa8-4add-ac99-cb9c5724a8dd
+artist: null
+ord: 1
+ctime: 1741590262451
+mtime: 1775201137032
+hidden: false

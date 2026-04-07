@@ -1,0 +1,39 @@
+__typeName: MarkdownDocument
+description: Tomb First Level
+parentFolder: 8e307759-fe9b-408a-bb88-34f90e1fe01b
+updateid: 6750f6a5-ee3f-4311-8e97-463a8632d4e8
+annotations: []
+id: 08b080ce-2ba4-4478-84be-52c43c4c5634
+mtime: 1763385904429
+content: |-
+  # Codex Notes
+
+  It's very dark in here! This makes it nice and cinematic. You can tell your players to press **L** to turn their lights on. You can do the same on any goblins if you want them to have torches as well.
+
+  Use the **Time of Day/Lighting** panel (normally in the top-right) to adjust the ambient lighting level if you don't care for it being so dark.
+
+  As director you can toggle your darkvision with the Menu Bar's **Tools** -> **Director Darkvision** option. 
+
+
+  # Tomb First Level
+
+  The heroes must head into the first level of the Delian Tomb to rescue Violet from the Jagged Edge. While here, the heroes have a chance to learn more about the [item:Cup of Iulius].
+
+
+
+  |**The Unexpected**|
+  |This adventure is yours to modify as you see fit. When a player does something unexpected with their hero, allow them to take the action and have the environment and creatures you control respond in the way that you think makes the most sense. For instance, if a hero wants to sneak into the tomb and try to see what’s in the first room before the others follow, you can have them do so and describe the goblins clutching their weapons, eagerly watching for intruders and give the heroes some time to plan instead of going right into the combat encounter.|
+
+
+  ## First Level Features
+
+  The first level of the tomb has the following features:
+  **Ceilings:** The ceilings in the rooms are 2 squares high.
+  **Illumination:** The Jagged Edge goblins have placed lit torches in wall sconces to illuminate the entirety of first level.
+  **Map:** The areas detailed here are keyed to the [Delian Tomb - Level 1] map.
+
+
+
+  |**Details Left Out**|
+  |This adventure doesn’t note every scrap of food or butter knife the heroes might come across in their travels and exploration. If a hero is looking for a particular object and it makes sense for an area to have such an object, such as a waterskin next to a goblin’s bedroll, then it exists. If it makes no sense for the object to be there, then it isn’t. If there’s a chance that an object might be in a particular area, roll a d10. On a 7 or higher, the object is there.|
+ctime: 1760338607437

@@ -1,0 +1,176 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 77c6ea97-55c5-4be3-8eaa-6c3c76aa33d2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Grilp	Level 4 Minion Ambusher
+        Devil, Hobgoblin, Infernal	EV 6 for four minions
+        <b>Stamina</b> 8	<b>Immunity</b> fire 2
+        <b>Speed</b> 7 (fly)	<b>Size</b> 1T /<b> Stability</b> 0
+        <b>With Captain</b> Speed +2<b>Free Strike</b> 3
+        Might -1	Agility +3	Reason 0	Intuition +1	Presence 0
+        <b>Flyby Bite</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 damage
+        %E2%9C%B8	<b>17</b>	7 damage; shift 2
+        <b>Effect</b> The grilp moves up to their speed and hides after attacking.
+
+        <b>Bat Out Of Hell</b>
+        Each enemy has -1 on their saving throws for each adjacent grilp.
+
+        <b>Shifting Camouflage</b>
+        The grilp can hide even if they don't have cover or concealment.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cc838716-548d-42a5-820e-74bd6d75e62f: true
+      modifiers: []
+      name: Bat Out Of Hell
+      description: Each enemy has -1 on their saving throws for each adjacent grilp.
+      guid: cc838716-548d-42a5-820e-74bd6d75e62f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d9ae9ea6-23cd-4882-bcce-7527c8527465: true
+      modifiers: []
+      name: Shifting Camouflage
+      description: The grilp can hide even if they don't have cover or concealment.
+      guid: d9ae9ea6-23cd-4882-bcce-7527c8527465
+      source: Trait
+    role: Minion Ambusher
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 3
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    monster_type: Grilp
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: -1
+        id: mgt
+    withCaptain: +2 bonus to speed
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 8
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage; the grilp shifts up to 2 squares
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 405ea5e5-4177-49f5-b15f-af1cde763499
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Flyby Bite
+      numTargets: 1
+      description: The grilp moves up to their speed and hides after attacking.
+      abilityType: none
+      implementation: 3
+    keywords:
+      Devil: true
+      Infernal: true
+      Hobgoblin: true
+    movementSpeeds:
+      fly: 7
+    monster_category: Monster
+    minion: true
+    creatureSize: 1T
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 929c8da4-3e32-4348-8174-ef29ee1acf14
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Grilp
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590283129
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,29 @@
+__typeName: MarkdownDocument
+description: Mikael
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 12206d7d-d786-408a-95fc-2b4634a101ac
+annotations:
+  image:
+    __typeName: RichImage
+    halign: center
+    image: 20e60aba-d37b-4af7-96a2-92d22de82e3e
+id: d37c8092-5490-4771-9594-03e4c121aa6d
+mtime: 1761420323898
+content: |-
+  # Mikael
+
+  [[image]]
+
+  *Friendly Carpenter*
+  {
+  Secret: See [B10. Carpenter]
+  Mikael has been bit by a Werewolf, and is cursed to become one himself.
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761395699441

@@ -1,0 +1,74 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Corsair Benefits
+    numChoices: 1
+    guid: 20cca9f1-84db-40dd-9f2e-b706de1352fd
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Artillerist
+      description: You gain a +5 damage bonus when using a ship’s weapons.
+      guid: dbc7eb20-ed38-4bc6-a1cb-41bbb73ad408
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Black Flag
+      description: You have a recognizable flag that strikes terror on the high seas. While your flag is flying from your ship, crewmembers of other ships who have line of effect to the flag take a bane on strikes made against your ship or its crew.
+      guid: be137e71-12d4-4a82-b138-f6ecbeee87ac
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      description: You earn 1 Renown.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 586823dc-be8e-4008-8a55-49ffd1b0e0cc
+        sourceguid: dc788ea0-4b07-47de-80b3-d0ca1302e8cf
+        value: 1
+        source: Title
+        name: Fearsome Reputation
+        behavior: attribute
+        description: You earn 1 Renown.
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      source: Title
+      canHavePrerequisites: true
+      guid: dc788ea0-4b07-47de-80b3-d0ca1302e8cf
+      name: Fearsome Reputation
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: While aboard a ship, you can use the following skills to make a test to influence another ship up to 5 miles away whose crewmembers have line of effect to you, and you gain an edge when you do so. You can use Disguise to hide your ship’s identity or general type, Intimidate to convince another ship’s crew to flee or surrender, or Hide or Sneak to let your ship avoid notice.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a59f3d1b-5ae4-4382-a7d4-149427a94a15
+        source: Title
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: 84dd8ccd-8e88-4967-bd29-02a0d2af7876
+        name: Scoundrel Tactics
+        behavior: power
+        description: While aboard a ship, you can use the following skills to make a test to influence another ship up to 5 miles away whose crewmembers have line of effect to you, and you gain an edge when you do so. You can use Disguise to hide your ship’s identity or general type, Intimidate to convince another ship’s crew to flee or surrender, or Hide or Sneak to let your ship avoid notice.
+        rollType: test_power_roll
+        skills:
+        - b0bf2f97-6776-4a9e-b691-4845275df2f8
+        - cb214a42-7f8c-4d02-b6ac-1399724a8b5f
+        - fdd43bde-6062-484d-aea6-3803d396ea8e
+        - ae13b5cf-718a-42a4-ab5e-18d46b289ac6
+      source: Title
+      canHavePrerequisites: true
+      guid: a59f3d1b-5ae4-4382-a7d4-149427a94a15
+      name: Scoundrel Tactics
+      implementation: 4
+id: b03d425b-7ab4-4aca-a688-696311cda829
+ctime: 1762351441328
+name: Corsair
+description: Haul down your flag or we’ll burn you to the waterline!
+mtime: 1775089144501
+echelon: "2"
+prerequisite: You have the Ship Captain title, and you sink or capture a ship of equal or greater size than your own.

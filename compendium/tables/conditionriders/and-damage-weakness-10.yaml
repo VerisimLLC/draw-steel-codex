@@ -1,0 +1,34 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 815fddfe-f657-42a9-b38a-b48adc97384e
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-10"
+    damageType: all
+    apply: Damage Reduction
+  description: While weakened this way, the target has damage weakness 10.
+  name: and Damage Weakness 10
+  guid: cf2c2931-685c-4806-9dd6-cc4b44076d50
+source: Ongoing Effect
+guid: 815fddfe-f657-42a9-b38a-b48adc97384e
+id: 815fddfe-f657-42a9-b38a-b48adc97384e
+ctime: 1770267989374
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+name: and Damage Weakness 10
+description: While weakened this way, the target has damage weakness 10.
+mtime: 1770267989374
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+implementation: 3

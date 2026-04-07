@@ -1,0 +1,25 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 41aa50ac-86ea-420a-83de-c31fc20f3c2c
+  description: ""
+  source: Ongoing Effect
+  behavior: suppressabilities
+  guid: 9ce7561b-3330-44ae-b831-49da44f97306
+  explanation: This creature cannot use the Stand Up maneuver until this ongoing effect is removed.
+  name: Stand Up
+source: Ongoing Effect
+guid: 41aa50ac-86ea-420a-83de-c31fc20f3c2c
+id: 41aa50ac-86ea-420a-83de-c31fc20f3c2c
+ctime: 1770916226925
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Can't Stand
+description: ""
+custom: true
+mtime: 1770916261875
+iconid: ui-icons/skills/1.png

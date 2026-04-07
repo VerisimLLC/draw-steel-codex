@@ -1,0 +1,51 @@
+__typeName: CharacterComplication
+drawback: You have cold weakness 5.
+mtime: 1764852510185
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: ef2564ab-49b3-4c31-b5bd-81ddc7f87d3e
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: cold
+        apply: Damage Reduction
+      description: ""
+      name: Fire and Chaos - Drawback
+      guid: 97b70a7c-4bc5-4001-9404-dbdbcd320cbc
+    source: Feat
+    canHavePrerequisites: true
+    guid: ef2564ab-49b3-4c31-b5bd-81ddc7f87d3e
+    name: Fire and Chaos - Drawback
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 39e89e52-3976-430d-afc0-7400b12e9f22
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "5"
+        damageType: fire
+        apply: Damage Reduction
+      description: ""
+      name: Fire and Chaos
+      guid: dc9fa6c4-8962-4e28-9792-9f2ad9a32255
+    source: Feat
+    canHavePrerequisites: true
+    guid: 39e89e52-3976-430d-afc0-7400b12e9f22
+    name: Fire and Chaos
+    implementation: 3
+name: Fire and Chaos
+ctime: 1755514285723
+description: A great monster who breathed fire burned your home to the ground. While everything around you was consumed, you somehow stood strong amid the inferno, your body adapting to ignore the effects of the flames.
+id: 7fb672a0-80ae-442e-a5c6-531298188a4a
+benefit: You have fire immunity 5

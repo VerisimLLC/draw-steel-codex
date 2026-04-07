@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 81d7afd1-fcc4-451a-b678-4f6a21a709ec
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Adrina
+- __typeName: RollTableRow
+  id: 7c09da74-186d-4566-a866-a4f94d5cb0ed
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Arawanni
+- __typeName: RollTableRow
+  id: 72b6e3b9-bfd0-435e-a549-ba7f7f922b3f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Barsina
+- __typeName: RollTableRow
+  id: 65f1ddd1-dab5-4976-b93c-77062ba61688
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Irdabava
+- __typeName: RollTableRow
+  id: f6f359e0-71d2-4c3c-acdf-56a836812010
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kiandot
+- __typeName: RollTableRow
+  id: 5e747344-062c-4514-a8b2-d761d778e6a4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Mavané
+- __typeName: RollTableRow
+  id: bbc60557-b509-4e4a-b692-39f26d62998a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Osorabi
+- __typeName: RollTableRow
+  id: e164c9db-96bd-495e-a7c8-b4b726d56688
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Sitarey
+- __typeName: RollTableRow
+  id: f86d4b4c-82dc-4c41-a592-86e8114a7116
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Tyriti
+- __typeName: RollTableRow
+  id: 0fbe2072-a26a-4cac-9c52-d235ac3078b5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ulivesh
+id: 60014ae0-21b4-42a1-b80a-b9d883b9aa27
+name: Hakaan Feminine Names
+subtable: true
+mtime: 1743455167030
+items: false
+ctime: 1743444421552

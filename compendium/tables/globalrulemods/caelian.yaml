@@ -1,0 +1,31 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 959a17af-608c-4bc6-9107-aea5c7563800
+      source: Caelian Global Rule Mod Feature
+      guid: d250773e-2c3c-4832-977c-7db7cec7381d
+      behavior: proficiency
+      equate: false
+      name: Caelian
+      description: All heroes know Caelian.
+      proficiency: proficient
+      subtype: language
+      skills:
+        9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+    name: Caelian
+    description: All heroes know Caelian.
+    guid: 959a17af-608c-4bc6-9107-aea5c7563800
+    source: Caelian Global Rule Mod Feature
+    implementation: 3
+applyRetainers: false
+applyMonsters: false
+ctime: 1737350398551
+name: Caelian
+id: 6f90ddb0-d311-40d3-afac-8cf235fd1b7b
+mtime: 1737350398551
+applyCharacters: true
+applyCompanions: false

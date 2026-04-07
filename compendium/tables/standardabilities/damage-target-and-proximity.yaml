@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+targetFilter: not enemy
+id: eb6f2a60-eec0-4bce-853d-ea0a4c1b4260
+targetType: all
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<radius>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: fdb306b9-8ac9-43a0-9190-a92df0b5dc34
+importMatch: ""
+ctime: 1727841239155
+behaviors:
+- __typeName: ActivatedAbilityDamageBehavior
+  roll: "<<damage>>"
+  filterTarget: ""
+numTargets: "1"
+mtime: 1756499661911
+name: Damage Target and Proximity
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

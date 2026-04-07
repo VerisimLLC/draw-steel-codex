@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: c31547f6-ca7f-49d1-b465-71a18ea4b3e4
+id: c31547f6-ca7f-49d1-b465-71a18ea4b3e4
+ctime: 1769073979516
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Closed In
+statusEffect: true
+mtime: 1769073979516
+description: ""
+iconid: ui-icons/skills/1.png

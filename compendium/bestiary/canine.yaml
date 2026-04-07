@@ -1,0 +1,170 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9b379068-dcd4-4804-8da8-857d08f3c92e
+  properties:
+    __typeName: monster
+    groupid: eab02bc2-fd64-44cc-a27e-51df24fe02f7
+    cr: 2
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bdc4165a-6fd8-4b60-a59f-477d9617770f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: bdc4165a-6fd8-4b60-a59f-477d9617770f
+        source: Character Feature
+        guid: c9c3208f-f131-47f4-b34f-14431195e0f1
+        keywords:
+          Melee: true
+        activationCondition: true
+        domains:
+          CharacterFeature:bdc4165a-6fd8-4b60-a59f-477d9617770f: true
+        rollType: ability_power_roll
+        name: Canine Melee Damage Bonus
+        modtype: none
+        description: You gain +1 melee damage bonus.
+        damageModifier: "1"
+        behavior: power
+      source: Character Feature
+      description: You gain +1 melee damage bonus.
+      guid: bdc4165a-6fd8-4b60-a59f-477d9617770f
+      name: Canine Melee Damage Bonus
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3e33bd6a-97df-4a34-8f3b-ca1e1c8a26c9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3e33bd6a-97df-4a34-8f3b-ca1e1c8a26c9
+        source: Character Feature
+        modtype: none
+        keywords: []
+        activationCondition: false
+        guid: 26f671c7-b4c0-432a-97d6-756f72a2367d
+        rollType: test_power_roll
+        domains:
+          CharacterFeature:3e33bd6a-97df-4a34-8f3b-ca1e1c8a26c9: true
+        description: You gain an edge on tests that involve smell.
+        behavior: power
+        name: Canine Special
+      source: Character Feature
+      description: You gain an edge on tests that involve smell.
+      guid: 3e33bd6a-97df-4a34-8f3b-ca1e1c8a26c9
+      name: Canine Special
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4ffd0652-59c9-4782-bdbe-d61aa8aeeab7: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: max
+        sourceguid: 4ffd0652-59c9-4782-bdbe-d61aa8aeeab7
+        source: Character Feature
+        value: 7
+        domains:
+          CharacterFeature:4ffd0652-59c9-4782-bdbe-d61aa8aeeab7: true
+        name: Canine Movement
+        guid: 0218fe56-34fc-4040-9683-3d7ea9c9ede8
+        description: Your movement speed is 7.
+        behavior: attribute
+        attribute: speed
+      source: Character Feature
+      description: Your movement speed is 7.
+      guid: 4ffd0652-59c9-4782-bdbe-d61aa8aeeab7
+      name: Canine Movement
+      implementation: 3
+    max_hitpoints: 10
+    inflictedConditions: []
+    keywords:
+      Green Animal Forms: true
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    temporary_stamina_history:
+      __typeName: StatHistory
+      entries:
+        363bdd2a-e314-429c-9b54-3b6c8681e146:
+          timestamp: 1759688528932
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 5
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Canine
+    temporary_hitpoints: 5
+    damage_taken: 0
+    resources: []
+    titles: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    equipment: []
+    levelChoices: []
+    walkingSpeed: 5
+    monster_type: Canine
+    savingThrowRatings: []
+    skillRatings: []
+  tokenType: null
+  bestiaryId: 49b92c47-5878-4ece-b5ee-704da077be3f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1753882566431
+description: null
+parentFolder: e88c4842-3ea1-49c0-ad20-dd7d6ba773ba
+artist: null
+ord: 1
+ctime: 1753882701680
+mtime: 1775167458042
+hidden: false

@@ -1,0 +1,76 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1984d5a6-4697-4d6f-a0cb-73983c7771db
+  source: Ongoing Effect
+  seq: 9febcf4f-9eab-49c0-8e13-4fdf8fbac9fd
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 279be411-2a71-42be-9bb6-c097e6ce6ea6
+      source: Aura
+      filterAbility: Ability.Trigger
+      behavior: modifyability
+      guid: 7f512fe0-e0e3-4038-aa3c-e938342aa9a5
+      replaceBehaviors: replaceAll
+      name: Edict of Peace
+      attributes: []
+      description: ""
+      mustPayResourceCost: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 847a07ea-41c6-4d6c-a74b-7e9d8032280d
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityDamageBehavior
+          applyto: caster
+          roll: AurasCaster("Edict of Peace").Presence
+          damageType: holy
+          cannotBeReduced: true
+          titleText: Edict of Peace
+          chatMessage: Edict of Peace
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+    name: Edict of Peace
+    triggers: []
+    guid: 279be411-2a71-42be-9bb6-c097e6ce6ea6
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+  radius: "3"
+  guid: 282caee1-5382-421f-950e-7db50b710e6d
+  description: Until the end of the encounter or until you are dying, whenever any target takes a triggered action or a free triggered action, that action is negated and the target takes holy damage equal to your Presence score.
+  behavior: aura
+  name: Edict of Peace
+source: Ongoing Effect
+guid: 1984d5a6-4697-4d6f-a0cb-73983c7771db
+id: 1984d5a6-4697-4d6f-a0cb-73983c7771db
+ctime: 1751722853118
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Edict of Peace
+description: Until the end of the encounter or until you are dying, whenever any target takes a triggered action or a free triggered action, that action is negated and the target takes holy damage equal to your Presence score.
+custom: true
+mtime: 1765509054343
+iconid: ui-icons/skills/1.png

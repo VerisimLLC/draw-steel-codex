@@ -1,0 +1,34 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: b86a037c-8b32-4170-921f-964a2fda57a1
+  source: Ongoing Effect
+  modtype: none
+  keywords: []
+  activationCondition: true
+  description: The chorogaunt's abilities deal an extra 3 damage until the end of their next turn.
+  name: I Thrive on Pain
+  behavior: power
+  damageModifier: "3"
+  rollType: ability_power_roll
+  guid: 933d8cb3-6a66-444c-9710-d2516909a555
+source: Ongoing Effect
+guid: b86a037c-8b32-4170-921f-964a2fda57a1
+id: b86a037c-8b32-4170-921f-964a2fda57a1
+ctime: 1771079233589
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.77575010061264
+    s: 0.534179747104645
+    v: 0.975516080856323
+    a: 1
+name: I Thrive on Pain
+description: The chorogaunt's abilities deal an extra 3 damage until the end of their next turn.
+custom: true
+mtime: 1771079233589
+iconid: 699cf8b4-6b8e-41cf-ba1f-c41f5b799cce

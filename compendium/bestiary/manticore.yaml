@@ -1,0 +1,539 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f3b36606-3e82-40eb-8f88-72a0c2a844d4
+    offtokenPortraitId: b5becbb0-e6da-4f5a-b25b-cc120172a3ed
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.23165
+    portraitOffset:
+      x: -0.1367183
+      y: -0.004148563
+    frameHueShift: 0
+    frameSaturation: 0.445111
+    frameBrightness: 0.4513577
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: befde7c0-62df-4273-b6b2-98df08c98007
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Manticore	Level 4 Solo
+        Beast, Manticore	EV 60
+        <b>Stamina</b> 350
+        <b>Speed</b> 10 (fly)	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>Free Strike</b> 6
+        Might +4	Agility +3	Reason +0	Intuition +0	Presence -1
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The manticore takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the manticore can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Agile Predator</b>
+        When the manticore deals damage to a creature, they don't provoke opportunity attacks from that creature during that turn.
+
+        <b>Carnivorous Bite</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	12 damage; A<2 bleeding (save ends)
+        %E2%98%85	12%E2%80%9316	17 damage; A<3 bleeding (save ends)
+        %E2%9C%B8	17	21 damage; A<4 bleeding (save ends)
+        <b>Effect</b> This ability has an edge against frightened targets.
+
+        <b>Tail Spike</b> (Action) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Ranged, Weapon
+        <b>Distance</b> Ranged 10<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	6 damage; M<2 4 poison damage
+        %E2%98%85	12%E2%80%9316	11 damage; M<3 4 poison damage, weakened (save ends)
+        %E2%9C%B8	17	14 damage; M<4 8 poison damage, weakened (save ends)
+        <b>1 Malice</b> A target weakened from this ability takes 1d6 poison damage at the start of each of their turns until the condition ends.
+
+        <b>Harrying Claws</b> (Maneuver)
+        <b>Keywords</b> Melee
+        <b>Distance</b> Melee 1	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	Slide 1; A<2 3 damage
+        %E2%98%85	12%E2%80%9316	Slide 2; A<3 5 damage
+        %E2%9C%B8	17	Slide 4; A<4 7 damage
+
+        <b>Reflexive Instinct</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> Triggering creature
+        <b>Trigger</b> A creature deals damage to the manticore.
+        <b>Effect</b> The manticore shifts up to 5 into the air, then uses their Tail Spike ability against the target.
+
+        <b>Trumpeting Howl</b> (Villain Action 1) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>Target</b> All creatures
+        %E2%9C%A6	%E2%89%A411	Frightened (EoT) or I<2 (save ends)
+        %E2%98%85	12%E2%80%9316	Frightened (EoT) or I<3 (save ends)
+        %E2%9C%B8	17	Frightened (save ends); I<4 dazed (save ends)
+
+        <b>Cornered Predator </b>(Villain Action 2)
+        <b>Keywords</b> Ranged, Weapon
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The manticore shifts up to their speed, then uses their Tail Spike ability against each enemy within 10 squares.
+
+        <b>Debilitating Poison</b> (Villain Action 3)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Special
+        <b>Effect</b> The manticore sours their own poison with enmity. Until the end of the encounter, the manticore has a double edge on power rolls targeting weakened creatures. A creature weakened by the manticore's Tail Spike ability has their speed halved and takes an additional 1d3 poison damage at the start of each of their turns until the condition ends.
+
+
+
+    skillProficiencies: []
+    role: Solo
+    inflictedConditions: []
+    ev: 72
+    max_hitpoints_roll: "350"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 6
+    walkingSpeed: 10
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    monster_type: Manticore
+    equipment: []
+    initiativeGrouping: eb186db4-f3b3-43e9-8616-e85aee6fcd37
+    levelChoices: []
+    damage_taken: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:eac41c83-79f7-4949-9050-8ffb1d113042: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:eac41c83-79f7-4949-9050-8ffb1d113042: true
+        sourceguid: eac41c83-79f7-4949-9050-8ffb1d113042
+        behavior: trigger
+        source: Trait
+        name: Agile Predator
+        description: When the manticore deals damage to a creature, they don't provoke opportunity attacks during that turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+            durationUntilEndOfTurn: true
+            duration: 0
+          whenActive: combat
+          repeatTargets: false
+          trigger: dealdamage
+          castImmediately: true
+          targetType: target
+          guid: a2b3c4d5-e6f7-8a9b-0c1d-2e3f4a5b6c7d
+          name: Agile Predator
+          mandatory: true
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c
+      source: Trait
+      description: When the manticore deals damage to a creature, they don't provoke opportunity attacks from that creature during that turn.
+      guid: eac41c83-79f7-4949-9050-8ffb1d113042
+      name: Agile Predator
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5eb36dc3-578f-4f39-a53a-0f6871c9edf9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the manticore can take 10 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.The manticore can take two turns each round. They can't take turns consecutively.
+      guid: 5eb36dc3-578f-4f39-a53a-0f6871c9edf9
+      name: Solo Monster
+      implementation: 3
+    resources: []
+    max_hitpoints: 350
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 12 damage; A<2 bleeding (save ends)
+        - 17 damage; A<3 bleeding (save ends)
+        - 21 damage; A<4 bleeding (save ends)
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: d8b3e5f9-4a21-4c6d-ab17-2f9e6d4a83c5
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: d8b3e5f9-4a21-4c6d-ab17-2f9e6d4a83c5
+          modtype: edge
+          keywords: []
+          activationCondition: Target.Conditions has "Frightened"
+          guid: c7a2d4e8-3f19-4b5c-9a06-1e8d5c3f72b4
+          rollType: ability_power_roll
+          domains: []
+          description: This ability has an edge against frightened targets.
+          name: Edge vs Frightened
+          behavior: power
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: true
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bf675fd8-cf9e-4bbd-8310-386a57b0ef37
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Carnivorous Bite
+      numTargets: 1
+      description: This ability has an edge against frightened targets.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 1 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 203
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      numTargets: 2
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: While weakened this way, a target takes 1d6 poison damage at the start of each of their turns.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; M<2 4 poison damage
+        - 11 damage; M<3 4 poison damage, weakened (save ends)
+        - 14 damage; M<4 8 poison damage, weakened (save ends)
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 0223a3be-f3f1-4fe5-8e78-456876a56cac
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "10"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: poison
+            roll: 1d6
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: While weakened this way, a target takes 1d6 poison damage at the start of each of their turns."
+        autoTarget: false
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Ability
+      name: Tail Spike
+      guid: 5038382c-1cb4-4c69-8254-36b40dc82c4d
+      description: |2-
+
+        **1 Malice**: While weakened this way, a target takes 1d6 poison damage at the start of each of their turns.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - slide 1; A<2 3 damage
+        - slide 2; A<3 5 damage
+        - slide 4; A<4 7 damage
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: bcd02cc6-cff0-4157-bf76-990aa154efec
+      targetType: target
+      implementation: 3
+      numTargets: 2
+      name: Harrying Claws
+      sourceReference:
+        __typeName: SourceReference
+        page: 203
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: If the target is frightened, this ability gains an edge.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: ddc26a62-ca67-4666-bc48-823423c0feaa
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Reflexive Instinct
+      implementation: 0
+      description: The manticore shifts up to 5 into the air, then uses their Tail Spike ability against the target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'ef4710c9-39d2-423a-b59"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 84f5a238-9689-473b-83b6-55d01b9ab200
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - frightened (EoT); if the target has I<2 they are instead Frightened (save ends)
+        - frightened (EoT); if the target has I<3 they are instead Frightened (save ends)
+        - frightened (EoT); if the target has I<4 they are instead dazed (save ends)
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      name: Trumpeting Howl
+      numTargets: 1
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 25bf5974-daaf-4b54-8347-0d1e3be10f61
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'aad5e0f4-0134-472c-9ff"
+      implementation: 0
+      behaviors: []
+      name: 'Cornered Predator '
+      numTargets: 1
+      description: The manticore shifts up to their speed, then uses their Tail Spike ability against each enemy within 10 squares.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a11a6af2-e632-4623-b287-86f4a49e6f70
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '3fda539f-2a25-4f52-888"
+      implementation: 0
+      behaviors: []
+      name: Debilitating Poison
+      numTargets: 1
+      description: The manticore sours their own poison with enmity. Until the end of the encounter, the manticore has a double edge on power rolls targeting weakened creatures. A creature weakened by the manticore's Tail Spike ability has their speed halved and takes an additional 1d3 poison damage at the start of each of their turns until the condition ends.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Manticore: true
+      Beast: true
+    movementSpeeds:
+      fly: 10
+    groupid: c0dba3a9-0f77-4b85-9c0e-3884efcc9d1c
+    minion: false
+    monster_category: Monster
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: a1d57e6e-1c2f-4a73-967c-be7c3c6c1373
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1738222235594
+description: Manticore
+parentFolder: 78ca1dec-612c-42db-81d6-04b2801f6d47
+artist: null
+ord: 0
+ctime: 1741590289541
+mtime: 1775201137032
+hidden: false

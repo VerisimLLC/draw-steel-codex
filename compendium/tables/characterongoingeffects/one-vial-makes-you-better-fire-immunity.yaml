@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a8a9463c-e3ca-4efd-9239-72d6d028ab79
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: Level
+    damageType: fire
+    apply: Damage Reduction
+  description: ""
+  name: One Vial Makes You Better - Fire Immunity
+  guid: 85bf8ba9-ffae-4cf4-b4cf-447860466b3b
+source: Ongoing Effect
+guid: a8a9463c-e3ca-4efd-9239-72d6d028ab79
+id: a8a9463c-e3ca-4efd-9239-72d6d028ab79
+ctime: 1767504538860
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: One Vial Makes You Better - Fire Immunity
+description: ""
+custom: true
+mtime: 1767504584653
+iconid: ui-icons/skills/1.png

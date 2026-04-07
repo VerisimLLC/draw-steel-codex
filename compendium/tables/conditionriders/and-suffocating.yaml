@@ -1,0 +1,54 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    whenActive: combat
+    repeatTargets: false
+    trigger: beginround
+    numTargets: "1"
+    targetType: self
+    guid: 632132f4-427a-49d1-9ef1-fb9bbf2c2bf1
+    name: and Suffocating
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 922b5228-61b5-4bb2-93bd-19e3045063df
+      ongoingEffectCustom: false
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You can hold your breath for a number of combat rounds equal to your Might score (minimum 1 round). At the end of each combat round after that, you take 1d6 damage while holding your breath.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 3af202bb-d687-440e-a271-9d2ae9b3a608
+  name: and Suffocating
+  sourceguid: 41dc37e3-bacc-4c54-94de-207bc37d914c
+source: Ongoing Effect
+guid: 41dc37e3-bacc-4c54-94de-207bc37d914c
+id: 41dc37e3-bacc-4c54-94de-207bc37d914c
+ctime: 1759257611529
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+name: and Suffocating
+description: You can hold your breath for a number of combat rounds equal to your Might score (minimum 1 round). At the end of each combat round after that, you take 1d6 damage while holding your breath.
+mtime: 1759268601509
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+implementation: 1

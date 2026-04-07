@@ -1,0 +1,211 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 93ad10a5-f207-4da5-acb6-8c8c52d291ef
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 861312b2-e0f0-4ebb-93e8-31004877757e
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 3
+    import:
+      override: true
+      data: |+
+        Time Raider Nemesis	Level 3 Platoon Harrier
+        Humanoid, Time Raider	EV 10
+        <b>Stamina</b> 50	<b>Immunity</b> Psychic 3
+        <b>Speed</b> 7	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +1	Agility +2	Reason +2	Intuition +1	Presence +0
+        <b>Golden Scythe</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Psionic, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	7 damage; pull 1
+        %E2%98%85	12%E2%80%9316	10 damage; pull 2
+        %E2%9C%B8	17+	13 damage; pull 3; A<2 restrained (save ends)
+        <b>Effect</b> This ability can affect creatures on parallel planes of existence and pull them onto the nemesis's plane.
+
+        <b>Kinetic Crush</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 2 Malice
+        <b>Keywords</b> Psionic, Ranged, Strike
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature
+        %E2%9C%A6	%E2%89%A411	7 psychic damage; M<0 slowed (save ends)
+        %E2%98%85	12%E2%80%9316	10 psychic damage; M<1 slowed (save ends)
+        %E2%9C%B8	17+	13 psychic damage; M<2 slowed (save ends)
+        <b>Effect</b> A creature slowed by this ability takes 2 damage whenever they move into or are force moved into a square until the condition ends.
+
+        <b>Foresight </b>
+        The nemesis doesn't have a bane on strikes against concealed creatures.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:877027fb-240a-46fb-8532-2cd3edff1800: true
+      modifiers: []
+      name: 'Foresight '
+      description: The nemesis doesn't have a bane on strikes against concealed creatures.
+      guid: 877027fb-240a-46fb-8532-2cd3edff1800
+      source: Trait
+    role: Platoon Harrier
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Time Raider: true
+    max_hitpoints_roll: "50"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Time Raider Nemesis
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 50
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; pull 1
+        - 10 damage; pull 2
+        - 13 damage; pull 3; A<2 restrained (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0bcce6b9-d430-4b74-94bd-0bd527d515e0
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Golden Scythe
+      numTargets: 1
+      description: This ability can affect creatures on parallel planes of existence and pull them onto the nemesis's plane.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 62936508-c0e1-4548-9bf9-e4ea988591e2
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 psychic damage; M<0 slowed (save ends)
+        - 10 psychic damage; M<1 slowed (save ends)
+        - 13 psychic damage; M<2 slowed (save ends)
+        roll: 2d10 + Agility
+      name: Kinetic Crush
+      implementation: 3
+      description: A creature slowed by this ability takes 2 damage whenever they move into or are force moved into a square until the condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 0fd6ab3a-e0ae-4c61-86e3-82f06865d109
+    movementSpeeds:
+      fly: 7
+    ev: 10
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 6d96140e-9089-477c-91ef-ad1c358c740e
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Time Raider Nemesis
+parentFolder: 37d52d89-62a2-4615-ad94-8549d23e461a
+artist: null
+ord: 0
+ctime: 1741590263683
+mtime: 1775201137032
+hidden: false

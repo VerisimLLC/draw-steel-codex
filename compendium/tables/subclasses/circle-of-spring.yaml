@@ -1,0 +1,508 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1759349066998
+levels:
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: "2"
+      name: "Call Forth: Signature Minion"
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+        description: An especially tiny nixie with long hair that curls into reeds. long, serpentine creature of heated rock. The water they swim in tends to turn thick and cling to surfaces.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: An especially tiny nixie with long hair that curls into reeds. long, serpentine creature of heated rock. The water they swim in tends to turn thick and cling to surfaces.
+          source: Circle of Spring Class Feature
+          name: Nixie Soakreed
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: 72d1c04d-73ae-408b-bd36-aa44a7b6a8f2
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: An especially tiny nixie with long hair that curls into reeds. long, serpentine creature of heated rock. The water they swim in tends to turn thick and cling to surfaces.
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+            persistence: []
+            channelDescription: You summon one Nixie Soakreed for each essence you spend on this ability.
+            name: "Call Forth: Nixie Soakreed"
+            description: You summon one Nixie Soakreed for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        name: Nixie Soakreed
+        classid: caf264c6-204d-4a80-89ea-e2a9ed6f4d31
+        guid: de9d3d57-2363-4462-97ce-2df415e64ca5
+        source: Circle of Spring Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+        description: Glowing pixies that jingle as they fly. Historically, bellringers worked alongside bowman to ensure their arrows struck true.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: Glowing pixies that jingle as they fly. Historically, bellringers worked alongside bowman to ensure their arrows struck true.
+          source: Circle of Spring Class Feature
+          name: Pixie Bellringer
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: 439e0df8-b801-4fde-834c-5d29dad62700
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Glowing pixies that jingle as they fly. Historically, bellringers worked alongside bowman to ensure their arrows struck true.
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+            persistence: []
+            channelDescription: You summon one Pixie Bellringer for each essence you spend on this ability.
+            name: "Call Forth: Pixie Bellringer"
+            description: You summon one Pixie Bellringer for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        name: Pixie Bellringer
+        classid: caf264c6-204d-4a80-89ea-e2a9ed6f4d31
+        guid: 1abf24b2-b6ac-48cc-b41f-cb7b8ace7910
+        source: Circle of Spring Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+        description: 'Dandeknights are sprite warriors whose dragonfly wingbeats emit a tonal drone. They’re usually clad in tassels that shift color as they swing their weapons. '
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: 'Dandeknights are sprite warriors whose dragonfly wingbeats emit a tonal drone. They’re usually clad in tassels that shift color as they swing their weapons. '
+          source: Circle of Spring Class Feature
+          name: Sprite Dandeknight
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: 921f9090-81ab-4e95-a910-43c92f2cab60
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'Dandeknights are sprite warriors whose dragonfly wingbeats emit a tonal drone. They’re usually clad in tassels that shift color as they swing their weapons. '
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+            persistence: []
+            channelDescription: You summon one Sprite Dandeknight for each essence you spend on this ability.
+            name: "Call Forth: Sprite Dandeknight"
+            description: You summon one Sprite Dandeknight for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        name: Sprite Dandeknight
+        classid: caf264c6-204d-4a80-89ea-e2a9ed6f4d31
+        guid: 126e1e16-5f0d-4e67-a67c-353716f5c529
+        source: Circle of Spring Class Feature
+        canHavePrerequisites: true
+      classid: caf264c6-204d-4a80-89ea-e2a9ed6f4d31
+      guid: 66e6825c-59a6-4f27-afed-bfa1f6ff1ba4
+      source: Circle of Spring Class Feature
+      description: Select two of the following signature minions. Signature minions are summoned at the start of combat and at the start of your turn for free. You can also use Call Forth to summon any number of Signature minions for their essence cost.
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: "2"
+      name: "Call Forth: 3-Essence Minion"
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+        description: 'A pixie with a delicate array of vibrant flower petals for wings. The color drains from their wings as they call forth acid rain showers. '
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: 'A pixie with a delicate array of vibrant flower petals for wings. The color drains from their wings as they call forth acid rain showers. '
+          source: Circle of Spring Class Feature
+          name: Pixie Hydrain
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: 9001b61c-c149-4403-9e75-5de3dba3b3fa
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'A pixie with a delicate array of vibrant flower petals for wings. The color drains from their wings as they call forth acid rain showers. '
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Pixie Hydrain"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Pixie Hydrains for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Pixie Hydrain
+        classid: caf264c6-204d-4a80-89ea-e2a9ed6f4d31
+        guid: 066d825a-8df7-4649-ac48-d5e8b01f162b
+        source: Circle of Spring Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+        description: Loftlillies lazily drift through the air in flower cups. They sip on toxic nectar to emit a powerful toxic haze from their skin.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: Loftlillies lazily drift through the air in flower cups. They sip on toxic nectar to emit a powerful toxic haze from their skin.
+          source: Circle of Spring Class Feature
+          name: Pixie Loftlilly
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: 36a1e2c2-e087-4823-8f2b-f9fc335d86cb
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A heaving, knotted mass of ensnarer bodies. A musilex is compelled to drag everything in towards their body.
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Pixie Loftlilly"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Pixie Loftlillies for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Pixie Loftlilly
+        classid: caf264c6-204d-4a80-89ea-e2a9ed6f4d31
+        guid: 4c5f9923-7098-46e9-bcbd-15f2e424d529
+        source: Circle of Spring Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+        description: A sprite surrounded by a wheel of shields. Orchiguards are usually crushed by the pressures of their own impenetrable defenses before ever being felled by enemy hands.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: A sprite surrounded by a wheel of shields. Orchiguards are usually crushed by the pressures of their own impenetrable defenses before ever being felled by enemy hands.
+          source: Circle of Spring Class Feature
+          name: Sprite Orchiguard
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: 4595aa1b-d941-4597-8d8d-561f77f0b01f
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A sprite surrounded by a wheel of shields. Orchiguards are usually crushed by the pressures of their own impenetrable defenses before ever being felled by enemy hands.
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Sprite Orchiguard"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Sprite Orchiguards for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Sprite Orchiguard
+        classid: caf264c6-204d-4a80-89ea-e2a9ed6f4d31
+        guid: 0b1f4b99-6720-42d7-9d1e-f3d845456f45
+        source: Circle of Spring Class Feature
+        canHavePrerequisites: true
+      classid: caf264c6-204d-4a80-89ea-e2a9ed6f4d31
+      guid: 86fb3952-bbf6-4f3e-8c61-d06c6007d01e
+      source: Circle of Spring Class Feature
+      description: Choose two of the following minions. You can use Call Forth to summon the listed number of 3-Essence minions for their essence cost.
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:caf264c6-204d-4a80-89ea-e2a9ed6f4d31: true
+details: The feybright that call forth pixies, nixies, and sprites from Arcadia. Your portfolio features tiny ephemeral fey spirits surrounded by weird and powerful magic. You can communicate with creatures that have the fey keyword even if you don’t share a language.
+name: Circle of Spring
+mtime: 1760392026560
+id: caf264c6-204d-4a80-89ea-e2a9ed6f4d31
+primaryClassId: b41b7bcb-6246-4906-8115-831e55f62758

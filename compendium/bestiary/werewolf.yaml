@@ -1,0 +1,1542 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 0307fbe8-d706-48c6-bd05-dcf22b2c674e
+    offtokenPortraitId: 775d308f-449f-4a78-9f70-a023cbc11004
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4815229
+    portraitOffset:
+      x: 0.109337
+      y: 0.2198557
+    frameHueShift: 0.6902654
+    frameSaturation: 0.7719938
+    frameBrightness: 0.2951888
+    popoutScale: 0.99
+    characterName: Werewolf
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 732a6eff-7023-4041-aebf-f4a50a8dcf50
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Werebeast: true
+      Accursed: true
+    max_hitpoints_roll: "200"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 3
+        id: mgt
+      rea:
+        baseValue: -1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    4be40fa8-6ab0-4463-8544-a5b0e16e519e_history:
+      __typeName: StatHistory
+      entries:
+        7fa98e6d-962b-48c2-8cfb-19705c9fe5d5:
+          refreshid: aa90e549-11bc-481d-a2cf-f6cbbb215181
+          note: Howl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+    monster_category: Monster
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        afbc7cef-3731-4cf7-87a9-9ce434cce531:
+          refreshid: 1713eb17-c5c4-4566-a7a9-f630d4908067-1
+          note: Manually Set
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        7a86136c-6cdd-4f2b-a396-cdab1834e81f:
+          refreshid: 1713eb17-c5c4-4566-a7a9-f630d4908067-1
+          note: "Used triggered ability: Facepalm and Head Slam"
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        fd7144c9-5bbc-421b-9bfa-49ee9fe1568f:
+          refreshid: d72e1058-3500-4410-9910-f3f0b0bdf222-1
+          note: Manually Set
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        0036befa-c36d-4808-848d-c29ea93d3e69:
+          refreshid: d72e1058-3500-4410-9910-f3f0b0bdf222-1
+          note: "Used triggered ability: Facepalm and Head Slam"
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    levelChoices: []
+    temporary_hitpoints_effect: 32e51e7e-5098-4ad6-8b95-d7571f9b3e24
+    traitNames: []
+    ongoingEffects: []
+    opportunityAttack: 5
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        70e798af-b170-4b95-84b7-99dcc52c557e:
+          disposition: good
+          note: 100 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 200
+        b7f1822f-6932-4698-835f-6647098ca4b2:
+          disposition: bad
+          note: 200 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: -2
+        5c81d412-0f64-4ff3-a871-65f63a4232e2:
+          note: 5 damage from Conduit Lv1's Blessed Light
+          disposition: bad
+          attackerid: b5c7a9ab-3ea9-4ab1-9874-95ea1ebe6d0a
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 190
+        33f46f76-3d19-4d1d-b920-fb1dbe625b65:
+          note: 2 damage from Conduit Lv1's Melee Free Strike
+          disposition: bad
+          attackerid: b5c7a9ab-3ea9-4ab1-9874-95ea1ebe6d0a
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 198
+        c0103fd3-e305-4f26-87aa-ce07c787a81b:
+          disposition: good
+          note: 10 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 200
+        09fd169b-5295-4dbd-bb6f-b4dac394062f:
+          disposition: good
+          note: 202 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 200
+        607cc3ed-d4dd-401c-9597-eb94acdf9bef:
+          note: 5 damage from Conduit Lv1's Blessed Light
+          disposition: bad
+          attackerid: b5c7a9ab-3ea9-4ab1-9874-95ea1ebe6d0a
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 195
+        2da643e8-f98a-48c5-beb9-5b1bc9d0e290:
+          disposition: good
+          note: 2 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 200
+    minion: false
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        9f2a87d6-f5cc-47db-8532-4167f5f4aed0:
+          refreshid: c78cf33c-d925-42d1-9602-0ea7e8f176b7-1
+          note: Wall Leap
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/2
+        10a9b6a5-920a-40ff-bd3b-9e8cfdfe3a15:
+          refreshid: c78cf33c-d925-42d1-9602-0ea7e8f176b7-1
+          note: Wall Leap
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/2
+        2ab866a7-2e0f-4d93-be2f-9cbd5450ff27:
+          refreshid: 8f93e701-3957-41b6-9816-0043f3aa15a4-4
+          note: Wall Leap
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/2
+        e120b522-2cbc-475b-91b7-506363d0a3cf:
+          refreshid: c78cf33c-d925-42d1-9602-0ea7e8f176b7-2
+          note: Wall Leap
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/2
+        6b62bc01-a92a-4f99-a61a-937943323001:
+          refreshid: 8f93e701-3957-41b6-9816-0043f3aa15a4-4
+          note: Wall Leap
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/2
+        5fb5e0b8-8389-4a8a-aca5-1358930aaedc:
+          refreshid: d4743dec-a1c7-4bb6-ad44-8dc1fa44911a-1
+          note: Wall Leap
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/2
+        737707ae-ccf3-4387-9d1f-925c08ef0a20:
+          refreshid: c78cf33c-d925-42d1-9602-0ea7e8f176b7-2
+          note: Wall Leap
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/2
+        4f344c67-b122-4927-a93d-0f84ea09014d:
+          refreshid: d4743dec-a1c7-4bb6-ad44-8dc1fa44911a-1
+          note: Wall Leap
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/2
+    5351166e-d8a7-4723-ae31-3dc62b194e63_history:
+      __typeName: StatHistory
+      entries:
+        cd88b597-1f05-4d29-b784-13cff94b016d:
+          refreshid: 804b0a35-c9f4-4f19-9df7-167c053c3f21
+          note: 'Full Wolf '
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        cf960ec5-515c-42d2-989b-33c4d4cfaf86:
+          refreshid: aa90e549-11bc-481d-a2cf-f6cbbb215181
+          note: 'Full Wolf '
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        a92da256-acdd-4e76-b5dc-af27fee6c1fe:
+          refreshid: f9fa4509-ee12-4f1e-a9ed-5af937aad58f
+          note: 'Full Wolf '
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+    d997c8b7-17fa-413d-9633-f2d32c02e38f_history:
+      __typeName: StatHistory
+      entries:
+        bb41507a-df18-444c-b3c3-51448cbcc2de:
+          refreshid: 3f8d38af-8ce5-4686-9a76-145adc2b3c24
+          note: Rampage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+    stability: 0
+    animations:
+      anim:
+      - resources:
+          5351166e-d8a7-4723-ae31-3dc62b194e63: 1
+        animType: consumeResource
+      guid: 25715063-7e94-4a82-b09b-7fcdc1de9021-127
+    import:
+      type: mcdm
+      data: |+
+        Werewolf	Level 1 Solo
+        Accursed, Humanoid, Werebeast	EV 30
+        <b>Stamina</b> 200
+        <b>Speed</b> 8	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +3	Agility +2	Reason -1	Intuition +1	Presence +1
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The werewolf takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the werewolf can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Shapeshifter</b>
+        The werewolf enters combat in their hybrid humanoid form. Their shape can't change via any effects beyond their own ability.
+
+        <b>Ferocity</b>
+        The werewolf's abilities are capable of inflicting ferocity points on non-stormwight enemies. If a creature has 10 or more ferocity at the start of their turn, they spend all their ferocity and either make a free strike at the nearest creature or shift up to their speed towards the nearest creature and take a free strike. Non-stormwight creatures that take damage in this way gain 1 ferocity. All accumulated ferocity disappears after completing a respite.
+
+        <b>Accursed Bite</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage; 2 ferocity
+        %E2%98%85	<b>12%E2%80%9316</b>	13 damage; 4 ferocity
+        %E2%9C%B8	<b>17</b>	16 damage; 5 ferocity
+        <b>2 Malice</b> The target has <b>P<0</b> lycanthropy. The potency of this attack increases by 1 each time the werewolf forces the same target to resist it.
+        <b>Effect</b> A creature afflicted with lycanthropy accumulates 2 ferocity at the end of each of their turns whenever they're in combat. Their ferocity does not disappear after completing a respite; they must complete the Find a Cure project to end this condition.
+
+        <b>Claws</b> (Action) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; 1 ferocity; M<2 push 3
+        %E2%9C%B8	<b>17</b>	11 damage; 3 ferocity; M<3 vertical slide 3
+
+        <b>Berserker Slash</b> (Action) %E2%97%86 5 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self <b>	Target</b> Self
+        <b>Effect</b> The werewolf shifts up to their speed and uses Claws against each creature who comes within 1 of the werewolf during the move. The werewolf makes one power roll against all targets.
+
+        <b>Wall Leap</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The werewolf jumps 4 squares. If they end this movement at a wall, the werewolf jumps off the wall 4 squares and makes a melee free strike.
+
+        <b>Facepalm and Head Slam</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Trigger</b> The target targets the werewolf with a melee ability after charging or moving 3 or more squares in a straight line towards them.
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature
+        <b>Effect</b> The target is knocked prone and takes 5 damage before executing the ability.
+
+        <b>Vukenstep</b>
+        The werewolf ignores difficult terrain.
+
+        <b>Howl</b> (Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies in the burst
+        <b>Effect</b> Each target makes an <b>Intuition test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	Target moves up to their speed away from the werewolf; frightened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	Frightened (EoT)
+        %E2%9C%A6	<b>17</b>	no effect
+        <b>Effect</b> Enemies that have 1 or more ferocity gain 4 ferocity and howl along with the werewolf.
+
+        <b>Full Wolf </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The werewolf changes into a massive wolf, pushing adjacent creatures out of their way and moving into a square that can accommodate their new size. Until they die or the end of the encounter, their Speed is 10, their Size is 3, and their Stability is 2. Each of the werewolf's strikes deal an additional 3 damage and inflict an additional 1 ferocity. The potency of the werewolf's Accursed Bite increases by 1.
+
+        <b>Rampage</b> (Villain Action 3) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 2 burst<b>	Target</b> All creatures in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; 2 ferocity
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; 4 ferocity
+        %E2%9C%B8	<b>17</b>	14 damage; 8 ferocity; prone
+        <b>Effect</b> The werewolf shifts up to twice their speed either before or after using this ability.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a0c54684-c32b-4b05-b656-b679cc517161: true
+      modifiers: []
+      name: Shapeshifter
+      guid: a0c54684-c32b-4b05-b656-b679cc517161
+      description: The werewolf enters combat in their hybrid humanoid form. Their shape can’t be changed by any external effect.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0610ca2d-5156-46b7-8c55-98916db018fd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:0610ca2d-5156-46b7-8c55-98916db018fd: true
+        sourceguid: 0610ca2d-5156-46b7-8c55-98916db018fd
+        description: The werewolf’s ferocity is expressed through rage, and their abilities can inflict rage points on any enemy except a stormwight fury. A creature who starts their turn with 10 or more rage expends their rage. Then before taking their turn, they must shift up to their speed toward the nearest creature and make a melee free strike against them. A creature who takes damage from this free strike gains 1 rage. Accumulated rage disappears after a character finishes a respite.
+        source: Trait
+        behavior: trigger
+        guid: 749cedaf-fa06-49fa-9b5e-ea58f375cf5d
+        name: Accursed Rage
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 29c502ab-75e1-4288-9434-1dacc56452d8
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: 1
+              targetType: self
+              numTargets: "1"
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: d36f6cd6-5592-47f2-8c44-8e64b893ee90
+              repeatTargets: false
+              range: 1
+              castImmediately: true
+              targetType: self
+              persistence: []
+              name: Expend Rage
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  source: ""
+                  filterAbility: Ability.Name = "Melee Free Strike"
+                  guid: 163fcb18-a9bc-4d4b-83d4-60fef29cefd3
+                  cannotModifyAction: true
+                  attributes: []
+                  name: Modify Attack
+                  description: ""
+                  behavior: modifyability
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: 4dba48ea-9625-4ac2-a72f-251c1308d63f
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors:
+                    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                      ongoingEffect: bf68d026-4fd0-4280-9dba-5756f2e45b51
+                      ongoingEffectCustom: false
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: custom
+            standardAbility: dfb59889-b651-40a6-80be-56d38bd34198
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: bf68d026-4fd0-4280-9dba-5756f2e45b51
+            mode: effect
+            conditions: []
+          triggerPrompt: Creature has 10 or more Rage. They must move speed towards nearest creature and make a melee free strike
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: cafd6907-8bb1-48ae-a8b5-ca5d1a2adccc
+          targetType: subject
+          conditionFormula: Subject.Stacks("Rage") >= 10
+          abilityType: none
+          persistence: []
+          trigger: prestartturn
+          name: Accursed Rage
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+      source: Trait
+      description: The werewolf’s ferocity is expressed through rage, and their abilities can inflict rage points on any enemy except a stormwight fury. A creature who starts their turn with 10 or more rage expends their rage. Then before taking their turn, they must shift up to their speed toward the nearest creature and make a melee free strike against them. A creature who takes damage from this free strike gains 1 rage. Accumulated rage disappears after a character finishes a respite.
+      guid: 0610ca2d-5156-46b7-8c55-98916db018fd
+      name: Accursed Rage
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:eaf33011-e2e0-48d2-88b7-f283df8628f4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: eaf33011-e2e0-48d2-88b7-f283df8628f4
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:eaf33011-e2e0-48d2-88b7-f283df8628f4: true
+        name: Vukenstep
+        guid: 1beb61a5-9494-4427-8c96-999678507531
+        description: The werewolf ignores difficult terrain.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      source: Trait
+      description: The werewolf ignores difficult terrain.
+      guid: eaf33011-e2e0-48d2-88b7-f283df8628f4
+      name: Vukenstep
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+        CharacterFeature:329c213f-d55f-46b3-b140-1942387a5a61: true
+        CharacterFeature:b4d927bb-2b7e-4bc9-92d1-ace935ac2ea4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+          CharacterFeature:329c213f-d55f-46b3-b140-1942387a5a61: true
+          CharacterFeature:b4d927bb-2b7e-4bc9-92d1-ace935ac2ea4: true
+        sourceguid: 9fc703ad-c01f-41fc-a8e0-232a8a5294a8
+        description: At the end of each of their turns, the werewolf can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can’t be reduced in any way.
+        source: Trait
+        behavior: trigger
+        guid: 00ef491b-b682-4150-8d5a-dfda09a69f44
+        name: End Effect
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          trigger: endturn
+          strain: []
+          guid: 532ff28e-d824-49c4-b639-4093510df84c
+          repeatTargets: false
+          abilityType: none
+          domains:
+            CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+            CharacterFeature:329c213f-d55f-46b3-b140-1942387a5a61: true
+            CharacterFeature:b4d927bb-2b7e-4bc9-92d1-ace935ac2ea4: true
+          targetType: self
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "5"
+            purgeType: one
+          name: End Effect
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Trait
+      description: At the end of each of their turns, the werewolf can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can’t be reduced in any way.
+      guid: 329c213f-d55f-46b3-b140-1942387a5a61
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a081a15d-9512-42aa-8cc9-e65d63abd46e: true
+        CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cafd4a84-1bbe-4907-8be5-6382cdd5c948
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:a081a15d-9512-42aa-8cc9-e65d63abd46e: true
+          CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+        name: Solo Turns
+        guid: 5346c414-b1b1-4ed4-b3ca-ec3a699009ad
+        description: The werewolf can take two turns each round. They can’t take turns consecutively.
+        behavior: attribute
+        attribute: extraturns
+      source: Character Feature
+      description: The werewolf can take two turns each round. They can’t take turns consecutively.
+      guid: a081a15d-9512-42aa-8cc9-e65d63abd46e
+      name: Solo Turns
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:467046dd-1d21-43b3-95ac-214405b4a5ea: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:467046dd-1d21-43b3-95ac-214405b4a5ea: true
+        sourceguid: 467046dd-1d21-43b3-95ac-214405b4a5ea
+        behavior: triggerdisplay
+        source: Trait
+        name: Facepalm and Head Slam
+        guid: b5e00c05-2bfa-42d8-8635-08f5f7eb8ccd
+        description: ""
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: The triggering creature
+          effect: The target is knocked prone and takes 5 damage before the triggering ability is resolved.
+          name: Facepalm and Head Slam
+          trigger: A creature within distance targets the werewolf with a melee ability after charging or moving 2 or more squares in a straight line toward them.
+          cost: 2 Malice
+          guid: 025a3fc1-1318-485f-ba7f-ecc5cb15f0a1
+          distance: Melee 1
+          keywords:
+            Melee: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:467046dd-1d21-43b3-95ac-214405b4a5ea: true
+        sourceguid: 467046dd-1d21-43b3-95ac-214405b4a5ea
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 8960accc-cc5c-4fec-b5ba-c01f08221362
+        name: Facepalm and Head Slam
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 2
+          repeatTargets: false
+          targetType: subject
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a9ff4584-5931-4b34-af4b-b003a7e259bb
+          abilityType: none
+          trigger: finishmove
+          conditionFormula: Subject.Charging > 0 and Path.squares >= 2 and path.Distance to Creature(self) <= 1
+          numTargets: "1"
+          resourceCost: none
+          name: Facepalm and Head Slam
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: '5 damage; prone '
+          description: ""
+          subject: other
+          iconid: ui-icons/skills/1.png
+      source: Trait
+      description: ""
+      guid: 467046dd-1d21-43b3-95ac-214405b4a5ea
+      name: Facepalm and Head Slam
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:595bcbeb-37cb-4eec-ac99-e27754b0fa3d: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:595bcbeb-37cb-4eec-ac99-e27754b0fa3d: true
+        sourceguid: 595bcbeb-37cb-4eec-ac99-e27754b0fa3d
+        description: ""
+        source: Character Feature
+        behavior: trigger
+        guid: 598a1040-5a65-427b-b645-ac84f90c5bff
+        name: Holy Damage Taken
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: cf8e5a32-d496-436f-a6d5-b75ffa82d664
+          castImmediately: true
+          conditionFormula: Damage Type = "holy"
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 649cbea9-b3eb-4621-ab52-42c9de3f4441
+            ongoingEffectCustom: 649cbea9-b3eb-4621-ab52-42c9de3f4441
+          numTargets: "1"
+          trigger: losehitpoints
+          name: Holy Damage Taken
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      source: Character Feature
+      description: ""
+      guid: 595bcbeb-37cb-4eec-ac99-e27754b0fa3d
+      name: Holy Damage Taken
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:eb74ff47-c84a-4f45-9e29-97cb5d1f2945: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "5"
+            purgeType: one
+          triggerPrompt: End effect for 5
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          name: End Effect
+          castImmediately: true
+          numTargets: "1"
+          whenActive: combat
+          trigger: endturn
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        source: Trait
+        behavior: trigger
+        description: ""
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: "End Effect: At the end of each of their turns, the werewolf can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.Solo Turns: The werewolf can take two turns each round. They can't take turns consecutively."
+      guid: eb74ff47-c84a-4f45-9e29-97cb5d1f2945
+      name: Solo Monster
+      implementation: 3
+    role: Solo
+    max_hitpoints: 200
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    ev: 36
+    initiativeGrouping: f3893a23-bc57-44cf-aa28-c31d367c44dd
+    moveDistanceRoundId: c78cf33c-d925-42d1-9602-0ea7e8f176b7-1
+    resistances: []
+    deathSavingThrowFailures: 0
+    groupid: 96a303f7-0086-48f9-8892-8b1d0ea94b11
+    creatureSize: 1M
+    availableTriggers: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    equipmentMeta:
+      offhand1: []
+      offhand0: []
+    temporary_hitpoints: 10
+    damage_taken: 0
+    moveDistance: 3
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 804b0a35-c9f4-4f19-9df7-167c053c3f21-2
+      5351166e-d8a7-4723-ae31-3dc62b194e63:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 804b0a35-c9f4-4f19-9df7-167c053c3f21
+      4be40fa8-6ab0-4463-8544-a5b0e16e519e:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: aa90e549-11bc-481d-a2cf-f6cbbb215181
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 2
+        refreshid: c78cf33c-d925-42d1-9602-0ea7e8f176b7-2
+      d997c8b7-17fa-413d-9633-f2d32c02e38f:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 3f8d38af-8ce5-4686-9a76-145adc2b3c24
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        used: 0
+        refreshid: d72e1058-3500-4410-9910-f3f0b0bdf222-1
+    monster_type: Werewolf
+    skillRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      objectTarget: true
+      modeList:
+      - text: Normal
+        rules: Accursed Bite
+        condition: ""
+      - rules: If the target is P<0 they are inflicted with Lycanthropy. Additional attacks on the same target will increase the potency by 1 each time.
+        text: "2 Malice: Inflict Lycanthropy"
+      abilityType: none
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      description: "2 Malice: If the target has P<0 they are afflicted with lycanthropy. Each time the target is unaffected by the potency effect, the potency increases by 1 the next time the werewolf uses the ability against the same target. A creature afflicted with lycanthropy gains 2 rage at the end of each of their turns whenever they’re in combat. Their rage doesn’t disappear after finishing a respite, and they must complete the Find a Cure downtime project in Draw Steel: Heroes to end this effect."
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1.77143205915179
+        saturation: 2
+        hueshift: 0.599999128069196
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.08203125
+          v: 0.872819423675537
+          a: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      persistence: []
+      modifiers: []
+      channeledResource: none
+      strain: []
+      guid: 1117a03c-474f-4657-811a-b7c8bc68f94d
+      sourceReference:
+        __typeName: SourceReference
+        page: 323
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage; the target gains 2 rage
+        - 13 damage; the target gains 4 rage
+        - 16 damage; the target gains 5 rage
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: cffd8e81-55ff-4633-97d8-45b8dc75a01e
+        filterTarget: not Cast.Passes Potency(Target, "P", Condition Stacks("Accursed Bite Target"))
+        modesSelected:
+        - 2
+        ongoingEffectCustom: cffd8e81-55ff-4633-97d8-45b8dc75a01e
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: a9e36523-a526-4714-9982-16d731d33bba
+        modesSelected:
+        - 2
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: a9e36523-a526-4714-9982-16d731d33bba
+          resourceCostType: cost
+          behavior: power
+          resourceCostAmount: "2"
+          activationCondition: true
+          guid: da51b20a-1890-4003-a8da-d69df53f28c5
+          domains: []
+          rollType: ability_power_roll
+          modtype: none
+          description: Spend 2 Malice to attempt to inflict Lycanthropy to target
+          keywords: []
+          name: Accursed Bite Lycanthropy Malice Cost
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: not Ongoing Effects has "Lycanthropy"
+        modesSelected:
+        - 2
+        ongoingEffectCustom: bcfe2155-8718-439d-9c71-d3a9907f1319
+        ongoingEffect: bcfe2155-8718-439d-9c71-d3a9907f1319
+        duration: eoe
+      maxChannel: ""
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      channelDescription: ""
+      name: Accursed Bite
+      implementation: 4
+      abilityFilters: []
+      resourceCost: none
+      iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1.17142857142857
+        saturation: 1.15714460100446
+        hueshift: 0.0214285714285714
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.868554413318634
+          v: 0.804975926876068
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 323
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 6115feb9-9cc0-476c-a97d-5ccfcef7be69
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; M<1 bleeding (save ends)
+        - 11 damage; the target gains 1 rage; M<2 bleeding (save ends)
+        - 14 damage; the target gains 3 rage; M<3 bleeding (save ends)
+        roll: 2d10 + Might
+      numTargets: 2
+      categorization: Signature Ability
+      implementation: 4
+      name: Ripping Claws
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: a393d50b-bef4-4a90-a1bf-767971ef2117
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      targetTextOverride: Each enemy and object in the area
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        standardAbilityParams:
+          distance: Movement Speed
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: f174a639-8fbf-41a4-8d6d-8ba98d8df0c3
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          objectTarget: true
+          range: 1
+          strain: []
+          guid: 56882dc0-f2ce-49cc-946e-d3320bd93715
+          repeatTargets: false
+          numTargets: "1"
+          categorization: Skill
+          targetType: all
+          modifiers: []
+          name: Berserker Slash
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 4 damage; push 2
+            - 6 damage; push 3; the target gains 1 rage
+            - 7 damage; slide 3; the target gains 3 rage
+            roll: 2d10 + Might or Agility
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.933007776737213
+          v: 0.851011276245117
+          a: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      abilityType: none
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      sourceReference:
+        __typeName: SourceReference
+        page: 323
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      strain: []
+      guid: 11f4d056-65ab-44d3-901b-5bc1f51d1637
+      numTargets: 1
+      rangeTextOverride: 1 burst
+      castImmediately: true
+      persistence: []
+      iconid: ac76c837-25d5-4fc2-82a6-e5a8818b55a8
+      name: Berserker Slash
+      targetType: self
+      description: The werewolf shifts up to their speed before using this ability.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        standardAbilityParams:
+          distance: "4"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: bb35d8b1-a1cf-4879-b08b-393f017deb90
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 8010820f-6bf3-422f-985b-2af02f620113
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: be3a58d1-517f-4536-92db-9332271bae20
+          repeatTargets: false
+          range: 1
+          castImmediately: true
+          targetType: self
+          persistence: []
+          name: Wall Jump
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            promptText: If the jump ended at a wall, the werewolf can jump another 4 squares and make a melee free strike.
+            standardAbilityParams:
+              distance: "4"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: cef745e0-af68-44c6-b84f-c57e20c91c08
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 8010820f-6bf3-422f-985b-2af02f620113
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: f5757c16-c11b-4cd2-ba8e-772cfb0ee47b
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: 1
+              targetType: self
+              numTargets: "1"
+              name: Wall Jump Melee Free Strike
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  source: ""
+                  filterAbility: Ability.Name = "Melee Free Strike"
+                  behavior: modifyability
+                  guid: 71f10715-9088-4bce-9ca5-ab5f17dc4768
+                  attributes: []
+                  name: Modify Attack
+                  description: ""
+                  cannotModifyAction: true
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: 7d22cd61-19b3-468a-bf93-525f8cbb9dec
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors:
+                    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                      rule: M<2 prone
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: If the jump ended at a wall, the werewolf can jump another 4 squares and make a melee free strike.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.108749501407146
+          s: 0.0658202171325684
+          v: 0.780608415603638
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 323
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 9bd89e84-6bbb-4760-abd4-5892953538a2
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      persistence: []
+      castImmediately: true
+      categorization: Signature Ability
+      implementation: 3
+      name: Wall Leap
+      targetType: self
+      description: The werewolf jumps up to 4 squares. If they end this jump at a wall, the werewolf jumps off the wall up to 4 squares and can make a melee free strike. If the target of the free strike has M<2, they are knocked prone.
+      abilityType: none
+      iconid: fbfb413b-5378-48cc-9a8d-44af9bddd71c
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1.88571254185268
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.0957033634185791
+          v: 0.807925283908844
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 323
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '4be40fa8-6ab0-4463-854"
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 34be4019-b39b-4058-b67e-cd34242c1cea
+      iconid: 92a6d94b-65ab-49b6-b33e-0dae78f3a332
+      categorization: Heroic Ability
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        isTest: false
+        roll: 2d10 + Might or Agility
+        resistanceRoll: true
+        tiers:
+        - The target must move their speed in a straight line away from the werewolf; frightened (save ends)
+        - Frightened (EoT)
+        - No effect.
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 1
+        runOnController: true
+        promptText: Move speed in a straight line away from the werewolf
+        abilityType: standard
+        standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 67818638-032b-40f5-a113-e63bad8cf22a
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: bf68d026-4fd0-4280-9dba-5756f2e45b51
+        filterTarget: Ongoing Effects has "Rage"
+        stacks: "4"
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        tiersSelected:
+        - 1
+        ongoingEffect: 3cc61ad4-03d5-4db9-af58-bf59318c9d5a
+        duration: save_ends
+        ongoingEffectCustom: false
+      effectImplemented: false
+      name: Howl
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: Any enemy in the encounter who has 1 or more rage gains 4 rage and howls along with the werewolf.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1.62856968470982
+        saturation: 1.09999825613839
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.0214841403067112
+          v: 0.526906371116638
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 323
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '5351166e-d8a7-4723-ae3"
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      implementation: 3
+      strain: []
+      guid: 132d3c01-8e3c-4301-85f4-03e31bdaf76d
+      categorization: Heroic Ability
+      numTargets: 1
+      castImmediately: true
+      effectImplemented: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+        duration: eoe_or_dying
+        ongoingEffectCustom: 9a559d30-82d6-441b-99d5-a17cf24c54a3
+      name: 'Full Wolf '
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: The werewolf transforms into a massive wolf of size 3 until they die or until the end of the encounter. They move to a space that can accommodate their new size and push adjacent creatures out of their way. While in wolf form, they have speed 10 and stability 2, their strikes gain a +2 damage bonus and bestow an additional 1 rage, and the potency of Accursed Bite increases by 1.
+      abilityType: none
+      iconid: d2035312-afaa-4011-a88e-d812fc56cac3
+    - __typeName: ActivatedAbility
+      targetTextOverride: Each creature in the area
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        standardAbilityParams:
+          distance: Movement Speed
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: a20998f9-79e8-4a61-b1e5-13b02d8dc070
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 0.882226288318634
+              v: 0.780608415603638
+              a: 1
+          strain: []
+          guid: aff45cd5-a362-4a04-86e6-67f5b9f908ea
+          repeatTargets: false
+          keywords:
+            Area: true
+            Weapon: true
+          range: "3"
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 5 damage; the target gains 2 rage; M<1 bleeding (save ends)
+            - 8 damage; the target gains 4 rage; M<2 bleeding (save ends)
+            - 11 damage; the target gains 8 rage; M<3 bleeding (save ends)
+            guid: b2589800-c664-4c49-9a5c-0d211d03e5c5
+            roll: 2d10 + 3
+          targetType: all
+          name: Rampage
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: a20998f9-79e8-4a61-b1e5-13b02d8dc070
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        guid: 50fb997e-4cd3-4195-bf49-3c2cdd38646f
+        standardAbilityParams:
+          distance: Movement Speed
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      implementation: 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.968164026737213
+          v: 0.941716015338898
+          a: 1
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'd997c8b7-17fa-413d-963"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      sourceReference:
+        __typeName: SourceReference
+        page: 323
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      strain: []
+      guid: 9c3698b2-9cad-4ef4-bc05-a71e4cb42b2d
+      numTargets: 1
+      rangeTextOverride: 2 burst
+      castImmediately: true
+      effectImplemented: true
+      targetType: self
+      name: Rampage
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: The werewolf shifts up to their speed before and after using this ability.
+      abilityType: none
+      iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Melee: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 323
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: 9f2bbb81-4d61-408d-b446-efd91d3c7797
+      abilityType: none
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      categorization: Trigger
+      iconid: ui-icons/skills/1.png
+      name: Facepalm & Head Slam
+      targetType: target
+      description: |
+        The target is knocked prone and takes 5 damage before the triggering ability is resolved.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        71c81fbc-237c-4b81-b81b-1f0ca35d61cf:
+          note: Berserker Slash
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        a4c67922-a829-4afb-baab-61f39e058be1:
+          refreshid: d4743dec-a1c7-4bb6-ad44-8dc1fa44911a-1
+          note: Berserker Slash
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        e1e3bad3-38d4-46d6-9f20-8b37817ac775:
+          refreshid: 8f93e701-3957-41b6-9816-0043f3aa15a4-4
+          note: Solo Action
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        6d9ac11c-2995-4517-9b2c-8b4c4a28220a:
+          refreshid: 8f93e701-3957-41b6-9816-0043f3aa15a4-4
+          note: Ripping Claws
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        1781b97a-738d-4a24-ab9a-6dd1fb4ba81e:
+          refreshid: 8f93e701-3957-41b6-9816-0043f3aa15a4-4
+          note: Berserker Slash
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        99b2e577-5154-4475-8515-e8badb04f2a9:
+          refreshid: 3f8d38af-8ce5-4686-9a76-145adc2b3c24-1
+          note: Accursed Bite
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        efc0af6a-eb64-4f0e-8fff-83f7bfa48dad:
+          refreshid: 804b0a35-c9f4-4f19-9df7-167c053c3f21-2
+          note: Melee Free Strike
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        856282cd-e93d-4f1a-9522-3870e7bcce2b:
+          refreshid: 3f8d38af-8ce5-4686-9a76-145adc2b3c24-2
+          note: Rampage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    movementSpeeds: []
+    damageEntries:
+      900638cd-4498-438b-b21d-f097c4dde1c5:
+        id: 900638cd-4498-438b-b21d-f097c4dde1c5
+        heal: 100
+    temporary_stamina_history:
+      __typeName: StatHistory
+      entries:
+        8b43cda3-c348-4642-85e5-0028090e4e65:
+          note: Applied Blood in their Eyes
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 10
+        73eb6ed5-0d4a-40f0-95bb-3a02a11b3ed9:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 10
+        59bdc9b8-dd14-4fe0-b7bc-b59ee3bbc59d:
+          note: Applied Blood in their Eyes
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 10
+        62afe9be-afe8-4bfe-bb29-b922410df613:
+          note: Applied Blood in their Eyes
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 10
+        f4320f6c-6359-4f49-868b-0e7d0a294ce8:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        7568a432-5ca0-47a0-8056-f770fed5f611:
+          note: Applied Blood in their Eyes
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 10
+        d374f0da-b2c1-4c64-be6c-d5e81eef29c3:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        b03f8179-d950-45a1-bec2-ea4bc6eaaecd:
+          note: Applied Blood in their Eyes
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 10
+    walkingSpeed: 7
+    selectedLoadout: 0
+  tokenType: null
+  bestiaryId: a704249e-ef65-4805-a3e8-4537b31371be
+  summonerid: null
+  ownerId: ""
+  partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+  size: 2
+  createdTimestamp: 1726301040866
+description: Werewolf
+parentFolder: 37ca2eb0-89f5-41a9-bbb9-351dc695d98a
+artist: null
+ord: 0
+ctime: 1769871368129
+mtime: 1769871368129
+hidden: false

@@ -1,0 +1,19 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+  sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+  value: 1
+  source: Character
+  name: Stamina Modification
+  behavior: attribute
+  description: ""
+  attribute: inu
+source: Character
+guid: 2359108d-cb7d-4a79-8a98-38f577168092
+id: 224927e1-2046-4538-b685-fd05193a6351
+ctime: 1756093933063
+name: Intuition Modification
+description: ""
+mtime: 1756672176522
+implementation: 3

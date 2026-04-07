@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "3"
+category: Class Specific
+name: StartTurnSummon
+documentation: At the start of each of your turns during combat, you summon up to three of your signature minions at no cost into unoccupied spaces within your Summoner’s Range (no action required).
+mtime: 1760455664472
+id: dc90f05a-21af-4486-972b-1219cf5ebc63
+ctime: 1760455664472

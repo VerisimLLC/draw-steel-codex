@@ -1,0 +1,226 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 78229dea-090c-4227-a8cd-ad679a23bebb
+    offtokenPortraitId: 80d3cabb-bf21-46e0-94c2-0b118e321904
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.03125095
+      y: -0.03190637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: Goblin Warrior
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 4e7463ee-0130-410f-8a3c-5237306fb4eb
+  properties:
+    __typeName: monster
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    keywords:
+      Goblin: true
+      Humanoid: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Goblin Warrior	Level 1 Horde Harrier
+        Goblin, Humanoid	EV 3
+        <b>Stamina</b> 15
+        <b>Speed</b> 6 (climb)	<b>Size</b> 1S / <b>Stability</b> 0
+        	<b>Free Strike</b> 1
+        Might -2	Agility +2	Reason +0	Intuition +0	Presence -1
+        <b>Spear Charge</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	3 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage
+
+        <b>Bury the Point</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 2 Malice
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature
+        %E2%9C%A6	%E2%89%A411	5 damage; M<0 bleeding (save ends)
+        %E2%98%85	12%E2%80%9316	6 damage; M<1 bleeding (save ends)
+        %E2%9C%B8	17+	7 damage; M<2 bleeding (save ends)
+
+        <b>Crafty</b>
+        The warrior doesn't provoke opportunity attacks by moving.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        behavior: attribute
+        source: Trait
+        name: Crafty
+        value: 1
+        description: The warrior doesn't provoke opportunity attacks by moving.
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      source: Trait
+      description: The warrior doesn't provoke opportunity attacks by moving.
+      guid: e89248a7-dfeb-4824-96c0-b3e10bb9baf9
+      name: Crafty
+      implementation: 3
+    role: Horde Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    availableTriggers: []
+    opportunityAttack: 1
+    damage_taken: 0
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    resources: []
+    ev: 3
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: c70d3d3f-60a4-4852-9fad-cc10649b1078
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Spear Charge
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c7a077fe-a953-4837-9b72-a537f78656d4
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; M<0 bleeding (save ends)
+        - 6 damage; M<1 bleeding (save ends)
+        - 7 damage; M<2 bleeding (save ends)
+        roll: 2d10 + Agility
+      name: Bury the Point
+      numTargets: 1
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    walkingSpeed: 6
+    movementSpeeds:
+      climb: 6
+    monster_type: Goblin Warrior
+    creatureSize: 1S
+    initiativeGrouping: 5c2770da-f4e6-472b-8186-ae4b4ddc61c6
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: fea3f38a-e49c-4dfc-9f5d-1004e9871a76
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Goblin Warrior
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590333565
+mtime: 1775201137032
+hidden: false

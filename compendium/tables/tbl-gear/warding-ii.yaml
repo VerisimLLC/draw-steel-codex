@@ -1,0 +1,54 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: fe9e9a62-fcd7-4c05-a93c-de6c64d2fcd8
+  description: The Stamina bonus for the Warding I enhancement becomes +12. Additionally, your characteristic scores are treated as 1 higher for the purpose of resisting potencies.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: a114d4ce-322c-48a1-8180-a9002ceca419
+    sourceguid: fe9e9a62-fcd7-4c05-a93c-de6c64d2fcd8
+    value: 12
+    source: Warding II Imbuement
+    name: Warding II
+    behavior: attribute
+    description: The Stamina bonus for the Warding I enhancement becomes +12. Additionally, your characteristic scores are treated as 1 higher for the purpose of resisting potencies.
+    attribute: hitpoints
+  - __typeName: CharacterModifier
+    sourceguid: fe9e9a62-fcd7-4c05-a93c-de6c64d2fcd8
+    displayCondition: ability.haspotency
+    source: Warding II Imbuement
+    modtype: none
+    keywords: []
+    activationCondition: ability.haspotency
+    description: The Stamina bonus for the Warding I enhancement becomes +12. Additionally, your characteristic scores are treated as 1 higher for the purpose of resisting potencies.
+    activationAfterRoll: false
+    name: Warding II
+    rollType: enemy_ability_power_roll
+    potencymod: "-1"
+    behavior: power
+    guid: 2d3fe323-95e7-422f-a862-265e73bc7de5
+  source: Warding II Imbuement
+  name: Warding II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 1a641bd3-5278-4b6f-adf2-f1e70a113286
+imbuePrereq: df0e67b0-049b-4a55-8943-79091a365925
+projectSource: Zaliac
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1774492136689
+type: Gear
+ctime: 1770699205313
+projectGoal: "150"
+itemPrerequisite: A metallic dragon’s horn
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Warding II
+imbueTargetType: implement
+description: The Stamina bonus for the Warding I enhancement becomes +12. Additionally, your characteristic scores are treated as 1 higher for the purpose of resisting potencies.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

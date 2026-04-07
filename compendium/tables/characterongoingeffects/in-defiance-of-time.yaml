@@ -1,0 +1,61 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: b2a12841-c196-4a5e-ac1e-d2c7b9ad2238
+  sourceguid: e7948297-1906-4281-b852-af81fe2a3b8b
+  value: 4
+  source: Ongoing Effect
+  name: In Defiance of Time
+  behavior: attribute
+  description: Until the end of the round, each high elf in the encounter gains a +4 bonus to speed, and whenever a high elf uses an ability against an enemy, each high elf adjacent to that enemy can make a free strike against them.
+  attribute: speed
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors: []
+    triggerPrompt: Whenever a High Elf uses an ability against an enemy
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    subjectRange: "1"
+    strain: []
+    whenActive: combat
+    targetType: self
+    abilityType: none
+    conditionFormula: ""
+    trigger: losehitpoints
+    guid: a3135561-c9ba-48c2-9622-f0f72a4e7be4
+    name: In Defiance of Time
+    persistence: []
+    description: ""
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  description: Until the end of the round, each high elf in the encounter gains a +4 bonus to speed, and whenever a high elf uses an ability against an enemy, each high elf adjacent to that enemy can make a free strike against them.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 23a584ca-bb0f-4178-ba94-551dcb49a763
+  name: In Defiance of Time
+  sourceguid: e7948297-1906-4281-b852-af81fe2a3b8b
+source: Ongoing Effect
+guid: e7948297-1906-4281-b852-af81fe2a3b8b
+id: e7948297-1906-4281-b852-af81fe2a3b8b
+ctime: 1769770372937
+hiddenFromEnemies: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: In Defiance of Time
+custom: true
+description: Until the end of the round, each high elf in the encounter gains a +4 bonus to speed, and whenever a high elf uses an ability against an enemy, each high elf adjacent to that enemy can make a free strike against them.
+mtime: 1769772881409
+iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70

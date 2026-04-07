@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5435dba0-058c-4f01-acdb-b3a01c625535
+  displayCondition: ""
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Weapon: true
+  activationCondition: true
+  damageModifier: "2"
+  description: Whenever you use a weapon ability that deals rolled damage using a weapon that is ignited this way, the ability deals an extra 2 fire damage.
+  name: Giant's-Blood Flame
+  rollType: ability_power_roll
+  damageModifierType: fire
+  behavior: power
+  guid: 9cc69d33-740a-4519-8c2b-a8522953a8cd
+source: Ongoing Effect
+guid: 5435dba0-058c-4f01-acdb-b3a01c625535
+id: 5435dba0-058c-4f01-acdb-b3a01c625535
+ctime: 1761691414930
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Giant's-Blood Flame
+description: Whenever you use a weapon ability that deals rolled damage using a weapon that is ignited this way, the ability deals an extra 2 fire damage.
+custom: true
+mtime: 1761691500356
+iconid: ui-icons/skills/1.png

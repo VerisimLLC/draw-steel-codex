@@ -1,0 +1,115 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: be3a4dcc-4bef-4f70-95bc-87bc34b863a1
+  source: Ongoing Effect
+  behavior: activated
+  filterCondition: Level >= 5
+  name: Paper Trappings
+  guid: 594a5328-9baa-4068-8b4c-e1b5bdd34aa8
+  description: "You can use a main action to fold in on yourself until you and your gear are paper thin. This effect lasts for 1 minute, letting you easily slip through any opening that is 1 inch wide or more.\v\vIf you return to your true form while in a space that is too small for you, you are violently expelled into the nearest open space of your choice and take 3d6 damage."
+  domains:
+    CharacterOngoingEffect:be3a4dcc-4bef-4f70-95bc-87bc34b863a1: true
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    targetFilter: Target.Size <= Caster.Size
+    repeatTargets: false
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 6a50361a-1186-4546-af81-b610fbd7a716
+    sourceReference:
+      __typeName: SourceReference
+      page: 328
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    iconid: ui-icons/skills/1.png
+    domains:
+      CharacterOngoingEffect:be3a4dcc-4bef-4f70-95bc-87bc34b863a1: true
+    behaviors:
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: grabbed
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    name: Wrap
+    numTargets: "1"
+    description: |-
+      While you are paper thin, you can use a maneuver to wrap yourself around an adjacent target who is the same
+      size or smaller than you, automatically grabbing them.
+    abilityType: none
+    implementation: 4
+- __typeName: CharacterModifier
+  sourceguid: be3a4dcc-4bef-4f70-95bc-87bc34b863a1
+  source: Ongoing Effect
+  behavior: activated
+  filterCondition: Level >= 9 and Number of Creatures Grabbed > 0
+  name: Paper Trappings
+  guid: a69eb3cf-3559-43d1-976a-b676f7a29477
+  description: "You can use a main action to fold in on yourself until you and your gear are paper thin. This effect lasts for 1 minute, letting you easily slip through any opening that is 1 inch wide or more.\v\vIf you return to your true form while in a space that is too small for you, you are violently expelled into the nearest open space of your choice and take 3d6 damage."
+  domains:
+    CharacterOngoingEffect:be3a4dcc-4bef-4f70-95bc-87bc34b863a1: true
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    targetFilter: ConditionCaster("grabbed") = Caster
+    repeatTargets: false
+    implementationDetails: If grabbed ends, the ongoing effect for Constrict needs to be removed manually currently.
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    sourceReference:
+      __typeName: SourceReference
+      page: 328
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 0a9a3a85-af32-4433-afef-3437e2b3b5a8
+    persistence: []
+    categorization: Ability
+    domains:
+      CharacterOngoingEffect:be3a4dcc-4bef-4f70-95bc-87bc34b863a1: true
+    iconid: ui-icons/skills/1.png
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "10"
+      chatMessage: Constrict
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: e6af2fc8-f8c3-4f56-96cb-4c3f1e82d4c8
+      duration: eoe
+      ongoingEffectCustom: e6af2fc8-f8c3-4f56-96cb-4c3f1e82d4c8
+    name: Constrict
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    description: While you have a target grabbed when you are paper thin, you can use a maneuver to constrict the target, dealing 10 damage to them. A creature damaged this way takes a bane when using the Escape Grab maneuver against you and when making strikes against you.
+    abilityType: none
+    implementation: 2
+source: Ongoing Effect
+description: "You can use a main action to fold in on yourself until you and your gear are paper thin. This effect lasts for 1 minute, letting you easily slip through any opening that is 1 inch wide or more.\v\vIf you return to your true form while in a space that is too small for you, you are violently expelled into the nearest open space of your choice and take 3d6 damage."
+guid: be3a4dcc-4bef-4f70-95bc-87bc34b863a1
+id: be3a4dcc-4bef-4f70-95bc-87bc34b863a1
+ctime: 1774938922322
+domains:
+  CharacterOngoingEffect:be3a4dcc-4bef-4f70-95bc-87bc34b863a1: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+buffType: neutral
+name: Paper Trappings
+custom: true
+mtime: 1774961677966
+iconid: ui-icons/skills/1.png
+implementation: 2

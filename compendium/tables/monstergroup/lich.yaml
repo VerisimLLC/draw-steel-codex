@@ -1,0 +1,112 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 743abe7e-935f-4c71-b977-6e1dd55c7f19
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  description: |-
+    The lich makes a free strike against one enemy within 20 squares.
+    They then gain an edge on their next power roll.
+  numTargets: "1"
+  name: Soul Sip
+  behaviors: []
+  channeledResource: none
+  abilityType: none
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: c05adc80-74fe-4d40-bf33-27598af76e5d
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 2282540d-1975-4c62-b209-892ff1649fc6
+  castImmediately: true
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: The lich takes an additional main action on their turn. They can use this feature even if they are dazed.
+  abilityType: none
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  numTargets: "1"
+  objectTarget: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  strain: []
+  guid: 7531effb-a303-43cd-8a9d-16e01f3703cb
+  repeatTargets: false
+  abilityType: none
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: prs
+    roll: 2d10 + Presence
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 16 psychic damage, dazed (save ends)
+    - Dazed (save ends)
+    - No effect.
+  targetType: target
+  modifiers: []
+  name: Spirit Shell
+  persistence: []
+  description: The lich summons a swirling cloud of angry spirits to surround them until the start of the next round. Any creature who deals damage to the lich with a melee strike while the spirit shell is active makes a Presence test.
+  range: "2"
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "7"
+  strain: []
+  guid: 4df6f481-32a0-4b8e-9572-75c9aa50de12
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Cloud of Deceit
+  range: 1
+  description: |-
+    The lich summons a mind-altering mist, turns invisible until the start of their next turn, and moves up to half their speed. Each enemy within 20 squares of the lich’s starting point who has I<4 is deceived. While deceived, a creature perceives all allies and enemies as the lich, and perceives the environment as an unfamiliar wasteland corrupted by necrotic blight. If other creatures attempt to communicate with a deceived creature, that creature interprets their words as ghastly taunts in the lich’s voice. 
+
+    This effect lasts until an affected creature takes damage or an ally uses a main action to shake them out of it. Each time this feature is used during an encounter, the distance of the effect decreases by 5 squares (to a minimum of 5 squares) and the potency increases by 1.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762961352839
+name: Lich
+traits: []
+attacks: []
+id: 903b09b9-0782-48e9-8ebc-29d2de0dcae0
+ctime: 1758524982319

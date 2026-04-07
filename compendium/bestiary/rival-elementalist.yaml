@@ -1,0 +1,598 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 41aba2fc-eb85-491f-86f6-6995afbab133
+    offtokenPortraitId: 3492c3c2-871e-44c5-abc1-1cde5a7fb097
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.684018
+    frameSaturation: 0.7043511
+    frameBrightness: 0.1952407
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0691dfbf-6c88-49fa-94de-5db931883f31
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 220
+    inflictedConditions: []
+    ev: 48
+    max_hitpoints_roll: "220"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 4
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_type: Rival Elementalist
+    levelChoices: []
+    traitNames: []
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      casterInfo:
+        abilityName: Rivalry
+        tokenid: c6944484-9aa0-40f2-82e6-9dbdca05759e
+      ongoingEffectid: e349e64f-4422-4fa9-995b-130c492a473a
+      seq: 1
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.56740617752075
+        queueguid: faffac4f-6b29-4eb1-9fcd-bfbf13e9f69b
+        initiativeid: 37d4e993-ae26-4dc5-bc9e-6cf1b0ecc505
+        round: 1
+      sourceDescription: Applied by Moody Rival Elementalist's <b>Rivalry</b> ability
+      stacks: 1
+      id: 200636d6-93fd-4ff7-b132-fc6e66ed339c
+      removeOnEoE: true
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Rival Elementalist	Level 8 Elite Controller
+        Humanoid, Rival	EV 40
+        <b>Stamina</b> 180
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 8
+        Might +0	Agility +2	Reason +4	Intuition +3	Presence +0
+        <b>Verdant Rains</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Green, Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> Two creatures or object
+        %E2%9C%A6	%E2%89%A411	12 damage; slide 2; M<2 4 acid damage
+        %E2%98%85	12%E2%80%9316	17 damage; slide 3; M<3 6 acid damage
+        %E2%9C%B8	17	21 damage; slide 4; M<4 8 acid damage
+        <b>Effect</b> An ally within distance ends one condition affecting them.
+
+        <b>The Chasm Engulfs</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 4 Malice
+        <b>Keywords</b> Area, Green, Magic
+        <b>Distance</b> 5 cube within 10<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	%E2%89%A411	6 damage
+        %E2%98%85	12%E2%80%9316	10 damage; restrained (EoT)
+        %E2%9C%B8	17	14 damage; restrained (save ends)
+        <b>Effect</b> The affected area is difficult terrain for enemies. An enemy has acid weakness 5 while occupying an affected square.
+
+        <b>Maw of the Abyss </b>(Triggered Action)
+        <b>Keywords</b> Magic, Void
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> The elementalist takes damage.
+        <b>Effect</b> The elementalist teleports 4 squares. Each creature adjacent to their original or final space takes 4 corruption damage.
+
+        <b>Rivalry</b>
+        The elementalist selects one creature within line of effect at the start of an encounter. Both the elementalist and the creature can add a 1d3 to all power rolls made against each other.
+        Rival Fury	Level 8 Elite Brute
+        Humanoid, Rival	EV 40
+        <b>Stamina</b> 220
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 3
+        <b>Free Strike</b> 9
+        Might +4	Agility +3	Reason +0	Intuition +1	Presence +2
+        <b>Bonebreaker</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	13 damage; push 3
+        %E2%98%85	12%E2%80%9316	18 damage; push 4
+        %E2%9C%B8	17	22 damage; push 5
+        <b>3 Malice</b> Each target is <b>M<3</b> slowed and bleeding (save ends).
+
+        <b>Steelfist</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 3 Malice
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature the fury's size or smaller
+        %E2%9C%A6	%E2%89%A411	15 damage; M<3 grabbed
+        %E2%98%85	12%E2%80%9316	21 damage; M<4 grabbed
+        %E2%9C%B8	17	26 damage; M<5 grabbed
+        <b>Effect</b> The fury and each ally have a double edge on strikes against a creature grabbed by this ability.
+
+        <b>Rout</b>
+        Once per turn, when the fury force moves a target or shifts into a square adjacent to a creature or object, they can use a signature action with an edge against them.
+
+        <b>Rivalry</b>
+        The fury selects one creature within line of effect at the start of an encounter. Both the fury and the creature can add a 1d3 to all power rolls made against each other.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:50e534b4-e8e6-4586-bac8-cb13af13753f: true
+        CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+        CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:50e534b4-e8e6-4586-bac8-cb13af13753f: true
+          CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+          CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+        sourceguid: 3146422c-eb42-4160-ae0e-642168383dc6
+        behavior: trigger
+        source: Trait
+        name: Rivalry
+        description: The Elementalist selects one creature within line of effect at the start of an encounter. Both the Elementalist and the creature can add a 1d3 to all power rolls made against each other.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetTextOverride: Choose another magic-wielder as the target for your Rivalry
+              repeatTargets: false
+              targetAllegiance: enemy
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+                duration: eoe
+                ongoingEffectCustom: e349e64f-4422-4fa9-995b-130c492a473a
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 240
+                docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+              range: "50"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: c4193d77-d471-4d84-8d0b-925f72f62cac
+              targetType: target
+              iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              implementation: 3
+            promptText: Choose a player Hero as the target for your Rivalry.
+            autoTarget: false
+            abilityType: custom
+            applyto: caster
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+            duration: eoe
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          whenActive: combat
+          targetType: self
+          numTargets: "1"
+          domains:
+            CharacterFeature:50e534b4-e8e6-4586-bac8-cb13af13753f: true
+            CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+            CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+          abilityFilters: []
+          name: Rivalry
+          trigger: rollinitiative
+          guid: c171ef5c-50db-42ed-93a9-9c72ad7ea4bc
+          description: ""
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 6fc99f50-afce-47f7-b90f-464a3b25089f
+      source: Trait
+      description: The Elementalist selects one creature within line of effect at the start of an encounter. Both the Elementalist and the creature can add a 1d3 to all power rolls made against each other.
+      guid: 50e534b4-e8e6-4586-bac8-cb13af13753f
+      name: Rivalry
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b3b2b8a6-d305-4d27-9fe4-1feb83a3bdea: true
+        CharacterFeature:06ac8f66-67fe-48a8-af49-ca1a48e272c8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b3b2b8a6-d305-4d27-9fe4-1feb83a3bdea: true
+          CharacterFeature:06ac8f66-67fe-48a8-af49-ca1a48e272c8: true
+        sourceguid: b3b2b8a6-d305-4d27-9fe4-1feb83a3bdea
+        behavior: trigger
+        source: Character Feature
+        name: Jaws of the Void
+        description: |-
+          Trigger: The elementalist takes damage. 
+          Effect: The elementalist can teleport up to 2 squares. Each creature 
+          adjacent to the space they leave takes 2 corruption damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Teleport up to 2 squares, each creature adjacent to the space you leave takes 2 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 104f33eb-17cc-47e0-b6b3-dc65b8976f24
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            applyto: proximity_only
+            roll: "2"
+            damageType: corruption
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              targetTextOverride: Teleport up to 2 squares.
+              repeatTargets: false
+              rangeTextOverride: "2"
+              targetType: emptyspace
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 240
+                docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+              range: "2"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 4ef7abbd-4936-46d5-a103-526869df9764
+              behaviors:
+              - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              targeting: direct
+              numTargets: "1"
+              name: "Jaws of the Void: Teleport"
+              categorization: Trigger
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Teleport up to 2 squares
+            standardAbilityParams:
+              range: "2"
+            abilityType: standard
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+          domains:
+            CharacterFeature:b3b2b8a6-d305-4d27-9fe4-1feb83a3bdea: true
+            CharacterFeature:06ac8f66-67fe-48a8-af49-ca1a48e272c8: true
+          numTargets: "1"
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          trigger: losehitpoints
+          name: Jaws of the Void
+          description: |-
+            Trigger: The elementalist takes damage. 
+            Effect: The elementalist can teleport up to 2 squares. Each creature adjacent to the space they leave takes 2 corruption damage.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: e887a7e3-5254-4c11-b6f9-ba22ce0f18f8
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b3b2b8a6-d305-4d27-9fe4-1feb83a3bdea: true
+          CharacterFeature:06ac8f66-67fe-48a8-af49-ca1a48e272c8: true
+        sourceguid: 06ac8f66-67fe-48a8-af49-ca1a48e272c8
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Jaws of the Void
+        description: |-
+          Trigger: The elementalist takes damage. 
+          Effect: The elementalist can teleport up to 2 squares. Each creature 
+          adjacent to the space they leave takes 2 corruption damage.
+        guid: ad4d2c29-d51d-4bb9-8b51-5587d47c334d
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: The elementalist can teleport up to 2 squares. Each creature adjacent to the space they leave takes 2 corruption damage.
+          trigger: The elementalist takes damage.
+          name: Jaws of the Void
+          guid: bc43b149-670d-436d-941f-0cae1a679060
+          distance: Self
+          keywords:
+            Magic: true
+            Void: true
+      source: Character Feature
+      description: |-
+        Trigger: The elementalist takes damage. 
+        Effect: The elementalist can teleport up to 2 squares. Each creature 
+        adjacent to the space they leave takes 2 corruption damage.
+      guid: 06ac8f66-67fe-48a8-af49-ca1a48e272c8
+      name: Jaws of the Void
+      implementation: 3
+    role: Elite Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: e9796960-5233-416a-98b2-9736d134b7a1
+    damage_taken: 0
+    opportunityAttack: 10
+    resources: []
+    auras: []
+    groupid: 5163b6cd-991f-4277-b81c-8e42a53d328e
+    walkingSpeed: 5
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: false
+      targetTextOverride: Each enemy in the area
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+        Green: true
+      implementationDetails: ""
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers: []
+          name: The Earth Devours
+          difficult_terrain: true
+          description: The area is difficult terrain for enemies
+          guid: 280343d6-f5f2-49d4-bb96-e025b48be5c7
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+        duration: eoe
+        aliveafterdeath: true
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage; restrained (eot)
+        - " 8 damage; restrained (save ends)"
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 234
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      abilityType: none
+      persistence: []
+      modifiers: []
+      targetAllegiance: enemy
+      strain: []
+      guid: 862170cd-4017-4736-9257-0e3b4c8cab78
+      numTargets: "1"
+      categorization: Ability
+      rangeTextOverride: 3 cube within 10 squares
+      radius: "3"
+      targetType: cube
+      name: The Earth Devours
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      description: The area is difficult terrain for enemies until the end of the encounter. Any enemy in the area has acid weakness 2.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetTextOverride: 2 creatures
+      repeatTargets: false
+      keywords:
+        Green: true
+        Strike: true
+        Magic: true
+        Ranged: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 234
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      numTargets: "2"
+      modifiers: []
+      strain: []
+      guid: 20bc3d3d-f449-4a2c-9b29-a0d370347071
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      rangeTextOverride: "10"
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; slide 1
+        - 10 damage; slide 2
+        - 13 damage; slide 3
+        roll: 2d10 + 2
+      name: The Writhing Green
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Green: true
+        Strike: true
+        Magic: true
+        Ranged: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; slide 3; M<3 5 acid damage
+        - 20 damage; slide 4; M<4 7 acid damage
+        - 24 damage; slide 5; M<5 9 acid damage
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8bb0ac3b-362a-458c-8219-7c884f387297
+      targetType: target
+      implementation: 3
+      numTargets: 2
+      name: Viridescent Storm
+      sourceReference:
+        __typeName: SourceReference
+        page: 243
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: One ally within distance ends all conditions on themself.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+        Green: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 243
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 3
+      numTargets: 1
+      modifiers: []
+      guid: 7d3dea52-3b11-4e80-aab0-b77b11a4e093
+      abilityType: none
+      targetType: target
+      iconid: ui-icons/skills/1.png
+      name: The World Consumes
+      categorization: Heroic Ability
+      description: |
+        The area becomes overgrown with caustic vines until the end of the encounter. While in the area, any enemy has acid weakness 5 and is slowed. Any enemy who ends their turn in the area and has M<4 is restrained (save ends).
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Void: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: df243165-067e-46f2-b253-2911c8251a01
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Breach of Nihility
+      sourceReference:
+        __typeName: SourceReference
+        page: 243
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: The elementalist can teleport up to 5 squares. Each creature adjacent to the space they leave or appear in takes 5 corruption damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    movementSpeeds: []
+    creatureSize: 1M
+    monster_category: Monster
+    keywords:
+      Humanoid: true
+      Rival: true
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: da227820-8a0a-4680-9b0e-d15f0e3b7580
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: Rival Elementalist
+parentFolder: 62dde676-136f-4d24-9390-903417c9a726
+artist: null
+ord: 0
+ctime: 1764250971418
+mtime: 1764250971418
+hidden: false

@@ -1,0 +1,204 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 305a3fc6-512c-4172-80f4-ad51da691aa6
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.6470588
+    portraitOffset:
+      x: -0.1396643
+      y: -0.06250015
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.87
+    characterName: Demon Ensnarer
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 271f906d-761b-41c6-b85f-1f4f73c54092
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 5
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "5"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Demon Ensnarer	Level 1 Minion Brute
+        Abyssal, Demon	EV 3 for four minions
+        <b>Stamina</b> 5	<b>Weakness</b> Holy 3
+        <b>Speed</b> 5	<b>Size</b> 1M/ <b>Stability</b> 0
+        <b>With Captain</b> Melee distance +2	<b>Free Strike</b> 2
+        Might +2	Agility +0	Reason -1	Intuition -1	Presence -1
+        <b>Barbed Tongues</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 damage; pull 1
+        %E2%98%85	12%E2%80%9316	4 damage; pull 2
+        %E2%9C%B8	17+	5 damage; pull 3
+        <b>Effect</b> If the target is pulled adjacent to the ensnarer, the ensnarer makes a free strike against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the ensnarer can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bc0e0229-afb0-4155-8ec5-35d429f1af80: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the ensnarer can't be hidden from them.
+      guid: bc0e0229-afb0-4155-8ec5-35d429f1af80
+      source: Trait
+    role: Minion Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -3
+      damageType: holy
+      apply: Damage Reduction
+    withCaptain: Melee distance +2
+    damage_taken: 0
+    opportunityAttack: 2
+    resources: []
+    monster_type: Demon Ensnarer
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: b8931751-5904-4d4d-8109-e3ef21e073ac
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; pull 1
+        - 4 damage; pull 2
+        - 5 damage; pull 3
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        runOnController: true
+        abilityType: standard
+        promptText: If the target is pulled adjacent to the ensnarer, the ensnarer can make a free strike against them.
+        filterTarget: ""
+        applyto: caster
+        standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: b55c2051-7c01-4e49-ab10-c8f814d5262a
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      name: Barbed Tongues
+      iconid: ui-icons/skills/1.png
+      description: |-
+        If the target is pulled adjacent to the ensnarer, the ensnarer can
+        make a free strike against them.
+      abilityType: none
+      implementation: 4
+    walkingSpeed: 5
+    movementSpeeds: []
+    creatureSize: 1M
+    keywords:
+      Demon: true
+      Abyssal: true
+    notes:
+    - text: |-
+        Ensnarers are the result of pitlings getting hold of an unfortunate soul.
+        A pitling in the process of digesting the soul of a creature has that soul physically bore through their head to become a fanged appendage. Mouths form across the creature's body, each attacking with long, barbed tongues.
+      title: Monster Notes
+    notesRevision: 2d205b8f-d1c1-4b77-8f88-2d4be3ae3aca
+  tokenType: null
+  bestiaryId: 15000b2a-bc4a-4bcb-8195-1f758c6f7b08
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Demon Ensnarer
+parentFolder: 003daf5c-52f0-4ea2-9283-a547f7b2422e
+artist: null
+ord: 1
+ctime: 1741590221434
+mtime: 1775201137032
+hidden: false

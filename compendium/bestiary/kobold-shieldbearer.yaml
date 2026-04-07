@@ -1,0 +1,185 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c5d95b20-98ab-446f-9abd-4d661b641066
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |
+        Kobold Shieldbearer	Level 1 Defender Retainer
+        Humanoid, Kobold	EV 15
+        <b>Stamina</b> 40
+        <b>Speed</b> 5	<b>Size</b> 1S/Stability 0
+        <b>Free Strike</b> 2
+        Might +2	Agility +1	Reason 0	Intuition 0	Presence 0
+        <b>Gladius</b> (Action) - 2d10 + highest characteristic - Signature
+        <b>Keywords</b> Melee, Strike,  Weapon
+        <b>Distance</b> Melee 1 	<b>Target </b>One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>		3 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 damage
+        %E2%9C%B8	<b>17</b>		7 damage; taunted (EoT)
+
+        <b>Shield, Boss?</b>
+        The shieldbearer and their mentor has cover, a Stability of 1, and can act as cover for allies when the shieldbearer is adjacent to their mentor.
+
+        Level 4 Retainer Advancement Ability
+        <b>Shield Block</b> (Triggered Action, Encounter)
+        Keywords -
+        <b>Distance</b> Melee 1 or Ranged 5	<b>Target</b> The shieldbearer's mentor
+        <b>Effect</b> When the shieldbearer's mentor takes damage from an attack, the shieldbearer can block the attack (if the shieldbearer is adjacent to the mentor) or throw their shield into the mentor's space (if they are up to 5 away from the mentor). The triggering attack is reduced by half and any potency effects it has are reduced by 1. If the kobold threw their shield, it bounces back to their hand.
+
+        Level 7 Retainer Advancement Ability
+        Living Backpack (Action)
+        Keywords -
+        <b>Distance</b> Melee 1	<b>Target</b> The shieldbearer's mentor
+        <b>Effect </b>The shieldbearer straps their shield on their back and then climbs onto their mentor's back. While clinging to their mentor, the shieldbearer enters the mentor's space and loses their Shield, Boss? trait. They move along with the mentor and can't use actions, moves, or maneuvers, except to end the effect as a maneuver. The effect also ends if the shieldbearer is force moved away or knocked prone. When the effect ends, the shieldbearer moves into an adjacent square if they're still in the mentor's space.
+
+        While the shieldbearer is clinging to their mentor, both the shieldbearer and the mentor gain 10 Temporary Stamina and cover.
+
+        Level 10 Retainer Advancement Ability
+        <b>Let's Go Sledding </b>(Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> 3 creatures
+        %E2%9C%A6	<b>%E2%89%A411</b>		6 damage; M (weak) prone
+        %E2%98%85	<b>12%E2%80%9316</b>		10 damage; M (average) prone
+        %E2%9C%B8	<b>17</b>		14 damage; M (strong) prone
+        <b>Effect </b>If this ability is used as part of the Charge action, gain 2 surges.
+
+        Lightbenders
+        <b>Monster Troops</b>
+        Lightbenders prowl deserts, plains, forests-any sunbathed wilderness. Their adaptations make them skilled daylight predators. This monstrous creature's fur bends and refracts light from the surrounding environment, producing mirages that distract and confuse their prey-hence their name.
+        Hidden Hunters
+        At a distance, a lightbender looks akin to a regular lion, but closer inspection reveals their glowing eyes, iridescent mane, and pair of lashing tails spiked with refractive crystals. The lightbender's pelt magically warps light around them to disguise their movement, allowing them to teleport while leaving behind a past visual imprint. Unsuspecting prey rarely realize they're staring at an afterimage of the lightbender until the predator pounces.
+        Prized Manes
+        Both male and female lightbenders have the distinctive mane, which is highly prized for its light-displacing qualities and can be fashioned into a mantle of the lightbender, though only a few mages possess the knowledge to do so.
+        Protective Companions
+        Though lightbenders are typically solitary creatures, they sometimes cross into another lightbender's territory to help protect a newborn litter of kittens. A few people have succeeded in taming lightbenders as guards or hunting animals, and if treated well, they can make for loyal protectors, often viewing their smaller humanoid companions as surrogate kittens.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5eee15ba-2134-49e0-adf1-fe911d0309d0: true
+      modifiers: []
+      name: Shield, Boss?
+      guid: 5eee15ba-2134-49e0-adf1-fe911d0309d0
+      description: The shieldbearer and their mentor has cover, a Stability of 1, and can act as cover for allies when the shieldbearer is adjacent to their mentor.
+      source: Trait
+    role: Defender Retainer
+    keywords:
+      Humanoid: true
+      Kobold: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    monster_type: Kobold Shieldbearer
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    levelChoices: []
+    monster_category: Monster
+    walkingSpeed: 5
+    max_hitpoints: 40
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: 1
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      abilityType: none
+      guid: 79f77aef-a29e-4c93-ac54-e53d4dd772fa
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      targetType: target
+      categorization: Signature Ability
+      name: Gladius
+      flavor: ""
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    movementSpeeds: []
+    damage_taken: 0
+    minion: false
+    ev: 15
+    creatureSize: 1S
+  tokenType: null
+  bestiaryId: 7d97ccd7-b062-4b3b-b1fb-4cf65f9adc82
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969465
+description: Kobold Shieldbearer
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590271295
+mtime: 1775167503746
+hidden: false

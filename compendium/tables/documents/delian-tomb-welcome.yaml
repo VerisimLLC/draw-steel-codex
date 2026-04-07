@@ -1,0 +1,194 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+    image: 209e3da0-f5c0-4b04-ba7d-3b7e490ea3b5
+id: cb091748-370a-4805-97fd-940f272d02d0
+ctime: 1760348104280
+textStorage:
+  __typeName: TextStorage
+  sections:
+    y: |+
+      [[/setadventuredocumentstitle "Delian Tomb";setadventuredocument 1 "Delian Tomb Welcome"|Track Delian Tomb Welcome]][[/setadventuredocument off "Delian Tomb Welcome"|Untrack Delian Tomb Welcome]]
+
+    w: |+
+      ## Tracked Journals
+
+    x: |+
+      Tracked journals are located in the "Delian Tomb" menu folder at the top of the screen. 
+
+    u: |+
+      ## Maps
+
+    v: |+
+      The combat encounters in Draw Steel are played out by moving miniatures on a map with a grid. You can see all of the included maps by going to **Game** -> **Maps**, but for this adventure you can begin by heading to the [Feather Bed Inn], the perfect place to start. There are instructions in an info bubble to help you get started.
+
+
+    s: |+
+      To add the Dice Panel to your sidebar, click on Panels -> Dice at the top of your screen. You can also type "/r xdy" in the chat to roll, where x and y can be any numerical value, ex. "/r 2d6".
+
+
+    q: |+
+      ## Dice
+
+    o: |+
+      heroes can spend these tokens for benefits outlined on the Reference Sheet, or shown when you hover over the number. You can click to edit this number, and should set it to the amount equal to the number of heroes. 
+
+
+    m: |
+      Hero Tokens are tracked on the Character Panel on the right side of the Hero's portrait. During the game, the
+    yi: |+
+      [[setting:showdirectorwelcome]]
+
+
+
+
+    k: |+
+      ## Hero Tokens
+
+    i: |+
+      Each player, including the Director, has access to the [Draw Steel Rules Reference v1.02]. This sheet has common rules in one place so you can look them up quickly.
+
+
+    g: |+
+      ## Rules Reference Sheet
+
+    e: |+
+      The players need only worry about the first encounter version of their hero for now.
+
+
+    c: |+
+      The first part of the adventure consists of four combat encounters, each of which introduces new rules, so the players can learn Draw Steel slowly. Each pregenerated hero starts off simple and gains more features and abilities each time a new encounter occurs. By the end of part 1, each player will have a fully fleshed out 1st-level hero they can use for the rest of the adventure.
+
+    a: |+
+      ## Advancing Heroes
+
+    yQ: |
+      The topmost document will open automatically when you enter the game. If you want to turn this popup off, you can use this setting:
+    Y: |+
+      |If you’re already familiar with Draw Steel, you can make heroes using [Draw Steel Heroes], and the Create Hero button on [New Player Welcome]. This adventure is appropriate for heroes of 1st level. Given how the pregenerated heroes evolve over part 1 of the adventure, it’s best not to use a mix of pregenerated heroes and player-created heroes, unless you make sure to set them all as level 1.|
+
+
+    W: |
+      |Character Creation|
+    U: |2+
+
+
+    S: |
+      If you want to play right now, decide who will be the Director. It will most likely be the person who created the game world, but you can assign another player to be a director in the Heroes Panel, and remove your own Director role. The rest of the players will each review and choose a pregenerated hero while the Director reads the introduction, the first part of this adventure, and the first four encounters in the Encounters Book. Players and Directors can ignore the Starter Rules for now and read them after the first game session.
+    Q: |+
+      All players and the Director should also read over the Starter Rules. [Delian Tomb Starter Rules v1.02]
+
+
+    O: |
+      If you want to read now but play later, decide if you want to play a heroic character or be the Director. If you’re playing a heroic character, stop reading this adventure and instead look through the pregenerated heroes on [New Player Welcome] and pick one to play who hasn’t already been chosen by another player. If you’re the Director, read this adventure [Delian Tomb Adventure] and the Encounters Book [Delian Tomb Encounters]. These are also available as Journal entries in the Journal Panel and also as Map Pins on the relevant Maps.
+    M: |+
+      #### Now or Later?
+
+    L: |+
+      It will take you several play sessions (about 30 hours depending on the pace at which you play) to complete the adventure. We’re going to help you get set up to play part 1, which should take between 4 to 6 hours.
+
+
+    I: |+
+      The Director has final say in adjudicating the game’s rules and can change the story in these pages as they see fit. When a hero tries to do something that isn’t explicitly covered by the rules, the Director decides how to proceed. If a player asks about a detail not covered in the adventure, the Director makes up the answer. They keep the story and game moving so that everyone, including the Director themself, has fun.
+
+
+    J: |+
+      ## Set Up
+
+    G: |+
+      # Introduction
+
+    H: |
+      The Delian Tomb is meant to be read only by a special player called the Director. Unlike the other players, the Director doesn’t control a hero. Instead, they are the game’s narrator and referee, controlling all the villains, townsfolk, and other nonplayer characters (NPCs) the heroes meet on their journey, and the environments the heroes traverse.
+    E: |+
+      :<>If you do not want to read the introduction text, you can begin by heading to the [Feather Bed Inn], the perfect place to start your adventure. There are instructions in an info bubble to help you get started.
+
+
+    F: |+
+      ---
+
+    C: |+
+      :><[[image]]
+
+    D: |+
+      :<>*We worked hard to make the Delian Tomb work well in the Codex, and are happy you are going to try it!*
+
+    B: |+
+      :<># Welcome to the Delian Tomb!
+
+parentFolder: e6b4a7b2-2da3-43ab-8d33-d322af63ffc5
+updateid: 483b0c2d-d5ed-40c5-9ce9-2b3cfecc827a
+mtime: 1774523185567
+content: |+
+  :<># Welcome to the Delian Tomb!
+
+  :><[[image]]
+
+  :<>We are working hard to make the Delian Tomb work well in the Codex, and are happy you are going to try it! Right now we have **Part 1** of the adventure ready to try, and we are working hard on the rest of it.
+
+  :<>If you do not want to read the introduction text, you can begin by heading to the [Feather Bed Inn], the perfect place to start your adventure. There are instructions in an info bubble to help you get started.
+
+  ---
+
+  # Introduction
+
+  The Delian Tomb is meant to be read only by a special player called the Director. Unlike the other players, the Director doesn’t control a hero. Instead, they are the game’s narrator and referee, controlling all the villains, townsfolk, and other nonplayer characters (NPCs) the heroes meet on their journey, and the environments the heroes traverse.
+  The Director has final say in adjudicating the game’s rules and can change the story in these pages as they see fit. When a hero tries to do something that isn’t explicitly covered by the rules, the Director decides how to proceed. If a player asks about a detail not covered in the adventure, the Director makes up the answer. They keep the story and game moving so that everyone, including the Director themself, has fun.
+
+
+  ## Set Up
+
+  It will take you several play sessions (about 30 hours depending on the pace at which you play) to complete the adventure. We’re going to help you get set up to play part 1, which should take between 4 to 6 hours.
+
+
+  #### Now or Later?
+
+  If you want to read now but play later, decide if you want to play a heroic character or be the Director. If you’re playing a heroic character, stop reading this adventure and instead look through the pregenerated heroes on the [Inn of Beginnings] Map and pick one to play who hasn’t already been chosen by another player. If you’re the Director, read this adventure [Delian Tomb Adventure] and the Encounters Book [Delian Tomb Encounters]. These are also available as Journal entries in the Journal Panel and also as Map Pins on the relevant Maps.
+  All players and the Director should also read over the Starter Rules. [Delian Tomb Starter Rules v1.02]
+
+
+  If you want to play right now, decide who will be the Director. It will most likely be the person who created the game world, but you can assign another player to be a director in the Heroes Panel, and remove your own Director role. The rest of the players will each review and choose a pregenerated hero while the Director reads the introduction, the first part of this adventure, and the first four encounters in the Encounters Book. Players and Directors can ignore the Starter Rules for now and read them after the first game session.
+
+
+  |Character Creation|
+  |If you’re already familiar with Draw Steel, you can make heroes using [Draw Steel Heroes], and the Create Hero button on [New Player Welcome]. This adventure is appropriate for heroes of 1st level. Given how the pregenerated heroes evolve over part 1 of the adventure, it’s best not to use a mix of pregenerated heroes and player-created heroes, unless you make sure to set them all as level 1.|
+
+
+  ## Advancing Heroes
+
+  The first part of the adventure consists of four combat encounters, each of which introduces new rules, so the players can learn Draw Steel slowly. Each pregenerated hero starts off simple and gains more features and abilities each time a new encounter occurs. By the end of part 1, each player will have a fully fleshed out 1st-level hero they can use for the rest of the adventure.
+
+  The players need only worry about the first encounter version of their hero for now.
+
+
+  ## Rules Reference Sheet
+
+  Each player, including the Director, has access to the [Draw Steel Rules Reference v1.02]. This sheet has common rules in one place so you can look them up quickly.
+
+
+  ## Hero Tokens
+
+  Hero Tokens are tracked on the Character Panel on the right side of the Hero's portrait. During the game, the
+  heroes can spend these tokens for benefits outlined on the Reference Sheet, or shown when you hover over the number. You can click to edit this number, and should set it to the amount equal to the number of heroes. 
+
+
+  ## Dice
+
+  To add the Dice Panel to your sidebar, click on Panels -> Dice at the top of your screen. You can also type "/r xdy" in the chat to roll, where x and y can be any numerical value, ex. "r/ 2d6".
+
+
+  ## Maps
+
+  The combat encounters in Draw Steel are played out by moving miniatures on a map with a grid. You can see all of the included maps by going to **Game** -> **Maps**, but for this adventure you can begin by heading to the [Feather Bed Inn], the perfect place to start. There are instructions in an info bubble to help you get started.
+
+
+
+
+
+
+
+
+
+
+description: Delian Tomb Welcome

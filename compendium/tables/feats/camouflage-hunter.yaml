@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Exploration Perks
+name: Camouflage Hunter
+description: Whenever you are in wilderness, once you are hidden from a creature, you don’t need cover or concealment to stay hidden from them.
+mtime: 1755373604772
+id: 2f439646-9014-4057-968e-62c5ee3624bc
+ctime: 1730700487482

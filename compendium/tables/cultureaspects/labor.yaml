@@ -1,0 +1,20 @@
+__typeName: CultureAspect
+mtime: 1756162970718
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      exploration: true
+    source: Labor Culture Feature
+    description: 'Choose either the Blacksmithing skill (from the crafting skill group), the Handle Animals skill (from the interpersonal group), or a skill from the exploration group. (*Quick Build:* Lift) '
+    guid: a5020c32-f419-463c-af44-4ded451d882e
+    name: Labor Skill
+    individualSkills:
+      50ca6145-2d22-4496-a355-c7b2df2cf0de: true
+      ff54a691-e0a0-4246-8ceb-7975b8826e92: true
+name: Labor
+category: upbringing
+description: 'Your hero came of age in a culture where people labored for a living. They might have been cultivators, typically raising crops or livestock on a farm. They might have harvested natural resources, whether by hunting, trapping, logging, or mining. Or they might have excelled at manual labor tied to settlement and trade, such as construction, carting, loading cargo, and so forth. People with a labor upbringing know the value of hard work. '
+id: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+ctime: 1730730175695

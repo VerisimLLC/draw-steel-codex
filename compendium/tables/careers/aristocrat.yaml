@@ -1,0 +1,61 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: e124598d-1aae-44f2-9814-5ca31eb53fc2
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      interpersonal: true
+    name: Aristocrat Interpersonal Skill
+    description: "Choose one Skill from the interpersonal skill group. (Quick Build: Brag)"
+    guid: 42715176-c263-4ebc-9b2f-c581c5b2f691
+    source: Aristocrat Career Feature
+  - __typeName: CharacterSkillChoice
+    categories:
+      lore: true
+    name: Aristocrat Lore Skill
+    description: "Choose a Skill from the lore skill group. (Quick Build: Society)"
+    guid: b509bacd-1afb-45a2-b683-f7f137138c6e
+    source: Aristocrat Career Feature
+  - __typeName: CharacterLanguageChoice
+    source: Aristocrat Career Feature
+    guid: 952f3219-f4ad-40f4-83f8-37bf6a7db8db
+    name: Aristocrat Language
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+      source: Aristocrat Career Feature
+      guid: 30b57377-c2ea-4038-a778-6fd5c3ed0371
+      name: Aristocrat's Renown and Wealth
+      value: 1
+      description: ""
+      behavior: attribute
+      attribute: d97c2794-cb70-420f-b078-e260b43e154b
+    - __typeName: CharacterModifier
+      sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+      source: Aristocrat Career Feature
+      guid: 5573cf4e-b220-4633-adff-74a3cf9b3efe
+      name: Aristocrat's Renown and Wealth
+      value: 1
+      description: ""
+      behavior: attribute
+      attribute: 036da4db-4406-4038-ae7d-cf0b37890f5f
+    name: Aristocrat's Renown and Wealth
+    description: ""
+    guid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+    source: Aristocrat Career Feature
+    implementation: 3
+  - __typeName: CharacterFeatChoice
+    guid: f3735484-db29-48ef-ac96-725e88a7e5d9
+    description: "Choose one lore perk (Quick Build: I’ve Read About this Place)"
+    tag: lore perks
+    name: Aristocrat Lore Perk
+name: Aristocrat
+mtime: 1767409564180
+description: "Career? Who needs a career when you’re born into money! Or marry into it! Or con your way into it! Whatever the case, you didn’t need to work thanks to (someone’s) generational wealth. In defining your career, think about the following questions: \n\nHow did you become an aristocrat? \n\nWhat did you do to fill your days? \n\nWhich aristocrats and people who worked for you were your best friends and greatest enemies? \n\nWhat sentimental heirloom from your old estate do you carry, and what does it mean to you? "
+id: b34ec71e-91bd-44b9-ba39-d3ce2f1095f3
+ctime: 1730555391826

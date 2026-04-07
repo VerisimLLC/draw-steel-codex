@@ -1,0 +1,28 @@
+__typeName: Title
+effect: "You gain a visible scar in a location of your choice. Additionally, your Stamina maximum increases by 20, and the creature who scarred\nyou takes a bane on abilities against you.\n\nSpecial: You can gain this title multiple times. The second and each subsequent time that you gain it, your Stamima maximum doesn't increase.. "
+mtime: 1775215966127
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You gain a visible scar in a location of your choice. Additionally, your Stamina maximum increases by 20, and the creature who scarred you takes a bane on abilities against you.
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: 8ee9d278-9174-4c4d-b05b-918f070abb1c
+      sourceguid: 046520f7-bcdd-429d-a014-1d823e2da425
+      behavior: attribute
+      source: Feat
+      name: Scarred Benefit
+      description: You gain a visible scar in a location of your choice. Additionally, your Stamina maximum increases by 20, and the creature who scarred you takes a bane on abilities against you.
+      value: 20
+      attribute: hitpoints
+    source: Feat
+    canHavePrerequisites: true
+    guid: 046520f7-bcdd-429d-a014-1d823e2da425
+    name: Scarred Benefit
+    implementation: 3
+name: Scarred
+ctime: 1762352093246
+description: Last time we fought, I gave you a little token to remember me by … now it appears you need another reminder of my power.
+id: d6be8e7b-e883-4507-ba0c-e96b28bff4c4
+prerequisite: An enemy leader or solo creature reduces you to 0 Stamina.

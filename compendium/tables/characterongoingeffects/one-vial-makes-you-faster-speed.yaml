@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 0f5c96ed-2cb0-498d-9e9f-733194bd119a
+  sourceguid: fe059fa6-9128-4daa-b6fb-3f631e2ffdf6
+  value: 2
+  source: Ongoing Effect
+  name: One Vial Makes You Faster - speed
+  behavior: attribute
+  description: Your speed is increased by 2
+  attribute: speed
+source: Ongoing Effect
+guid: fe059fa6-9128-4daa-b6fb-3f631e2ffdf6
+id: fe059fa6-9128-4daa-b6fb-3f631e2ffdf6
+ctime: 1767504952513
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: One Vial Makes You Faster - speed
+description: Your speed is increased by 2
+custom: true
+mtime: 1767504952513
+iconid: ui-icons/skills/1.png

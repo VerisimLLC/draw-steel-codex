@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: f31ee68a-5373-47f0-9d9d-de11347d292c
+id: f31ee68a-5373-47f0-9d9d-de11347d292c
+ctime: 1761421149014
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Foesense Lenses
+description: "{ConditionCaster(\"Foesense Lenses\").name} can use your senses"
+custom: true
+mtime: 1761421149014
+iconid: ui-icons/skills/1.png

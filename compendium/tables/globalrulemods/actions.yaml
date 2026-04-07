@@ -1,0 +1,388 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+      source: Actions Global Rule Mod Feature
+      guid: 636d9ed4-811a-4d1e-ac8c-6c0e3c660020
+      name: Actions
+      resourceType: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      num: 1
+      behavior: resource
+      description: |-
+        On your turn you can take a maneuver and an action or two maneuvers.
+
+        You can take 1 triggered action per round when the trigger happens.
+    - __typeName: CharacterModifier
+      sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+      source: Actions Global Rule Mod Feature
+      guid: 4e7cc354-d7b9-41db-b295-dff7796252b4
+      name: Actions
+      resourceType: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      num: 1
+      behavior: resource
+      description: |-
+        On your turn you can take a maneuver and an action or two maneuvers.
+
+        You can take 1 triggered action per round when the trigger happens.
+    - __typeName: CharacterModifier
+      sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+      source: Actions Global Rule Mod Feature
+      guid: f8120341-01df-4ce6-ba28-4012a3c1d7af
+      name: Actions
+      resourceType: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      num: 1 when (not conditions has "Surprised")
+      behavior: resource
+      description: |-
+        On your turn you can take a maneuver and an action or two maneuvers.
+
+        You can take 1 triggered action per round when the trigger happens.
+    - __typeName: CharacterModifier
+      sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+      source: Actions Global Rule Mod Feature
+      guid: 850e99eb-dd2c-4da1-8f05-b887983a37de
+      name: Actions
+      resourceType: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      num: 1 when (not conditions has "Surprised") and (not conditions has "Dazed")
+      behavior: resource
+      description: |-
+        On your turn you can take a maneuver and an action or two maneuvers.
+
+        You can take 1 triggered action per round when the trigger happens.
+    - __typeName: CharacterModifier
+      sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+      source: Actions Global Rule Mod Feature
+      guid: bf27247b-ffcb-45ca-8de6-961c6b8d9498
+      name: Actions
+      resourceType: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+      num: 1 when (not conditions has "Dazed")
+      behavior: resource
+      description: |-
+        On your turn you can take a maneuver and an action or two maneuvers.
+
+        You can take 1 triggered action per round when the trigger happens.
+    - __typeName: CharacterModifier
+      sourceguid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+      source: Actions Global Rule Mod Feature
+      guid: 34729a20-3f8e-4454-8336-11c7093b663c
+      name: Actions
+      resourceType: 5758da29-8660-47d3-805b-7c6038f476a1
+      num: 1 when (Game Mode = "Respite" or Game Mode = "Downtime")
+      behavior: resource
+      description: |-
+        On your turn you can take a maneuver and an action or two maneuvers.
+
+        You can take 1 triggered action per round when the trigger happens.
+    name: Actions
+    description: |-
+      On your turn you can take a maneuver and an action or two maneuvers.
+
+      You can take 1 triggered action per round when the trigger happens.
+    guid: b278e65b-9e6b-49c2-b090-79c1adbbf786
+    source: Actions Global Rule Mod Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 0e6b6a31-f49c-443c-b890-32ad63509b41
+      guid: ec5666d7-b15a-4bf9-9b7e-a6c01621a777
+      source: Actions Global Rule Mod Feature
+      behavior: activated
+      description: 'When you take the Defend action, all ability power rolls made against you have a double bane until the start of your next turn. You gain no benefit from this action while another creature is taunted by you (see Conditions). '
+      name: Defend
+      activatedAbility:
+        __typeName: ActivatedAbility
+        targetFilter: ""
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          durationUntilEndOfTurn: false
+          duration: 1
+          ongoingEffectCustom: false
+          ongoingEffect: 5ca9517b-ddbf-4f61-bd59-68e3a62708eb
+          stacks: "2"
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          page: 274
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 5
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: d57d1e56-eb1d-4f87-a568-6c1a8ab638cc
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        iconid: 114facd6-e696-4cda-aed7-2a1cffd2f410
+        domains: []
+        categorization: Common Ability
+        numTargets: "1"
+        name: Defend
+        targetType: self
+        description: When you take the Defend action, all attacks against you suffer 2 banes until the start of your next turn.
+        abilityType: none
+        implementation: 3
+    name: Defend
+    description: 'When you take the Defend action, all ability power rolls made against you have a double bane until the start of your next turn. You gain no benefit from this action while another creature is taunted by you (see Conditions). '
+    guid: df12f3cf-ac3c-4769-9aaf-7735699f31e5
+    source: Actions Global Rule Mod Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 1817ad33-c98f-45b7-9875-b2d9a6c6d164
+      guid: 1a90f1d6-855c-4fe0-a358-dc7ca385b16b
+      source: Actions Global Rule Mod Feature
+      behavior: activated
+      description: ""
+      name: Heal
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          filterTarget: mode = 1
+          modesSelected:
+          - 1
+          abilityType: standard
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: ed489306-0211-455e-8c42-50366f7c39e9
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+          targeting: self
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          conditions: []
+          filterTarget: mode = 2
+          modesSelected:
+          - 2
+          mode: effect
+        multipleModes: true
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.315624713897705
+            s: 0.803125083446503
+            v: 0.920765995979309
+            a: 1
+        flavor: A creature who uses the Heal action employs medicine or inspiring words to make an adjacent creature feel better and stay in the fight.
+        sourceReference:
+          __typeName: SourceReference
+          page: 274
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        persistence: []
+        strain: []
+        modeList:
+        - text: Spend a Recovery
+        - text: Saving Throw
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        categorization: Common Ability
+        domains: []
+        implementation: 3
+        guid: 20310e65-b594-45dd-b7d2-d3598059c1f1
+        name: Heal
+        targetType: target
+        description: 'The target creature can spend a Recovery to regain Stamina, or can make a saving throw against one effect they are suffering that can be ended by a saving throw. '
+        abilityType: none
+        iconid: 3ab6193e-80e3-47ce-ba28-26070a4cfaa2
+    name: Heal
+    description: ""
+    guid: 1817ad33-c98f-45b7-9875-b2d9a6c6d164
+    source: Actions Global Rule Mod Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Convert your Main Action into a Maneuver
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 5e984307-b02e-4fcc-a112-700438af9c14
+      guid: 186621ed-847c-4135-be3c-3298f25e22c5
+      source: Actions Global Rule Mod Feature
+      behavior: activated
+      description: Convert your Main Action into a Maneuver
+      name: Use Maneuver
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+          guid: ecc277e3-3f16-4e35-a437-48057888d07b
+          modifier:
+            __typeName: CharacterModifier
+            modifyDescription: ""
+            source: ""
+            filterAbility: Ability.Maneuver
+            behavior: modifyability
+            guid: 9083ad34-0006-4565-b9ba-f7508777bfe8
+            cannotModifyAction: true
+            attributes: []
+            mustPayResourceCost: true
+            description: ""
+            name: Modify Attack
+            ability:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2452be0e-7b44-4c6a-a894-b5e0de6a519d
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityModification: true
+              behaviors: []
+              abilityType: none
+              name: New Ability
+              targetType: self
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Common Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 3e5f62be-fdb0-4169-bca2-0afa0f8f553b
+        targetType: self
+        castImmediately: true
+        domains: []
+        iconid: 991e012a-2120-4672-be8c-75c694277042
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        name: Use Maneuver
+        numTargets: "1"
+        description: Convert your Main Action into a Maneuver
+        abilityType: none
+        implementation: 3
+    source: Actions Global Rule Mod Feature
+    canHavePrerequisites: true
+    guid: 5e984307-b02e-4fcc-a112-700438af9c14
+    name: Use Maneuver
+    implementation: 4
+  - __typeName: CharacterFeature
+    description: Convert your Main Action into a Move Action
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 20050f01-a5c3-4d88-bbeb-6a548422e27c
+      guid: ea2cb441-cf3c-4922-85ce-fa61678ca9ea
+      source: Actions Global Rule Mod Feature
+      behavior: activated
+      description: Convert your Main Action into a Move Action
+      name: Use Move Action
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        targetType: self
+        multipleModes: true
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Common Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        domains: []
+        strain: []
+        modeList:
+        - text: Advance
+        - text: Disengage
+        guid: 91ae2b6a-2d76-476a-b418-9bcc12da24c1
+        iconid: 1067bcb5-f47d-40ba-9910-125f27ad2355
+        castImmediately: false
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          invokeOnCaster: true
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: b3cf4d20-5fc6-448e-a05e-3f342c363017
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          modesSelected:
+          - 1
+          abilityType: standard
+          standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          invokeOnCaster: true
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 73fd984e-0324-47df-aeec-a823b89755e1
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          modesSelected:
+          - 2
+          abilityType: standard
+          standardAbility: a0cde3eb-493e-41ac-bfe0-b0ec583431af
+        numTargets: "1"
+        name: Use Move Action
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        description: Convert your Main Action into a Move Action
+        abilityType: none
+        implementation: 3
+    source: Actions Global Rule Mod Feature
+    canHavePrerequisites: true
+    guid: 20050f01-a5c3-4d88-bbeb-6a548422e27c
+    name: Use Move Action
+    implementation: 4
+name: Actions
+mtime: 1775024258559
+id: d2f9f92d-4f6d-4b1b-9cba-ff0ecabf9f55
+ctime: 1699694773256

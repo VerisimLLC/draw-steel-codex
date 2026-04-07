@@ -1,0 +1,234 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7ee1eddb-48aa-45ab-a3cf-1ebc32db0aac
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Duskcaller	Level 5 Platoon Controller
+        Fey, Humanoid, Shadow Elf	EV 14
+        <b>Stamina</b> 60
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +0	Agility +3	Reason +3	Intuition +2	Presence +0
+        <b>Night Knife</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12-16</b>	13 damage
+        %E2%9C%B8	<b>17</b>	16 damage
+        <b>Effect</b> The duskcaller can target an additional creature or object while concealed.
+
+        <b>Shadesong</b> (Maneuver)
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 2 cube within 3<b>	Target</b> Special
+        <b>Effect</b> The affected area is covered in darkness and is considered concealment until the start of the duskcaller's next turn.
+        <b>2 Malice</b> The area of the cube increases by 3.
+
+        <b>Of the Umbra</b>
+        The duskcaller ignores concealment granted by darkness. While the duskcaller is in direct sunlight, they have damage weakness 3. While the duskcaller is concealed, they have damage immunity 3.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0bb4eb2d-190a-4837-b8b0-33d189f7c3ee: true
+      modifiers: []
+      name: Of the Umbra
+      description: The duskcaller ignores concealment granted by darkness. While the duskcaller is in direct sunlight, they have damage weakness 3. While the duskcaller is concealed, they have damage immunity 3.
+      guid: 0bb4eb2d-190a-4837-b8b0-33d189f7c3ee
+      source: Trait
+    role: Platoon Controller
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Shadow Elf: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 6
+    monster_type: Shadow Elf Duskcaller
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 60
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 13 damage
+        - 16 damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bde4ef1d-943b-4c23-bf82-2c7676fe340b
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Night Knife
+      numTargets: 1
+      description: The duskcaller can target an additional creature or object while concealed.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 0885d0c0-cdc8-42d4-b050-8e9a14d2a2c8
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Shadesong
+      numTargets: "1"
+      description: The affected area is covered in darkness and is considered concealment until the start of the duskcaller's next turn.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 129
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: The size of the cube increases by 3.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      categorization: Ability
+      name: The Lay of Cor'thoroth
+      guid: 394eb882-cc7d-4b2d-9e4b-2c7d6a3b81c2
+      description: |-
+        Until the start of the duskcaller's next turn, the area is filled with darkness.
+
+        **2 Malice**: The size of the cube increases by 3.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 5
+    ev: 14
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: a5fba8d2-080e-4015-9b4a-347dfee49f3b
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Shadow Elf Duskcaller
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590292014
+mtime: 1775201137032
+hidden: false

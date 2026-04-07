@@ -1,0 +1,85 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67
+  displayCondition: (ConditionCaster("Foil") = Target)
+  source: Ongoing Effect
+  modtype: double_edge
+  keywords: []
+  activationCondition: "1"
+  domains:
+    CharacterOngoingEffect:a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67: true
+  name: Foil
+  rollType: ability_power_roll
+  description: You have a double edge against your foil and they have a double edge against you.
+  guid: a1e2a2d1-6ee2-493a-a3cd-0ef2bbe5889e
+  behavior: power
+- __typeName: CharacterModifier
+  sourceguid: a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67
+  displayCondition: Target.ConditionCaster("Foil") = Caster
+  source: Ongoing Effect
+  modtype: double_edge
+  keywords: []
+  activationCondition: "1"
+  domains:
+    CharacterOngoingEffect:a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67: true
+  name: Foil
+  rollType: enemy_ability_power_roll
+  description: You have a double edge against your foil and they have a double edge against you.
+  guid: 73e74f34-502b-470b-bf91-db3df9f5e41c
+  behavior: power
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67: true
+  sourceguid: a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67
+  description: You have a double edge against your foil and they have a double edge against you.
+  source: Ongoing Effect
+  name: Foil
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetFilter: Caster.ConditionCaster("Foil") = Target
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: f4049f01-3ed4-43ec-a419-fe9c8c14ee91
+      ongoingEffectCustom: f4049f01-3ed4-43ec-a419-fe9c8c14ee91
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "100"
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 89ace823-878c-4444-8b6e-1a6505e13ad2
+    domains:
+      CharacterOngoingEffect:a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67: true
+    targetType: all
+    name: Foil
+    trigger: zerohitpoints
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: bb56bfc9-f45f-4e43-b071-3f6d30b9283a
+source: Ongoing Effect
+casterTracking: one
+guid: a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67
+id: a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67
+ctime: 1754073301727
+domains:
+  CharacterOngoingEffect:a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+iconid: ui-icons/skills/1.png
+name: Foil
+description: You have a double edge against your foil and they have a double edge against you.
+custom: true
+mtime: 1756735653819
+implementation: 3

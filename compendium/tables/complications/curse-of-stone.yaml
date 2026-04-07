@@ -1,0 +1,90 @@
+__typeName: CharacterComplication
+drawback: You have sonic weakness 5. Additionally, while you are winded, you are dazed.
+mtime: 1764849347079
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 6f312ef0-ccf7-4318-8e64-fd3bd8c89931
+      behavior: resistance
+      source: Complication
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: sonic
+        apply: Damage Reduction
+      description: ""
+      name: Curse of Stone
+      guid: e6ff554d-3b26-4c74-8d97-9149cf49a50a
+    - __typeName: CharacterModifier
+      sourceguid: 6f312ef0-ccf7-4318-8e64-fd3bd8c89931
+      source: Complication
+      guid: a43bdd1e-e43b-40ee-88c5-1cb1f91cdc1d
+      conditionid: c27e0b16-291a-45ad-8406-973e26576a44
+      name: Curse of Stone
+      behavior: bestowcondition
+      description: ""
+      explanation: "You are Dazed because of Complication: Curse of Stone."
+      filterCondition: Winded
+    - __typeName: CharacterModifier
+      guid: 6c2d9f59-76e6-4b19-aacd-1d270ddbc58a
+      sourceguid: 6f312ef0-ccf7-4318-8e64-fd3bd8c89931
+      value: 1
+      source: Complication
+      name: Curse of Stone
+      behavior: attribute
+      description: ""
+      attribute: forcedmoveresistance
+    - __typeName: CharacterModifier
+      sourceguid: 6f312ef0-ccf7-4318-8e64-fd3bd8c89931
+      guid: ee9060ec-8f9a-425d-9d02-27b37d94a6f4
+      source: Complication
+      behavior: activated
+      description: ""
+      name: Curse of Stone
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        targetType: self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.0923423394560814
+            s: 0.948717951774597
+            v: 0.30588236451149
+            a: 1
+        flavor: ""
+        categorization: Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 02a304f6-3ded-49b8-93cb-4fa8c67181d0
+        numTargets: "1"
+        domains: []
+        implementation: 1
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: e6785a35-f0ab-48b6-9ba0-48758c3323e3
+          ongoingEffectCustom: e6785a35-f0ab-48b6-9ba0-48758c3323e3
+        name: Appear as Stone
+        actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+        description: Your body, gear, and any items you hold to take on the appearance of stone, making you appear to be a mundane statue while you remain unmoving.
+        abilityType: none
+        iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80
+    source: Complication
+    canHavePrerequisites: true
+    guid: 6f312ef0-ccf7-4318-8e64-fd3bd8c89931
+    name: Curse of Stone
+    implementation: 3
+name: Curse of Stone
+ctime: 1755513748704
+description: As a child, you met a creature who turns people to stone, such as a medusa. You escaped half petrified, avoiding the fate of others who stand as statues now.
+id: 0c8de051-84c1-4ffc-b68a-d7d3f457e9ba
+benefit: You have a +1 bonus to stability. Additionally, you can use a free maneuver to cause your body, gear, and any items you hold to take on the appearance of stone, making you appear to be a mundane statue while you remain unmoving.

@@ -1,0 +1,117 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 3331deff-4c0a-43e8-af95-44e03822b6fd
+ctime: 1761387943719
+textStorage:
+  __typeName: TextStorage
+  sections:
+    x: "## [Dwarf Merchants]\n\n\n \n\n"
+    v: |+
+      ## [Gilded Hand]
+
+    t: |+
+      # Other Relevant Notes
+
+    r: |+
+      |96-100|“[Reeve Rosamund] ain’t greedy. She’s not driven by power either. She just wants to protect us. Poor woman is overworked.”|
+
+
+    o: |
+      |86-90|“I don’t suppose you’re a butcher? [Brune]’s fine with a cleaver, but my gods, is that one surly lump of a man. I’d pay a little more just to avoid him.”|
+    p: |
+      |91-95|“Here’s the thing. There’s more than one kind of bandit on the road. I heard we got goblins, we got humans, we got orcs, and even ogres! Are they working together?”|
+    m: |
+      |76-80|“Out of the east road the other day and I heard some clanging coming from the old wizard tower. I swear the mage’s ghost is knocking about in there!”|
+    n: |
+      |81-85|“When I got my meat back from the smokehouse, it was a lot less than I remember. [Saberna] said the smoking shrinks the meat. Is that true?”|
+    k: |
+      |66-70|“You know the [Gilded Hand] ousted a cult out of some knight’s crypt near Wend. Old knight from ancient times … Caelian, I think.”|
+    l: |
+      |71-75|“That elf in the [Gilded Hand] seems mighty uncomfortable. Even when she’s just with her friends, she’s always anxiously twisting that emerald ring.”|
+    i: |
+      |56-60|“That [Gilded Hand] won’t take any job here in town. Why the heck did they come here anyway?”|
+    j: |
+      |61-65|“I saw one of those [Gilded Hand] folks talking about the tomb. They seem real interested in visiting that haunted place!”|
+    g: |
+      |46-50|“If [Harim] doesn’t get that leather soon, I’ll have to make my own boots out of leaves.”|
+    h: |
+      |51-55|“[Dunquat] thinks of herself as an artist. She won’t work with just any stone. It has to be dwarf hewn!”|
+    e: |
+      |36-40|“When [Mikael] came back with that bite, I thought for sure he was dead. But just a few days later he was right as rain—healthier than I ever seen!”|
+    f: |
+      |41-45|“I went out to gather wood because [Vaughn] refuses. Found a big, fresh hole in the ground. Made me turn right back.”|
+    c: |
+      |26-30|“Those dwarves might be merchants, but they ain’t all about money. It’s their people that matters to them most.”|
+    d: |
+      |31-35|“[Tansy] owes me a new cloak. I paid for that thing weeks ago, but she still ain’t caught enough animals to make it. It’s not getting any warmer!”|
+    a: |
+      |16-20|“[Percy], the woodcutter’s kid, was skulking about the mill at night. Something’s off with that boy.”|
+    b: |
+      |21-25|“Old [Orson] is always talking about the end of the world, but his promises never come true. Thank goodness that annoying old poop lives on the edge of town. Most keep away from him.”|
+    Y: |
+      |06-10|“I heard something was attacking the pigs over at the [Ellery] farm, but Ellery won’t let anyone near her land.”|
+    Z: |
+      |11-15|“The reeve needs a hand. People been stealing food for weeks, and she’s done squat about it.”([Reeve Rosamund])|
+    W: |
+      |d100	|Rumor	|
+    X: |
+      |01-05|“That old tomb outside town might be haunted … but it’s definitely full of old traps. Don’t go poking around there willy-nilly.”|
+    U: |+
+      **Tavern Rumors**
+
+    V: |+
+      [[/r d100| Roll a d100]]
+
+    S: |+
+      |The hero learns three rumors from the Tavern Rumors table.
+
+    T: |+
+      When a hero learns a rumor, you can choose one from the table, or you can roll randomly to see what they know. If you roll for a rumor and get a rumor that is no longer relevant to the heroes or is something they already know, reroll or pick a different rumor that would be helpful to them. If the heroes learn all the rumors, you can create more of your own or let the heroes know that for now they’ve learned everything there is to learn from hanging out in the tavern.
+
+    Q: |
+      |The hero learns one rumor from the Tavern Rumors table.
+    R: |
+      |The hero learns two rumors from the Tavern Rumors table.
+    O: "If the heroes want to gossip at the tavern, each hero should make a Presence test to determine how well they mingle with the locals and what rumors they learn.\n \n"
+    P: |
+      |Gather Rumors: Presence Test
+    M: |+
+      **If asked about the dwarf merchants:** “Ah, they’re bringing stone for [Dunquat], but it seems they can’t agree on a price. That’s a tough go. [Dunquat] prides herself on using quality dwarf stone.”
+
+
+    N: |
+      # Gossip at the Tavern
+    K: |+
+      **If asked about Broadhurst or general happenings:** “Honestly, I don’t know much, love, but I can say that if you’re around in the evening and want to take a pint with some folks in the common room, they’ll happily gossip ’til the sun’s rising.”
+
+    L: |+
+      **If asked about the [Gilded Hand]:** “Came all the way from Wend, they did. I heard them sayin’ they battled cultists in some tomb! I can’t imagine why they came all the way out here. As far as I can tell, no one in Broadhurst can afford them.”
+
+    I: |
+      ## Gweldyr
+    J: |+
+      [Gweldyr] is always happy to greet the heroes as they enter the inn, and her greetings become warmer with every quest they accomplish. She’s polite but doesn’t like to waste time. There’s always something to take care of, especially with the inn this packed. If asked about Broadhurst or its happenings, [Gweldyr] offers the following information:
+
+    G: |
+      > * “The inn is full at the moment. In addition to yourselves, a mercenary band called the [Gilded Hand] stays here. They don’t seem to think highly of anyone who can’t afford them, which is everyone in this village.”
+    H: |+
+      > * “A group of [dwarf merchants] stays here as well. They mostly keep to themselves, but they do take over a corner of the inn for quiet conversation when they eat.”
+
+
+    E: |
+      > * “Its rooms are clean, if simple and sparse. A large common room on the first floor serves as Broadhurst’s tavern, where locals and travelers can meet, gossip, and enjoy a meal and a drink.”
+    F: |
+      > * “Rosy-cheeked, middle-aged [Gweldyr] runs the place and serves as the bartender. She’s kind but always in a rush.”
+    C: |+
+      The heroes are already staying at this inn at the start of the adventure. When they return here or if they ask about the location, share the following information:
+
+    D: |
+      > * “The Feather Bed Inn is the largest building in all Broadhurst, standing two stories tall.”
+    B: |+
+      # B1. Feather Bed Inn
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 89857c66-9022-4762-8692-fc31d2e54bec
+mtime: 1763714760738
+content: "# B1. Feather Bed Inn\n\nThe heroes are already staying at this inn at the start of the adventure. When they return here or if they ask about the location, share the following information:\n\n> * “The Feather Bed Inn is the largest building in all Broadhurst, standing two stories tall.”\n> * “Its rooms are clean, if simple and sparse. A large common room on the first floor serves as Broadhurst’s tavern, where locals and travelers can meet, gossip, and enjoy a meal and a drink.”\n> * “Rosy-cheeked, middle-aged [Gweldyr] runs the place and serves as the bartender. She’s kind but always in a rush.”\n> * “The inn is full at the moment. In addition to yourselves, a mercenary band called the [Gilded Hand] stays here. They don’t seem to think highly of anyone who can’t afford them, which is everyone in this village.”\n> * “A group of [dwarf merchants] stays here as well. They mostly keep to themselves, but they do take over a corner of the inn for quiet conversation when they eat.”\n\n\n## Gweldyr\n[Gweldyr] is always happy to greet the heroes as they enter the inn, and her greetings become warmer with every quest they accomplish. She’s polite but doesn’t like to waste time. There’s always something to take care of, especially with the inn this packed. If asked about Broadhurst or its happenings, [Gweldyr] offers the following information:\n\n**If asked about Broadhurst or general happenings:** “Honestly, I don’t know much, love, but I can say that if you’re around in the evening and want to take a pint with some folks in the common room, they’ll happily gossip ’til the sun’s rising.”\n\n**If asked about the [Gilded Hand]:** “Came all the way from Wend, they did. I heard them sayin’ they battled cultists in some tomb! I can’t imagine why they came all the way out here. As far as I can tell, no one in Broadhurst can afford them.”\n\n**If asked about the dwarf merchants:** “Ah, they’re bringing stone for [Dunquat], but it seems they can’t agree on a price. That’s a tough go. [Dunquat] prides herself on using quality dwarf stone.”\n\n\n# Gossip at the Tavern\nIf the heroes want to gossip at the tavern, each hero should make a Presence test to determine how well they mingle with the locals and what rumors they learn.\n \n|Gather Rumors: Presence Test\n|The hero learns one rumor from the Tavern Rumors table.\n|The hero learns two rumors from the Tavern Rumors table.\n|The hero learns three rumors from the Tavern Rumors table.\n\nWhen a hero learns a rumor, you can choose one from the table, or you can roll randomly to see what they know. If you roll for a rumor and get a rumor that is no longer relevant to the heroes or is something they already know, reroll or pick a different rumor that would be helpful to them. If the heroes learn all the rumors, you can create more of your own or let the heroes know that for now they’ve learned everything there is to learn from hanging out in the tavern.\n\n**Tavern Rumors**\n\n[[/r d100| Roll a d100]]\n\n|d100	|Rumor	|\n|01-05|“That old tomb outside town might be haunted … but it’s definitely full of old traps. Don’t go poking around there willy-nilly.”|\n|06-10|“I heard something was attacking the pigs over at the [Ellery] farm, but Ellery won’t let anyone near her land.”|\n|11-15|“The reeve needs a hand. People been stealing food for weeks, and she’s done squat about it.”([Reeve Rosamund])|\n|16-20|“[Percy], the woodcutter’s kid, was skulking about the mill at night. Something’s off with that boy.”|\n|21-25|“Old [Orson] is always talking about the end of the world, but his promises never come true. Thank goodness that annoying old poop lives on the edge of town. Most keep away from him.”|\n|26-30|“Those dwarves might be merchants, but they ain’t all about money. It’s their people that matters to them most.”|\n|31-35|“[Tansy] owes me a new cloak. I paid for that thing weeks ago, but she still ain’t caught enough animals to make it. It’s not getting any warmer!”|\n|36-40|“When [Mikael] came back with that bite, I thought for sure he was dead. But just a few days later he was right as rain—healthier than I ever seen!”|\n|41-45|“I went out to gather wood because [Vaughn] refuses. Found a big, fresh hole in the ground. Made me turn right back.”|\n|46-50|“If [Harim] doesn’t get that leather soon, I’ll have to make my own boots out of leaves.”|\n|51-55|“[Dunquat] thinks of herself as an artist. She won’t work with just any stone. It has to be dwarf hewn!”|\n|56-60|“That [Gilded Hand] won’t take any job here in town. Why the heck did they come here anyway?”|\n|61-65|“I saw one of those [Gilded Hand] folks talking about the tomb. They seem real interested in visiting that haunted place!”|\n|66-70|“You know the [Gilded Hand] ousted a cult out of some knight’s crypt near Wend. Old knight from ancient times … Caelian, I think.”|\n|71-75|“That elf in the [Gilded Hand] seems mighty uncomfortable. Even when she’s just with her friends, she’s always anxiously twisting that emerald ring.”|\n|76-80|“Out of the east road the other day and I heard some clanging coming from the old wizard tower. I swear the mage’s ghost is knocking about in there!”|\n|81-85|“When I got my meat back from the smokehouse, it was a lot less than I remember. [Saberna] said the smoking shrinks the meat. Is that true?”|\n|86-90|“I don’t suppose you’re a butcher? [Brune]’s fine with a cleaver, but my gods, is that one surly lump of a man. I’d pay a little more just to avoid him.”|\n|91-95|“Here’s the thing. There’s more than one kind of bandit on the road. I heard we got goblins, we got humans, we got orcs, and even ogres! Are they working together?”|\n|96-100|“[Reeve Rosamund] ain’t greedy. She’s not driven by power either. She just wants to protect us. Poor woman is overworked.”|\n\n\n# Other Relevant Notes\n\n## [Gilded Hand]\n\n## [Dwarf Merchants]\n\n\n \n\n"
+description: B1. Feather Bed Inn

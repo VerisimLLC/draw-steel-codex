@@ -1,0 +1,201 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 045e750a-e626-4a0e-8abe-e869ad3ff27b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Lizardfolk Scaletooth	Level 1 Platoon Brute
+        Humanoid, Lizardfolk	EV 6
+        <b>Stamina</b> 46
+        <b>Speed</b> 5 (swim)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 4
+        Might +2	Agility +1	Reason 0	Intuition 0	Presence 0
+        <b>Razor Bite</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	9 damage
+        %E2%9C%B8	<b>17</b>	12 damage; A<2 bleeding (save ends)
+        <b>Effect</b> The potency of this ability increases by 1 if the target is grabbed by the scaletooth.
+
+        <b>Tail Whip</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 2 Malice
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; slide 1
+        %E2%98%85	<b>12%E2%80%9316</b>	8 damage; slide 2; M<1 grappled if within 2 of the scaletooth
+        %E2%9C%B8	<b>17</b>	10 damage; slide 3; M<2 grappled if within 2 of the scaletooth
+        <b>Effect</b> The scaletooth needs their tail to use this ability. The scaletooth can't grapple more than one creature or object with this ability.
+
+        <b>Reptilian Escape</b>
+        While the scaletooth still has a tail, whenever the scaletooth is grabbed, slowed, weakened, or knocked prone, the scaletooth can lose their tail to immediately end the effect and shift 2.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0e7841f5-af27-4b2e-bca3-9289ed10ffd1: true
+      modifiers: []
+      name: Reptilian Escape
+      description: While the scaletooth still has a tail, whenever the scaletooth is grabbed, slowed, weakened, or knocked prone, the scaletooth can lose their tail to immediately end the effect and shift 2.
+      guid: 0e7841f5-af27-4b2e-bca3-9289ed10ffd1
+      source: Trait
+    role: Platoon Brute
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Lizardfolk: true
+    max_hitpoints_roll: "46"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    monster_type: Lizardfolk Scaletooth
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 46
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage
+        - 12 damage; A<2 bleeding (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 10bf3fb7-07b7-4855-8b8e-d0628431f0c5
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Razor Bite
+      numTargets: 1
+      description: The potency of this ability increases by 1 if the target is grabbed by the scaletooth.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 170dd787-3226-443f-addb-6a1bdee60024
+      abilityType: none
+      numTargets: 2
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; slide 1
+        - 8 damage; slide 2; M<1 grabbed if within 2 squares of the scaletooth
+        - 10 damage; slide 3; M<2 grabbed if within 2 squares of the scaletooth
+        roll: 2d10 + Might
+      name: Tail Whip
+      implementation: 3
+      description: The scaletooth needs their tail to use this ability. The scaletooth can't grapple more than one creature or object with this ability.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: d3456343-2a59-400e-af7d-dbb4bd9c8347
+    movementSpeeds:
+      swim: 5
+    ev: 6
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: e368b29a-eb6a-4fe4-b2b2-53032809c293
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Lizardfolk Scaletooth
+parentFolder: 40714605-54b3-4a20-b782-f427973a5a25
+artist: null
+ord: 0
+ctime: 1741590320783
+mtime: 1775201137032
+hidden: false

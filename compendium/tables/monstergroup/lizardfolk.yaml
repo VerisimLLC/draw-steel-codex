@@ -1,0 +1,96 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: agl
+    roll: 2d10 + Agility
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - Restrained (save ends).
+    - Restrained (Eot).
+    - No effect.
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "3"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 2fbcb4da-efc8-4544-a93f-efea82ed390e
+  abilityType: none
+  numTargets: "1"
+  preDescription: A lizardfolk acting this turn sets up a net trap into the area. The first time an enemy steps into a square with a net trap, they make an Agility test. If the creature was unaware of the trap, they take a bane on the test.
+  channeledResource: none
+  name: Net Trap
+  radius: "1"
+  targetType: cube
+  description: Any creature not also restrained by a net trap who is adjacent to a creature restrained by the trap can free them as a maneuver.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    isTest: true
+    roll: 2d10 + Might or Reason
+    resistanceRoll: false
+    tiers:
+    - The creature falls into the pit and is knocked prone.
+    - The creature fails to empty the pit.
+    - The pit empties of water.
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 221fbb4b-d73e-4530-8597-3a83a8b74179
+  numTargets: "1"
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Water Pit
+  targetType: target
+  description: |-
+    A lizardfolk acting this turn unearths a magical size 2 pit that is 2 squares deep and filled with water. Any lizardfolk who moves into, then exits the pit on their turn gains 10 temporary Stamina, regrows their tail if applicable, and ends one effect on them that can be ended by a saving throw. 
+
+    While adjacent to the pit, any
+    creature who can burrow or who has the Nature skill can make a Might test or a Reason test to drain it.
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "7"
+  strain: []
+  guid: 6c4d1e16-1381-40d5-842d-e88a48c600f1
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Flood the Shores
+  range: 1
+  description: Waist-high water floods the entire encounter map. Any lizardfolk submerged in water gains an edge on abilities and doubles their speed while swimming. If there are no open water pits on the encounter map, the water drains away at the end of the round.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762952817813
+name: Lizardfolk
+traits: []
+attacks: []
+id: d3456343-2a59-400e-af7d-dbb4bd9c8347
+ctime: 1758524876939

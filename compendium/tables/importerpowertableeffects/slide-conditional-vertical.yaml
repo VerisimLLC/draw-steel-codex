@@ -1,0 +1,31 @@
+__typeName: ActivatedAbility
+id: afb23355-70e5-43b3-b66d-19631b763aa0
+behaviors:
+- __typeName: ActivatedAbilityDrawSteelCommandBehavior
+  rule: vertical slide <<number>>
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: slide 2; the slide is vertical
+- text: slide 3, the slide is vertical
+- text: slide 4  the slide is vertical
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 937cc0c0-ff47-4718-98e0-183afcb8c0d9
+importMatch: slide <<number>>[;,]? +the slide is vertical
+ctime: 1755295458603
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Slide Conditional Vertical
+targetType: self
+mtime: 1765298039455
+abilityType: none
+iconid: ui-icons/skills/1.png

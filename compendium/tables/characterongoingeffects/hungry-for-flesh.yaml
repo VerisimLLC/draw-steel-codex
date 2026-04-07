@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 18a4f0d3-f9c3-4e44-ad3e-350001008f6d
+id: 18a4f0d3-f9c3-4e44-ad3e-350001008f6d
+ctime: 1757250501408
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+name: Hungry For Flesh
+statusEffect: true
+description: Damage Counter for Clobber & Clutch
+mtime: 1757253689881
+iconid: da22a911-febf-451c-8e0f-d53673a62216

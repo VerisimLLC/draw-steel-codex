@@ -1,0 +1,994 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 24501605-e3de-49ea-b5fd-a1f464b5efd6
+    offtokenPortraitId: null
+    portraitFrameId: 9242a1db-25ff-403c-908c-010ef15dc821
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.01116323
+      y: 0.2257806
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1cd7dd68-6e82-4c87-8d1a-338260a1141d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    animations:
+      anim:
+      - resources:
+          289c4697-1d34-44a9-ad7f-49c5e1aa0dbc: 1
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 3d4955c5-acfb-47bc-bcf2-7c14d24d3605-2217
+    ev: 20
+    max_hitpoints_roll: "120"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        cd6e09b7-5699-460d-be33-ca5768e15a8c:
+          refreshid: 0f7f874a-52f7-4feb-9174-e984c3be3b57-2
+          note: Melee Free Strike
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 0/1
+        2437bba5-3b9f-41f5-9368-b21b6ea012b9:
+          note: Agonizing Harmony
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 1/1
+        10e83f37-cc61-4030-a878-c3dc9ba1cf23:
+          note: Agonizing Harmony
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 1/1
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Demon Chorogaunt
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        7f68030c-5d56-46d2-9ef5-00e360e71955:
+          refreshid: 0f7f874a-52f7-4feb-9174-e984c3be3b57-2
+          note: "Used triggered ability: I Thrive on Pain"
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 0/1
+        16ad7da5-81ac-43af-8455-55fb253ccc57:
+          refreshid: 0f7f874a-52f7-4feb-9174-e984c3be3b57-3
+          note: "Used triggered ability: I Thrive on Pain"
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 0/1
+        ff62928e-82dc-47fa-9db8-df57064cf64b:
+          refreshid: 15e099ac-c448-4a94-99ec-0298f479c620-1
+          note: "Used triggered ability: I Thrive on Pain"
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 0/1
+    levelChoices: []
+    899df28d-b203-4f5f-bc7a-d9c672d5aa18_history:
+      __typeName: StatHistory
+      entries:
+        708a92bb-6066-4b7a-bffb-570feeea6bbd:
+          refreshid: 15e099ac-c448-4a94-99ec-0298f479c620
+          note: Frightening Tones
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-1/0"
+    8e92846f-daa3-4443-8946-fee439679ca4_history:
+      __typeName: StatHistory
+      entries:
+        f14012c5-027a-4a08-8949-f5d3a25d75d0:
+          refreshid: 345a7d37-7481-4c68-b981-6bf4dbcb806e
+          note: Bully the Weak
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-1/0"
+        41898a4d-9913-42b5-b897-6d6b0e620899:
+          refreshid: 15e099ac-c448-4a94-99ec-0298f479c620
+          note: Bully the Weak
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-1/0"
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 psychic damage; I<1 slowed (save ends)
+        - 7 psychic damage; I<2 slowed (save ends)
+        - 10 psychic damage; I<3 slowed (save ends)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            filterTarget: ""
+            standardAbilityParams:
+              distance: "<<Target.Walking Speed>>"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 46ba73df-85e7-4fdd-b347-7753464909b3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 35d9e00b-ee99-45ec-88d0-1eb17d513c69
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 090c096b-0841-45db-bb48-175f51a3bf75
+        standardAbilityParams:
+          range: "10"
+          count: "1"
+        abilityType: custom
+        promptWhenResolving: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: "5"
+      effectImplemented: false
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 58413fb5-0b72-4f2d-a793-fca8902f514a
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      targetType: all
+      name: Agonizing Harmony
+      iconid: ui-icons/skills/1.png
+      description: One ally within 10 squares of the chorogaunt shifts up to their speed.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: Slide 3 ignoring stability
+        promptWhenResolving: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: "10"
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 05d4a494-da3f-4565-9a1d-ec02f67d6ea9
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      castImmediately: true
+      iconid: ui-icons/skills/1.png
+      targetType: all
+      name: Chaotic Entrancing Harmony
+      numTargets: "1"
+      description: The chorogaunt slides each target up to 3 squares, ignoring stability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: targets
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: ""
+          targetTextOverride: ""
+          repeatTargets: false
+          rangeTextOverride: ""
+          behaviors: []
+          multipleModes: variations
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList:
+          - variation:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Target.ID = <<targetid>>
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: Frightened (save ends)
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: "10"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 2a27d919-822b-4f57-be51-067d42500a13
+              domains: []
+              numTargets: "1"
+              name: Frightened Tones
+              targetType: all
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            text: Frightened
+            hasAbility: true
+            rules: ""
+          - variation:
+              __typeName: ActivatedAbility
+              targetFilter: Target.ID = <<targetid>>
+              repeatTargets: false
+              targetType: all
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: "10"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 5d3a4296-3b45-4e51-8b53-b6217e4698d6
+              domains: []
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                damageType: psychic
+                roll: "5"
+              name: Frightened Tones
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            text: 5 Psychic Damage
+            hasAbility: true
+            rules: ""
+          guid: d44620c7-eac7-4b30-abae-c14cb067832c
+          numTargets: "1"
+          name: Frightened Tones
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: ""
+        standardAbilityParams:
+          targetid: "<<Target.ID>>"
+        invokeOnCaster: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 10
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 899df28d-b203-4f5f-bc7a-d9c672d5aa18
+        multicharge: false
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 7ef358da-e962-4df9-9e3e-00a6cc330291
+      implementation: 3
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      numTargets: 3
+      sourceReference:
+        __typeName: SourceReference
+        page: 64
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      name: Frightening Tones
+      effectImplemented: true
+      description: Each target must choose between taking 5 psychic damage or being frightened (save ends).
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 275eef5f-67b5-4bf8-bc01-3c42337d502f
+            duration: endround
+            ongoingEffectCustom: 275eef5f-67b5-4bf8-bc01-3c42337d502f
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+            quantity: Count Nearby Enemies(100)
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: "100"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: e5312e6f-aff5-443e-9971-2bdde1438993
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: all
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 10
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 8e92846f-daa3-4443-8946-fee439679ca4
+        multicharge: false
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      iconid: ui-icons/skills/1.png
+      strain: []
+      guid: 922e4a9c-f308-40cf-aef0-d7a7861572f6
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      effectImplemented: false
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 67
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      name: Bully the Weak
+      displayOrder: 64
+      description: The chorogaunt kills the target, and each other ally in the encounter deals an extra 3 damage on strikes until the end of the round. The Director gains malice equal to the number of heroes in the encounter.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 55bfb139-7684-42c3-8cbd-2dcec586270b
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: ""
+        standardAbilityParams:
+          distance: "<<Movement Speed>>"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        namedAbility: Agonizing Harmony
+        abilityType: named
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 03cc59ca-343e-4a8e-a8f0-a5507b245d93
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: fb375860-6232-4927-9c67-db5d9848b742
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+        standardAbilityParams:
+          distance: "<<Movement Speed>>"
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        namedAbility: Agonizing Harmony
+        abilityType: named
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 86a8f463-680d-4220-832c-ac60f9aefa3f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 64
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 289c4697-1d34-44a9-ad7f-49c5e1aa0dbc
+        multicharge: false
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      categorization: Villain Action
+      strain: []
+      guid: 634cabc3-3c6b-45fe-90c9-1646b776b14d
+      targetType: self
+      numTargets: "1"
+      castImmediately: true
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      effectImplemented: false
+      name: Running Cacophony
+      iconid: ui-icons/skills/1.png
+      description: The chorogaunt shifts up to their speed, uses their Agonizing Harmony, shifts up to their speed, and then uses their Agonizing Harmony again.
+      abilityType: none
+      implementation: 4
+    ongoingEffects: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        f6edc4a2-d9a4-429a-abbd-9b4c295cf19d:
+          note: 10 damage from (unnamed token)'s Ranged Free Strike
+          disposition: bad
+          attackerid: 416d7e94-18be-4438-b703-b274d84ab5c1
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 110
+        50308a59-5006-417b-8aa3-d6e36736c1df:
+          note: 4 damage from (unnamed token)'s Ranged Free Strike
+          disposition: bad
+          attackerid: 416d7e94-18be-4438-b703-b274d84ab5c1
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 106
+        b71d3a61-c6ea-4228-8c78-4d3bda294e2a:
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 120
+        41906b39-3c4b-4a61-a3d4-48a3875376fb:
+          note: 3 damage from (unnamed token)'s Ranged Free Strike
+          disposition: bad
+          attackerid: 416d7e94-18be-4438-b703-b274d84ab5c1
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 95
+        04ec50e8-81ad-47a2-84eb-a951ac716725:
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 120
+        50088b3c-854c-440e-a796-1b4d9875af03:
+          note: 3 damage from (unnamed token)'s Ranged Free Strike
+          disposition: bad
+          attackerid: 416d7e94-18be-4438-b703-b274d84ab5c1
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 117
+        1bc29df3-50cd-4b69-be6f-8c74e0de18cf:
+          note: 8 damage from (unnamed token)'s Ranged Free Strike
+          disposition: bad
+          attackerid: 416d7e94-18be-4438-b703-b274d84ab5c1
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 98
+    minion: false
+    stability: 2
+    import:
+      type: mcdm
+      data: |
+        Demon Chorogaunt    Level 3 Leader
+        Abyssal, Demon    EV 20
+        <b>Stamina</b> 120    <b>Weakness</b> Holy 5
+        <b>Speed</b> 5    <b>Size</b> 1L/ <b>Stability</b> 2
+            <b>Free Strike</b> 5
+        Might +2    Agility +2    Reason +2    Intuition +2    Presence +2
+        <b>Agonizing Harmony</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 5 burst    <b>Target</b> Each enemy in the burst
+        %E2%9C%A6    %E2%89%A411    4 psychic damage; I<1 slowed (save ends)
+        %E2%98%85    12%E2%80%9316    7 psychic damage; I<2 slowed (save ends)
+        %E2%9C%B8    17+    10 psychic damage; I<3 slowed (save ends)
+        <b>Effect</b> An ally within 10 squares of the chorogaunt can shift up to their speed.
+
+        <b>Chaotic Entrancing Harmony</b> (Maneuver)
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst    <b>Target</b> Each enemy in the burst
+        <b>Effect </b>Each target slides 3, ignoring their stability.
+
+        <b>I Thrive on Pain</b> (Triggered Action) %E2%97%86 3 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self    <b>Target</b> Self
+        <b>Trigger </b>The chorogaunt is targeted by a strike.
+        <b>Effect </b>Any damage from the attack is halved, and the chorogaunt deals an additional 3 damage with their abilities until the end of their next turn.
+
+        <b>End Effect </b>
+        At the end of their turn, the chorogaunt can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Lethe</b>
+        While winded, the chorogaunt has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the chorogaunt can't be hidden from them.
+
+        <b>Frightening Tones</b> (Villain Action 1)
+        <b>Keywords</b> Ranged
+        <b>Distance</b> Ranged 10    <b>Target</b> Three enemies
+        <b>Effect </b>The chorogaunt allows each target to choose between taking 5 psychic damage or being frightened (save ends).
+
+        <b>Bully the Weak</b> (Villain Action 2)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10    <b>Target</b> One ally
+        <b>Effect </b>The chorogaunt kills the target, and each other ally deals an additional 3 damage on attacks until the end of the round. The Director gains malice equal to the number of heroes.
+
+        <b>Running Cacophony</b> (Villain Action 3)
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self    <b>Target</b> Self
+        <b>Effect </b>The chorogaunt shifts up to their speed, uses their Agonizing Harmony, shifts up to their speed, and then uses their Agonizing Harmony again.
+
+        Demons - 2nd Echelon
+        As demons consume more souls, and their mercurial forms shift into more powerful ones, they also begin to develop more distinct personalities, desires, and intelligence based on the souls consumed. It's now that demons begin to develop a particular taste for types of souls which, should they survive long enough, will eventually define them.
+        Higher Categories of Demons
+        The following demons have been identified across categories 4-6:
+        <b>Grulqin's</b> consist of a bulbous head two powerful arms and circular bone saw blade that runs down the middle of its head.
+        <b>Orliq</b> are made of shifting bone plates surrounding a swirling core of corruptive energy.
+        The <b>wobalas </b>prefers to kill from afar while protected by allies, firing physic arrows from bows made from their very flesh and sinew.
+        <b>Bale Eyes</b>, sometimes called a Flesh Moon, are colossal floating orbs of roiling, dripping flesh. A weeping seam opens to reveal a demonic eye whose gaze melts flesh from bone.
+        <b>Fangling </b>bodies are overgrown with teeth, fangs, and tusks from a thousand different creatures. Deadly to take on in close quarters, they've been known to get caught on one another.
+        <b>Gunge</b> demons are horrifically distended with maws that could swallow a horse whole. It vomits up bilious slime that traps and dissolves any unlucky enough to get caught in it.
+        <b>Niktin</b> are cunning hunters that disguise themselves as mundane objects that leave an oily foul smelling red residue wherever they are left. Their natural form is a humanoid made of red oil.
+        <b>Tourmenauk's</b> resemble a hulking ape with a dozen or more extra mouths distributed around their body. Though their brute force is formidable enough, this demon also inflicts raw psychic pain by screaming from their mouths in different voices-often using the agonized voices of souls the tormenauk has devoured.
+        <b>The Lumbering Egress</b> is a walking mass of warped flesh around a giant whirling portal to the demonic realms. Lesser demons pour out at alarming rates making these creatures devastating siege engines.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0849e011-de17-4d0b-9466-ae5dc0655755: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the chorogaunt can't be hidden from them.
+      guid: 0849e011-de17-4d0b-9466-ae5dc0655755
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0b01b05d-eb9e-41a5-849e-303a16852452: true
+        CharacterFeature:1fc7513a-90eb-4da4-828d-81c151dbb996: true
+        CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+        CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+        CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: self.Winded = 1
+        guid: 496a03ca-e538-4dce-8c63-a7cb24e17505
+        name: Lethe
+        domains:
+          CharacterFeature:0b01b05d-eb9e-41a5-849e-303a16852452: true
+          CharacterFeature:1fc7513a-90eb-4da4-828d-81c151dbb996: true
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the chorogaunt has an edge on strikes, and strikes have an edge against them.
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: Target.Winded = 1
+        guid: 948e3317-f29e-4dac-baa5-fc9ad6b6ef8e
+        name: Lethe
+        domains:
+          CharacterFeature:0b01b05d-eb9e-41a5-849e-303a16852452: true
+          CharacterFeature:1fc7513a-90eb-4da4-828d-81c151dbb996: true
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the chorogaunt has an edge on strikes, and strikes have an edge against them.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: While winded, the chorogaunt has an edge on strikes, and strikes have an edge against them.
+      guid: 0b01b05d-eb9e-41a5-849e-303a16852452
+      name: Lethe
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:efa55a11-beba-4b0a-bda4-9202657ec798: true
+        CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+        CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:efa55a11-beba-4b0a-bda4-9202657ec798: true
+          CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+          CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+        sourceguid: 58bdd65e-5a1b-4448-8a61-1b18d5171e7b
+        behavior: trigger
+        source: Trait
+        name: End Effect
+        description: At the end of each of their turns, the chorogaunt can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: End one save ends effect on self, take 5 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 686b899d-bbe0-4570-a964-0ec65bd7fe24
+          conditionFormula: Save Ends Effects
+          trigger: endturn
+          castImmediately: true
+          persistence: []
+          domains:
+            CharacterFeature:efa55a11-beba-4b0a-bda4-9202657ec798: true
+            CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+            CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+          name: End Effect
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "5"
+            conditions: []
+            purgeType: one
+            targetDuration: save
+          description: At the end of each of their turns, the chorogaunt can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 4dd0d1ad-4346-4f00-9990-fbc917509661
+      source: Trait
+      description: At the end of each of their turns, the chorogaunt can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+      guid: efa55a11-beba-4b0a-bda4-9202657ec798
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:99a31d99-f16b-4350-93f9-e56dd9834c6c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 99a31d99-f16b-4350-93f9-e56dd9834c6c
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          activationCondition: true
+          resourceCostType: cost
+          keywords:
+            Strike: true
+          modtype: none
+          source: Trigger
+          resourceCostAmount: "3"
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 227ae17d-2cd6-4da0-98f8-37b72ffa02c4
+            repeatTargets: false
+            trigger: d20roll
+            castImmediately: true
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: b86a037c-8b32-4170-921f-964a2fda57a1
+              duration: end_of_next_turn
+              ongoingEffectCustom: b86a037c-8b32-4170-921f-964a2fda57a1
+            numTargets: "1"
+            name: New Ability
+            targetType: self
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          rollType: ability_power_roll
+          rules: ""
+          guid: fafb8c90-77c3-430b-9ad4-7c1465225497
+          behavior: power
+          name: I Thrive on Pain
+        guid: f74b294d-8799-44dd-82b7-a7f173ab0b46
+        type: trigger
+        domains:
+          CharacterFeature:99a31d99-f16b-4350-93f9-e56dd9834c6c: true
+        targetType: self
+        trigger: strike
+        name: I Thrive on Pain
+        rules: ""
+        description: ""
+        range: 10
+        behavior: powertabletrigger
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:99a31d99-f16b-4350-93f9-e56dd9834c6c: true
+        sourceguid: 99a31d99-f16b-4350-93f9-e56dd9834c6c
+        behavior: triggerdisplay
+        source: Character Feature
+        name: I Thrive on Pain
+        description: ""
+        guid: db6341c6-e594-4ab9-af97-70074991e231
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: Any damage from the strike is halved, and the chorogaunt's abilities deal an extra 3 damage until the end of their next turn.
+          name: I Thrive on Pain
+          trigger: The chorogaunt is targeted by a strike
+          cost: "3"
+          guid: be970e08-5e08-4955-8de0-0d71b7085891
+          distance: Self
+          keywords:
+            Magic: true
+      name: I Thrive on Pain
+      description: ""
+      guid: 99a31d99-f16b-4350-93f9-e56dd9834c6c
+      source: Character Feature
+    role: Leader
+    equipment: []
+    titles: []
+    opportunityAttack: 5
+    traitNames: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    notes:
+    - text: |-
+        Chorogaunts (cor-roh-GAWNTS) are terrifying demon leaders.
+        Each is an amalgamation of several demon bodies formed into a mobile musical instrument. Several heads are arranged into a chorus embedded in the demon's chest, and their ribs are upturned into a fleshy pipe organ. Their attacks entrance and confuse enemies, making them more vulnerable to other demons.
+      title: Monster Notes
+    max_hitpoints: 120
+    availableTriggers: []
+    initiativeGrouping: 5a366046-209b-477a-9440-1a167af71544
+    deathSavingThrowFailures: 0
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        71ce65fc-dbee-498d-bd2d-e6c58829ce7a:
+          note: Chaotic Entrancing Harmony
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 1/1
+        277cdd5a-1864-4c4e-aeaa-d5b94cb2ad29:
+          note: Chaotic Entrancing Harmony
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 1/1
+        3618113e-fa69-4bde-bba8-16317281cd0a:
+          note: Chaotic Entrancing Harmony
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 1/1
+        fd20f6e0-05ba-4f92-b9a7-8e0983c94884:
+          note: Chaotic Entrancing Harmony
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 1/1
+    keywords:
+      Demon: true
+      Abyssal: true
+    damage_taken: 0
+    creatureSize: 1L
+    walkingSpeed: 5
+    289c4697-1d34-44a9-ad7f-49c5e1aa0dbc_history:
+      __typeName: StatHistory
+      entries:
+        262f8dba-99dd-4e5a-b95e-95fcde6d62e6:
+          refreshid: 345a7d37-7481-4c68-b981-6bf4dbcb806e
+          note: Running Cacophony
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-1/0"
+    inflictedConditions: []
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    damageEntries:
+      ce9f1df5-7680-4192-a010-eccbc39c0210:
+        damage: 3
+        seq: 22
+        attackerid: 416d7e94-18be-4438-b703-b274d84ab5c1
+        id: ce9f1df5-7680-4192-a010-eccbc39c0210
+        damage_type: untyped
+    movementSpeeds: []
+    resources:
+      8e92846f-daa3-4443-8946-fee439679ca4:
+        __typeName: CharacterResource
+        refreshid: 345a7d37-7481-4c68-b981-6bf4dbcb806e
+        used: 1
+      899df28d-b203-4f5f-bc7a-d9c672d5aa18:
+        __typeName: CharacterResource
+        refreshid: 15e099ac-c448-4a94-99ec-0298f479c620
+        used: 1
+      289c4697-1d34-44a9-ad7f-49c5e1aa0dbc:
+        __typeName: CharacterResource
+        refreshid: 345a7d37-7481-4c68-b981-6bf4dbcb806e
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: 15e099ac-c448-4a94-99ec-0298f479c620-1
+        used: 1
+    monster_category: Monster
+    innateAttacks: []
+    notesRevision: 769c5a86-93c6-4641-845a-ee11a5769a15
+  tokenType: null
+  bestiaryId: 5dc871df-7973-4726-bada-a065e2c280d0
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1726301040866
+description: Demon Chorogaunt
+parentFolder: 003daf5c-52f0-4ea2-9283-a547f7b2422e
+artist: null
+ord: 9
+ctime: 1741590256451
+mtime: 1775201137032
+hidden: false

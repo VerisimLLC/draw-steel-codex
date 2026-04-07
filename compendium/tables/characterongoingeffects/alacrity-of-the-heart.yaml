@@ -1,0 +1,37 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a6193cc6-7d80-4f63-b0a9-c5a67c330c48
+  source: Ongoing Effect
+  guid: efc6c6fd-84b4-4463-96e0-34dce76f2ad9
+  domains:
+    CharacterOngoingEffect:a6193cc6-7d80-4f63-b0a9-c5a67c330c48: true
+  name: Alacrity of the Heart
+  description: The target has an additional main action they can use on their next turn
+  num: 1
+  resourceType: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  behavior: resource
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.147696480154991
+    s: 0.976190507411957
+    v: 0.988235294818878
+    a: 1
+guid: a6193cc6-7d80-4f63-b0a9-c5a67c330c48
+id: a6193cc6-7d80-4f63-b0a9-c5a67c330c48
+ctime: 1770273256326
+domains:
+  CharacterOngoingEffect:a6193cc6-7d80-4f63-b0a9-c5a67c330c48: true
+description: The target has an additional main action they can use on their next turn
+iconid: b67b89e6-cc8a-40bd-848b-37aef0455137
+endTrigger: endturn
+custom: true
+mtime: 1770273539532
+name: Alacrity of the Heart
+implementation: 3

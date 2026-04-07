@@ -1,0 +1,22 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 9a089375-38e4-4bd2-96ec-24c90b6405f1
+id: 9a089375-38e4-4bd2-96ec-24c90b6405f1
+ctime: 1765650101502
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00068640708923
+    v: 0.593727707862854
+    a: 1
+name: Swallowed
+description: 'A creature swallowed by Relg is restrained and takes 1d10 acid damage at the start of every turn. If Relg takes 40 or more damage in a single round from swallowed creatures, he immediately regurgitates all creatures he has swallowed. They land prone in unoccupied spaces within 3 squares of him. '
+custom: true
+mtime: 1765650118621
+iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e

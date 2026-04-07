@@ -1,0 +1,84 @@
+__typeName: Title
+effect: Whenever you deal damage to a target who is 2 or more squares away from you and that target isn’t also force moved, you can pull the target a number of squares equal to your Agility, Reason, or Intuition score (your choice).
+prerequisite: Result of 7 on the Fishing Events Table
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: "Master of Reels: Agility, Reason, or Intuition"
+    numChoices: 1
+    guid: 93c602e9-0073-4d29-8eac-bc671d65c577
+    description: 'Choose an attribute to use with this feature. '
+    options:
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 231d299a-b4e7-4421-8e58-922cffd5b0ab
+        displayCondition: Ability.doesdamage and Distance(Target) >= 2 and Ability.hasforcedmovement is false
+        source: Feat
+        modtype: none
+        adjustments: []
+        keywords: []
+        activationCondition: ""
+        addText: pull {Agility}
+        name: Master of Reels
+        rollType: ability_power_roll
+        description: Whenever you deal damage to a target who is 2 or more squares away from you and that target isn’t also force moved, you can pull the target a number of squares equal to your Agility, Reason, or Intuition score (your choice).
+        behavior: power
+        guid: 8b9297a5-42dc-4cb2-a769-b9a559335ca3
+      source: Feat
+      canHavePrerequisites: true
+      guid: 87962c53-cedc-40d3-9fa5-408c6d772e51
+      name: "Master of Reels: Agility"
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 231d299a-b4e7-4421-8e58-922cffd5b0ab
+        displayCondition: Ability.doesdamage and Distance(Target) >= 2 and Ability.hasforcedmovement is false
+        source: Feat
+        modtype: none
+        adjustments: []
+        keywords: []
+        activationCondition: ""
+        addText: pull {Reason}
+        name: Master of Reels
+        rollType: ability_power_roll
+        description: Whenever you deal damage to a target who is 2 or more squares away from you and that target isn’t also force moved, you can pull the target a number of squares equal to your Agility, Reason, or Intuition score (your choice).
+        behavior: power
+        guid: 8b9297a5-42dc-4cb2-a769-b9a559335ca3
+      source: Feat
+      canHavePrerequisites: true
+      guid: 045fe0ba-cffd-4b35-a912-4858d26ebd29
+      name: "Master of Reels: Reason"
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 231d299a-b4e7-4421-8e58-922cffd5b0ab
+        displayCondition: Ability.doesdamage and Distance(Target) >= 2 and Ability.hasforcedmovement is false
+        source: Feat
+        modtype: none
+        adjustments: []
+        keywords: []
+        activationCondition: ""
+        addText: pull {Intuition}
+        name: Master of Reels
+        rollType: ability_power_roll
+        description: Whenever you deal damage to a target who is 2 or more squares away from you and that target isn’t also force moved, you can pull the target a number of squares equal to your Agility, Reason, or Intuition score (your choice).
+        behavior: power
+        guid: 8b9297a5-42dc-4cb2-a769-b9a559335ca3
+      source: Feat
+      canHavePrerequisites: true
+      guid: 0dfc3861-1d8f-4b68-8641-fa61f7cf07d5
+      name: "Master of Reels: Intuition"
+      implementation: 3
+name: Master of Reels
+mtime: 1771783375519
+description: The hero reaches a new fishing milestone, gaining the following title and benefit.
+id: c5fd6e95-bf65-4a12-a40b-1eda365dfaef
+ctime: 1771782518288

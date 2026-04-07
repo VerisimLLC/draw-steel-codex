@@ -1,0 +1,24 @@
+__typeName: ActivatedAbility
+id: 82eadc81-3bbc-42b7-8968-a257114e82f8
+behaviors: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 231f6f2e-bc19-4686-9826-031848c692aa
+ctime: 1770264221792
+targetType: self
+numTargets: "1"
+mtime: 1770264221792
+name: New Ability
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

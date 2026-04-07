@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.343137264251709
+    s: 0.795321643352509
+    v: 0.670588254928589
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  modtype: edge
+  keywords:
+    Strike: true
+  surges: stacks
+  behavior: power
+  domains:
+    CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+  name: Next Strike Has Edge
+  rollType: ability_power_roll
+  description: The next strike this creature makes has an Edge
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  activationCondition: true
+source: Ongoing Effect
+endTrigger: attack
+stackable: true
+id: fab3c9a5-f7c1-488c-98a7-79dc269a5e3b
+ctime: 1760065700520
+domains:
+  CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+implementation: 3
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+name: Next Strike Has Edge
+categorization: common
+description: The next strike this creature makes has an Edge
+mtime: 1760065700520
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e

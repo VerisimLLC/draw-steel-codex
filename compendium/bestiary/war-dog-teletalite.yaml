@@ -1,0 +1,415 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7612de96-e407-4e0a-b7f6-c26455aaed10
+  properties:
+    __typeName: monster
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    ongoingEffects: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        War Dog Phosphorite	Level 2 Horde Hexer
+        Humanoid, War Dog	EV 4
+        <b>Stamina</b> 15	<b>Immunity</b> Acid 2
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 2
+        Might +0	Agility +1	Reason +0	Intuition +0	Presence +0
+        <b>Caustic Detonator</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature or object
+        <b>Effect </b>A detonator attaches to the target. At the end of each round, roll a die. On an odd result, the detonator explodes, triggering the power roll.
+        %E2%9C%A6	%E2%89%A411	4 acid damage; M<0 bleeding (save ends)
+        %E2%98%85	12%E2%80%9316	6 acid damage; M<1 bleeding (save ends)
+        %E2%9C%B8	17+	10 acid damage; M<2 bleeding (save ends)
+        <b>Special</b> An adjacent creature can attempt an <b>easy Agility test </b>to remove the detonator as a maneuver. A failure does nothing, a success disarms and destroys the detonator, and a success with a reward allows the disarming creature to throw the detonator onto another target within 5 squares.
+
+        <b>Posthumous Promotion</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One war dog with a loyalty collar
+        <b>Effect </b>The target's loyalty collar detonates, killing them instantly.
+
+        <b>Loyalty Collar</b>
+        When the phosphorite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3f603d91-5ecc-46ac-aa09-9e5d6b120b14: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          targetType: all
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: When the teletalite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the teletalite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      guid: 3f603d91-5ecc-46ac-aa09-9e5d6b120b14
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        8965386f-38aa-442d-ae70-b6dac2abf0bf:
+          note: Posthumous Promotion
+          timestamp: 1772948047647
+          refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 0/1
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        1d65ff70-2317-4cd2-8be8-75aaa054b55d:
+          note: Corrupted Ash Daggers
+          timestamp: 1772947537172
+          refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-4/1"
+        74e068ca-ca61-4167-b691-de3002d8cfda:
+          note: Corrupted Ash Daggers
+          timestamp: 1772947519625
+          refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-3/1"
+        7b1306e9-aa7d-4d56-b33e-76eb8d300aad:
+          timestamp: 1772946799842
+          note: Corrupted Ash Daggers
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 1/1
+        b5d8b4a5-de0b-43f8-b32f-05bdd2761c01:
+          note: Corrupted Ash Daggers
+          timestamp: 1772947157126
+          refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-2/1"
+        c4e584ec-436f-49b2-9368-ffec2cace674:
+          note: Corrupted Ash Daggers
+          timestamp: 1772947828221
+          refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-5/1"
+        e01acb51-3eb9-46b6-9f76-470f2a0a9335:
+          note: Corrupted Ash Daggers
+          timestamp: 1772946837664
+          refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: 0/1
+        c7be93fe-927e-41e5-9edc-34e9f54c5ccd:
+          note: Corrupted Ash Daggers
+          timestamp: 1772946870997
+          refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-1/1"
+        f8d22d87-cca5-4a04-9623-fbac890ea10b:
+          note: Corrupted Ash Daggers
+          timestamp: 1772947850173
+          refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+          userid: 7C9SQf9WJgV09zNx5Mmh7AqGNDG3
+          set: "-6/1"
+    damage_taken: 0
+    notes:
+    - text: ""
+      title: Monster Notes
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 7
+        refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 0a11a7fb-2b22-4701-856c-5ab2b9410c6f-1-1c87c007-4594-4e46-ac0a-e4a7e10d88ef
+    ev: 3
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 302
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      guid: f2c8b5dc-7199-47e8-8b42-53cc32942b6f
+      strain: []
+      maxChannel: "1"
+      implementation: 4
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      name: Corrupted Ash Daggers
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - "4 damage; #slide 1"
+        - "6 damage; #slide 2"
+        - "7 damage; #slide 3"
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 570f80d4-a98e-4478-b599-4de345f845bb
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 570f80d4-a98e-4478-b599-4de345f845bb
+          displayCondition: "1"
+          modtype: edge
+          keywords: []
+          activationCondition: (Target.Count Nearby Enemies(1) > 1) when Caster.Distance(Target) = 1 else ((Target.Count Nearby Enemies(1) > 0))
+          guid: f0e1dafc-695b-4719-a2eb-198f3c047ac3
+          name: Ally adjacent to target
+          domains: []
+          description: The teletalite gains an edge on this ability if any ally is adjacent to the target.
+          behavior: power
+          rollType: ability_power_roll
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: targets
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 151cae45-f669-48c1-bcd5-3f7be6e308ce
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: Charges > 0
+        standardAbilityParams:
+          targetid: "<<Target.ID>>"
+          range: "3"
+          targetfilter: "<<Target.ID>>"
+        standardAbility: 86145a1e-29cd-4658-8561-81705fa48c62
+        abilityType: standard
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        tiersSelected:
+        - 1
+        rule: slide 1
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        tiersSelected:
+        - 2
+        rule: slide 2
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        tiersSelected:
+        - 3
+        rule: slide 3
+      description: |-
+        The teletalite gains an edge on this ability if any ally is adjacent to the target.
+        **1 Malice:** The teletalite teleports the target 3 squares before sliding them.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Target has "Loyalty Collar"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: "10"
+      effectImplemented: false
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: f3a41f02-0e85-4131-982c-19fd6ceaa6d5
+      persistence: []
+      targetType: target
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      selfTarget: true
+      name: Posthumous Promotion
+      iconid: ui-icons/skills/1.png
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 44f31caa-771c-4cf2-a6bb-b3baf82b7cfb
+        duration: 0
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 302
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 5a94fad8-2499-4e48-a5df-03d1096e618e
+      targetType: emptyspace
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      iconid: ui-icons/skills/1.png
+      numTargets: "1"
+      name: Corrupted Ash Teleport
+      categorization: Malice
+      description: The teletalite can teleport up to 5 squares and gains an edge on strikes until the end of their turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    monster_type: War Dog Teletalite
+    movementSpeeds: []
+    walkingSpeed: 5
+    creatureSize: 1M
+    initiativeGrouping: 58c76e31-d1e7-48f7-ac90-e3ad4b1b5f20
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: 35dfb273-795e-404f-9d27-196084811571-191
+  tokenType: null
+  bestiaryId: 56ef138b-f59e-4fb8-9c39-99141f0ffcc9
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: null
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 14
+ctime: 1772946021288
+mtime: 1775167420130
+hidden: false

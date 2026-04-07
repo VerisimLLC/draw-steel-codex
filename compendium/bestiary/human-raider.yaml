@@ -1,0 +1,263 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: ab1324e6-1be3-4635-a6e9-ecc01fe42157
+    offtokenPortraitId: 21198ae9-7dff-43bf-b60f-619a00234a33
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 2b02a5ab-38ce-4406-b4a5-3889b80ab574
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.368974
+    portraitOffset:
+      x: -0.03765476
+      y: 0.1659292
+    frameHueShift: 0
+    frameSaturation: 0.5231953
+    frameBrightness: 0.4357408
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 68b8033b-88dc-437d-bafc-8dfc304473df
+  properties:
+    __typeName: monster
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Human: true
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Raider	Level 1 Minion Harrier
+        Human, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 4	<b>Immunity</b> Corruption 1, Psychic 1
+        <b>Speed</b> 7	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Edge on strikes	<b>Free Strike</b> 1
+        Might +0	Agility +2	Reason +0	Intuition +0	Presence +0
+        <b>Handaxes</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	1 damage
+        %E2%98%85	12%E2%80%9316	2 damage
+        %E2%9C%B8	17+	3 damage
+        <b>	Effect</b> If this ability is used while charging, the raider can make a ranged free strike before using the ability.
+
+        <b>Supernatural Insight</b>
+        The raider ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2f0300db-841c-4cfe-984e-1dbc5278de36: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:2f0300db-841c-4cfe-984e-1dbc5278de36: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The raider ignores concealment if it's granted by a supernatural effect.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The raider ignores concealment if it's granted by a supernatural effect.
+      guid: 2f0300db-841c-4cfe-984e-1dbc5278de36
+      name: Supernatural Insight
+      implementation: 3
+    role: Minion Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 1
+    withCaptain: Gain an edge on strikes
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        3b441b6d-9ad4-4443-b61e-f690f06c632b:
+          refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a-1
+          note: Charge
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/1"
+        5b298211-b8d1-4071-bc44-4f530d2cb90b:
+          refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a-1
+          note: Ranged Free Strike
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+    damage_taken: 0
+    ev: 3
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a-1
+        used: 2
+    savingThrowRatings: []
+    minionSquad: Human Raider Squad 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 2d72c687-ccb5-4931-b6e5-d2e106eadfd1
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Make a Ranged Free Strike before using Handaxes.
+        filterTarget: Caster.Charging > 0
+        standardAbility: 0ca5fc04-6068-4f47-b5c6-936d3a595f24
+        abilityType: standard
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 64035e03-e828-47c4-8d4b-71de94399caf
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 182
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Handaxes
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: If this ability is used while charging, the raider can make a ranged free strike before using the ability.
+      abilityType: none
+      implementation: 4
+    walkingSpeed: 7
+    movementSpeeds: []
+    creatureSize: 1M
+    monster_type: Human Raider
+    initiativeGrouping: 68bc4cce-5e1d-47d8-8ee7-0841ab3fe9c2
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: ceff0255-5e92-40d2-ab3c-2e800ea86de6-1559
+  tokenType: null
+  bestiaryId: 7b2d1bdd-9a22-47dc-8ab5-7341c86172af
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Human Raider
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590270148
+mtime: 1775201137032
+hidden: false

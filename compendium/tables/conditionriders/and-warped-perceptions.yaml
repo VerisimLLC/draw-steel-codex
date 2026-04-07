@@ -1,0 +1,53 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 0e4eeeea-2e4f-47b6-a130-e049be412b62
+    repeatTargets: false
+    abilityType: none
+    trigger: attack
+    targetType: self
+    numTargets: "1"
+    name: and Warped Perceptions
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      applyto: caster
+      text: Warped Perceptions
+      color: "#ffffffff"
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: "If the target makes a strike while weakened this way, the bendrak can choose a second target within distance for the strike.\v\vThe first target takes half of any damage from the strike and the second target takes any remaining damage."
+  source: Ongoing Effect
+  behavior: trigger
+  guid: d29652a3-9b04-4971-9560-829340efff36
+  name: and Warped Perceptions
+  sourceguid: 57eef735-8e00-4717-861c-0350de8061ee
+source: Ongoing Effect
+guid: 57eef735-8e00-4717-861c-0350de8061ee
+id: 57eef735-8e00-4717-861c-0350de8061ee
+ctime: 1760533794784
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+name: and Warped Perceptions
+description: "If the target makes a strike while weakened this way, the bendrak can choose a second target within distance for the strike.\v\vThe first target takes half of any damage from the strike and the second target takes any remaining damage."
+mtime: 1760533794784
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725

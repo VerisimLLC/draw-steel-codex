@@ -1,0 +1,67 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:3199f554-2209-40e1-bc91-661cd97065a2: true
+    CharacterOngoingEffect:5ed2f2c5-d8d9-4ba8-aa80-c741ef9c82c7: true
+  sourceguid: 3199f554-2209-40e1-bc91-661cd97065a2
+  description: Each square you push the target they take 1 psychic damage.
+  source: Ongoing Effect
+  name: Impart Force
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetFilter: ""
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      applyto: targets
+      roll: path.squares
+      damageType: psychic
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 5ed2f2c5-d8d9-4ba8-aa80-c741ef9c82c7
+      mode: effect
+      purgeType: all
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    numTargets: "1"
+    strain: []
+    guid: ef355a24-7ee2-4379-9d10-ac1ae649c98b
+    trigger: finishmove
+    castImmediately: true
+    conditionFormula: Path.Forced
+    domains:
+      CharacterOngoingEffect:3199f554-2209-40e1-bc91-661cd97065a2: true
+      CharacterOngoingEffect:5ed2f2c5-d8d9-4ba8-aa80-c741ef9c82c7: true
+    whenActive: combat
+    name: Impart Force
+    targetType: self
+    description: You take 1 psychic damage for each square you are pushed
+    abilityType: none
+    iconid: 56729dfc-0cf4-4b75-99db-61ae8ac81d71
+  guid: 46093db8-5ee1-4ada-9043-733b6819f91a
+source: Ongoing Effect
+guid: 3199f554-2209-40e1-bc91-661cd97065a2
+id: 5ed2f2c5-d8d9-4ba8-aa80-c741ef9c82c7
+ctime: 1757091594946
+domains:
+  CharacterOngoingEffect:3199f554-2209-40e1-bc91-661cd97065a2: true
+  CharacterOngoingEffect:5ed2f2c5-d8d9-4ba8-aa80-c741ef9c82c7: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Impart Force
+custom: true
+description: Each square you push the target they take 1 psychic damage.
+mtime: 1758078213081
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd

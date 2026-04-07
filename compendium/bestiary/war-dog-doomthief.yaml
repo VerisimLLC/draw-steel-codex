@@ -1,0 +1,231 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: 72f0634e-8d6a-4afc-884b-b9c824746cc8
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: a58f4f99-f71b-42df-b8a1-7de6e055421a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        War Dog Doomthief	Level 5 Horde Defender
+        Humanoid, War Dog	EV 7
+        <b>Stamina</b> 40
+        <b>Speed</b> 5	<b>Size</b> 1L /<b>Stability</b> 2
+        <b>Free Strike</b> 3
+        Might +3	Agility -1	Reason +0	Intuition +3	Presence +1
+        <b>Ripper Shrikegun</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 10 x 3 line within 1<b>Target</b> all enemies
+        %E2%9C%B8	<b>%E2%89%A411</b>	3 damage; push 1
+        %E2%98%85	<b>12-16</b>	5 damage; push 3
+        %E2%9C%A6	<b>17</b>	6 damage; push 5; A<3 slowed (save ends)
+        <b>Effect</b> The doomthief cannot move on the same turn they use this ability.
+
+        <b>Doom Magnet</b>
+        The doomthief emits a 3 aura of warped fate, blocking line of effect for enemy abilities that don't include the doomthief as a target.
+
+        <b>Expanding Doom</b> (Maneuver) %E2%97%86 4 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>Target</b> Self
+        <b>Effect </b>The doomthief gains damage immunity 4 and their doom magnet aura increases by 3 until the start of their next turn.
+
+        <b>Loyalty Collar</b>
+        When the doomthief dies, they explode, dealing 2d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:de4e6246-f05c-455b-8b64-cd7ef1f06bdf: true
+      modifiers: []
+      name: Doom Magnet
+      description: The doomthief emits a 3 aura of warped fate, blocking line of effect for enemy abilities that don't include the doomthief as a target.
+      guid: de4e6246-f05c-455b-8b64-cd7ef1f06bdf
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e543912d-ad8b-4cb3-910e-cc55f6341e46: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 2d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the doomthief is reduced to 0 Stamina, their loyalty collar explodes, dealing 2d6 damage to each adjacent enemy and object.
+      guid: e543912d-ad8b-4cb3-910e-cc55f6341e46
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Defender
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: War Dog Doomthief
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 40
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; push 1
+        - 5 damage; push 3
+        - 6 damage; push 5; A<3 slowed (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2b7e879b-8141-407a-8296-4422c81a6ec4
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Ripper Shrikegun
+      numTargets: 1
+      description: The doomthief cannot move on the same turn they use this ability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 4
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: cacfba9e-23aa-42a0-b80e-05b46040a219
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Expanding Doom
+      implementation: 0
+      description: The doomthief gains damage immunity 4 and their doom magnet aura increases by 3 until the start of their next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 7
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: da5dda13-a53e-4722-9543-4ecbcd94bb57
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Doomthief
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 5
+ctime: 1749972314895
+mtime: 1775201137032
+hidden: false

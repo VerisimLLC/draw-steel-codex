@@ -1,0 +1,4106 @@
+__typeName: Class
+heroicResourceChecklist:
+- mode: encounter
+  details: When combat begins you gain Insight equal to your Victories.
+  name: Start of Combat
+  guid: 8754e90a-32aa-47a1-b379-dd1f3a98fa8e
+  quantity: Victories
+- mode: round
+  details: At the start of your turn you gain 1d3 Insight.
+  name: Start of Turn
+  guid: bde1d223-fe12-476d-94d2-1f20a772112c
+  quantity:
+    __typeName: GoblinScriptTable
+    entries:
+    - script: 1d Heroic Resource Gain at Start
+      threshold: 1
+    - script: (1d Heroic Resource gain at Start) +1
+      threshold: 7
+    editableField: true
+    field: Level
+    id: table
+- mode: round
+  details: The first time each round that you deal damage with at least one surge, you gain 1 insight.
+  name: Deal Damage with Surge
+  guid: 3e1de73a-34dd-4cfb-a9d5-524952981b6e
+  quantity:
+    __typeName: GoblinScriptTable
+    entries:
+    - script: "1"
+      threshold: 1
+    - script: "2"
+      threshold: 4
+    - script: "3"
+      threshold: 10
+    editableField: true
+    field: Level
+    id: table
+isSubclass: false
+abilityCategoryNames:
+  Heroic Ability:
+    plural: Heroic Deceits
+    singular: Heroic Deceit
+  Signature Ability:
+    plural: Signature Deceits
+    singular: Signature Deceit
+classColor:
+  __usertype: LuaColor
+  h: 0.716049373149872
+  s: 0.620689630508423
+  v: 0.682352960109711
+  a: 1
+heroicResourceIcon: drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_INSIGHT.png
+heroicResourceName: Insight
+epicResourceName: Subterfuge
+_fork: H4sIAAAAAAAACu1cbW/bRhL+K4Tvw7Vu1933F39z095dgaQ9pMEVBxQI9tUiIpE6kXLOV/S/3yxJKbIt2ZJttWHaAA6k5S45Mzv7PDOzS/1y8vZtez2P39tZPDk/eTG1TXPyZXESYmvLaQNNV/gMU5nbygBfMRc0Wq6Q0EkiLpRDhoWIhFPUUGJiVH3n5sel893tzpOdNhHaZm2Zn0IU5loRqrU2HJqr/tk/Tmyo3+exfugnjVFSciGlyv2m8SpmkX7pPyGWP94V/2W+2OlQz2xZdQM6Qc73kv28XSyzsG+nS/vGumnsW36FphRtu1zE7o4blzv1ft0+ZLactuVgho9e2N6sRI9HVDUeUeloRDWjkZTwEYg6X5Qzu7j+PSUldx8+sQvr27j4W9+tg9383INA/tmFburlwn8gg6KzUbEh4+WyExCUw04TgTRTBPHIJNJUUmQdlRo7Zrg2HQvN5tM4i1Vr27KuTs5ZhuQ6lKmMi4cs82rot/FYbQ12IQakg4qI82iRjiIgpr1yImAXsT6KXVyc2KuyXoAMtm0XpVu2nTl6ew3SSR1lYikgiSNFnGiGnLMaMYKZAPMYHTuj1PO4GOxxYkM42cfuV3a6hOtMdLFB4xflfLjDv2Fo8Y9op+2kKJuCkrOia3pVXk7a3LJquLgsp2V7nZvY0PRtFZYLW/m42e91tE1dbXb7rmqXZX5c94Ch8Z/g23EYSs9OPsQR6wksG6DeLpr5YLPzk0nZzuuyarsLW0y9Bafv8QjhFZZYMoRFEog7m5DTkSBmDcNSM0YtH5dHNLE9xCPI6B1idtnucIUtAeY9ruC1jMoyhQzAAOJBYQAHGZAJJGhhaNISf9KuwEbvCvZyusMVtgQa97gCIZZbGxyiFByAW8WQxRh4glpwBJ1ENOaTdoXxo0Kswg5XEAe5goJkV3CdvQCiBe4igxmFSCW4GAKjWhoRP2lXGD8qLJpqhyvIg1zBei+CVhbB8teIGwxUQRlBLjCNsY3eevpJuwIdvSuU1XKHK2ypRNzjCjiaxBNmKBDHeldwkQoE4bhg2kkp/KdNEON3hXmvzxYbb6sLjE/XPRXbWZsZQ2mml5Ti0Yi6Jfb4SCUdUWV2PEYdTw15RHsIY9hGGkQdD1CR8WwibAniP1JJyZZq9ccq6p/bHc+43eEEIykFhhQmuZKQtztMwkgrbhxJProYj7Dd4YMkRBOPPIse8SAIqOcxckqDwlbmbPbYWQpMaW+k20nKvjZ50MbVcnZyru/E6BvR8evo6yuIjWMXGK8kegNGzDsALhicjENcuoi4TxRpbyWyRnKGg6SGm0cnCjuFOGzjYqReHxlViTpEPReIU2Zz6YwjmUzAnFKNLTuC13MpKQ2Mo+ApRlxjjAw2BpJhEixjoBw5TpnmYU/thf+uanKeeHdF7Gmvmy6GLtqiae2iLepUtJNYQIJYLyuwzZfFJShYlP3jivifpZ0WbV1c51TyX6Vv6+yNZz8vfq7Q33NPsu77fhKr3K+Y2XexsAW0Vp0aBaTQ1r/bZ1A19C3el5Am27aYQpLbQn9X11V/g5d1Ax2n0/UtoFevQsja2MLBLaaxy3Q3MAWS+MvLfs6HjzFcuC7TvuMpb2532LjVDue68G15Zdv1kNcR/LMqm8nXKxE2UKTfL6ARwNUmJKXTiCuTkBVaI2h2PuLgmCZ5EMxA1XZSnqztfwi2PLfHLuIcvPONXVzGduOcl+31HgCyqqu+wl0286ntLOwufT3tpuIvafjXeXN2kWER5x2EyTI2kzK1J+c4W32Rp7iK+SgV2SGPrS7hq9i6VgDn15KedOYsfV119l+WKH9uvmreldNp8xU5m1eXnXt0AwZFmjjtxLyBLfth+Or8gCHJAS8hQTGsUC8CsjhahEk02lEmdL9CVw4K9FdPp2VVtiWY5WqPgtP+1PJHWfd3HeGwnd5xcmfSnjHNAVEMBkRhMSDjHURH0lMipPBWHYM7ifDG6WCQMRAHccwYss4QpARjwD6JeHOciHF/7iwuwG/eTMqmeFFXadmA2mdnnafYW7j9ILCvBtXV6wHNv+t42DiPZQhI40QQT2AE54VAVHhCeARLYH8UI/iJrao4/ebGOj/9cZ6XxTd1PTs/zWXgwsMSa+M0zutFXlY2hK5QDIu8gaUOazXViyJaP+kGFQ2Mb3sDHR3X8ZnRnGoqssNwTXfg/E0kOx04GtS7qAAD4uy6uOggpMmw8nN1+m1K0beD+mvVbQGU4OIiQ0aveXML7F5/e3FWfJc6cFoPq5dryOyf8temeJ2J58ubbd/Ymb3sSu0QPSx9DPm2+AzEeb4ZGQjvRJwOOwCrNVl8UYjTvFIv+wjh4JBlWnv4/mLRr6DNyGVPthmcMYbV2jggzrlL1QO+mMCtMbCWOAOQ4XnLzHHDUEoiQH4qVRLyDm/H2by9bubW7wsEDxL8OnDgjIjgIEPQIS91EzzSDsN/eam6KIRx8mR3oPSga98KXNcIdSf23xfvn5qF3me2w47NjJNXraSaKPBg7AQ4YPIGTMwlYs5nyvNB42PwqjNUuC4JDckjblOCx1qNwOsTFzYycLXflVeHyz9C5PouPieZBmIkhMU0H6hzoADmyCYTEbGCE5wcUSkcRfMn5zZZ32UTF23f9eXSvuguZALMTKekpNwIo7CiEmem6wiQciGwAowTAqIFBc1XwJpnGBMmhdJYM8xytcpC66/PkTStDipRLmNyChBEJ8S5EsgaD45OGNbJKGUFvUE5j6CVnhs3yaQP9QdrvgK66M3ZUefaxouZ7YrGORmCBhok0Ntqa3xztTwe3XbnhpJ7nVzkyJugAOKjQo7SHNI56T2TWttwh3L6LzeODPxwFReLMvQavb1x+OJBvtm1yN7F6/f1InTjetuuPfqnaOdZvd0O/nzksy8oPpV87uh/2Om8cTIOI9SzIAHxEg1gXKUhxIgOMZqk8QFyKnOM2j+3SkerDWJBc8Rp4shwapCFOIMKKxngwe/KOF9Pc43gopkUb4bI+dG0s17rLgK+5nBOWUjaeIIczigvwZspIw6CzyjZUZT+7WpjH1KFWxnCPSHzg/j0wWeMNtGjIC1EKd4FZCFcR1Zyx6lzFLPuZYj78tShTnMnV6t2ZUUAq9eQM+W60DD2wYx1B7XfJYEt8YgVhDljJUqMQMTvMERiOicz0XjlkqEBu31x/ykp0k2QfGWruIQHFZ/1NPD5z9U67T09PzzrzdbcSFNPzx8xG7dS1d8+A70XKB5kvxGZ9F5y3pc/HkXOIzDSoV5wz5nucQYQ0hJrI4+IcRaByfMrScpAFOuwZUbLKGQ4QgCBTWBBYIIi1fnFBxWRoZYhj0NgwqeI3XG4dO9ScPFTvXhXfB1bUKC4mA7k8GfieqzA42aoxYMOkOMiq73Or9JCmAAfkU9MEQ2uQ6K9txSIg6ZJcY9kyhUvgk1+8U5179xBvsakYvaevOxukvFglPMRJLtfFJ+RwPsds6pui940Z9/H/7YZRi+gbRLzGfE4u/78cKrcsSSeL1PcF4ueXKbcW5F73tsYJ9zDUkoW8jUUOc98zyFxUwxCVekNld5Lae0R4J554bmVDomgctwaeYZ7h2C2ZaA8aYaP/0bLTr/b1ygPGvlR7PDs50X2TUL+PBeyDa3WO27DcQMAz4Ut1qFsm/c24IHV2Xpvrq6m18Wyif21Or9BM889c6eNmqjYJLhAIQkmhCFJFQOCoxo5DUEAkY45KiRkynJzYl/UTfukLbLVjb7vwuz+Faut51dWa8KAC2FvUP4FA1gTkUKiDlGah/kVUcCiJWYvXlw2wF8vy1nZ/tCZuOvY//BRV1744AB+KDfckvggAFkNeh0TfJwMui3q5c4XdlfVw3mM3fGQDz80tRex7R5+uCiHlTv3EnjLmxbjJjDCDcy+9ch25y+Zc0hzcM5EJbYRMx+dOAaBSed9ADh13EK+AusTWZYUxOseCxoE9+k4v+Sxb77yj9iUva75TMFP0b7rMO9ZSOkPyQobqL39QMnp+Tqihr86Hy9r8hmPcoD+jVIHROJAJl0ZI18qytkshhJMPr0+u5H3KBjAmVDACMIjbpSCSEQE5K0IPmGusPP74Tt7AN9jypvDMEksQMDNc1nbyCSQoCYRaamGWTtk92m3/z2Swp4vrdgXMp6KyLtNsOXOW96AGjcwK6uBooMFKwuIaCiJ+bALRdhgA9cw0ekYP7qFZfRWRgxOBOEA9wDMJu8qEMqMDHANc/u7AvNF0+Q5rGz7+BRhjQ+YCRa0d0gGoXO5Fpw6MYWYMqBpCIGE43jBbwC4m9vVq/3p1YftI3YUbx6ErEci0kEMtX32H8Zt8eWT6oWrHx6j+aWUyBAO3ACZMImslRqlYLFysDBkX9a/i2Wrelx3ZvH0eY5x7FPDokF/qGQdgMbPRxP7AthTaeKWSzxez+FdyjG8obqlKW+yLGzZdrZHr74pr9nrV+91/ebl2/Dy6/9pu804/wf35/zlkVgAAA==
+baseCharacteristics:
+  agl: 2
+  arrays:
+  - - 2
+    - 2
+    - -1
+    - -1
+  - - 2
+    - 1
+    - 1
+    - -1
+  - - 2
+    - 1
+    - 0
+    - 0
+  - - 1
+    - 1
+    - 1
+    - 0
+ctime: 1709705273991
+levels:
+  level-17:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-20:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-19:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-16:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatChoice
+      tag: crafting perk,exploration perks,interpersonal perk,intrigue perk,lore perks,supernatural perks
+      name: Perk
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 92629fb1-2c74-4e6c-a2a3-354dd2ffe83d
+      description: You gain one perk of your choice.
+      source: Shadow Class Feature
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 79e7bbdc-ab1f-45d3-806c-094c932890c0
+        description: |-
+          As a maneuver, you lose control of yourself, becoming a shadow creature dripping with ash. This transformation lasts until the end of the encounter, until you are dying, or after 1 uninterrupted hour of quiet focus outside of combat. You gain the following effects while in this form: 
+          - You can automatically climb at full speed while moving. 
+          - Enemies' spaces don't count as difficult terrain for you. An enemy takes corruption damage equal to your Agility score the first time you pass through their space on a turn. 
+          - If you end your turn with cover or concealment from another creature, you are automatically hidden from that creature. 
+          - You gain 1 surge at the start of each of your turns. 
+          - You have corruption immunity equal to 5 + your level. 
+          - Creatures gain an edge on strikes against you. 
+          - You take a bane on Presence tests made to interact with other creatures.
+        source: Shadow Class Feature
+        name: Umbral Form
+        behavior: activated
+        guid: e26b70ef-d9d1-40b0-a576-85a567420e6b
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetTextOverride: Self
+          repeatTargets: false
+          implementationDetails: The Codex does not automatically apply hidden when you have cover or are concealed
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 169
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          categorization: Ability
+          strain: []
+          guid: 098e59da-4e4b-40ae-8698-35422b199a5a
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 1143575d-8797-4fe0-9007-27ad2dc3a238
+            duration: eoe_or_dying
+            ongoingEffectCustom: 1143575d-8797-4fe0-9007-27ad2dc3a238
+          castImmediately: true
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          iconid: ui-icons/skills/1.png
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          name: Umbral Form
+          persistence: []
+          description: |-
+            As a maneuver, you lose control of yourself, becoming a shadow creature dripping with ash. This transformation lasts until the end of the encounter, until you are dying, or after 1 uninterrupted hour of quiet focus outside of combat. You gain the following effects while in this form: 
+            - You can automatically climb at full speed while moving. 
+            - Enemies' spaces don't count as difficult terrain for you. An enemy takes corruption damage equal to your Agility score the first time you pass through their space on a turn. 
+            - If you end your turn with cover or concealment from another creature, you are automatically hidden from that creature. 
+            - You gain 1 surge at the start of each of your turns. 
+            - You have corruption immunity equal to 5 + your level. 
+            - Creatures gain an edge on strikes against you. 
+            - You take a bane on Presence tests made to interact with other creatures.
+          abilityType: none
+          implementation: 3
+      source: Shadow Class Feature
+      guid: 79e7bbdc-ab1f-45d3-806c-094c932890c0
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: |-
+        As a maneuver, you lose control of yourself, becoming a shadow creature dripping with ash. This transformation lasts until the end of the encounter, until you are dying, or after 1 uninterrupted hour of quiet focus outside of combat. You gain the following effects while in this form: 
+        - You can automatically climb at full speed while moving. 
+        - Enemies' spaces don't count as difficult terrain for you. An enemy takes corruption damage equal to your Agility score the first time you pass through their space on a turn. 
+        - If you end your turn with cover or concealment from another creature, you are automatically hidden from that creature. 
+        - You gain 1 surge at the start of each of your turns. 
+        - You have corruption immunity equal to 5 + your level. 
+        - Creatures gain an edge on strikes against you. 
+        - You take a bane on Presence tests made to interact with other creatures.
+      name: Umbral Form
+      implementation: 3
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatChoice
+      tag: feat,exploration perks,interpersonal perk,intrigue perk
+      name: Perk
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 67b47cbf-a090-4c89-8c98-de2f8c483a03
+      description: You gain an exploration, interpersonal, or intrigue perk of your choice. See Perks for more information.
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-14:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+      name: 7-Insight Heroic Abilities
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 871bbe90-cf91-4424-ad09-02cbf09a6e60
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 9274282e-af7a-495d-9df6-8fcac4f0da13
+          description: "Effect: Until the end of the encounter, whenever an enemy moves adjacent to you or damages you, you can take the Disengage move action as a free triggered action. "
+          source: Character
+          name: Dancer
+          behavior: activated
+          guid: 14c67585-1ec5-43d2-9aa0-0e5f5cc929cd
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            repeatTargets: false
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'You enter a flow state that makes you nearly impossible to pin down. '
+            sourceReference:
+              __typeName: SourceReference
+              page: 181
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            numTargets: "1"
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 20fc222b-f1bd-408c-957e-270614b66665
+            persistence: []
+            categorization: Heroic Ability
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            implementation: 3
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: 985670fd-cd82-473c-97ae-e905265afb35
+              duration: eoe
+              ongoingEffectCustom: false
+            name: Dancer
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: Until the end of the encounter, whenever an enemy moves or is force moved adjacent to you or damages you, you can take the Disengage move action as a free triggered action.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: 9274282e-af7a-495d-9df6-8fcac4f0da13
+        id: 9274282e-af7a-495d-9df6-8fcac4f0da13
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Dancer
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: "Effect: Until the end of the encounter, whenever an enemy moves adjacent to you or damages you, you can take the Disengage move action as a free triggered action. "
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Why are you looking at ME?!
+            categorization: Heroic Ability
+            range: 5
+            effectImplemented: true
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: aff5a23a-8095-4ac0-97dd-37a373536d65
+            meleeRange: 1
+            numTargets: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 181
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            implementation: 3
+            name: Misdirecting Strike
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 9 + A damage
+              - 13 + A damage
+              - 18 + A damage
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              rule: Taunted (EoT)
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                objectTarget: false
+                abilityType: none
+                strain: []
+                guid: ba8f1e31-75a1-47c5-96a6-59ded6fff8b4
+                repeatTargets: false
+                modifiers: []
+                targetAllegiance: ally
+                targetType: target
+                numTargets: "1"
+                name: Invoked Ability
+                behaviors:
+                - __typeName: ActivatedAbilityConditionSourceBehavior
+                  condid: 85e26e12-e853-464d-bbbc-98ddf2c0071a
+                description: ""
+                range: "5"
+                iconid: ui-icons/skills/1.png
+              promptText: Choose willing ally who taunts
+              autoTarget: false
+              abilityType: custom
+            description: The target is taunted by a willing ally within 5 squares of you until the end of the target's next turn.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: 75f382f4-efbe-4612-b921-08055175176b
+        id: 75f382f4-efbe-4612-b921-08055175176b
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Misdirecting Strike
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 + A damage; A < weak, restrained (save ends)
+              - 12 + A damage; A < average, restrained (save ends)
+              - 16 + A damage; A < strong, restrained (save ends)
+              roll: 2d10 + Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: One missile--placed well and placed hard.
+            sourceReference:
+              __typeName: SourceReference
+              page: 181
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 5
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: ce125d5b-8ddf-4d93-ba65-c2d9b259939d
+            targetType: target
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            numTargets: 1
+            implementation: 3
+            name: Pinning Shot
+            categorization: Heroic Ability
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: 017339ac-02b4-4aa6-8c42-672baa1d5afd
+        id: 017339ac-02b4-4aa6-8c42-672baa1d5afd
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Pinning Shot
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 7
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: There's no recovering from this.
+            sourceReference:
+              __typeName: SourceReference
+              page: 181
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 5
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 3bdce6de-98ae-4bf0-9500-cc1f5489bb51
+            numTargets: 1
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            meleeRange: 1
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 7 + A damage; M < weak, slowed (save ends)
+              - 11 + A damage; M < average, prone and can't stand (save ends)
+              - 16 + A damage; M < strong, prone and can't stand (save ends)
+              roll: 2d10 + Agility
+            name: Staggering Blow
+            categorization: Heroic Ability
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: 59d28351-a862-4739-9ac3-742d3c627614
+        id: 59d28351-a862-4739-9ac3-742d3c627614
+        ctime: 1715748063870
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Staggering Blow
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      description: Choose one heroic ability from the following options, each of which costs 7 insight to use.
+    - __typeName: CharacterFeature
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      description: "Effect: As long as you remain within distance of the target, maintain line of effect to them, and strike no other creature first, you gain a surge and an edge on the next strike you make against the assessed creature."
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 953bdcc9-53e7-4bcb-aa0b-1a08cd1cbbd6
+        description: "Effect: As long as you remain within distance of the target, maintain line of effect to them, and strike no other creature first, you gain a surge and an edge on the next strike you make against the assessed creature."
+        source: Shadow Class Feature
+        name: Careful Observation
+        behavior: activated
+        guid: 77909f8b-dee8-4f58-b53a-8d9e3926b78d
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          implementationDetails: The Codex has not limit the number of creatures which can be effected by Careful Observation
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: targets
+            durationUntilEndOfTurn: false
+            ongoingEffect: 54436ed6-156d-4765-8aca-90708c6ee19f
+            ongoingEffectCustom: 54436ed6-156d-4765-8aca-90708c6ee19f
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: -0.00166630744934082
+              v: 1.00191080570221
+              a: 1
+          flavor: A moment of focus leaves a foe firmly in your sights.
+          sourceReference:
+            __typeName: SourceReference
+            page: 166
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "20"
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          modifiers: []
+          strain: []
+          guid: af5c899a-a40d-4b23-9d2a-60bd344dcff8
+          numTargets: 2 when Level >= 7 else 1
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          implementation: 3
+          persistence: []
+          name: Careful Observation
+          targetType: target
+          description: As long as you remain within distance of the target, maintain line of effect to them, and strike no other creature first, you gain an edge on the next strike you make against the assessed creature, and gain 1 surge you can use only on that strike.
+          abilityType: none
+          iconid: 947f7dc6-e7cc-4829-88f2-1aed4f729c57
+      name: Careful Observation
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 953bdcc9-53e7-4bcb-aa0b-1a08cd1cbbd6
+      source: Shadow Class Feature
+      implementation: 3
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+      name: 11-Insight Heroic Abilities
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 27fdfe2d-dffa-4e70-87ce-9d1c03661648
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.0313749313354492
+                s: 0.752441346645355
+                v: 0.925130546092987
+                a: 1
+            flavor: A practiced attack that will instantly kill an already weakened foe.
+            sourceReference:
+              __typeName: SourceReference
+              page: 171
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 41139900-b39e-44d3-889f-f8ea2137c2ab
+            iconid: 391aec7f-87ba-4b36-9c2b-2b478ff823d8
+            numTargets: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            categorization: Heroic Ability
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Assassinate
+            behaviors:
+            - __typeName: ActivatedAbilityRememberBehavior
+              calculation: Target.Winded
+              memoryName: winded
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 12 + A damage
+              - 18 + A damage
+              - 24 + A damage
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityDestroyBehavior
+              filterTarget: (not (Minion or Leader or Solo)) and Target.Winded and not Cast.Memory("winded")
+            description: If the target is a non-minion, non-leader, non-solo creature who is winded after taking this ability's damage, they are reduced to 0 Stamina.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Character
+        guid: 9a91978b-8d52-42dd-b93a-e0ca58538d58
+        id: 9a91978b-8d52-42dd-b93a-e0ca58538d58
+        ctime: 1715748063870
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Assassinate
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            objectTarget: false
+            targetFilter: ""
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 11 corruption damage; A < Weak, restrained (save ends)
+              - 16 corruption damage; A < Average, restrained (save ends)
+              - 21 corruption damage; A < Strong, restrained (save ends)
+              roll: 2d10 + Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.736375033855438
+                s: 0.603027403354645
+                v: 0.874856472015381
+                a: 1
+            flavor: The shadows around you give way, allowing the shadow creature within you to grasp at your foes.
+            sourceReference:
+              __typeName: SourceReference
+              page: 171
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 2
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 7cf581a6-e972-42e4-a7e4-a2997b4dc887
+            iconid: 39d88090-e456-4d36-b141-87e933ac8d06
+            categorization: Heroic Ability
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            numTargets: 1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Shadowgrasp
+            targetType: all
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Character
+        guid: a8f40a23-671b-480e-a2d1-73997dd797fa
+        id: a8f40a23-671b-480e-a2d1-73997dd797fa
+        ctime: 1715748063870
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Shadowgrasp
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            abilityType: none
+            repeatTargets: false
+            keywords:
+              Magic: true
+            implementationDetails: ""
+            behaviors: []
+            multipleModes: variations
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You make multiple strikes against a foe before they even notice they're dead.
+            categorization: Heroic Ability
+            range: 1
+            effectImplemented: true
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 171
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain: []
+            modeList:
+            - variation:
+                __typeName: ActivatedAbility
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  standardAbilityParams:
+                    edges: ""
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 9a74dcd3-2ef0-484d-8208-9283a9833119
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+                  abilityType: standard
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 9a74dcd3-2ef0-484d-8208-9283a9833119
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+                  guid: 5233b593-33cb-49cb-9d9f-057d84b341e9
+                  standardAbilityParams:
+                    edges: ""
+                  abilityType: standard
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 9a74dcd3-2ef0-484d-8208-9283a9833119
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+                  guid: 1ce30cc6-6d36-4c7f-b7f3-4b17ef8c7df8
+                  standardAbilityParams:
+                    edges: ""
+                  abilityType: standard
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 9a74dcd3-2ef0-484d-8208-9283a9833119
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+                  guid: 092cf4a9-3adf-4e37-ba0c-284f497cc56d
+                  standardAbilityParams:
+                    edges: ""
+                  abilityType: standard
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 6bf3605b-41ad-4b79-96dd-250b5b73c2f0
+                castImmediately: false
+                targetType: self
+                numTargets: "1"
+                name: Speed of Shadows
+                domains:
+                  class:a58112e5-6466-4189-b810-5d0d93adc075: true
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              hasAbility: true
+              text: Use the ability 4 times
+            - variation:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                numTargets: "1"
+                modifiers: []
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 9a74dcd3-2ef0-484d-8208-9283a9833119
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+                  guid: ee80c9b2-3f84-403d-b266-220c89d88215
+                  standardAbilityParams:
+                    edges: "1"
+                  abilityType: standard
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 9a74dcd3-2ef0-484d-8208-9283a9833119
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+                  guid: 5716c4fa-226a-4ee9-b7b7-fe31891d3f5a
+                  standardAbilityParams:
+                    edges: "1"
+                  abilityType: standard
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 9a74dcd3-2ef0-484d-8208-9283a9833119
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+                  guid: a0eed816-b69c-4234-8a07-38469fa189e1
+                  standardAbilityParams:
+                    edges: "1"
+                  abilityType: standard
+                strain: []
+                guid: 11fd060f-4dd7-4268-b138-0be5540f1b27
+                repeatTargets: false
+                abilityType: none
+                domains:
+                  class:a58112e5-6466-4189-b810-5d0d93adc075: true
+                targetType: self
+                persistence: []
+                name: Speed of Shadows
+                categorization: Hidden
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              hasAbility: true
+              text: Use the ability 3 times with an edge
+            - variation:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                numTargets: "1"
+                modifiers: []
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 9a74dcd3-2ef0-484d-8208-9283a9833119
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+                  guid: a96605ac-c475-439e-be11-4ec5c2d07313
+                  standardAbilityParams:
+                    edges: "2"
+                  abilityType: standard
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 9a74dcd3-2ef0-484d-8208-9283a9833119
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+                  guid: 7e3d698f-4a4e-4534-b8b3-110417dac230
+                  standardAbilityParams:
+                    edges: "2"
+                  abilityType: standard
+                strain: []
+                guid: 1d8eb42a-1e6b-4506-8e2c-6a6491644fe2
+                repeatTargets: false
+                abilityType: none
+                domains:
+                  class:a58112e5-6466-4189-b810-5d0d93adc075: true
+                targetType: self
+                persistence: []
+                name: Speed of Shadows
+                categorization: Heroic Ability
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              hasAbility: true
+              text: Use the ability twice with a double edge
+            numTargets: "1"
+            guid: 5580a9ed-6517-490e-885b-ab5a4649622a
+            castImmediately: false
+            targetType: self
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Speed of Shadows
+            iconid: ui-icons/skills/1.png
+            description: You can use a strike signature ability four times, use a strike signature ability that gains an edge three times, or use a strike signature ability that has a double edge twice. You can shift up to 2 squares between each use.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Character
+        guid: ba9a6843-8de1-48d9-9895-a4462c110459
+        id: ba9a6843-8de1-48d9-9895-a4462c110459
+        ctime: 1715748063870
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Speed of Shadows
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 11
+            objectTarget: false
+            targetFilter: ""
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Area: true
+              Weapon: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 12 damage; M < Weak, slowed (save ends)
+              - 18 damage; M < Average, slowed (save ends)
+              - 24 damage; M < Strong, slowed (save ends)
+              roll: 2d10 + Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.205749869346619
+                s: 0.23828113079071
+                v: 0.959701776504517
+                a: 1
+            flavor: You fire a projectile so fast that it passes through a line of foes, hamstringing them.
+            categorization: Heroic Ability
+            range: 5
+            abilityType: none
+            lineDistance: "5"
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 51c6a2e9-d7da-4ad6-86e9-39c0377d4b96
+            numTargets: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 171
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            targetType: line
+            name: They Always Line Up
+            radius: 1
+            implementation: 4
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9
+        source: Character
+        guid: e66103bf-c1e2-44a3-bf58-0954d28b8e12
+        id: e66103bf-c1e2-44a3-bf58-0954d28b8e12
+        ctime: 1715748063870
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: They Always Line Up
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      description: Choose one heroic ability from the following options, each of which costs 11 insight to use.
+    - __typeName: CharacterFeatChoice
+      tag: crafting perk,exploration perks,interpersonal perk,intrigue perk,lore perks,supernatural perks
+      name: Perk
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: a9042053-8697-45aa-a2d4-d04664601541
+      description: You gain one perk of your choice.
+      source: Shadow Class Feature
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: efa2429c-5e24-46cc-b53a-60c590440d1f
+        source: Shadow Class Feature
+        guid: 03032596-dca3-4f3e-8c59-27f437b7630b
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Recoveries
+        description: "8"
+        num: "8"
+        resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+        behavior: resource
+      source: Shadow Class Feature
+      guid: 6ab1aeef-3eee-4cce-bc5d-2cb5da3b266d
+      id: d1bec0aa-e2d9-415f-b130-dfb842eac32c
+      ctime: 1715748325133
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+      name: Recoveries
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      mtime: 1715748325133
+      description: "8"
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      description: 'At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain essence equal to your Victories. '
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b1b8a998-d07a-4209-a455-fbefe04ac1a6
+        source: Shadow Class Feature
+        behavior: proficiency
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        guid: a4f68f58-c071-4bf7-b495-71406d6855f3
+        equate: false
+        name: Hide and Sneak Skill
+        proficiency: proficient
+        description: 'At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain essence equal to your Victories. '
+        subtype: skill
+        skills:
+          ae13b5cf-718a-42a4-ab5e-18d46b289ac6: true
+          fdd43bde-6062-484d-aea6-3803d396ea8e: true
+      name: Hide and Sneak Skill
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 069744e4-a3cc-4a9d-acca-45417b3e2fcc
+      source: Shadow Class Feature
+      implementation: 3
+    - __typeName: CharacterSkillChoice
+      categories:
+        interpersonal: true
+        intrigue: true
+        exploration: true
+      numChoices: 5
+      name: Skills
+      source: Shadow Class Feature
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: faacfe2b-9b4d-44ef-ac23-109137d819f5
+      description: "In addition to the Hide and Sneak skills, choose any five skills from Criminal Underworld or the skills of the exploration, interpersonal, or intrigue skill groups. (Quick Build: Criminal Underworld, Hide, Lie, Pick Lock, Pick Pocket, Sabotage, Sneak.)"
+      individualSkills:
+        80526c1a-3cfd-40dc-9065-eb840df8601d: true
+    - __typeName: CharacterSubclassChoice
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: Choose your Shadow College
+      guid: a31d02e4-1862-4062-964f-4c62b7ea006a
+      name: Shadow College
+    - __typeName: CharacterFeature
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      description: |-
+        At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain insight equal to your Victories. At the start of each of your turns during combat, you gain 1d3 insight.
+        Additionally, the first time each combat round that you deal damage incorporating 1 or more surges, you gain 1 insight.
+
+        You lose any remaining insight at the end of the encounter
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: addc46eb-dc0f-4900-8cd1-adfefffb46dc
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain insight equal to your Victories. At the start of each of your turns during combat, you gain 1d3 insight.
+          Additionally, the first time each combat round that you deal damage incorporating 1 or more surges, you gain 1 insight.
+
+          You lose any remaining insight at the end of the encounter
+        source: Shadow Class Feature
+        name: Insight
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            quantity: Victories
+            resourceOptions:
+            - c4b95efd-aac6-4624-98f2-860e618e6a96
+            - 8e7d5857-a80e-4a45-a1cd-865048715531
+            chooseResourceFromList: false
+            checklistid: 8754e90a-32aa-47a1-b379-dd1f3a98fa8e
+            chatMessage: Draw Steel
+          triggerPrompt: "Start of Combat: Gain Insight equal to your Victories."
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: bb792d84-d40a-4aad-b221-4f33f3086a83
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          conditionFormula: Victories > 0
+          numTargets: "1"
+          targetType: self
+          trigger: rollinitiative
+          name: Draw Steel
+          description: At the start of a combat encounter you gain Insight equal to your Victories.
+          abilityType: none
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        guid: 228524bb-1185-4167-977e-8ea43082deb9
+      - __typeName: CharacterModifier
+        sourceguid: addc46eb-dc0f-4900-8cd1-adfefffb46dc
+        source: Shadow Class Feature
+        guid: ced99e8d-2b44-4e18-93a7-e5d91db79e09
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Insight
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain insight equal to your Victories. At the start of each of your turns during combat, you gain 1d3 insight.
+          Additionally, the first time each combat round that you deal damage incorporating 1 or more surges, you gain 1 insight.
+
+          You lose any remaining insight at the end of the encounter
+        num: 0
+        resourceType: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+        behavior: resource
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: addc46eb-dc0f-4900-8cd1-adfefffb46dc
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain insight equal to your Victories. At the start of each of your turns during combat, you gain 1d3 insight.
+          Additionally, the first time each combat round that you deal damage incorporating 1 or more surges, you gain 1 insight.
+
+          You lose any remaining insight at the end of the encounter
+        source: Shadow Class Feature
+        name: Insight
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Start of Turn: Gain 1d3 Insight"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: 0a11c314-cda6-4f59-b5d8-b32955618f9b
+          conditionFormula: Heroic Resource Gain at Start > 0
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          trigger: beginturn
+          numTargets: "1"
+          name: Start of Turn (Insight)
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity:
+              __typeName: GoblinScriptTable
+              entries:
+              - script: 1d Heroic Resource Gain at Start
+                threshold: 1
+              - script: (1d Heroic Resource Gain at Start) + 1
+                threshold: 7
+              editableField: true
+              field: Level
+              id: table
+            checklistid: bde1d223-fe12-476d-94d2-1f20a772112c
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Start of Turn
+          description: At the start of each of your turns during combat, you gain 1d3 insight.
+          abilityType: none
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        guid: 5e32b80c-799f-4f6c-be46-fa262c1373d2
+      - __typeName: CharacterModifier
+        sourceguid: 89173a54-1be6-41ea-bf79-5d79f238da77
+        source: Shadow Class Feature
+        behavior: trigger
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Insight
+        resourceRefreshType: round
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain insight equal to your Victories. At the start of each of your turns during combat, you gain 1d3 insight.
+          Additionally, the first time each combat round that you deal damage incorporating 1 or more surges, you gain 1 insight.
+
+          You lose any remaining insight at the end of the encounter
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Deal Damage: Gain Insight"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 7358a387-b67a-4891-abfb-ce6b2b912ccb
+          numTargets: "1"
+          modifiers: []
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity:
+              __typeName: GoblinScriptTable
+              entries:
+              - script: "1"
+                threshold: 1
+              - script: "2"
+                threshold: 4
+              - script: "3"
+                threshold: 10
+              editableField: true
+              field: Level
+              id: table
+            checklistid: 3e1de73a-34dd-4cfb-a9d5-524952981b6e
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Deal Damage witih Surge
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: dealdamage
+          conditionFormula: surges >= 1
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          persistence: []
+          name: Deal Damage witih Surge
+          guid: c476a91c-bd47-4e65-a9ed-37db813e8c28
+          description: |-
+            The first time each round that you deal damage with at least one surge, you gain 1 insight. 
+
+            *Surge of Insight:* This increases to 2 insight at level 4.
+
+            *Death Pool:* This increase to 3 Insight at level 10
+          subject: self
+          iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+        guid: 7358a387-b67a-4891-abfb-ce6b2b912ccb
+      - __typeName: CharacterModifier
+        sourceguid: e6192be1-1a94-4ee2-83a5-eab0fdf6e127
+        source: Shadow Class Feature
+        value: 3
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Insight
+        guid: 56c05932-67ed-444f-b7d2-157bf515129c
+        description: |-
+          At the start of a combat encounter or some other stressful situation tracked in combat rounds (as determined by the Director), you gain insight equal to your Victories. At the start of each of your turns during combat, you gain 1d3 insight.
+          Additionally, the first time each combat round that you deal damage incorporating 1 or more surges, you gain 1 insight.
+
+          You lose any remaining insight at the end of the encounter
+        behavior: attribute
+        attribute: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+      name: Insight
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: e6192be1-1a94-4ee2-83a5-eab0fdf6e127
+      source: Shadow Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      description: Whenever you use a heroic ability that makes use of a power roll, that ability costs 1 fewer insight if you have an edge or double edge on it. If the ability has multiple targets, the cost is reduced even if the ability gains an edge or has a double edge against only one target.
+      modifiers:
+      - __typeName: CharacterModifier
+        resourceCostAmount: Ability.HeroicResourceCost-1
+        sourceguid: 750a4fb9-77ff-4781-826d-42394eed4911
+        displayCondition: Ability.Heroic
+        resourceCostType: cost
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        modtype: none
+        guid: 07830919-fb66-44fd-9b46-8b2f4b09f171
+        keywords: []
+        rollRequirement: edge
+        activationCondition: Ability.Heroic
+        overrideCost: true
+        rollType: ability_power_roll
+        behavior: power
+        description: Whenever you use a heroic ability that makes use of a power roll, that ability costs 1 fewer insight if you have an edge or double edge on it. If the ability has multiple targets, the cost is reduced even if the ability gains an edge or has a double edge against only one target.
+        source: Shadow Class Feature
+        name: Insight - Heroic Abilities
+      name: Insight - Heroic Abilities
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 750a4fb9-77ff-4781-826d-42394eed4911
+      source: Shadow Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      prefab: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+        behavior: kitaccess
+        source: Shadow Class Feature
+        name: Kit
+        description: You can use and gain the benefits of a kit.
+        kitType: martial
+        guid: ecf1b910-775f-418e-9bb2-65622277e378
+      source: Shadow Class Feature
+      guid: a51e8b36-a295-4210-95ed-6ae7c3e715b6
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      name: Kit
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: You can use and gain the benefits of a kit.
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      source: Shadow Class Feature
+      guid: 065ddb41-a568-4a50-869c-5db7bdd07a19
+      imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+      name: Signature Ability
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: Choose one signature ability from the following options. Signature abilities can be used at will. (<i>Quick Build:</i> Teamwork Has Its Place)
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your precise strikes let your allies take advantage of a target's agony.
+            sourceReference:
+              __typeName: SourceReference
+              page: 178
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: true
+            numTargets: 1
+            modifiers: []
+            strain: []
+            guid: 125163d7-c4e7-48f8-a690-801910de2fbd
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + A damage
+              - 5 + A damage
+              - 8 + A damage; I < strong, prone
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              target_proximity_range: "5"
+              promptText: Grant Surge to Ally
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 3a34f5ae-a868-464d-9ff7-7b6c7c8cb135
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbility: 15079d42-f9af-4e1c-a739-2078a9e22a07
+              autoTarget: false
+              standardAbilityParams:
+                quantity: "1"
+                message: Gasping in Pain - Surge
+                range: "5"
+                targets: "1"
+              abilityType: standard
+              filterTarget: ""
+            persistence: []
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Gasping in Pain
+            categorization: Signature Ability
+            description: One ally within 5 squares of the target gains 1 surge.
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        source: Shadow Class Feature
+        guid: 4ebd3a66-4684-4731-ba55-cd0ca0a1f100
+        id: 5a92b096-8c43-4801-9bdd-41d048027e24
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Gasping in Pain
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              applyto: caster
+              filterTarget: not Cast.Primary Target.Has Adjacent Enemy Other Than Us(caster)
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              chatMessage: I Work Better Alone - Surge
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + A damage
+              - 6 + A damage
+              - 9 + A damage
+              roll: 2d10 + Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.0510204024612904
+                s: -0.00267505645751953
+                v: 1.00306534767151
+                a: 1
+            flavor: It's better, just you and me. Isn't it?
+            sourceReference:
+              __typeName: SourceReference
+              page: 178
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 5
+            effectImplemented: true
+            meleeRange: 1
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 666b6dad-cd8c-498d-abfb-a70e6e4e79c4
+            numTargets: 1
+            rangeTextOverride: ""
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            targetType: target
+            implementation: 3
+            name: I Work Better Alone
+            categorization: Signature Ability
+            description: If the target has none of your allies adjacent to them, you gain 1 surge before making the power roll.
+            abilityType: none
+            iconid: ae3647ff-fa6f-4e00-bc22-3b4d25395b23
+        source: Shadow Class Feature
+        guid: dc3a9f1e-fc73-426f-a493-159054481197
+        id: 8ad2a8db-b0c3-40ee-bf19-6e7438543808
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: I Work Better Alone
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: 1f4c07a4-65ea-4d55-bd6f-8950a8556b7a
+              modifier:
+                __typeName: CharacterModifier
+                sourceguid: 1f4c07a4-65ea-4d55-bd6f-8950a8556b7a
+                displayCondition: "1"
+                modtype: none
+                surgesCanBeKept: true
+                keywords: []
+                surges: "1"
+                domains: []
+                activationCondition: target.CountNearbyEnemies(1, caster)
+                name: Teamwork Has Its Place
+                rollType: ability_power_roll
+                description: |
+                  If any ally is adjacent to the target, you gain 1 surge before making the power roll.
+                guid: ac66b583-e445-4501-988f-f2a1445feda0
+                behavior: power
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + A damage
+              - 6 + A damage
+              - 9 + A damage
+              roll: 2d10 + Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You attack an enemy as an ally exposes their weakness.
+            sourceReference:
+              __typeName: SourceReference
+              page: 178
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 5
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            meleeRange: 1
+            strain: []
+            guid: 1c716f35-ea28-4b35-b267-ceeb4f050641
+            iconid: ee8d5b2c-efdb-4310-b8a2-4d10a78a6f79
+            categorization: Signature Ability
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            numTargets: 1
+            name: Teamwork Has Its Place
+            targetType: target
+            description: |
+              If any ally is adjacent to the target, you gain 1 surge before making the power roll.
+            abilityType: none
+            implementation: 3
+        source: Shadow Class Feature
+        guid: 530889be-e2cf-4bc7-89d5-927585b1202d
+        id: e50445b5-fdde-4326-ba70-546d86fb94a9
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Teamwork Has Its Place
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: They can't watch both of you at once.
+            sourceReference:
+              __typeName: SourceReference
+              page: 178
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: true
+            numTargets: 1
+            modifiers: []
+            strain: []
+            guid: 840d6d7a-17c9-44c5-a534-638da40a8552
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + A damage
+              - 5 + A damage
+              - 8 + A damage
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityReplenishBehavior
+              applyto: caster
+              filterTarget: cast.PrimaryTarget.Count Nearby Enemies(5, Caster) > 0
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              chatMessage: You Were Watching the Wrong One!
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: cce366e2-5430-498b-85ee-5ce241761517
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Choose ally flanking the target to grant surge to
+              filterTarget: cast.Primary Target.Flanked By(caster)
+              standardAbilityParams:
+                quantity: "1"
+                message: Grant a surge to an ally flanking the target
+                range: "5"
+                targets: "1"
+              standardAbility: 15079d42-f9af-4e1c-a739-2078a9e22a07
+              abilityType: standard
+            persistence: []
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: You Were Watching the Wrong One
+            categorization: Signature Ability
+            description: As long as you have one or more allies within 5 squares of the target, you gain 1 surge. If you are flanking the target when you use this ability, choose one ally who is flanking with you. That ally also gains 1 surge.
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        source: Shadow Class Feature
+        guid: ec9dc9b2-fb28-4e75-b3a6-42729aaf6703
+        id: ee786bb0-b8c3-49f5-8995-e9321954d949
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: You Were Watching the Wrong One
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Shadow Class Feature
+        value: 1
+        filterCondition: Agility < 4
+        guid: 4608c36c-41b1-4353-b0ac-3e8f3a53a51b
+        name: Characteristic Increase
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Shadow Class Feature
+        value: 1
+        filterCondition: Intuition < 4
+        guid: f975dde2-c4e5-4c0a-a108-c89908808f8d
+        name: Characteristic Increase
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: inu
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Shadow Class Feature
+        value: 1
+        filterCondition: Might < 4
+        guid: 9e5c8bde-6e30-4e26-98c5-7e25c0fea3f1
+        name: Characteristic Increase
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Shadow Class Feature
+        value: 1
+        filterCondition: Presence < 4
+        guid: 1c94122b-b3ae-4b9c-9695-2a47e0ab1bce
+        name: Characteristic Increase
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: prs
+      - __typeName: CharacterModifier
+        sourceguid: 56676083-0384-4fe9-85b0-013ebf60eb7c
+        source: Shadow Class Feature
+        value: 1
+        filterCondition: Reason < 4
+        guid: f118be22-4513-4538-8f15-f28cbc99c895
+        name: Characteristic Increase
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        description: Each of your characteristic scores increases by 1, to a maximum of 4.
+        behavior: attribute
+        attribute: rea
+      source: Shadow Class Feature
+      guid: a390a19f-7b62-4350-ba13-107d9a60f322
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: Each of your characteristic scores increases by 1, to a maximum of 4.
+      name: Characteristic Increase
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Shadow Class Feature
+      guid: 86e32849-26a1-428c-ae80-da7f85249a70
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: At the start of each of your turns during combat, you gain 1d3 + 1 insight instead of 1d3.
+      name: Keen Insight
+      implementation: 4
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+        crafting: true
+        exploration: true
+        intrigue: true
+        interpersonal: true
+      source: Shadow Class Feature
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 38c7c84b-c565-4778-bc00-5cb4aa966fca
+      description: You gain one skill of your choice
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d8908415-b5a4-40a7-98d2-6aa0228e9e18
+        modifyDescription: You can target two creatures simultaneously with your Careful Observation ability, observing both simultaneously. Making a strike against one target doesn't end your observation of the other target.
+        source: Shadow Class Feature
+        filterAbility: Ability.name = "areful Observation"
+        behavior: modifyability
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        attributes:
+        - operation: Add
+          value: "1"
+          id: numtargets
+        guid: 203c236d-56ec-4c9b-a9a2-030df9704c55
+        description: You can target two creatures simultaneously with your Careful Observation ability, observing both simultaneously. Making a strike against one target doesn't end your observation of the other target.
+        name: Careful Observation Improvement
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: e0c74de2-71f4-458a-98ed-b1aec3ea75e3
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          targetType: self
+          abilityType: none
+          name: New Ability
+          behaviors: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Shadow Class Feature
+      guid: d8908415-b5a4-40a7-98d2-6aa0228e9e18
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: You can target two creatures simultaneously with your Careful Observation ability, observing both simultaneously. Making a strike against one target doesn't end your observation of the other target.
+      name: Careful Observation Improvement
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Shadow Class Feature
+      guid: 86e96aea-77cf-4259-aa4c-e8795abacb13
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: Whenever you communicate, you can throw your voice so that it seems to originate from a creature or object within 10 squares. If you are hidden, talking this way doesn't cause you to be revealed.
+      name: Ventriloquist
+      implementation: 0
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+      name: 9-Insight Heroic Abilities
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: c801aa36-d03a-4a59-b952-56daeae584bc
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            behaviors:
+            - __typeName: ActivatedAbilityAuraBehavior
+              duration: endnextturn
+              aura:
+                __typeName: Aura
+                applyto: all
+                modifiers:
+                - __typeName: CharacterModifier
+                  filterCondition: Self = Aura.Caster
+                  sourceguid: 4a40cd8d-63b0-4711-9a1f-acb3acc5713f
+                  description: ""
+                  source: Aura
+                  name: Blackout
+                  behavior: trigger
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    repeatTargets: false
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        numTargets: "1"
+                        modifiers: []
+                        guid: df190896-9a7e-41ad-a07f-0da39f562308
+                        repeatTargets: false
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        behaviors: []
+                        range: 1
+                        name: Invoked Ability
+                        targetType: self
+                        description: ""
+                        abilityType: none
+                        iconid: ui-icons/skills/1.png
+                      promptText: Shift to location with Blackout Area
+                      abilityType: standard
+                      standardAbilityParams:
+                        distance: "5"
+                      standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        numTargets: "1"
+                        modifiers: []
+                        guid: f38eee62-373c-461a-a688-6c582f271135
+                        repeatTargets: false
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        behaviors: []
+                        range: 1
+                        name: Invoked Ability
+                        targetType: self
+                        description: ""
+                        abilityType: none
+                        iconid: ui-icons/skills/1.png
+                      promptText: Free Strike Against Target
+                      abilityType: standard
+                      standardAbilityParams:
+                        targetid: "<<subject.id>>"
+                      standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    range: 1
+                    persistence: []
+                    modifiers: []
+                    strain: []
+                    whenActive: combat
+                    targetType: self
+                    numTargets: "1"
+                    conditionFormula: Auras Affecting has "Blackout"
+                    subject: enemy
+                    name: Blackout
+                    trigger: endturn
+                    guid: 55a2b596-ef8b-4fc3-88d6-0ecfe30e3582
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  guid: d46d03ea-d323-4e64-8ead-18318df7a60c
+                name: Blackout
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                guid: 4a40cd8d-63b0-4711-9a1f-acb3acc5713f
+                concealment: true
+                objectid: fd9ee415-b1b9-4e28-9790-66da4589b518
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You cause a plume of shadow to erupt from your eyes and blot out the sun.
+            sourceReference:
+              __typeName: SourceReference
+              page: 168
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "3"
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: a080ee9c-1ae4-47fd-8c49-c721cb99ff54
+            numTargets: "1"
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            targetType: all
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            name: Blackout
+            categorization: Heroic Ability
+            description: A black cloud fills the area until the end of your next turn, concealing you and your allies from enemies. While you are in the affected area, whenever an enemy ends their turn in the affected area, you can use a free triggered action to shift to a new location within the cloud and take a free strike against them.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Character
+        guid: 020f7e38-955d-47dc-bda2-52cb764a8a11
+        id: 020f7e38-955d-47dc-bda2-52cb764a8a11
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Blackout
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            implementationDetails: The Codex has not remove tokens from the encounter map
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster_and_targets
+              durationUntilEndOfTurn: false
+              duration: 1
+              ongoingEffectCustom: e6f4bcbb-1a4d-440f-afbc-3b2063d7d9c3
+              ongoingEffect: e6f4bcbb-1a4d-440f-afbc-3b2063d7d9c3
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 + A corruption damage
+              - 13 + A corruption damage
+              - 17 + A corruption damage
+              filterTarget: 0 {for display only}
+              roll: 2d10 + Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You sweep your foe off their feet and plunge them into a world of absolute darkness.
+            categorization: Heroic Ability
+            range: 1
+            effectImplemented: false
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 91c282d5-7584-4811-9587-6b857220d6d7
+            targetType: target
+            numTargets: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 168
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            preDescription: You and the target are removed from the battle map until the start of your next turn. You reappear in the spaces you left or the nearest unoccupied spaces. Roll power upon your return.
+            name: Into the Shadows
+            iconid: ui-icons/skills/1.png
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        source: Character
+        guid: 7a924c62-15f2-4e1f-b66e-04a19edd9907
+        id: 7a924c62-15f2-4e1f-b66e-04a19edd9907
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Into the Shadows
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            objectTarget: false
+            targetFilter: ""
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Area: true
+              Weapon: true
+            implementationDetails: Player must select the valid teleport location after resolving the Power Roll.
+            targetType: line
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You vanish. They vanish. You reappear.
+            categorization: Heroic Ability
+            range: 10
+            effectImplemented: true
+            targetAllegiance: enemy
+            persistence: []
+            modifiers: []
+            implementation: 3
+            strain: []
+            guid: e9e95bc2-c333-48c9-969c-43d4c5d6d06f
+            numTargets: 1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 168
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Shadowfall
+            radius: 1
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 10 damage
+              - 14 damage
+              - 20 damage
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: e794ca49-e023-4178-8c42-440db775315d
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Teleport to end of line
+              standardAbilityParams:
+                range: "10"
+              abilityType: standard
+              standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+            description: You disappear before rolling power. After rolling power, you appear within the first unoccupied space on the other end of the line.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: 78e62003-0a0a-4315-a0a7-37c92ade37e5
+        id: 78e62003-0a0a-4315-a0a7-37c92ade37e5
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Shadowfall
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Character
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 9
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Silence is a virtue. A knife pinning their mouth shut is the next best thing.
+            categorization: Heroic Ability
+            range: 5
+            effectImplemented: false
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: a3ade3e8-740d-4b5e-8081-2b6dffc7fe3f
+            meleeRange: 1
+            numTargets: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 168
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            implementation: 3
+            name: You Talk Too Much
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 10 + A damage; P < Weak, dazed (save ends)
+              - 15 + A damage; P < Average, dazed (save ends)
+              - 21 + A damage; P < Strong, dazed (save ends)
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 892ae859-64df-4cc9-9bb0-675b25206e40
+              duration: eoe
+              ongoingEffectCustom: 892ae859-64df-4cc9-9bb0-675b25206e40
+            description: The target cannot communicate with anyone until the end of the encounter.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Character
+        guid: 4b35a702-c374-4bcf-bfeb-40dacdb937d5
+        id: 4b35a702-c374-4bcf-bfeb-40dacdb937d5
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: You Talk Too Much
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      description: Choose one heroic ability from the following options, each of which costs 9 insight to use.
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 0dc8d972-ea63-45de-9a6b-4fe688325a0f
+        description: At the start of each of your turns during combat, you can forgo gaining your Heroic Resource until the start of your next turn. If you do, your strikes gain a damage bonus equal to your highest characteristic score until the start of your next turn.
+        source: Shadow Class Feature
+        name: Self-Taught
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityRollBehavior
+            rollDescription: Gloom Squad Clones
+            roll: 1d6
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 44d4b9b9-94d2-4a8d-8c5f-6f415c0b7de7
+            filterTarget: Cast.Roll > 0
+            duration: 0
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              persistence: []
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: a9988f26-a275-41f3-b5d7-292c69efb7ab
+              repeatTargets: false
+              numTargets: "<<roll>>"
+              castImmediately: false
+              behaviors:
+              - __typeName: ActivatedAbilitySummonBehavior
+                numSummons: "1"
+                monsterType: 554eb72a-553a-4055-b86c-29fb11a56e43
+                allCreaturesTheSame: true
+                bestiaryFilter: Beast.Name = "Shadow Clone"
+                casterChoosesCreatures: false
+                casterControls: true
+              targetType: emptyspace
+              name: Invoked Ability
+              categorization: Hidden
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 1
+            guid: c3d96e6b-fa4a-4a56-9051-11e0b25e69f7
+            standardAbilityParams:
+              roll: "<<Cast.Roll>>"
+            filterTarget: Cast.Roll > 0
+          - __typeName: ActivatedAbilityScriptBehavior
+            guid: 27a6bbab-865f-4d0b-83ab-d63f5cd2f056
+            filterTarget: ""
+            code: EventUtils.FireGlobalEvent("prestartturn", result)
+            name: PreTurnStart
+          triggerPrompt: Forgo insight gain at start of turn to create 1d6 clones of yourself.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          guid: 1e8d251e-8691-418a-b02b-83c7765a409b
+          strain: []
+          modeList: []
+          multipleModes: false
+          trigger: prestartturn
+          castImmediately: false
+          numTargets: "1"
+          targetType: self
+          name: Gloom Squad
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          description: |-
+            At the start of each of your turns, you can forgo gaining insight to create 1d6 clones of yourself in unoccupied adjacent spaces. A clone acts on your turn and uses your statistics, except they have 1 Stamina. They are affected by any conditions and effects on you, and last until the start of your next turn. A clone doesn't have insight and can't use the Careful Observation ability, the Umbral Form feature, or any triggered actions. On their turn, a clone has a move action, a maneuver, and a main action that they can use only to make a free strike. While making a free strike, a clone must choose targets that you or another clone aren't also striking. 
+
+            Outside of combat, you can have one clone active for every 2 Victories you have. If a clone is destroyed, you must wait 1 hour before creating another one.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: b2977c8a-4aff-4296-979e-b00344377608
+      source: Shadow Class Feature
+      guid: 2e642ea2-f8aa-479e-85d1-47bd0430500d
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: |-
+        At the start of each of your turns, you can forgo gaining insight to create 1d6 clones of yourself in unoccupied adjacent spaces. A clone acts on your turn and uses your statistics, except they have 1 Stamina. They are affected by any conditions and effects on you, and last until the start of your next turn. A clone doesn't have insight and can't use the Careful Observation ability, the Umbral Form feature, or any triggered actions. On their turn, a clone has a move action, a maneuver, and a main action that they can use only to make a free strike. While making a free strike, a clone must choose targets that you or another clone aren't also striking. 
+
+        Outside of combat, you can have one clone active for every 2 Victories you have. If a clone is destroyed, you must wait 1 hour before creating another one.
+      name: Gloom Squad
+      implementation: 2
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-11:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-12:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-10:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureList
+      name: Characteristic Increase
+      features:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          operation: set
+          sourceguid: 9ae94606-555c-45be-81bc-7ea757e702f7
+          source: Shadow Class Feature
+          value: 5
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          name: Agility
+          guid: e16c5621-aaf8-49a6-89f6-af6a2a448114
+          description: ""
+          behavior: attribute
+          attribute: agl
+        source: Shadow Class Feature
+        guid: 9ae94606-555c-45be-81bc-7ea757e702f7
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        description: ""
+        name: Agility
+        implementation: 4
+      - __typeName: CharacterFeatureChoice
+        allowDuplicateChoices: false
+        numChoices: 1
+        description: Select one Characteristic to Increase
+        name: Additional Characteristic
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        guid: 72faaa8b-d93d-4aa6-90c2-7984353029c0
+        options:
+        - __typeName: CharacterFeature
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 17c0be0f-f7b0-4c32-a9c4-85a75c5f270e
+            source: Shadow Class Feature
+            value: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Might
+            guid: 4e93d27f-b234-43f7-b763-626725f94189
+            description: ""
+            behavior: attribute
+            attribute: mgt
+          - __typeName: CharacterModifier
+            operation: min
+            sourceguid: 299ac17a-8fbe-4b9b-8674-5f79e4597f41
+            source: Shadow Class Feature
+            value: 5
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Might
+            guid: 23df76cf-c390-46a9-9579-3ff89d84c919
+            description: ""
+            behavior: attribute
+            attribute: mgt
+          source: Shadow Class Feature
+          guid: 57c61b76-a5a9-4e77-b872-c9c670ba972a
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          canHavePrerequisites: true
+          classid: a58112e5-6466-4189-b810-5d0d93adc075
+          description: ""
+          name: Might
+          implementation: 4
+        - __typeName: CharacterFeature
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 17c0be0f-f7b0-4c32-a9c4-85a75c5f270e
+            source: Shadow Class Feature
+            value: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Intuition
+            guid: 4e93d27f-b234-43f7-b763-626725f94189
+            description: ""
+            behavior: attribute
+            attribute: inu
+          - __typeName: CharacterModifier
+            operation: min
+            sourceguid: 17c0be0f-f7b0-4c32-a9c4-85a75c5f270e
+            source: Shadow Class Feature
+            value: 5
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Intuition
+            guid: 8e1dbc38-2df4-4501-b115-d26f434e6f3d
+            description: ""
+            behavior: attribute
+            attribute: inu
+          source: Shadow Class Feature
+          guid: aca18aea-fa0a-4eb7-bc3a-42e4f83c9a11
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          canHavePrerequisites: true
+          classid: a58112e5-6466-4189-b810-5d0d93adc075
+          description: ""
+          name: Intuition
+          implementation: 4
+        - __typeName: CharacterFeature
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 17c0be0f-f7b0-4c32-a9c4-85a75c5f270e
+            source: Shadow Class Feature
+            value: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Presence
+            guid: 4e93d27f-b234-43f7-b763-626725f94189
+            description: ""
+            behavior: attribute
+            attribute: prs
+          - __typeName: CharacterModifier
+            operation: min
+            sourceguid: 299ac17a-8fbe-4b9b-8674-5f79e4597f41
+            source: Shadow Class Feature
+            value: 5
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Presence
+            guid: 23df76cf-c390-46a9-9579-3ff89d84c919
+            description: ""
+            behavior: attribute
+            attribute: prs
+          source: Shadow Class Feature
+          guid: c85cbf1f-1770-44b2-9721-cd050dafa3ab
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          canHavePrerequisites: true
+          classid: a58112e5-6466-4189-b810-5d0d93adc075
+          description: ""
+          name: Presence
+          implementation: 4
+        - __typeName: CharacterFeature
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 17c0be0f-f7b0-4c32-a9c4-85a75c5f270e
+            source: Shadow Class Feature
+            value: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Reason
+            guid: 4e93d27f-b234-43f7-b763-626725f94189
+            description: ""
+            behavior: attribute
+            attribute: rea
+          - __typeName: CharacterModifier
+            operation: min
+            sourceguid: 299ac17a-8fbe-4b9b-8674-5f79e4597f41
+            source: Shadow Class Feature
+            value: 5
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Reason
+            guid: 23df76cf-c390-46a9-9579-3ff89d84c919
+            description: ""
+            behavior: attribute
+            attribute: rea
+          source: Shadow Class Feature
+          guid: 8941e985-2ac5-434f-9df2-c05492cdfe6e
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          canHavePrerequisites: true
+          classid: a58112e5-6466-4189-b810-5d0d93adc075
+          description: ""
+          name: Reason
+          implementation: 4
+        source: Shadow Class Feature
+      guid: 9e937654-3c48-4712-a1de-dd851e6a807a
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: Your Agility score increases to 5. Additionally, you can increase one of your characteristic scores by 1, to a maximum of 5.
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Shadow Class Feature
+      guid: 87b3f052-f1cb-48cf-9bf4-ebd1ad661264
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: |-
+        The first time each combat round that you deal damage incorporating 1 or more surges, you gain 3 insight instead of 2.
+        *Implemented under Encounter 1 Insight feature*
+      name: Death Pool
+      implementation: 4
+    - __typeName: CharacterFeatChoice
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: You gain one perk of your choice.
+      guid: 2ef39520-eff5-4e5f-bbaa-c9baa67df903
+      name: Perk
+    - __typeName: CharacterSkillChoice
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: You gain one skill of your choice.
+      guid: d8b6b8a3-86ba-4939-8054-3b93850c0ac0
+      source: Shadow Class Feature
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8400e2d0-d1b1-4dd1-a096-96c6c92fe41d
+        modifyDescription: You can target three creatures simultaneously with your Careful Observation ability.
+        source: Shadow Class Feature
+        filterAbility: Ability.name = "Careful Observation"
+        behavior: modifyability
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        attributes:
+        - operation: Add
+          value: "2"
+          id: numtargets
+        guid: 6e499f28-b22e-44eb-8021-a789f3cc7645
+        description: You can target three creatures simultaneously with your Careful Observation ability.
+        name: Careful Observation Improvement
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 5b1ea6de-b6dd-40e7-8945-7fce2062cfd8
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          targetType: self
+          abilityType: none
+          name: New Ability
+          behaviors: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Shadow Class Feature
+      guid: 8400e2d0-d1b1-4dd1-a096-96c6c92fe41d
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: You can target three creatures simultaneously with your Careful Observation ability.
+      name: Careful Observation Improvement
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Shadow Class Feature
+      guid: 70c3d2c5-c04f-45a9-a288-fd5c16cbf230
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: |-
+        You gain full control over the shadow creature you become with your Umbral Form feature, and you can end the transformation at will (no action required). Additionally, you are always wreathed in darkness that grants you concealment while in this form, and creatures no longer gain an edge on strikes against you.
+        While you are in your umbral form, you can spend 1 uninterrupted minute concentrating on a location where you've been before. At the end of that minute, you and each willing creature of your choice within 10 squares of you can teleport to unoccupied spaces of your choice within that location. Each creature who teleports this way is invisible for 1 hour or until they use an ability.**Implemented within Umbral Form Ongoing Effect**
+      name: Improved Umbral Form
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b5e2c419-2009-48df-aef3-24c3aaa82aff
+        source: Shadow Class Feature
+        guid: 166a6330-fbdd-43f6-9433-f254c141bf1a
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Subterfuge
+        description: |-
+          You have an epic resource called subterfuge. Each time you finish a respite, you gain subterfuge equal to the XP you gain. You can spend subterfuge on your abilities as if it were insight.
+          Additionally, you can spend subterfuge to take additional maneuvers on your turn. You can use one maneuver for each subterfuge you spend.
+          Subterfuge remains until you spend it.
+        num: 0
+        resourceType: e7b04a7e-61fc-4e17-b999-d95d7e751abb
+        behavior: resource
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: b5e2c419-2009-48df-aef3-24c3aaa82aff
+        description: |-
+          You have an epic resource called subterfuge. Each time you finish a respite, you gain subterfuge equal to the XP you gain. You can spend subterfuge on your abilities as if it were insight.
+          Additionally, you can spend subterfuge to take additional maneuvers on your turn. You can use one maneuver for each subterfuge you spend.
+          Subterfuge remains until you spend it.
+        source: Shadow Class Feature
+        name: Subterfuge
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          trigger: endrespite
+          strain: []
+          guid: 0e2cfa1a-176b-4426-b241-370e8e6ba380
+          repeatTargets: false
+          abilityType: none
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          targetType: self
+          persistence: []
+          name: Subterfuge
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: e7b04a7e-61fc-4e17-b999-d95d7e751abb
+            mode: replenish
+            chatMessage: Subterfuge Gained
+            quantity: XP Gained
+          description: You have an epic resource called subterfuge. Each time you finish a respite, you gain subterfuge equal to the XP you gain. You can spend subterfuge on your abilities as if it were insight.
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: e55ed160-faa1-4cd4-bddd-94dcc75edf22
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: b5e2c419-2009-48df-aef3-24c3aaa82aff
+        description: |-
+          You have an epic resource called subterfuge. Each time you finish a respite, you gain subterfuge equal to the XP you gain. You can spend subterfuge on your abilities as if it were insight.
+          Additionally, you can spend subterfuge to take additional maneuvers on your turn. You can use one maneuver for each subterfuge you spend.
+          Subterfuge remains until you spend it.
+        source: Shadow Class Feature
+        name: Subterfuge
+        behavior: triggerdisplay
+        guid: 51842568-10ef-4548-a87f-0b66618944d3
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: ""
+          effect: You have an epic resource called subterfuge. Each time you finish a respite, you gain subterfuge equal to the XP you gain. You can spend subterfuge on your abilities as if it were insight.
+          name: Subterfuge
+          type: passive
+          guid: 169af70d-171b-46dc-8ca2-2803b76284c6
+          distance: ""
+          keywords: []
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: b5e2c419-2009-48df-aef3-24c3aaa82aff
+        description: |-
+          You have an epic resource called subterfuge. Each time you finish a respite, you gain subterfuge equal to the XP you gain. You can spend subterfuge on your abilities as if it were insight.
+          Additionally, you can spend subterfuge to take additional maneuvers on your turn. You can use one maneuver for each subterfuge you spend.
+          Subterfuge remains until you spend it.
+        source: Shadow Class Feature
+        name: Subterfuge
+        behavior: activated
+        guid: 0b99021e-e6ae-45d8-b6c3-4f14c34c2c94
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          implementationDetails: ""
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 173
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          description: |-
+            You have an epic resource called subterfuge. Each time you finish a respite, you gain subterfuge equal to the XP you gain. You can spend subterfuge on your abilities as if it were insight. Additionally, you can spend subterfuge to take additional maneuvers on your turn. You can use one maneuver for each subterfuge you spend.
+            Subterfuge remains until you spend it.
+          abilityType: none
+          persistence: []
+          modifiers: []
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          strain: []
+          guid: ea8ee874-6204-4792-ba8f-676f8ff9cd76
+          iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+          numTargets: "1"
+          castImmediately: true
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          channelDescription: Spend 1 Subterfuge per additional maneuver on your turn.
+          name: Subterfuge
+          categorization: Ability
+          channeledResource: none
+          resourceCost: e7b04a7e-61fc-4e17-b999-d95d7e751abb
+          implementation: 4
+      source: Shadow Class Feature
+      guid: b5e2c419-2009-48df-aef3-24c3aaa82aff
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: |-
+        You have an epic resource called subterfuge. Each time you finish a respite, you gain subterfuge equal to the XP you gain. You can spend subterfuge on your abilities as if it were insight.
+        Additionally, you can spend subterfuge to take additional maneuvers on your turn. You can use one maneuver for each subterfuge you spend.
+        Subterfuge remains until you spend it.
+      name: Subterfuge
+      implementation: 4
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-15:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureList
+      name: Characteristic Increase
+      features:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          operation: max
+          sourceguid: 3b4c9d57-a761-4abc-90cc-345e325f3004
+          source: Shadow Class Feature
+          value: 3
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          name: Agility
+          guid: b41e0709-20df-4b2c-86be-8c5fd9d0fc67
+          description: Your Agility is 3.
+          behavior: attribute
+          attribute: agl
+        source: Shadow Class Feature
+        guid: 3b4c9d57-a761-4abc-90cc-345e325f3004
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        description: Your Agility is 3.
+        name: Agility
+        implementation: 3
+      - __typeName: CharacterFeatureChoice
+        allowDuplicateChoices: false
+        numChoices: 1
+        options:
+        - __typeName: CharacterFeature
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 285514b8-8074-487a-a6f0-deba8b9add51
+            source: Shadow Class Feature
+            value: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Might
+            guid: 9958c373-9055-4a6a-96b2-61860c72b8e4
+            description: ""
+            behavior: attribute
+            attribute: mgt
+          source: Shadow Class Feature
+          guid: 285514b8-8074-487a-a6f0-deba8b9add51
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          canHavePrerequisites: true
+          classid: a58112e5-6466-4189-b810-5d0d93adc075
+          description: ""
+          name: Might
+          implementation: 3
+        - __typeName: CharacterFeature
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 285514b8-8074-487a-a6f0-deba8b9add51
+            source: Shadow Class Feature
+            value: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Reason
+            guid: 9958c373-9055-4a6a-96b2-61860c72b8e4
+            description: ""
+            behavior: attribute
+            attribute: rea
+          source: Shadow Class Feature
+          guid: 3740b0b2-84e9-4af3-b826-c82143c577cb
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          canHavePrerequisites: true
+          classid: a58112e5-6466-4189-b810-5d0d93adc075
+          description: ""
+          name: Reason
+          implementation: 3
+        - __typeName: CharacterFeature
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 285514b8-8074-487a-a6f0-deba8b9add51
+            source: Shadow Class Feature
+            value: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Intuition
+            guid: 9958c373-9055-4a6a-96b2-61860c72b8e4
+            description: ""
+            behavior: attribute
+            attribute: inu
+          source: Shadow Class Feature
+          guid: 2d67edf6-f628-423c-a2c2-d80c012ce924
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          canHavePrerequisites: true
+          classid: a58112e5-6466-4189-b810-5d0d93adc075
+          description: ""
+          name: Intuition
+          implementation: 3
+        - __typeName: CharacterFeature
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 285514b8-8074-487a-a6f0-deba8b9add51
+            source: Shadow Class Feature
+            value: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Presence
+            guid: 9958c373-9055-4a6a-96b2-61860c72b8e4
+            description: ""
+            behavior: attribute
+            attribute: prs
+          source: Shadow Class Feature
+          guid: e9bf1af7-ff90-4987-a6e7-d92274d708de
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          canHavePrerequisites: true
+          classid: a58112e5-6466-4189-b810-5d0d93adc075
+          description: ""
+          name: Presence
+          implementation: 3
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        guid: 03a2814d-7b00-46c5-a6d3-9c374c2b2265
+        description: ""
+        name: Characteristic Increase
+      guid: 24491d12-7015-4e5f-a11b-319213971c46
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: Your Agility score increases to 3. Additionally, you can increase one of your characteristic scores by 1, to a maximum of 3.
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Shadow Class Feature
+      guid: 49e1fb2a-2490-40c5-be06-cf04e8d1a874
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: While conversing with any creature you share a language with, you can decide whether anyone else can perceive what you're conveying, even while yelling.
+      name: Keep It Down
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: e9381bb4-9408-41a8-8ffd-9f2ee2f7fa61
+        description: ""
+        source: Shadow Class Feature
+        name: Night Watch
+        behavior: triggerdisplay
+        guid: dfba8c2f-9841-4515-a0c8-08f2229e23ad
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One ally
+          effect: The target takes half the damage. You remain hidden.
+          cost: ""
+          trigger: The target takes damage from another creature's ability while you are hidden.
+          flavor: A steely dagger from out of the blue knocks another weapon off course.
+          guid: 5a0c61b4-8631-4f8f-b645-2d6879f21d39
+          name: Night Watch
+          keywords:
+            Ranged: true
+            Weapon: true
+      - __typeName: CharacterModifier
+        sourceguid: e9381bb4-9408-41a8-8ffd-9f2ee2f7fa61
+        source: Shadow Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          modtype: none
+          keywords: []
+          activationCondition: false
+          guid: 6984d53b-9fdc-4368-bd14-073a5e425580
+          damageMultiplier: half
+          name: Night Watch
+          rules: ""
+          description: The target takes half damage. The Shadow remains hidden.
+          rollType: ability_power_roll
+          behavior: power
+        guid: a043303b-7db3-4f63-875c-0b73c24b1aa1
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        type: trigger
+        filterCondition: self has "Hidden"
+        targetType: ally
+        behavior: powertabletrigger
+        name: Night Watch
+        rules: The target takes half damage. You remain hidden.
+        description: ""
+        range: "5"
+        trigger: takedamage
+      name: Night Watch
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: e9381bb4-9408-41a8-8ffd-9f2ee2f7fa61
+      source: Shadow Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      description: The first time each combat round that you deal damage incorporating 1 or more surges, you gain 2 insight instead of 1.
+      modifiers: []
+      name: Surge of Insight
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 080dada7-830c-470e-87e3-7700fc5e26e7
+      source: Shadow Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatChoice
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: You gain one perk of your choice.
+      guid: bda7b5c9-7eac-4cfa-89af-7f304e5a3ee9
+      name: Perk
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+        crafting: true
+        exploration: true
+        intrigue: true
+        interpersonal: true
+      source: Shadow Class Feature
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: 33c63cb1-77f6-46f6-bbf6-1ad67ef807d5
+      description: You gain one skill of your choice
+      individualSkills: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  level-18:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      source: Shadow Class Feature
+      guid: 5e31bee0-5591-40c4-81d3-48e43783fe25
+      imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+      name: 3-Insight Heroic Abilities
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: Choose one heroic ability from the following options, each of which costs 3 insight to use. (<i>Quick Build:</i> Get In Get Out)
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 4 + A damage; slide 2
+              - 6 + A damage; slide 3
+              - 10 + A damage; slide 5
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                abilityType: none
+                strain: []
+                guid: 27f3a312-36b7-49c3-b542-57e6712868c2
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                  movementType: shift
+                numTargets: "1"
+                targetType: emptyspace
+                targeting: vacated
+                name: Invoked Ability
+                categorization: Hidden
+                description: ""
+                range: Movement Speed
+                iconid: ui-icons/skills/1.png
+              promptText: Shift into Vacated Square
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your attack leaves them reeling, allowing you to follow up.
+            sourceReference:
+              __typeName: SourceReference
+              page: 178
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 03c13a28-a2db-4cc6-b67b-fef93dd8a20f
+            abilityType: none
+            categorization: Heroic Ability
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            targetType: target
+            numTargets: 1
+            name: Disorienting Strike
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: You can shift into any square the target leaves when you slide them.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Shadow Class Feature
+        guid: 98287791-82c8-41a3-ac4b-bdaf3051f433
+        id: 60a73727-343d-4a77-a2bf-a4e5ef3e1729
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Disorienting Strike
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You leave your foe bleeding out after a devastating attack.
+            sourceReference:
+              __typeName: SourceReference
+              page: 179
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 5
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: c6cd7a23-f523-4d91-9e23-d28c0b8496f0
+            meleeRange: 1
+            numTargets: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            persistence: []
+            categorization: Heroic Ability
+            name: Eviscerate
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 4 + A damage; A < weak, bleeding (save ends)
+              - 6 + A damage; A < average, bleeding (save ends)
+              - 10 + A damage; A < strong, bleeding (save ends)
+              roll: 2d10 + Agility
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Shadow Class Feature
+        guid: a2a50f95-7ef5-4245-a8d4-f84856af7b1d
+        id: 32dbec71-99bc-4ed4-b6b8-f03595396a44
+        ctime: 1715748063870
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Eviscerate
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            targetTextOverride: One creature
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            abilityType: none
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 5 + A damage
+              - 8 + A damage
+              - 11 + A damage
+              filterTarget: 0 {This is just to display in the ability description.}
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 2cdcc8bd-fea7-4e11-a19e-2a66750bbf78
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: You can shift up to your speed, dividing that movement before or after your strike as desired.
+              autoTarget: false
+              standardAbilityParams:
+                distance: "<<Movement Speed>>"
+              abilityType: standard
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                abilityType: none
+                strain: []
+                guid: f70e7535-194b-4e0e-a18f-cd43740ba287
+                repeatTargets: false
+                keywords:
+                  Strike: true
+                  Melee: true
+                  Weapon: true
+                behaviors:
+                - __typeName: ActivatedAbilityPowerRollBehavior
+                  tiers:
+                  - 5 + A damage
+                  - 8 + A damage
+                  - 11 + A damage
+                  filterTarget: ""
+                  roll: 2d10 + Agility
+                  guid: 54889416-4d22-421c-836d-9c40992ec1c7
+                targetType: target
+                numTargets: "1"
+                name: Get In Get Out
+                categorization: Heroic Ability
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptText: Choose Target
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 2cdcc8bd-fea7-4e11-a19e-2a66750bbf78
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                distance: "<<Movement Speed - Cast.Spaces Moved>>"
+              promptText: You can shift up to your speed, dividing that movement before or after your strike as desired.
+              autoTarget: false
+              guid: cef230b7-9317-4a2c-a9d7-040a8892e97e
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              abilityType: standard
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Move unexpectedly, strike fast, and be gone!
+            categorization: Heroic Ability
+            range: 1
+            effectImplemented: true
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 179
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            strain: []
+            guid: 5006283e-053f-4af1-b210-3467e2eb5048
+            rangeTextOverride: Melee 1
+            numTargets: 1
+            castImmediately: true
+            targetType: self
+            modeList: []
+            name: Get In Get Out
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: You can shift up to your speed, dividing that movement before or after your strike as desired.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+        source: Shadow Class Feature
+        guid: 989873bf-a2da-4985-96b5-45b81c050b0d
+        id: 0d73719d-dc94-4d40-a917-2a48749ed5f5
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Get In Get Out
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 3
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 2
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.414375305175781
+                s: 0.168712377548218
+                v: 1.00306534767151
+                a: 1
+            flavor: A bargain.
+            categorization: Heroic Ability
+            range: 5
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            strain: []
+            guid: c5f900a0-975a-4286-9784-9edeb1a57bfd
+            abilityType: none
+            meleeRange: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 4 damage
+              - 6 damage
+              - 10 damage
+              roll: 2d10 + Agility
+            numTargets: 2
+            name: Two Throats at Once
+            persistence: []
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: b0ecd07f-85eb-4398-813c-0dbbf8a3a8e7
+        source: Shadow Class Feature
+        guid: 2796878b-47d7-4665-bc7a-b7cdcbe6523b
+        id: 72b8efc3-30d6-457f-bfca-df3c38878d44
+        ctime: 1715748063870
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Two Throats at Once
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 372a1c24-512a-455a-8972-af0798b1595c
+        description: ""
+        source: Shadow Class Feature
+        name: Hesitation is Weakness
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 1
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInitiativeBehavior
+          - __typeName: ActivatedAbilityCharacterSpeechBehavior
+            variations:
+            - Hesitation is Weakness
+          triggerPrompt: You start your turn immediately.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          abilityType: none
+          range: 1
+          trigger: endturn
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: c932f4a5-144c-42d7-8bd6-d7c195db910b
+          numTargets: "1"
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          conditionFormula: (not Taken Turn)
+          heroicResourceCost: 1
+          targetType: self
+          name: Hesitation is Weakness
+          whenActive: combat
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 2e685b57-8c23-444b-9a39-7e3fd43c85f9
+      - __typeName: CharacterModifier
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 372a1c24-512a-455a-8972-af0798b1595c
+        description: ""
+        source: Shadow Class Feature
+        name: Hesitation is Weakness
+        behavior: triggerdisplay
+        guid: a92d884f-8f51-4823-aad3-fccb3160113f
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: |
+            You take your turn after the triggering hero.
+          guid: 7df5ad31-e8f6-4ed1-9ba1-5d737a84c39d
+          distance: Self
+          keywords: []
+          target: Self
+          trigger: Another hero ends their turn. That hero can't have used this ability to start their turn.
+          cost: 1 Insight
+          flavor: Keep up the attack. Never give them a moment's grace.
+          type: free
+          name: Hesitation is Weakness
+      name: Hesitation is Weakness
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      guid: ca3a7a2a-689a-4e48-84a2-73e94853426d
+      source: Shadow Class Feature
+      implementation: 4
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      source: Shadow Class Feature
+      guid: e4cca7e5-56c5-4b01-881b-68ee3c5decb3
+      imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+      name: 5-Insight Heroic Abilities
+      classid: a58112e5-6466-4189-b810-5d0d93adc075
+      description: Choose one heroic ability from the following options, each of which costs 5 insight to use. (<i>Quick Build:</i> Coup de Grace)
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your blade might be the last thing they see.
+            sourceReference:
+              __typeName: SourceReference
+              page: 179
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 5
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 8cc4a34e-11c0-4a46-bee5-210a741c8605
+            meleeRange: 1
+            numTargets: 1
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            persistence: []
+            categorization: Heroic Ability
+            name: Coup de Grace
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2d6 + 7 + A damage
+              - 2d6 + 11 + A damage
+              - 2d6 + 16 + A damage
+              roll: 2d10 + Agility
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: bf6ee765-56cc-4329-b9f9-b21566013646
+        source: Shadow Class Feature
+        guid: 9c2fb6f6-1b10-49f3-bfbb-6bd7877a98b6
+        id: a04a7c08-8e76-405f-8a26-1c849eee70f0
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Coup de Grace
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              targetMoveVicinity: true
+              vicinity: 1
+              movementType: shift
+              vicinityFilter: enemy
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: b8f5dde9-51a3-4477-8a75-447802632e14
+              duration: 0
+              ongoingEffectCustom: b8f5dde9-51a3-4477-8a75-447802632e14
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                targetFilter: target.Ongoing Effects has "One Hundred Throats Target"
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: b8f5dde9-51a3-4477-8a75-447802632e14
+                  duration: 0
+                  ongoingEffectCustom: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Heroic Ability
+                range: Walking Speed*2
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: c83a9b8f-adee-4bab-b363-83b51143d546
+                iconid: ui-icons/skills/1.png
+                numTargets: "3"
+                sourceReference:
+                  __typeName: SourceReference
+                  page: 165
+                  docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+                name: One Hundred Throats
+                targetType: target
+                description: ""
+                abilityType: none
+                implementation: 4
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 damage
+              - 6 damage
+              - 9 damage
+              filterTarget: Target.Stacks("One Hundred Throats Target") > 1
+              roll: 2d10 + Agility
+              guid: 87e03b59-1e6a-4610-b829-f31a74a5ea60
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              ongoingEffect: b8f5dde9-51a3-4477-8a75-447802632e14
+              mode: effect
+              conditions: []
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: As you move across the battlefield, every foe within reach feels your wrath.
+            categorization: Heroic Ability
+            range: Movement Speed
+            effectImplemented: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 165
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 2beb8e9c-f1e5-4a09-8756-4c393061a519
+            rangeTextOverride: Self; see below
+            targetType: emptyspace
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            targeting: pathfind
+            numTargets: "1"
+            name: One Hundred Throats
+            iconid: ui-icons/skills/1.png
+            description: You shift up to your speed and make one power roll that targets up to three enemies who came adjacent to you during the move.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Shadow Class Feature
+        guid: 0e637069-7388-4bee-9e07-9d12846b140b
+        id: fc409192-eb4b-47e3-8f3e-bfb16168c41e
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 42aa3903-d9ba-4715-ba5c-d889e67979a6
+        name: One Hundred Throats
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your friends will thank you.
+            sourceReference:
+              __typeName: SourceReference
+              page: 179
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 5
+            numTargets: 1
+            modifiers: []
+            strain: []
+            guid: ec1ceb83-1659-4363-a1c4-202075fe275d
+            abilityType: none
+            categorization: Heroic Ability
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            persistence: []
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + A damage; R < weak, the target has damage weakness 5 (save ends)
+              - 9 + A damage; R < average, the target has damage weakness 5 (save ends)
+              - 13 + A damage; R < strong, the target has damage weakness 5 (save ends)
+              roll: 2d10 + Agility
+            name: Set-Up
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Shadow Class Feature
+        guid: 5676d938-0f50-4a46-90c1-df8470919a2c
+        id: 2ca9f7a3-24e4-45de-b871-6b328acb947b
+        ctime: 1715748063870
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Set-Up
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+          description: ""
+          source: Shadow Class Feature
+          name: Ability
+          behavior: activated
+          guid: 5031d4be-028d-4e9a-bb4c-8eca657864b3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            disableSplitIntoMeleeAndRanged: true
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Melee: true
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: They have no idea what the college taught you.
+            categorization: Heroic Ability
+            range: 1
+            effectImplemented: true
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 4cd76016-e202-49d2-9f39-576c695724a7
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              autoTarget: false
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: e06f9b36-1f9b-45a2-b854-741fbb59ad96
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+              abilityType: standard
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: e06f9b36-1f9b-45a2-b854-741fbb59ad96
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              autoTarget: false
+              guid: 61780174-c6ab-4313-a839-0f7a8e32bc8a
+              standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+              abilityType: standard
+            domains:
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            castImmediately: true
+            numTargets: "1"
+            sourceReference:
+              __typeName: SourceReference
+              page: 179
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            name: Shadowstrike
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: You make two signature strikes.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Shadow Class Feature
+        guid: 75970834-2661-4119-baa1-4af4efc790a0
+        id: f95a509b-c821-42b9-96bb-f364a689e8c2
+        ctime: 1715748063870
+        importOverride: true
+        domains:
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        imported: 37284c36-f032-4b30-8eec-226ff3b1ecd9
+        name: Shadowstrike
+        classid: a58112e5-6466-4189-b810-5d0d93adc075
+        mtime: 1715748063870
+        description: ""
+        implementation: 3
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-13:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      class:0452ea47-58f6-457b-93de-5b729219ee76: true
+id: a58112e5-6466-4189-b810-5d0d93adc075
+details: |-
+  Subtlety is your art, the tip of the blade your brush. You studied at a secret college, specializing in alchemy, illusion, or shadow-magics. Your training and knowledge place you among the elite ranks of assassins, spies, and commandos. But more potent than any weapon or sorcery is your insight into your enemies' weaknesses.
+
+  As a shadow, you possess abilities that deal significant damage, enable you to move swiftly across the battlefield and evade hazards, and allow you to fade from notice even in the midst of the most intense combat encounters. You also possess more skills than any other hero.
+name: Shadow
+portraitid: 9e682ff6-eae0-435f-a7e7-b356bebb6ca3
+mtime: 1775024530918
+hitpointsCalculation: 18 + (Level - 1)*6
+quantity: 1d3

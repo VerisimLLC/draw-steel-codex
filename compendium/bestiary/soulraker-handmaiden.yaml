@@ -1,0 +1,331 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2db2f9cb-9a31-426b-abba-ac42f64519f2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Soulraker Handmaiden    Level 8 Horde Ambusher
+        Abyssal, Demon, Soulraker    EV 10
+        <b>Stamina</b> 50    <b>Weakness</b> Holy 5
+        <b>Speed</b> 1    <b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 4
+        Might +3    Agility +0    Reason +2    Intuition +2    Presence +4
+
+        <b>Emergent Horrors </b>(Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>Target</b> One creature or object
+        %E2%9C%B8    <b>%E2%89%A411</b>    8 corruption damage
+        %E2%98%85    <b>12-16</b>    11 corruption damage
+        %E2%9C%A6    <b>17</b>    13 corruption damage; M<4 frightened (save ends)
+        <b>Effect</b> This ability deals an additional 8 damage if the handmaiden was concealed.
+
+        <b>Conceal Parasite</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self    <b>Target</b> Self
+        <b>Effect</b> The handmaiden can withdraw into their host, concealing them and making them impossible to detect without supernatural aid.
+
+        <b>Implanted Parasite</b>
+        A victim implanted with a handmaiden is unaware of their presence. The handmaiden cannot use any of their abilities until they emerge. After a 3-4 weeks they fully bond with the victim and emerge as a horrifying stalk of flesh and bone. An emerged handmaiden uses their victim's speed to move on their turn and has access to their victim's signature abilities. The handmaiden must be killed before they can be excised. Creatures implanted with a handmaiden parasite must complete the Find a Cure project to end this effect.
+        Soulraker Praetorian    Level 7 Horde Harrier
+        Abyssal, Demon, Soulraker    EV 9
+        <b>Stamina</b> 45    <b>Weakness</b> Holy 5
+        <b>Speed</b> 8    <b>Size</b> 1L / <b>Stability</b> 0
+        <b>    Free Strike</b> 3
+        Might +2    Agility +4    Reason 0    Intuition +2    Presence 0
+        <b>Barbed Stinger </b>(Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>    Target</b> 1 creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    7 poison damage; push 2
+        %E2%98%85    <b>12-16</b>    10 poison damage; push 2
+        %E2%9C%B8    <b>17</b>    11 poison damage; push 4; A<4 grabbed
+        <b>Effect</b> The praetorian shifts into each square the target leaves.
+
+        <b>Stinging Departure</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>    Target</b> Triggering creature
+        <b>Trigger </b>A creature ends the praetorian's grab.
+        <b>Effect</b> The praetorian makes a free strike on the target, breaking off their stinger in their victim, and shifts up to half their speed. The target is bleeding until they remove the stinger as a free action, taking 6 damage in the process.
+
+        <b>Praetorian Buzzing</b>
+        A creature who starts their turn with 2 or more praetorians adjacent to them takes 6 sonic damage.
+
+        <b>Lethe</b>
+        While winded, the praetorian has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the praetorian can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ac226d9d-9f92-4b71-890e-3eec9bb98f8e: true
+      modifiers: []
+      name: Implanted Parasite
+      description: A victim implanted with a handmaiden is unaware of their presence. The handmaiden cannot use any of their abilities until they emerge. After a 3-4 weeks they fully bond with the victim and emerge as a horrifying stalk of flesh and bone. An emerged handmaiden uses their victim's speed to move on their turn and has access to their victim's signature abilities. The handmaiden must be killed before they can be excised. Creatures implanted with a handmaiden parasite must complete the Find a Cure project to end this effect.Soulraker Praetorian    Level 7 Horde HarrierAbyssal, Demon, Soulraker    EV 9
+      guid: ac226d9d-9f92-4b71-890e-3eec9bb98f8e
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e357c479-a068-460f-b836-dae53c27246f: true
+      modifiers: []
+      name: Praetorian Buzzing
+      description: A creature who starts their turn with 2 or more praetorians adjacent to them takes 6 sonic damage.
+      guid: e357c479-a068-460f-b836-dae53c27246f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:276751e7-1d5c-4882-9246-f8d3fdde898c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+        source: Trait
+        modtype: edge
+        keywords:
+          Attack: true
+        activationCondition: true
+        guid: 7d597fb7-e5d7-4b09-8970-f39bab3a58f1
+        name: Lethe
+        filterCondition: hitpoints <= Maximum Hitpoints/2
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+        source: Trait
+        modtype: edge
+        keywords:
+          Attack: true
+        activationCondition: true
+        guid: 5291759e-34d8-4db9-a54b-965c5ac91163
+        name: Lethe
+        filterCondition: Hitpoints <= Maximum Hitpoints/2
+        description: ""
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: While the handmaiden is winded, they gain an edge on strikes, and any strike made against them gains an edge.
+      guid: 276751e7-1d5c-4882-9246-f8d3fdde898c
+      name: Lethe
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5cabf536-a328-4b10-a5de-d74c116813a3: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the praetorian can't be hidden from them.
+      guid: 5cabf536-a328-4b10-a5de-d74c116813a3
+      source: Trait
+    role: Horde Ambusher
+    keywords:
+      Abyssal: true
+      Soulraker: true
+      Demon: true
+    max_hitpoints_roll: "50"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 4
+    monster_type: Soulraker Handmaiden
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 4
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    damage_taken: 0
+    max_hitpoints: 50
+    resources: []
+    traitNames: []
+    ev: 10
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 corruption damage
+        - 11 corruption damage
+        - 13 corruption damage; M<4 frightened (save ends)
+        roll: 2d10 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 7d887f88-b0e1-466c-b853-6b7c9954bbbf
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: 'Emergent Horrors '
+      numTargets: 1
+      description: This ability deals an additional 8 damage if the handmaiden was concealed.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 770fafb0-138f-4d1e-98f8-a44ad289790b
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Conceal Parasite
+      implementation: 0
+      description: The handmaiden can withdraw into their host, concealing them and making them impossible to detect without supernatural aid.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 poison damage; push 2
+        - 10 poison damage; push 2
+        - 11 poison damage; push 4; A<4 grabbed
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5e1b7a0e-093f-49c5-b201-7800f932bf8f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: 'Barbed Stinger '
+      numTargets: 1
+      description: The praetorian shifts into each square the target leaves.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 46ab0a95-e218-4631-99c3-3d286eff67c5
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Stinging Departure
+      implementation: 0
+      description: The praetorian makes a free strike on the target, breaking off their stinger in their victim, and shifts up to half their speed. The target is bleeding until they remove the stinger as a free action, taking 6 damage in the process.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds: []
+    levelChoices: []
+    minion: false
+    creatureSize: 1M
+    walkingSpeed: 0
+  tokenType: null
+  bestiaryId: 73f63f7f-dd59-442f-af34-0703fad0a68c
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Soulraker Handmaiden
+parentFolder: d28dbebc-b729-459f-858a-44e596d131e0
+artist: null
+ord: 6
+ctime: 1741590266652
+mtime: 1775201137032
+hidden: false

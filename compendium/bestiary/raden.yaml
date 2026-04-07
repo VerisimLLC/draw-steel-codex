@@ -1,0 +1,85 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: "-MPrGgX3K0y1bVYdd6NY"
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7705882
+    portraitOffset:
+      x: 0.1484372
+      y: -0.1210937
+    frameHueShift: 0.002941356
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 731e9bab-bfe9-47d5-8cfd-2f403c493834
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    levelChoices: []
+    max_hitpoints: 5
+    walkingSpeed: 30
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    skillRatings: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    monster_type: Raden
+    damage_taken: 0
+    creatureSize: 1T
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: acc6c48c-e553-4d2e-9485-c5d122edd8c3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 0
+  createdTimestamp: 1727318633370
+description: Raden
+parentFolder: efced4b0-e906-40b3-ac6a-704c432d83f9
+artist: null
+ord: 2
+ctime: 1741590294818
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,45 @@
+__typeName: CharacterFeature
+testCases:
+- text: When the sharpshooter dies, they explode, dealing 1d6 damage to each adjacent enemy
+- text: When the amalgamite dies, they explode, dealing 1d6 damage to each adjacent enemy
+- text: When the cognivite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    targetFilter: Enemy
+    guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+    repeatTargets: false
+    abilityType: none
+    trigger: creaturedeath
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: 1d6
+    persistence: []
+    name: Loyalty Collar
+    targetType: all
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Monster
+  behavior: trigger
+  guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+  name: Loyalty Collar
+  sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+source: Monster
+guid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+importMatch: When the <<monster>> dies, they explode, dealing 1d6 damage to each adjacent enemy
+ctime: 1747453072119
+name: Loyalty Collar
+id: e6c1cb12-3572-4c0a-ba20-85ce5bcb7418
+description: ""
+mtime: 1747673961404
+implementation: 3

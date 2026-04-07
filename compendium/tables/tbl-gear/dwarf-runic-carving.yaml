@@ -1,0 +1,17 @@
+__typeName: equipment
+type: Gear
+category: Gear
+specialDescription: ""
+ctime: 1758082510449
+description: Your skin sheds light for 10 squares. You can turn this light on and off as a maneuver.
+id: bb699811-7a13-44e1-960f-c1deed366684
+equipmentCategory: 4c9fc2bb-1c17-4072-babe-c2e3a55faa65
+domains:
+  item:bb699811-7a13-44e1-960f-c1deed366684: true
+iconid: 83de2fe7-41c9-414d-967e-4dd18d78467a
+availability: restricted
+name: Dwarf Runic Carving
+weight: 1
+mtime: 1759045405928
+itemObjectId: 3d0a7e19-1031-4d28-b542-3d14bb205b73
+implementation: 3

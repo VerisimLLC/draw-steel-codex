@@ -1,0 +1,59 @@
+__typeName: equipment
+itemPrerequisite: An ounce of sap from a tree damaged by psionic fire
+keywords:
+  Potion: true
+  Psionic: true
+projectSource: Texts or lore in Yllyric
+flavor: This dark, viscous liquid tastes like burnt leaves.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+implementation: 3
+description: When you drink this potion as a maneuver, light shifts around your body, letting you blend into the environment around you for 10 minutes. While this effect is active, you have a double edge on tests made to hide and sneak, and you can use the Hide maneuver even while you are observed.
+echelon: 2
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: "90"
+id: c2961803-45b6-4794-a47a-ed9dbfeae81d
+ctime: 1774792488583
+name: Concealment Potion
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  implementationDetails: We cannot limit the duration to 10mins so this must be manually removed.
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: f0b9c782-bb2c-4180-9e65-ea1d655e701a
+    ongoingEffectCustom: f0b9c782-bb2c-4180-9e65-ea1d655e701a
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Ability
+  range: 5
+  consumables:
+    c2961803-45b6-4794-a47a-ed9dbfeae81d: 1
+  numTargets: "1"
+  modifiers: []
+  sourceReference:
+    __typeName: SourceReference
+    page: 318
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  strain: []
+  guid: adfa093c-81b1-4b3a-863a-870b55e8b815
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  description: When you drink this potion as a maneuver, light shifts around your body, letting you blend into the environment around you for 10 minutes. While this effect is active, you have a double edge on tests made to hide and sneak, and you can use the Hide maneuver even while you are observed.
+  castImmediately: true
+  iconid: 45cf639d-e2f0-4624-a0fe-1439280becd1
+  persistence: []
+  name: Concealment Potion
+  targetType: self
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 3
+mtime: 1774792488583
+projectRollCharacteristic:
+  agl: true
+  inu: true
+iconid: 45cf639d-e2f0-4624-a0fe-1439280becd1

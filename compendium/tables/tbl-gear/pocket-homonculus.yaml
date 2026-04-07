@@ -1,0 +1,23 @@
+__typeName: equipment
+itemPrerequisite: A strip of starmetal coated in the blood of the item’s crafter
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Zaliac
+flavor: A densely interlocking sphere of clockwork gears features facets that show the countenance of the item’s wielder.
+weight: 1
+category: Gear
+specialDescription: ""
+id: 8bc67b2b-8f43-4ccb-ba5d-8bd33bd11bf0
+ctime: 1759151065510
+type: Gear
+projectGoal: "45"
+mtime: 1759400153182
+name: Pocket Homonculus
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+description: |-
+  When activated as a maneuver, this item erupts in a bright flash, you can shift 1 square without your enemies noticing your movement, and a homunculus perfectly resembling you appears in an adjacent space. The homunculus is a creature with Stamina 15, a 0 in all their characteristics, and a speed and stability equal to yours. They appear indistinguishable from you but can’t use any abilities.
+
+  While you have line of effect to your homunculus, you can use a maneuver to issue them a telepathic command. The homunculus performs the command to the best of their ability. If not commanded, the homunculus mimics your movements and speech. When you move, the homunculus moves with you, matching your pace. The homunculus crumbles to dust after 1 hour or if reduced to 0 Stamina.
+projectRollCharacteristic:
+  rea: true
+iconid: ecfdb1f3-e6e9-4d20-b46a-c1a433706188

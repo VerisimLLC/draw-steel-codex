@@ -1,0 +1,49 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 375cae61-c91d-4582-bba9-450ee8bb2f48
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Arriswyth
+- __typeName: RollTableRow
+  id: 0f4b10b0-450f-4983-8a3f-49d4b9f834c5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gogellwyc
+- __typeName: RollTableRow
+  id: bb5c06f1-fd69-422c-96fe-99a3fe944374
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Hygglwyc
+- __typeName: RollTableRow
+  id: 3ba0cb01-25ce-4ba9-82e6-3590a62783bb
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Lliarion
+- __typeName: RollTableRow
+  id: bd9c9e9d-95c0-4f6d-ba80-e601b42cd093
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Tywso
+id: 369c7643-45d1-4049-aaac-e9962c7206ca
+name: Wode Elves Gender Neutral Names
+subtable: true
+mtime: 1743456232632
+items: false
+ctime: 1743444254140

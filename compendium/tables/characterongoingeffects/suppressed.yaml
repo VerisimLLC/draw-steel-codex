@@ -1,0 +1,84 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    hasManualVersion: true
+    strain: []
+    guid: eae9872c-50d2-4167-bc67-09a71716bd23
+    repeatTargets: false
+    abilityType: none
+    trigger: beginturn
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: ConditionCaster("Suppressed").Intuition *2
+      damageType: psychic
+      chatMessage: Suppressed Start of Turn
+    numTargets: "1"
+    name: Suppressed
+    targetType: self
+    description: You take psyhic damage at the start of your turn, whenever you use a supernatural ability, or a malice ability
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You take psyhic damage at the start of your turn, whenever you use a supernatural ability, or a malice ability
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 66c1f3d6-a645-471c-be4e-ccdb96554580
+  name: Suppressed
+  sourceguid: 06a673b9-8961-4e2b-bfe1-fd2a5eac9dfb
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    hasManualVersion: false
+    strain: []
+    guid: d782db16-65fa-4d7c-b600-75a7a2216b1f
+    conditionFormula: Used Ability.Keywords has "Magic" or Used Ability.Keywords has "Psychic" or Used Ability.MaliceCost > 0
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: ConditionCaster("Suppressed").Intuition *2
+      damageType: psychic
+      chatMessage: Suppressed Start of Turn
+    name: Suppressed
+    trigger: useability
+    numTargets: "1"
+    description: You take psyhic damage at the start of your turn, whenever you use a supernatural ability, or a malice ability
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: You take psyhic damage at the start of your turn, whenever you use a supernatural ability, or a malice ability
+  source: Ongoing Effect
+  behavior: trigger
+  guid: f4d3dae6-a392-44f6-b520-d10f45f3e359
+  name: Suppressed
+  sourceguid: 06a673b9-8961-4e2b-bfe1-fd2a5eac9dfb
+source: Ongoing Effect
+guid: 06a673b9-8961-4e2b-bfe1-fd2a5eac9dfb
+id: 06a673b9-8961-4e2b-bfe1-fd2a5eac9dfb
+ctime: 1772306224548
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Suppressed
+description: You take psyhic damage at the start of your turn, whenever you use a supernatural ability, or a malice ability
+custom: true
+mtime: 1772306224548
+iconid: f5180689-1840-4432-8ee8-ce7d4730d83b

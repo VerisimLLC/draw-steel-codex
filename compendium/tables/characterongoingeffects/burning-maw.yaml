@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 76d21112-ebb3-4818-ad73-baa43fdc919f
+  source: Ongoing Effect
+  damageModifier: "3"
+  guid: 8d49db7a-6ec7-4274-b67e-dce0a2366c63
+  domains:
+    CharacterOngoingEffect:76d21112-ebb3-4818-ad73-baa43fdc919f: true
+  keywords: []
+  activationCondition: Ability.Keywords has "Strike"
+  description: The arixx dribbles acid over their mandibles, causing the next strike they make to gain an edge and deal an extra 3 acid damage.
+  rollType: ability_power_roll
+  name: Burning Maw
+  resourceRefreshType: none
+  damageModifierType: acid
+  modtype: edge
+  behavior: power
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.115848995745182
+    s: -0.00267493724822998
+    v: 0.995613873004913
+    a: 1
+guid: 76d21112-ebb3-4818-ad73-baa43fdc919f
+id: 76d21112-ebb3-4818-ad73-baa43fdc919f
+ctime: 1727973572315
+domains:
+  CharacterOngoingEffect:76d21112-ebb3-4818-ad73-baa43fdc919f: true
+description: The arixx dribbles acid over their mandibles, causing the next strike they make to gain an edge and deal an extra 3 acid damage.
+iconid: be434264-19d5-4af6-8a1a-541c1d2e2fc6
+endTrigger: attack
+custom: true
+mtime: 1757062132936
+name: Burning Maw
+implementation: 3

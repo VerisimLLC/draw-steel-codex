@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: Whenever you carry more than three magic treasures, you take a bane on power rolls.
+mtime: 1771562529954
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Mundane
+ctime: 1755516207823
+description: You’re hopelessly nonmagical. When you try to use magic abilities, or even when they’re used on you, they never work right. Even magic devices seem to fizzle in your presence.
+id: 51c1696d-f49b-4863-9a17-d0f75db25e7c
+benefit: You have immunity to corruption, holy, and psychic damage equal to your level.

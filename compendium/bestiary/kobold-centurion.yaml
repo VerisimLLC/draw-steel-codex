@@ -1,0 +1,942 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: beab8506-6a8e-47b3-a333-97faddf71f11
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.217646
+    portraitOffset:
+      x: 0.04296887
+      y: 0.02837086
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8dd2dde7-fa73-44d2-9e79-a4f3e5520d85
+  properties:
+    __typeName: monster
+    selectedLoadout: 1
+    moveDiag: 0
+    cr: 1
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries:
+        e217139c-d3ea-4457-b7c7-4fe5f0adb7a9:
+          refreshid: ""
+          note: Restrain
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0
+    6521e74b-e4c1-4d55-88c0-ada4090716c5_history:
+      __typeName: StatHistory
+      entries:
+        9f273740-5a6b-4535-a216-e69bf44bbd7c:
+          note: Firetail Pilum
+          abilityid: 7c865fdd-9877-47c7-9794-22d80210a929
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: "-1/0"
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Kobold: true
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    attributes:
+      inu:
+        baseValue: 0
+        id: inu
+      pre:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: pre
+      mgt:
+        baseValue: 2
+        id: mgt
+      agl:
+        baseValue: 3
+        id: agl
+      rsn:
+        baseValue: 1
+        id: rsn
+      rea:
+        baseValue: 2
+        id: rea
+      prs:
+        baseValue: 2
+        id: prs
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      agi:
+        __typeName: CharacterAttribute
+        id: agi
+      end:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: end
+    weight: 3
+    opportunityAttack: 2
+    attributesBonusAdd: []
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        610be1cf-0fad-4352-a3e2-f6c1afac8976:
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-1
+          note: "Used triggered ability: Testudo!"
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    aurasEnteredTurnId: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-6-f42fc00b-21d4-4e3a-88cc-c2e283d6d0ba
+    levelChoices: []
+    moveDistance: 24
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+          8bbf3eec-4f74-4138-b2e3-18703f70701e: 1
+        animType: consumeResource
+      guid: 41e5a687-cbf6-4de7-99fb-3ae01e31ac30-659
+    savingThrowRatings: []
+    max_hitpoints: 80
+    deathSavingThrowFailures: 0
+    damageEntries:
+      32beff2d-4e8d-4c6c-b6a7-1f4455b308d9:
+        damage: 5
+        id: 32beff2d-4e8d-4c6c-b6a7-1f4455b308d9
+      c19fcbcf-c994-4f3d-95da-a79bf81a26cf:
+        id: c19fcbcf-c994-4f3d-95da-a79bf81a26cf
+        heal: 5
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        91a79132-37b2-4a3c-a4ef-dafd0da93698:
+          disposition: bad
+          note: Purged condition
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 75
+        c05b737c-3cb6-4800-b45f-9ee9e2d12785:
+          disposition: good
+          note: 5 Healing
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 80
+    minion: false
+    initiativeGrouping: bb0e726b-af43-4197-aadd-93d233f6f6b9
+    8bbf3eec-4f74-4138-b2e3-18703f70701e_history:
+      __typeName: StatHistory
+      entries:
+        b7444d06-c6e1-4fe4-843c-6185f1925e5d:
+          note: Boom Pilum!
+          abilityid: a76c5747-5db3-4d16-8d1b-cc953e85dd9c
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: "-1/0"
+    monster_category: Monster
+    stability: 2
+    creatureSize: 1S
+    import:
+      override: true
+      data: |
+        Kobold Centurion	Level 1 Leader
+        Humanoid. Kobold	EV 12
+        <b>Stamina</b> 80
+        <b>Speed</b> 5	<b>Size</b> 1S /<b> Stability</b> 2
+        <b>Free Strike</b> 2
+        Might +2	Agility +3	Reason +2	Intuition +0	Presence +2
+        <b>Pilum</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 10<b>Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; M<1 weakened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; M<1 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	13 damage; M<3 weakened (save ends)
+        <b>Effect</b> Each ally adjacent to a target of this ability can make a free strike.
+        <b>3 Malice </b>Each target weakened by this ability is now restrained while they are weakened.
+
+        <b>Concentrate All Fire on That Hero!</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>Target</b> One enemy
+        <b>Effect </b>The target is marked until the start of the centurion's next turn. The centurion and each of their allies have an edge on power rolls made against targets marked by the centurion.
+        <b>3+ Malice</b> The centurion targets 1 additional enemy for every 3 malice spent.
+
+        <b>Testudo!</b> (Triggered Action)
+        <b>Keywords</b> Weapon
+        <b>Trigger</b> A creature uses an ability against the centurion or an ally.
+        <b>Distance</b> 5 burst	<b>Target</b> All allies in the burst
+        <b>Effect</b> Each target shifts 2 before the damage is resolved. All kobolds with Shield? Shield! has damage immunity 2 against the triggering ability.
+
+        <b>Firetail Pilum</b> (Villain Action 1)
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 10 x 1 line within 1<b>Target</b> All enemies in the line
+        <b>Effect </b>The centurion uses Pilum against each target, dealing an additional 5 damage. Each weakened target takes 2 fire damage at the start of each of their turns until the condition ends.
+
+        <b>Boom Pilum!</b> (Villain Action 2)
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 5 cube within 10<b>Target</b> All enemies in the cube
+        <b>Effect </b>The centurion uses Pilum against each target with a double edge. Each target is then pushed 3.
+
+        <b>Are You Not Entertained?!</b> (Villain Action 3)
+        <b>Keywords</b> Attack, Ranged, Weapon
+        <b>Distance</b> 10 burst<b>Target</b> All enemies in the burst
+        <b>Effect </b>Each target is <b>P<2</b> taunted (save ends). For the rest of the encounter the centurion has damage immunity 2. All allies within 10 of the centurion can make a free strike.
+
+        <b>End Effect</b>
+        At the end of their turn, the centurion can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Shield? Shield!</b>
+        The centurion has cover, a Stability of 3, and can act as cover for allies when adjacent to an ally who also has this trait.
+
+        Retainer
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+        sourceguid: 58bdd65e-5a1b-4448-8a61-1b18d5171e7b
+        behavior: trigger
+        source: Trait
+        name: End Effect
+        description: At the end of their turn, the centurion can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: End one save ends effect on self, take 5 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: f2459800-5424-4e21-9879-b320a1a0b74e
+          conditionFormula: SaveEndsEffects
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "5"
+            conditions: []
+            purgeType: one
+            targetDuration: save
+          numTargets: "1"
+          trigger: endturn
+          name: End Effect
+          description: |
+            At the end of each of their turns, the centurion can take 5 damage to end one effect on them that can be ended by a saving throw. 
+            This damage can't be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: e33ea2d9-6393-4e4a-93c5-af808f232588
+      source: Trait
+      description: At the end of their turn, the centurion can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: 58bdd65e-5a1b-4448-8a61-1b18d5171e7b
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:82888a5d-d0a7-4a34-999d-a09bdc333f40: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        iconColor: "#ffffffff"
+        behavior: icon
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+        name: Shield? Shield!
+        description: While adjacent to an ally who also has this trait, the centurion has stability 1, has cover, and grants cover to allies.
+        guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        value: 1
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+        description: While adjacent to an ally who also has this trait, the centurion has stability 1, has cover, and grants cover to allies.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: While adjacent to an ally who also has this trait, the centurion has stability 1, has cover, and grants cover to allies.
+        behavior: attribute
+        attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: While adjacent to an ally who also has this trait, the centurion has stability 1, has cover, and grants cover to allies.
+        behavior: attribute
+        attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+      source: Trait
+      description: While adjacent to an ally who also has this trait, the centurion has stability 1, has cover, and grants cover to allies.
+      guid: 82888a5d-d0a7-4a34-999d-a09bdc333f40
+      name: Shield? Shield!
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b56a04a9-1226-4e58-a853-0126c4a08220: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b56a04a9-1226-4e58-a853-0126c4a08220: true
+        sourceguid: b56a04a9-1226-4e58-a853-0126c4a08220
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Testudo!
+        description: ""
+        guid: 563ed5bf-62b2-42bf-b8ae-9404397975e7
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Each ally in the area
+          effect: Each target shifts up to 2 squares before the damage is resolved. Each kobold with the Shield? Shield! trait gains damage immunity 2 against the triggering ability.
+          trigger: A creature uses an ability that targets the centurion or an ally of the centurion within distance.
+          name: Testudo!
+          guid: a5675f6d-5533-4a8f-a54f-7e7bbe6d119b
+          distance: 5 Burst
+          keywords:
+            Area: true
+      - __typeName: CharacterModifier
+        sourceguid: b56a04a9-1226-4e58-a853-0126c4a08220
+        multitarget: all
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          displayCondition: target has "Shield? Shield!"
+          source: Trigger
+          description: Each kobold with the Shield? Shield! trait gains damage immunity 2 against the triggering ability.
+          guid: f3dd1ec2-8b0d-440f-aa49-a012ca3ca046
+          triggerBefore:
+            __typeName: TriggeredAbility
+            objectTarget: false
+            repeatTargets: false
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 5f04d9fd-ca20-4a27-80a5-81bd041f78aa
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                targetType: self
+                range: 1
+                name: Invoked Ability
+                behaviors: []
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Testudo! Shift 2
+              autoTarget: false
+              standardAbilityParams:
+                distance: "2"
+              abilityType: standard
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            range: "5"
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 496faab0-7e20-483a-844e-67123c5aede0
+            trigger: d20roll
+            numTargets: "1"
+            targetType: all
+            selfTarget: true
+            name: New Ability
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          keywords: []
+          activationCondition: "1"
+          hasTriggerBefore: true
+          rollType: ability_power_roll
+          name: Testudo!
+          rules: ""
+          damageModifier: "-2"
+          behavior: power
+          modtype: none
+        guid: a9007f44-e53d-49f7-8c04-7ba456b2c0fe
+        type: trigger
+        domains:
+          CharacterFeature:b56a04a9-1226-4e58-a853-0126c4a08220: true
+        targetType: selforally
+        behavior: powertabletrigger
+        name: Testudo!
+        rules: You and allies shift 2 squares. Damage immunity 2 to allies with Shield? Shield!
+        description: ""
+        range: "5"
+        trigger: takedamage
+      source: Character Feature
+      description: ""
+      guid: b56a04a9-1226-4e58-a853-0126c4a08220
+      name: Testudo!
+      implementation: 3
+    role: Leader
+    availableTriggers: []
+    equipment: []
+    titles: []
+    inventory: []
+    monster_type: Kobold Centurion
+    moveDistanceRoundId: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-4
+    resistances: []
+    max_hitpoints_history:
+      __typeName: StatHistory
+      entries:
+        375c75c9-74fa-40dc-8431-b0a3eefb751e:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 10
+        e4575ada-e6ab-4216-9222-f4e2d338c6aa:
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 36
+    skillRatings:
+      5ca5c242-fe6d-43b3-86b0-b5314a9fe39a: true
+    deathSavingThrowSuccesses: 0
+    notes:
+    - text: The centurion and one other 1/2 level ally can take their turn at the same time.
+      title: Two for One
+    expectedDamage: []
+    equipmentMeta:
+      mainhand2: []
+      armor: []
+      attune3: []
+      belt4: []
+      attune4: []
+      belt3: []
+      offhand1: []
+      mainhand1: []
+      belt1: []
+      mainhand3: []
+      attune1: []
+      offhand2: []
+      offhand3: []
+      belt2: []
+      attune2: []
+    damage_entry:
+      damage: 7
+      id: 383dc59b-e83d-4304-b812-450364821eba
+    damage_taken: 0
+    aurasEntered:
+      858186f6-6e4b-4d5e-81fe-ddb6fda752e2: true
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-6
+        used: 1
+      6521e74b-e4c1-4d55-88c0-ada4090716c5:
+        __typeName: CharacterResource
+        refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-1
+        used: 1
+      8bbf3eec-4f74-4138-b2e3-18703f70701e:
+        __typeName: CharacterResource
+        refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d
+        used: 1
+    walkingSpeed: 5
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; M<1 weakened (save ends)
+        - 10 damage; M<2 weakened (save ends)
+        - 13 damage; M<1 weakened (save ends)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: a7bb353d-21f6-44cf-9bb3-0a1737e1d0cb
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: a7bb353d-21f6-44cf-9bb3-0a1737e1d0cb
+          resourceCostType: cost
+          domains: []
+          guid: bad8aefb-916c-404d-9b33-67072ca90e61
+          replaceText: Weakened with Restrained
+          keywords: []
+          activationCondition: false
+          behavior: power
+          resourceCostAmount: "3"
+          rollType: ability_power_roll
+          name: Restrain
+          description: While weakened this way, a target is also restrained.
+          modtype: none
+          replacePattern: Weakened
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        autoTarget: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: eff2cdc7-47ff-4c10-a0a9-a23d319d0127
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 47f8874f-b78d-4bdb-b423-23e43378ab8b
+        abilityType: standard
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: fd7c8de6-6916-4904-8135-c739718c84cc
+      meleeRange: 1
+      numTargets: 2
+      implementation: 4
+      targetType: target
+      name: Pilum
+      persistence: []
+      description: |-
+        Each ally adjacent to a target can make a free strike against  that target.
+
+        **3 Malice**: While weakened this way, a target is also restrained.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 145
+        docid: a6af1208-0560-4a2c-b1c9-09e4bb01bdd5
+      range: 10
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 596251a8-b381-463f-99ab-ecdebbb07382
+        durationUntilEndOfTurn: false
+        duration: 1
+        ongoingEffectCustom: false
+      strain: []
+      guid: ad5c5099-14fa-4e87-b0c8-1bbc0233de9d
+      channelIncrement: 3
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1 + Charges
+      iconid: ui-icons/skills/1.png
+      channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      name: Concentrate All Fire on That Hero!
+      categorization: Signature Ability
+      description: |
+        Until the start of the centurion's next turn, the centurion and their allies gain an edge on power rolls against the target.
+
+        **3+ Malice:** This ability targets one additional target for each 3 
+        Malice spent.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        applyto: caster
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          description: ""
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: 166b4476-fafd-4a55-aa74-8f2d5bac7e0d
+            sourceguid: 780324a1-5ace-40ac-860a-bc6d9077b29e
+            behavior: attribute
+            source: Ongoing Effect
+            name: Ignore Difficult Terrain
+            value: 1
+            description: ""
+            attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+          source: Ongoing Effect
+          name: Ignore Difficult Terrain
+          guid: 780324a1-5ace-40ac-860a-bc6d9077b29e
+          id: 780324a1-5ace-40ac-860a-bc6d9077b29e
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        targetMoveVicinity: true
+        movementType: move
+        vicinityFilter: Enemy
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 12 damage; M<1, weakened and on fire (save ends)
+        - 15 damage; M<2, weakened and on fire (save ends)
+        - 18 damage; M<3, weakened and on fire (save ends)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: eff2cdc7-47ff-4c10-a0a9-a23d319d0127
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        autoTarget: true
+        guid: f58e7b03-bfdf-42d5-9478-7d7c9a619502
+        standardAbility: 47f8874f-b78d-4bdb-b423-23e43378ab8b
+        abilityType: standard
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 145
+        docid: a6af1208-0560-4a2c-b1c9-09e4bb01bdd5
+      range: Walking Speed
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '6521e74b-e4c1-4d55-88c"
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      categorization: Heroic Ability
+      strain: []
+      guid: 7c865fdd-9877-47c7-9794-22d80210a929
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: anyspace
+      numTargets: 1
+      targeting: pathfind
+      effectImplemented: true
+      name: Firetail Pilum
+      iconid: ui-icons/skills/1.png
+      description: |
+        The centurion moves up to their speed, ignoring difficult terrain, and uses Pilum against each creature whose space they move through. They make one power roll against all targets, and the ability deals an extra 5 damage. While weakened by that ability, each target takes 2 fire damage at the start of each of their turns. 
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; M < 1, weakened (save ends); Push 3
+        - 10 damage; M < 2, weakened (save ends); Push 3
+        - 13 damage; M < 3, weakened (save ends); Push 3
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 9bb495c3-9280-49dd-8392-3cc89bc7db51
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 9bb495c3-9280-49dd-8392-3cc89bc7db51
+          modtype: double_edge
+          keywords: []
+          activationCondition: true
+          guid: 14c116fb-3cd8-4d27-97a6-4693de90502a
+          rollType: ability_power_roll
+          domains: []
+          description: When using Boom Pilum you have a double edge.
+          name: Boom Pilum
+          behavior: power
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a76c5747-5db3-4d16-8d1b-cc953e85dd9c
+      radius: "5"
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '8bbf3eec-4f74-4138-b2e"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: cube
+      name: Boom Pilum!
+      implementation: 4
+      description: The centurion uses Pilum against each target with a double edge. Each target is then pushed 3.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'fa97ab6c-5800-490f-87b"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 9d6239dd-6618-478a-b351-f4b68c58934c
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: P<2 taunted (save ends)
+        filterTarget: not friends(caster, target)
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        filterTarget: friends(caster, target)
+        promptText: Make a free strike
+        autoTarget: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: acb424e5-c7e6-49fe-8bc1-d678b7bc8db8
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 78f7e96b-4896-4a73-af4e-0b5f5e5352b0
+        ongoingEffectCustom: 78f7e96b-4896-4a73-af4e-0b5f5e5352b0
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      effectImplemented: true
+      name: Are You Not Entertained?!
+      iconid: ui-icons/skills/1.png
+      description: Each target is P<2 taunted (save ends). For the rest of the encounter the centurion has damage immunity 2. All allies within 10 of the centurion can make a free strike.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 5
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 56eb4049-7853-4b00-a79c-fb16b4caf62e
+      sourceReference:
+        __typeName: SourceReference
+        page: 194
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Testudo!
+      numTargets: 1
+      description: |
+        Each target shifts up to 2 squares before the damage is resolved. Each kobold with the Shield? Shield! trait gains damage immunity 2 against the triggering ability.
+      abilityType: none
+      implementation: 0
+    traitNames: []
+    hitpoints_history:
+      __typeName: StatHistory
+      entries:
+        d086b004-8ac0-40f0-9e86-7c6eb5b2c3b6:
+          disposition: bad
+          note: 7 damage from Kobold Adeptus's Firecracker
+          userid: SqYjPoYf0Mchqb4p2fWdGjySOm73
+          set: 24
+    movementSpeeds: []
+    fmr: 0
+    ev: 12
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        c196c7c3-747e-408b-949b-bd29dc9c9e54:
+          note: Pilum
+          abilityid: fd7c8de6-6916-4904-8135-c739718c84cc
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-5
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        eb24f0f0-85da-4937-b0a4-9979224a9a16:
+          note: Pilum
+          abilityid: fd7c8de6-6916-4904-8135-c739718c84cc
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        39b72ba2-f230-46bb-8404-b0ff31916eda:
+          note: Boom Pilum!
+          abilityid: a76c5747-5db3-4d16-8d1b-cc953e85dd9c
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-6
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        c85ae74f-9ddb-45bb-8a0b-ce5567e67e02:
+          note: Firetail Pilum
+          abilityid: 7c865fdd-9877-47c7-9794-22d80210a929
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-4
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        b37e36d1-b180-4e35-96b4-f6c20de3628b:
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-4
+          note: Manually Set
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        be2a2191-cd74-40f5-84a1-a167a21ca981:
+          note: Pilum
+          abilityid: fd7c8de6-6916-4904-8135-c739718c84cc
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        62829be3-78f0-4cd2-8740-ccf6c2e66997:
+          note: Firetail Pilum
+          abilityid: 7c865fdd-9877-47c7-9794-22d80210a929
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-4
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        5f14b5d9-c095-4061-82e5-5c07e59647f5:
+          refreshid: b4d0b5a6-e2c0-4626-a755-30c2a599a38d-1
+          note: Critical Hit!
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+    notesRevision: 87712e80-0209-490e-a9dd-c4965446b034
+  tokenType: null
+  bestiaryId: 205269d5-1461-4d04-a6d8-8116caf54e4a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1699741619582
+description: Kobold Centurion
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590228773
+mtime: 1775201137032
+hidden: false

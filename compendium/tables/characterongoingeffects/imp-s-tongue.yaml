@@ -1,0 +1,69 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  subtype: language
+  source: Ongoing Effect
+  behavior: proficiency
+  description: While attached, the Imp’s Tongue allows you to speak any language and understand any language spoken to you
+  equate: false
+  name: Imp's Tongue
+  sourceguid: 3ed0fe9d-1173-46f4-9249-abca883d1175
+  proficiency: proficient
+  guid: 9e3bb141-42b3-438e-bf48-29623e341ec7
+  skills:
+    9468c018-e13d-453d-8ba7-d044366ab077: true
+    9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+    215f4e98-35d8-4129-841a-14fe5d5877a4: true
+    265ba30f-5316-4a4b-a551-3c94834b23d4: true
+    6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    7e7efb1d-4627-44ab-9407-11daff1a15cf: true
+    5ed69b39-a712-43f5-b402-8416ead9047e: true
+    87989407-e69a-4b96-ab5a-4f2de73f9dd1: true
+    ba8d6dd2-7a18-4b47-9c8e-c2e989f60765: true
+    f8dbb2fc-2915-47ad-95ff-8a10cd73fbff: true
+    5287d30a-3dff-404b-8e84-0087508a801b: true
+    51483dff-15b3-4288-89c1-8321734beffa: true
+    9e4c0914-2086-4bbe-9ff2-d5baa820fa69: true
+    10b7a97c-65d7-4778-a007-9a1664119201: true
+    e14c1512-fc48-4cb6-945c-18b3eb0b808d: true
+    e286ca18-850e-42fa-aa70-dd73365215f0: true
+    1f8983ec-eade-4a90-991d-f19fbb3eb890: true
+    a2eabfeb-312b-40c9-9952-5395cc42b796: true
+    e110c3b1-3799-4179-b542-f842079b77f1: true
+    ba97f286-6412-461e-b954-ae8fba88d0df: true
+    b9f2674c-953b-457b-9b42-00b892ba2488: true
+    9275a711-ae6a-4d5f-a23c-8e218622a57f: true
+    648e3016-4c43-484d-8cc7-f63877cb9a80: true
+    cd308e8f-918c-4b08-bf17-8fc6565f044d: true
+    8cd81654-7ff7-4f0d-adc2-fadfe7a75599: true
+    85fb494c-2f8d-4e2b-9887-d03a2949c4fa: true
+    86a6b7cc-6569-48cc-8867-b184204ebfd2: true
+    5cd91d59-d0da-4672-9afc-d902c79d9f4f: true
+    75b9fb28-7e0a-4d3e-9e17-ead36fce7d84: true
+    69e19c1a-9919-422c-a61f-ead6702360ed: true
+    ad0606c8-559c-46e8-b578-553bf4016b1f: true
+    b2f50f8b-476e-4a4c-9741-5f4b568dae63: true
+    ebc44aa6-305a-471e-843a-ef44a7c23810: true
+    d2821847-466a-4320-85d8-cabeb7835429: true
+    2cc5b5ba-b472-4ca4-87fb-2129c17171d8: true
+    f3951673-4de6-42ad-be86-d3158c40365c: true
+    cfcc8202-6df8-4bca-9916-ad8891e36357: true
+    7022a370-503a-4cfd-a711-4b6af889f3af: true
+    5961c0ed-6a39-48fa-ad94-0a4fb4d98b58: true
+    a7eb4785-677f-442d-bb09-7f4f0e948f0a: true
+    36cfd691-17e8-4931-85ef-93db7e2741f5: true
+source: Ongoing Effect
+guid: 3ed0fe9d-1173-46f4-9249-abca883d1175
+id: 3ed0fe9d-1173-46f4-9249-abca883d1175
+ctime: 1760132005624
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Imp's Tongue
+description: While attached, the Imp’s Tongue allows you to speak any language and understand any language spoken to you
+custom: true
+mtime: 1761692478192
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,16 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+type: Gear
+ctime: 1761767556577
+id: 4e62e1cb-c160-4ea1-ac60-5c4605f0483e
+equipmentCategory: 4c9fc2bb-1c17-4072-babe-c2e3a55faa65
+domains:
+  item:4e62e1cb-c160-4ea1-ac60-5c4605f0483e: true
+itemObjectId: b7bce753-6175-4479-9ab9-030fa6af6298
+availability: monsters
+name: Specter Glow
+mtime: 1761768529838
+description: ""
+weight: 1
+iconid: 01c461e2-c092-494b-915a-de7b8e757439

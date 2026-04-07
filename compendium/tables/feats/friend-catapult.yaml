@@ -1,0 +1,61 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 28108fbd-da63-44ec-a003-85e2f9dfd6d0
+      guid: db319473-9545-47dc-a327-a1c89baa3be3
+      source: Feat
+      behavior: activated
+      description: ""
+      name: Friend Catapult
+      activatedAbility:
+        __typeName: ActivatedAbility
+        objectTarget: true
+        targetFilter: not Enemy and Size <= Caster.size
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+          stacks: might*2
+          duration: 0
+          ongoingEffectCustom: false
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          guid: 467b34c2-8763-44f2-9da6-46e9aa54b4de
+          rule: Vertical Push {2*Might}
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.316250205039978
+            s: 0.761132717132568
+            v: 0.997776627540588
+            a: 1
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 2f7a118a-a828-41e8-b826-10944137a22a
+        domains: []
+        numTargets: "1"
+        targetType: target
+        name: Friend Catapult
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        description: As a maneuver, you grab a willing adjacent ally or object of your size or smaller, then vertical push that target up to a number of squares equal to twice your Might score. If a creature you push falls as a result of this movement, the effective distance of the fall is reduced by a number of squares equal to twice your Might score. When you use this perk, you can’t use it again until you earn 1 or more Victories.
+        abilityType: none
+        iconid: 5bf8f7fe-ad36-4375-9330-de5527e38245
+    name: Friend Catapult
+    description: ""
+    guid: 28108fbd-da63-44ec-a003-85e2f9dfd6d0
+    canHavePrerequisites: true
+    source: Feat
+tag: exploration perks
+name: Friend Catapult
+description: As a maneuver, you grab a willing adjacent ally or object of your size or smaller, then vertical push that target up to a number of squares equal to twice your Might score. If a creature you push falls as a result of this movement, the effective distance of the fall is reduced by a number of squares equal to twice your Might score. When you use this perk, you can’t use it again until you earn 1 or more Victories.
+mtime: 1755419638700
+id: bd7d9661-38d8-4521-bd99-79ff25a86221
+ctime: 1742279837871

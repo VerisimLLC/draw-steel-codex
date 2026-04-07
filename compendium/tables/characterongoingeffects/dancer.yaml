@@ -1,0 +1,155 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:985670fd-cd82-473c-97ae-e905265afb35: true
+  sourceguid: 985670fd-cd82-473c-97ae-e905265afb35
+  description: "Effect: Until the end of the encounter, whenever an enemy moves adjacent to you or damages you, you can take the Disengage move action as a free triggered action. "
+  source: Ongoing Effect
+  name: Dancer
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: e6f81e03-a024-4605-9f1c-5d23f25beed1
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: targets
+      runOnController: true
+      standardAbility: a0cde3eb-493e-41ac-bfe0-b0ec583431af
+      standardAbilityParams:
+        prompt: "Dancer: Disengage when an enemy damages you"
+      abilityType: standard
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 1330e460-b68d-4ad5-ac3e-85a2e86400af
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    domains:
+      CharacterOngoingEffect:985670fd-cd82-473c-97ae-e905265afb35: true
+    whenActive: combat
+    numTargets: "1"
+    trigger: losehitpoints
+    name: Dancer
+    description: "Effect: Until the end of the encounter, whenever an enemy moves adjacent to you or damages you, you can take the Disengage move action as a free triggered action. "
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: bfe019e7-da6f-4685-8365-6ca17e0714ab
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:985670fd-cd82-473c-97ae-e905265afb35: true
+  sourceguid: 985670fd-cd82-473c-97ae-e905265afb35
+  description: "Effect: Until the end of the encounter, whenever an enemy moves adjacent to you or damages you, you can take the Disengage move action as a free triggered action. "
+  source: Ongoing Effect
+  name: Dancer
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    subjectRange: ""
+    strain: []
+    whenActive: combat
+    persistence: []
+    abilityType: none
+    conditionFormula: Distance(Subject, self) = 1
+    guid: 6e6a8caa-2058-4dea-8fda-193ffb3b11e7
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      invokeOnCaster: false
+      runOnController: true
+      standardAbility: a0cde3eb-493e-41ac-bfe0-b0ec583431af
+      standardAbilityParams:
+        prompt: "Dancer: Disengage when an enemy moves next to you"
+      abilityType: standard
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: f7a58551-c7e4-4950-9ed1-0de164f348c5
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    trigger: finishmove
+    name: Dancer
+    description: "Effect: Until the end of the encounter, whenever an enemy moves adjacent to you or damages you, you can take the Disengage move action as a free triggered action. "
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: 1e77069b-6e3c-4806-93d1-cedaebfcd5ea
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:985670fd-cd82-473c-97ae-e905265afb35: true
+  sourceguid: 985670fd-cd82-473c-97ae-e905265afb35
+  behavior: triggerdisplay
+  source: Ongoing Effect
+  name: Dancer
+  description: "Effect: Until the end of the encounter, whenever an enemy moves adjacent to you or damages you, you can take the Disengage move action as a free triggered action. "
+  guid: 6792bc66-ae30-48c6-9e82-68cac82d0d30
+  ability:
+    __typeName: TriggeredAbilityDisplay
+    type: free
+    effect: Until the end of the encounter, whenever an enemy moves adjacent to you or damages you, you can take the Disengage move action as a free triggered action.
+    name: Dancer
+    trigger: An enemy moves adjacent to you or damages you.
+    flavor: You enter a flow state that makes you nearly impossible to pin down.
+    guid: 46581aeb-a64a-4e8f-abe9-a351e491ce96
+    distance: Ranged 1
+    keywords: []
+source: Ongoing Effect
+guid: 985670fd-cd82-473c-97ae-e905265afb35
+id: 985670fd-cd82-473c-97ae-e905265afb35
+ctime: 1747031149120
+domains:
+  CharacterOngoingEffect:985670fd-cd82-473c-97ae-e905265afb35: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Dancer
+custom: true
+description: "Effect: Until the end of the encounter, whenever an enemy moves adjacent to you or damages you, you can take the Disengage move action as a free triggered action. "
+mtime: 1753166868126
+iconid: 51c07bd5-0ea3-4c37-b744-b197e0884724

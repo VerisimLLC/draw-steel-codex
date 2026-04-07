@@ -1,0 +1,272 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 1c3eb99b-9b75-428f-9249-b3b01ee0becd
+  details: "You gain 2 piety the first time in an encounter that a creature within 10 squares of you who isn’t a minion dies or a solo creature becomes winded. \n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: Creature Dies/Solo Winded
+isSubclass: true
+ctime: 1728003730794
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 1d1d2b8d-f5d1-4ad2-8cdc-f704f8e094cc
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ba9fb7c4-23e8-4ae8-bae4-57a1b5996f01
+        source: Death Domain Class Feature
+        numCharges: ""
+        guid: 0509a504-bc76-4eab-ba25-09f4368b4eb2
+        domains:
+          class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        name: Death Domain Piety
+        resourceRefreshType: none
+        description: ""
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          trigger: creaturedeath
+          targetType: self
+          triggerPrompt: "Creature Dies: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          abilityType: none
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: none
+            charges: ""
+            resourceid: 0509a504-bc76-4eab-ba25-09f4368b4eb2
+          multipleModes: false
+          persistence: []
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 2 + 1 when level >= 4
+            checklistid: 1c3eb99b-9b75-428f-9249-b3b01ee0becd
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Creature Died
+          numTargets: "1"
+          conditionFormula: subject is not minion
+          domains:
+            class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          guid: 2e74ac30-7d75-4145-aac7-19a57a9fda5a
+          name: Creature Dies or Winded
+          modeList: []
+          description: |-
+            You gain 2 piety the first time in an encounter that a creature within 10 squares of you who isn’t a minion dies or a solo creature becomes winded.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: other
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        domains:
+          class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: ba9fb7c4-23e8-4ae8-bae4-57a1b5996f01
+        description: ""
+        source: Death Domain Class Feature
+        name: Death Domain Piety
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Solo Winded: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          persistence: []
+          modifiers: []
+          guid: 5a7cd291-6ae3-4f8c-ac9a-bf0db7833785
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: losehitpoints
+          domains:
+            class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          numTargets: "1"
+          conditionFormula: subject.solo and (subject.Stamina <= subject.Maximum Stamina/2) and ((subject.Stamina + Damage) > subject.Maximum Stamina/2)
+          name: Death Domain Piety
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            checklistid: 1c3eb99b-9b75-428f-9249-b3b01ee0becd
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Death Domain Piety
+            quantity: 2 + 1 when level >= 4
+          description: ""
+          subject: other
+          iconid: ui-icons/skills/1.png
+        guid: 2d5db089-9ab6-4922-9e14-8a0244c667bd
+      name: Death Domain Piety
+      classid: 77f52570-7fe1-457b-ab02-7295b6ef089a
+      description: ""
+      source: Death Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 3e4662a5-c70c-4ae3-b03d-a39348d6b8de
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: You inflict a deadly curse upon two enemies of your choice within 10 squares of you. Each target takes corruption damage equal to twice your Intuition score.
+        source: Death Domain Class Feature
+        name: Death Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "2"
+          modifiers: []
+          abilityType: none
+          targetFilter: enemy
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          repeatTargets: false
+          keywords:
+            Magic: true
+          domains:
+            class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          targetType: target
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: corruption
+            roll: Intuition*2
+          name: Death Domain Effect
+          categorization: Trigger
+          description: You inflict a deadly curse upon two enemies of your choice within 10 squares of you. Each target takes corruption damage equal to twice your Intuition score.
+          range: "10"
+          iconid: fbfb413b-5378-48cc-9a8d-44af9bddd71c
+      name: Death Domain Effect
+      classid: 77f52570-7fe1-457b-ab02-7295b6ef089a
+      description: You inflict a deadly curse upon two enemies of your choice within 10 squares of you. Each target takes corruption damage equal to twice your Intuition score.
+      source: Death Domain Class Feature
+      implementation: 3
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:77f52570-7fe1-457b-ab02-7295b6ef089a: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+details: ""
+name: Death Domain
+id: 77f52570-7fe1-457b-ab02-7295b6ef089a
+mtime: 1768291371493
+prerequisite: Deity.Domains has "Death"
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

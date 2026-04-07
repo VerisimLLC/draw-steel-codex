@@ -1,0 +1,103 @@
+__typeName: MarkdownDocument
+annotations:
+  follower:harim:
+    __typeName: RichFollower
+    identifier: harim
+    follower:
+      __typeName: Follower
+      languages:
+        9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+        5961c0ed-6a39-48fa-ad94-0a4fb4d98b58: true
+        7e7efb1d-4627-44ab-9407-11daff1a15cf: true
+      ancestry: 6f995f3d-a4e3-456a-9294-ff2c9ec5cb95
+      portrait: 79130d15-cff3-43de-b278-f1472e9f65cc
+      name: Harim
+      guid: a13582b4-6772-4e0b-bc98-2abd9a020236
+      characteristic: mgt
+      skills:
+        cdae52cd-ef20-461d-ae18-253023cdb827: true
+        436ea6c1-6386-43b2-b074-020992cc73fd: true
+        8b5a4de7-badf-4e23-8ff2-0f7a832ff754: true
+        192827b0-ef39-4d5f-840a-b3c654e7b158: true
+  "follower:":
+    __typeName: RichFollower
+    identifier: ""
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 8bec039a-bf22-47e3-bb75-c1ca6bbb0741
+      skills: []
+id: 8c25dbbb-4a02-441d-9267-05079b684c77
+ctime: 1761388561374
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |+
+      ## Missing Merchants
+
+    M: |+
+      [Harim] the cobbler is exhausted. As the only cobbler in town, they work long hours to keep everyone’s feet covered and safe. The cobbler tends to keep answers short and gets exasperated with longer conversations and people who don’t cut to the point, but they are grateful if the heroes offer help.
+
+
+    n: |
+      ## Follower: Harim
+    f: |+
+      > * “If you can go scout the east road for Forbin and the leather, I’d be forever grateful.”
+
+    j: |+
+      If the heroes search the road, they find several empty merchant wagons parked outside of a ruined mage tower (see [Mage Tower]).
+
+
+    G: |
+      > * “This small shop has a sign carved with a shoe outside.”
+    X: |
+      > * “I’m almost out of leather I need to make and repair shoes and boots.”
+    T: |+
+      If the heroes ask [Harim] about the shipment of leather or if the cobbler needs help, they reply with the following information:
+
+
+    v: |
+      [[follower:harim]]
+    b: |
+      > * “Forbin, a leather merchant from Wend, was supposed to arrive here by the east road seven days ago, but the caravan never came.”
+    D: |+
+      # B12. Cobbler
+
+
+    J: |+
+      > * “Within, a human hunches over a table of leather-working tools and scraps, repairing a shoe.”
+
+
+    r: |+
+      If a hero has enough Renown to gain a follower and doesn’t have one, they can recruit [Harim] as an artisan. If they do, give them the Harim Follower.
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: cccad36c-0142-41d8-a57f-e8feaf7663c9
+description: B12. Cobbler
+content: |+
+  # B12. Cobbler
+
+
+  > * “This small shop has a sign carved with a shoe outside.”
+  > * “Within, a human hunches over a table of leather-working tools and scraps, repairing a shoe.”
+
+
+  [Harim] the cobbler is exhausted. As the only cobbler in town, they work long hours to keep everyone’s feet covered and safe. The cobbler tends to keep answers short and gets exasperated with longer conversations and people who don’t cut to the point, but they are grateful if the heroes offer help.
+
+
+  ## Missing Merchants
+
+  If the heroes ask [Harim] about the shipment of leather or if the cobbler needs help, they reply with the following information:
+
+
+  > * “I’m almost out of leather I need to make and repair shoes and boots.”
+  > * “Forbin, a leather merchant from Wend, was supposed to arrive here by the east road seven days ago, but the caravan never came.”
+  > * “If you can go scout the east road for Forbin and the leather, I’d be forever grateful.”
+
+  If the heroes search the road, they find several empty merchant wagons parked outside of a ruined mage tower (see [Mage Tower]).
+
+
+  ## Follower: Harim
+  If a hero has enough Renown to gain a follower and doesn’t have one, they can recruit [Harim] as an artisan. If they do, give them the [Harim Follower Card].
+
+mtime: 1764324050895

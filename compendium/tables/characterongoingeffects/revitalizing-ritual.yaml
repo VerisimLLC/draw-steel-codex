@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ca76c714-27a5-4413-9499-3b20848f573d
+  source: Ongoing Effect
+  value: Stacks
+  domains:
+    CharacterOngoingEffect:ca76c714-27a5-4413-9499-3b20848f573d: true
+  name: Revitalizing Ritual
+  guid: 9910a1f9-c1a8-40f6-94c4-9c4e6d5c5fe8
+  description: You gain a bonus to your recovery value equal to the Caster's level.
+  behavior: attribute
+  attribute: recoveryvalue
+source: Ongoing Effect
+guid: ca76c714-27a5-4413-9499-3b20848f573d
+id: ca76c714-27a5-4413-9499-3b20848f573d
+ctime: 1746338329559
+domains:
+  CharacterOngoingEffect:ca76c714-27a5-4413-9499-3b20848f573d: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Revitalizing Ritual
+statusEffect: false
+description: You gain a bonus to your recovery value equal to the Caster's level.
+mtime: 1757243326205
+iconid: c825cd94-48b3-42a5-ae54-c7d6941ea6ef

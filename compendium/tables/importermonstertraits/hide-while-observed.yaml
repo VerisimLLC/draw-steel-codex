@@ -1,0 +1,41 @@
+__typeName: CharacterFeature
+testCases:
+- text: The assassin can take the Hide maneuver even while observed, though they still must have cover or concealment.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: dfe68f83-08c8-4890-8d0c-1fd5610c7530
+  modifyDescription: "<<monster>> can hide even while observed, though they still must have cover or concealment."
+  source: Monster
+  filterAbility: ability.name = "Hide"
+  behavior: modifyability
+  attributes: []
+  guid: 33f0ca65-e70b-463b-a059-eb89679340ca
+  description: ""
+  name: Hide While Observed
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 356f8ef7-ccfc-4269-963b-455cc05223cb
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Monster
+guid: dfe68f83-08c8-4890-8d0c-1fd5610c7530
+importMatch: "<<monster>> can take the Hide maneuver even while observed, though they still must have cover or concealment."
+ctime: 1742879814125
+name: Hide While Observed
+description: ""
+id: d1fbac41-db60-4b0b-9825-ef8cb2b46f5b
+mtime: 1742879814125

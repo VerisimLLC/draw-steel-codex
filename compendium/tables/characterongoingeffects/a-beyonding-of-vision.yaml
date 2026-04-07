@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 8f0dee36-419c-4a2e-bfc9-066f87bd66a7
+  sourceguid: c520f2d2-6cbe-4195-a122-31901acd5751
+  value: 30
+  source: Ongoing Effect
+  name: A Beyonding of Vision
+  behavior: attribute
+  description: You instantly recognize illusions for what they are, you can see invisible creatures, and supernatural effects can’t conceal creatures and objects from you. Additionally, you always know if an area or object you observe is magical or affected by magic, and you know the specifics of what that magic can do
+  attribute: 4b82a728-9231-4cbb-a3a0-25e68d919c8f
+source: Ongoing Effect
+guid: c520f2d2-6cbe-4195-a122-31901acd5751
+id: c520f2d2-6cbe-4195-a122-31901acd5751
+ctime: 1759709368478
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: A Beyonding of Vision
+description: You instantly recognize illusions for what they are, you can see invisible creatures, and supernatural effects can’t conceal creatures and objects from you. Additionally, you always know if an area or object you observe is magical or affected by magic, and you know the specifics of what that magic can do
+custom: true
+mtime: 1759709368478
+iconid: ui-icons/skills/1.png

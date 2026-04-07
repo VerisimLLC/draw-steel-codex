@@ -1,0 +1,51 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: dd52f05d-dc37-4fb2-8c6b-2fd23daa4efe
+  modifyDescription: You cannot use Maneuvers.
+  source: Ongoing Effect
+  filterAbility: ability.Maneuver
+  behavior: modifyability
+  attributes: []
+  guid: 058abdca-e7c0-424d-949f-092d9c1b8393
+  description: You cannot use Maneuvers.
+  name: Can't Use Maneuvers
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: d32f0bbc-1bbf-4e32-9f70-96ef74850b60
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: dd52f05d-dc37-4fb2-8c6b-2fd23daa4efe
+id: dd52f05d-dc37-4fb2-8c6b-2fd23daa4efe
+ctime: 1748298469502
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.384765982627869
+    v: 0.66365122795105
+    a: 1
+name: Can't Use Maneuvers
+description: You cannot use Maneuvers.
+mtime: 1748298878411
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd
+implementation: 3

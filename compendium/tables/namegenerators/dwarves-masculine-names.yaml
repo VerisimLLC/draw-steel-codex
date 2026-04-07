@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 4974b697-2b4a-40f9-a926-9de538a8a512
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Darzok
+- __typeName: RollTableRow
+  id: ea0f2caf-0915-4995-91ca-e88e8671f4af
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dazran
+- __typeName: RollTableRow
+  id: 0c976882-0a43-4b38-9b68-5c02250dc2e4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Djorek
+- __typeName: RollTableRow
+  id: 89dab3c4-ef2d-4270-a4f7-d1343a22fafa
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Durok
+- __typeName: RollTableRow
+  id: dcfcc6c5-6a9a-461b-a1c8-760441511d1b
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Duur
+- __typeName: RollTableRow
+  id: 772d3875-42c6-4c15-af98-c2a16b9d88cf
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gavok
+- __typeName: RollTableRow
+  id: 894643e1-c2e5-4a15-a9ba-df683ff4e7a2
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kaaz
+- __typeName: RollTableRow
+  id: 5e76c651-c429-4f70-b205-c5bbf61f5bf5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kazaan
+- __typeName: RollTableRow
+  id: 7b6dff16-dc6a-431a-a9be-1222fb65066a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Zaar
+- __typeName: RollTableRow
+  id: 73daa824-757d-4140-a65e-31d43e17819e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Zarek
+id: b04d3971-b893-4b5d-a5c4-57a7a1b61588
+name: Dwarves Masculine Names
+subtable: true
+mtime: 1743455087277
+items: false
+ctime: 1743444109583

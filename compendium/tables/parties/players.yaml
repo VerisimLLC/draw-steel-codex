@@ -1,0 +1,15 @@
+__typeName: Party
+ctime: 1759641615904
+id: 0339ff3e-f288-4a85-a02c-a458c091684f
+_fork: H4sIAAAAAAAACnWPzQrCQAyEX0X2bKDdJPvThxAP3ktss1BYRdp6KOK7u6vizWMmk8k3D9P363bTg1zUdOYo87qZ/c5cv3OWTeelKpLzVteTLqZ7GESXGEcGwqBAxA3I0ESI6oUitXZkNN0637XejmJjSgzOpwCk1kEUFXADnbXFYk/0M/f5Lic5Z/0ozyJd1qnitM67gOzJW7ZFnsaC2CCWaFRINpRsCQzS2AGEOBSg1gVKlf/2rvIp+O/VC/vVHTkOAQAA
+name: Players
+mtime: 1773430971909
+allyParties:
+  7870ffcb-c942-4db9-a831-bf0210aa11ea: true
+  b72876c4-e9d7-42dc-a8a1-cd4c3744056c: true
+  45d9d32b-252d-4116-85d7-f7dc72d8304e: true
+  8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676: true
+  336f53d5-438e-4450-ac09-9e7a49412d53: true
+  99875cc1-a5a6-491f-8af6-51b29f0da555: true
+  ada29ff5-67f8-4e26-9aea-6c4be13941f4: true
+playerParty: true

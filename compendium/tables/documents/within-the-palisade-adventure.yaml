@@ -1,0 +1,83 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 51f58906-aa82-4b8b-81b5-ff8b717d5e8f
+ctime: 1765812960080
+textStorage:
+  __typeName: TextStorage
+  sections:
+    xX: |+
+      Eight human raiders are preparing the bandit’s next meal here over a cookfire.
+
+
+    xT: |
+      ## Mess Tent
+    Q: |
+      When the heroes enter the area of the fort within the palisade, provide the following information:
+    w: |
+      One group of eight **human archers**.
+    x: |
+      One group of eight **human rogues**.
+    u: |
+      Kora, a **human scoundrel**.
+    v: |
+      Three groups of eight **human raiders** each.
+    s: |+
+      If the alarm is raised in camp, all the bandits not inside the ruin spring to the ready. This includes the following groups:
+
+    t: |
+      Berrick, a **human trickshot**.
+    q: |+
+      "The rest of this area is a training ground set with straw-stuffed fighting dummies and archery targets."
+
+    r: |+
+      ## Raising the Alarm
+
+    W: |
+      > * "The area of the fort surrounded by the palisade has a dirt ground with several canvas tents arranged around the perimeter."
+    xD: |+
+      See **[Within the Palisade Encounter]**
+
+
+    yj: |+
+      # Ruin Features
+
+    xP: |+
+      Seven large tents offer shelter to the main contingent of the bandit army. A total of thirty-two bandits are present in the tents currently: sixteen **human raiders**, eight **human archers**, and eight **human rogues**.
+
+
+    yr: |
+      **Ceilings:** The ceilings in the rooms are 3 squares high.
+    xG: |+
+      ## Guard Post
+
+    I: |+
+      # Within the Palisade **Adventure**
+
+    j: "> * "
+    yn: |
+      The ruin has the following features:
+    xJ: |+
+      Two guards are stationed in the front area of the fort: Berrick, a **human trickshot**, stands atop a platform to the east of the entryway, while Kora, a **human scoundrel**, stands to the west of the entryway in case anyone charges in. They’re friends and distracted by chatting with each other.
+
+
+    yv: "**Illumination:** The Forsaken Wraiths have placed lit torches in wall sconces to illuminate the entirety of the fortress."
+    xb: |+
+      # Inside the Ruin
+
+    c: |
+      > * "A large tent with no sides and long tables serves as an impromptu kitchen and dining area."
+    xM: |+
+      ## Sleeping Tents
+
+    xf: |-
+      The old stone ruin was once part of a forgotten barracks built by the Caelian empire.
+
+
+      #
+    xA: |2
+
+parentFolder: 3869de06-287d-49b3-b58a-e783f2d757c0
+updateid: 4300f065-39e5-433c-9800-ed89ee6efba9
+mtime: 1765839986712
+content: "# Room 1"
+description: Within the Palisade Adventure

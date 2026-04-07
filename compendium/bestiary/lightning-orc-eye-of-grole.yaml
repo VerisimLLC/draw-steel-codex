@@ -1,0 +1,351 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: bbe1ed8f-2cba-463f-b6d5-03b90413c46e
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1af7970f-48d8-4470-bcd8-00fa16b28c23
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 20
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    opportunityAttack: 4
+    stability: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+        CharacterFeature:6bb25e4b-63a8-4b88-9c29-cbc394b13644: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+          CharacterFeature:6bb25e4b-63a8-4b88-9c29-cbc394b13644: true
+        sourceguid: 6bb25e4b-63a8-4b88-9c29-cbc394b13644
+        description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+        source: Trait
+        name: Relentless
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 573a3b89-6f9d-4659-a920-3f2f10c5d762
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              persistence: []
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: 4409bd9e-f6b3-42b2-ae80-c00d97b1bfd5
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  source: ""
+                  filterAbility: Ability.Free Strike
+                  behavior: modifyability
+                  guid: a3c227fc-6677-4d02-8d45-2479d3b656c6
+                  name: Modify Attack
+                  attributes: []
+                  description: ""
+                  cannotModifyAction: true
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: f32b950d-6873-4188-a334-83ebf4f11cda
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      invokeOnCaster: true
+                      filterTarget: target.stamina <= 0
+                      abilityType: custom
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        persistence: []
+                        modifiers: []
+                        abilityType: none
+                        strain: []
+                        guid: eff417e1-db8a-40e8-9881-f6d703313c90
+                        repeatTargets: false
+                        numTargets: "1"
+                        targetType: self
+                        behaviors:
+                        - __typeName: ActivatedAbilityHealBehavior
+                          applyto: caster
+                          roll: "1"
+                        implementation: 3
+                        name: Relentless - Heal if target of free strike dies
+                        preDescription: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc lives and drops to 1 stamina instead.
+                        description: ""
+                        range: 1
+                        iconid: ui-icons/skills/1.png
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              numTargets: "1"
+              targetType: self
+              description: ""
+              name: Relentless Free Strike
+              iconid: ui-icons/skills/1.png
+              sourceReference:
+                __typeName: SourceReference
+                page: 218
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: 1
+              implementation: 3
+            invokeOnCaster: true
+            promptText: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc  lives and drops to 1 stamina instead.
+          domains:
+            CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+            CharacterFeature:6bb25e4b-63a8-4b88-9c29-cbc394b13644: true
+          whenActive: combat
+          numTargets: "1"
+          trigger: zerohitpoints
+          name: Relentless
+          description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: c10c9c6c-fa1f-4edd-a8ac-1098478c41a6
+      source: Trait
+      description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+      guid: 6bb25e4b-63a8-4b88-9c29-cbc394b13644
+      name: Relentless
+      implementation: 3
+    role: Platoon Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      keywords:
+        affinity: true
+      dr: 5
+      damageType: lightning
+      apply: Damage Reduction
+    initiativeGrouping: d895411e-9e9b-456f-b6d8-0c73298f2f13
+    damage_taken: 0
+    resources: []
+    walkingSpeed: 6
+    minion: false
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 219
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      preDescription: This ability deals lightning damage.
+      persistence: []
+      modifiers: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 Lightning damage; push 2
+        - 9 Lightning damage; slide 4
+        - 12 Lightning damage; slide 6
+        roll: 2d10 + Might or Agility
+        modesSelected:
+        - 5
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - |-
+          6 Lightning damage; shift 2 squares away from 
+          the target
+        - 9 Lightning damage; shift 4 squares away from the target
+        - 12 Lightning Damage; Slide 6 squares away from the target
+        roll: 2d10 + Might or Agility
+        modesSelected:
+        - 6
+      strain: []
+      guid: 85a0b4b3-2876-4da0-906c-125000052657
+      modeList:
+      - rules: Deal Lightning Damage and Force Move the Target
+        text: Lightning Damage and Force Move
+      - rules: Deal Lightning Damage and Shift Away from the Target
+        text: Lightning Damage and Shift
+      range: 10
+      categorization: Signature Ability
+      numTargets: 1
+      implementation: 3
+      name: Elemental Discharge
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; push 2
+        - 5 damage; push 3
+        - 8 damage; push 4
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 513d888c-b5c3-4854-bf9e-9a08f8d7d97e
+        stacks: "3"
+        duration: save_ends
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 219
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "5"
+      abilityType: none
+      numTargets: "1"
+      persistence: []
+      modifiers: []
+      categorization: Malice
+      strain: []
+      guid: c5cbe1bc-7914-4546-9a45-6232e02c73c9
+      rangeTextOverride: 5 x 2 line within 1
+      targetType: line
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      preDescription: 'This ability deals lightning damage and any enemy targeted by the ability has lightning damage weakness 3 (save ends). '
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Power Burst
+      radius: "2"
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    movementSpeeds: []
+    creatureSize: 1M
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_type: Lightning Orc Eye of Grole
+    keywords:
+      Humanoid: true
+      Orc: true
+  tokenType: null
+  bestiaryId: 4907e5c1-6319-4cf3-be91-e86a2ac394b0
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: null
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 3
+ctime: 1766128609083
+mtime: 1775167452519
+hidden: false

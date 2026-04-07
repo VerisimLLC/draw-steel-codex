@@ -1,0 +1,133 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 45365fef-6534-4780-b93b-c428ce14708b
+  description: 6/12/21
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 951d0828-36d9-4967-b442-d3e2125061ab
+    sourceguid: e1ca3cd3-5ab7-47f7-82a3-1f34f0beb348
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "6"
+        threshold: 1
+      - script: "12"
+        threshold: 5
+      - script: "21"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    source: Item
+    name: Shrouded Memory
+    behavior: attribute
+    description: 6/12/21
+    attribute: hitpoints
+  - __typeName: CharacterModifier
+    sourceguid: 45365fef-6534-4780-b93b-c428ce14708b
+    source: Item
+    behavior: power
+    keywords: []
+    activationCondition: false
+    name: Shrouded Memory
+    guid: 90079a81-6bb5-4242-aeb0-148dc8e12e9a
+    description: You gain an edge on tests made to lie about or conceal your identity.
+    modtype: edge
+    rollType: test_power_roll
+  source: Item
+  name: Shrouded Memory
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: 93c9c106-f16c-4e72-a750-b9e6108a3219
+  description: Whenever you take damage, you can use a triggered action to teleport up to 5 squares. If you do, you create an illusion of you dying in your previous space, which fades at the end of your next turn.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      triggerPrompt: Teleport up to 5 squares
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      strain: []
+      guid: 5af86d36-0091-47eb-8ec8-4dbcbb906fbe
+      numTargets: "1"
+      castImmediately: true
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        targeting: prompt
+        standardAbilityParams:
+          range: "5"
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 19973354-d13c-43e6-8aa4-741cf5d0c677
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors: []
+          targetType: emptyspace
+          name: Invoked Ability
+          numTargets: "1"
+          description: ""
+          range: "5"
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+      trigger: losehitpoints
+      name: Shrouded Memory
+      description: Whenever you take damage, you can use a triggered action to teleport up to 5 squares. If you do, you create an illusion of you dying in your previous space, which fades at the end of your next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you take damage, you can use a triggered action to teleport up to 5 squares. If you do, you create an illusion of you dying in your previous space, which fades at the end of your next turn.
+    source: Item
+    behavior: trigger
+    guid: f59abb73-0f81-44ab-9741-2f0eb59db529
+    name: Shrouded Memory
+    sourceguid: 93c9c106-f16c-4e72-a750-b9e6108a3219
+  source: Item
+  name: Shrouded Memory
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+itemPrerequisite: The will of a deceased person with no heirs
+keywords:
+  Light Armor: true
+  Psionic: true
+projectSource: Texts or lore in Khelt
+flavor: This midnight-dark leather coat is embossed with fractal patterns that appear different each time they are observed.
+level9: The armor’s bonus to Stamina increases to +21. Whenever you use the armor’s triggered action to teleport, you can teleport up to a number of squares equal to the damage taken (minimum 5 squares). Additionally, if a creature dealt you the triggering damage, you become invisible to that creature until the end of your next turn.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+description: You gain a +6 bonus to Stamina while you wear this armor. Additionally, you gain an edge on tests made to lie about or conceal your identity.
+implementation: 2
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+level5: The armor’s bonus to Stamina increases to +12. Additionally, whenever you take damage, you can use a triggered action to teleport up to 5 squares. If you do, you create an illusion of you dying in your previous space, which fades at the end of your next turn.
+id: f8ad8f12-6a09-41d2-be92-1283f316e2b8
+name: Shrouded Memory
+ctime: 1759207225807
+mtime: 1775044909860
+projectRollCharacteristic:
+  agl: true
+  prs: true
+iconid: 603f1e31-cc39-4f16-a8ec-1bee3d631455

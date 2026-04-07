@@ -1,0 +1,525 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1759349036666
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: "2"
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        description: A vaguely humanoid form, ripped apart and distorted by a demon nestled inside. They can extend long tongues from their extensive number of orifices and drag victims in close.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: A vaguely humanoid form, ripped apart and distorted by a demon nestled inside. They can extend long tongues from their extensive number of orifices and drag victims in close.
+          source: Circle of Blight Class Feature
+          name: "Call Forth: All"
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: 6617b9db-7b48-4946-9076-8cd4c238e9b5
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A vaguely humanoid form, ripped apart and distorted by a demon nestled inside. They can extend long tongues from their extensive number of orifices and drag victims in close.
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            persistence: []
+            channelDescription: You summon one Ensnarer for each essence you spend on this ability.
+            name: "Call Forth: Ensnarer"
+            description: You summon one Ensnarer for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        name: Ensnarer
+        classid: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+        guid: 4d8d0fb0-1e55-414f-92c7-917f2dee36a6
+        source: Circle of Blight Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        description: A skulking demon that shimmers in the light. They teleport into position before biting the necks of their prey.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: A skulking demon that shimmers in the light. They teleport into position before biting the necks of their prey.
+          source: Circle of Blight Class Feature
+          name: Rasquine
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: 5f69e9f7-8376-46e4-912b-1388e2ea1d1f
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A skulking demon that shimmers in the light. They teleport into position before biting the necks of their prey.
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            persistence: []
+            channelDescription: You summon one Rasquine for each essence you spend on this ability.
+            name: "Call Forth: Rasquine"
+            description: |+
+              You summon one Rasquine for each essence you spend on this ability.
+
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        name: Rasquine
+        classid: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+        guid: 08c1547a-5fa8-4dbd-b2d8-a1c98f9349cf
+        source: Circle of Blight Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        description: A diminutive form of ruinant demon. Their bodies are swift, tumbling mounds of scarred flesh and deadly claws.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: A diminutive form of ruinant demon. Their bodies are swift, tumbling mounds of scarred flesh and deadly claws.
+          source: Circle of Blight Class Feature
+          name: Razor
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: 7126a1d6-c5a5-484b-9a69-93127fc1eecc
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A diminutive form of ruinant demon. Their bodies are swift, tumbling mounds of scarred flesh and deadly claws.
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            persistence: []
+            channelDescription: You summon one Razor for each essence you spend on this ability.
+            name: "Call Forth: Razor"
+            description: You summon one Razor for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        name: Razor
+        classid: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+        guid: 12d962bf-599d-406a-9785-da37840f740d
+        source: Circle of Blight Class Feature
+        canHavePrerequisites: true
+      classid: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+      guid: 3d93b03a-c8f8-4b17-869e-d7ce48b470c7
+      description: Select two of the following signature minions. Signature minions are summoned at the start of combat and at the start of your turn for free. You can also use Call Forth to summon any number of Signature minions for their essence cost.
+      name: "Call Forth: Signature Minion"
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+        class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      description: The boil arises from the chaotic depths of the Abyssal Waste, concentrated into a heaving mass by the pressure of a coherent reality. As it slushes and threatens to burst, the noises drive nearby demons into a frenzy.
+      modifiers: []
+      name: Demon Portfolio Fixture
+      classid: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+      guid: 0527a536-3fb2-404f-950a-0370d751c9f9
+      source: Circle of Blight Class Feature
+      canHavePrerequisites: true
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: "2"
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        description: These minor demons resemble larger pitlings. They can spit a nerve-numbing phlegm at long distance that makes it easy to catch their next meal.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: These minor demons resemble larger pitlings. They can spit a nerve-numbing phlegm at long distance that makes it easy to catch their next meal.
+          source: Circle of Blight Class Feature
+          name: Archer Spittlich
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: 72b5221b-067b-410c-9aea-b808e12e8736
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: These minor demons resemble larger pitlings. They can spit a nerve-numbing phlegm at long distance that makes it easy to catch their next meal.
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Archer Spittlich"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Archer Spittliches for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Archer Spittlich
+        classid: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+        guid: 3d819c25-6eb7-44db-8906-ec793af2fa2f
+        source: Circle of Blight Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        description: A heaving, knotted mass of ensnarer bodies. A musilex is compelled to drag everything in towards their body.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: A heaving, knotted mass of ensnarer bodies. A musilex is compelled to drag everything in towards their body.
+          source: Circle of Blight Class Feature
+          name: Fanged Musilex
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: 7bb0d11c-d3ac-49cf-b7c8-fca737dbe9c8
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: A heaving, knotted mass of ensnarer bodies. A musilex is compelled to drag everything in towards their body.
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Fanged Musilex"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Fanged Musilexes for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Fanged Musilex
+        classid: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+        guid: 90c08853-4d9f-4f7a-aed1-e99ce39b5a1f
+        source: Circle of Blight Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        description: The bengrul is an undulating heap of glass and flesh. They shatter pieces of themselves into their prey and disrupt their senses.
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: The bengrul is an undulating heap of glass and flesh. They shatter pieces of themselves into their prey and disrupt their senses.
+          source: Circle of Blight Class Feature
+          name: Twisted Bengrul
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: 055130d5-f64b-43ae-a573-96bcbb89835f
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: The bengrul is an undulating heap of glass and flesh. They shatter pieces of themselves into their prey and disrupt their senses.
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Twisted Bengrul"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Twisted Bengruls for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Twisted Bengrul
+        classid: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+        guid: 31e5ebc0-8cc8-4d16-869e-ecece2ce9169
+        source: Circle of Blight Class Feature
+        canHavePrerequisites: true
+      classid: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+      guid: d622650e-aceb-45f6-af99-1a786775cd00
+      description: Choose two of the following minions. You can use Call Forth to summon the listed number of 3-Essence minions for their essence cost.
+      name: "Call Forth: 3-Essence Minion"
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe: true
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+details: The demonologists who call forth demons from the Abyssal Waste. Their portfolio is filled with shapechanging demons that grow in hunger and power over time. You can communicate with creatures that have the abyssal keyword even if you don’t share a language.
+name: Circle of Blight
+mtime: 1760391219677
+id: 4dcb43f4-a4be-4c9a-a583-45b6bbb81bfe
+primaryClassId: b41b7bcb-6246-4906-8115-831e55f62758

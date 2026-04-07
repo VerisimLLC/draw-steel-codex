@@ -1,0 +1,256 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  objectTarget: false
+  targetFilter: target.keywords has "Orc"
+  repeatTargets: false
+  reasonedFilters: []
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 216
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 91a2996e-b9ec-46aa-9e28-800d33ba71a2
+  abilityType: none
+  implementation: 3
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 4c593376-10ea-48a8-ac49-f41d7b2d1745
+    duration: 0
+    ongoingEffectCustom: 4c593376-10ea-48a8-ac49-f41d7b2d1745
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    invokeOnCaster: false
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 7a318f9c-9d12-46d8-ba04-618caca777a0
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptWhenResolvingText: Choose orc marching order
+    promptText: Each orc shifts up to their speed, moving through enemy spaces if they can. Each enemy passed through during this movement makes a Might test.
+    standardAbilityParams:
+      distance: "<<walking speed>>"
+    abilityType: standard
+    standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+    promptWhenResolving: true
+  name: Overwhelming March
+  numTargets: "1"
+  description: Each orc shifts up to their speed, moving through enemy spaces if they can. Each enemy passed through during this movement makes a Might test.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetTextOverride: The trench can’t be created directly underneath creatures.
+  repeatTargets: false
+  rangeTextOverride: 10 x 1 line within 10 squares
+  targetType: line
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 216
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "10"
+  numTargets: "10"
+  modifiers: []
+  strain: []
+  guid: b74ad246-69a3-4a5b-bb15-bd012963c4b6
+  abilityType: none
+  behaviors:
+  - __typeName: ActivatedAbilityChangeElevationBehavior
+    height: "-2"
+    shape: square
+  - __typeName: ActivatedAbilityChangeTerrainBehavior
+    tileid: "-MBVQqKrE73ix3K9-MjS"
+    shape: square
+  - __typeName: ActivatedAbilityAuraBehavior
+    duration: eoe
+    aura:
+      __typeName: Aura
+      modifiers: []
+      guid: 759c58f6-cda1-4ca2-893b-c656f6c070d5
+      difficult_terrain: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 1378aaaa-278b-4539-8c24-63a43e4014ef
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilitySummonBehavior
+        monsterType: 4870c075-8467-444b-96f3-6041bf09fa58
+        numSummons: "1"
+        allCreaturesTheSame: true
+      targetType: emptyspace
+      name: Invoked Ability
+      numTargets: "2"
+      description: ""
+      range: "10"
+      iconid: ui-icons/skills/1.png
+  persistence: []
+  targeting: direct
+  radius: "1"
+  name: Mohler Trench
+  lineDistance: "10"
+  description: An orc acting this turn summons 2 mohlers out of the ground, who dig a trench that is a 10 × 1 line within 10 squares when they appear. The trench is 2 squares deep and is difficult terrain. The trench can’t be created directly underneath creatures.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    resistanceAttr: agl
+    filterTarget: target.type != "Orc"
+    roll: 2d10 + Agility
+    tiers:
+    - 4 damage; the target falls; prone and can’t stand (EoT)
+    - 4 damage; the target falls
+    - The target can shift into the nearest unoccupied space outside the pit.
+    attrid: agl
+    resistanceRoll: true
+    isTest: false
+  - __typeName: ActivatedAbilityChangeTerrainBehavior
+    radius: 5
+    shape: square
+    tileid: "-MBVQqKrE73ix3K9-MjS"
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 67464844-075d-4bdd-ad1c-0c67216fc1e6
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Each orc in the area can shift into the nearest unoccupied space outside the pit before it is completed
+    filterTarget: target.type = "Orc"
+    standardAbilityParams:
+      distance: "3"
+      targetfilter: ""
+    abilityType: standard
+    standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    tiersSelected:
+    - 3
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 1fc3eb77-6a0c-4f25-b9ac-6afb02bc8266
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: On a Tier 3 Agility Test Result, you can shift into the nearest unoccupied space outside the pit.
+    filterTarget: target.type != "Orc"
+    standardAbilityParams:
+      distance: "3"
+    standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+    abilityType: standard
+  - __typeName: ActivatedAbilityChangeElevationBehavior
+    radius: 5
+    height: "-5"
+    testFalling: false
+    shape: square
+  - __typeName: ActivatedAbilityAuraBehavior
+    applyto: original_targets
+    aura:
+      __typeName: Aura
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      blocks_line_of_effect: false
+      guid: fc783861-ab8a-41c5-9160-64ef8005415a
+      difficult_terrain: true
+    duration: eoe
+    aliveafterdeath: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 216
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "100"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 1a9a6ce6-f315-40ea-9b2e-2cb6f28ce2db
+  numTargets: "1"
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: cube
+  radius: "5"
+  name: Mohler Cavity
+  description: The ground shakes as a group of mohlers dig a 5 cube pit beneath an area where at least one creature is on the ground. The area is difficult terrain. Each orc in the area can shift into the nearest unoccupied space outside the pit before it is completed. Each non-orc in the area makes an Agility test.
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+mtime: 1771169989954
+name: Orc
+traits: []
+attacks: []
+id: 0ae58107-0b97-4f12-9234-b35fa95de40b
+ctime: 1758524915860

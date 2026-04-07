@@ -1,0 +1,25 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 0aa81848-85f7-4c0a-915c-146de14eb8aa
+id: 0aa81848-85f7-4c0a-915c-146de14eb8aa
+ctime: 1763078303019
+domains:
+  CharacterOngoingEffect:0aa81848-85f7-4c0a-915c-146de14eb8aa: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.73584908246994
+    s: 0.861788630485535
+    v: 0.482352942228317
+    a: 1
+custom: true
+name: Hidden
+condition: 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+description: ""
+mtime: 1763078303019
+iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80

@@ -1,0 +1,9 @@
+__typeName: Skill
+specializations: []
+attribute: agl
+category: intrigue
+name: Pick Lock
+mtime: 1768772770163
+description: Open a lock without using the key
+id: fc095c29-84cd-4e3f-8f65-03cd7a7736ad
+ctime: 1715751078983

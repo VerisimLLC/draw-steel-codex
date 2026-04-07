@@ -1,0 +1,164 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: bd720dd4-b99a-46c7-ab4a-b1c9c2e98ef3
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Lancer	Level 4 Minion Harrier
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 6 for four minions
+        <b>Stamina</b> 8	<b>Immunity</b> fire 2
+        <b>Speed</b> 7	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Strike damage +2<b>Free Strike</b> 2
+        Might +1	Agility +2	Reason 0	Intuition +2	Presence 0
+        <b>Grim Thrust</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2 or Ranged 5<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 corruption damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 corruption damage; push 1
+        %E2%9C%B8	<b>17</b>	6 corruption damage; push 2
+        <b>Effect</b> The lancer deals an additional 2 damage if they strike the target from 1 or more squares above.
+
+        <b>Infernal Ichor</b>
+        If the lancer's Stamina drops to 0, they spray burning blood. Each creature within 1 of the lancer takes 2 fire damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3e7c3651-d828-47ba-89a8-f9676a978e0e: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the lancer's Stamina drops to 0, they spray burning blood. Each creature within 1 of the lancer takes 2 fire damage.
+      guid: 3e7c3651-d828-47ba-89a8-f9676a978e0e
+      source: Trait
+    role: Minion Harrier
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 2
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    monster_type: Hobgoblin Lancer
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        id: prs
+      rea:
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    withCaptain: +2 damage bonus to strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 8
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage
+        - 4 corruption damage; push 1
+        - 6 corruption damage; push 2
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c09b50da-f905-42a1-b0ad-7c5202168c84
+      meleeRange: 2
+      numTargets: 1
+      targetType: target
+      name: Grim Thrust
+      iconid: ui-icons/skills/1.png
+      description: The lancer deals an additional 2 damage if they strike the target from 1 or more squares above.
+      abilityType: none
+      implementation: 3
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 6d925e8a-dbe0-4925-81ad-85feddf4f0ab
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin Lancer
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590263463
+mtime: 1775201137032
+hidden: false

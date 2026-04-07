@@ -1,0 +1,70 @@
+__typeName: ActivatedAbility
+id: dfb59889-b651-40a6-80be-56d38bd34198
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  namedAbility: Move Speed
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 9305ede6-0f2d-4988-9db6-4face06dbfa1
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: named
+  promptText: Move Speed and Make Melee Free Strike
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  abilityType: standard
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0b5c7779-d0b0-464b-ae32-8eb15380f683
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+  promptText: Make Melee Free Strike
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: Movement Speed
+targetType: self
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: Creature can move up to their speed and make a melee free strike
+description: ""
+ctime: 1755089382027
+numTargets: "1"
+targeting: straightpath
+guid: abe7e351-4175-4200-aeb6-aace3619d47d
+name: Move Speed and Make Melee Free Strike
+repeatTargets: false
+mtime: 1774539096560
+abilityType: none
+iconid: ui-icons/skills/1.png

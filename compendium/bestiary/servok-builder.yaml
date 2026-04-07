@@ -1,0 +1,316 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9ec6ad6e-e261-4000-954f-b1249db0f199
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 8
+    cr: 9
+    import:
+      type: mcdm
+      data: |+
+        Servok Builder	Level 9 Elite Brute
+        Construct, Servok, Valok	EV 44
+        <b>Stamina</b> 240
+        <b>Speed</b> 5	<b>Size</b> 3 /<b> Stability</b> 8
+        <b>Free Strike</b> 10
+        Might +4	Agility -2	Reason -4	Intuition -1	Presence -5
+        <b>Wrecking Ball</b> (Action)%E2%97%86 Signature
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 3 cube within 5<b>	Target</b> All enemies and objects
+        <b>Effect</b> Each target makes either an <b>Agility or Intuition test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	15 damage; push 5; prone
+        %E2%98%85	<b>12%E2%80%9316</b>	12 damage; push 3
+        %E2%9C%A6	<b>17</b>	8 damage
+
+        <b>Construction Arm</b> (Action) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	16 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	23 damage; grabbed
+        %E2%9C%B8	<b>17</b>	28 damage; grabbed; M<4 vertical push 5
+
+        <b>Lay the Foundation</b> (Action)%E2%97%86 3 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 6 x 3 line within 1<b>	Target</b> Special
+        <b>Effect</b> The affected area is covered in wet concrete and is considered difficult terrain. An enemy that starts their turn in the concrete makes a <b>Might test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	Restrained (EoT)
+        %E2%98%85	<b>12%E2%80%9316</b>	Slowed (EoT)
+        %E2%9C%A6	<b>17</b>	No effect
+
+        <b>Build Wall</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> 6 wall within 3<b>	Target</b> Special
+        <b>Effect</b> The builder creates segments of concrete wall. The builder can also remove unoccupied squares of wet concrete within 3, creating 2 additional walls for each square of concrete.
+
+        <b>Sputter</b> (Free Triggered Action) %E2%97%86 2d10 + 4 %E2%97%86 1 Malice
+        <b>Keywords</b> Resistance
+        <b>Trigger</b> The target deals damage to the builder.
+        <b>Distance</b> Melee 3<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	A<2 restrained in concrete (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	A<3 restrained in concrete (save ends)
+        %E2%9C%B8	<b>17</b>	A<4 restrained in concrete (save ends)
+
+        <b>Servok Siege Machine</b>
+        The builder ignores difficult terrain and deals an additional 15 damage with abilities used against objects.
+
+        <b>Crafted to Perfection</b>
+        The builder's shape can't change via any external effects.
+
+        <b>Valiar Might</b>
+        Each power roll made against the builder can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e8ff4115-7b4e-495b-8970-7e1f98dba9ac: true
+      modifiers: []
+      name: Servok Siege Machine
+      description: The builder ignores difficult terrain and deals an additional 15 damage with abilities used against objects.
+      guid: e8ff4115-7b4e-495b-8970-7e1f98dba9ac
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:63895ba2-4e37-4953-9c54-990f3e95a374: true
+      modifiers: []
+      name: Crafted to Perfection
+      description: The builder's shape can't change via any external effects.
+      guid: 63895ba2-4e37-4953-9c54-990f3e95a374
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b4df4222-a386-47b3-8fba-0b5e2cc873b7: true
+      modifiers: []
+      name: Valiar Might
+      description: Each power roll made against the builder can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+      guid: b4df4222-a386-47b3-8fba-0b5e2cc873b7
+      source: Trait
+    role: Elite Brute
+    inflictedConditions: []
+    keywords:
+      Servok: true
+      Valok: true
+      Construct: true
+      Soulless: true
+    max_hitpoints_roll: "240"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 10
+    monster_type: Servok Builder
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: -5
+        id: prs
+      rea:
+        baseValue: -4
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 240
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 109030d6-cabe-4c7a-804c-02a17c6c2634
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Wrecking Ball
+      numTargets: 1
+      description: Each target makes either an Agility or Intuition test.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a151adef-fe71-42e0-a7ef-9f867ded2530
+      implementation: 4
+      numTargets: 1
+      name: Construction Arm
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 16 damage
+        - 23 damage; grabbed
+        - 28 damage; grabbed; M<4 vertical push 5
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c1ec9e10-7d76-4091-8128-d3acb7a78f61
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Lay the Foundation
+      implementation: 0
+      description: The affected area is covered in wet concrete and is considered difficult terrain. An enemy that starts their turn in the concrete makes a Might test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 37b36b0f-29b6-4239-8648-c90f25108858
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Build Wall
+      numTargets: 1
+      description: The builder creates segments of concrete wall. The builder can also remove unoccupied squares of wet concrete within 3, creating 2 additional walls for each square of concrete.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Resistance: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: da2371ad-0843-40fa-9b62-5d1390a1f96d
+      abilityType: none
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - A<2 restrained (save ends)
+        - A<3 restrained (save ends)
+        - A<4 restrained (save ends)
+        roll: 2d10 + Might
+      name: Sputter
+      numTargets: 1
+      description: While a creature is restrained this way, or if the target is an object, the target and their space are encased in wet concrete. A creature no longer restrained leaves squares of wet concrete behind.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 4be02076-a110-4dc3-85d3-144d9391430e
+    movementSpeeds: []
+    ev: 44
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 102313b1-6e1c-4da9-9435-906868e556d0
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Servok Builder
+parentFolder: 5d7591f8-2289-4a26-8fd5-14dcd72e6285
+artist: null
+ord: 0
+ctime: 1741590219090
+mtime: 1775201137032
+hidden: false

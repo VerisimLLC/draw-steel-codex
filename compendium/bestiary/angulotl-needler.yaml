@@ -1,0 +1,343 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 2b71d3e8-0993-4280-84e5-e770a895f7df
+    offtokenPortraitId: 4ea792ad-cf60-4593-bfba-5157161a1918
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.437793
+    portraitOffset:
+      x: -0.2058058
+      y: -0.06637186
+    frameHueShift: 0.08745422
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.8274368
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2688070e-3c0c-4fe7-9c2c-e26248bbe5af
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Angulotl Needler
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.318750500679016
+          s: 1.00208115577698
+          v: 1.00238561630249
+          a: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: ac78f512-fa14-4b4b-8cbe-6a6e5a7584eb
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Blowgun
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 poison damage
+        - 6 poison damage
+        - 7 poison damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 70dac95e-40dd-467d-97b1-3b8c47ffe282
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 70dac95e-40dd-467d-97b1-3b8c47ffe282
+          modtype: none
+          keywords: []
+          activationCondition: false
+          guid: 26ddfe1e-1ec4-41a5-8a52-dcb7701842b4
+          domains: []
+          name: 2 Malice
+          rollType: ability_power_roll
+          addText: M < 2, weakened (save ends)
+          description: A target who has m < 2 is weakened (save ends). A target weakened this way takes 2 poison damage at the start of each of their turns.
+          behavior: power
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 567a3454-ead6-4416-b338-ed73d64b7805
+        riderid: c6547942-2294-438c-817a-8dde1188162d
+      description: "**2 Malice:** A target who has M < 2 is weakened (save ends). A target weakened this way takes 2 poison damage at the start of each of their turns."
+      abilityType: none
+      iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: true
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 297c7cd3-fb8e-4540-87de-8b877dbf3308
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Camoufroge
+      persistence: []
+      description: The needler isn't revealed after using their next action.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Angulotl Needler	Level 1 Horde Artillery
+        Angulotl, Humanoid	EV 3
+        <b>Stamina</b> 10	<b>Immunity</b> poison 2
+        <b>Speed </b>5 (swim, climb)	<b>Size</b> 1S /<b> Stability</b> 0
+        <b>Free Strike</b> 2
+        Might 0	Agility +2	Reason +1	Intuition 0	Presence -1
+        <b>Blowgun</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 15<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 poison damage
+        %E2%98%85	<b>12%E2%80%9316</b>	6 poison damage
+        %E2%9C%B8	<b>17</b>	7 poison damage
+        <b>2 MaliceM<2</b> weakened (save ends). The target takes 2 poison damage at the start of each of their turns while they are weakened by this ability.
+
+        <b>Camoufroge</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self (while Hiding)
+        <b>Effect</b> The needler isn't revealed after using their next action.
+
+        <b>Toxiferous</b>
+        When an adjacent enemy grabs or uses a melee ability against the needler, they take 3 poison damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+        CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+        CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+        CharacterFeature:616acddb-2553-430a-b809-638c9eb14510: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:616acddb-2553-430a-b809-638c9eb14510: true
+        sourceguid: ec4426d5-b894-4154-a4ee-acf74c5a231c
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the needler or uses a melee ability against them, that enemy takes 2 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous
+            roll: "2"
+            damageType: poison
+            chatMessage: Melee ability vs toxic creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 78fcc0c8-76b3-489c-815a-9b29f1ffcee6
+          persistence: []
+          domains:
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:616acddb-2553-430a-b809-638c9eb14510: true
+          conditionFormula: target = self and (UsedAbility.Keywords has "Melee")
+          subject: enemy
+          name: Toxiferous
+          trigger: targetwithability
+          targetType: subject
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 932d333e-a635-43cb-adef-28e62124c4ef
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:616acddb-2553-430a-b809-638c9eb14510: true
+        sourceguid: 014e497d-86b9-4eeb-9958-db7261fe30f8
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the needler or uses a melee ability against them, that enemy takes 2 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 707c0f0a-249d-4502-a335-c6b0c4a5def9
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "2"
+            damageType: poison
+            guid: b2778aba-d949-4c29-a3bd-ce8613a7c864
+            titleText: Toxiferous
+            chatMessage: Grabbed a Toxiferous Creature
+          domains:
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:616acddb-2553-430a-b809-638c9eb14510: true
+          conditionFormula: condition = "Grabbed" and (HasAttacker)
+          numTargets: "1"
+          trigger: inflictcondition
+          name: Toxiferous
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: cc1e4089-bc89-4ee2-b113-10f36cb6f593
+      source: Character Feature
+      description: Whenever an adjacent enemy grabs the needler or uses a melee ability against them, that enemy takes 2 poison damage.
+      guid: 616acddb-2553-430a-b809-638c9eb14510
+      name: Toxiferous
+      implementation: 3
+    role: Horde Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    equipmentMeta:
+      offhand0: []
+    opportunityAttack: 2
+    damage_taken: 0
+    innateLanguages:
+      e14c1512-fc48-4cb6-945c-18b3eb0b808d: true
+    walkingSpeed: 5
+    groupid: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+    resources: []
+    creatureSize: 1S
+    traitNames: []
+    movementSpeeds:
+      climb: 5
+      swim: 5
+    monster_category: Angulotl
+    initiativeGrouping: 8fc0b6b8-4a77-41e3-8ad7-24e93adb5ba1
+    keywords:
+      Humanoid: true
+      Angulotl: true
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 17277372-a2ca-44ff-b8c9-d0a6eedb5808
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Angulotl Needler
+parentFolder: b4d6a13f-3431-4ade-b564-2cc17bcde303
+artist: null
+ord: 0
+ctime: 1741590223233
+mtime: 1775201137032
+hidden: false

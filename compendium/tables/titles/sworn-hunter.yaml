@@ -1,0 +1,40 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Sworn Hunter Benefit
+    numChoices: 1
+    guid: 2a1613ac-3e85-49d7-b3b5-76b047e9f0f2
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Hunter's Oath
+      description: As a main action, you swear a hunter’s oath against a creature within 10 squares who you have line of effect to. This oath lasts until the target dies or until you swear a hunter’s oath against a different creature. As long as the hunter’s oath lasts, you magically know the direction to the target if they are within 50 miles of you, and your damage-dealing abilities gain a +5 damage bonus against the target.
+      guid: 990352c5-6a35-4626-898c-f0b8f81c53f0
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterSkillChoice
+      categories:
+        intrigue: true
+      name: Particular Set of Skills
+      guid: 699e952b-3f4f-4b94-95dc-0c74b04bd090
+      description: You know a skill from the intrigue skill group.
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: We’re In This Together
+      description: 'When you have a creature grabbed and take damage from an ability not used by that creature, the grabbed creature takes the same damage. '
+      guid: f9303617-632d-4325-8876-8bb9e4a9f6e8
+      canHavePrerequisites: true
+      source: Feat
+id: 568e2156-8ccb-486f-851d-17654eee30d3
+ctime: 1762351733065
+name: Sworn Hunter
+description: I will follow you to the ends of the earth—just so I can kick you off the edge.
+mtime: 1775133160029
+echelon: "2"
+prerequisite: You have the Marshal title, and you take down an entire criminal organization.

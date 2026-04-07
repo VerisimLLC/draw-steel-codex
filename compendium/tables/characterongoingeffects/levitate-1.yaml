@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 87a73f70-7899-4acf-beda-9d42bf17a8b3
+  name: Levitate 1
+  source: Ongoing Effect
+  behavior: suspended
+  guid: b7111a6a-c217-4a43-9254-5f53d9e680a0
+  altitude: 1
+  description: Levitate 1 square off the ground
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 87a73f70-7899-4acf-beda-9d42bf17a8b3
+id: 87a73f70-7899-4acf-beda-9d42bf17a8b3
+ctime: 1765083053851
+hiddenFromEnemies: true
+hiddenOnToken: true
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+name: Levitate 1
+statusEffect: true
+description: Levitate 1 square off the ground
+mtime: 1765083053851
+implementation: 3

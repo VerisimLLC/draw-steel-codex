@@ -1,0 +1,197 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+prerequisite: You fight alongside three or more dwarves.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Dwarven Legionnaire Benefit
+    numChoices: 1
+    guid: bf17e2d8-c42a-4dfd-b9c1-9b7dfcb6ba76
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      description: While adjacent to two or more allies, you gain a +2 bonus to stability.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0f86846b-1b29-434c-89ff-49f7bd1a7d13
+        source: Feat
+        value: 2
+        filterCondition: Count Nearby Friends(1) > 1
+        name: Close Formation
+        guid: 1703c6de-190d-42cc-b555-6e4e8ce07ddb
+        description: While adjacent to two or more allies, you gain a +2 bonus to stability.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      source: Feat
+      canHavePrerequisites: true
+      guid: 0f86846b-1b29-434c-89ff-49f7bd1a7d13
+      name: Close Formation
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You can spend 10 uninterrupted minutes to inscribe a magic eye-shaped rune on a surface. The rune sheds light for 2 squares. The rune is dispelled 1 minute after it is activated or if you inscribe the rune elsewhere. The rune activates when an enemy comes within 2 squares of it. When the rune is activated, you wake up if you are nonmagically asleep, and you can perceive through the rune for 1 minute as if you were in its square.
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: d97c54a3-aeb8-48fc-aa65-a50b53c549f9
+      name: Rune of Alarm
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: While adjacent to a stone wall, you can use a maneuver to gain concealment. This concealment lasts until you leave the square or use an ability.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6ff741e9-279f-498b-aafc-c0914b3838a3
+        guid: 7f3b63eb-7ac2-48ee-979b-981b8cd5810b
+        source: Feat
+        behavior: activated
+        description: While adjacent to a stone wall, you can use a maneuver to gain concealment. This concealment lasts until you leave the square or use an ability.
+        name: Stonemeld
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          reasonedFilters: []
+          implementationDetails: We don't currently have support to detect if a player is adjacent to a wall so a player can activate it at any time. The maneuver will give the player the Concealment condition and purge it when the player moves or uses an ability.
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 8e024950-034c-4f9e-b064-ca151bcbc264
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 0.099609375
+              v: 0.483380198478699
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 340
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          targetType: self
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          modifiers: []
+          description: While adjacent to a stone wall, you can use a maneuver to gain concealment. This concealment lasts until you leave the square or use an ability.
+          strain: []
+          guid: 5730fd4e-ddd2-40a4-b563-bf97f2239ff1
+          castImmediately: true
+          numTargets: "1"
+          domains: []
+          implementation: 2
+          persistence: []
+          name: Stonemeld
+          categorization: Ability
+          abilityFilters: []
+          abilityType: none
+          iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 8e024950-034c-4f9e-b064-ca151bcbc264
+            mode: effect
+            conditions: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: d3a2ea20-4fe2-4bf8-86ce-3cc0d53f3075
+          persistence: []
+          conditionFormula: Ongoing Effects has "Concealment"
+          targetType: self
+          castImmediately: true
+          trigger: useability
+          name: Stonemeld - Use Ability
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: While adjacent to a stone wall, you can use a maneuver to gain concealment. This concealment lasts until you leave the square or use an ability.
+        source: Feat
+        behavior: trigger
+        guid: cfd66b59-4906-4c20-b22f-5a20ebf4fdc5
+        name: Stonemeld
+        sourceguid: 6ff741e9-279f-498b-aafc-c0914b3838a3
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 8e024950-034c-4f9e-b064-ca151bcbc264
+            mode: effect
+            conditions: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: d7318277-a195-42e5-8a8d-d88b36d6f9f9
+          persistence: []
+          conditionFormula: Ongoing Effects has "Concealment"
+          targetType: self
+          castImmediately: true
+          trigger: move
+          name: Stonemeld - Movement
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: While adjacent to a stone wall, you can use a maneuver to gain concealment. This concealment lasts until you leave the square or use an ability.
+        source: Feat
+        behavior: trigger
+        guid: f609c818-c05c-4e4c-9866-1d3c79fa758d
+        name: Stonemeld
+        sourceguid: 6ff741e9-279f-498b-aafc-c0914b3838a3
+      - __typeName: CharacterModifier
+        sourceguid: 6ff741e9-279f-498b-aafc-c0914b3838a3
+        modifyDescription: This ability can only be used when adjacent to a stone wall
+        source: Feat
+        behavior: modifyability
+        attributes: []
+        guid: 8aa80482-cc14-44c5-a188-efe92c55d964
+        description: While adjacent to a stone wall, you can use a maneuver to gain concealment. This concealment lasts until you leave the square or use an ability.
+        name: Stonemeld
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 32389bb8-5ec7-4079-852e-c8f4135ca603
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors: []
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Feat
+      canHavePrerequisites: true
+      guid: 6ff741e9-279f-498b-aafc-c0914b3838a3
+      name: Stonemeld
+      implementation: 2
+name: Dwarven Legionnaire
+mtime: 1773772056028
+description: |-
+  I have learned much. It might be your courage that inspires others. Watch your opponent’s shield as well as their sword. And above all, stand fast,
+  and do not yield.
+id: 403fb414-102a-45d5-8a25-c36cf044f884
+ctime: 1762349509235

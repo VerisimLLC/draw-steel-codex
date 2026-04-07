@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Interpersonal Perk
+name: Dazzler
+description: Whenever a creature watches you sing, dance, or perform a role (as an actor, not just in disguise) for 1 uninterrupted minute or more, you gain an edge on any test made to influence that creature for 1 hour after the performance ends.
+mtime: 1755373892376
+id: 6f1f6f70-5b62-4fc7-830b-cc7a84329554
+ctime: 1730700610453

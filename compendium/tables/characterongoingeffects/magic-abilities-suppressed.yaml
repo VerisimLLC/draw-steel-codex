@@ -1,0 +1,38 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 67c37f5e-8e65-4065-a753-8d82972b05b4
+  source: Ongoing Effect
+  behavior: suppressabilities
+  keywords:
+    Magic: true
+  domains:
+    CharacterOngoingEffect:67c37f5e-8e65-4065-a753-8d82972b05b4: true
+  abilityFilter: ""
+  name: Magic Abilities Suppressed
+  description: Cannot use magic abilities for the duration
+  explanation: Your magic abilities are suppressed.
+  guid: 218c08b3-06d4-4b65-a0a4-79a9ff5d180b
+source: Ongoing Effect
+guid: 67c37f5e-8e65-4065-a753-8d82972b05b4
+id: 67c37f5e-8e65-4065-a753-8d82972b05b4
+ctime: 1754898367170
+domains:
+  CharacterOngoingEffect:67c37f5e-8e65-4065-a753-8d82972b05b4: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.96289074420929
+    v: 0.886135458946228
+    a: 1
+endTrigger: none
+name: Magic Abilities Suppressed
+custom: true
+mtime: 1766139904133
+description: Cannot use magic abilities for the duration
+iconid: 52b11daa-6280-40b3-bf57-7eb8b7a1828f

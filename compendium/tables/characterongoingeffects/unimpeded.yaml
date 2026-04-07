@@ -1,0 +1,25 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 4c4de2aa-9ebb-48e1-8176-2a224e10c478
+id: 4c4de2aa-9ebb-48e1-8176-2a224e10c478
+ctime: 1757222553411
+domains:
+  CharacterOngoingEffect:4c4de2aa-9ebb-48e1-8176-2a224e10c478: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0494999699294567
+    s: 0.56640625
+    v: 0.344076037406921
+    a: 1
+custom: true
+name: Unimpeded
+statusEffect: true
+description: Creature has been moved through this turn.
+mtime: 1765986615505
+iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335

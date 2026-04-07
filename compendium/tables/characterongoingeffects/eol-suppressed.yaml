@@ -1,0 +1,24 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: f82fe667-4524-4d8d-ad87-9c24e089758e
+id: f82fe667-4524-4d8d-ad87-9c24e089758e
+ctime: 1756039397757
+domains:
+  CharacterOngoingEffect:f82fe667-4524-4d8d-ad87-9c24e089758e: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.102000117301941
+    s: 0.978515803813934
+    v: 0.78370863199234
+    a: 1
+name: EoL Suppressed
+custom: true
+description: A gnoll has died, Echoes of Laughter is suppressed for the remainder of the round.
+mtime: 1757223786255
+iconid: c97f2b52-07a3-43ac-8e5b-f10944132412

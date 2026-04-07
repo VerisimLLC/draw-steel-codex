@@ -1,0 +1,33 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: ff2c0e26-03d5-4d6a-8f5b-4b0bc3f18d05
+  sourceguid: 73ff8e9e-50f4-4fb5-8fda-03bcc946711c
+  value: 1
+  source: Ongoing Effect
+  name: Ignore Difficult Terrain
+  behavior: attribute
+  description: This creature ignores difficult terrain.
+  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+source: Ongoing Effect
+guid: 73ff8e9e-50f4-4fb5-8fda-03bcc946711c
+id: 531917a1-7305-4e49-9015-9ebda58a83f2
+ctime: 1766161595618
+display:
+  blend: add
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.505187511444092
+    s: 0.389013528823853
+    v: 1.00306534767151
+    a: 1
+  brightness: 1
+custom: true
+name: Ignore Difficult Terrain
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd
+description: This creature ignores difficult terrain.
+mtime: 1766161595618
+implementation: 3

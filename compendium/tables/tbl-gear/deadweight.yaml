@@ -1,0 +1,97 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: While holding the Deadweight, you fall twice as fast, taking an extra 1 damage for each square you fall (to a maximum of 75 total damage from a single fall).
+  modifiers: []
+  source: Item
+  name: Extra Fall Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 6c5de15f-06bb-4bf1-93b2-685804a1c2ea
+- __typeName: CharacterFeature
+  description: If you fall 5 or more squares this way, you can make a melee free strike as a free maneuver once during the fall before you hit the ground.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 62d385de-b4d1-4bde-9464-7d96f556699d
+    guid: e847124d-2ec0-41a4-8f91-d46b1515b7a4
+    source: Item
+    behavior: activated
+    description: If you fall 5 or more squares this way, you can make a melee free strike as a free maneuver once during the fall before you hit the ground.
+    name: Falling Free Strike
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: dcbb59f0-f5a2-40dc-9b51-1537942b29ed
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+        abilityType: standard
+        applyto: caster
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: ab3eec3e-a392-4dbe-896d-8c0e334f2668
+      targetType: self
+      domains: []
+      numTargets: "1"
+      castImmediately: true
+      name: Falling Free Strike
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  source: Item
+  name: Falling Free Strike
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 62d385de-b4d1-4bde-9464-7d96f556699d
+itemPrerequisite: One humanoid femur, one bar of lead laced with starmetal
+keywords:
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: Though this humanoid femur is coated in lead, it feels impossibly heavy for its size.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+projectGoal: "150"
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+domains:
+  item:694171a8-eed2-4975-ac3f-d0b610186b74: true
+id: 694171a8-eed2-4975-ac3f-d0b610186b74
+ctime: 1758400145435
+name: Deadweight
+description: While holding the Deadweight, you fall twice as fast, taking an extra 1 damage for each square you fall (to a maximum of 75 total damage from a single fall). If you fall 5 or more squares this way, you can make a melee free strike as a free maneuver once during the fall before you hit the ground.
+mtime: 1759400220543
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: fa43e642-8f04-47dc-9db8-4083291fbd69

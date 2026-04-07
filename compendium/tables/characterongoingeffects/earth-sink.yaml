@@ -1,0 +1,110 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 163c875b-20ff-4846-bdb2-3a11ed0f058a
+  source: Ongoing Effect
+  value: -1
+  filterCondition: Burrowing Speed < 1 and Movement Type != "Fly"
+  guid: 40a1fe2c-75d5-4638-ba09-d1f8dbf45eea
+  name: Earth Sink
+  domains:
+    CharacterOngoingEffect:163c875b-20ff-4846-bdb2-3a11ed0f058a: true
+  description: "Each creature who starts their turn on the ground and can't burrow must spend 1 additional square of movement to leave their starting position, or 2 if they are underground or prone. "
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: 163c875b-20ff-4846-bdb2-3a11ed0f058a
+  source: Ongoing Effect
+  value: -1
+  filterCondition: Burrowing Speed < 1 and Movement Type != "Fly"
+  guid: 88df4672-c969-412c-8f97-58c19ed009c2
+  name: Earth Sink
+  domains:
+    CharacterOngoingEffect:163c875b-20ff-4846-bdb2-3a11ed0f058a: true
+  description: "Each creature who starts their turn on the ground and can't burrow must spend 1 additional square of movement to leave their starting position, or 2 if they are underground or prone. "
+  behavior: attribute
+  attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+- __typeName: CharacterModifier
+  sourceguid: 163c875b-20ff-4846-bdb2-3a11ed0f058a
+  source: Ongoing Effect
+  value: -1
+  filterCondition: Burrowing Speed < 1 and Movement Type != "Fly" and (Conditions has "prone" and Ongoing Effects has "Underground")
+  guid: 9d834192-2f7a-4151-a9f7-8876288551be
+  name: Earth Sink
+  domains:
+    CharacterOngoingEffect:163c875b-20ff-4846-bdb2-3a11ed0f058a: true
+  description: "Each creature who starts their turn on the ground and can't burrow must spend 1 additional square of movement to leave their starting position, or 2 if they are underground or prone. "
+  behavior: attribute
+  attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+- __typeName: CharacterModifier
+  sourceguid: 163c875b-20ff-4846-bdb2-3a11ed0f058a
+  source: Ongoing Effect
+  value: -1
+  filterCondition: Burrowing Speed < 1 and Movement Type != "Fly" and (Conditions has "prone" or Ongoing Effects has "Underground")
+  guid: ed2b79fc-8cee-4073-9bf4-cf81e2479d91
+  name: Earth Sink
+  domains:
+    CharacterOngoingEffect:163c875b-20ff-4846-bdb2-3a11ed0f058a: true
+  description: "Each creature who starts their turn on the ground and can't burrow must spend 1 additional square of movement to leave their starting position, or 2 if they are underground or prone. "
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:163c875b-20ff-4846-bdb2-3a11ed0f058a: true
+  sourceguid: 163c875b-20ff-4846-bdb2-3a11ed0f058a
+  description: "Each creature who starts their turn on the ground and can't burrow must spend 1 additional square of movement to leave their starting position, or 2 if they are underground or prone. "
+  source: Ongoing Effect
+  name: Earth Sink
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 3cfee38a-1af5-4558-8a03-82430f05a0ce
+      ongoingEffectCustom: false
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Sink 1 Square
+      color: "#ffffffff"
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: f5fd3f18-6dcf-4fa5-a0d8-96ba38414ce8
+    persistence: []
+    domains:
+      CharacterOngoingEffect:163c875b-20ff-4846-bdb2-3a11ed0f058a: true
+    conditionFormula: Moved This Turn = 0
+    targetType: self
+    trigger: endturn
+    name: Earth Sink
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: aadd4012-2c09-4380-b39c-27faa8e03940
+source: Ongoing Effect
+guid: 163c875b-20ff-4846-bdb2-3a11ed0f058a
+id: 163c875b-20ff-4846-bdb2-3a11ed0f058a
+ctime: 1757014136881
+domains:
+  CharacterOngoingEffect:163c875b-20ff-4846-bdb2-3a11ed0f058a: true
+name: Earth Sink
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.145696640014648
+    s: 0.887976765632629
+    v: 0.867691516876221
+    a: 1
+mtime: 1757015797216
+description: "Each creature who starts their turn on the ground and can't burrow must spend 1 additional square of movement to leave their starting position, or 2 if they are underground or prone. "
+iconid: b86a7a42-15dc-4220-b27c-27919193e357

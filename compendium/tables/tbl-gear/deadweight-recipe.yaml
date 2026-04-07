@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 46bdc792-2340-4d8b-99d2-eb55e3e61bf7
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765468693514
+ctime: 1765468693514
+name: Deadweight Recipe
+flavor: Text or lore in Caelian
+description: The project source necessary to craft a Deadweight
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

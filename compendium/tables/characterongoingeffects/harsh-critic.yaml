@@ -1,0 +1,66 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 047515ed-2263-4379-a136-9443323418d2
+  source: Ongoing Effect
+  guid: d2ecde84-1820-4344-b329-282c563f3a0b
+  behavior: power
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 58680b2f-db3e-4325-8c01-d38bf6545499
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 047515ed-2263-4379-a136-9443323418d2
+      mode: effect
+      conditions: []
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  domains:
+    CharacterOngoingEffect:047515ed-2263-4379-a136-9443323418d2: true
+  rollType: ability_power_roll
+  activationCondition: true
+  description: |
+    On the next ability used, any tier-related effects of that ability other than damage are suppressed, negating those effects for all targets. Ability effects that always happen regardless of the power roll work as usual.
+  modtype: suppresseffects
+  name: Harsh Critic
+source: Ongoing Effect
+display:
+  blend: add
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.759499907493591
+    s: 0.900390625
+    v: 1.00238597393036
+    a: 1
+  brightness: 1
+guid: 047515ed-2263-4379-a136-9443323418d2
+id: 047515ed-2263-4379-a136-9443323418d2
+ctime: 1746261990088
+domains:
+  CharacterOngoingEffect:047515ed-2263-4379-a136-9443323418d2: true
+description: |
+  On the next ability used, any tier-related effects of that ability other than damage are suppressed, negating those effects for all targets. Ability effects that always happen regardless of the power roll work as usual.
+iconid: 34d10db6-f875-471b-8278-f67914e73685
+endTrigger: none
+custom: true
+mtime: 1746262276721
+name: Harsh Critic
+implementation: 3

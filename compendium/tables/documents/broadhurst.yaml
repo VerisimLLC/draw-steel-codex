@@ -1,0 +1,113 @@
+__typeName: MarkdownDocument
+annotations: []
+id: f47aad99-67d1-4e15-b4c4-33badc808702
+ctime: 1761387800061
+textStorage:
+  __typeName: TextStorage
+  sections:
+    x: |
+      After meeting with Abbott Loric, the heroes are free to explore the town. These locations are keyed on the [Broadhurst Region] map. 
+    v: |+
+      Whatever happens next, let the players decide where to go. They should drive the action. If the heroes take their sweet time deciding what to do, you can advance the action with one of the events listed in the Events section.
+
+    t: |+
+      > * The heroes can go anywhere else in town that they’re curious about.
+
+
+    r: |
+      > * The heroes can take a respite and head back to their rooms at the Feather Bed Inn.
+    p: |
+      > * The heroes can go to the church of Saint Gryffyn the Stout to search the library for promising tomes.
+    n: |
+      > * The heroes can start investigating leads by visiting the carpenter, the charcoal burner, the cobbler, the furrier, the reeve, or the woodcutter.
+    l: |+
+      The players get to decide where the story goes next. Each location of interest they can visit is on the Broadhurst Map handout.
+
+    j: |
+      ## What’s Next?
+    g: |+
+      > * “This one is a little odd … [Orson], he burns the charcoal—lives at the edge of town. He’s … well, he’s got some unusual habits. But he’s harmless. Anyway, he asked you to go see him. Wouldn’t say why.”
+
+    h: "After giving the heroes this information, [Abbott Loric] thanks them for their time and reminds them that the church library is theirs to use any time.\n \n\n"
+    e: |
+      > * “[Harim] is waiting for a shipment of leather. It hasn’t come in, and the cobbler wants someone to scour the roads for the merchants.”
+    f: |
+      > * “[Dunquat], our stone mason, seems to be having some trouble getting a shipment of stone from some merchants staying at the inn. She hasn’t asked for help, but you might inquire.”
+    c: |
+      > * “[Vaughn] the woodcutter hasn’t retrieved any material from the forest in a little while. Says there are bandits in the Silver Wood, and he refuses to collect lumber until the danger is gone.”
+    d: |
+      > * “Speaking of danger, [Mikael] the carpenter was attacked by some kind of creature in the forest when he decided to get wood after [Vaughn] refused. Between those two things and [Tansy], the furrier, getting their traps broken—mark my words, something dangerous and not humanoid is in Silver Forest.”
+    a: |+
+      After talking to the heroes about the tomb, [Abbott Loric] tells them about others in Broadhurst who could use their help. He gives them the following information, which is also contained in the [Quest Leads] Handout that should be given to the players before you present this information so they can follow along:
+
+
+    b: |
+      > * “[Reeve Rosamund] needs some help looking into some thefts about town. Someone is stealing our foodstuffs! The reeve may also want to know about the Jagged Edge!”
+    Y: |+
+      > * It seemed that [Queen Bargnot] coveted power and freedom above all else. She wanted to raze Broadhurst so she could claim the land of the village for herself and live life according to her own laws.
+
+
+    Z: |+
+      ## Others Need You
+
+    W: |
+      > * The people banded together to put down [Queen Bargnot]’s raids in a series of escalating skirmishers that eventually led to the Jagged Edge marching upon the village.
+    X: |
+      > * Many farms and fields were burned, but the villagers ultimately won the day. Though [Queen Bargnot] escaped, she wasn’t seen again and the Jagged Edge was assumed to be no more.
+    U: |
+      If the heroes mention [Queen Bargnot] or the Jagged Edge to [Abbott Loric], [Gweldyr], or [Dunquat], these villagers react with shock. They remember a time almost forty years ago when [Queen Bargnot] and the Jagged Edge harassed the people of Broadhurst, and share the following information:
+    V: |
+      > * Forty years ago, [Queen Bargnot] and the Jagged Edge began harassing folk traveling on the roads to and from Broadhurst.
+    S: |+
+      > * “You know, I have some old books in the church library about magic and such. There might be some useful information in them if you want to come by and look.”
+
+    T: |+
+      ## Queen Bargnot Lives!
+
+    Q: |
+      > * “It sounds like these villains want to get to the lower levels of the ruins. Given time, they’ll likely find a way.”
+    R: |
+      > * “You should get down there before them and claim whatever it is they want. I’d rather it be in good hands!”
+    O: |
+      [Abbott Loric] starts by asking the heroes about their adventure in the Delian Tomb, asking if they know why the goblins kidnapped [Violet].
+    P: |+
+      If the heroes mention anything about a cup, the goblins performing a ritual, or the sealed entrance to the lower levels of the tomb, Loric reacts with genuine concern, saying:
+
+    M: "> * “‘There are many villagers who could use your help. Let me walk with you a bit, so I might share their plight and hear of your adventure.’”\n \n\n"
+    N: |+
+      ## Talking About the Tomb
+
+    K: |
+      > * “A robed human in his sixties with a friendly disposition approaches you with a smile.”
+    L: |
+      > * “He extends his hands in a greeting and says, ‘[Abbott Loric] at your service. I heard you fine folks risked your lives for others today … and in the Delian Tomb of all places!’”
+    I: |
+      [Ashleigh] thanks the heroes again before leaving to go home.
+    J: |+
+      Not long after the heroes make it to the village, they’re approached by [Abbott Loric], a priest who runs the village’s Church of Saint Gryffyn the Stout:
+
+    G: |+
+      > * “Now that you’re back in town, you have an opportunity to rest, craft and research, and see what sorts of quests are available to you.”
+
+
+    H: |+
+      ## Arrival
+
+    E: |
+      > * “Broadhurst is mostly small fields of barley, oats, sugar beets, and wheat and a few pens for pigs and rabbits.”
+    F: |
+      > * “The farms surround a village square that contains a blacksmith, a butcher, a smokehouse, a church, the Feather Bed Inn, and several other services depicted on the map.”
+    C: |+
+      When the heroes first arrive in Broadhurst after visiting the Delian Tomb, give the players the following information as you show them the [Broadhurst Region] Map, or use the [Broadhurst Region Player Map] to share the region with them:
+
+
+    D: |
+      > * “The farming village of Broadhurst sits on a small hill above the Silver Wood, bisected by the Dunn River.”
+    B: |+
+      # Broadhurst	
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 03fc4b5b-5354-4e6d-a9d9-7dd809ab3912
+mtime: 1770196086898
+content: "# Broadhurst	\n\nWhen the heroes first arrive in Broadhurst after visiting the Delian Tomb, give the players the following information as you show them the [Broadhurst Region] Map:\n\n\n> * “The farming village of Broadhurst sits on a small hill above the Silver Wood, bisected by the Dunn River.”\n> * “Broadhurst is mostly small fields of barley, oats, sugar beets, and wheat and a few pens for pigs and rabbits.”\n> * “The farms surround a village square that contains a blacksmith, a butcher, a smokehouse, a church, the Feather Bed Inn, and several other services depicted on the map.”\n> * “Now that you’re back in town, you have an opportunity to rest, craft and research, and see what sorts of quests are available to you.”\n\n\n## Arrival\n\n[Ashleigh] thanks the heroes again before leaving to go home.\nNot long after the heroes make it to the village, they’re approached by [Abbott Loric], a priest who runs the village’s Church of Saint Gryffyn the Stout:\n\n> * “A robed human in his sixties with a friendly disposition approaches you with a smile.”\n> * “He extends his hands in a greeting and says, ‘[Abbott Loric] at your service. I heard you fine folks risked your lives for others today … and in the Delian Tomb of all places!’”\n> * “‘There are many villagers who could use your help. Let me walk with you a bit, so I might share their plight and hear of your adventure.’”\n \n\n## Talking About the Tomb\n\n[Abbott Loric] starts by asking the heroes about their adventure in the Delian Tomb, asking if they know why the goblins kidnapped [Violet].\nIf the heroes mention anything about a cup, the goblins performing a ritual, or the sealed entrance to the lower levels of the tomb, Loric reacts with genuine concern, saying:\n\n> * “It sounds like these villains want to get to the lower levels of the ruins. Given time, they’ll likely find a way.”\n> * “You should get down there before them and claim whatever it is they want. I’d rather it be in good hands!”\n> * “You know, I have some old books in the church library about magic and such. There might be some useful information in them if you want to come by and look.”\n\n## Queen Bargnot Lives!\n\nIf the heroes mention [Queen Bargnot] or the Jagged Edge to [Abbott Loric], [Gweldyr], or [Dunquat], these villagers react with shock. They remember a time almost forty years ago when [Queen Bargnot] and the Jagged Edge harassed the people of Broadhurst, and share the following information:\n> * Forty years ago, [Queen Bargnot] and the Jagged Edge began harassing folk traveling on the roads to and from Broadhurst.\n> * The people banded together to put down [Queen Bargnot]’s raids in a series of escalating skirmishers that eventually led to the Jagged Edge marching upon the village.\n> * Many farms and fields were burned, but the villagers ultimately won the day. Though [Queen Bargnot] escaped, she wasn’t seen again and the Jagged Edge was assumed to be no more.\n> * It seemed that [Queen Bargnot] coveted power and freedom above all else. She wanted to raze Broadhurst so she could claim the land of the village for herself and live life according to her own laws.\n\n\n## Others Need You\n\nAfter talking to the heroes about the tomb, [Abbott Loric] tells them about others in Broadhurst who could use their help. He gives them the following information, which is also contained in the [Quest Leads] Handout that should be given to the players before you present this information so they can follow along:\n\n\n> * “[Reeve Rosamund] needs some help looking into some thefts about town. Someone is stealing our foodstuffs! The reeve may also want to know about the Jagged Edge!”\n> * “[Vaughn] the woodcutter hasn’t retrieved any material from the forest in a little while. Says there are bandits in the Silver Wood, and he refuses to collect lumber until the danger is gone.”\n> * “Speaking of danger, [Mikael] the carpenter was attacked by some kind of creature in the forest when he decided to get wood after [Vaughn] refused. Between those two things and [Tansy], the furrier, getting their traps broken—mark my words, something dangerous and not humanoid is in Silver Forest.”\n> * “[Harim] is waiting for a shipment of leather. It hasn’t come in, and the cobbler wants someone to scour the roads for the merchants.”\n> * “[Dunquat], our stone mason, seems to be having some trouble getting a shipment of stone from some merchants staying at the inn. She hasn’t asked for help, but you might inquire.”\n> * “This one is a little odd … [Orson], he burns the charcoal—lives at the edge of town. He’s … well, he’s got some unusual habits. But he’s harmless. Anyway, he asked you to go see him. Wouldn’t say why.”\n\nAfter giving the heroes this information, [Abbott Loric] thanks them for their time and reminds them that the church library is theirs to use any time.\n \n\n## What’s Next?\nThe players get to decide where the story goes next. Each location of interest they can visit is on the Broadhurst Map handout.\n\n> * The heroes can start investigating leads by visiting the carpenter, the charcoal burner, the cobbler, the furrier, the reeve, or the woodcutter.\n> * The heroes can go to the church of Saint Gryffyn the Stout to search the library for promising tomes.\n> * The heroes can take a respite and head back to their rooms at the Feather Bed Inn.\n> * The heroes can go anywhere else in town that they’re curious about.\n\n\nWhatever happens next, let the players decide where to go. They should drive the action. If the heroes take their sweet time deciding what to do, you can advance the action with one of the events listed in the Events section.\n\nAfter meeting with Abbott Loric, the heroes are free to explore the town. These locations are keyed on the [Broadhurst Region] map. \n"
+description: Broadhurst

@@ -1,0 +1,31 @@
+__typeName: CharacterComplication
+drawback: You have corruption weakness 5.
+mtime: 1765792081793
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 5d17fff7-26ea-413b-ba99-d6cd25caada1
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: corruption
+        apply: Damage Reduction
+      description: ""
+      name: Bereaved
+      guid: 8bfa4ce9-cb7d-4b28-b8bb-daaedf7cf289
+    source: Feat
+    canHavePrerequisites: true
+    guid: 5d17fff7-26ea-413b-ba99-d6cd25caada1
+    name: Bereaved
+    implementation: 3
+name: Bereaved
+ctime: 1755511076079
+description: The most important person to you—perhaps a family member, mentor, or lover—was killed. The only thing that keeps you going is the faint connection you have with this person’s spirit, and the hope that one day you can tie up their unfinished business and let them rest.
+id: 3940c7c5-c1b3-4eff-977f-9fde1668879f
+benefit: Whenever you don’t know what to do, you can appeal to your loved one’s spirit for help. You spend a hero token to let the Director determine the next thing you do, whether in or out of combat. The Director chooses the best course of action they can think of for you, even if it relies on information you don’t have. If the Director can’t think of a particularly good course of action for you to take, you don’t spend the hero token.

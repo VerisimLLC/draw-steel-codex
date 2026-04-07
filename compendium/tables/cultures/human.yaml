@@ -1,0 +1,11 @@
+__typeName: Culture
+id: dfde45d4-0ce1-42c5-80e6-614180be3186
+group: Ancestry Cultures
+name: Human
+languageid: 7e7efb1d-4627-44ab-9407-11daff1a15cf
+mtime: 1769349224412
+aspects:
+  upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+  environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+  organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+ctime: 1768796142013

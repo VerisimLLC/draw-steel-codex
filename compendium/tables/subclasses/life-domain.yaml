@@ -1,0 +1,270 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 22b58198-7ff9-4851-a1fb-d6e983cee3e9
+  details: "You gain 2 piety the first time in an encounter that a creature within 10 squares of you regains Stamina.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: Creature Regains Stamina
+isSubclass: true
+ctime: 1728003771836
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 081eede6-9033-46ac-bfb8-da5d95e2d577
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: 86cd49f5-a9f5-4e04-bbb8-54c2d1dafc77
+        description: You gain 2 piety the first time in an encounter that a creature within 10 squares of you regains Stamina.
+        source: Life Domain Class Feature
+        name: Life Domain Piety
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 2 + 1 when level >= 4
+            checklistid: 22b58198-7ff9-4851-a1fb-d6e983cee3e9
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Healing
+          triggerPrompt: "Creature Gains Stamina: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: regainhitpoints
+          domains:
+            class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          targetType: self
+          persistence: []
+          name: Life Domain Piety
+          guid: e8e58efa-fb0f-4771-b8e1-663919beab2d
+          description: |-
+            You gain 2 piety the first time in an encounter that a creature within 10 squares regains Stamina.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: any
+          iconid: ui-icons/skills/1.png
+        guid: d456ba3f-5038-4c6e-a049-b2409e8dc5f2
+      name: Life Domain Piety
+      classid: b88f1d5e-62c6-4617-b097-0a48df131f01
+      description: You gain 2 piety the first time in an encounter that a creature within 10 squares of you regains Stamina.
+      source: Life Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 6f78a2bb-c87d-47c8-8cf2-cf190df1d665
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: 'Choose yourself or one ally within 10 squares of you. The targets can spend a Recovery, can end any effects on them that are ended by a saving throw or that end at the end of their turn, or can stand up if they are prone. Alternatively, you and one ally within 10 squares of you gain temporary Stamina equal to 5 × your Intuition score. '
+        source: Life Domain Class Feature
+        name: Life Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: not enemy
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            filterTarget: mode = 1
+            modesSelected:
+            - -1
+            conditions: []
+            purgeType: all
+            mode: effect
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: false
+            modesSelected:
+            - 1
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 78773e5e-4258-49f9-8a8b-c7e79a1c68e0
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 64552cb4-9124-4932-805a-847f0a49b0a8
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            filterTarget: ""
+            modesSelected:
+            - 1
+            conditions:
+            - da6867b1-01e3-4570-8d1b-1b94ea1ea343
+            mode: conditions
+            purgeType: all
+            targetDuration: all
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            filterTarget: mode = 2
+            modesSelected:
+            - 2
+            stamina: Intuition*2
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.274374395608902
+              s: 1.0020809173584
+              v: 1.00070667266846
+              a: 1
+          categorization: Trigger
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          numTargets: "1"
+          domains:
+            class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          modeList:
+          - text: Recovery + End Effects
+          - text: Gain Temporary Stamina
+          name: Life Domain Effect
+          selfTarget: true
+          targetType: target
+          description: Choose yourself or one ally within 10 squares. That character can spend a Recovery, can end one condition or effect on them that is ended by a saving throw or that ends at the end of their turn, or can stand up if they are prone. Alternatively, you or one ally within 10 squares gains temporary Stamina equal to two times your Intuition score.
+          abilityType: none
+          iconid: 12cdef25-2e5b-47e0-bccf-758198de8442
+      name: Life Domain Effect
+      classid: b88f1d5e-62c6-4617-b097-0a48df131f01
+      description: 'Choose yourself or one ally within 10 squares of you. The targets can spend a Recovery, can end any effects on them that are ended by a saving throw or that end at the end of their turn, or can stand up if they are prone. Alternatively, you and one ally within 10 squares of you gain temporary Stamina equal to 5 × your Intuition score. '
+      source: Life Domain Class Feature
+      implementation: 3
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b88f1d5e-62c6-4617-b097-0a48df131f01: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+name: Life Domain
+prerequisite: Deity.Domains has "Life"
+mtime: 1768291431140
+id: b88f1d5e-62c6-4617-b097-0a48df131f01
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

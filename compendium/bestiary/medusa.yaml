@@ -1,0 +1,504 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 67352e91-01a3-4069-885e-a1ecbfc9c438
+    offtokenPortraitId: 4a165166-4166-441d-924e-e9e19c5e1685
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3315968
+    portraitOffset:
+      x: 0.08056223
+      y: 0.2530419
+    frameHueShift: 0.4091623
+    frameSaturation: 0.9760842
+    frameBrightness: 0.2795721
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0e01500e-e479-462c-a946-bd87197e5ff5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Medusa	Level 5 Solo
+        Accursed, Humanoid, Medusa	EV 70
+        <b>Stamina</b> 400	<b>Immunity</b> Poison 5, Acid 5
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 7
+        Might +2	Agility +4	Reason +0	Intuition +0	Presence +0
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The medusa takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the medusa can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Snake Bite</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	11 damage; M<2 slowed (save ends)
+        %E2%98%85	12%E2%80%9316	16 damage; M<3 slowed (save ends)
+        %E2%9C%B8	17	19 damage; M<4 slowed (save ends)
+
+        <b>Damning Gaze</b> (Action) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	11 damage; push 3
+        %E2%98%85	12%E2%80%9316	16 damage; push 5
+        %E2%9C%B8	17	19 damage; push 7
+        <b>3 Malice</b> The medusa targets two additional creatures or objects.
+
+        <b>Petrify</b> (Action) %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst<b>	Target</b> Each enemy in the burst
+        <b>Effect</b> The medusa turns dozens of eerie snake eyes on their foes.
+        %E2%9C%B8	%E2%89%A411	Slowed (save ends) or M<4 restrained (save ends)
+        %E2%98%85	12%E2%80%9316	M<3 restrained (save ends)
+        %E2%9C%A6	17	M<2 restrained (save ends)
+        <b>Effect</b> A target with cover has +1 to resist the potency, while an already slowed target has -1 to resist the potency. A target restrained by this ability magically begins to turn to stone. A target that ends two consecutive turns restrained by this ability is petrified (see Petrification).
+
+        <b>Nimble Escape</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The medusa shifts 3 and hides, even if observed.
+
+        <b>Venomous Spit</b> (Triggered Action) %E2%97%86 2d10 + 4 %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> One creature
+        <b>Trigger</b> A creature deals damage to the medusa.
+        %E2%9C%A6	<b>%E2%89%A411</b>	13 acid damage
+        %E2%98%85	<b>12-16</b>	18 acid damage
+        %E2%9C%B8	<b>17</b>	22 acid damage
+
+        <b>Cunning Edge</b>
+        The medusa has an edge on power rolls made against any creature affected by their Petrify ability.
+
+        <b>Many Peering Eyes</b>
+        The medusa can't be flanked.
+
+        <b>Mass Petrify</b> (Villain Action 1)
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> Line of effect<b>	Target</b> All enemies
+        <b>Effect </b>The medusa uses their Petrify ability against each target without spending Malice. Each target not behind cover has -1 to resist the potency.
+
+        <b>Serpent Wings </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The medusa manifests temporary wings and vertically shifts up to their speed. During or after this movement, they can use Snake Bite and Damning Gaze once each.
+
+        <b>Stone Puppets</b> (Villain Action 3)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 10 burst<b>	Target</b> Special
+        <b>Effect</b> Each stone statue and creature affected by Petrify within distance moves up to their speed and uses a signature action with an edge targeting an enemy of medusa's choice as a free triggered action. A stone statue without its own stats has a speed of 5 and uses the Medusa's free strike instead.
+
+    skillProficiencies: []
+    role: Solo
+    inflictedConditions: []
+    ev: 84
+    max_hitpoints_roll: "420"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 8
+    walkingSpeed: 10
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Medusa
+    equipment: []
+    initiativeGrouping: 61460241-d139-416f-a4d1-c9236d0831f8
+    levelChoices: []
+    damage_taken: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4275fbc7-cb43-447e-833d-312fc790bced: true
+      modifiers: []
+      name: Cunning Edge
+      description: The medusa has an edge on power rolls made against any creature affected by their Petrify ability.
+      guid: 4275fbc7-cb43-447e-833d-312fc790bced
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d2c102ce-a2af-4b10-89d5-beb091f54585: true
+      modifiers: []
+      name: Many Peering Eyes
+      description: The medusa can't be flanked.
+      guid: d2c102ce-a2af-4b10-89d5-beb091f54585
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fb2937a1-4da9-46f1-b351-59e90f328238: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the medusa can take 10 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.The medusa can take two turns each round. They can't take turns consecutively.
+      guid: fb2937a1-4da9-46f1-b351-59e90f328238
+      name: Solo Monster
+      implementation: 3
+    resources: []
+    max_hitpoints: 420
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 41ecee2b-5dee-48b9-b8b7-ce542d4752aa
+      implementation: 4
+      numTargets: 2
+      name: Snake Bite
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 damage; M<2 slowed (save ends)
+        - 16 damage; M<3 slowed (save ends)
+        - 19 damage; M<4 slowed (save ends)
+        roll: 2d10 + 4
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 55a5c238-4f8a-4ed0-b25f-27ea7b207289
+      implementation: 3
+      numTargets: 2
+      name: Damning Gaze
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 damage; push 3
+        - 16 damage; push 5
+        - 19 damage; push 7
+        roll: 2d10 + Agility
+      description: |2-
+
+        **3 Malice**: The medusa targets two additional creatures or objects.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - M<2 restrained (save ends)
+        - M<3 restrained (save ends)
+        - Slowed (save ends); or if M<4 restrained (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 205
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 3
+      numTargets: 1
+      modifiers: []
+      guid: 4968ad46-b856-41e8-9f78-72cb476d063d
+      abilityType: none
+      targetType: all
+      iconid: ui-icons/skills/1.png
+      name: Petrify
+      categorization: Heroic Ability
+      description: A target with cover reduces the potency by 1, while a slowed target increases the potency by 1. A target restrained this way magically begins to turn to stone, and a target who ends two consecutive turns restrained this way is petrified.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: cd38bcfa-bb2d-4659-9adf-52df9b09ff69
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Nimble Escape
+      numTargets: 1
+      description: The medusa shifts 3 and hides, even if observed.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 19189c49-a862-4960-8d3e-0968bea2214e
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 13 acid damage
+        - 18 acid damage
+        - 22 acid damage
+        roll: 2d10 + Agility
+      name: Venomous Spit
+      numTargets: 1
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '738af7b0-6bad-4da7-b4b"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 4ac84eb8-976c-4a36-a87a-78936dca5289
+      numTargets: 1
+      targetType: self
+      implementation: 0
+      name: Mass Petrify
+      effectImplemented: false
+      description: The medusa uses their Petrify ability against each target without spending Malice. Each target not behind cover has -1 to resist the potency.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8a6715f9-1a2a-41b0-bf98-76fb08189c7d
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '44d120f1-20a4-4bb7-a83"
+      implementation: 0
+      behaviors: []
+      name: 'Serpent Wings '
+      numTargets: 1
+      description: The medusa manifests temporary wings and vertically shifts up to their speed. During or after this movement, they can use Snake Bite and Damning Gaze once each.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e25e1ce3-ace8-46f9-a379-5f7a8d652c24
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '957bda78-0ce9-481d-94e"
+      implementation: 0
+      behaviors: []
+      name: Stone Puppets
+      numTargets: 1
+      description: Each stone statue and creature affected by Petrify within distance moves up to their speed and uses a signature action with an edge targeting an enemy of medusa's choice as a free triggered action. A stone statue without its own stats has a speed of 5 and uses the Medusa's free strike instead.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 damage; M<2 slowed (save ends)
+        - 16 damage; M<3 slowed (save ends)
+        - 19 damage; M<4 slowed (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e3bbe973-93ac-40f9-a747-e245d22adf0d
+      targetType: target
+      implementation: 4
+      numTargets: 2
+      name: Snake Bites
+      sourceReference:
+        __typeName: SourceReference
+        page: 205
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Humanoid: true
+      Accursed: true
+      Medusa: true
+    movementSpeeds: []
+    groupid: d2b6c00e-fdd9-4550-a7ef-fe8d2325f4bb
+    minion: false
+    monster_category: Monster
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 6da46e02-1bd6-4881-93b1-c5c2ea4dbbdf
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: Medusa
+parentFolder: 75f5ec62-3441-4591-9c8e-e4ce18cf843d
+artist: null
+ord: 0
+ctime: 1741590264056
+mtime: 1775201137032
+hidden: false

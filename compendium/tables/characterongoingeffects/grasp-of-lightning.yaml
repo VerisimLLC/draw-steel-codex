@@ -1,0 +1,16 @@
+__typeName: CharacterOngoingEffect
+modifiers: []
+source: Ongoing Effect
+guid: 50a2c385-260f-4ceb-8c61-b1d66a7119f3
+id: 50a2c385-260f-4ceb-8c61-b1d66a7119f3
+ctime: 1704686285092
+name: Grasp of Lightning
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1709044165564
+custom: true
+description: Cannot make chance hits until end of next turn.
+iconid: 4db2911c-324d-47f4-a105-065dc93c6369

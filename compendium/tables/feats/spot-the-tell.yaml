@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Interpersonal Perk
+name: Spot The Tell
+description: Whenever you make a test to read a person and obtain a tier 3 outcome, you notice several tells that give away their true feelings. Any test you make to read that person in the future gains an edge.
+mtime: 1755078904607
+id: 06e9de24-0fb5-4f8d-adf3-1a886e75ecf7
+ctime: 1730700760197

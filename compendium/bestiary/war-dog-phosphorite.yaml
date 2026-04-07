@@ -1,0 +1,287 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 742c396a-9262-49e8-a62b-5fbd7be65818
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: War Dog Phosphorite
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: f2c8b5dc-7199-47e8-8b42-53cc32942b6f
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 7c7cee0e-ad89-4c42-8a1d-94dec05a7b60
+        duration: eoe
+        ongoingEffectCustom: 7c7cee0e-ad89-4c42-8a1d-94dec05a7b60
+      name: Caustic Detonator
+      iconid: ui-icons/skills/1.png
+      description: A detonator attaches to the target. At the end of each round, roll a die. On an odd result, the detonator explodes, triggering the power roll.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: Target has "Loyalty Collar"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: true
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: f3a41f02-0e85-4131-982c-19fd6ceaa6d5
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      implementation: 2
+      persistence: []
+      name: Posthumous Promotion
+      selfTarget: true
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    ongoingEffects: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        War Dog Phosphorite	Level 2 Horde Hexer
+        Humanoid, War Dog	EV 4
+        <b>Stamina</b> 15	<b>Immunity</b> Acid 2
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 2
+        Might +0	Agility +1	Reason +0	Intuition +0	Presence +0
+        <b>Caustic Detonator</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature or object
+        <b>Effect </b>A detonator attaches to the target. At the end of each round, roll a die. On an odd result, the detonator explodes, triggering the power roll.
+        %E2%9C%A6	%E2%89%A411	4 acid damage; M<0 bleeding (save ends)
+        %E2%98%85	12%E2%80%9316	6 acid damage; M<1 bleeding (save ends)
+        %E2%9C%B8	17+	10 acid damage; M<2 bleeding (save ends)
+        <b>Special</b> An adjacent creature can attempt an <b>easy Agility test </b>to remove the detonator as a maneuver. A failure does nothing, a success disarms and destroys the detonator, and a success with a reward allows the disarming creature to throw the detonator onto another target within 5 squares.
+
+        <b>Posthumous Promotion</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One war dog with a loyalty collar
+        <b>Effect </b>The target's loyalty collar detonates, killing them instantly.
+
+        <b>Loyalty Collar</b>
+        When the phosphorite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3f603d91-5ecc-46ac-aa09-9e5d6b120b14: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetFilter: Enemy
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          persistence: []
+          name: Loyalty Collar
+          targetType: all
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: When the phosphorite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the phosphorite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      guid: 3f603d91-5ecc-46ac-aa09-9e5d6b120b14
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: acid
+      apply: Damage Reduction
+    opportunityAttack: 2
+    damage_taken: 0
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 1839d9a9-b47a-4bc9-875f-513a58b9df1e-2
+        used: 1
+    walkingSpeed: 5
+    monster_category: Monster
+    traitNames: []
+    creatureSize: 1M
+    movementSpeeds: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        e56ab559-57e3-4b04-9740-7dc502c10224:
+          refreshid: 1839d9a9-b47a-4bc9-875f-513a58b9df1e-2
+          note: Caustic Detonator
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        693920de-266d-4487-9641-93d59d9b21c8:
+          refreshid: 1839d9a9-b47a-4bc9-875f-513a58b9df1e-1
+          note: Caustic Detonator
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        4b06b92a-15e0-4f2a-a0ad-0805d5d6eea7:
+          refreshid: 46377383-1256-4467-9910-e181c9306630-2
+          note: Caustic Detonator
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        dd45c0fa-1ad3-4232-989a-cdd28b427ea9:
+          refreshid: 46377383-1256-4467-9910-e181c9306630-1
+          note: Caustic Detonator
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        7dc6233c-134a-4ed1-b748-afb45ba1d290:
+          note: Caustic Detonator
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        7026e42a-bd99-42f7-ba3d-faa5f807360b:
+          refreshid: 0026d9fc-9cf6-4337-9851-505a2e611875-1
+          note: Caustic Detonator
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        23359d13-142b-4c3e-aca2-d19c184f55c9:
+          note: Caustic Detonator
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: dbace25d-f783-4052-83fa-c80ffc075ec6-238
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: b0003f53-5dd5-4047-a57d-255e9463b490
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: War Dog Phosphorite
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 8
+ctime: 1749972313806
+mtime: 1775201137032
+hidden: false

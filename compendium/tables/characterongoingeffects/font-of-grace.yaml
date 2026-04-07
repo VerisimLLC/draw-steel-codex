@@ -1,0 +1,95 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:fd2c0fa5-813b-4209-adcf-8af8a2b62819: true
+  sourceguid: fd2c0fa5-813b-4209-adcf-8af8a2b62819
+  description: Each time you use your Healing Grace ability, you gain 1 piety  that can be spent only on that ability during the same turn. If you don’t use this piety, it is lost.
+  source: Ongoing Effect
+  name: Font of Grace
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 9dcca0de-9832-45f4-8f66-0b6133fe2a4c
+    castImmediately: true
+    domains:
+      CharacterOngoingEffect:fd2c0fa5-813b-4209-adcf-8af8a2b62819: true
+    conditionFormula: (used ability.name = "Healing Grace") and (used ability.heroicresourcecost > 0)
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 99a3752e-a23f-4e52-9313-e1259e746b6d
+      duration: 0
+      ongoingEffectCustom: 99a3752e-a23f-4e52-9313-e1259e746b6d
+    numTargets: "1"
+    trigger: useability
+    name: Font of Grace
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: dbf455c2-850b-473c-8591-3474c79f038a
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:fd2c0fa5-813b-4209-adcf-8af8a2b62819: true
+  sourceguid: fd2c0fa5-813b-4209-adcf-8af8a2b62819
+  description: Each time you use your Healing Grace ability, you gain 1 piety  that can be spent only on that ability during the same turn. If you don’t use this piety, it is lost.
+  source: Ongoing Effect
+  name: Font of Grace
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 40d54459-816a-4107-b31c-8ff78bbcb262
+    castImmediately: true
+    domains:
+      CharacterOngoingEffect:fd2c0fa5-813b-4209-adcf-8af8a2b62819: true
+    conditionFormula: not Ongoing Effects has "Font of Grace - Used Benefit"
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      mode: expend
+      chatMessage: Font of Grace - Piety Expired
+    numTargets: "1"
+    trigger: endturn
+    name: Font of Grace
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 0d426907-be7d-492d-8a70-8f7c06d22298
+source: Ongoing Effect
+guid: fd2c0fa5-813b-4209-adcf-8af8a2b62819
+id: fd2c0fa5-813b-4209-adcf-8af8a2b62819
+ctime: 1769737718694
+domains:
+  CharacterOngoingEffect:fd2c0fa5-813b-4209-adcf-8af8a2b62819: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Font of Grace
+custom: true
+description: Each time you use your Healing Grace ability, you gain 1 piety  that can be spent only on that ability during the same turn. If you don’t use this piety, it is lost.
+mtime: 1769741427263
+iconid: ui-icons/skills/1.png

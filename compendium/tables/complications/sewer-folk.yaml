@@ -1,0 +1,71 @@
+__typeName: CharacterComplication
+drawback: You have poison weakness 5.
+mtime: 1767275249911
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    options:
+    - __typeName: CharacterFeature
+      description: You can automatically climb at full speed while moving
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 0f375890-200a-41cd-a250-de91595c2c20
+        sourceguid: 7fcff821-587b-4940-ab07-0f5404aea893
+        value: 1
+        source: Feat
+        name: Climb
+        behavior: attribute
+        description: You can automatically climb at full speed while moving
+        attribute: climb
+      source: Feat
+      canHavePrerequisites: true
+      guid: 7fcff821-587b-4940-ab07-0f5404aea893
+      name: Climb
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You can automatically swim at full speed while moving
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 0f375890-200a-41cd-a250-de91595c2c20
+        sourceguid: 7fcff821-587b-4940-ab07-0f5404aea893
+        value: 1
+        source: Feat
+        name: Swim
+        behavior: attribute
+        description: You can automatically swim at full speed while moving
+        attribute: swim
+      source: Feat
+      canHavePrerequisites: true
+      guid: 28257f50-587c-4a98-9146-6eb793a1e0df
+      name: Swim
+      implementation: 3
+    guid: 9e428fc3-4f9f-4c8f-a972-0295406284f2
+    numChoices: 1
+    description: You can automatically climb or swim (your choice) at full speed while moving
+  - __typeName: CharacterFeature
+    description: You have poison weakness 5.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 88710f33-e4ca-4736-97fa-a9354957a9df
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: poison
+        apply: Damage Reduction
+      description: You have poison weakness 5.
+      name: Sewer Folk - Drawback
+      guid: 336e1e5a-824e-4bbf-8f9e-f7ce7e43839d
+    source: Feat
+    canHavePrerequisites: true
+    guid: 88710f33-e4ca-4736-97fa-a9354957a9df
+    name: Sewer Folk - Drawback
+    implementation: 3
+name: Sewer Folk
+ctime: 1755516965805
+description: Impoverished or on the run, you spent your formative years living in the sewers of a major city. There, you learned lessons that have served you well, although the miasma of the sewers did permanent damage to your health.
+id: ff55e269-f17f-4cb9-a766-52ab8764143c
+benefit: You can automatically climb or swim (your choice) at full speed while moving, and you never get lost while underground. Additionally, while in a city with sewers, you and your companions can move from place to place without being detected, as the Director determines.

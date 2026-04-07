@@ -1,0 +1,69 @@
+__typeName: equipment
+itemPrerequisite: A half-pound of seagrass
+keywords:
+  Potion: true
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: This thick green liquid tastes of licorice and potatoes.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+iconid: e4128615-32e4-4b15-8222-4e56b5a984f2
+id: 0ae63ca8-164d-4a0c-a2d0-27c5de7592d8
+ctime: 1757916515729
+projectGoal: "45"
+mtime: 1774265855056
+consumable:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  targetFilter: target = caster or target.object
+  targetTextOverride: Self or an object
+  repeatTargets: false
+  reasonedFilters:
+  - formula: target = caster or target.object
+    reason: May only use Growth Potion on self or an object
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    filterTarget: target = caster
+    duration: 3
+    ongoingEffectCustom: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+    ongoingEffect: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+    durationUntilEndOfTurn: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Signature Ability
+  range: "1"
+  consumables:
+    0ae63ca8-164d-4a0c-a2d0-27c5de7592d8: 1
+  persistence: []
+  modifiers: []
+  selfTarget: true
+  strain: []
+  guid: 70dd4528-56d2-4282-aea0-a9efbb9f8ba3
+  targetType: target
+  numTargets: "1"
+  sourceReference:
+    __typeName: SourceReference
+    page: 317
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  implementation: 4
+  description: |-
+    As a maneuver, you can drink this potion or pour it over an 
+    object of size 2 or smaller, causing the target’s size to increase by 1(to 
+    a minimum size of 2). If you are the target, your Stamina maximum and Stability are doubled, you gain an edge on Might tests, and your weapon abilities that deal rolled damage gain a damage bonus equal to your highest characteristic score. You shrink back to your original size after 3 rounds, halving your current Stamina maximum and Stability, and losing the potion’s other benefits. Objects maintain their new size permanently.
+  name: Drink Growth Potion
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  attributeOverride: no_attribute
+  abilityType: none
+  iconid: e4128615-32e4-4b15-8222-4e56b5a984f2
+name: Growth Potion
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+description: As a maneuver, you can drink this potion or pour it over an object of size 2 or smaller, causing the target’s size to increase by 1(to a minimum size of 2). If you are the target, your Stamina maximum and Stability are doubled, you gain an edge on Might tests, and your weapon abilities that deal rolled damage gain a damage bonus equal to your highest characteristic score. You shrink back to your original size after 3 rounds, halving your current Stamina maximum and Stability, and losing the potion’s other benefits. Objects maintain their new size permanently.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 3

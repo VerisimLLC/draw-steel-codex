@@ -1,0 +1,344 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f63d46d2-b0d0-4ce8-a4f8-e32649029f50
+    offtokenPortraitId: 42e1fc08-b9d8-4096-9971-b35abf46ab9c
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: -0.3691926
+      y: -0.03520373
+    frameHueShift: 0.3060908
+    frameSaturation: 0.3451631
+    frameBrightness: 0.6231433
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 65230888-9d2b-4042-9550-b9391d4f61ae
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 68344b08-8414-45ef-8544-bb719c8c3f6c-1250
+    keywords:
+      Animal: true
+      Orc: true
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    currentMoveType: walk
+    creatureSize: 1S
+    levelChoices: []
+    moveDistance: 13
+    traitNames: []
+    minion: true
+    stability: 1
+    import:
+      override: true
+      data: |+
+        Mohler	Level 1 Minion Ambusher
+        Animal, Orc	EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed</b> 7 (burrow)	<b>Size</b> 1S /<b> Stability</b> 1
+        <b>With Captain</b> Speed +2	<b>Free Strike</b> 2
+        Might 0	Agility +2	Reason -4	Intuition +1	Presence -3
+        <b>Earth Bump</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage
+        %E2%9C%B8	<b>17</b>	5 damage
+        <b>Effect</b> The target is knocked prone if the mohler is striking from 1 or more squares below.
+
+        <b>Ground Grinder</b>
+        The ground within 1 square of where the mohler moves while burrowing becomes difficult terrain.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2481a92b-7fff-4368-9d07-d9515c08b2f6: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2481a92b-7fff-4368-9d07-d9515c08b2f6
+        source: Trait
+        seq: b9e2a0ca-2172-4642-a806-edac67fa0ba8
+        aura:
+          __typeName: Aura
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          implementation: 3
+          guid: 5109c402-b326-48d2-a057-f85ded8f7987
+          difficult_terrain: true
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+        domains:
+          CharacterFeature:2481a92b-7fff-4368-9d07-d9515c08b2f6: true
+        conditionFormula: Movement Type = "Burrow"
+        radius: "1"
+        guid: 3f46b90f-012c-4c2c-8010-ad64fc60cc55
+        description: The mohler can use the Dig maneuver at the start of the encounter. Additionally, while the mohler burrows within 1 square below the ground, the ground above where they burrow is difficult terrain.
+        behavior: aura
+        name: Ground Grinder
+      - __typeName: CharacterModifier
+        sourceguid: 2481a92b-7fff-4368-9d07-d9515c08b2f6
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:2481a92b-7fff-4368-9d07-d9515c08b2f6: true
+        name: Ground Grinder
+        resourceRefreshType: encounter
+        description: The mohler can use the Dig maneuver at the start of the encounter. Additionally, while the mohler burrows within 1 square below the ground, the ground above where they burrow is difficult terrain.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: May use dig maneuver
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: c1ef2ebb-c7dc-45de-bbb9-1e93d3ec6b04
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 0965ed81-1173-4f0c-90b7-7c84e2f01dd9
+          persistence: []
+          abilityType: none
+          trigger: beginround
+          whenActive: combat
+          name: Ground Grinder
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 4b46eb9b-cea1-4213-af9e-fc0355ceda11
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: named
+            namedAbility: Dig
+          description: ""
+          subject: self
+          iconid: ui-icons/skills/1.png
+        guid: c1ef2ebb-c7dc-45de-bbb9-1e93d3ec6b04
+      source: Trait
+      description: The mohler can use the Dig maneuver at the start of the encounter. Additionally, while the mohler burrows within 1 square below the ground, the ground above where they burrow is difficult terrain.
+      guid: 2481a92b-7fff-4368-9d07-d9515c08b2f6
+      name: Ground Grinder
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:dbfe0c08-8529-4104-8930-c8ce544cd18e: true
+      modifiers: []
+      name: Seismic Sense
+      description: The mohler doesn't need line of effect to use abilities against creatures or objects touching the ground.
+      guid: dbfe0c08-8529-4104-8930-c8ce544cd18e
+      source: Character Feature
+    role: Minion Ambusher
+    equipment: []
+    titles: []
+    opportunityAttack: 2
+    moveDistanceRoundId: 1565b145-66e7-4e85-8a96-b48f7c06216a-1
+    resistances: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -3
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: -4
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        bc742612-60b4-4232-82f8-86e50d7bac89:
+          refreshid: 1565b145-66e7-4e85-8a96-b48f7c06216a-1
+          note: Earth Bump
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    initiativeGrouping: d66d72ca-320f-40ef-b09f-5335505accfa
+    availableTriggers:
+      c22a0c32-7896-4799-a527-6a4b17f0a16b:
+        __typeName: ActiveTrigger
+        text: Ground Grinder
+        rules: May use dig maneuver
+        clearOnDismiss: true
+        id: c22a0c32-7896-4799-a527-6a4b17f0a16b
+        targets: []
+    ev: 3
+    damage_taken: 0
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    walkingSpeed: 7
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 1565b145-66e7-4e85-8a96-b48f7c06216a-1
+        used: 1
+    minionSquad: Mohler Squad 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: M<1 prone
+        filterTarget: caster.Movement Type = "Burrow" and caster.altitude < Altitude
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 217
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2 when self.Movement Type = "Burrow" else 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      strain: []
+      guid: 720e3f65-0d0a-482c-8fde-e62ac89436ef
+      modeList: []
+      targetType: target
+      categorization: Signature Ability
+      numTargets: 1
+      implementation: 4
+      name: Earth Bump
+      reasonedFilters: []
+      description: The distance increases to melee 2. If the mohler is 1 or more squares beneath the target before they use this ability, a target who has M<1 is also knocked prone.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    withCaptain: +2 bonus to speed
+    movementSpeeds:
+      burrow: 7
+    equipmentMeta:
+      offhand0: []
+    monster_type: Mohler
+    monster_category: Monster
+    inflictedConditions: []
+  tokenType: null
+  bestiaryId: 4870c075-8467-444b-96f3-6041bf09fa58
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Mohler
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590246311
+mtime: 1775201137032
+hidden: false

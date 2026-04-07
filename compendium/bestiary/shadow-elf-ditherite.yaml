@@ -1,0 +1,207 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 98c8af43-98e1-476a-914f-ce6c8e14c975
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Ditherite	Level 6 Artillery
+        Fey, Humanoid, Shadow Elf	EV 27
+        <b>Stamina</b> 70
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 7
+        Might +0	Agility +3	Reason +2	Intuition +1	Presence +1
+        <b>Neon Assault</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 15<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 damage
+        %E2%98%85	<b>12-16</b>	15 damage
+        %E2%9C%B8	<b>17</b>	18 damage
+        <b>Effect</b> The next ability made against the target has a double edge.
+        <b>5 Malice</b> Each ally within 5 of the target makes a free strike against them.
+
+        <b>Splitbow</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 2 Malice
+        <b>Keywords</b> Area, Ranged, Weapon
+        <b>Distance</b> 1 x 4 line within 10<b>	Target</b> All enemies in the line
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; I<1 bleeding (save ends).
+        %E2%98%85	<b>12-16</b>	9 damage; I<2 bleeding (save ends).
+        %E2%9C%B8	<b>17</b>	12 damage; I<3 bleeding (save ends).
+        <b>Effect</b> Push 4.
+
+        <b>Of the Umbra</b>
+        The ditherite ignores concealment granted by darkness. While the ditherite is in direct sunlight, they have damage weakness 3. While the ditherite is concealed, they have damage immunity 3.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5220636a-9d0a-487b-b70f-0a64753a8ce3: true
+      modifiers: []
+      name: Of the Umbra
+      description: The ditherite ignores concealment granted by darkness. While the ditherite is in direct sunlight, they have damage weakness 3. While the ditherite is concealed, they have damage immunity 3.
+      guid: 5220636a-9d0a-487b-b70f-0a64753a8ce3
+      source: Trait
+    role: Artillery
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Shadow: true
+      Shadow Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 7
+    monster_type: Shadow Elf Ditherite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage
+        - 15 damage
+        - 18 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 76bd1c75-3d01-4394-b2ab-7b57347a035e
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Neon Assault
+      numTargets: 1
+      description: The next ability made against the target has a double edge.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0c88cf23-38ff-4d1c-8584-ac9bc6f00890
+      abilityType: none
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; I<1 bleeding (save ends).
+        - 9 damage; I<2 bleeding (save ends).
+        - 12 damage; I<3 bleeding (save ends).
+        roll: 2d10 + 3
+      name: Splitbow
+      implementation: 3
+      description: Push 4.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 5
+    ev: 27
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: fe583917-93e8-4afb-a461-17df4d88adc4
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962490980
+description: Shadow Elf Ditherite
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590333073
+mtime: 1775201137032
+hidden: false

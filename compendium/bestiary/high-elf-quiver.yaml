@@ -1,0 +1,316 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: ec74b2ba-612d-44b4-9fdd-2a3808b82813
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 73164b41-2ce0-4d1a-8f3b-b657f85fa8e6
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 3
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        High Elf Quiver	Level 1 Minion Artillery
+        Fey, High Elf, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 3
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Ranged distance +5<b>Free Strike</b> 2
+        Might 0	Agility +2	Reason +1	Intuition 0	Presence 0
+        <b>Heavy Arrow</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage
+        %E2%9C%B8	<b>17</b>	5 damage
+        <b>Effect</b> Each ally adjacent to the target can shift 2.
+
+        <b>Otherworldly Grace</b>
+        At the start of their turn, the quiver can turn the duration of one save ends effect they suffer from into EoT.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: f2389745-fc05-4850-afa4-5f44dd78b271
+        behavior: trigger
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the quiver can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            purgeType: one
+            targetDuration: save
+            chatMessage: Otherworldly Grace - Change One Save Ends to EoT
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: 222f25a9-c649-4a96-9c0b-b316f02cb9d1
+          conditionFormula: Conditions has "Bleeding" or Conditions has "Dazed" or Conditions has "Frightened" or Conditions has "Prone" or Conditions has "Restrained" or Conditions has "Slowed" or Conditions has "Taunted" or Conditions has "Weakened"
+          targetType: self
+          numTargets: "1"
+          trigger: endturn
+          name: Otherworldly Grace
+          description: At the start of each of their turns, the quiver can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 6a58ed87-85ad-4e36-9207-b2ce6342028d
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: f2389745-fc05-4850-afa4-5f44dd78b271
+        behavior: triggerdisplay
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the quiver can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        guid: f71915b2-aa1d-466f-8128-205c5996a9f4
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: Choose one Save Ends Effect which you can end at the end of your turn.
+          guid: 2b4cd472-2fc3-4c7f-92aa-f8fb9d758d90
+          keywords: []
+      source: Trait
+      description: At the start of each of their turns, the quiver can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+      guid: f2389745-fc05-4850-afa4-5f44dd78b271
+      name: Otherworldly Grace
+      implementation: 2
+    role: Minion Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    keywords:
+      Fey: true
+      Humanoid: true
+      High Elf: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 8994a0df-b1c7-413e-b9a8-9e4fe7f446fc
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    damage_taken: 0
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 260697be-8d51-48f9-b36e-9172b41b8bf3-1
+        used: 1
+    walkingSpeed: 5
+    creatureSize: 1M
+    minionSquad: High Elf Quiver Squad 3
+    withCaptain: +5 bonus to ranged distance
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: enemy
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 8fa364c8-c5fe-44d2-8c92-0e434aec2676
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Each ally adjacent to the target can shift 2.
+            standardAbilityParams:
+              distance: "2"
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            abilityType: standard
+            promptWhenResolving: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 82411bdf-d986-4f65-953f-42d11aaa738b
+          numTargets: "1"
+          selfTarget: false
+          name: Invoked Ability
+          targetType: all
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Each ally adjacent to the target can shift 2.
+        promptWhenResolving: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 0a52890f-d083-4784-abac-e4decd1f54a0
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 127
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Heavy Arrow
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      description: Each ally adjacent to the target can shift 2.
+      abilityType: none
+      implementation: 4
+    movementSpeeds: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        469723e9-9f91-4efa-a36e-1f26cde87c8f:
+          refreshid: 260697be-8d51-48f9-b36e-9172b41b8bf3-1
+          note: Heavy Arrow
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+    equipmentMeta:
+      offhand0: []
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: da581da5-0776-4f4c-9810-e72bb1250628-2259
+    monster_type: High Elf Quiver
+  tokenType: null
+  bestiaryId: 4e479454-2e3a-4e8a-929a-709421af733e
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: High Elf Quiver
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590247615
+mtime: 1775201137032
+hidden: false

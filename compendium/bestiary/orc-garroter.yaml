@@ -1,0 +1,474 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 523b2924-dc5f-4b07-9fef-b65098b0ce1d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 1
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; the garroter can shift 1 square
+        - 9 damage; the garroter shifts up to 2 squares
+        - 12 damage; the garroter shifts up to 3 squares
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 454ddb3a-5c73-4eda-ad45-04c6cf7c6e6d
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 219
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Dagger Feint
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: If this ability gains an edge or has a double edge, it deals an extra 4 damage.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage; i<1 dazed (save ends)
+        - 12 damage; grabbed; i<2 dazed (save ends)
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+        riderid: bdc02680-fa83-490b-af02-f4b6621fcb60
+        tiersSelected:
+        - 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 219
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 2627812c-78f0-4b8d-9298-cb352ed987de
+      targetType: target
+      numTargets: "1"
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      categorization: Signature Ability
+      name: Strangle
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        applyto: targets
+        rule: invisible (EoT)
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+        riderid: d6c7146d-bf12-4ea8-8dc6-edc5060c328e
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 219
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: aab26512-b04d-4b3e-a27a-0ee71d63620a
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      abilityType: none
+      iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+      numTargets: "1"
+      categorization: Malice
+      name: Chroma Cloak
+      targetType: self
+      description: |-
+        The garroter turns invisible until the end of their turn. This invisi
+        bility ends early if they take damage or use an ability.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    ongoingEffects: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        65f3e89d-c614-4794-8641-e4d06b704dfd:
+          note: 4 damage from Ricky's Melee Free Strike
+          disposition: bad
+          attackerid: c4e31259-361c-4366-ae3f-7fd87d248cc9
+          userid: steam-76561198767161997
+          set: 26
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Orc Garroter	Level 1 Platoon Ambusher
+        Humanoid, Orc	EV 6
+        **Stamina** 30
+        **Speed** 5	**Size** 1L /** Stability** 0
+        **Free Strike** 4
+        Might +1	Agility +2	Reason 0	Intuition +1	Presence -1
+        **Dagger Feint** (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        **Keywords** Melee, Strike, Weapon
+        **Distance** Melee 1**	Target** 1 creature or object
+        %E2%9C%A6	**%E2%89%A411**	6 damage; shift 1
+        %E2%98%85	**12%E2%80%9316**	9 damage; shift 2
+        %E2%9C%B8	**17**	12 damage; shift 3
+        **Effect** This ability deals an additional 4 damage when it's made with an edge.
+        **Strangle** (Action) %E2%97%86 2d10 + 2
+        **Keywords** Melee, Strike, Weapon
+        **Distance** Melee 1**	Target** 1 creature
+        %E2%9C%B8	**%E2%89%A411**	6 damage
+        %E2%98%85	**12%E2%80%9316**	9 damage; I<1 dazed (save ends)
+        %E2%9C%A6	**17**	12 damage; grabbed; I<2 dazed (save ends)
+        **Effect** The target can't speak or use magic abilities while grabbed.
+        **Chroma Cloak **(Maneuver)%E2%97%86 1 Malice
+        The garroter turns invisible. The effect ends when the garroter uses an ability, takes damage, or at the end of their turn.
+        **Relentless**
+        If the garroter's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the garroter lives and their Stamina is reduced to 1 instead.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+        CharacterFeature:a3d9772a-059c-4e56-bc66-e4a930df9226: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+          CharacterFeature:a3d9772a-059c-4e56-bc66-e4a930df9226: true
+        sourceguid: a3d9772a-059c-4e56-bc66-e4a930df9226
+        behavior: trigger
+        source: Trait
+        name: Relentless
+        description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 3a76b6ea-5b08-4479-9259-991a8e39d392
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: 2bd11ac8-af68-457a-b50c-1378d71202c1
+              repeatTargets: false
+              persistence: []
+              targetType: self
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  source: ""
+                  filterAbility: Ability.Free Strike
+                  guid: 67403911-7c0a-4a54-8b59-9dd5b49c1af8
+                  name: Modify Attack
+                  attributes: []
+                  cannotModifyAction: true
+                  description: ""
+                  behavior: modifyability
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: e8aa186a-4ff8-400d-badd-a4ef0703984d
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      invokeOnCaster: true
+                      filterTarget: target.stamina <= 0
+                      abilityType: custom
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        numTargets: "1"
+                        modifiers: []
+                        abilityType: none
+                        strain: []
+                        guid: 3c95dc65-f598-4ec8-b495-5eb27083768b
+                        repeatTargets: false
+                        persistence: []
+                        targetType: self
+                        behaviors:
+                        - __typeName: ActivatedAbilityHealBehavior
+                          applyto: caster
+                          roll: "1"
+                        iconid: ui-icons/skills/1.png
+                        name: Relentless - Heal if target of free strike dies
+                        preDescription: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc lives and drops to 1 stamina instead.
+                        description: ""
+                        range: 1
+                        implementation: 3
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              iconid: ui-icons/skills/1.png
+              name: Relentless Free Strike
+              description: ""
+              sourceReference:
+                __typeName: SourceReference
+                page: 218
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: 1
+              implementation: 3
+            invokeOnCaster: true
+            promptText: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc  lives and drops to 1 stamina instead.
+          domains:
+            CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+            CharacterFeature:a3d9772a-059c-4e56-bc66-e4a930df9226: true
+          whenActive: combat
+          numTargets: "1"
+          trigger: zerohitpoints
+          name: Relentless
+          description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 715c4731-36d4-4441-9195-03c91326b6ef
+      source: Trait
+      description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+      guid: a3d9772a-059c-4e56-bc66-e4a930df9226
+      name: Relentless
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e3ec0aa6-6e81-4835-8a58-0d2401146025: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e3ec0aa6-6e81-4835-8a58-0d2401146025
+        displayCondition: Ability.Name is "Dagger Feint"
+        source: Character Feature
+        rollRequirement: edge
+        modtype: none
+        adjustments: []
+        keywords: []
+        activationCondition: Ability.Name is "Dagger Feint"
+        domains:
+          CharacterFeature:e3ec0aa6-6e81-4835-8a58-0d2401146025: true
+        behavior: power
+        rollType: ability_power_roll
+        description: If this ability gains an edge or has a double edge, it deals an extra 4 damage.
+        damageModifier: "4"
+        guid: c8097289-04f0-4440-accc-6fa8db82add1
+        name: Dagger Feint Edge Bonus Damage
+      name: Dagger Feint Edge Bonus Damage
+      description: ""
+      guid: e3ec0aa6-6e81-4835-8a58-0d2401146025
+      source: Character Feature
+    role: Platoon Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    keywords:
+      Humanoid: true
+      Orc: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        b71c470d-65c3-474f-a96b-ab1bc47fc3ac:
+          refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-12
+          note: Chroma Cloak
+          userid: steam-76561198767161997
+          set: 0/1
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: 9effb579-39cb-42e2-8a53-54331e9249ce-233
+    damage_taken: 0
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    walkingSpeed: 5
+    creatureSize: 1L
+    damageEntries:
+      37b8a941-7bed-4302-9fef-5199cf382d97:
+        damage: 4
+        seq: 1
+        attackerid: c4e31259-361c-4366-ae3f-7fd87d248cc9
+        id: 37b8a941-7bed-4302-9fef-5199cf382d97
+        damage_type: untyped
+    traitNames: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-12
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-12
+        used: 1
+    movementSpeeds: []
+    equipmentMeta:
+      offhand0: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        41f31834-8dd9-4329-a537-ff6d98191439:
+          refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-12
+          note: Strangle
+          userid: steam-76561198767161997
+          set: 0/1
+    monster_type: Orc Garotter
+    initiativeGrouping: d3f01b0a-1d4e-4282-8b1d-3b32c01c7b76
+  tokenType: null
+  bestiaryId: 26392c7b-c48a-415b-8f25-dfba4d8a389a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1726301040866
+description: Orc Garroter
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590232054
+mtime: 1775201137032
+hidden: false

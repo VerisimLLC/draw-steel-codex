@@ -1,0 +1,12 @@
+__typeName: CharacterFeature
+modifiers: []
+source: Monster
+importMatchType: rules
+importMatch: "<<monster>> can always attempt to hide using the Hide maneuver if they are adjacent to at least two allies, even if observed (though they must still have cover or concealment)."
+ctime: 1709485854694
+id: 84fcac64-6e40-4200-866c-cc42c8dad37e
+name: Lost in the Crowd
+guid: 14682871-7fa8-4fa0-9b7f-6e848719b33a
+description: ""
+mtime: 1709535010654
+implementation: 1

@@ -1,0 +1,49 @@
+__typeName: MarkdownDocument
+annotations: []
+id: acd64033-5efe-4f71-a274-ff91b9db16f4
+ctime: 1775161966446
+textStorage:
+  __typeName: TextStorage
+  sections:
+    cZ: |+
+      :<>[[/spawn Mara 1 4; spawn Targon 0 5; showtoken Mara; showtoken Targon; spawn "Boddorff Buckfeather" 0 3; spawn Gorek 3 2; spawn Illwyth 3 4|Spawn Gilded Hand]]
+
+
+    n: |+
+      **[Learning the Hand's Plot]**
+
+    k: |+
+      **[Another Meeting With the Hand]**
+
+    Z: |+
+      # Gilded Hand Encounters
+
+    w: |+
+      **[Gilded Showdown]**
+
+    h: |+
+      **[Illwyth Alone]**
+
+    t: |+
+      **[Negotiating for the Ring]**
+
+    f: |+
+      **[First Meeting With the Hand]**
+
+    c: |+
+      You can place them down with this if needed.
+
+    d: |+
+      ## Gilded Hand Interactions:
+
+    q: |+
+      **[Grabbing the Ring]**
+
+    b: |+
+      This [map](Gilded Hand Encounters Map) can be used for interactions with the [Gilded Hand], the rival party of this adventure. 
+
+parentFolder: c767e1a9-1339-483f-8a8a-ee2108182d19
+updateid: 5902e336-19c9-4814-8e66-4eaad18b53cd
+mtime: 1775163966679
+content: "# Room 1"
+description: Gilded Hand Encounters

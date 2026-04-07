@@ -1,0 +1,241 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        balancing:
+        - stamina: 80
+        - stamina: 120
+        - stamina: 80
+        - stamina: 120
+        - stamina: 200
+        - stamina: 200
+        - stamina: 200
+        minHeroes: 3
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-2,27,1"
+        invisibleToPlayers:
+        - false
+        monsters:
+          a704249e-ef65-4805-a3e8-4537b31371be: 1
+      saveAppearances: true
+  encounter-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: 9fe49438-2c5b-463c-8497-bc05cbd18f30
+ctime: 1761638552387
+textStorage:
+  __typeName: TextStorage
+  sections:
+    x: If [Mikael] is cured of lycanthropy by the heroes, he gives [Tansy] (see [B11. Furrier]) the items needed to create a [item:Color Cloak - Red], which they both gift to the heroes as thanks for stopping Saera.
+    v: |+
+      If [Oleq] escapes with his life and isn’t cursed, he and [Yerris] thank the heroes then go to find their sheep.
+
+    t: |+
+      If defeated, the players may click on [Saera]'s token to collect the Werewolf Remains listed.
+
+    r: |+
+      If the heroes kill [Saera], her remains can be used in the Find a Cure downtime project to craft a cure to lycanthropy. One completion of the project uses all the viable material from the remains and crafts three cures. The cure can be used on [Mikael] (see [B10. Carpenter]), [Oleq], or any heroes who became cursed with lycanthropy by the werewolf.
+
+    o: |+
+      [Saera]’s lair contains 1 pound of seagrass growing on the walls. [item:Seagrass] is used to make [item:Growth Potion]s. The players may move their token adjacent to the seagrass and click on it to collect the seagrass.
+
+    p: |+
+      ## Wolf Den Aftermath
+
+    m: |+
+      [[//awardvp 1|Award Victories]]
+
+    n: |+
+      ## Loot
+
+    k: |+
+      End Combat once the battle is over.
+
+    l: |+
+      If the heroes win the day, they earn 1 Victory each.
+
+    i: |+
+      When [Saera] has only 30 Stamina remaining, she attempts to flee, getting away if she leaves the cave.
+
+    j: |+
+      ## Ending the Encounter
+
+    g: |+
+      If [Saera] isn't surprised and she can reach [Oleq], she spends the first round using *Accursed Bite* on him. When she targets him with this ability, it deals only 1 damage and she spends Malice to attempt to give him lycanthropy. She must bite him twice to achieve this.
+
+    h: |+
+      On subsequent rounds (or during the first round if [Saera] is surprised), [Saera] focuses her efforts on harming the heroes, using *Accursed Bite* on the hero nearest to her and spending Malice to inflict lycanthropy. If she can repeat a bite with the lycanthropy effect thanks to Solo Action, she does. Otherwise, she saves Malice for her *Facepalm and Head Slam* triggered action.
+
+    e: |+
+      [Oleq], a **civilian**, acts at the end of each round, fleeing as far away from [Saera] as he can. If he reaches the river (see [W1. Raging River]), he stops and takes the Defend action, unable to cross on his own.
+
+    f: |+
+      ## Tactics
+
+    c: |+
+      The pooled water is tainted by primordial magic. A creature who enters the water for the first time on a turn or starts their turn there takes 3 cold damage.
+
+    d: |+
+      ## Oleq
+
+    a: |+
+      When you are ready, [Draw Steel!]
+
+    b: |+
+      ## Primordial Pools
+
+    Y: |
+      * For four heroes, the werewolf has 120 Stamina.
+    Z: |+
+      * For three heroes, the werewolf has 80 Stamina and can't use the Solo Action Malice feature.
+
+    W: |
+      **Encounter Adjustments**
+    X: |+
+      If this encounter has four or three heroes, make the following adjustments:
+
+    U: |
+      |1|Werewolf (turn 1)|
+    V: |+
+      |2|Werewolf (turn 2)|
+
+    S: |
+      **W2 Groups**
+    T: |
+      |Group|Creatures|
+    Q: |+
+      [[encounter]]
+
+    R: |+
+      [[/activateobjects W2_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects W2_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    O: |+
+      The heroes battle a werewolf in her lair.
+
+    P: |+
+      [[setting:Number of Heroes]]
+
+    M: |+
+      |{#The hero sneaks up on Saera and she is surprised at the start of combat.}
+
+
+    N: |+
+      ## Encounter W2
+
+    K: |
+      |{#The hero fails to surprise Saera, she bites Oleq before the first turn of combat.} 
+    L: |
+      |{#The hero fails to sneak up on Saera.}
+    I: |+
+      As [Oleq] continues to refuse [Saera]’s offer, she becomes more and more frustrated. If the heroes dilly-dally, she moves in to bite the shepherd. A hero can sneak up on [Saera] while she’s distracted by making a hard Agility test: 
+
+    J: |
+      |Hard Agility Test: Sneak up on Saera
+    G: |+
+      > * “Glistening water runs down the walls of the chamber. The strange swirling patterns in the rock walls made by the erosion over time cannot be completely natural. It is too uniform and disquieting. Some of the water collects in pools.”
+
+    H: |+
+      ## Saera the Werewolf
+
+    E: |
+      > * “The chamber is decorated with pelts, many of which cover chunks of meat and carcasses. The space smells faintly of rotting meat.”
+    F: |
+      > * “Several stalagmites poke up from the cavern floor.”
+    C: |+
+      [Saera], a **werewolf**, has cornered [Oleq], a **civilian** who is miraculously unharmed. Her goal is to transform as many folk into werewolves as possible, thinking it is a gift of power. Though she’s bitten and cursed people at random before, she’s now trying a new tactic. She wants to convince [Oleq] that lycanthropy is a gift and have him join her in her mission rather than run in fear after being attacked. If that fails, she still plans to bite the human and curse him.
+
+    D: |
+      > * “A wolf-human hybrid stands on two legs before a terrified, but physically unharmed young man cowering on the floor. In a growling voice, the wolf says, ‘I was once a weak human like you. Look at me now. I can give you great power and freedom.’”
+    B: |+
+      # W2. Saera’s Lair
+
+parentFolder: b233e0de-8868-4c91-baeb-72c6c58c6c0e
+updateid: f3fa9cbc-3500-4207-9d13-a748ec13f4a5
+mtime: 1775222896662
+content: |-
+  # W2. Saera’s Lair
+
+  [Saera], a **werewolf**, has cornered [Oleq], a **civilian** who is miraculously unharmed. Her goal is to transform as many folk into werewolves as possible, thinking it is a gift of power. Though she’s bitten and cursed people at random before, she’s now trying a new tactic. She wants to convince [Oleq] that lycanthropy is a gift and have him join her in her mission rather than run in fear after being attacked. If that fails, she still plans to bite the human and curse him.
+
+  > * “A wolf-human hybrid stands on two legs before a terrified, but physically unharmed young man cowering on the floor. In a growling voice, the wolf says, ‘I was once a weak human like you. Look at me now. I can give you great power and freedom.’”
+  > * “The chamber is decorated with pelts, many of which cover chunks of meat and carcasses. The space smells faintly of rotting meat.”
+  > * “Several stalagmites poke up from the cavern floor.”
+  > * “Glistening water runs down the walls of the chamber. The strange swirling patterns in the rock walls made by the erosion over time cannot be completely natural. It is too uniform and disquieting. Some of the water collects in pools.”
+
+  ## Saera the Werewolf
+
+  As [Oleq] continues to refuse [Saera]’s offer, she becomes more and more frustrated. If the heroes dilly-dally, she moves in to bite the shepherd. A hero can sneak up on [Saera] while she’s distracted by making a hard Agility test: 
+
+  |Hard Agility Test: Sneak up on Saera
+  |{#The hero fails to surprise Saera, she bites Oleq before the first turn of combat.} 
+  |{#The hero fails to sneak up on Saera.}
+  |{#The hero sneaks up on Saera and she is surprised at the start of combat.}
+
+
+  ## Encounter W2
+
+  The heroes battle a werewolf in her lair.
+
+  [[setting:Number of Heroes]]
+
+  [[encounter]]
+
+
+  **W2 Groups**
+  |Group|Creatures|
+  |1|Werewolf (turn 1)|
+  |2|Werewolf (turn 2)|
+
+  **Encounter Adjustments**
+  If this encounter has four or three heroes, make the following adjustments:
+
+  * For four heroes, the werewolf has 120 Stamina.
+  * For three heroes, the werewolf has 80 Stamina and can't use the Solo Action Malice feature.
+
+  When you are ready, [Draw Steel!]
+
+  ## Primordial Pools
+
+  The pooled water is tainted by primordial magic. A creature who enters the water for the first time on a turn or starts their turn there takes 3 cold damage.
+
+  ## Oleq
+
+  [Oleq], a **civilian**, acts at the end of each round, fleeing as far away from [Saera] as he can. If he reaches the river (see [W1. Raging River]), he stops and takes the Defend action, unable to cross on his own.
+
+  ## Tactics
+
+  If [Saera] isn't surprised and she can reach [Oleq], she spends the first round using *Accursed Bite* on him. When she targets him with this ability, it deals only 1 damage and she spends Malice to attempt to give him lycanthropy. She must bite him twice to achieve this.
+
+  On subsequent rounds (or during the first round if [Saera] is surprised), [Saera] focuses her efforts on harming the heroes, using *Accursed Bite* on the hero nearest to her and spending Malice to inflict lycanthropy. If she can repeat a bite with the lycanthropy effect thanks to Solo Action, she does. Otherwise, she saves Malice for her *Facepalm and Head Slam* triggered action.
+
+  When [Saera] has only 30 Stamina remaining, she attempts to flee, getting away if she leaves the cave.
+
+  ## Ending the Encounter
+
+  End Combat once the battle is over.
+
+  If the heroes win the day, they earn 1 Victory each.
+
+  [[/awardvp 1|Award Victories]]
+
+  ## Loot
+
+  [Saera]’s lair contains 1 pound of seagrass growing on the walls. Seagrass is used to make [Growth Potion]s (see Treasure in Handouts). The players may move their token adjacent to the seagrass and click on it to collect the seagrass.
+
+  ## Wolf Den Aftermath
+
+  If the heroes kill [Saera], her remains can be used in the Find a Cure downtime project to craft a cure to lycanthropy. One completion of the project uses all the viable material from the remains and crafts three cures. The cure can be used on [Mikael] (see [B10. Carpenter]), [Oleq], or any heroes who became cursed with lycanthropy by the werewolf.
+
+  If defeated, the players may click on [Saera]'s token to collect the Werewolf Remains listed.
+
+  If [Oleq] escapes with his life and isn’t cursed, he and [Yerris] thank the heroes then go to find their sheep.
+
+  If [Mikael] is cured of lycanthropy by the heroes, he gives [Tansy] (see [B11. Furrier]) the items needed to create a [Color Cloak (Red)] (see Treasure in Handouts), which they both gift to the heroes as thanks for stopping Saera.
+description: W2. Saera's Lair

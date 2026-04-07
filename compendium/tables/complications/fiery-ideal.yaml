@@ -1,0 +1,32 @@
+__typeName: CharacterComplication
+drawback: Whenever the Director determines that you act against your purpose or fail to live up to the high standards associated with it, you take fire damage equal to 5 + your level. This damage can’t be reduced in any way.
+mtime: 1765923491848
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: While you fight on behalf of your special purpose, whenever you obtain a tier 3 outcome with a damage dealing ability, the ability deals extra fire damage equal to your highest characteristic score.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 20443fb2-f4b8-454f-b749-e4d21ad23a60
+      displayCondition: Ability.doesdamage
+      source: Feat
+      modtype: none
+      keywords: []
+      activationCondition: ""
+      guid: cc336a78-5861-4249-a27d-d12abc66f1f0
+      name: Fiery Ideal - Benefit
+      description: While you fight on behalf of your special purpose, whenever you obtain a tier 3 outcome with a damage dealing ability, the ability deals extra fire damage equal to your highest characteristic score.
+      addText: " // // {Highest Characteristic} fire damage"
+      rollType: ability_power_roll
+      behavior: power
+    source: Feat
+    canHavePrerequisites: true
+    guid: 20443fb2-f4b8-454f-b749-e4d21ad23a60
+    name: Fiery Ideal - Benefit
+    implementation: 3
+name: Fiery Ideal
+ctime: 1755514243449
+description: A spirit beyond your comprehension instilled in you a special purpose, choosing you to be the guardian of a place, a cause, or a philosophy. The flame that now burns in your soul can sear your enemies—or you if you fall short of expectations
+id: 7f37fa26-4995-4c26-96eb-3917518428ca
+benefit: While you fight on behalf of your special purpose, whenever you obtain a tier 3 outcome with a damage-dealing ability, the ability deals extra fire damage equal to your highest characteristic score.

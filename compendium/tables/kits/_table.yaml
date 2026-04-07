@@ -1,0 +1,4255 @@
+a3c29a96-7c85-498f-8353-d69ce55f41ae:
+  __typeName: Kit
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  health: 3
+  id: a3c29a96-7c85-498f-8353-d69ce55f41ae
+  ctime: 1727935314370
+  type: "null"
+  speed: 3
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0b8476a3-fc33-4e0e-99ba-5f306aa76b76
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: New Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  mtime: 1727935314370
+  name: Acolyte of Order
+55ca4cd3-7856-4b2e-b581-05ea3ee672bc:
+  __typeName: Kit
+  stability: 1
+  armor: Heavy
+  health: 9
+  id: 55ca4cd3-7856-4b2e-b581-05ea3ee672bc
+  weapons:
+    Light: true
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  name: Warrior Priest
+  description: The Warrior Priest kit imbues the power of the gods into your weapon, making it a smiting instrument. You wade into the fray without fear, thanks to the power of the divine ... and the heavy armor you're wearing.
+  mtime: 1770565639189
+  type: martial
+  speed: 1
+  imported: aeb2d270-6f43-4245-95dd-f4e40de7ec5e
+  damageBonuses:
+    melee:
+    - 1
+    - 1
+    - 1
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Magic: true
+      Weapon: true
+      Kit: true
+      Strike: true
+      Melee: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 3 + M, R, I or P holy damage
+      - 5 + M, R, I or P holy damage
+      - 8 + M, R, I or P holy damage
+      roll: 2d10 + Might or Reason or Intuition or Presence
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: a5feff79-ba94-487f-be63-0db2898d05a2
+      stacks: Max(Might, Intuition, Reason, Presence)
+      duration: end_of_next_turn
+      ongoingEffectCustom: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: The impact of your weapon brands your target for destruction.
+    sourceReference:
+      __typeName: SourceReference
+      page: 224
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    effectImplemented: false
+    numTargets: 1
+    modifiers: []
+    strain: []
+    guid: 03cc2ab4-28c5-4470-86d0-dc15894497ca
+    implementation: 4
+    persistence: []
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    targetType: target
+    name: Weakening Brand
+    categorization: Signature Ability
+    description: The target has damage weakness equal to the characteristic score you used on this ability's power roll (EoT).
+    abilityType: none
+    iconid: 22371de9-6aeb-4e63-b37a-43963cc80b95
+  kitManeuver: false
+  equipmentDescription: You wear heavy armor and wield a light weapon.
+  portraitid: 64365ff4-ac82-49f9-947b-c53b06e410bf
+2624da89-11d7-4765-a50c-7065f8b2b0e7:
+  __typeName: Kit
+  disengage: 1
+  health: 3
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  id: 2624da89-11d7-4765-a50c-7065f8b2b0e7
+  ctime: 1727319382009
+  type: stormwight
+  portraitid: "-MPrGgX3K0y1bVYdd6NY"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b65f4701-4af4-42c9-b611-22f1139c6e8c
+        source: Raden Kit Feature
+        modtype: edge
+        keywords: []
+        activationCondition: true
+        guid: 72e984e8-255d-484c-bddd-2b3730e5da32
+        name: Aspect Benefits
+        behavior: power
+        description: You gain an edge on tests made to hide and sneak. Additionally, you ignore difficult terrain.
+        rollType: test_power_roll
+        skills:
+        - fdd43bde-6062-484d-aea6-3803d396ea8e
+        - ae13b5cf-718a-42a4-ab5e-18d46b289ac6
+      - __typeName: CharacterModifier
+        guid: 82ed75fb-f56d-48c8-94b4-d9615110d0ed
+        sourceguid: b65f4701-4af4-42c9-b611-22f1139c6e8c
+        value: 1
+        source: Raden Kit Feature
+        name: Aspect Benefits
+        behavior: attribute
+        description: You gain an edge on tests made to hide and sneak. Additionally, you ignore difficult terrain.
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      name: Aspect Benefits
+      description: You gain an edge on tests made to hide and sneak. Additionally, you ignore difficult terrain.
+      guid: b65f4701-4af4-42c9-b611-22f1139c6e8c
+      source: Raden Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+        guid: 22dc5b3b-db68-4068-9fd4-b3bcf77d9b7a
+        source: Raden Kit Feature
+        behavior: activated
+        description: |-
+          *8Animal Form: Rat**
+          While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+          **Hybrid Form: Rat**
+          While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+        name: Rat Form
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: f14140a5-af68-497c-afc3-bb6eee0b956d
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: eefdae74-9375-4d11-ae64-7763a3901d9f
+            mode: effect
+            guid: 090d8607-b21f-433b-94a5-b844cd7f8491
+            conditions: []
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: 4147e269-a3bc-4069-997e-10fa0a82f079
+            ongoingEffectCustom: 4147e269-a3bc-4069-997e-10fa0a82f079
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            monsterType: acc6c48c-e553-4d2e-9485-c5d122edd8c3
+            mode: bestiary
+            appearanceName: Raden Form
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          modifiers: []
+          domains: []
+          strain: []
+          guid: 9040df39-4255-4009-bad3-4872d076edef
+          numTargets: "1"
+          iconid: ui-icons/skills/1.png
+          castImmediately: true
+          targetType: self
+          categorization: Hidden
+          name: "Animal Form: Raden"
+          persistence: []
+          description: "**Rat:** While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, use your allies as cover when you hide, and remain hidden while moving through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild."
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        filterCondition: Ongoing Effects has "Raden Form" or Ongoing Effects has "Hybrid Raden Form"
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        description: |-
+          *8Animal Form: Rat**
+          While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+          **Hybrid Form: Rat**
+          While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+        source: Raden Kit Feature
+        name: Bear Form
+        behavior: activated
+        guid: 7fdcc30e-3698-4cae-896d-9d9e71eb3ade
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 4147e269-a3bc-4069-997e-10fa0a82f079
+            mode: effect
+            guid: e1391992-7498-4d76-8165-33bdc482c400
+            conditions: []
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: f14140a5-af68-497c-afc3-bb6eee0b956d
+            mode: effect
+            guid: cda14f94-0573-4558-b9dd-86bf200e292b
+            conditions: []
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: eefdae74-9375-4d11-ae64-7763a3901d9f
+            mode: effect
+            guid: b6aad93b-f3e6-4e9e-88ed-b8f03968e358
+            conditions: []
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList:
+          - text: Do Not Change Form
+          - text: Rat Form
+          guid: 820333ae-fce7-445e-87d1-4e44231b3f8a
+          iconid: ui-icons/skills/1.png
+          castImmediately: true
+          domains: []
+          numTargets: "1"
+          name: True Form
+          targetType: self
+          description: ""
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        sourceguid: 6ca8abbf-32cb-4144-b820-42328806c27f
+        guid: ec65cda3-8408-42b5-a86e-f03bcfcd727c
+        source: Raden Kit Feature
+        behavior: activated
+        description: |-
+          *8Animal Form: Rat**
+          While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+          **Hybrid Form: Rat**
+          While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+        name: Rat Form
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          categorization: Hidden
+          numTargets: "1"
+          modifiers: []
+          modeList:
+          - rules: You become a 1S hybrid rat.
+            text: Size 1S
+          - rules: You become a 1M hybrid rat.
+            text: Size 1M
+          strain: []
+          guid: 16917494-8100-4928-89a7-9ec9668a4c78
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 4147e269-a3bc-4069-997e-10fa0a82f079
+            mode: effect
+            guid: bd4d2266-0990-4f80-b5f5-246408918098
+            conditions: []
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: eefdae74-9375-4d11-ae64-7763a3901d9f
+            modesSelected:
+            - 1
+            ongoingEffectCustom: eefdae74-9375-4d11-ae64-7763a3901d9f
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: f14140a5-af68-497c-afc3-bb6eee0b956d
+            modesSelected:
+            - 2
+            ongoingEffectCustom: f14140a5-af68-497c-afc3-bb6eee0b956d
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            monsterType: acc6c48c-e553-4d2e-9485-c5d122edd8c3
+            mode: bestiary
+            appearanceName: Hybrid Raden Form
+          castImmediately: false
+          domains: []
+          iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+          persistence: []
+          name: "Hybrid Form: Raden"
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          description: "**Rat:** While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving."
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        description: |-
+          *8Animal Form: Rat**
+          While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+          **Hybrid Form: Rat**
+          While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+        sourceguid: 6ca8abbf-32cb-4144-b820-42328806c27f
+        behavior: alternateappearance
+        name: Rat Form
+        source: Raden Kit Feature
+        guid: d180a715-b32a-4ce1-b408-462f7371c468
+        monsterDefault: acc6c48c-e553-4d2e-9485-c5d122edd8c3
+        appearance: Raden Form
+      - __typeName: CharacterModifier
+        description: |-
+          *8Animal Form: Rat**
+          While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+          **Hybrid Form: Rat**
+          While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+        sourceguid: 6ca8abbf-32cb-4144-b820-42328806c27f
+        behavior: alternateappearance
+        name: Rat Form
+        source: Raden Kit Feature
+        guid: 58beeaa1-0435-4467-84f9-b98f7e901553
+        monsterDefault: acc6c48c-e553-4d2e-9485-c5d122edd8c3
+        appearance: Hybrid Raden Form
+      name: Rat Form
+      description: |-
+        *8Animal Form: Rat**
+        While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Rat**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+      guid: 6ca8abbf-32cb-4144-b820-42328806c27f
+      source: Raden Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Raden Kit Feature
+        value: Agility
+        filterCondition: Heroic Resources This Turn >= 2
+        name: Raden Growing Ferocity
+        guid: f5082f1d-6538-4d48-93fc-9fd046ab3fa1
+        description: ""
+        behavior: attribute
+        attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Raden Kit Feature
+        behavior: trigger
+        filterCondition: Heroic Resources This Turn >= 4
+        name: Raden Growing Ferocity
+        resourceRefreshType: turn
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: f258a444-df0a-4ab2-a47d-7d65c2d6c4ec
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b04d837b-4e68-49d1-a177-06039b72f0c0
+          conditionFormula: path.shift
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: "Growing Ferocity: Gain 1 surge when shifting"
+            quantity: 2 when Heroic Resources This Turn >= 8 and Level >= 4 else 1
+          name: Corven Growing Ferocity
+          trigger: move
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f258a444-df0a-4ab2-a47d-7d65c2d6c4ec
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Raden Kit Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        modtype: edge
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+        name: Raden Growing Ferocity
+        rollType: test_power_roll
+        description: When you have 6 or more Ferocity, you gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        guid: c3e4bc74-5a06-46ea-85a5-d821bd5d292a
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        displayCondition: ability.name = "Escape Grab" or ability.name = "Knockback"
+        source: Raden Kit Feature
+        modtype: edge
+        keywords: []
+        activationCondition: "1"
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+        name: Raden Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 6 or more Ferocity, you gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        guid: 947dbfe8-abee-4a90-8199-a68eb3568f5b
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Raden Kit Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        modtype: double_edge
+        filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+        name: Raden Growing Ferocity
+        rollType: test_power_roll
+        description: When you have 10 or more Ferocity, you gain a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        guid: b00dc73c-5842-4bff-b59a-43f5bc31de57
+        attribute: agl
+      - __typeName: CharacterModifier
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        description: ""
+        source: Raden Kit Feature
+        name: Raden Growing Ferocity
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: ae447302-faac-4610-8843-40262637abd5
+          repeatTargets: false
+          trigger: useability
+          conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+          targetType: self
+          persistence: []
+          name: Raden Growing Ferocity
+          behaviors:
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: "10"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: a11bf5fe-091a-48cc-ad2f-770470932277
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Raden Kit Feature
+        modtype: none
+        keywords: []
+        activationCondition: false
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        description: |-
+          When you have 10 or more Ferocity, the potency of 
+          any effects targeting you is reduced by 2 for you.
+        name: Raden Growing Ferocity
+        rollType: enemy_ability_power_roll
+        potencymod: "-2"
+        behavior: power
+        guid: 58dc3ecc-c27c-4da9-a2b8-e4f6b5b68623
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        displayCondition: ability.name = "Escape Grab" or ability.name = "Knockback"
+        source: Raden Kit Feature
+        modtype: double_edge
+        keywords: []
+        activationCondition: "1"
+        filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+        guid: 6db41ec0-ee49-46eb-9a6f-c56d4433fd5f
+        name: Raden Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 10 or more Ferocity, you gain a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        behavior: power
+        attribute: all
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        progression:
+        - level: 0
+          description: Disengage speed +{Agility|increases by your Agility score}.
+          resources: 2
+          tooltip: Whenever you use the Disengage move action, the distance you can shift gains a bonus equal to your Agility score.
+        - level: 0
+          description: When you shift, gain 1 surge (1/turn).
+          resources: 4
+          tooltip: The first time you shift on a turn, you gain 1 surge.
+        - level: 0
+          description: Edge on Agility tests, Escape Grab and Knockback.
+          resources: 6
+          tooltip: You gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        - level: 4
+          description: When you shift, gain 2 surges (1/turn).
+          resources: 8
+          tooltip: The first time you shift on a turn, you gain 2 surges instead of 1.
+        - level: 7
+          description: Double Edge on Agility tests, Escape Grab and Knockback.
+          resources: 10
+          tooltip: You have a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        - level: 10
+          description: When you use a heroic ability gain 10 temporary Stamina. Potency of effects targeting you reduced by 2.
+          resources: 12
+          tooltip: Whenever you use a heroic ability, you gain 10 temporary Stamina. Additionally, the potency of any effects targeting you is reduced by 2 for you.
+        source: Raden Kit Feature
+        description: ""
+        guid: 1bc7f76f-b8d1-4ebf-a35b-df2dc0feb0de
+        behavior: growingresources
+        name: Raden Growing Ferocity
+      name: Raden Growing Ferocity
+      description: ""
+      guid: c57c6815-8f5e-4a11-a6c3-9faf10c478de
+      source: Raden Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Your primordial damage type is corruption.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cf7ca5c1-d78d-41cd-b504-08536e8232dc
+        displayCondition: Ability.name is Visceral Roar or Ability.name is Deluge	
+        source: Raden Kit Feature
+        guid: 9ea0cfdc-28bf-4328-a0ee-436bfde22b7a
+        keywords: []
+        activationCondition: "1"
+        damageTypeMappings:
+          untyped: corruption
+        rollType: ability_power_roll
+        modtype: none
+        description: Your primordial damage type is corruption.
+        behavior: power
+        name: "Primordial Storm: Rat Flood"
+      source: Raden Kit Feature
+      canHavePrerequisites: true
+      guid: a363a6a7-bdc1-4bf1-9cc5-dd4518aab3a2
+      name: "Primordial Storm: Rat Flood"
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+        source: Raden Kit Feature
+        behavior: resistance
+        filterCondition: Level >= 7
+        name: Elemental Form
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2 when Level < 10 else Might*3
+          damageType: corruption
+          apply: Damage Reduction
+        description: |-
+          You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+          Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+        guid: 9817a60d-103f-4788-89f9-e451d78ff4da
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      source: Raden Kit Feature
+      guid: a53dbd0a-bbef-4584-8d6a-7de17f402620
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      canHavePrerequisites: true
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      name: Elemental Form
+      implementation: 4
+  name: Raden
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Strike: true
+      Melee: true
+      Weapon: true
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: -0.00199413299560547
+        v: 0.404611676931381
+        a: 1
+    flavor: Your enemies try in vain to fall back from your pouncing attack.
+    sourceReference:
+      __typeName: SourceReference
+      page: 145
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: ef9466b8-af39-4f1e-a8e7-b2345d882161
+    categorization: Signature Ability
+    persistence: []
+    sequentialTargeting: true
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    implementation: 3
+    name: Driving Pounce
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 4 damage
+      - 5 damage; push 1
+      - 6 damage; push 2
+      roll: 2d10 + Agility
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: bd36750e-4f41-419a-8e97-3beddec395fb
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      abilityType: standard
+      promptText: Shift the number of squares the target was pushed
+      standardAbilityParams:
+        distance: "2"
+      filterTarget: ""
+      standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      tiersSelected:
+      - 3
+      - 2
+    description: You can shift up to the same number of squares that you pushed the target.
+    abilityType: none
+    iconid: a393d50b-bef4-4a90-a1bf-767971ef2117
+  mtime: 1773366631230
+  description: With this stormwight kit, you channel your primordial ferocity into the form of a rat, becoming mobile and elusive. Raden are associated with the wild nature of the rat, before cities became their habitat. This aspect is associated with the rat flood—a surge of corrupted water that draws forth hordes of rats.
+  speed: 3
+adf74651-0900-4734-8253-e2a68453af99:
+  __typeName: Kit
+  armor: Light
+  health: 3
+  id: adf74651-0900-4734-8253-e2a68453af99
+  weapons:
+    Polearm: true
+  reach: 1
+  disengage: 1
+  name: Stick and Robe
+  description: Armed with a simple reach weapon, often a quarterstaff, heroes using the Stick and Robe kit are highly mobile thanks to their light armor. This allows them to make maximum use of their weapon's length.
+  portraitid: cfd2d751-46dd-4d27-a47c-ea83c106c36a
+  kitManeuver: false
+  type: martial
+  speed: 2
+  imported: b8ba7102-bdf0-4dac-82e0-6baa5a36fcbd
+  damageBonuses:
+    melee:
+    - 1
+    - 1
+    - 1
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 4 + M or A damage
+      - 7 + M or A damage; slide 1
+      - 10 + M or A damage; slide 3
+      roll: 2d10 + Might or Agility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: When your stick speaks, your enemy moves.
+    sourceReference:
+      __typeName: SourceReference
+      page: 223
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 2
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    modifiers: []
+    strain: []
+    guid: c678123a-a538-4559-b539-9fb9a6747c9e
+    categorization: Signature Ability
+    numTargets: 1
+    implementation: 4
+    persistence: []
+    name: Where I Want You
+    targetType: target
+    description: ""
+    abilityType: none
+    iconid: 2c2b1cb9-6ba0-46f7-b133-07a5d8e8d87e
+  mtime: 1770565551271
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  equipmentDescription: You wear light armor and wield a polearm.
+c9330271-a7e6-4dc4-9af9-2b1e75232792:
+  __typeName: Kit
+  equipmentDescription: You wear no armor and wield a whip.
+  kitManeuver: false
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  reach: 1
+  weapons:
+    Whip: true
+  speed: 3
+  id: c9330271-a7e6-4dc4-9af9-2b1e75232792
+  description: The Whirlwind kit makes effective use of whips, granting you mobility, damage, and reach. If you want to be a mobile warrior who uses a chain or whip, then this is the kit for you.
+  type: martial
+  portraitid: 7e2c3020-0ef7-411e-9dbd-72d9b82e3ed2
+  imported: 3094f4fa-6c93-4268-9752-1c79593de670
+  name: Whirlwind
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 4 + M or A damage; vertical pull 1
+      - 7 + M or A damage; vertical pull 2
+      - 10 + M or A damage; vertical pull 3
+      roll: 2d10 + Might or Agility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: ""
+    sourceReference:
+      __typeName: SourceReference
+      page: 224
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 3
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    modifiers: []
+    strain: []
+    guid: 3290bbea-0367-480e-8ff3-183c0e153e14
+    categorization: Signature Ability
+    numTargets: 1
+    implementation: 4
+    persistence: []
+    name: Extension of My Arm
+    targetType: target
+    description: ""
+    abilityType: none
+    iconid: d26ac113-6273-4428-b804-16b3b2569896
+  mtime: 1770565657371
+  damageBonuses:
+    melee:
+    - 1
+    - 1
+    - 1
+  disengage: 1
+fea722d2-a2c6-49f7-a8bc-8a161ab2c965:
+  __typeName: Kit
+  armor: Medium
+  health: 6
+  id: fea722d2-a2c6-49f7-a8bc-8a161ab2c965
+  weapons:
+    Medium: true
+    Light: true
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  equipmentDescription: You wear medium armor and wield a light weapon and a medium weapon.
+  kitManeuver: false
+  mtime: 1770562346858
+  name: Dual Wielder
+  type: martial
+  speed: 2
+  imported: 014dea1a-b478-4e78-b930-05dff0149838
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 4 damage
+      - 6 damage
+      - 8 damage
+      roll: 2d10 + Might or Agility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: Why strike once when you could do it twice?
+    sourceReference:
+      __typeName: SourceReference
+      page: 220
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    effectImplemented: false
+    numTargets: 2
+    modifiers: []
+    strain: []
+    guid: 4ddd376d-dd9c-41ff-b28e-16001d140379
+    implementation: 4
+    persistence: []
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    targetType: target
+    name: Double Strike
+    categorization: Signature Ability
+    description: If you use this ability on your turn, you can target one creature or object with it then use your maneuver and move action for that turn before targeting a second creature or object. You still use the same power roll for both targets.
+    abilityType: none
+    iconid: 31d5930d-d7e5-4ec2-b60d-35d3f1da2294
+  description: The Dual Wielder kit is for folks who want to excel at using two weapons at the same time. The fighting style maximizes the power of each instrument in your hands, making you a whirling deliverer of death.
+  portraitid: ""
+  disengage: 1
+f6495f4e-6bf7-4764-b6ae-508c12e77318:
+  __typeName: Kit
+  armor: Light
+  health: 3
+  id: f6495f4e-6bf7-4764-b6ae-508c12e77318
+  weapons:
+    Bow: true
+  range: 7
+  disengage: 1
+  name: Rapid-Fire
+  portraitid: 5aea8d99-7529-4762-b04e-13b9b14849eb
+  kitManeuver: false
+  description: The Rapid-Fire kit is for archers who want to deal maximum damage by shooting as many arrows as possible into nearby enemies. With this kit, your fighting technique focuses on peppering foes at medium range.
+  type: martial
+  speed: 1
+  imported: 20727625-6f88-4853-b335-666424fa3a0d
+  damageBonuses:
+    ranged:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Ranged: true
+      Kit: true
+      Strike: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 4 damage
+      - 6 damage
+      - 8 damage
+      roll: 2d10 + Might or Agility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: When you fire two arrows back to back, both hit their mark.
+    sourceReference:
+      __typeName: SourceReference
+      page: 222
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 12
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 90c6e524-247c-4759-9896-3d912a76cecd
+    categorization: Signature Ability
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    targetType: target
+    implementation: 4
+    name: Two Shot
+    numTargets: 2
+    description: ""
+    abilityType: none
+    iconid: 5aea8d99-7529-4762-b04e-13b9b14849eb
+  mtime: 1770565435183
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  equipmentDescription: You wear light armor and wield a bow.
+98004693-e862-48af-9428-d1c0fd6d1f11:
+  __typeName: Kit
+  stability: 1
+  armor: Medium
+  health: 9
+  id: 98004693-e862-48af-9428-d1c0fd6d1f11
+  weapons:
+    Medium: true
+    Shield: true
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  name: Sword and Board
+  kitManeuver: false
+  mtime: 1770565604961
+  type: martial
+  portraitid: 681f1913-df6e-44d9-a07f-543159e7c9c7
+  imported: 8797cce2-b38c-4ca7-a7d1-14b831c83c03
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 4 + M or A damage; push 1
+      - 7 + M or A damage; push 2
+      - 9 + M or A damage; push 3; M < strong, prone
+      roll: 2d10 + Might or Agility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: In your hands, a shield isn't just for protection.
+    sourceReference:
+      __typeName: SourceReference
+      page: 224
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    modifiers: []
+    strain: []
+    guid: a7e9ec70-8801-4a45-ae35-cb9fab287ba6
+    categorization: Signature Ability
+    numTargets: 1
+    implementation: 4
+    persistence: []
+    name: Shield Bash
+    targetType: target
+    description: ""
+    abilityType: none
+    iconid: ef6773dc-31d2-4b8a-9771-dd9ce19f9c86
+  description: The Sword and Board kit doesn't just give you a shield-it makes the shield part of your offensive arsenal. With a medium weapon in one hand and a block of steel or solid oak in the other, you can protect yourself and control the battlefield.
+  equipmentDescription: You wear medium armor and wield a shield and a medium weapon.
+  disengage: 1
+62390395-f65a-4f08-9b5a-0a4131ac62dc:
+  __typeName: Kit
+  name: Sniper
+  kitManeuver: false
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  damageBonuses:
+    ranged:
+    - 0
+    - 0
+    - 4
+  portraitid: e96c72cd-4529-42ed-9bc1-992e4ff47f9d
+  speed: 1
+  id: 62390395-f65a-4f08-9b5a-0a4131ac62dc
+  description: The Sniper kit gives you the tools and techniques to take down enemies from afar. This kit can help you become the archer who lurks behind trees or down tunnels, picking off enemies with a bow or crossbow as they approach.
+  type: martial
+  weapons:
+    Bow: true
+  imported: e3550728-d843-4ec7-a0a2-e6fb2a3b6f82
+  equipmentDescription: You wear no armor and wield a bow.
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Ranged: true
+      Kit: true
+      Strike: true
+      Weapon: true
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: Breathe ... aim ... wait... then strike!
+    sourceReference:
+      __typeName: SourceReference
+      page: 223
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 15
+    effectImplemented: false
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: f3dae59d-d3f7-4a12-9bb1-cf7a8e682c09
+    numTargets: 1
+    categorization: Signature Ability
+    implementation: 3
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 3 + M or A damage
+      - 6 + M or A damage
+      - 13 + M or A damage
+      roll: 2d10 + Might or Agility
+    - __typeName: ActivatedAbilityModifyPowerRollBehavior
+      guid: 2d66104d-0548-4859-b688-7edec8eb79c4
+      modifier:
+        __typeName: CharacterModifier
+        sourceguid: 2d66104d-0548-4859-b688-7edec8eb79c4
+        displayCondition: "1"
+        behavior: power
+        guid: ac13d4d6-2eae-4188-9ad6-570882893bf7
+        domains: []
+        keywords: []
+        hasCustomTrigger: true
+        customTrigger:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 27940c29-fbf0-4357-a5de-a4acbf00e07c
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          targetType: self
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: 53c0add3-ce83-4a74-a36a-cb442eb4de55
+            duration: 0
+            ongoingEffectCustom: 53c0add3-ce83-4a74-a36a-cb442eb4de55
+          name: New Ability
+          trigger: d20roll
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: If you don't take a move action this turn, this strike deals extra damage equal to your Might or Agility score (your choice).
+        name: Patient Shot
+        activationCondition: Moved This Turn = 0
+        damageModifier: Might or Agility
+        rollType: ability_power_roll
+        modtype: none
+    name: Patient Shot
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    description: If you don't take a move action this turn, this strike deals extra damage equal to your Might or Agility score (your choice).
+    abilityType: none
+    iconid: b5db9101-7d79-4166-b119-21a12922ffcd
+  mtime: 1770565509353
+  range: 10
+  disengage: 1
+54baee77-3f8c-4b91-96ca-55ca55ff3149:
+  __typeName: Kit
+  armor: Medium
+  health: 6
+  id: 54baee77-3f8c-4b91-96ca-55ca55ff3149
+  weapons:
+    Medium: true
+    Bow: true
+  range: 5
+  disengage: 1
+  name: Ranger
+  portraitid: 00350a01-834d-4230-b097-9fd3fdf1331f
+  kitManeuver: false
+  description: The Ranger kit outfits you with light armor and several weapons, letting you easily switch between using a melee weapon and a bow. This kit provides a good balance of bonuses to Stamina, speed, damage, and range to create a hero who is a jack-of-all-trades.
+  type: martial
+  speed: 1
+  imported: e640ecf4-f165-4465-8d3c-7d62d226d0ae
+  damageBonuses:
+    ranged:
+    - 1
+    - 1
+    - 1
+    melee:
+    - 1
+    - 1
+    - 1
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Ranged: true
+      Kit: true
+      Strike: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 3 + M or A damage; A < weak, slowed (save ends)
+      - 5 + M or A damage; A < average, slowed (save ends)
+      - 7 + M or A damage; A < strong, slowed (save ends)
+      roll: 2d10 + Might or Agility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: A well-placed shot leaves your enemy struggling to move.
+    sourceReference:
+      __typeName: SourceReference
+      page: 221
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 10
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    modifiers: []
+    strain: []
+    guid: 59232ceb-dfac-4bb9-bb72-f3ec668b6f4b
+    categorization: Signature Ability
+    numTargets: 1
+    implementation: 4
+    persistence: []
+    name: Hamstring Shot
+    targetType: target
+    description: ""
+    abilityType: none
+    iconid: dd46eb66-c14b-40bd-8494-34b1fd531da0
+  mtime: 1770565413466
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  equipmentDescription: You wear medium armor and wield a medium weapon and a bow.
+4e35cff7-1a22-4364-ae56-b2664574bf44:
+  __typeName: Kit
+  stability: 1
+  armor: Medium
+  health: 6
+  id: 4e35cff7-1a22-4364-ae56-b2664574bf44
+  weapons:
+    Polearm: true
+  reach: 1
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  name: Guisarmier
+  description: The Guisarmier kit is for those who want to use a polearm for extended reach and still gain the extra protection of armor. This is the kit that allows you to become the ultimate halberd, longspear, or glaive fighter.
+  type: martial
+  kitManeuver: false
+  imported: 8584aa2d-f32d-4f2e-9d5f-01d77504387d
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 4 damage
+      - 7 damage
+      - 9 damage
+      roll: 2d10 + Might or Agility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: In your hands, the haft is as good as the head.
+    sourceReference:
+      __typeName: SourceReference
+      page: 220
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 2
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 1c137292-5823-46aa-8a6c-03fd1937f1bd
+    categorization: Signature Ability
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    targetType: target
+    implementation: 4
+    name: Forward Thrust, Backward Smash
+    numTargets: 2
+    description: ""
+    abilityType: none
+    iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9
+  mtime: 1770985455025
+  equipmentDescription: You wear medium armor and wield a polearm.
+  portraitid: "-MDmHMtUE1H_p4JJEGU3"
+5f2a0f4a-8859-42f4-85ae-fc7b7a985866:
+  __typeName: Kit
+  stability: 1
+  armor: Light
+  health: 3
+  id: 5f2a0f4a-8859-42f4-85ae-fc7b7a985866
+  weapons:
+    Medium: true
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  name: Battlemind
+  description: Who says lightly armored heroes can't also be hard to move? You just need to employ some psionics! You use the Battlemind kit harnesses the power of your mind to make yourself harder to move and your foes easier to push around.
+  mtime: 1771497459604
+  type: martial
+  speed: 2
+  imported: 96a0a5cf-c673-403a-b6bc-c9f0c7a67d11
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Weapon: true
+      Kit: true
+      Psionic: true
+      Strike: true
+      Melee: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 5 + M, R, I, or P damage
+      - 8 + M, R, I, or P damage
+      - 11 + M, R, I, or P damage
+      roll: 2d10 + Might or Reason or Intuition or Presence
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: ef1858e7-4e73-4b1e-9a1c-58388a3c4921
+      stacks: "2"
+      duration: end_of_next_turn
+      ongoingEffectCustom: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.5718954205513
+        s: 1
+        v: 1
+        a: 1
+    flavor: "Your weapon unleashes psionic energy that reduces your target's weight. "
+    sourceReference:
+      __typeName: SourceReference
+      page: 219
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    modifiers: []
+    strain: []
+    guid: 21638be4-32b5-4e56-ae89-7d3c79fb2dfd
+    categorization: Signature Ability
+    numTargets: 1
+    implementation: 4
+    persistence: []
+    name: Unmooring
+    targetType: target
+    description: Whenever an effect with forced movement targets the target, the forced movement value is increased by 2 (EoT).
+    abilityType: none
+    iconid: 32077eeb-5e0b-4dd8-b538-4bab491da0ed
+  kitManeuver: false
+  equipmentDescription: You wear light armor and wield a medium weapon.
+  portraitid: ""
+eed9a7a3-accd-4dbc-a839-cadc02735b53:
+  __typeName: Kit
+  disengage: 1
+  health: 3
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  id: eed9a7a3-accd-4dbc-a839-cadc02735b53
+  ctime: 1727311314727
+  type: stormwight
+  portraitid: 31ba7973-e0f1-445c-ad2e-76c1b4b9266f
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      description: You gain an edge on tests made to hide and sneak. Additionally, whenever you fall, you can use a free triggered action to use your Aspect of the Wild ability
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: db2f8627-8860-4063-984c-bde442e7846b
+        source: Corven Kit Feature
+        modtype: edge
+        keywords: []
+        activationCondition: true
+        guid: 6faab3b3-e221-4816-81a5-be5f6c12902e
+        name: Aspect Benefits
+        behavior: power
+        description: You gain an edge on tests made to hide and sneak. Additionally, whenever you fall, you can use a free triggered action to use your Aspect of the Wild ability
+        rollType: test_power_roll
+        skills:
+        - fdd43bde-6062-484d-aea6-3803d396ea8e
+        - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+      source: Corven Kit Feature
+      canHavePrerequisites: true
+      guid: db2f8627-8860-4063-984c-bde442e7846b
+      name: Aspect Benefits
+      implementation: 2
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+        guid: 22dc5b3b-db68-4068-9fd4-b3bcf77d9b7a
+        source: Corven Kit Feature
+        behavior: activated
+        description: |-
+          **Animal Form: Crow**
+          While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+          **Hybrid Form: Crow**
+          While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+        name: Corven Form
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 006d8a10-8d42-4853-907a-5bd8dfa41b51
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: cae4de28-d561-4dbf-b6cd-cc484a38c464
+            mode: effect
+            guid: c6e4a3c1-508e-4939-b573-2eaf75daefb5
+            conditions: []
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            monsterType: 02eeea00-8dee-4452-882e-fdd53369564f
+            mode: bestiary
+            appearanceName: Corven Form
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 519d8db4-254d-4445-a476-733eaf6c111b
+            ongoingEffectCustom: 519d8db4-254d-4445-a476-733eaf6c111b
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          modifiers: []
+          domains: []
+          strain: []
+          guid: 9040df39-4255-4009-bad3-4872d076edef
+          numTargets: "1"
+          iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+          castImmediately: true
+          targetType: self
+          categorization: Hidden
+          name: "Animal Form: Corven"
+          persistence: []
+          description: "**Corven:** While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild."
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        filterCondition: Ongoing Effects has "Corven Form" or Ongoing Effects has "Hybrid Corven Form"
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        description: |-
+          **Animal Form: Crow**
+          While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+          **Hybrid Form: Crow**
+          While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+        source: Corven Kit Feature
+        name: Bear Form
+        behavior: activated
+        guid: 03f026a2-e483-4b66-84d4-482d8ba120c4
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          implementationDetails: ""
+          targetType: self
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList: []
+          guid: 820333ae-fce7-445e-87d1-4e44231b3f8a
+          domains: []
+          castImmediately: true
+          iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: cae4de28-d561-4dbf-b6cd-cc484a38c464
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 519d8db4-254d-4445-a476-733eaf6c111b
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 006d8a10-8d42-4853-907a-5bd8dfa41b51
+            mode: effect
+            guid: 477e0a86-42f6-4cf6-9da2-9dfa0d34f4ed
+            conditions: []
+          name: True Form
+          numTargets: "1"
+          description: Revert to your original form
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        sourceguid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+        guid: df3418e6-89cd-4a52-afc0-2b90fb4acbf6
+        source: Corven Kit Feature
+        behavior: activated
+        description: |-
+          **Animal Form: Crow**
+          While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+          **Hybrid Form: Crow**
+          While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+        name: Corven Form
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          categorization: Hidden
+          numTargets: "1"
+          modifiers: []
+          modeList:
+          - rules: You will be size 1S while in hybrid form.
+            text: Size 1S
+          - rules: You will be size 1M while in hybrid form.
+            text: Size 1M
+          strain: []
+          guid: 93caa15a-7f0d-4d0e-a4b8-a81bb6b49a63
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 519d8db4-254d-4445-a476-733eaf6c111b
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 006d8a10-8d42-4853-907a-5bd8dfa41b51
+            modesSelected:
+            - 1
+            ongoingEffectCustom: 006d8a10-8d42-4853-907a-5bd8dfa41b51
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: cae4de28-d561-4dbf-b6cd-cc484a38c464
+            modesSelected:
+            - 2
+            ongoingEffectCustom: cae4de28-d561-4dbf-b6cd-cc484a38c464
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            monsterType: 02eeea00-8dee-4452-882e-fdd53369564f
+            mode: bestiary
+            appearanceName: Hybrid Corven Form
+          castImmediately: false
+          domains: []
+          iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+          persistence: []
+          name: "Hybrid Form: Corven"
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          description: "**Corven:** While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly."
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        description: |-
+          **Animal Form: Bear**
+          While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+          **Hybrid Form: Bear**
+          While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        behavior: alternateappearance
+        name: Bear Form
+        source: Corven Kit Feature
+        guid: 0ce37225-4257-4bf1-8336-f813043a23e2
+        monsterDefault: 02eeea00-8dee-4452-882e-fdd53369564f
+        appearance: Corven Form
+      - __typeName: CharacterModifier
+        description: |-
+          **Animal Form: Crow**
+          While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+          **Hybrid Form: Crow**
+          While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+        sourceguid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+        behavior: alternateappearance
+        name: Corven Form
+        source: Corven Kit Feature
+        guid: 8cd7b655-e0cf-4de0-841d-f610911efc27
+        monsterDefault: 02eeea00-8dee-4452-882e-fdd53369564f
+        appearance: Hybrid Corven Form
+      name: Corven Form
+      description: |-
+        **Animal Form: Crow**
+        While you are in your crow form, your size is 1T and you can fly. You can use the Hide maneuver as a free maneuver, and you can use your allies as cover when you hide. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Crow**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can fly.
+      guid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+      source: Corven Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Corven Kit Feature
+        value: Agility
+        filterCondition: Heroic Resources This Turn >= 2
+        name: Corven Growing Ferocity
+        guid: f5082f1d-6538-4d48-93fc-9fd046ab3fa1
+        description: ""
+        behavior: attribute
+        attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Corven Kit Feature
+        behavior: trigger
+        filterCondition: Heroic Resources This Turn >= 4
+        name: Corven Growing Ferocity
+        resourceRefreshType: turn
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: f258a444-df0a-4ab2-a47d-7d65c2d6c4ec
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b04d837b-4e68-49d1-a177-06039b72f0c0
+          conditionFormula: path.shift
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: "Growing Ferocity: Gain 1 surge when shifting"
+            quantity: 2 when Heroic Resources This Turn >= 8 and Level >= 4 else 1
+          name: Corven Growing Ferocity
+          trigger: move
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f258a444-df0a-4ab2-a47d-7d65c2d6c4ec
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Corven Kit Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        modtype: edge
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+        name: Corven Growing Ferocity
+        rollType: test_power_roll
+        description: When you have 6 or more Ferocity, you gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        guid: c3e4bc74-5a06-46ea-85a5-d821bd5d292a
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        displayCondition: ability.name = "Escape Grab" or ability.name = "Knockback"
+        source: Corven Kit Feature
+        modtype: edge
+        keywords: []
+        activationCondition: "1"
+        filterCondition: Heroic Resources This Turn >= 6
+        name: Corven Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 6 or more Ferocity, you gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        guid: 947dbfe8-abee-4a90-8199-a68eb3568f5b
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Corven Kit Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        modtype: double_edge
+        filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+        name: Corven Growing Ferocity
+        rollType: test_power_roll
+        description: When you have 10 or more Ferocity, you gain a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        guid: b00dc73c-5842-4bff-b59a-43f5bc31de57
+        attribute: agl
+      - __typeName: CharacterModifier
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        description: ""
+        source: Corven Kit Feature
+        name: Boren Growing Ferocity
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: ae447302-faac-4610-8843-40262637abd5
+          repeatTargets: false
+          trigger: useability
+          conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+          targetType: self
+          persistence: []
+          name: Corven Growing Ferocity
+          behaviors:
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: "10"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: a11bf5fe-091a-48cc-ad2f-770470932277
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Corven Kit Feature
+        modtype: none
+        keywords: []
+        activationCondition: false
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        description: |-
+          When you have 12 or more Ferocity, the potency of any 
+          effects targeting you is reduced by 2 for you.
+        name: Corven Growing Ferocity
+        rollType: enemy_ability_power_roll
+        potencymod: "-2"
+        behavior: power
+        guid: 58dc3ecc-c27c-4da9-a2b8-e4f6b5b68623
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        progression:
+        - level: 0
+          description: Disengage speed +{Agility}.
+          resources: 2
+          tooltip: Whenever you use the Disengage move action, the distance you can shift gains a bonus equal to your Agility score.
+        - level: 0
+          description: First shift on a turn, you gain 1 surge.
+          resources: 4
+          tooltip: 'The first time you shift on a turn, you gain 1 surge. '
+        - level: 0
+          description: Edge on Agility tests, Escape Grab, and Knockback.
+          resources: 6
+          tooltip: You gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        - level: 4
+          description: First shift on a turn, you gain 2 surges.
+          resources: 8
+          tooltip: |-
+            The first time you shift on a turn, you gain 2 surges 
+            instead of 1.
+        - level: 7
+          description: Double Edge on Agility tests, Escape Grab, and Knockback.
+          resources: 10
+          tooltip: You have a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        - level: 10
+          description: When you use a heroic ability gain 10 temporary Stamina. Potency of effects targeting you reduced by 2.
+          resources: 12
+          tooltip: |-
+            Whenever you use a heroic ability, you gain 10 
+            temporary Stamina. Additionally, the potency of any effects targeting you is reduced by 2 for you.
+        source: Corven Kit Feature
+        description: ""
+        guid: 4f255165-78a5-45e5-942f-89324df5613e
+        behavior: growingresources
+        name: Corven Growing Ferocity
+      name: Corven Growing Ferocity
+      description: ""
+      guid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Corven Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Your primordial damage type is fire.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cf7ca5c1-d78d-41cd-b504-08536e8232dc
+        displayCondition: Ability.name is Visceral Roar or Ability.name is Deluge	
+        source: Corven Kit Feature
+        guid: 558b6314-858a-44e6-93ff-68444ebad156
+        keywords: []
+        activationCondition: "1"
+        damageTypeMappings:
+          untyped: fire
+        rollType: ability_power_roll
+        modtype: none
+        description: Your primordial damage type is fire.
+        behavior: power
+        name: "Primordial Storm: Anabatic Wind"
+      source: Corven Kit Feature
+      canHavePrerequisites: true
+      guid: cf7ca5c1-d78d-41cd-b504-08536e8232dc
+      name: "Primordial Storm: Anabatic Wind"
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+        source: Corven Kit Feature
+        behavior: resistance
+        filterCondition: Level >= 7
+        name: Elemental Form
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2 when Level < 10 else Might*3
+          damageType: fire
+          apply: Damage Reduction
+        description: |-
+          You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+          Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+        guid: 9817a60d-103f-4788-89f9-e451d78ff4da
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      source: Corven Kit Feature
+      guid: 2f4b8259-ae86-4961-b23a-3274e7642d86
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      canHavePrerequisites: true
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      name: Elemental Form
+      implementation: 4
+  name: Corven
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    targetTextOverride: Each enemy in the area
+    repeatTargets: false
+    keywords:
+      Area: true
+      Melee: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityRelocateCreatureBehavior
+      movementType: shift
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      inheritKeywords: true
+      customAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        repeatTargets: false
+        targetAllegiance: enemy
+        targetType: all
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 7c9d44d3-3056-4a3b-916b-13b5ab2adf7c
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - 3 damage
+          - 6 damage
+          - 8 damage
+          guid: d26f4b28-0c07-4f60-878f-a4d124724693
+          roll: 2d10 + Agility
+        name: Wing Buffet
+        numTargets: "1"
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      promptText: Wing Buffet Burst
+    multipleModes: variations
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: |
+      Foes who try to close around you do so at their peril.
+    categorization: Signature Ability
+    range: "2"
+    guid: 350a3e2f-dce7-4c08-9846-6464ed1cb684
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    numTargets: "1"
+    modifiers: []
+    sourceReference:
+      __typeName: SourceReference
+      page: 144
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    strain: []
+    modeList:
+    - text: Shift Before
+    - variation:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        repeatTargets: false
+        targetAllegiance: enemy
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - 3 damage
+          - 6 damage
+          - 8 damage
+          guid: ad376d4c-881a-4702-a020-0b19bf1cf263
+          roll: 2d10 + Agility
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          applyto: caster
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: d2b196d1-25d2-46db-bf4f-048588dc31ab
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          promptText: Shift up to 2 squares
+          standardAbilityParams:
+            distance: "2"
+          abilityType: standard
+          standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Signature Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 1fbabeaa-884f-4fb2-a3d5-a5c0e8eab7ef
+        domains: []
+        numTargets: "1"
+        name: Wing Buffet
+        targetType: all
+        description: ""
+        abilityType: none
+        iconid: bfaf7457-ee3f-4b4f-ab0e-cedc82a816a4
+      hasAbility: true
+      text: Shift After
+    rangeTextOverride: 1 burst
+    targetType: emptyspace
+    sequentialTargeting: true
+    targeting: pathfind
+    implementation: 4
+    name: Wing Buffet
+    persistence: []
+    description: You can shift up to 2 squares before or after making the power roll.
+    abilityType: none
+    iconid: bfaf7457-ee3f-4b4f-ab0e-cedc82a816a4
+  mtime: 1773366625734
+  description: With this stormwight kit, you channel your primordial ferocity into the form of a crow, becoming stealthy and quick. Corven are tied to the mountain passes and the hot winds that flow through them. This aspect is associated with the warm and fast-rising anabatic wind.
+  speed: 3
+6ead0613-c315-450b-83c9-d2ecce68f1ff:
+  __typeName: Kit
+  armor: Heavy
+  stability: 2
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a5af4a16-b3b4-439b-a479-44de41bab956
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            duration: end_of_next_turn
+            ongoingEffectCustom: false
+            ongoingEffect: 822aee05-801b-42a7-bea4-f9bbaaed388b
+            casteridFormula: cast.FirstTarget.id
+          conditionFormula: hasattacker
+          whenActive: combat
+          numTargets: "1"
+          trigger: losehitpoints
+          name: Pain for pain
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Mountain Kit Feature
+        behavior: trigger
+        guid: d4e59d93-1c8f-4eda-976b-71db3d58bea1
+        name: Pain for pain
+        sourceguid: aae2bd3c-8b45-4a3e-82e8-4e5a8f318e19
+      name: Pain for pain
+      description: ""
+      guid: aae2bd3c-8b45-4a3e-82e8-4e5a8f318e19
+      source: Mountain Kit Feature
+      implementation: 3
+  description: The Mountain kit does exactly what it says on the tin. You don heavy armor and a heavy weapon to stand strong against your foes, quickly demolishing them when it's your turn to attack.
+  health: 9
+  damageBonuses:
+    melee:
+    - 0
+    - 0
+    - 4
+  id: 6ead0613-c315-450b-83c9-d2ecce68f1ff
+  kitManeuver: false
+  type: martial
+  portraitid: 342784d0-0c71-4ea2-ab8c-2b7861cf40dd
+  imported: 99d83090-9093-4883-ad4c-5ba82d3b9dd5
+  equipmentDescription: You wear heavy armor and wield a heavy weapon.
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: An enemy who tagged you will pay for that.
+    sourceReference:
+      __typeName: SourceReference
+      page: 220
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    effectImplemented: false
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: eddf9ca0-2927-4b00-b51a-7346da9009f5
+    numTargets: 1
+    categorization: Signature Ability
+    implementation: 3
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 3 + M or A damage
+      - 5 + M or A damage
+      - 13 + M or A damage
+      roll: 2d10 + Might or Agility
+    - __typeName: ActivatedAbilityModifyPowerRollBehavior
+      guid: 57ffff38-1897-45eb-8b9b-eaf43d13e33c
+      modifier:
+        __typeName: CharacterModifier
+        sourceguid: 57ffff38-1897-45eb-8b9b-eaf43d13e33c
+        displayCondition: ""
+        guid: 46806988-ce27-4275-bba9-e4221b4771d0
+        keywords: []
+        activationCondition: self.casterSet("Pain for Pain") has target
+        behavior: power
+        domains: []
+        name: Pain for pain
+        rollType: ability_power_roll
+        description: If the target dealt damage to you since the end of your last turn, this strike deals additional damage equal to your Might or Agility score.
+        modtype: none
+        damageModifier: Might or Agility
+    name: Pain for Pain
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    description: If the target dealt damage to you since the end of your last turn, this strike deals additional damage equal to your Might or Agility score (your choice).
+    abilityType: none
+    iconid: b9b738ea-7e4d-4289-9fc5-7e1182b6847f
+  mtime: 1772099460226
+  name: Mountain
+  weapons:
+    Heavy: true
+66405ba9-8a0f-4b47-85e0-75e4dab23780:
+  __typeName: Kit
+  armor: Heavy
+  stability: 1
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  description: The Shining Armor kit provides the most protection a kit can afford, providing you with the sword, shield, and armor necessary to play the prototypical knight.
+  health: 12
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  id: 66405ba9-8a0f-4b47-85e0-75e4dab23780
+  kitManeuver: false
+  type: martial
+  portraitid: 09f877d5-ee1b-4b81-8916-821a9ff780d2
+  imported: 63abbfe2-a1d0-4ebe-9a41-7403d109071c
+  equipmentDescription: You wear heavy armor and wield a shield and a medium weapon.
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: The strength of your assault makes it impossible for your foe to ignore you.
+    sourceReference:
+      __typeName: SourceReference
+      page: 222
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    effectImplemented: false
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 98c5ab96-d827-40ae-b963-8e999f3095cc
+    numTargets: 1
+    categorization: Signature Ability
+    implementation: 4
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 5 + M or A damage
+      - 8 + M or A damage
+      - 11 + M or A damage
+      roll: 2d10 + Might or Agility
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: Taunted (EoT)
+    name: Protective Attack
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    description: The target is taunted (EoT).
+    abilityType: none
+    iconid: 92a6d94b-65ab-49b6-b33e-0dae78f3a332
+  mtime: 1770565492543
+  name: Shining Armor
+  weapons:
+    Medium: true
+    Shield: true
+50262518-b510-4469-ab0b-87286a097ae0:
+  __typeName: Kit
+  armor: Light
+  health: 3
+  id: 50262518-b510-4469-ab0b-87286a097ae0
+  weapons:
+    Medium: true
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  equipmentDescription: You wear light armor and wield a medium weapon.
+  kitManeuver: false
+  mtime: 1774535600027
+  name: Swashbuckler
+  type: martial
+  speed: 3
+  imported: 621407b2-fd91-4b41-998e-dbdc0674dba3
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    implementationDetails: Using this ability more than once in a turn doesn't correctly highlight the available squares you can shift into
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.497499823570251
+        s: 0.842675626277924
+        v: 0.695951282978058
+        a: 1
+    flavor: All combat is a dance-and you'll be the one leading.
+    sourceReference:
+      __typeName: SourceReference
+      page: 223
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    effectImplemented: false
+    numTargets: 1
+    modifiers: []
+    strain: []
+    guid: 14ba2978-ca93-40fb-82b6-a9fd8b067c14
+    categorization: Signature Ability
+    persistence: []
+    implementation: 3
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 5 + M or A damage
+      - 7 + M or A damage; push 1
+      - 10 + M or A damage; push 2
+      roll: 2d10 + Might or Agility
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      tiersSelected:
+      - 2
+      - 3
+      customAbility:
+        __typeName: ActivatedAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        persistence: []
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: 1b2ea40b-a952-41fc-901a-9a294ab3f137
+        repeatTargets: false
+        numTargets: "1"
+        categorization: Hidden
+        behaviors:
+        - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          movementType: shift
+        targeting: vacated
+        name: Invoked Ability
+        targetType: emptyspace
+        description: ""
+        range: Movement Speed
+        iconid: ui-icons/skills/1.png
+      promptText: Shift into a square the target left
+      autoTarget: false
+      guid: e71c6ad9-58ae-4766-bc1c-8bccb7a492d7
+      applyto: caster
+    name: Fancy Footwork
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    description: You can shift into any square your target leaves after you force move them with this ability.
+    abilityType: none
+    iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+  description: If you want to be mobile and deal a lot of damage with melee attacks, then you should reach for the Swashbuckler kit. This is a great kit for heroes who want to be master duelists.
+  portraitid: a17c9a6a-1ca1-4947-8623-2172a921259e
+  disengage: 1
+eb79fd24-ffa6-47bf-a819-2a346be45326:
+  __typeName: Kit
+  stability: 1
+  armor: Light
+  health: 6
+  id: eb79fd24-ffa6-47bf-a819-2a346be45326
+  weapons:
+    Medium: true
+    Shield: true
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  name: Spellsword
+  description: The Spellsword kit combines melee attacks and a little bit of magic for warriors who don't want to have to choose between the incantation and the blade.
+  mtime: 1770565532178
+  type: martial
+  speed: 1
+  imported: 7dcd9907-f8b7-4ff6-bf09-e701a2f1e90a
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Magic: true
+      Weapon: true
+      Kit: true
+      Strike: true
+      Melee: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 5 + M, R, I or P lightning damage
+      - 8 + M, R, I or P lightning damage
+      - 11 + M, R, I or P lightning damage
+      roll: 2d10 + Might or Reason or Intuition or Presence
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      autoTarget: false
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        targetFilter: target != invoker
+        guid: 092057ba-b46f-4b8b-b19f-ef0f99a43bbf
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors:
+        - __typeName: ActivatedAbilityDamageBehavior
+          damageType: lightning
+          roll: invoker.Might or invoker.Reason or invoker.Intuition or invoker.Presence
+        abilityType: none
+        name: Invoked Ability
+        targetType: target
+        description: ""
+        range: "2"
+        iconid: ui-icons/skills/1.png
+      promptText: Choose target to take {Might or Reason or Intuition or Presence} lightning damage
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.181249693036079
+        s: 0.450585603713989
+        v: 1.00191068649292
+        a: 1
+    flavor: 'Lightning jumps from your weapon as you strike to harm a nearby foe. '
+    sourceReference:
+      __typeName: SourceReference
+      page: 223
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    effectImplemented: false
+    numTargets: 1
+    modifiers: []
+    strain: []
+    guid: a8597e34-22d3-475c-8d68-421bed50a4f0
+    implementation: 4
+    persistence: []
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    targetType: target
+    name: Leaping Lightning
+    categorization: Signature Ability
+    description: A creature or object within 2 squares of your target takes lightning damage equal to the characteristic you used for this ability's power roll.
+    abilityType: none
+    iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+  kitManeuver: false
+  equipmentDescription: You wear light armor and wield a shield and a medium weapon.
+  portraitid: ""
+e4ca76ab-795d-43f6-99e3-f67f8390f9d0:
+  __typeName: Kit
+  portraitid: 98fa8fcd-5a62-4736-924d-0753b2900b2e
+  stability: 1
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  description: Meant for brawlers and boxers, the Pugilist kit gives you access to a melee fighting style that gives you a boost to Stamina and damage while allowing you to float like a butterfly. If you want to be a tough, strong hero who doles out punishment with your fists, then this kit is for you.
+  health: 6
+  damageBonuses:
+    melee:
+    - 1
+    - 1
+    - 1
+  id: e4ca76ab-795d-43f6-99e3-f67f8390f9d0
+  kitManeuver: false
+  type: martial
+  weapons:
+    Unarmed Strike: true
+  imported: f2afeffb-67fc-49d3-b425-88bfebcdcaf2
+  name: Pugilist
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: Keeping your enemies stumbling around the battlefield is second nature to you.
+    sourceReference:
+      __typeName: SourceReference
+      page: 221
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    effectImplemented: false
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 26fdf316-46ee-440b-983b-9abcf7c6fb2d
+    numTargets: 1
+    categorization: Signature Ability
+    implementation: 4
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 3 + M or A damage
+      - 6 + M or A damage; slide 1
+      - 8 + M or A damage; slide 2
+      roll: 2d10 + Might or Agility
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 1b2ea40b-a952-41fc-901a-9a294ab3f137
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: Movement Speed
+        behaviors:
+        - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          movementType: shift
+        targeting: vacated
+        name: Invoked Ability
+        targetType: emptyspace
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      promptText: Shift into a square the target left
+      autoTarget: false
+      tiersSelected:
+      - 2
+      - 3
+    name: Let's Dance
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    description: You can shift into any square your target leaves after you slide them.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  mtime: 1770565329456
+  speed: 2
+  equipmentDescription: You wear no armor and wield only your unarmed strikes.
+d1486716-3e02-4908-97a3-c02b84256a92:
+  __typeName: Kit
+  armor: Light
+  health: 3
+  id: d1486716-3e02-4908-97a3-c02b84256a92
+  weapons:
+    Light: true
+  range: 5
+  disengage: 1
+  name: Cloak and Dagger
+  portraitid: 85441275-a453-4402-922a-8bda9fa5a910
+  kitManeuver: false
+  description: Providing throwable light weapons and light armor easily concealed by a cloak to confuse your enemies, the Cloak and Dagger kit makes you more mobile while providing a boost to your effectiveness at range and to your damage. This kit is good for a hero who wants to be able to move all over the battlefield while keeping their options open for using short-range attacks.
+  type: martial
+  speed: 2
+  imported: ac33cdd0-ede8-4f9e-8f96-14b50a556eb7
+  damageBonuses:
+    ranged:
+    - 1
+    - 1
+    - 1
+    melee:
+    - 1
+    - 1
+    - 1
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Ranged: true
+      Weapon: true
+      Kit: true
+      Melee: true
+      Strike: true
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: A stab, and a few quick, careful steps back.
+    sourceReference:
+      __typeName: SourceReference
+      page: 219
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 10
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    modifiers: []
+    strain: []
+    guid: cdb8f56c-c1ae-43df-922f-2283f0b4dcc6
+    meleeRange: 1
+    persistence: []
+    categorization: Signature Ability
+    implementation: 4
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 3 + M or A damage; you shift 1 square
+      - 6 + M or A damage; you shift up to 2 squares
+      - 8 + M or A damage; you shift up to 3 squares
+      roll: 2d10 + Might or Agility
+    name: Fade
+    numTargets: 1
+    description: ""
+    abilityType: none
+    iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+  mtime: 1770562322156
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  equipmentDescription: You wear light armor and wield one or two light weapons.
+b0cedbc1-3830-448b-a2ee-172104e90e9e:
+  __typeName: Kit
+  stability: 1
+  health: 6
+  id: b0cedbc1-3830-448b-a2ee-172104e90e9e
+  portraitid: 02b4e3e3-3dc5-4a87-b96f-89ae716e4160
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  equipmentDescription: You wear no armor and wield a heavy weapon.
+  name: Panther
+  mtime: 1771763415679
+  type: martial
+  speed: 1
+  imported: 8ed540c5-822a-4fa0-b4be-1edfa8a5e4c7
+  damageBonuses:
+    melee:
+    - 0
+    - 0
+    - 4
+  signatureAbility:
+    __typeName: ActivatedAbility
+    insertAtStart: true
+    invokeSurroundingAbility: true
+    numTargets: "1"
+    targetTextOverride: 1 creature or object
+    id: dabe24bd-75ed-467c-94cc-2e61e8af8e6a
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    targetType: emptyspace
+    sourceReference:
+      __typeName: SourceReference
+      page: 221
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: The faster you move, the harder you hit.
+    categorization: Signature Ability
+    range: "3"
+    implementation: 3
+    testCases:
+    - text: You can move up to 3 squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+    persistence: []
+    modifiers: []
+    source: Monster
+    strain: []
+    guid: 70b08a6d-3a34-4efb-b31b-051de40f8997
+    importMatch: You can move up to 3 squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+    ctime: 1711337404474
+    repeatTargets: false
+    targeting: straightpath
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 3 + M or A damage
+      - 6 + M or A damage
+      - 13 + M or A damage
+      filterTarget: 0 {Tooltip Information}
+      roll: 2d10 + Might or Agility
+      guid: 68a865f6-36d3-40ab-9230-67cec625ed04
+    - __typeName: ActivatedAbilityRelocateCreatureBehavior
+      movementType: move
+    - __typeName: ActivatedAbilityModifyCastBehavior
+      applyto: caster
+      name: Rush Bonus Damage
+      description: You gain one extra damage for each space you rushed toward your enemy.
+      paramid: ability_damage
+      value: cast.Spaces Moved
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        objectTarget: true
+        repeatTargets: false
+        keywords:
+          Strike: true
+          Melee: true
+          Weapon: true
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - 3 + M or A damage
+          - 6 + M or A damage
+          - 13 + M or A damage
+          roll: 2d10 + Might or Agility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.498148173093796
+            s: 0.86956524848938
+            v: 0.811764717102051
+            a: 1
+        flavor: The faster you move, the harder you hit.
+        categorization: Signature Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 793e0e36-58c1-434b-b0de-6c29af5fd06a
+        targetType: target
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        name: Devastating Rush
+        numTargets: 1
+        description: You can move up to 3 squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+        abilityType: none
+        iconid: 5d4af519-5d82-4ada-8f2a-46f441d3470d
+    name: Devastating Rush
+    description: You can move up to 3 squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+    mtime: 1742838129871
+    abilityType: none
+    iconid: 5d4af519-5d82-4ada-8f2a-46f441d3470d
+  description: If you want a good balance of protection, speed, and damage, the Panther kit is for you. This kit increases your Stamina not by wearing armor, but through the focused battle preparation of body and mind, letting you be fast and mobile while swinging a heavy weapon at your foes.
+  weapons:
+    Heavy: true
+  kitManeuver: false
+a9048d14-49ac-400f-8f5b-0c0d0c87566e:
+  __typeName: Kit
+  stability: 2
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        movementTypes:
+        - from: push
+          to: pull
+        - from: slide
+          to: pull
+        sourceguid: f0a9e86b-6d73-4a4a-b8f6-ef333defb5af
+        source: Boren Kit Feature
+        description: Whenever you use forced movement to push a creature, you can pull that creature instead. Whenever you pull a creature adjacent to you and that creature has M < Average, you can use a free triggered action to make that creature grabbed by you.
+        guid: abe5f17d-c2ca-4451-85b6-e810e983a21c
+        behavior: forcedmovement
+        name: Aspect Benefits
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: Distance(Target, Caster) < 2
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            filterTarget: ""
+            rule: grabbed
+          triggerPrompt: Grab Creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          persistence: []
+          modifiers: []
+          subjectRange: ""
+          strain: []
+          whenActive: always
+          trigger: finishmove
+          targetType: subject
+          conditionFormula: type =  "pull" and (Attacker = Self) and (Subject.Might < Self. Average)
+          numTargets: "1"
+          guid: 7c24068a-0daf-44d7-ad8f-409464ef58d4
+          name: Aspect Benefits
+          description: ""
+          abilityFilters: []
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        description: Whenever you use forced movement to push a creature, you can pull that creature instead. Whenever you pull a creature adjacent to you and that creature has M < Average, you can use a free triggered action to make that creature grabbed by you.
+        source: Boren Kit Feature
+        behavior: trigger
+        guid: c5a1b40b-9b26-490c-b7b8-63b0d03ce9aa
+        name: Aspect Benefits
+        sourceguid: f0a9e86b-6d73-4a4a-b8f6-ef333defb5af
+      name: Aspect Benefits
+      description: Whenever you use forced movement to push a creature, you can pull that creature instead. Whenever you pull a creature adjacent to you and that creature has M < Average, you can use a free triggered action to make that creature grabbed by you.
+      guid: f0a9e86b-6d73-4a4a-b8f6-ef333defb5af
+      source: Boren Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        guid: 1c83fce7-c4c5-4b56-b9c5-d00393eb0eb9
+        source: Boren Kit Feature
+        behavior: activated
+        description: |-
+          **Animal Form: Bear**
+          While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+          **Hybrid Form: Bear**
+          While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        name: Bear Form
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You assume the form of the animal who channels your ferocity
+          sourceReference:
+            __typeName: SourceReference
+            page: 159
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 78d5d3cc-ecaf-4786-b109-556e89c998b1
+          domains: []
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 35a5dd13-3be7-4ac5-a616-0a3ce44bfdf9
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            monsterType: f5272042-0333-4560-b67d-1c8582dbb6f2
+            mode: bestiary
+            appearanceName: Boren Form
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+            ongoingEffectCustom: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+          castImmediately: true
+          persistence: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          name: "Animal Form: Boren"
+          categorization: Hidden
+          description: "**Bear:** While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities."
+          abilityType: none
+          iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+      - __typeName: CharacterModifier
+        filterCondition: Ongoing Effects has "Boren Form" or Ongoing Effects has "Hybrid Boren Form"
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        source: Boren Kit Feature
+        name: Bear Form
+        description: |-
+          **Animal Form: Bear**
+          While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+          **Hybrid Form: Bear**
+          While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        behavior: activated
+        guid: badec940-c066-4308-b8de-22463227d61f
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+            mode: effect
+            conditions: []
+            applyto: caster
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 35a5dd13-3be7-4ac5-a616-0a3ce44bfdf9
+            mode: effect
+            conditions: []
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList: []
+          castImmediately: true
+          domains: []
+          numTargets: "1"
+          guid: 820333ae-fce7-445e-87d1-4e44231b3f8a
+          name: True Form
+          targetType: self
+          description: Revert to your original form.
+          abilityType: none
+          iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+      - __typeName: CharacterModifier
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        guid: 4be09982-5378-4484-9e8b-3725b9725c0b
+        source: Boren Kit Feature
+        behavior: activated
+        description: |-
+          **Animal Form: Bear**
+          While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+          **Hybrid Form: Bear**
+          While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        name: Bear Form
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            monsterType: f5272042-0333-4560-b67d-1c8582dbb6f2
+            mode: bestiary
+            appearanceName: Hybrid Boren Form
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 35a5dd13-3be7-4ac5-a616-0a3ce44bfdf9
+            ongoingEffectCustom: 35a5dd13-3be7-4ac5-a616-0a3ce44bfdf9
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: transform_stamina
+            key: a59a20c6-5d8a-4f09-a523-d0edfb420bbc
+            applyto: caster
+            refresh: encounter
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            applyto: caster
+            filterTarget: (not (Ongoing Effects has "Stormwight Has Transformed")) and level >= 4
+            stamina: "10"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 159
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          range: 1
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          modifiers: []
+          domains: []
+          strain: []
+          guid: 78d5d3cc-ecaf-4786-b109-556e89c998b1
+          numTargets: "1"
+          iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+          castImmediately: true
+          targetType: self
+          categorization: Hidden
+          name: "Hybrid Form: Boren"
+          persistence: []
+          description: "**Bear:** While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina."
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        description: |-
+          **Animal Form: Bear**
+          While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+          **Hybrid Form: Bear**
+          While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        behavior: alternateappearance
+        name: Bear Form
+        source: Boren Kit Feature
+        guid: 8475f0cd-34e8-4929-98f6-7d23d62c52fb
+        monsterDefault: f5272042-0333-4560-b67d-1c8582dbb6f2
+        appearance: Boren Form
+      - __typeName: CharacterModifier
+        description: |-
+          **Animal Form: Bear**
+          While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+          **Hybrid Form: Bear**
+          While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        behavior: alternateappearance
+        name: Bear Form
+        source: Boren Kit Feature
+        guid: 2b0017c1-387e-4002-a447-686c39e54125
+        monsterDefault: f5272042-0333-4560-b67d-1c8582dbb6f2
+        appearance: Boren Hybrid Form
+      name: Bear Form
+      description: |-
+        **Animal Form: Bear**
+        While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+        **Hybrid Form: Bear**
+        While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      guid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      source: Boren Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: max
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        source: Boren Kit Feature
+        value: 2
+        filterCondition: Heroic Resources This Turn >= 2
+        name: Boren Growing Ferocity
+        guid: e203f602-d5f3-4a6c-af94-61cb024ac33d
+        description: ""
+        behavior: attribute
+        attribute: 7a91dad1-97f4-4411-b326-425d58bb2bb2
+      - __typeName: CharacterModifier
+        filterCondition: Heroic Resources This Turn >= 2
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        description: ""
+        name: Boren Growing Ferocity
+        guid: a8d9a30d-ebb9-4810-8672-e423dd0f3aff
+        behavior: trigger
+        source: Boren Kit Feature
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          characterConditionRequired: 70504ebe-3899-41d3-9f60-74b52ce35e39
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b5ea6a4f-b29e-4d1e-960a-accc20fb1189
+          abilityType: none
+          conditionFormula: attacker = self
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: "Boren Growing Ferocity: Strike Grabbed Creature"
+          trigger: attacked
+          name: Boren Growing Ferocity
+          description: ""
+          subject: other
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        source: Boren Kit Feature
+        behavior: trigger
+        filterCondition: Heroic Resources This Turn >= 4
+        name: Boren Growing Ferocity
+        resourceRefreshType: turn
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          characterConditionRequired: 70504ebe-3899-41d3-9f60-74b52ce35e39
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: 891f280c-5075-4bc8-b99a-5f225dac570e
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 3f2ef6bd-96ce-4bc0-95f3-c29e649b6ee3
+          abilityType: none
+          conditionFormula: Condition = "Grabbed"
+          trigger: inflictcondition
+          persistence: []
+          name: Boren Growing Ferocity
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: "Boren Growing Ferocity: Grabbed"
+            quantity: 2 when level >= 4 and Heroic Resources This Turn >= 8 else 1
+          description: ""
+          subject: other
+          iconid: ui-icons/skills/1.png
+        guid: 891f280c-5075-4bc8-b99a-5f225dac570e
+      - __typeName: CharacterModifier
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        displayCondition: Ability.name = "Grab" or Ability.name = "Knockback"
+        source: Boren Kit Feature
+        modtype: edge
+        keywords: []
+        activationCondition: "1"
+        filterCondition: Heroic Resources This Turn >= 6 and (level < 7 or Heroic Resources This Turn < 10)
+        name: Boren Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 6 or more Ferocity you have an edge on the Grab and the Knockback maneuvers.
+        guid: 764d3393-368d-4c96-bb89-58187630ae49
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        displayCondition: Ability.name = "Grab" or Ability.name = "Knockback"
+        source: Boren Kit Feature
+        modtype: double_edge
+        keywords: []
+        activationCondition: "1"
+        filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+        name: Boren Growing Ferocity
+        rollType: ability_power_roll
+        description: |-
+          You have a double edge on the Grab and Knockback 
+          maneuvers.
+        guid: dc4e5d32-5935-4a16-b657-a6565c0874c9
+        behavior: power
+      - __typeName: CharacterModifier
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        description: ""
+        name: Boren Growing Ferocity
+        guid: e9ffa90a-b0a0-46ca-bbc6-3f7f978aa7f0
+        behavior: trigger
+        source: Boren Kit Feature
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: ae447302-faac-4610-8843-40262637abd5
+          repeatTargets: false
+          trigger: useability
+          conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+          targetType: self
+          persistence: []
+          name: Boren Growing Ferocity
+          behaviors:
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: "10"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        displayCondition: (target.conditions has "Grabbed") and target.ConditionCaster("Grabbed") = self
+        source: Boren Kit Feature
+        guid: e84ce084-f208-4f5c-9eb5-65d3be783340
+        behavior: power
+        keywords: []
+        activationCondition: "1"
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        customPotency: Might
+        name: Boren Growing Ferocity
+        rollType: ability_power_roll
+        potencymod: custom
+        description: When you have 12 or more Ferocity you add your Might score to your ability's Potencies.
+        modtype: none
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        progression:
+        - level: 0
+          description: Can grab two creatures at once. When you strike a grabbed creature you gain 1 surge.
+          resources: 2
+          tooltip: You can have up to two creatures grabbed at a time. Additionally, whenever you make a strike against a creature you have grabbed, you gain 1 surge.
+        - level: 0
+          description: When you grab a creature you gain 1 surge (1/turn).
+          resources: 4
+          tooltip: The first time you grab a creature on a turn, you gain 1 surge.
+        - level: 0
+          description: Edge on Grab and Knockback.
+          resources: 6
+          tooltip: You gain an edge on the Grab and Knockback maneuvers.
+        - level: 4
+          description: When you grab a creature you gain 2 surges (1/turn).
+          resources: 8
+          tooltip: The first time you grab a creature on a turn, you gain 2 surges instead of 1.
+        - level: 7
+          description: Double Edge on Grab and Knockback.
+          resources: 10
+          tooltip: You have a double edge on the Grab and Knockback maneuvers.
+        - level: 10
+          description: When you use a heroic ability gain 10 temporary Stamina. Potency of effects targeting you reduced by 2.
+          resources: 12
+          tooltip: Whenever you use a heroic ability, you gain 10 temporary Stamina. Additionally, whenever you have a creature grabbed, any ability roll made against that creature gains a bonus to its potency equal to your Might score.
+        source: Boren Kit Feature
+        description: ""
+        guid: 8965564a-9613-43fc-b743-cee637da0294
+        behavior: growingresources
+        name: Boren Growing Ferocity
+      name: Boren Growing Ferocity
+      description: ""
+      guid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      source: Boren Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Your primordial damage type is cold.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b254cfb8-7cad-47a5-8cf4-a078a7f0df2b
+        displayCondition: Ability.name is Visceral Roar or Ability.name is Deluge
+        source: Boren Kit Feature
+        guid: 2aaf0056-8853-458d-8c74-1549b05668de
+        keywords: []
+        activationCondition: "1"
+        damageTypeMappings:
+          untyped: cold
+        rollType: ability_power_roll
+        modtype: none
+        description: Your primordial damage type is cold.
+        behavior: power
+        name: "Primordial Storm: Blizzard"
+      source: Boren Kit Feature
+      canHavePrerequisites: true
+      guid: b254cfb8-7cad-47a5-8cf4-a078a7f0df2b
+      name: "Primordial Storm: Blizzard"
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+        source: Boren Kit Feature
+        behavior: resistance
+        filterCondition: Level >= 7
+        name: Elemental Form
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2 when Level < 10 else Might*3
+          damageType: cold
+          apply: Damage Reduction
+        description: |-
+          You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+          Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+        guid: 9817a60d-103f-4788-89f9-e451d78ff4da
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      source: Boren Kit Feature
+      guid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      canHavePrerequisites: true
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      name: Elemental Form
+      implementation: 4
+  health: 9
+  damageBonuses:
+    melee:
+    - 0
+    - 0
+    - 4
+    supernatural:
+    - 0
+    - 0
+    - 0
+  id: a9048d14-49ac-400f-8f5b-0c0d0c87566e
+  ctime: 1727311265711
+  type: stormwight
+  speed: 0
+  portraitid: 2b91674e-9a49-4704-96bc-693de088559a
+  name: Boren
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Strike: true
+      Melee: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 2 + M damage; M < weak, grabbed
+      - 5 + M damage; M < average, grabbed
+      - 11 + M damage; M < strong, grabbed
+      roll: 2d10 + Might
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: Attacks with your sharp and deadly claws grab the weak
+    sourceReference:
+      __typeName: SourceReference
+      page: 144
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: d9992bf2-1879-4ead-97b2-595e9747b57d
+    categorization: Signature Ability
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    targetType: target
+    implementation: 4
+    name: Bear Claws
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: a393d50b-bef4-4a90-a1bf-767971ef2117
+  description: With this stormwight kit, you channel your primordial ferocity into the form of a bear, becoming large, durable, and imposing. Boren are tied to the craggy, rocky north, and this aspect is associated with the blizzard’s bitter cold.
+  kitManeuver: true
+  mtime: 1773366619670
+4d1a7b10-5328-4fe5-8eb4-623ef33ec70a:
+  __typeName: Kit
+  health: 3
+  id: 4d1a7b10-5328-4fe5-8eb4-623ef33ec70a
+  weapons:
+    Unarmed Strike: true
+  implement: false
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  name: Martial Artist
+  mtime: 1770562393573
+  kitManeuver: false
+  equipmentDescription: You wear no armor and wield only your unarmed strikes.
+  type: martial
+  speed: 3
+  imported: 30593309-d9fd-459b-b79c-923734f867bd
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: You feint to move your enemies into perfect position.
+    sourceReference:
+      __typeName: SourceReference
+      page: 220
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    effectImplemented: false
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 5f7146c9-8024-432a-a4d2-7d22a529c5fc
+    numTargets: 1
+    categorization: Signature Ability
+    implementation: 3
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 5 + M or A damage
+      - 8 + M or A damage; you swap places with the target
+      - 11 + M or A damage; you swap places with the target
+      roll: 2d10 + Might or Agility
+    name: Battle Grace
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    description: If you roll a 12 or better and can't swap places with the target because one or both of you is too big to fit into the swapped space, you both remain in your original spaces and the target takes 1 extra damage.
+    abilityType: none
+    iconid: b67b89e6-cc8a-40bd-848b-37aef0455137
+  description: If you want to be fast in a fight, then Martial Artist is the kit for you. Unencumbered by weapons or armor, this fighting style rewards quick, focused unarmed strikes to opponents, and allows you to be the ultimate skirmisher.
+  portraitid: 6b233d2f-a7ab-47f4-9fc5-ea4c2b0b62a5
+  disengage: 1
+0f6bf560-11cb-4c6e-ba36-b556fd7fd278:
+  __typeName: Kit
+  armor: Light
+  health: 3
+  id: 0f6bf560-11cb-4c6e-ba36-b556fd7fd278
+  weapons:
+    Net: true
+    Polearm: true
+  reach: 1
+  disengage: 1
+  name: Retiarius
+  description: The retiarius is often depicted as a lightly armored warrior with a net in one hand and a trident in the other, and this kit gives you the equipment and fighting technique to make that happen. Tie up your foe with a net and then poke them to death!
+  portraitid: aea9ba1a-ebe6-4886-82c5-962ab45d0a06
+  kitManeuver: false
+  type: martial
+  speed: 1
+  imported: f00d5a62-59c0-4e1e-8a3a-f83638aa576b
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Kit: true
+      Strike: true
+      Melee: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 4 + M or A damage; A < weak, slowed (EoT)
+      - 6 + M or A damage; A < average, slowed (EoT)
+      - 8 + M or A damage; A < strong, restrained (EoT)
+      roll: 2d10 + Might or Agility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.498148173093796
+        s: 0.86956524848938
+        v: 0.811764717102051
+        a: 1
+    flavor: The well-thrown net that follows your main attack leaves your foes right where you want them.
+    sourceReference:
+      __typeName: SourceReference
+      page: 222
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 2
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    modifiers: []
+    strain: []
+    guid: b6d58e0d-f8d1-455b-8cf9-78ba51dcf28a
+    categorization: Signature Ability
+    numTargets: 1
+    implementation: 4
+    persistence: []
+    name: Net and Stab
+    targetType: target
+    description: ""
+    abilityType: none
+    iconid: 80eefb2e-eed0-4e13-8f19-21bad620cc8d
+  mtime: 1770565465696
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  equipmentDescription: You wear light armor, and wield a polearm and several ensnaring weapons.
+950de691-9884-4de6-afec-513645450cf5:
+  __typeName: Kit
+  disengage: 1
+  health: 9
+  damageBonuses:
+    melee:
+    - 2
+    - 2
+    - 2
+  id: 950de691-9884-4de6-afec-513645450cf5
+  ctime: 1727319403732
+  type: stormwight
+  portraitid: "-MSvwZE3agl7z6ag0cn1"
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 861645b1-cbf0-4b7c-b3fe-229339c7eaa8
+        modifyDescription: Whenever you use the Knockback maneuver, you can then use the Aid Attack maneuver as a free triggered action.
+        source: Vuken Kit Feature
+        filterAbility: Ability.name is Knockback
+        behavior: modifyability
+        attributes: []
+        guid: 3b6d63f4-3c8d-4936-9ef9-9f7f574432c9
+        description: Whenever you use the Knockback maneuver, you can then use the Aid Attack maneuver as a free triggered action.
+        name: Aspect Benefits
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 7a6c9d91-20ec-41d6-9be6-2ff732c27856
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              repeatTargets: false
+              targetType: self
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: 1
+              actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+              modifiers: []
+              strain: []
+              guid: 5734c3fe-d83b-4f87-a289-f068f473fd00
+              persistence: []
+              numTargets: "1"
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.name is Aid Attack
+                  behavior: modifyability
+                  guid: 88641d02-c26d-4a1d-a9ae-25b6eb9546e8
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 05cd86b8-f773-4f7b-a359-b6e6fd4be9bd
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors: []
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              name: Invoked Ability
+              sourceReference:
+                __typeName: SourceReference
+                page: 160
+                docid: a623e586-b67d-4563-a5b8-62744d648c31
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: custom
+            applyto: caster
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      name: Aspect Benefits
+      description: Whenever you use the Knockback maneuver, you can then use the Aid Attack maneuver as a free triggered action.
+      guid: 861645b1-cbf0-4b7c-b3fe-229339c7eaa8
+      source: Vuken Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        guid: 1c83fce7-c4c5-4b56-b9c5-d00393eb0eb9
+        source: Vuken Kit Feature
+        behavior: activated
+        description: |-
+          **Animal Form: Wolf**
+          While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+          **Hybrid Form: Wolf**
+          While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        name: Wolf Form
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+            mode: effect
+            guid: a650f0fd-3a40-44a1-af50-90c7e7aaebea
+            conditions: []
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            monsterType: a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54
+            mode: bestiary
+            appearanceName: Vuken Form
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+            ongoingEffectCustom: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 78d5d3cc-ecaf-4786-b109-556e89c998b1
+          targetType: self
+          castImmediately: true
+          domains: []
+          numTargets: "1"
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          name: "Animal Form: Vuken"
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          description: |-
+            **Wolf:** While you are in your wolf form, your size is 1L, you have a +2 bonus to
+            speed, and you ignore difficult terrain.
+          abilityType: none
+          iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+      - __typeName: CharacterModifier
+        sourceguid: f6d87e3e-ebdd-46d1-8f51-e0b3b271a3d6
+        guid: ce531483-06d1-4d1b-ae5f-25ad35155c2d
+        source: Vuken Kit Feature
+        behavior: activated
+        description: |-
+          **Animal Form: Wolf**
+          While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+          **Hybrid Form: Wolf**
+          While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        name: Wolf Form
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+            mode: effect
+            guid: ea77428d-af05-487d-8812-941019c007ed
+            conditions: []
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            monsterType: a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54
+            mode: bestiary
+            appearanceName: Hybrid Vuken Form
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+            ongoingEffectCustom: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: enter_hybrid_form
+            key: 981c8d97-6862-4828-bae5-653e8ccf7afa
+            refresh: encounter
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: "10"
+            filterTarget: Level >= 4
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          modifiers: []
+          domains: []
+          strain: []
+          guid: 0a2369f2-b9c6-4093-9894-4825673551af
+          numTargets: "1"
+          iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+          castImmediately: true
+          targetType: self
+          categorization: Hidden
+          name: "Hybrid Form: Vuken"
+          persistence: []
+          description: "**Wolf:** While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina."
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        filterCondition: Ongoing Effect has "Vuken Form" or Ongoing Effects has "Hybrid Vuken Form"
+        sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+        description: |-
+          **Animal Form: Wolf**
+          While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+          **Hybrid Form: Wolf**
+          While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        source: Vuken Kit Feature
+        name: Bear Form
+        behavior: activated
+        guid: aadda5e8-22e7-4f49-976b-d3af456a69f2
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          domains: []
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 820333ae-fce7-445e-87d1-4e44231b3f8a
+          persistence: []
+          iconid: ui-icons/skills/1.png
+          castImmediately: true
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+            mode: effect
+            guid: 3855efb0-5d1b-4d0c-a916-c71fbbb26751
+            conditions: []
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: b7c2b05c-07b4-4d0b-b40f-b73c5ce30507
+            mode: effect
+            guid: cefa1e81-4540-4ec4-b419-1539447eea8d
+            conditions: []
+          modeList:
+          - text: Do Not Change Form
+          - text: Wolf Form
+          - text: Hybrid Wolf Form
+          name: True Form
+          categorization: Hidden
+          description: ""
+          resourceCost: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        description: |-
+          **Animal Form: Wolf**
+          While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+          **Hybrid Form: Wolf**
+          While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        sourceguid: f6d87e3e-ebdd-46d1-8f51-e0b3b271a3d6
+        behavior: alternateappearance
+        name: Wolf Form
+        source: Vuken Kit Feature
+        guid: 46ae4eef-3dc2-4a09-b9c0-2620c56879a2
+        monsterDefault: a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54
+        appearance: Vuken Form
+      - __typeName: CharacterModifier
+        description: |-
+          **Animal Form: Wolf**
+          While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+          **Hybrid Form: Wolf**
+          While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+        sourceguid: f6d87e3e-ebdd-46d1-8f51-e0b3b271a3d6
+        behavior: alternateappearance
+        name: Wolf Form
+        source: Vuken Kit Feature
+        guid: 3e55a127-496d-4012-8b3d-7cecb1ac50aa
+        monsterDefault: a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54
+        appearance: Hybrid Vuken Form
+      name: Wolf Form
+      description: |-
+        **Animal Form: Wolf**
+        While you are in your wolf form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain.
+        **Hybrid Form: Wolf**
+        While you are in your hybrid form, your size is 1L, you have a +2 bonus to speed, and you ignore difficult terrain. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      guid: f6d87e3e-ebdd-46d1-8f51-e0b3b271a3d6
+      source: Vuken Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+        modifyDescription: As a Vuken with 2 or more Ferocity you target an additional target with this ability.
+        source: Vuken Kit Feature
+        filterAbility: Heroic Resources This Turn >= 2 and ability.name = "Knockback"
+        behavior: modifyability
+        attributes:
+        - operation: Add
+          value: "1"
+          id: numtargets
+        guid: 0c36edbe-1490-4c60-9ccc-5bf17f98a715
+        description: ""
+        name: Vuken Growing Ferocity
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: fab577a9-98ca-4924-945a-620e8f7d922a
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors: []
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+        source: Vuken Kit Feature
+        behavior: trigger
+        filterCondition: Heroic Resources This Turn >= 4
+        name: Vuken Growing Ferocity
+        resourceRefreshType: turn
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: push_or_knock_down
+            key: 5fe7eaac-646b-49ba-9a2f-a92ba74f011d
+            applyto: caster
+            refresh: turn
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: "Growing Ferocity: Push or Knock Prone"
+            quantity: 2 when level >= 4 and Heroic Resources This Turn >= 8 else 1
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: 6338713d-4917-4f29-b82d-fa7a6b2e920e
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 9f681452-bbab-4ea9-b7fc-3794cca8dffe
+          persistence: []
+          conditionFormula: attacker = self and type = "push"
+          subject: other
+          targetType: self
+          trigger: forcemove
+          name: Vuken Growing Rage
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 6338713d-4917-4f29-b82d-fa7a6b2e920e
+      - __typeName: CharacterModifier
+        sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+        source: Vuken Kit Feature
+        behavior: trigger
+        filterCondition: Heroic Resources This Turn >= 4
+        name: Vuken Growing Ferocity
+        resourceRefreshType: turn
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: push_or_knock_down
+            refresh: turn
+            guid: 5b109c5d-7a29-402e-b98b-8a2dc3ed7e33
+            key: 5fe7eaac-646b-49ba-9a2f-a92ba74f011d
+            applyto: caster
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            guid: 227f8cc3-01e1-4765-a179-d77bb6679618
+            quantity: 2 when level >= 4 and Heroic Resources This Turn >= 8 else 1
+            chatMessage: "Growing Ferocity: Push or Knock Prone"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: acc9842a-9c86-4b0f-b08f-594417439c52
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 9874a9b4-d57a-4d01-b045-930bc88a65a2
+          persistence: []
+          conditionFormula: Condition = "Prone" and HasAttacker and Attacker = self
+          subject: other
+          targetType: self
+          trigger: inflictcondition
+          name: Vuken Growing Rage
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: acc9842a-9c86-4b0f-b08f-594417439c52
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Vuken Kit Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        modtype: edge
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+        name: Vuken Growing Ferocity
+        rollType: test_power_roll
+        description: When you have 6 or more Ferocity, you gain an edge on Agility tests and the Knockback maneuver.
+        guid: ac4bbc83-0444-4143-a61d-99af626842bf
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        displayCondition: ability.name = "Knockback"
+        source: Vuken Kit Feature
+        modtype: edge
+        keywords: []
+        activationCondition: "1"
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+        name: Vuken Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 6 or more Ferocity, you gain an edge on Agility tests and the Knockback maneuver.
+        guid: 0c3f811d-accb-4ea6-85d9-b316fbf9e22e
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        source: Vuken Kit Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        modtype: double_edge
+        filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+        name: Vuken Growing Ferocity
+        rollType: test_power_roll
+        description: When you have 10 or more Ferocity, you gain a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+        guid: d29c079e-3f20-4591-b55b-ab4ef44af200
+        attribute: agl
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        displayCondition: ability.name = "Knockback"
+        source: Vuken Kit Feature
+        modtype: double_edge
+        keywords: []
+        activationCondition: "1"
+        filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+        guid: 8229432a-12b2-4e7f-b512-02c7407e5135
+        name: Vuken Growing Ferocity
+        rollType: ability_power_roll
+        description: When you have 10 or more Ferocity, you gain a double edge on Agility tests and the Knockback maneuver.
+        behavior: power
+        attribute: all
+      - __typeName: CharacterModifier
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+        description: ""
+        source: Vuken Kit Feature
+        name: Vuken Growing Ferocity
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: ae447302-faac-4610-8843-40262637abd5
+          repeatTargets: false
+          trigger: useability
+          conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+          targetType: self
+          persistence: []
+          name: Vuken Growing Ferocity
+          behaviors:
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: "10"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 48003312-81e1-4281-9f40-967dee35c0ea
+      - __typeName: CharacterModifier
+        sourceguid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+        source: Vuken Kit Feature
+        modtype: none
+        adjustments:
+        - type: push
+          value: Agility
+        - type: pull
+          value: Agility
+        - type: slide
+          value: Agility
+        keywords: []
+        activationCondition: false
+        behavior: power
+        name: Vuken Growing Ferocity
+        filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+        description: |-
+          When you have 12 or more Ferocity, whenever you
+          make a power roll that imposes forced movement 
+          on a target, the forced movement distance gains a 
+          bonus equal to your Agility score.
+        rollType: ability_power_roll
+        guid: 2d601174-0912-482e-8c11-98038eedad95
+      - __typeName: CharacterModifier
+        sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+        progression:
+        - level: 0
+          description: Knockback targets an additional creature.
+          resources: 2
+          tooltip: Whenever you use the Knockback maneuver, you can target one additional creature.
+        - level: 0
+          description: When you push or knock a creature prone, you gain 1 surge (1/turn).
+          resources: 4
+          tooltip: The first time on a turn that you push a creature or knock a creature prone, you gain 1 surge.
+        - level: 0
+          description: Edge on Agility tests and Knockback.
+          resources: 6
+          tooltip: You gain an edge on Agility tests and the Knockback maneuver.
+        - level: 4
+          description: When you push or knock a creature prone, you gain 2 surges (1/turn).
+          resources: 8
+          tooltip: The first time on a turn that you push a creature or knock a creature prone, you gain 2 surges.
+        - level: 7
+          description: Edge on Agility tests and Knockback.
+          resources: 10
+          tooltip: You have a double edge on Agility tests and the Knockback maneuver.
+        - level: 10
+          description: When you use a heroic ability gain 10 temporary Stamina. Forced movement from power rolls +{Agility}.
+          resources: 12
+          tooltip: Whenever you use a heroic ability, you gain 10 temporary Stamina. Additionally, whenever you make a power roll that imposes forced movement  on a target, the forced movement distance gains a bonus equal to your Agility score.
+        source: Vuken Kit Feature
+        description: ""
+        guid: 5b5b0c51-0000-482e-ba45-e345d1625475
+        behavior: growingresources
+        name: Vuken Growing Ferocity
+      name: Vuken Growing Ferocity
+      description: ""
+      guid: 7eca8ebe-537c-434b-91fb-3dff5fe9f772
+      source: Vuken Kit Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Your primordial damage type is lightning.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cf7ca5c1-d78d-41cd-b504-08536e8232dc
+        displayCondition: Ability.name is Visceral Roar or Ability.name is Deluge	
+        source: Vuken Kit Feature
+        guid: 0e218d57-d3a0-41a0-9caf-685f4006a944
+        keywords: []
+        activationCondition: "1"
+        damageTypeMappings:
+          untyped: lightning
+        rollType: ability_power_roll
+        modtype: none
+        description: Your primordial damage type is lightning.
+        behavior: power
+        name: "Primordial Storm: Lightning Storm"
+      source: Vuken Kit Feature
+      canHavePrerequisites: true
+      guid: d98871c6-bd99-4d3b-aede-edfa7bf32be8
+      name: "Primordial Storm: Lightning Storm"
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+        source: Vuken Kit Feature
+        behavior: resistance
+        filterCondition: Level >= 7
+        name: Elemental Form
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Might*2 when Level < 10 else Might*3
+          damageType: lightning
+          apply: Damage Reduction
+        description: |-
+          You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+          Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+        guid: 9817a60d-103f-4788-89f9-e451d78ff4da
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      source: Vuken Kit Feature
+      guid: a13a8f96-6b5a-40dd-825e-a960b1b7e791
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+      canHavePrerequisites: true
+      classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      name: Elemental Form
+      implementation: 4
+  name: Vuken
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Strike: true
+      Melee: true
+      Weapon: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - '4 + M damage; A < weak, prone '
+      - 7 + M damage;  A < average, prone
+      - 9 + M damage; A < strong, prone
+      roll: 2d10 + Might
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: A wild assault forces your foe onto their back.
+    sourceReference:
+      __typeName: SourceReference
+      page: 145
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 29a4335d-881d-4569-8941-42693e36e049
+    categorization: Signature Ability
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    targetType: target
+    implementation: 4
+    name: Unbalancing Attack
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd
+  mtime: 1773366636146
+  description: With this stormwight kit, you channel your primordial ferocity into the form of a wolf, becoming a fleet-footed hunter. Vuken are tied to forests and open steppes, and this aspect is associated with the thunderstorm.
+  speed: 2
+8187baf6-442b-44af-b4b7-ed74ab708b47:
+  __typeName: Kit
+  name: Arcane Archer
+  kitManeuver: false
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  damageBonuses:
+    ranged:
+    - 2
+    - 2
+    - 2
+  portraitid: ""
+  speed: 1
+  id: 8187baf6-442b-44af-b4b7-ed74ab708b47
+  description: The Arcane Archer kit allows you to combine magic and ranged weapon attacks. Your lack of armor keeps you mobile, and your magic makes your arrows explode to devastate your foes.
+  type: martial
+  weapons:
+    Bow: true
+  imported: b962d663-4260-4f93-9136-f104afae2759
+  equipmentDescription: You wear no armor and wield a bow.
+  signatureAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Ranged: true
+      Magic: true
+      Weapon: true
+      Kit: true
+      Strike: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 5 + A, R, I, or P fire damage
+      - 7 + A, R, I, or P fire damage
+      - 10 + A, R, I, or P fire damage
+      roll: 2d10 + Agility or Reason or Intuition or Presence
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: first_target
+      customAbility:
+        __typeName: ActivatedAbility
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 12624012-aa03-41c5-9ace-4e4795f4d301
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityType: none
+        behaviors:
+        - __typeName: ActivatedAbilityDamageBehavior
+          damageType: fire
+          roll: max(invoker.Agility, invoker.Reason, invoker.Intuition, invoker.Presence)
+        targetType: target
+        name: Invoked Ability
+        numTargets: "1"
+        description: ""
+        range: "2"
+        iconid: ui-icons/skills/1.png
+      promptText: Deal {Max(Agility, Reason, Intuition, Presence)} fire damage to a target within 2 squares
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.103749632835388
+        s: 0.854882478713989
+        v: 1.0030654668808
+        a: 1
+    flavor: Your ammunition explodes with magical energy.
+    sourceReference:
+      __typeName: SourceReference
+      page: 219
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 15
+    effectImplemented: false
+    persistence: []
+    modifiers: []
+    iconid: e50fb78c-962f-489f-a7bb-287db3d5b640
+    strain: []
+    guid: 553b7264-d7e2-4f64-8561-586bb30b4bcf
+    categorization: Signature Ability
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    numTargets: "1"
+    proximityTargeting: true
+    targetType: target
+    name: Exploding Arrow
+    proximityRange: "2"
+    description: A creature or object within 2 squares of your target takes fire damage equal to the characteristic score you added to this ability's power roll.
+    abilityType: none
+    implementation: 4
+  mtime: 1770562275205
+  range: 10
+  disengage: 1
+7a6878a3-5362-4614-ba9b-7920daad8fcf:
+  __typeName: Kit
+  armor: Light
+  health: 6
+  id: 7a6878a3-5362-4614-ba9b-7920daad8fcf
+  weapons:
+    Shield: true
+    Light: true
+  range: 5
+  disengage: 1
+  name: Raider
+  portraitid: "-MSvyAKWyO_hgyuGjVB2"
+  kitManeuver: false
+  description: The Raider kit keeps you protected while granting you full mobility, providing a boost to speed and distance that lets you run around the battlefield like a Viking warrior.
+  type: martial
+  speed: 1
+  imported: 5063ab61-f3c3-450c-9306-b2eea1fab0c0
+  damageBonuses:
+    ranged:
+    - 1
+    - 1
+    - 1
+    melee:
+    - 1
+    - 1
+    - 1
+  signatureAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    keywords:
+      Ranged: true
+      Weapon: true
+      Kit: true
+      Melee: true
+      Strike: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 3 + M or A damage
+      - 6 + M or A damage
+      - 8 + M or A damage
+      roll: 2d10 + Might or Agility
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: db4a514a-7380-47d7-a842-e5f09309d372
+      duration: end_of_next_turn
+      ongoingEffectCustom: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: You execute a brutal strike that leaves your foe reeling.
+    sourceReference:
+      __typeName: SourceReference
+      page: 221
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 10
+    effectImplemented: false
+    numTargets: 1
+    modifiers: []
+    strain: []
+    guid: b42ffe2a-61bd-4b84-9565-ba7b2712010d
+    meleeRange: 1
+    persistence: []
+    categorization: Signature Ability
+    targetType: target
+    iconid: ui-icons/skills/1.png
+    name: Shock and Awe
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    description: The target has a bane on their next power roll made before the end of their next turn.
+    abilityType: none
+    implementation: 4
+  mtime: 1770565359740
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  equipmentDescription: You wear light armor, and wield a shield and a light weapon.

@@ -1,0 +1,74 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: d94cf3e3-ca21-47be-9b61-546aa7191a90
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Mage's Apprentice Career Feature
+      behavior: proficiency
+      description: You have the Magic skill.
+      equate: false
+      name: Magic Skill
+      sourceguid: 624686dc-e4b1-4b73-8328-d6c981cbc2f1
+      proficiency: proficient
+      guid: 420996ae-98af-4573-96aa-9416df0c2d39
+      skills:
+        57101165-410a-4734-98ee-d4e5b656d3df: true
+    name: Magic Skill
+    description: You have the Magic skill.
+    guid: 624686dc-e4b1-4b73-8328-d6c981cbc2f1
+    source: Mage's Apprentice Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      lore: true
+    name: Mage's Apprentice Lore Skills
+    numChoices: 2
+    guid: 1fd37ca8-78c8-4d67-b931-4f3c6401d6ca
+    description: "Choose two Skills from the lore skill group. (Quick Build: Monsters, Timescape)"
+    source: Mage's Apprentice Career Feature
+  - __typeName: CharacterLanguageChoice
+    guid: dc32f1fc-66a2-40f3-b8ac-74fff93f4b80
+    source: Mage's Apprentice Career Feature
+    name: Mage's Apprentice Language
+  - __typeName: CharacterFeatChoice
+    guid: 700e41cf-d980-49a8-a90f-5d3a8310d19b
+    description: "Choose one Supernatural perk. (Quick Build: Arcane Trick)"
+    tag: supernatural perks
+    name: Mage's Apprentice Supernatural Perk
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: f5115487-3576-400c-aa64-b1c06def47fc
+      sourceguid: 9e7c112d-1a2c-456b-9bce-53465c7f2016
+      value: 1
+      source: Mage's Apprentice Career Feature
+      name: Mage's Apprentice Renown
+      behavior: attribute
+      description: 1 is added to your Renown.
+      attribute: d97c2794-cb70-420f-b078-e260b43e154b
+    name: Mage's Apprentice Renown
+    description: 1 is added to your Renown.
+    guid: 9e7c112d-1a2c-456b-9bce-53465c7f2016
+    source: Mage's Apprentice Career Feature
+    implementation: 3
+name: Mage's Apprentice
+mtime: 1768796364130
+description: |-
+  For long years, you studied magic under the mentorship of a more experienced mage. In defining your career, think about the following questions: 
+
+  Who did you study under, and what kind of person were they? 
+
+  What were your mentor’s areas of expertise? 
+
+  What aspects of magic did you struggle to comprehend? 
+
+  What is your current relationship with your mentor?
+id: 082d6a5a-ca97-48e9-9928-c134069a96a4
+ctime: 1730561334876

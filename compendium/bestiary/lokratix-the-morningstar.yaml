@@ -1,0 +1,284 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 849568f8-8baf-4c2d-b82d-284adb23e5f7
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Lokratix The Morningstar	Level 6 Elite Harrier
+        Draconian, Dragon, Humanoid	EV 32
+        <b>Stamina</b> 160	<b>Immunity </b>acid 6
+        <b>Speed</b> 8 (flying)	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 7
+        Might +1	Agility +3	Reason +1	Intuition +2	Presence +2
+        <b>Skewer</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 damage
+        %E2%98%85	<b>12-16</b>	15 damage; M<1 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	18 damage; M<2 slowed (save ends)
+        <b>Effect</b> Lokratix deals 6 damage to each creature or object in a line up to two squares behind the target.
+
+        <b>Acidic Stun</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 2 Malice
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 3 x 1 line within 1<b>	Target</b> All enemies in the line
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 acid damage; M<1 dazed (save ends)
+        %E2%98%85	<b>12-16</b>	12 acid damage; M<2 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	15 acid damage; M<3 dazed (save ends)
+        <b>Effect</b> Lokratix deals an additional 6 damage on abilities targeting enemies dazed by this ability.
+
+        <b>Takeoff</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> Lokratix lifts off from the ground and flies up to her speed. All creatures adjacent to the square she took off from are <b>A<2</b> knocked prone.
+
+        <b>Stay Back!</b> (Triggered Action) %E2%97%86 2d10 + 3
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 2<b>	Target</b> One creature
+        <b>Trigger</b> Target enters a square within distance.
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 acid damage; A<1 speed is 0 (EoT)
+        %E2%98%85	<b>12-16</b>	12 acid damage; A<2 speed is 0 (EoT)
+        %E2%9C%B8	<b>17</b>	15 acid damage; A<3 speed is 0 (EoT)
+
+        <b>Flighty</b>
+        When Lokratix deals damage to an enemy, the enemy can't use her as the trigger for any of their triggered actions until the start of her next turn.
+
+        <b>Absorbing Scales</b>
+        When Lokratix takes damage of a type she has an immunity for, she has damage immunity 6 against the next strike made against her.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5b740200-f2da-4b90-930c-e09c68091236: true
+      modifiers: []
+      name: Flighty
+      description: When Lokratix deals damage to an enemy, the enemy can't use her as the trigger for any of their triggered actions until the start of her next turn.
+      guid: 5b740200-f2da-4b90-930c-e09c68091236
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:eb516639-dce5-4008-a31e-8a4e089422ea: true
+      modifiers: []
+      name: Absorbing Scales
+      description: When Lokratix takes damage of a type she has an immunity for, she has damage immunity 6 against the next strike made against her.
+      guid: eb516639-dce5-4008-a31e-8a4e089422ea
+      source: Trait
+    role: Elite Harrier
+    keywords:
+      Dragon: true
+      Humanoid: true
+      Draconian: true
+    max_hitpoints_roll: "160"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: acid
+      apply: Damage Reduction
+    monster_type: Lokratix The Morningstar
+    opportunityAttack: 7
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    levelChoices: []
+    groupid: 30f074ad-8a42-413f-a987-fb1a491e8ac7
+    walkingSpeed: 8
+    max_hitpoints: 160
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage
+        - 15 damage; M<1 slowed (save ends)
+        - 18 damage; M<2 slowed (save ends)
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b10e99d2-5dcb-447a-8bb3-9feb9487faa7
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Skewer
+      numTargets: 2
+      description: Lokratix deals 6 damage to each creature or object in a line up to two squares behind the target.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 91765c12-581b-4bb0-af5a-46f6698ea48e
+      abilityType: none
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 acid damage; M<1 dazed (save ends)
+        - 12 acid damage; M<2 dazed (save ends)
+        - 15 acid damage; M<3 dazed (save ends)
+        roll: 2d10 + 3
+      name: Acidic Stun
+      implementation: 3
+      description: Lokratix deals an additional 6 damage on abilities targeting enemies dazed by this ability.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: fb03bd6b-83b9-4cda-b12c-a435d7163b47
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Takeoff
+      numTargets: "1"
+      description: Lokratix lifts off from the ground and flies up to her speed. All creatures adjacent to the square she took off from are A<2 knocked prone.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 76a090ed-f67a-46df-923e-cfd05a269827
+      implementation: 4
+      numTargets: 1
+      name: Stay Back!
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 acid damage; A<1 speed is 0 (EoT)
+        - 12 acid damage; A<2 speed is 0 (EoT)
+        - 15 acid damage; A<3 speed is 0 (EoT)
+        roll: 2d10 + 3
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds:
+      fly: 8
+    damage_taken: 0
+    minion: false
+    ev: 32
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 94efffc0-b036-46fe-98cf-07364d5cac1d
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Lokratix The Morningstar
+parentFolder: 9c6966f1-7896-4854-a485-664d5d643aee
+artist: null
+ord: 0
+ctime: 1741590284119
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,283 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 2b22abc9-7fc1-4d89-9308-3a7c9bbe6ca5
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4787605
+    portraitOffset:
+      x: 0.2470612
+      y: -0.0923325
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions:
+    - x: -0.4095566
+      y: 0.03051747
+    - x: 0.05815887
+      y: 0.4231407
+    - x: 0.18
+      y: 0.18
+    - x: -0.18
+      y: 0.18
+    - x: -0.3
+      y: 0
+    - x: 0.3
+      y: 0
+    - x: 0
+      y: 0.3
+    - x: 0
+      y: -0.3
+    saddles: 2
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: facc333d-f001-47fa-917c-7dcaa67ab3d7
+  properties:
+    __typeName: monster
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    keywords:
+      Animal: true
+      Goblin: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    attackNames:
+    - "5"
+    monster_category: Monster
+    levelChoices: []
+    pr: 1
+    traitNames: []
+    minion: false
+    stability: 1
+    import:
+      override: true
+      data: |
+        Warg	Level 1 Horde Mount
+        Animal, Goblin	EV 3
+        <b>Stamina</b> 15
+        <b>Speed</b> 5	<b>Size</b> 1L / <b>Stability</b> 1
+        <b>Free Strike</b> 1
+        Might +1	Agility +2	Reason -1	Intuition +0	Presence -1
+        <b>Bite</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	3 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage
+
+        <b>Sprint</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The warg moves up to their speed.
+
+        <b>Mounted Charger</b>
+        If a warg used as a mount charges, their rider gains an edge on melee strikes until the end of their turn.
+
+        <b>Shared Crafty</b>
+        If the warg's rider has the Crafty trait, the warg also has the Crafty trait.
+
+
+        Retainer
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:88261270-0340-4f63-893e-65bf2a35ba7f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 88261270-0340-4f63-893e-65bf2a35ba7f
+        modifyDescription: If a warg used as a mount charges, their rider gains an edge on melee strikes until the end of their turn.
+        source: Trait
+        filterAbility: ability.name = "Charge"
+        behavior: modifyability
+        domains:
+          CharacterFeature:88261270-0340-4f63-893e-65bf2a35ba7f: true
+        attributes: []
+        guid: d71ec918-01dc-4b8e-8a0b-ba915d3a8e87
+        description: If a warg used as a mount charges, their rider gains an edge on melee strikes until the end of their turn.
+        name: Mounted Charger
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 7f19a4be-5213-454b-a157-c7a47d9ebdf4
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          targetType: self
+          abilityType: none
+          name: New Ability
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster_riders
+            ongoingEffect: 59cd5c85-e486-40d6-b94e-46a3c2a8f28b
+            duration: 0
+            ongoingEffectCustom: false
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Trait
+      description: If a warg used as a mount charges, their rider gains an edge on melee strikes until the end of their turn.
+      guid: 88261270-0340-4f63-893e-65bf2a35ba7f
+      name: Mounted Charger
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7f7d0136-c63f-4145-baab-27914a938918: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7f7d0136-c63f-4145-baab-27914a938918
+        source: Trait
+        value: 1
+        filterCondition: Count Riders("Crafty") > 0
+        guid: 437c4cb0-7323-447e-a71c-cfa552a1a76b
+        name: Shared Crafty
+        domains:
+          CharacterFeature:7f7d0136-c63f-4145-baab-27914a938918: true
+        description: If the warg's rider has the Crafty trait, the warg also has the Crafty trait.
+        behavior: attribute
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      source: Trait
+      description: If the warg's rider has the Crafty trait, the warg also has the Crafty trait.
+      guid: 7f7d0136-c63f-4145-baab-27914a938918
+      name: Shared Crafty
+      implementation: 3
+    role: Horde Mount
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: 354a0c76-b6d3-444a-9a6e-6ae0ba57a682
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 1
+    savingThrowRatings: []
+    walkingSpeed: 5
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ce697f01-5031-4087-a6c1-93c66c5482a2
+      implementation: 4
+      numTargets: 1
+      name: Bite
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: emptyspace
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: Walking Speed
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 84ef458e-5298-4d79-91a0-f83eea6fa042
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        movementType: move
+      targeting: pathfind
+      iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+      name: Sprint
+      numTargets: 1
+      description: The warg moves up to their speed.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    movementSpeeds: []
+    ev: 3
+    monster_type: Worg
+    creatureSize: 1L
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1715748088616
+description: Worg
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590312989
+mtime: 1775201137032
+hidden: false

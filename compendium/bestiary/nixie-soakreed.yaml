@@ -1,0 +1,93 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Nixie Soakreed
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c02d6710-e91a-446c-9cda-2aac21c4a662
+  properties:
+    __typeName: monster
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    cr: 1
+    role: Minion Controller
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Monster
+    levelChoices: []
+    walkingSpeed: 5
+    keywords:
+      Fey: true
+      Signature: true
+      Summoner: true
+    max_hitpoints: 10
+    skillRatings: []
+    damage_taken: 0
+    resources: []
+    minion: true
+    savingThrowRatings: []
+    monster_type: Nixie Soakreed
+  tokenType: null
+  bestiaryId: 72d1c04d-73ae-408b-bd36-aa44a7b6a8f2
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1759617631294
+description: null
+parentFolder: 7b4e2551-9fa4-4f95-8269-1c13b16ce49e
+artist: null
+ord: 1
+ctime: 1759617631294
+mtime: 1775167539789
+hidden: false

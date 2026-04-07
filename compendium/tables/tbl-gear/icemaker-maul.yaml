@@ -1,0 +1,62 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    damageTypeMappings: []
+    description: 1/2/3
+    name: Icemaker Maul Extra Damage
+    behavior: power
+    damageModifierType: cold
+    modtype: none
+    rollType: ability_power_roll
+  source: Item
+  name: Icemaker Maul Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 49514d91-9fff-44ae-917a-78d0380938f5
+itemPrerequisite: Eight iron bars cooled in a glacier, the branch of an ancient evergreen
+keywords:
+  Heavy Weapon: true
+  Magic: true
+projectSource: Texts in Zaliac
+flavor: The head of this iron hammer is cold to the touch and encases whatever it strikes in a thin layer of ice.
+level9: 'The weapon’s extra cold damage increases to 3, and the ice field becomes a 5 burst. Additionally, any '
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The weapon’s extra cold damage increases to 2, and the ice field becomes a 4 burst. Additionally, whenever you use a weapon ability using this weapon against one or more enemies in the ice field, you gain 1 surge that you can use immediately.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 02d796d9-2e7f-4ab6-8125-b4e291e77af2
+ctime: 1759283270725
+name: Icemaker Maul
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 cold damage. Additionally, you can use a maneuver to create an ice field in a 3 burst. The ground in this area is difficult terrain for enemies, and lasts until the end of the encounter or when you use this ability again.
+mtime: 1759400809688
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: cb5ea622-e202-474f-887e-2bea1bc86a76

@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 916c044f-3b47-4b3e-8cc4-280760981e14
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765471318154
+ctime: 1765471318154
+name: Wetwork Recipe
+flavor: Text or lore in Higaran
+description: The project source necessary to craft Wetwork
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

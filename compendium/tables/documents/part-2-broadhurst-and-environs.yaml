@@ -1,0 +1,206 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+    identifier: false
+    image: cccdafc9-ce09-44fe-8f4f-a3ff04551072
+id: 8bc981b6-d682-4333-87bc-0569e1f9f88a
+ctime: 1761312381841
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Gi: |
+      [[/setadventuredocument 12 "Broadhurst"|Track Broadhurst]][[/setadventuredocument off "Broadhurst"|Untrack Broadhurst]]
+    Fi: |+
+      *To prepare for this part of the adventure, you can read through all the journals or the  [pdf:Delian Tomb Adventure:19] to get an overview of all the plot points.*
+
+
+    w: |+
+      # [Moving Onwards]
+
+    x: |+
+      [[image]]
+
+    u: |+
+      * [Full Moon]
+
+    s: |+
+      * [Wraith Raid]
+
+    q: |+
+      * [Tavern Brawl]
+
+    o: |+
+      * [Mage Tower]
+
+    p: |+
+      * [Wolf Den]
+
+    wm: |+
+      * [Glossary]
+
+    n: |+
+      * [Fort Forsaken]
+
+    k: |
+      * [Arixx Nest]
+    l: |
+      	[Following the Arixx's Trail]
+    i: |+
+      * [Tomb Third Level]
+
+
+    j: |+
+      ## [Events]
+
+    g: |+
+      ## [Delian Tomb]
+
+    h: |+
+      * [Tomb Second Level]
+
+    e: |
+      * [B13. Mason]
+    f: |+
+      * [B14. Stables and Carriage House]
+
+
+    c: |
+      * [B11. Furrier]
+    d: |
+      * [B12. Cobbler]
+    a: |
+      * [B9. Charcoal Burner]
+    b: |
+      * [B10. Carpenter]
+    E: |
+      [[/setadventuredocumentstitle "Delian Tomb";setadventuredocument 11 "Part 2"|Track Part 2]][[/setadventuredocument off "Part 2"|Untrack Part 2]]
+    wZ: |
+      * [Followers, Titles, and Treasures Index]
+    K: |
+      		[Illwyth Alone]
+    CZ: |
+      **You can also use the [Broadhurst Region Player Map] Journal to show the region to your players.**
+    J: |
+      		[First Meeting With the Hand]
+    Y: |
+      		[Montage Test: Chase Saberna]
+    Z: |
+      * [B8. Butcher]
+    W: |
+      * [B6. Woodcutter]
+    X: |
+      * [B7. Smokehouse]
+    U: |
+      * [B4. Reeve’s House]
+    V: |
+      * [B5. Mill and Granary]
+    S: |
+      * [B2. Blacksmith]
+    T: |
+      * [B3. Church of Saint Gryffyn]
+    Q: |
+      	[Dwarf Merchants]
+    R: |
+      		[Negotiating With Murkik]
+    O: |
+      		[Negotiating for the Ring]
+    P: |
+      		[Gilded Showdown]
+    M: |
+      		[Learning the Hand's Plot]
+    N: |
+      		[Grabbing the Ring]
+    FQ: |
+      This Journal Page will serve as an index to easily find other notes. 
+    L: |
+      		[Another Meeting With the Hand]
+    I: |
+      	[Gilded Hand]
+    GQ: |
+      ## [Broadhurst]
+    G: |+
+      # Index
+
+    H: |
+      * [B1. Feather Bed Inn]
+    wM: |
+      # Other Information
+    F: |
+      [[setting:showdirectorwelcome]]
+    C: |
+      **Go to the [Broadhurst Region] Map. **
+    D: |
+      **Check out [Part 2] to get started. **
+    m: |
+      	[Arixx Lair Encounter]
+    B: |+
+      # Running [Part 2]: Broadhurst and Environs
+
+
+parentFolder: 423b20dc-f04b-44af-849e-7a7e01636bf4
+updateid: af8eb953-ffb8-4070-b7c7-ac9b8f850ba4
+mtime: 1774522082873
+content: |+
+  # Running [Part 2]: Broadhurst and Environs
+
+
+  Go to the [Broadhurst Region] Map. Check out [Part 2] to get started.
+  This Journal Page will serve as an index to easily find other notes. 
+
+  # Index
+
+  ## [Broadhurst]
+
+  * [B1. Feather Bed Inn]
+  	[Gilded Hand]
+  		[First Meeting With the Hand]
+  		[Illwyth Alone]
+  		[Another Meeting With the Hand]
+  		[Learning the Hand's Plot]
+  		[Grabbing the Ring]
+  		[Negotiating for the Ring]
+  	[Dwarf Merchants]
+  		[Negotiating With Murkik]
+  * [B2. Blacksmith]
+  * [B3. Church of Saint Gryffyn]
+  * [B4. Reeve’s House]
+  * [B5. Mill and Granary]
+  * [B6. Woodcutter]
+  * [B7. Smokehouse]
+  * [B8. Butcher]
+  * [B9. Charcoal Burner]
+  * [B10. Carpenter]
+  * [B11. Furrier]
+  * [B12. Cobbler]
+  * [B13. Mason]
+  * [B14. Stables and Carriage House]
+
+
+  ## [Delian Tomb]
+
+  * [Tomb Second Level]
+
+  * [Tomb Third Level]
+
+
+  ## [Events]
+
+  * [Arixx Nest]
+  	[Following the Arixx's Trail]
+  	[Arixx Lair Encounter]
+  * [Fort Forsaken]
+
+  * [Mage Tower]
+
+  * [Wolf Den]
+
+  * [Tavern Brawl]
+
+  * [Wraith Raid]
+
+  # [Moving Onwards]
+
+
+
+description: Part 2 Broadhurst and Environs

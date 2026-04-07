@@ -1,0 +1,49 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4ce44b62-79c6-4b7b-b6c3-13a0c077e7f3
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Ranged: true
+  attributes:
+  - operation: Set
+    value: "4"
+    id: range
+  guid: b3be7911-6d21-4be0-b2cb-4256af0d7e76
+  description: Your line of effect is limited to range 4
+  name: Subverted Perception of Space
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 1fced74d-d315-48c7-98e7-0586710d7f86
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 4ce44b62-79c6-4b7b-b6c3-13a0c077e7f3
+id: 4ce44b62-79c6-4b7b-b6c3-13a0c077e7f3
+ctime: 1766468735122
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Subverted Perception of Space
+description: Your line of effect is limited to range 4
+custom: true
+mtime: 1766468809977
+iconid: ui-icons/skills/1.png

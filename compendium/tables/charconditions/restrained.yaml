@@ -1,0 +1,168 @@
+__typeName: CharacterCondition
+modifiers:
+- __typeName: CharacterModifier
+  operation: min
+  sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  source: Condition
+  value: 0
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  name: Restrained
+  guid: 7c3571fe-9f02-44fa-88ce-4ca702a39669
+  description: |-
+    While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+    If you teleport while restrained, the condition ends.
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  source: Condition
+  modtype: bane
+  keywords:
+    Attack: true
+  activationCondition: true
+  guid: c81aa3f3-4f63-4567-ac78-3b233194a6da
+  rollType: ability_power_roll
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  description: |-
+    While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+    If you teleport while restrained, the condition ends.
+  behavior: power
+  name: Restrained
+- __typeName: CharacterModifier
+  sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  source: Condition
+  modtype: edge
+  keywords:
+    Attack: true
+  activationCondition: true
+  guid: 58777437-f3a3-4cf1-ba00-d3b17d04e023
+  rollType: enemy_ability_power_roll
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  description: |-
+    While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+    If you teleport while restrained, the condition ends.
+  behavior: power
+  name: Restrained
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  description: |-
+    While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+    If you teleport while restrained, the condition ends.
+  source: Condition
+  name: Restrained
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: teleport
+    strain: []
+    guid: f1c4a76a-3639-4129-a179-58ff3088a308
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+    targetType: self
+    persistence: []
+    name: Restrained
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions:
+      - 2989a051-204f-442e-967d-edafc2dd5e43
+    description: If a creature teleports while restrained, that condition ends.
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: a6b04d8e-467d-469c-af43-c575fa51858e
+- __typeName: CharacterModifier
+  sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  source: Condition
+  behavior: power
+  keywords: []
+  activationCondition: true
+  modtype: bane
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  name: Restrained
+  rollType: test_power_roll
+  description: |-
+    While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+    If you teleport while restrained, the condition ends.
+  guid: 5c3c480f-d4db-4737-8c9b-dd1127984567
+  attribute: mgt
+- __typeName: CharacterModifier
+  sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  source: Condition
+  behavior: power
+  keywords: []
+  activationCondition: true
+  modtype: bane
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  name: Restrained
+  rollType: test_power_roll
+  description: |-
+    While you are restrained, your speed is 0 and you can’t be force moved. You make attacks with a bane and attacks against you have an edge.
+
+    If you teleport while restrained, the condition ends.
+  guid: 54c599cf-40f0-46fc-9fb9-fbc4b4d0a3f7
+  attribute: agl
+- __typeName: CharacterModifier
+  sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  source: Condition
+  value: 1
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  name: Restrained
+  guid: f89393f1-0e69-4dbc-9102-7f916c17398c
+  description: "A creature who is restrained has speed 0, can’t use the Stand Up maneuver, and can’t be force moved. A restrained creature takes a bane on ability rolls and on Might and Agility tests, and abilities used against them gain an edge. \n\nIf a creature teleports while restrained, that condition ends. "
+  behavior: attribute
+  attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+- __typeName: CharacterModifier
+  text: You cannot move while restrained
+  sourceguid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+  source: Condition
+  guid: f22eea45-0316-4fdf-8945-c92374c7ceae
+  domains:
+    CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+  name: Restrained
+  description: "A creature who is restrained has speed 0, can’t use the Stand Up maneuver, and can’t be force moved. A restrained creature takes a bane on ability rolls and on Might and Agility tests, and abilities used against them gain an edge. \n\nIf a creature teleports while restrained, that condition ends. "
+  behavior: movementtext
+  color: red
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+stackable: true
+guid: 9092de28-0e7a-4bd1-8162-d3297504a98b
+id: 2989a051-204f-442e-967d-edafc2dd5e43
+ctime: 1699753380340
+domains:
+  CharacterCondition:2989a051-204f-442e-967d-edafc2dd5e43: true
+powertable: true
+description: "A creature who is restrained has speed 0, can’t use the Stand Up maneuver, and can’t be force moved. A restrained creature takes a bane on ability rolls and on Might and Agility tests, and abilities used against them gain an edge. \n\nIf a creature teleports while restrained, that condition ends. "
+name: Restrained
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+mtime: 1769609070830
+trackCaster: true
+implementation: 3

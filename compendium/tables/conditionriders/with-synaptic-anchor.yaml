@@ -1,0 +1,49 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 3869c994-0a4a-41fa-b5c7-9bee5fc1acd9
+    repeatTargets: false
+    trigger: useability
+    conditionFormula: Used Ability.main action
+    targetType: self
+    persistence: []
+    name: with Synaptic Anchor
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: ConditionCaster("Dazed").Intuition
+      damageType: psychic
+      chatMessage: Synaptic Anchor Damage
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You take psychic damage whenever using a main action
+  source: Ongoing Effect
+  behavior: trigger
+  guid: f2052c72-ddd9-48c3-92e3-6de405d2a5ed
+  name: with Synaptic Anchor
+  sourceguid: 4e40de4d-302e-4b65-96a1-59199ee6bae9
+source: Ongoing Effect
+guid: 4e40de4d-302e-4b65-96a1-59199ee6bae9
+id: 4e40de4d-302e-4b65-96a1-59199ee6bae9
+ctime: 1772309318376
+condition: c27e0b16-291a-45ad-8406-973e26576a44
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: with Synaptic Anchor
+description: You take psychic damage whenever using a main action
+mtime: 1772309601753
+iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335

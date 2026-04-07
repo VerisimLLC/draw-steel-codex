@@ -1,0 +1,102 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:31e02348-5f57-4ffb-9e2e-6099fbe99610: true
+  sourceguid: 31e02348-5f57-4ffb-9e2e-6099fbe99610
+  description: ""
+  source: Ongoing Effect
+  name: Gods’ Machine
+  behavior: activated
+  guid: dda93c21-90e6-4175-8b16-8d9df4517e7c
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    targetFilter: Type is Rolling Machine and Summoner = Caster
+    targetTextOverride: Special
+    repeatTargets: false
+    rangeTextOverride: Special
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: targets
+      targeting: prompt
+      customAbility:
+        __typeName: ActivatedAbility
+        targetTextOverride: Special
+        repeatTargets: false
+        rangeTextOverride: Special
+        behaviors:
+        - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          movementType: move
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          applyto: proximity_only
+          filterTarget: not Friends(caster, target)
+          tiers:
+          - 3 damage
+          - 5 damage
+          - 8 damage
+          guid: a1999384-b29c-47cc-8d6a-d1e4e58be7b2
+          roll: 2d10 + <<casterint>>
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: "<<casterint>>"
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 75fc6f7d-a6e3-4203-96be-d7d117bea58c
+        numTargets: "1"
+        targetType: emptyspace
+        targeting: pathfind
+        iconid: ui-icons/skills/1.png
+        name: Gods’ Machine
+        preDescription: Once on each subsequent turn, you can use a free maneuver to move the machine a number of squares up to your Intuition score then repeat the power roll.
+        description: ""
+        abilityType: none
+        implementation: 3
+      standardAbilityParams:
+        casterint: "{Intuition}"
+      filterTarget: ""
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: "100"
+    actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+    modifiers: []
+    persistence: []
+    strain: []
+    guid: fab62c2c-b013-42b4-88f0-63051b3540f1
+    preDescription: Once on each subsequent turn, you can use a free maneuver to move the machine a number of squares up to your Intuition score then repeat the power roll.
+    castImmediately: true
+    domains:
+      CharacterOngoingEffect:31e02348-5f57-4ffb-9e2e-6099fbe99610: true
+    numTargets: "1"
+    targetType: target
+    name: Move Gods’ Machine
+    iconid: ui-icons/skills/1.png
+    description: ""
+    abilityType: none
+    implementation: 3
+source: Ongoing Effect
+guid: 31e02348-5f57-4ffb-9e2e-6099fbe99610
+id: 31e02348-5f57-4ffb-9e2e-6099fbe99610
+ctime: 1770870123511
+domains:
+  CharacterOngoingEffect:31e02348-5f57-4ffb-9e2e-6099fbe99610: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Gods’ Machine
+custom: true
+description: ""
+mtime: 1770871050956
+iconid: ui-icons/skills/1.png

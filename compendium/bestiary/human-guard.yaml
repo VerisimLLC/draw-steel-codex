@@ -1,0 +1,262 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 064cae38-0abe-4459-b670-9dd85a887585
+    offtokenPortraitId: d7dac4d3-7c58-46d4-91cb-abdfbb727769
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3378418
+    portraitOffset:
+      x: -0.1380647
+      y: 0.1493361
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c9607931-99a8-49ce-8169-7f4b67002202
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 5
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "5"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Human Guard
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetTextOverride: One creature or object per minion
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          targetFilter: target.id != <<targetid>>
+          repeatTargets: false
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 0351f910-99c3-417c-9cc1-c265662c0908
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              modifyDescription: ""
+              source: ""
+              filterAbility: Ability.Free Strike
+              guid: ee9bd3ac-04af-469b-bfec-080491c9a4e3
+              name: Modify Attack
+              attributes: []
+              cannotModifyAction: true
+              description: ""
+              behavior: modifyability
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 76775942-a6b1-4460-b90f-d033c9b7ab02
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                targetType: self
+                abilityType: none
+                name: New Ability
+                behaviors: []
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          name: Invoked Ability
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Free Strike Against Different Target
+        filterTarget: Caster.Flanked
+        abilityType: custom
+        standardAbilityParams:
+          targetid: "<<Cast.PrimaryTarget.Id>>"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 182
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 8175d008-9b65-4b13-b65d-87562ffc34fb
+      targetType: target
+      categorization: Signature Ability
+      numTargets: 1
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      name: Halberd
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: If the guard is flanked, they can make a free strike against an additional target adjacent to them.
+      abilityType: none
+      implementation: 4
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Guard	Level 1 Minion Brute
+        Human, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 5	<b>Immunity</b> Corruption 1, Psychic 1
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Speed +2	<b>Free Strike</b> 2
+        Might +2	Agility +0	Reason +0	Intuition +0	Presence +0
+        <b>Halberd</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage
+        <b>Effect</b> If the guard is flanked, they can make a free strike against an additional target adjacent to them.
+
+        <b>Supernatural Insight</b>
+        The guard ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1d7bd0f7-9b60-4395-a193-0a939e80e720: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:1d7bd0f7-9b60-4395-a193-0a939e80e720: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The guard ignores concealment if it's granted by a supernatural effect.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The guard ignores concealment if it's granted by a supernatural effect.
+      guid: 1d7bd0f7-9b60-4395-a193-0a939e80e720
+      name: Supernatural Insight
+      implementation: 3
+    role: Minion Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: psychic
+      apply: Damage Reduction
+    withCaptain: +5 bonus to speed
+    opportunityAttack: 2
+    damage_taken: 0
+    keywords:
+      Humanoid: true
+      Human: true
+    resources: []
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    minionSquad: Human Guard Squad 2
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: 3d61e675-72fe-4f31-8890-0bffb8fad955
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: f9a140da-87f5-47e6-957b-f4fffa6811a8
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Human Guard
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590330279
+mtime: 1775201137032
+hidden: false

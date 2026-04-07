@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 79084d18-2eab-4dc2-9d79-767e9b78f523
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765467465804
+ctime: 1765467465804
+name: Catapult Dust Recipe
+flavor: Text or lore in Caelian
+description: The project source necessary to craft Catapult Dust
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

@@ -1,0 +1,98 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5bfdee00-2ff7-441c-b377-1dead683352b
+  source: Ongoing Effect
+  modtype: edge
+  keywords:
+    Strike: true
+  activationCondition: true
+  guid: 32f302d4-e87b-41b5-b8ee-16f9b00e894d
+  rollType: ability_power_roll
+  domains:
+    CharacterOngoingEffect:5bfdee00-2ff7-441c-b377-1dead683352b: true
+  description: Your strikes gain an edge, and when you take the Disengage move action, you gain a +1 bonus to the distance you can shift.
+  behavior: power
+  name: I’m No Threat
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:5bfdee00-2ff7-441c-b377-1dead683352b: true
+  sourceguid: 5bfdee00-2ff7-441c-b377-1dead683352b
+  description: Your strikes gain an edge, and when you take the Disengage move action, you gain a +1 bonus to the distance you can shift.
+  source: Ongoing Effect
+  name: I’m No Threat
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: dealdamage
+    strain: []
+    guid: 2f877f59-6d89-4f75-b777-b8544fc64882
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:5bfdee00-2ff7-441c-b377-1dead683352b: true
+    targetType: self
+    persistence: []
+    name: I'm No Threat
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      applyto: caster
+      resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+      chatMessage: Strike / I'm No Threat
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 5bfdee00-2ff7-441c-b377-1dead683352b
+      mode: effect
+      conditions: []
+      applyto: caster
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: cec8e0a0-8694-47ab-afaa-9616ed0748d7
+- __typeName: CharacterModifier
+  sourceguid: 5bfdee00-2ff7-441c-b377-1dead683352b
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:5bfdee00-2ff7-441c-b377-1dead683352b: true
+  name: I’m No Threat
+  guid: ebeb28c7-023e-4d7c-a06d-bd694c4b3926
+  description: Your strikes gain an edge, and when you take the Disengage move action, you gain a +1 bonus to the distance you can shift.
+  behavior: attribute
+  attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+- __typeName: CharacterModifier
+  sourceguid: 5bfdee00-2ff7-441c-b377-1dead683352b
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:5bfdee00-2ff7-441c-b377-1dead683352b: true
+  name: I’m No Threat
+  guid: fe018665-e694-4c73-a05e-ce0075cee37e
+  description: Your strikes gain an edge, and when you take the Disengage move action, you gain a +1 bonus to the distance you can shift.
+  behavior: attribute
+  attribute: disguised
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 5bfdee00-2ff7-441c-b377-1dead683352b
+id: 5bfdee00-2ff7-441c-b377-1dead683352b
+ctime: 1728449482740
+domains:
+  CharacterOngoingEffect:5bfdee00-2ff7-441c-b377-1dead683352b: true
+description: Your strikes gain an edge, and when you take the Disengage move action, you gain a +1 bonus to the distance you can shift.
+iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80
+endTrigger: none
+custom: true
+mtime: 1772112738025
+name: I'm No Threat
+implementation: 3

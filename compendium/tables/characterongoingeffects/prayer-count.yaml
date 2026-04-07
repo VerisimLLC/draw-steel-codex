@@ -1,0 +1,23 @@
+__typeName: CharacterOngoingEffect
+modifiers: []
+source: Ongoing Effect
+guid: 9f557670-4dc8-4592-804c-5875754f5bdc
+id: 9f557670-4dc8-4592-804c-5875754f5bdc
+ctime: 1728027203800
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.194499850273132
+    s: 0.429687261581421
+    v: 1.00319051742554
+    a: 1
+stackable: true
+custom: true
+name: Prayer Count
+mtime: 1728029054899
+description: ""
+endTrigger: endcombat
+iconid: b86a7a42-15dc-4220-b27c-27919193e357

@@ -1,0 +1,208 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f2a6ed27-daad-4617-ade3-0c752451bb18
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: Human Apprentice Mage
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetTextOverride: One creature or object per minion
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 lightning damage
+        - 3 lightning damage
+        - 5 lightning damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: slowed (eot)
+        filterTarget: Caster.Moved This Turn < 1 and Caster.Resources.Maneuver > 0
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        filterTarget: Caster.Moved This Turn < 1 and Caster.Resources.Maneuver > 0
+        duration: 0
+        ongoingEffectCustom: c665a8e1-2c32-4a33-84be-fdb4ac65f5fc
+        ongoingEffect: c665a8e1-2c32-4a33-84be-fdb4ac65f5fc
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 182
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: c469cf49-bcc8-490d-9a9f-643093343af5
+      persistence: []
+      targetType: target
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Lightning Strike
+      categorization: Signature Ability
+      description: If the apprentice mage doesn't use a maneuver or a move action this turn, the target is slowed (EoT).
+      abilityType: none
+      implementation: 4
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Apprentice Mage	Level 2 Minion Controller
+        Human, Humanoid	EV 4 for four minions
+        <b>Stamina</b> 4	<b>Immunity</b> Corruption 2, Psychic 2
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Ranged distance +5	<b>Free Strike</b> 2
+        Might +0	Agility +1	Reason +0	Intuition +0	Presence +2
+        <b>Lightning Strike</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Strike, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 lightning damage
+        %E2%98%85	12%E2%80%9316	3 lightning damage
+        %E2%9C%B8	17+	5 lightning damage
+        <b>Effect</b> If the apprentice mage doesn't use a maneuver or a move action this turn, the target is slowed (EoT).
+
+        <b>Supernatural Insight</b>
+        The apprentice mage ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:11d8a8de-6767-4bd3-96b3-c06fca6b42d0: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:11d8a8de-6767-4bd3-96b3-c06fca6b42d0: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The apprentice mage ignores concealment if it's granted by a supernatural effect.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The apprentice mage ignores concealment if it's granted by a supernatural effect.
+      guid: 11d8a8de-6767-4bd3-96b3-c06fca6b42d0
+      name: Supernatural Insight
+      implementation: 3
+    role: Minion Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: psychic
+      apply: Damage Reduction
+    withCaptain: +5 bonus to ranged distance
+    opportunityAttack: 2
+    damage_taken: 0
+    keywords:
+      Humanoid: true
+      Human: true
+    resources: []
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    minionSquad: Human Apprentice Mage Squad 2
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: 044dcbe4-491a-4ee8-9d1e-79782e392858
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: c6c054ed-b968-47f6-9206-24a2d07baaa3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Human Apprentice Mage
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590305893
+mtime: 1775201137032
+hidden: false

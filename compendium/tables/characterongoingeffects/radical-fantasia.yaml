@@ -1,0 +1,35 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 9d273e05-27b0-46c5-b452-7c152ca9918c
+  sourceguid: 809135fc-57eb-4f1a-a3bb-ba57f3d792d8
+  value: 1
+  source: Ongoing Effect
+  name: Radical Fantasia
+  behavior: attribute
+  description: While this performance is active, each target who starts their turn in the area ignores difficult terrain, and any ability they use that imposes forced movement gains a +2 bonus to the forced movement distance until the end of their turn. Additionally, once per combat round, each target can use a triggered action as a free triggered action.
+  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+- __typeName: CharacterModifier
+  guid: 6b26b56d-53d7-4556-9d21-fba8b8a71408
+  sourceguid: 809135fc-57eb-4f1a-a3bb-ba57f3d792d8
+  value: 2
+  source: Ongoing Effect
+  name: Radical Fantasia
+  behavior: attribute
+  description: While this performance is active, each target who starts their turn in the area ignores difficult terrain, and any ability they use that imposes forced movement gains a +2 bonus to the forced movement distance until the end of their turn. Additionally, once per combat round, each target can use a triggered action as a free triggered action.
+  attribute: b92d0101-f9a6-4c66-81e4-cdad46e6f1bb
+source: Ongoing Effect
+guid: 809135fc-57eb-4f1a-a3bb-ba57f3d792d8
+id: 809135fc-57eb-4f1a-a3bb-ba57f3d792d8
+ctime: 1773140997319
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Radical Fantasia
+description: While this performance is active, each target who starts their turn in the area ignores difficult terrain, and any ability they use that imposes forced movement gains a +2 bonus to the forced movement distance until the end of their turn. Additionally, once per combat round, each target can use a triggered action as a free triggered action.
+custom: true
+mtime: 1773141078698
+iconid: ui-icons/skills/1.png

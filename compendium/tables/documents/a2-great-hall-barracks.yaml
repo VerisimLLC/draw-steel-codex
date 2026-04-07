@@ -1,0 +1,554 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:A1 0 Respites:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A1 0 Respites
+  encounter:A2 2 Respite:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A2 2 Respite
+  encounter:A2 Heroes's Cup:
+    __typeName: RichEncounter
+    identifier: A2 Heroes's Cup
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"2c7daf89-7f73-439e-9b8f-5128cc44893f\",\"offtokenPortraitId\": \"7d57cb94-10b5-465b-8b8b-274245ea78d6\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3003669,\"portraitOffset\": {\"x\": 0.06637169,\"y\": 0.1455819},\"frameHueShift\": 0,\"frameSaturation\": 0.9031751,\"frameBrightness\": 1,\"popoutScale\": 0.49,\"characterName\": \"Sneaky Bugbear Commander\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,10,1"
+        monsters:
+          e2e21039-09b7-4178-af15-0018c19dbb28: 1
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Stupid Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Devious Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "6,10,1"
+        - __usertype: LuaLoc
+          loc: "7,7,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,13,1"
+        - __usertype: LuaLoc
+          loc: "-8,8,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "6,16,1"
+        - __usertype: LuaLoc
+          loc: "6,14,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "10,8,1"
+        - __usertype: LuaLoc
+          loc: "10,6,1"
+        - __usertype: LuaLoc
+          loc: "-9,10,1"
+        - __usertype: LuaLoc
+          loc: "-9,12,1"
+        - __usertype: LuaLoc
+          loc: "-9,14,1"
+        - __usertype: LuaLoc
+          loc: "10,10,1"
+        - __usertype: LuaLoc
+          loc: "-9,16,1"
+        - __usertype: LuaLoc
+          loc: "10,12,1"
+        monsters:
+          6907953a-efb6-4a9d-9b2a-c22b2262c946: 8
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,6,1"
+        - __usertype: LuaLoc
+          loc: "-6,11,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      name: A2 Heroes' Cup
+  encounter:A2 1 Respite-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A2 1 Respite
+  encounter:A2 1 Respite:
+    __typeName: RichEncounter
+    identifier: A2 1 Respite
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"2c7daf89-7f73-439e-9b8f-5128cc44893f\",\"offtokenPortraitId\": \"7d57cb94-10b5-465b-8b8b-274245ea78d6\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3003669,\"portraitOffset\": {\"x\": 0.06637169,\"y\": 0.1455819},\"frameHueShift\": 0,\"frameSaturation\": 0.9031751,\"frameBrightness\": 1,\"popoutScale\": 0.49,\"characterName\": \"Excited Bugbear Commander\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,10,1"
+        monsters:
+          e2e21039-09b7-4178-af15-0018c19dbb28: 1
+      - appearances:
+        - false
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Sleepy Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "7,7,1"
+        - __usertype: LuaLoc
+          loc: "6,10,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-8,8,1"
+        - __usertype: LuaLoc
+          loc: "-5,13,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "6,14,1"
+        - __usertype: LuaLoc
+          loc: "6,16,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-6,11,1"
+        - __usertype: LuaLoc
+          loc: "-5,17,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "10,6,1"
+        - __usertype: LuaLoc
+          loc: "-9,12,1"
+        - __usertype: LuaLoc
+          loc: "-9,10,1"
+        - __usertype: LuaLoc
+          loc: "10,8,1"
+        - __usertype: LuaLoc
+          loc: "10,10,1"
+        - __usertype: LuaLoc
+          loc: "10,12,1"
+        - __usertype: LuaLoc
+          loc: "-9,14,1"
+        - __usertype: LuaLoc
+          loc: "-9,16,1"
+        monsters:
+          6907953a-efb6-4a9d-9b2a-c22b2262c946: 8
+      name: A2 1 Respite
+  encounter:A1 1 Respite-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A1 1 Respite
+  encounter:A Heroes's Cup:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A Heroes's Cup
+  encounter:A2 0 Respites:
+    __typeName: RichEncounter
+    identifier: A2 0 Respites
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"2c7daf89-7f73-439e-9b8f-5128cc44893f\",\"offtokenPortraitId\": \"7d57cb94-10b5-465b-8b8b-274245ea78d6\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3003669,\"portraitOffset\": {\"x\": 0.06637169,\"y\": 0.1455819},\"frameHueShift\": 0,\"frameSaturation\": 0.9031751,\"frameBrightness\": 1,\"popoutScale\": 0.49,\"characterName\": \"Curious Bugbear Commander\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,10,1"
+        monsters:
+          e2e21039-09b7-4178-af15-0018c19dbb28: 1
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Miserable Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Scheming Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,13,1"
+        - __usertype: LuaLoc
+          loc: "-8,8,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Smart Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Alert Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "6,10,1"
+        - __usertype: LuaLoc
+          loc: "7,7,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - "{\"portraitId\": \"4d431968-dc4d-4771-9a77-ffcaf11923c4\",\"offtokenPortraitId\": \"b15605e7-1048-4c79-b6cf-ea37c62b797c\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.2880263,\"portraitOffset\": {\"x\": 0.08756233,\"y\": 0.01096079},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.5,\"characterName\": \"Thoughtful Goblin Cursespitter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        - "{\"portraitId\": \"82660d50-5478-4d46-8f1b-603317a62bb8\",\"offtokenPortraitId\": \"c57ae9fe-432b-45ae-aa0d-12111fad3bdb\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4636676,\"portraitOffset\": {\"x\": 0.0940925,\"y\": 0.2197115},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Wicked Goblin Assassin\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": [],\"saddleSize\": 2}"
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "6,16,1"
+        - __usertype: LuaLoc
+          loc: "6,14,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "10,8,1"
+        - __usertype: LuaLoc
+          loc: "10,12,1"
+        - __usertype: LuaLoc
+          loc: "-9,10,1"
+        - __usertype: LuaLoc
+          loc: "-9,14,1"
+        - __usertype: LuaLoc
+          loc: "-9,12,1"
+        - __usertype: LuaLoc
+          loc: "10,10,1"
+        - __usertype: LuaLoc
+          loc: "-9,16,1"
+        - __usertype: LuaLoc
+          loc: "10,6,1"
+        monsters:
+          6907953a-efb6-4a9d-9b2a-c22b2262c946: 8
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,17,1"
+        - __usertype: LuaLoc
+          loc: "-6,11,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          76de605d-434b-4210-905f-5c47caf159cf: 1
+      name: A2 0 Respites
+  encounter:A2 2 Respites:
+    __typeName: RichEncounter
+    identifier: A2 2 Respites
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"2c7daf89-7f73-439e-9b8f-5128cc44893f\",\"offtokenPortraitId\": \"7d57cb94-10b5-465b-8b8b-274245ea78d6\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3003669,\"portraitOffset\": {\"x\": 0.06637169,\"y\": 0.1455819},\"frameHueShift\": 0,\"frameSaturation\": 0.9031751,\"frameBrightness\": 1,\"popoutScale\": 0.49,\"characterName\": \"Cranky Bugbear Commander\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,10,1"
+        monsters:
+          e2e21039-09b7-4178-af15-0018c19dbb28: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "6,10,1"
+        - __usertype: LuaLoc
+          loc: "7,7,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          10927d4a-3bd0-43e3-b994-9a11ed2fad53: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,13,1"
+        - __usertype: LuaLoc
+          loc: "-8,8,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          10927d4a-3bd0-43e3-b994-9a11ed2fad53: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "6,16,1"
+        - __usertype: LuaLoc
+          loc: "6,14,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          10927d4a-3bd0-43e3-b994-9a11ed2fad53: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,17,1"
+        - __usertype: LuaLoc
+          loc: "-6,11,1"
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          10927d4a-3bd0-43e3-b994-9a11ed2fad53: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "10,6,1"
+        - __usertype: LuaLoc
+          loc: "-9,12,1"
+        - __usertype: LuaLoc
+          loc: "-9,10,1"
+        - __usertype: LuaLoc
+          loc: "10,8,1"
+        - __usertype: LuaLoc
+          loc: "10,10,1"
+        - __usertype: LuaLoc
+          loc: "10,12,1"
+        - __usertype: LuaLoc
+          loc: "-9,14,1"
+        - __usertype: LuaLoc
+          loc: "-9,16,1"
+        monsters:
+          6907953a-efb6-4a9d-9b2a-c22b2262c946: 8
+      name: A2 2 Respites
+  encounter:A1 Heroes's Cup:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A1 Heroes's Cup
+  encounter:A 0 Respites:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A 0 Respites
+  encounter:A1 1 Respite:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A1 1 Respite
+id: fbd9d3b6-2010-447a-bb70-b723afcb62ed
+ctime: 1761036962934
+textStorage:
+  __typeName: TextStorage
+  sections:
+    ar: |+
+      [[encounter:A2 1 Respite]]
+
+    ax: |+
+      [[encounter:A2 2 Respites]]
+
+
+
+    x: |+
+      [[//awardvp 2|Award heroes 2 Victories]]
+
+
+
+
+
+    v: |+
+      The goblins fight until only two goblins remain, who flee and leave the encounter and castle. The memorial ivies are aggressive until they are destroyed. The heroes earn 2 Victories each.
+
+    t: |+
+      ## Ending the Encounter
+
+    r: |+
+      [[/spawn Targon -8 4|Spawn Targon]]
+
+
+    IZ: |
+      [[/activateobjects a2_a4_teleporter activate|Enable Teleporter]] [[/activateobjects a2_a4_teleporter deactivate|Disable Teleporter]]
+      }
+    p: |
+      He stays behind the goblins and uses ranged abilities. When he is winded, he attempts to flee.
+    m: |+
+      ## Round 2: Targon Appears
+
+    n: |
+      If [Targon] of the [Gilded Hand] brought [Queen Bargnot] the [item:Cup of Iulius], he appears in the barracks at the start of the second round of combat.
+    G: |
+      > * “Ivy crawls up the edges of the room, with some patches creeping and shifting up the walls.”
+    ah: |2
+
+    R: |
+      |1|One [bugbear commander] (Cravard)|
+    j: |
+      Cravard commands assassins to sneak up behind the backline heroes, and barks at the heroes to run or surrender.
+    al: |+
+      [[encounter:A2 0 Respites]]
+
+    h: |
+      The goblins duck and weave between the pillars and climb every vertical surface they can grasp to surround and suppress the heroes.
+    aj: |
+      **0 Respites**
+    f: |+
+      ## Tactics
+
+    c: |
+      The cursespitters are standing on pillars that are ready to topple over. A goblin can use their maneuver while adjacent to the base of the pillar to activate its triggered action, whether or not the cursespitter has left their position on top.
+    d: |+
+      The ivy in this room reaches the ceiling and is sturdy enough to climb without a test. If the memorial ivy remains motionless, it's indistinguishable from regular ivy. While a creature is climbing a memorial ivy, the memorial ivy is considered to be climbing the creature as well.
+
+
+    a: |+
+      * For three heroes, remove two goblin assassins and two goblin cursespitters.
+
+    b: |+
+      ## Broken Pillars
+
+    aL: |+
+      [[setting:Number of Heroes]]
+
+    af: |
+      ### If Queen Bargnot Has the Cup of Iulius
+    au: |
+      **2 Respites**
+    l: |+
+      The goblins' main goal is to wear down the heroes before they reach Queen Bargnot, but any goblins who have been transformed by the Cup of Iulius also want to show off their newfound power. They feel inspired and encouraged to finally stand toe-to-toe with the heroes.
+
+
+    OZ: |+
+      [[/activateobjects a2_start.AreaTemplate activate|Show Hero Start Area]][[/activateobjects a2_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+
+    aY: |+
+      [[encounter:A2 Heroes's Cup]]
+
+    Y: |
+      * For six heroes, add one group of one goblin assassin and one goblin cursespitter.
+    Z: |
+      * For four heroes, remove one goblin assassin and one goblin cursespitter.
+    W: |
+      **Encounter Adjustments**
+    X: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    U: |
+      |4|One [goblin assassin], one [goblin cursespitter]|
+    V: |+
+      |5|Four [memorial ivies](memorial ivy) (minion squad), Four [memorial ivies](memorial ivy (minion squad)|
+
+    S: |
+      |2|One [goblin assassin], one [goblin cursespitter]|
+    T: |
+      |3|One [goblin assassin], one [goblin cursespitter]|
+    Q: |
+      |**Group**|**Creatures**|
+    aF: |+
+      This, and all following encounters, change depending on if the Heroes or [Queen Bargnot] has the [item:Cup of Iulius]. See [Goblin Replacements] for more information.
+
+    O: |+
+      The heroes battle Jagged Edge soldiers in the great hall of Castle Andreas.
+
+    P: |
+      **A2 Groups**
+    M: |+
+      Any goblins who retreated from [A1. Courtyard Barricade] are here as well, but are reduced to 1 Stamina.
+
+
+    N: |+
+      # Encounter A2
+
+    K: |
+      Three goblin assassins and a bugbear commander named Cravard are ready to greet intruders with violence. Three goblin cursespitters each stand at the top of a broken pillar. Amid the ivy along the wall, eight
+    L: |+
+      memorial ivies writhe and hiss.
+
+    I: |
+      {***Secret:** Removing the planks reveals an entrance into area [A4. Overgrown Library] if the heroes can climb up into it.*
+    J: |+
+      ## Goblins
+
+    aR: |+
+      ### The Heroes Have The Cup of Iulius
+
+    H: |+
+      > * “A hole in the ceiling to the right is covered by planks of wood.”
+
+    E: |
+      > * “Bedrolls line the back wall underneath a huge fresco depicting human warriors in combat with demons.”
+    F: |
+      > * “Stone steps along the left wall lead to the floor above.”
+    C: |
+      > * “Goblins sup and spar with each other in the remains of the keep’s great hall.”
+    D: |
+      > * “Weathered stone pillars hold up the roof. Several pillars no longer touch the ceiling.”
+    ao: |
+      **1 Respite**
+    B: |+
+      # A2. Great Hall Barracks
+
+parentFolder: 3f6f50d2-bd00-4fb5-a3ba-b6089e65ec79
+updateid: 251144e2-dd07-4853-8736-061db9f78d9a
+description: A2. Great Hall Barracks
+content: "# Room 1"
+mtime: 1766077776666

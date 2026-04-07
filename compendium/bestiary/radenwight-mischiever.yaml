@@ -1,0 +1,335 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: "-MSw-EGxhId1Qx32nC8T"
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.9058816
+    portraitOffset:
+      x: 0.1523437
+      y: -0.1250002
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c07288a3-4fb8-468c-bc7d-2ee959b5d70c
+  properties:
+    __typeName: monster
+    groupid: 763027dd-bc4d-485c-9bfc-6888f41a1b35
+    cr: 1
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -1
+        id: mgt
+    monster_category: Monster
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        fe74c8be-e0f8-459f-becb-5bb2b15fd206:
+          refreshid: fd2f41ed-c0c3-4d4b-89c2-7bcfa6b574c0-4
+          note: Ready Rodent
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Radenwight Mischiever    Level 1 Minion Ambusher
+        Humanoid, Radenwight    EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed</b> 7 (climb)    <b>Size</b> 1S /<b> Stability</b> 0
+        <b>With Captain</b> Strike damage +1<b>Free Strike</b> 2
+        Might -1    Agility +2    Reason +0    Intuition +1    Presence +0
+        <b>Dagger Dance</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5    <b>Target</b> One creature per minion
+        %E2%9C%A6    %E2%89%A411    2 damage
+        %E2%98%85    12%E2%80%9316    4 damage
+        %E2%9C%B8    17+    5 damage
+        <b>Effect</b> If the mischiever is hidden when they use this ability, they can target two creatures.
+
+        <b>Ready Rodent </b>(Triggered Action)
+        <b>Keywords</b> Melee, Weapon
+        <b>Distance</b> Melee 1    <b>Target</b> One creature
+        <b>Trigger</b> An ally deals damage to the target.
+        <b>Effect</b> The mischiever makes a free strike against the target.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+        CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+        CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+        CharacterFeature:316b34cc-6e5b-4b71-9ece-28f53b339471: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+          CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+          CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+          CharacterFeature:316b34cc-6e5b-4b71-9ece-28f53b339471: true
+        sourceguid: 316b34cc-6e5b-4b71-9ece-28f53b339471
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Ready Rodent
+        description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+        guid: acfe3de8-8549-4526-9322-3627b2a70dfe
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The bruxer makes a free strike against the target.
+          name: Ready Rodent
+          trigger: An ally deals damage to the target.
+          guid: 8e3bc46c-ab06-4dca-a239-e6764cf3cd4e
+          distance: Melee 1
+          keywords:
+            Melee: true
+            Weapon: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+          CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+          CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+          CharacterFeature:316b34cc-6e5b-4b71-9ece-28f53b339471: true
+        sourceguid: 316b34cc-6e5b-4b71-9ece-28f53b339471
+        behavior: trigger
+        source: Character Feature
+        name: Ready Rodent
+        description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Make a free strike aganst the target.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          trigger: losehitpoints
+          persistence: []
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          whenActive: combat
+          conditionFormula: HasAttacker and Friends(self, Attacker) and Attacker != self
+          numTargets: "1"
+          domains:
+            CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+            CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+            CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+            CharacterFeature:316b34cc-6e5b-4b71-9ece-28f53b339471: true
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          guid: 1658e1d8-15ed-441f-b7a4-0490dbcccc00
+          name: Ready Rodent
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 55efbebc-ba43-4fe9-ba5e-8ebec3f82c15
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            autoTarget: true
+            abilityType: standard
+            standardAbilityParams:
+              targetid: "<<subject.id>>"
+            standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 7256ae94-1c07-49bd-bb50-b16b1acc4316
+      source: Character Feature
+      description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+      guid: 316b34cc-6e5b-4b71-9ece-28f53b339471
+      name: Ready Rodent
+      implementation: 3
+    role: Minion Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        037e7dda-87e4-4e63-abc8-904adf044aa5:
+          refreshid: fd2f41ed-c0c3-4d4b-89c2-7bcfa6b574c0-4
+          note: Melee Free Strike
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    withCaptain: +1 damage bonus to strikes
+    keywords:
+      Humanoid: true
+      Radenwight: true
+    damage_taken: 0
+    preferRanged: true
+    walkingSpeed: 7
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 8f08823e-8b11-4cf5-9443-5418911a89b0
+      meleeRange: 1
+      numTargets: 1 when not (conditions has "Hidden") else 2
+      implementation: 3
+      targetType: target
+      name: Dagger Dance
+      persistence: []
+      description: If the mischiever is hidden when they use this ability, they can target two creatures.
+      abilityType: none
+      iconid: 31d5930d-d7e5-4ec2-b60d-35d3f1da2294
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: c42bc02b-c4c8-4f67-a9e2-3f9fdeebae59
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Ready Rodent
+      sourceReference:
+        __typeName: SourceReference
+        page: 227
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The Mischiever makes a free strike against the target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minionSquad: Radenwight Mischiever Squad 1
+    monster_type: Radenwight Mischiever
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: fd2f41ed-c0c3-4d4b-89c2-7bcfa6b574c0-4
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: fd2f41ed-c0c3-4d4b-89c2-7bcfa6b574c0-4
+        used: 1
+    movementSpeeds:
+      climb: 7
+    availableTriggers:
+      01edc4d1-5c88-46aa-b213-c40ea7e8d7bc:
+        __typeName: ActiveTrigger
+        triggered: false
+        targets: []
+        rules: Make a free strike aganst the target.
+        text: Ready Rodent
+        id: 01edc4d1-5c88-46aa-b213-c40ea7e8d7bc
+        dismissed: true
+    creatureSize: 1S
+    savingThrowRatings: []
+    animations:
+      anim:
+      - resources:
+          b9bc06dd-80f1-4f33-bc55-25c114e3300c: 1
+        animType: consumeResource
+      guid: c1fe2c9e-ed8d-4168-81d2-0557c4001c99-437
+  tokenType: null
+  bestiaryId: 51ff7f8e-d42c-4e51-8e3d-df23fd88be9d
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Radenwight Mischiever
+parentFolder: 17706a52-3552-4044-86fe-e77c1e5f00dd
+artist: null
+ord: 0
+ctime: 1741590249083
+mtime: 1775201137032
+hidden: false

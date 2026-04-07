@@ -1,0 +1,330 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: b00355a9-21c5-494d-a007-43a8a7a1f4d1
+    offtokenPortraitId: c818e1ae-4025-43a0-bbf9-72e1f6ce2c67
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2878727
+    portraitOffset:
+      x: -0.04438019
+      y: 0.1202999
+    frameHueShift: 0.9901093
+    frameSaturation: 1
+    frameBrightness: 0.7636949
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 6a397cbc-7d54-4aab-b4a7-e371e873c7ee
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 5
+    skillProficiencies: []
+    max_hitpoints: 160
+    inflictedConditions: []
+    ev: 28
+    max_hitpoints_roll: "160"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    monster_type: Devil Legate
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 14 damage; A<2 slowed (save ends)
+        - 17 damage; A<3 slowed (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: fc79f0c4-d178-4823-8977-9b3c12d0929d
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Infernal Pike
+      numTargets: 2
+      description: If the targets are adjacent to each other, this ability deals an additional 3 damage.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; M<1 prone
+        - 11 damage; M<2 prone and can't stand (save ends)
+        - 14 damage; M<3 prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e10d978c-a75d-41fa-97f1-43b318842733
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Writ of Execution
+      numTargets: 1
+      description: If the legate charges while using this ability, they ignore difficult terrain and target each creature and object they move through with the power roll (but not its additional effects).
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 0fe857a6-4bca-4398-87be-010c92bd46e7
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Law and Order
+      numTargets: 1
+      description: The target is taunted by the legate (save ends). The legate can only have one creature taunted at a time.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: e9291200-d60a-40a0-8030-f47c426edd82
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Devilish Charm
+      implementation: 0
+      description: The target makes a Presence test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 95795e50-f742-436c-8b70-700c7d5483dd
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Law & Order
+      sourceReference:
+        __typeName: SourceReference
+        page: 80
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The target is taunted by the legate (save ends). The legate can have only one creature taunted at a time.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    opportunityAttack: 6
+    stability: 2
+    import:
+      type: mcdm
+      data: |+
+        Devil Legate	Level 5 Elite Defender
+        Devil, Infernal	EV 28
+        <b>Stamina</b> 160	<b>Immunity</b> Fire 5
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 6
+        Might +3	Agility +1	Reason 0	Intuition +1	Presence +2
+        <b>Infernal Pike</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	9 damage
+        %E2%98%85	12%E2%80%9316	14 damage; A<2 slowed (save ends)
+        %E2%9C%B8	17	17 damage; A<3 slowed (save ends)
+        <b>Effect</b> If the targets are adjacent to each other, this ability deals an additional 3 damage.
+
+        <b>Writ of Execution</b> (Action) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%B8	%E2%89%A411	6 damage; M<1 prone
+        %E2%98%85	12%E2%80%9316	11 damage; M<2 prone can't stand (save ends)
+        %E2%9C%A6	17	14 damage; M<3 prone and can't stand (save ends) can't stand (save ends)
+        <b>Effect</b> If the legate charges while using this ability, they ignore difficult terrain and target each creature and object they move through with the power roll (but not its additional effects).
+
+        <b>Law and Order</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature
+        <b>Effect</b> The target is taunted by the legate (save ends). The legate can only have one creature taunted at a time.
+
+        <b>Devilish Charm</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 5<b>	Target</b> Triggering creature
+        <b>Trigger</b> A creature targets the legate with a strike.
+        <b>Effect</b> The target makes a <b>Presence test.</b>
+        %E2%9C%B8	%E2%89%A411	The legate chooses a new target for the strike
+        %E2%98%85	12%E2%80%9316	The legate halves the incoming damage
+        %E2%9C%A6	17	The target has a bane on the strike
+
+        <b>Hellish Bailiff</b>
+        The legate has damage immunity 3while in one of the cities of Hell or within 10 squares of a non-minion devil that is a higher level than them.
+
+        <b>True Name</b>
+        If a creature within 10 squares of the legate speaks the legate's true name aloud, the legate loses their immunities, the additional effects on their signature action, and their Devilish Charm ability.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d44c7128-f8f7-4697-8e2e-df370366d078: true
+      modifiers: []
+      name: Hellish Bailiff
+      description: The legate has damage immunity 3while in one of the cities of Hell or within 10 squares of a non-minion devil that is a higher level than them.
+      guid: d44c7128-f8f7-4697-8e2e-df370366d078
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d8555a39-5339-4df8-b79d-7ed64709a7b7: true
+      modifiers: []
+      name: True Name
+      description: If a creature within 10 squares of the legate speaks the legate's true name aloud, the legate loses their immunities, the additional effects on their signature action, and their Devilish Charm ability.
+      guid: d8555a39-5339-4df8-b79d-7ed64709a7b7
+      source: Trait
+    role: Elite Defender
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    resources: []
+    groupid: 2c4ebcaf-087b-4f0d-a94a-61e9b67fb70f
+    minion: false
+    walkingSpeed: 6
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: c7807168-43b9-4705-a0bb-b5094e6c495a
+    monster_category: Monster
+    keywords:
+      Infernal: true
+      Devil: true
+  tokenType: null
+  bestiaryId: c03a6ef4-5a45-4d3f-a713-7bd148ca6c7d
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: Devil Legate
+parentFolder: f202e578-675b-4891-ad36-09c24f35518b
+artist: null
+ord: 0
+ctime: 1741590303170
+mtime: 1775201137032
+hidden: false

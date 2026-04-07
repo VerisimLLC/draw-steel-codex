@@ -1,0 +1,412 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: c43bb7fd-c3ba-416c-9181-447d2a363680
+    offtokenPortraitId: 0ea202f0-e0cd-4e1e-bc4f-64234e69c231
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.5091099
+    frameSaturation: 0.6824878
+    frameBrightness: 0.6637475
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: aa2e54a8-b661-42d0-b9b7-41680b272b16
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: -5
+        id: rea
+      inu:
+        baseValue: -2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    moveDistance: 7
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage
+        - 7 damage; grabbed
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+        riderid: c77e1440-ab4a-4cea-9330-452f241a8a7d
+        tiersSelected:
+        - 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 89c3060d-13ac-49e2-8c98-4bffa4d9c279
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "1"
+      targetType: target
+      name: Clobber and Clutch
+      iconid: b67b89e6-cc8a-40bd-848b-37aef0455137
+      description: A target who starts their turn grabbed by the zombie takes 2 corruption damage. A creature who takes 5 or more corruption damage this way becomes insatiably hungry for flesh, and must complete the Find a Cure downtime project to end this effect.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 5a2e1b85-eac0-4e16-92a8-637a46c16726
+      abilityType: none
+      iconid: d549bb7f-11c6-4595-9d3d-2714c2106df1
+      numTargets: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Zombie Dust
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        applyto: caster
+        rule: prone
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage
+        - 3 corruption damage; M<1 weakened (save ends)
+        - 4 corruption damage; M<2 dazed (save ends)
+        roll: 2d10 + 2
+      description: 'The zombie falls prone, expelling a wave of rot and dust. '
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage
+        - 7 damage; grabbed
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: f42f4bf0-730d-44f9-ba87-3c36ab53045d
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Clobber & Clutch
+      sourceReference:
+        __typeName: SourceReference
+        page: 264
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: A target who starts their turn grabbed by the zombie takes 2 corruption damage. A creature who takes 5 or more corruption damage this way becomes insatiably hungry for flesh, and must complete the Find a Cure downtime project in to end this effect.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    damageEntries:
+      984101ea-58c8-480e-b6f5-0e65a647baf0:
+        id: 984101ea-58c8-480e-b6f5-0e65a647baf0
+        heal: 50
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        cecd426b-e8d2-40d1-b915-4c1938535529:
+          disposition: good
+          note: 50 Healing
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 20
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |
+        Zombie	Level 1 Horde Brute
+        Undead	EV 3
+        **Stamina** 20	**Immunity** corruption 1, poison 1
+        **Speed** 5	**Size** 1M /** Stability** 1
+        **Free Strike** 2
+        Might +2	Agility +1	Reason -5	Intuition -2	Presence +1
+        **Clobber and Clutch** (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        **Keywords** Melee, Strike, Weapon
+        **Distance** Melee 1	**Target** One creature or object
+        %E2%9C%A6	%E2%89%A411	4 damage
+        %E2%98%85	12%E2%80%9316	6 damage
+        %E2%9C%B8	17+	7 damage; grabbed
+        **Effect** A target who starts their turn grabbed by the zombie takes 2 corruption damage. If a creature takes 5 or more corruption damage this way, they become insatiably hungry for flesh. The target must complete the Find a Cure project to end this effect.
+        **Zombie Dust** (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        **Keywords** Area, Melee
+        **Distance** 2 burst	**Target** Each enemy in the burst
+        **Effect** The zombie falls prone, expelling a wave of rot and dust.
+        %E2%9C%A6	%E2%89%A411	2 corruption damage
+        %E2%98%85	12%E2%80%9316	3 corruption damage; M<1 weakened (save ends)
+        %E2%9C%B8	17+	4 corruption damage; M<2 dazed (save ends)
+        **Endless Knight**
+        The first time the zombie is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they regain their full Stamina and fall prone.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2c7c37b6-4024-4847-9de8-0f2fba74068f: true
+        CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5dfcd239-8451-4760-b966-de47ace83f71
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:2c7c37b6-4024-4847-9de8-0f2fba74068f: true
+          CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+        name: Endless Knight
+        resourceRefreshType: encounter
+        description: The first time the zombie is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they regain 10 Stamina and fall prone.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: (-Stamina) + 10
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            applyto: caster
+            text: Endless Knight!
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            applyto: caster
+            rule: prone
+          - __typeName: ActivatedAbilityRaiseCorpseBehavior
+            applyto: caster
+            restoreStamina: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b3ebebbe-7f14-4100-a2b9-636f20cb525d
+          targetType: self
+          domains:
+            CharacterFeature:2c7c37b6-4024-4847-9de8-0f2fba74068f: true
+            CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+          conditionFormula: Damage Type != "Fire" And Damage Type != "Holy"
+          numTargets: "1"
+          trigger: zerohitpoints
+          name: Endless Knight
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+      source: Trait
+      description: The first time the zombie is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they regain 10 Stamina and fall prone.
+      guid: 2c7c37b6-4024-4847-9de8-0f2fba74068f
+      name: Endless Knight
+      implementation: 3
+    role: Horde Brute
+    equipment: []
+    titles: []
+    moveDistanceRoundId: 0be1405a-c969-46a2-8513-30b883d6d126-7
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: ddf8ac45-b82e-403d-a095-2f756bde1261-1639
+    max_hitpoints: 20
+    keywords:
+      Undead: true
+      Soulless: true
+    initiativeGrouping: e6b057a0-cecb-4a4a-8e45-7015bcbc8e79
+    availableTriggers: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        58118efc-b87f-4d69-8a40-e2c5ce28d1e2:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-11
+          note: Clobber and Clutch
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        1cbe342c-bf5d-47a3-b8ae-163854b90cd4:
+          note: Clobber and Clutch
+          abilityid: 89c3060d-13ac-49e2-8c98-4bffa4d9c279
+          refreshid: dc176304-f5ef-45ca-bb8f-8144a8726f00-2
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        a0d29e37-aaf9-4012-a28d-15544c7ea985:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-8
+          note: Clobber and Clutch
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        5a5b5ccd-358e-4fc3-a9e0-5d15451dc44a:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-12
+          note: Clobber and Clutch
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        78fa2768-10ea-4c7e-a07e-2562c1fbd0c8:
+          refreshid: 4ffac112-2bb7-4d59-b73c-33ae531ff31a-1
+          note: Clobber and Clutch
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    damage_taken: 0
+    notes:
+    - text: ""
+      title: Monster Notes
+    walkingSpeed: 5
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    deathSavingThrowFailures: 0
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 4ffac112-2bb7-4d59-b73c-33ae531ff31a-1
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 4ffac112-2bb7-4d59-b73c-33ae531ff31a-8
+        used: 1
+    traitNames: []
+    movementSpeeds: []
+    skillRatings: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        f2510b9c-e72b-4077-be90-67a3e01e0479:
+          note: Zombie Dust
+          abilityid: 5a2e1b85-eac0-4e16-92a8-637a46c16726
+          refreshid: dc176304-f5ef-45ca-bb8f-8144a8726f00-2
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        a427b235-0a70-4ea7-b79f-2711709b5fb3:
+          refreshid: 4ffac112-2bb7-4d59-b73c-33ae531ff31a-8
+          note: Zombie Dust
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        28f04185-bc4a-4fd9-8392-9d0bd8f674d1:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-7
+          note: Knockback
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    monster_type: Zombie
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 0c566b64-d70c-4f40-b1d9-64523154e15e
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Zombie
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 13
+ctime: 1741590218334
+mtime: 1775201137032
+hidden: false

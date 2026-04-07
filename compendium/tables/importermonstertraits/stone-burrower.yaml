@@ -1,0 +1,11 @@
+__typeName: CharacterFeature
+modifiers: []
+source: Monster
+guid: e5ac73c7-4fd9-47f7-8d80-aa9ff8b90d39
+importMatch: "<<monster>> can burrow through mundane stone as if it were difficult terrain and leaves behind a 2 x 2 tunnel opening in the stone"
+ctime: 1709486030850
+name: Stone-Burrower
+id: b8a8a0be-511d-4ffa-8ae9-2833d2f3539f
+description: ""
+mtime: 1709535048406
+importMatchType: rules

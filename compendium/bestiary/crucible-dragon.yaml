@@ -1,0 +1,163 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 11c48b01-e229-4924-ae73-fc0655f61549
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 65e7599a-7d87-4b1d-bf6e-1417c1a1795d
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Crucible Dragon
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 6
+    cr: 6
+    skillProficiencies: []
+    role: Solo
+    inflictedConditions: []
+    keywords:
+      Dragon: true
+      Crucible Dragon: true
+      Elemental: true
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: fire
+      apply: Damage Reduction
+    walkingSpeed: 8
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 4
+        id: mgt
+    monster_type: Crucible Dragon
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    initiativeGrouping: d142faf1-7a1f-4ba6-a0c6-54ce0a6afc01
+    notes:
+    - text: ""
+      title: Monster Notes
+    damage_taken: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f330463d-3ed8-4630-b939-de833699d683: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: f330463d-3ed8-4630-b939-de833699d683
+        source: Character Feature
+        value: 7
+        domains:
+          CharacterFeature:f330463d-3ed8-4630-b939-de833699d683: true
+        name: Crucible Dragon
+        guid: 3459d359-5897-4511-b314-7941c82e05d1
+        description: Your Creature Size is 4.
+        behavior: attribute
+        attribute: creatureSize
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: f330463d-3ed8-4630-b939-de833699d683
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:f330463d-3ed8-4630-b939-de833699d683: true
+        name: Crucible Dragon
+        guid: 5c1e8268-5617-4a11-8e9c-5dc4e02a4fb7
+        description: Your Creature Size is 4.
+        behavior: attribute
+        attribute: fly
+      name: Crucible Dragon
+      guid: f330463d-3ed8-4630-b939-de833699d683
+      description: Your Creature Size is 4.
+      source: Character Feature
+    resources: []
+    max_hitpoints: 450
+    monster_category: Monster
+    groupid: 3f227b9e-fa88-4838-9b88-274138bdbf70
+    ev: 96
+    levelChoices: []
+    minion: false
+    opportunityAttack: 7
+    retainer: false
+    creatureSize: "4"
+  tokenType: null
+  bestiaryId: 03235ef7-320a-40bd-91aa-82e3b179d3b3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1764714263118
+description: null
+parentFolder: aa240fca-4fa8-4add-ac99-cb9c5724a8dd
+artist: null
+ord: 5
+ctime: 1764714263118
+mtime: 1775167435516
+hidden: false

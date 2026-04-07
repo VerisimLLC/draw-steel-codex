@@ -1,0 +1,66 @@
+__typeName: Kit
+armor: Medium
+health: 6
+id: fea722d2-a2c6-49f7-a8bc-8a161ab2c965
+weapons:
+  Medium: true
+  Light: true
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+equipmentDescription: You wear medium armor and wield a light weapon and a medium weapon.
+kitManeuver: false
+mtime: 1770562346858
+name: Dual Wielder
+type: martial
+speed: 2
+imported: 014dea1a-b478-4e78-b930-05dff0149838
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 4 damage
+    - 6 damage
+    - 8 damage
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: Why strike once when you could do it twice?
+  sourceReference:
+    __typeName: SourceReference
+    page: 220
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  effectImplemented: false
+  numTargets: 2
+  modifiers: []
+  strain: []
+  guid: 4ddd376d-dd9c-41ff-b28e-16001d140379
+  implementation: 4
+  persistence: []
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  targetType: target
+  name: Double Strike
+  categorization: Signature Ability
+  description: If you use this ability on your turn, you can target one creature or object with it then use your maneuver and move action for that turn before targeting a second creature or object. You still use the same power roll for both targets.
+  abilityType: none
+  iconid: 31d5930d-d7e5-4ec2-b60d-35d3f1da2294
+description: The Dual Wielder kit is for folks who want to excel at using two weapons at the same time. The fighting style maximizes the power of each instrument in your hands, making you a whirling deliverer of death.
+portraitid: ""
+disengage: 1

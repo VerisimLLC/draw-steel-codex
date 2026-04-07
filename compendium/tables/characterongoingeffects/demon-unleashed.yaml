@@ -1,0 +1,57 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:482fe897-fd9d-440c-9368-baadd30d7de3: true
+  sourceguid: 482fe897-fd9d-440c-9368-baadd30d7de3
+  description: Until the end of the encounter or until you are dying, each enemy who starts their turn adjacent to you and has P < strong is frightened until the end of their turn.
+  source: Ongoing Effect
+  name: Demon Unleashed
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: frightened (eot)
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: subject
+    persistence: []
+    modifiers: []
+    subjectRange: "1"
+    strain: []
+    guid: 6bb9c324-18e2-4949-9442-89f2bfec02ec
+    abilityType: none
+    trigger: beginturn
+    conditionFormula: not Subject.Passes Potency("P", strong)
+    whenActive: combat
+    numTargets: "1"
+    name: Demon Unleashed
+    domains:
+      CharacterOngoingEffect:482fe897-fd9d-440c-9368-baadd30d7de3: true
+    description: ""
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: ca5c09b2-d2b8-412d-9aa6-08707b53aba7
+source: Ongoing Effect
+guid: 482fe897-fd9d-440c-9368-baadd30d7de3
+id: 482fe897-fd9d-440c-9368-baadd30d7de3
+ctime: 1758155042439
+domains:
+  CharacterOngoingEffect:482fe897-fd9d-440c-9368-baadd30d7de3: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Demon Unleashed
+custom: true
+description: Until the end of the encounter or until you are dying, each enemy who starts their turn adjacent to you and has P < strong is frightened until the end of their turn.
+mtime: 1763253346753
+iconid: ui-icons/skills/1.png

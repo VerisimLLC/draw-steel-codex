@@ -1,0 +1,223 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  objectTarget: false
+  targetFilter: type = "Ooze"
+  repeatTargets: false
+  targetAllegiance: ally
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.365750432014465
+      s: 0.821288824081421
+      v: 0.851010859012604
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 33
+    docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: e4084e6a-bd57-48fa-b8b6-14657e8e8cd5
+  abilityType: none
+  iconid: b6c78c6e-ac58-437c-a83d-2549d06a5412
+  persistence: []
+  selfTarget: true
+  name: Liquefy
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94
+    durationUntilEndOfTurn: false
+    duration: 1
+    ongoingEffectCustom: false
+  description: One ooze in the encounter deforms and loses their color, becoming invisible and hidden until the start of their next turn. This effect ends early if the ooze takes damage or uses an ability.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  targetFilter: type = "Ooze"
+  repeatTargets: false
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.365168541669846
+      s: 0.820276498794556
+      v: 0.850980401039124
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 33
+    docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: f621a9a2-d2cf-434b-b493-457722a95e08
+  abilityType: none
+  numTargets: "1"
+  name: Congeal
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    hasTemporaryHitpoints: true
+    ongoingEffectCustom: 89229841-7787-43a7-b336-85f93170c863
+    ongoingEffect: 89229841-7787-43a7-b336-85f93170c863
+    applyto: caster
+    temporaryHitpoints: Stamina
+  - __typeName: ActivatedAbilityRemoveCreatureBehavior
+    applyto: targets
+  description: Two adjacent oozes combine into a larger ooze, with one ooze absorbed by the other. The remaining ooze increases their size by 1, gains a +1 bonus to speed, increases the potency of their potency effects by 1 (all to a maximum of 2), and gains temporary Stamina equal to the absorbed ooze's remaining Stamina.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 006e8403-6056-46d1-bd48-db8804433d39
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  targetFilter: type = "Ooze"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: Free Strike Damage
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 86de16a0-0c01-40cf-a926-7cd5ff6a50e2
+      castImmediately: true
+      targetType: all
+      name: Gush Melee Strike Damage
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      resourceNumber: ""
+      objectTarget: true
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          difficult_terrain: true
+          source: Gush Aura
+          guid: f842b65d-489f-467d-9006-eaf3b1e579b6
+          objectid: 64ba3b69-3e4c-4273-9148-902b006051ae
+          applyto: enemies
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          name: Gush Aura
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              targetType: self
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 675688d3-b9e8-4fcd-ad94-d8635d3fb64d
+              trigger: onenter
+              castImmediately: true
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                damageType: acid
+                roll: "3"
+              numTargets: "1"
+              name: Acid Damage at Start of Turn
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          description: Until the end of the encounter, the ground in the area is difficult terrain for enemies, and each enemy who enters the area for the first time in a round or starts their turn there takes 3 acid damage. The size of the area increases by 1 for each 2 additional Malice spent.
+          modifiers: []
+          implementation: 3
+        duration: eoe
+        aliveafterdeath: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1+Charges
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: ddb3adf2-8b65-4499-8ef2-10bcf0c788d9
+      numTargets: "1"
+      resourceCost: none
+      name: Gush Aura
+      targetType: all
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.365168541669846
+      s: 0.820276498794556
+      v: 0.850980401039124
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 33
+    docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+  range: "99"
+  abilityType: none
+  persistence: []
+  modifiers: []
+  channelIncrement: 2
+  strain: []
+  guid: a5b210b8-f484-424d-b072-1c31ecdf21bd
+  iconid: d6c20ac3-874d-4138-8987-7bf6a353238d
+  channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  numTargets: "1"
+  targetType: target
+  channelDescription: The size of the area increases by 1 for each 2 additional Malice spent.
+  name: Gush
+  selfTarget: true
+  description: One ooze in the encounter thrashes and sputters in a 1 burst, making a free strike against each enemy and object in the area. Until the end of the encounter, the ground in the area is difficult terrain for enemies, and each enemy who enters the area for the first time in a round or starts their turn there takes 3 acid damage. The size of the area increases by 1 for each 2 additional Malice spent.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+mtime: 1764201470714
+name: Ooze
+traits: []
+attacks: []
+id: 171c1ebf-ae57-4e86-bfd1-de9fdc4968f1
+ctime: 1758524844668

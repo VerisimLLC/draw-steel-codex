@@ -1,0 +1,83 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: b4246346-754c-4c43-9485-6c8fa4d7a21a
+  source: Ongoing Effect
+  filterAbility: Ability.Allegiance is enemy
+  behavior: modifyability
+  attributes:
+  - operation: targeting
+    value: ""
+    id: targettype
+    targeting: target
+  name: Caster and Allies are Your Allies
+  description: ""
+  guid: 6c592523-d6d9-4233-afc1-a45cb352d47a
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: ed76bb21-1276-4947-9b78-378457491abf
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: aeb7a0a0-3185-478a-81d1-a35861a71b08
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 04fc0d9c-95e2-43e8-a511-d4d3091d018d
+    persistence: []
+    conditionFormula: Trigger Name is savemadeCaster and Allies are Your Allies
+    subject: other
+    targetType: self
+    trigger: custom
+    name: Enemies are consider your allies
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 9d2101ec-d2c6-44c1-b4b8-23f0cb06f536
+  name: Enemies are consider your allies
+  sourceguid: aeb7a0a0-3185-478a-81d1-a35861a71b08
+source: Ongoing Effect
+guid: aeb7a0a0-3185-478a-81d1-a35861a71b08
+id: aeb7a0a0-3185-478a-81d1-a35861a71b08
+ctime: 1770265944208
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Enemies are consider your allies
+description: ""
+custom: true
+mtime: 1770266203031
+iconid: ui-icons/skills/1.png

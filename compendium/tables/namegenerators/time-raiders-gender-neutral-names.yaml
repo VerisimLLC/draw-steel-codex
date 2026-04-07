@@ -1,0 +1,49 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 5e683751-b2b9-4134-b338-eb41055ab480
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Jorut'or
+- __typeName: RollTableRow
+  id: b36858dd-290c-4ab2-8bbc-51b5d0c885a2
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Morp'phan
+- __typeName: RollTableRow
+  id: 45821081-6362-45d1-84d6-6759b9a07197
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Mot'tira
+- __typeName: RollTableRow
+  id: 2b9023bb-2085-49a4-911a-a5facdfb9958
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Sonit'ir
+- __typeName: RollTableRow
+  id: 0016c513-f637-4554-abc2-dfb1bb70e2ec
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Thir'rip
+id: eb35301e-c22a-4555-9e00-8a7fa0b8f89f
+name: Time Raiders Gender Neutral Names
+subtable: true
+mtime: 1743456102025
+items: false
+ctime: 1743446387733

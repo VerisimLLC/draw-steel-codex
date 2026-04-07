@@ -1,0 +1,197 @@
+__typeName: CharacterComplication
+drawback: At the start of any turn while you are winded, the Director can spend 1 Malice to force you to take your animal form. Once the Director has done so, they can’t do so again until you have finished a respite.
+mtime: 1765797856722
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: As a maneuver, you take the form of a specific animal of size 1T. You retain all your other statistics aside from your size, but you can’t talk or use main actions, and the only maneuvers you can use are Escape Grab, Hide, and Stand Up. Based on the animal you can turn into, you might be able to burrow or fly, or to automatically climb or swim at full speed while moving. If your animal form doesn’t provide such additional movement, you have a +2 bonus to speed.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 5cc0df8b-15d1-4112-8718-51cf9690826d
+      guid: 193f69b0-0789-44dc-86e8-a5ffa94dc399
+      source: Feat
+      behavior: activated
+      description: As a maneuver, you take the form of a specific animal of size 1T. You retain all your other statistics aside from your size, but you can’t talk or use main actions, and the only maneuvers you can use are Escape Grab, Hide, and Stand Up. Based on the animal you can turn into, you might be able to burrow or fly, or to automatically climb or swim at full speed while moving. If your animal form doesn’t provide such additional movement, you have a +2 bonus to speed.
+      name: Animal Form - Benefit
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityTransformBehavior
+          durationUntilEndOfTurn: false
+          duration: 1
+          ongoingEffectCustom: b43115d2-22ba-4c38-b251-117028b74e81
+          ongoingEffect: b049f79f-f1d9-491e-b5a9-d8b0848008ff
+          bestiaryFilter: beast.name = "Bird" or beast.name = "Fish" or (beast.name = "Rodent" and beast.keywords has "Green Animal Forms")
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.527500331401825
+            s: 0.769531488418579
+            v: 0.78983074426651
+            a: 1
+        sourceReference:
+          __typeName: SourceReference
+          page: 234
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        modifiers: []
+        domains: []
+        strain: []
+        guid: c6641326-c69f-4d0a-a096-abeac74faafc
+        numTargets: "1"
+        iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+        castImmediately: true
+        targetType: self
+        categorization: Ability
+        name: Animal Form
+        persistence: []
+        description: As a maneuver, you take the form of a specific animal of size 1T. You retain all your other statistics aside from your size, but you can’t talk or use main actions, and the only maneuvers you can use are Escape Grab, Hide, and Stand Up. Based on the animal you can turn into, you might be able to burrow or fly, or to automatically climb or swim at full speed while moving. If your animal form doesn’t provide such additional movement, you have a +2 bonus to speed.
+        abilityType: none
+        implementation: 3
+    source: Feat
+    canHavePrerequisites: true
+    guid: 5cc0df8b-15d1-4112-8718-51cf9690826d
+    name: Animal Form - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      description: As a maneuver, you take the form of a specific animal of size 1T. You retain all your other statistics aside from your size, but you can’t talk or use main actions, and the only maneuvers you can use are Escape Grab, Hide, and Stand Up. Based on the animal you can turn into, you might be able to burrow or fly, or to automatically climb or swim at full speed while moving. If your animal form doesn’t provide such additional movement, you have a +2 bonus to speed.
+      sourceguid: 5cc0df8b-15d1-4112-8718-51cf9690826d
+      behavior: trigger
+      source: Feat
+      resourceRefreshType: long
+      guid: ef7889f1-fe03-4d97-b340-0f8fc1634f42
+      name: Animal Form - Benefit
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        resourceNumber: 1
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: ""
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: true
+        range: 1
+        usageLimitOptions:
+          resourceRefreshType: long
+          charges: "1"
+          resourceid: ef7889f1-fe03-4d97-b340-0f8fc1634f42
+        persistence: []
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: d6459cc0-d888-4d49-a365-e1a6ff45abaf
+        trigger: beginturn
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          customAbility:
+            __typeName: ActivatedAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 9dd352f7-6a80-4f45-9417-31f0c90bda3a
+            repeatTargets: false
+            abilityType: none
+            castImmediately: true
+            targetType: self
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              namedAbility: Animal Form
+              promptText: Spend 1 Malice to force Hero into their Animal Form. This cannot be used again until the hero has finished a respite.
+              guid: 1a2b36f4-a967-451d-9937-900ae0f3e390
+              abilityType: custom
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: e51d9f13-3262-48d6-8eb5-07a6073a2aa7
+                repeatTargets: false
+                abilityType: none
+                castImmediately: true
+                targetType: self
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    modifyDescription: ""
+                    source: ""
+                    filterAbility: Ability.Name = "Animal Form"
+                    behavior: modifyability
+                    guid: 0331d7d0-841b-4003-98ec-cbaaa02b2f59
+                    name: Modify Attack
+                    attributes: []
+                    description: ""
+                    cannotModifyAction: true
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      guid: 267ec8a3-a8fa-473e-be6b-b5390abe3dbb
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors: []
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+            name: Invoked Ability
+            numTargets: "1"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          promptText: Spend 1 Malice to force Hero into their Animal Form. This cannot be used again until the hero has finished a respite.
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          mode: expend
+        conditionFormula: (not Self.Ongoing Effects has "Animal Form")  and Self.Winded
+        castImmediately: true
+        numTargets: "1"
+        name: Animal Form - Drawback
+        subject: any
+        description: ""
+        resourceCost: none
+        iconid: ui-icons/skills/1.png
+    source: Feat
+    canHavePrerequisites: true
+    guid: c13c82fe-07c8-4d7b-9d19-4c70221e5fcd
+    name: Animal Form - Drawback
+    implementation: 3
+name: Animal Form
+ctime: 1755510879799
+description: Due to a magical accident, your being has fused with that of a small, harmless animal. You turn into this animal when it’s convenient—and sometimes when it’s inconvenient as well.
+id: d059cf60-9222-4a76-a0be-612822435644
+benefit: 'As a maneuver, you take the form of a specific animal of size 1T. You retain all your other statistics aside from your size, but you can’t talk or use actions, and the only maneuvers you can use are Escape Grab, Hide, and Stand Up. Based on the animal you can turn into, you might be able to burrow or fly, or to automatically climb or swim at full speed while moving. If your animal form doesn’t provide such additional movement, you have a +2 bonus to speed. Unless you use this benefit again, you return to your true form at the start of your next turn. '

@@ -1,0 +1,177 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: e27d3fcd-19e8-4941-af23-ce8dffa7b833
+    offtokenPortraitId: 24b2388f-ba5a-4bc9-a8fa-bf5026a46ee2
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2816248
+    portraitOffset:
+      x: -0.07070971
+      y: 0.1700775
+    frameHueShift: 0.5903172
+    frameSaturation: 0.6470588
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d49830e3-d6b6-469c-90a7-989540ca32e0
+  properties:
+    __typeName: follower
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    stability: 1
+    cr: 1
+    skillProficiencies: []
+    role: Follower Artillery
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Wode Elf: true
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    initiativeGrouping: 04573eaa-5b4f-4c47-974c-3ff9ff01d752
+    followerType: retainer
+    availableRolls: 0
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: mgt
+    monster_type: Wode Elf Arrowswift
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    availableTriggers: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f636bcbf-af97-44f8-b968-c89f2db3f5fc: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f636bcbf-af97-44f8-b968-c89f2db3f5fc
+        displayCondition: ""
+        source: Character Feature
+        modtype: bane
+        keywords: []
+        activationCondition: false
+        domains:
+          CharacterFeature:f636bcbf-af97-44f8-b968-c89f2db3f5fc: true
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the arrowswift that would take a bane from cover or concealment have a double bane instead.
+        guid: d5eb5635-b150-451e-a42e-67f97c855959
+        behavior: power
+      source: Character Feature
+      description: Abilities targeting the arrowswift that would take a bane from cover or concealment have a double bane instead.
+      guid: f636bcbf-af97-44f8-b968-c89f2db3f5fc
+      name: Masking Glamor
+      implementation: 2
+    levelChoices: []
+    max_hitpoints: 10
+    resources: []
+    walkingSpeed: 7
+    monster_category: Monster
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 363
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 20 when mode = 2 else 15
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Normal Range
+      - rules: The arrowswift can take a bane on this ability to gain a +5 bonus to ranged distance.
+        text: +5 Range
+      categorization: Signature Ability
+      guid: d3831f05-3c66-4bf1-b790-53049c6ab4a3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage
+        - 10 damage
+        roll: 2d10 + Highest Characteristic
+        modifiers:
+        - text: +5 Range
+          type: bane
+          details: The arrowswift can take a bane on this ability to gain a +5 bonus to ranged distance.
+          condition: Mode = 2	
+      numTargets: "1"
+      name: Longshot
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: The arrowswift can take a bane on this ability to gain a +5 bonus to ranged distance.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    damage_taken: 0
+    minion: false
+    opportunityAttack: 2
+    retainer: true
+    savingThrowRatings: []
+  tokenType: null
+  bestiaryId: b1e61b0c-d699-4ffe-ae0e-a034b6baff94
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1763785748309
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 5
+ctime: 1763785748309
+mtime: 1775167450899
+hidden: false

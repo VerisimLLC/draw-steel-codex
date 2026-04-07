@@ -1,0 +1,217 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1f8c39aa-28b8-4e62-9cba-c07ae353c712
+    offtokenPortraitId: 1e9d1ff7-d7f7-4dfa-ad64-19f666556f63
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 65e7599a-7d87-4b1d-bf6e-1417c1a1795d
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.356586
+    portraitOffset:
+      x: -0.08711278
+      y: 0.1608852
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 4375199b-508d-425c-988d-6b9aac0fe005
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f3e6132a-fdef-4f6e-9a7e-965aa2088697: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:f3e6132a-fdef-4f6e-9a7e-965aa2088697: true
+        sourceguid: f3e6132a-fdef-4f6e-9a7e-965aa2088697
+        description: If the charger is reduced to 0 Stamina, they can make a free strike before dying. If the target of the free strike is reduced to 0 Stamina, the charger is reduced to 1 Stamina instead.
+        source: Character Feature
+        name: Relentless
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: ae3b1de3-cae7-4e2f-ae32-8378e76a3c74
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: self
+          numTargets: "1"
+          name: Relentless
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              cannotModifyAction: true
+              filterAbility: Ability.Usable as Free Strike
+              behavior: modifyability
+              guid: 378d2760-383a-4326-a343-011a0278ae05
+              attributes: []
+              source: ""
+              description: ""
+              name: Modify Attack
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                strain: []
+                guid: e5f42340-a29b-4dcb-976b-2bd78c3b359a
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                behaviors:
+                - __typeName: ActivatedAbilityHealBehavior
+                  applyto: caster
+                  filterTarget: Cast.Primary Target.Stamina <= 0
+                  roll: "1"
+                abilityType: none
+                name: New Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: abb1048b-e538-499f-a0eb-fc23956408c1
+      source: Character Feature
+      description: If the charger is reduced to 0 Stamina, they can make a free strike before dying. If the target of the free strike is reduced to 0 Stamina, the charger is reduced to 1 Stamina instead.
+      guid: f3e6132a-fdef-4f6e-9a7e-965aa2088697
+      name: Relentless
+      implementation: 2
+    role: Follower Harrier
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Orc: true
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    skillProficiencies: []
+    followerType: retainer
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    monster_type: Orc Charger
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    availableTriggers: []
+    minion: false
+    levelChoices: []
+    max_hitpoints: 10
+    resources: []
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    initiativeGrouping: 522c0155-8a78-4458-8e47-efd21938c518
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Charge: true
+        Weapon: true
+        Strike: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + Highest Characteristic
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 370
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "5"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 13b30a70-a2e7-473a-be9f-13156b142de6
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Notched Axe
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    monster_category: Monster
+    damage_taken: 0
+    opportunityAttack: 3
+    walkingSpeed: 8
+    retainer: true
+  tokenType: null
+  bestiaryId: 464c75a3-49cc-4720-b4bf-cf6a47552b27
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1763825816721
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 11
+ctime: 1763825816721
+mtime: 1775167458723
+hidden: false

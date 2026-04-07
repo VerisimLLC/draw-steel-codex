@@ -1,0 +1,27 @@
+__typeName: ActivatedAbility
+id: 436b4dd1-77f9-4d83-9665-4a42c301e464
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+  ongoingEffectCustom: false
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "10"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 08b2c6a2-1105-4d80-9c77-3c13f90ad6f1
+ctime: 1746382608782
+targetType: target
+numTargets: "1"
+mtime: 1771155242123
+name: Tactician Apply Mark
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

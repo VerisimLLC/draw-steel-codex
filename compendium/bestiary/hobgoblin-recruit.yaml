@@ -1,0 +1,182 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 564aca01-64ce-4813-93b5-382d05590ffe
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.8901568
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.840712
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: bbb331b4-3d0b-462a-9d44-eed7de930439
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Recruit	Level 4 Minion Brute
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 6 for four minions
+        <b>Stamina</b> 9	<b>Immunity</b> fire 2
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Stamina +4<b>Free Strike</b> 3
+        Might +3	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Sword Lunge</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 damage
+        %E2%9C%B8	<b>17</b>	7 damage; grabbed or prone
+
+        <b>Tactical Positioning</b>
+        A non-minion ally deals 1 additional damage for each adjacent recruit.
+
+        <b>Infernal Ichor</b>
+        If the recruit's Stamina drops to 0, they spray burning blood. Each creature within 1 of the recruit takes 2 fire damage.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:763f46da-4818-420f-9544-a8c593e75787: true
+      modifiers: []
+      name: Tactical Positioning
+      description: A non-minion ally deals 1 additional damage for each adjacent recruit.
+      guid: 763f46da-4818-420f-9544-a8c593e75787
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9c620a39-5bcb-461b-b00a-3d5d594d3d62: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the recruit's Stamina drops to 0, they spray burning blood. Each creature within 1 of the recruit takes 2 fire damage.
+      guid: 9c620a39-5bcb-461b-b00a-3d5d594d3d62
+      source: Trait
+    role: Minion Brute
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "9"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 3
+    walkingSpeed: 5
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 3
+        id: mgt
+    monster_type: Hobgoblin Recruit
+    squadpos:
+      y: 13.4234619140625
+      x: -17.4820263671875
+    withCaptain: +4 bonus to Stamina
+    equipment: []
+    damage_taken: 0
+    levelChoices: []
+    resources: []
+    max_hitpoints: 9
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b81164c9-7f21-40d5-8db3-cfe7db4512b2
+      implementation: 4
+      numTargets: 1
+      name: Sword Lunge
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage; grabbed or prone
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    movementSpeeds: []
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    minion: true
+    monster_category: Monster
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 3fed1506-40b0-453c-a992-c3bf996ce600
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Hobgoblin Recruit
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590242816
+mtime: 1775201137032
+hidden: false

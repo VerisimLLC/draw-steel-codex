@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "0"
+category: Forced Movement
+name: NoDamageFromForcedMovementWithObjects
+documentation: Turning this on will make a creature no longer take damage from forced movement into an object.
+mtime: 1758843187181
+id: 9148519f-9fb4-4b2b-9d3e-98f88c56bab8
+ctime: 1758843187181

@@ -1,0 +1,75 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 33e00754-48eb-485a-9db5-53651ff62ee8
+ctime: 1763576639042
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      * The [goblin stinker] becomes the [goblin toxinaut].
+    W: |
+      * The [goblin cursespitter] becomes the [goblin deathtongue].
+    u: |
+      * The **goblin cursespitter** is the **goblin deathtongue**.
+    S: |
+      The mystic goblins are transformed versions of the following goblins:
+    Q: |
+      #### Transformed
+    q: |+
+      * The **goblin underboss** is the **goblin mastermind**.
+
+
+    o: |
+      * The **goblin assassin** is the **goblin shadowknife**.
+    m: |+
+      If the heroes have finished **one** respite since learning Queen Bargnot has the cup, replace the following stat blocks in each encounter in the castle:
+
+    M: |+
+      Imbued with the power of the Cup of Iulius, these goblins have become supercharged soldiers. They've grown larger and now embody the might of the warriors of old. 
+
+    E: |+
+      # Goblin Replacements
+
+    K: |+
+      ## Mystic Goblins
+
+    i: |
+      * The **goblin warrior** is the **goblin battleborn**.
+    I: |+
+      The encounters are written as if the heroes are in possession of the [item:Cup of Iulius]. If the goblins have the cup, then Queen Bargnot slowly transforms her force from regular goblins to magically enhanced warriors.
+
+
+    w: |+
+      * The **goblin stinker** is the **goblin toxinaut**.
+
+
+    g: |+
+      If the heroes **haven’t** finished any respites since learning Queen Bargnot has the cup, replace the following  stat blocks in each encounter in the castle:
+
+    U: |
+      * The [goblin assassin] becomes the [goblin shadowknife].
+    e: |+
+      * Queen Bargnot, who originally used the [goblin monarch] stat block, becomes [Mystic Queen Bargnot].
+
+
+
+    k: |+
+      * Queen Bargnot, who uses the **goblin monarch** stat block, instead uses **Mystic Queen Bargnot**.
+
+
+    c: |
+      * The [goblin warrior] becomes the [goblin battleborn].
+    s: |+
+      If the heroes have finished **two** respites since learning Queen Bargnot has the cup, replace the following stat blocks in each encounter in the castle:
+
+    a: |
+      * The [goblin underboss] becomes the [goblin mastermind].
+    O: |+
+      Queen Bargnot already leads an imposing number of goblins within the Jagged Edge. If enough of them were to sip from the sacred cup, she could claim the entire region. 
+
+
+parentFolder: 67c70371-8ca6-4d14-bef4-13eaf5753bc6
+updateid: f71e056f-a04f-4609-a631-cae409085498
+description: Goblin Replacements
+content: ""
+mtime: 1763656692302

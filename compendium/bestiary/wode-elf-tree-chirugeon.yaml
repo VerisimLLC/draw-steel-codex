@@ -1,0 +1,197 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e6a4a44e-7392-41b7-a93f-cc322f715894
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 2
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Tree Chirugeon	Level 2 Harrier
+        Fey, Humanoid, Wode Elf	EV 16
+        <b>Stamina</b> 40
+        <b>Speed </b>7	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>Free Strike</b> 4
+        Might +1	Agility +2	Reason 0	Intuition 0	Presence +0
+        <b>Wild Ax</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage; push 1
+        %E2%98%85	<b>12%E2%80%9316</b>	9 damage; push 3
+        %E2%9C%B8	<b>17</b>	12 damage; push 5
+        <b>Effect</b> The tree chirugeon can make a ranged free strike before using this ability.
+        <b>5 Malice</b> The tree chirugeon uses this ability again.
+
+        <b>The Wode Protects Us</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self and Ranged 5<b>Target</b> Self and 3 allies
+        <b>Effect</b> Each target teleports to a square within 10 that has cover or concealment from all enemies.
+
+        <b>Masking Glamor</b>
+        The tree chirugeon immediately hides at the end of their turn while in cover or concealment, even if they are observed.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d51bfb65-a346-4e59-b22f-363d9072db79: true
+      modifiers: []
+      name: Masking Glamor
+      description: The tree chirugeon immediately hides at the end of their turn while in cover or concealment, even if they are observed.
+      guid: d51bfb65-a346-4e59-b22f-363d9072db79
+      source: Trait
+    role: Harrier
+    inflictedConditions: []
+    keywords:
+      Elf: true
+      Wode Elf: true
+      Fey: true
+      Humanoid: true
+      Wode: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    monster_type: Wode Elf Tree Chirugeon
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 40
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Charge: true
+        Weapon: true
+        Strike: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; push 1
+        - 9 damage; push 3
+        - 12 damage; push 5
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: da0ac417-5db2-4881-9e65-1ed8245cb934
+      meleeRange: 1
+      numTargets: 1
+      targetType: target
+      name: Wild Ax
+      iconid: ui-icons/skills/1.png
+      description: The tree chirugeon can make a ranged free strike before using this ability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 0bb84bbd-da5e-4253-b0ce-c1ad1f9ca376
+      abilityType: none
+      numTargets: 3
+      implementation: 0
+      name: The Wode Protects Us
+      behaviors: []
+      description: Each target teleports to a square within 10 that has cover or concealment from all enemies.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    movementSpeeds: []
+    ev: 16
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: bcd14a10-0f24-4801-b831-2a72c20da5fd
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Wode Elf Tree Chirugeon
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590301312
+mtime: 1775201137032
+hidden: false

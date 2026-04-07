@@ -1,0 +1,48 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 779773a4-af47-4ad0-8960-304ce078bf3a
+  source: Ongoing Effect
+  seq: 06eae76e-315f-41e0-b338-57831c43168b
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 03c13905-aac0-4da7-8c02-5ac01417ee93
+      source: Aura
+      behavior: power
+      keywords: []
+      activationCondition: true
+      name: Behold a Shield of Faith
+      guid: 3c21c172-c4b6-497f-80f2-81926d3bcd4f
+      description: Enemies take a bane on ability rolls made again you or any ally adjacent to you
+      modtype: bane
+      rollType: enemy_ability_power_roll
+    name: Behold a Shield of Faith
+    guid: 03c13905-aac0-4da7-8c02-5ac01417ee93
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+  radius: "1"
+  guid: adb64a21-951f-4698-9819-7e021f805a74
+  description: Enemies take a bane on ability rolls made again you or any ally adjacent to you
+  behavior: aura
+  name: Shield of Faith
+source: Ongoing Effect
+guid: 779773a4-af47-4ad0-8960-304ce078bf3a
+id: 779773a4-af47-4ad0-8960-304ce078bf3a
+ctime: 1756434676309
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Shield of Faith
+description: Enemies take a bane on ability rolls made again you or any ally adjacent to you
+custom: true
+mtime: 1756434676309
+iconid: ui-icons/skills/1.png

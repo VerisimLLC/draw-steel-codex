@@ -1,0 +1,50 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 1be6e0ad-56e6-44b3-9fbd-eaa39cdef6e9
+projectpoints: "120"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Farmer Career Feature
+      behavior: proficiency
+      description: You have the Handle Animals skill.
+      equate: false
+      name: Handle Animals Skill
+      sourceguid: 982689c1-972b-40eb-9e46-f9154b5ff185
+      proficiency: proficient
+      guid: 62cf7819-5529-46e0-90c7-6fce5f7110fe
+      skills:
+        ff54a691-e0a0-4246-8ceb-7975b8826e92: true
+    name: Handle Animals Skill
+    description: You have the Handle Animals skill.
+    guid: 982689c1-972b-40eb-9e46-f9154b5ff185
+    source: Farmer Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      exploration: true
+    numChoices: 2
+    source: Farmer Career Feature
+    description: "Choose two Exploration Skills. (Quick Build: Drive, Lift)"
+    guid: 83bd168d-ccf5-4075-83d7-93933c011387
+    name: Farmer Exploration Skills
+    individualSkills: []
+  - __typeName: CharacterLanguageChoice
+    guid: 86ef28fd-2e84-44f4-81a1-d781f35d3757
+    source: Farmer Career Feature
+    name: Farmer Language
+  - __typeName: CharacterFeatChoice
+    guid: a3ef0649-6987-4277-92a3-1ca59fb215ae
+    description: "Choose one exploration perk. (Quick Build: Monster Whisperer)"
+    tag: exploration perks
+    name: Farmer Exploration Perk
+name: Farmer
+mtime: 1768796301457
+description: "You grew crops or cared for livestock. In defining your career, think about the following questions: \n\nDid you own the land you farmed, or did you farm for another? \n\nWhat crops or livestock did you cultivate? \n\nWho else worked on the farm with you? \n\nWhat ill omen did you witness that caused you to have a poor season of farming? "
+id: 09ed87b8-d480-48f3-80c2-104e3e229ce1
+ctime: 1730559789366

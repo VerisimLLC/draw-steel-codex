@@ -1,0 +1,51 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 14756b49-ec40-4b57-8d11-ef41257dfe63
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 5c5cd853-e5c2-406f-b39a-a37515a9094b
+  choiceName: Polder Masculine
+  id: ecf28a4b-4bf2-4af3-b3a4-d76ef7b8e039
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 2431b16c-8c0d-4339-9981-06e63e4318c7
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 5c5cd853-e5c2-406f-b39a-a37515a9094b
+  choiceName: Polder Gender Neutral
+  id: d6175134-f968-4b07-8302-6902e4d2c0b7
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 9f32601b-ff11-412d-8b2f-f63806d3f2fb
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 5c5cd853-e5c2-406f-b39a-a37515a9094b
+  choiceName: Polder Feminine
+  id: 6bfa73df-21c3-424b-b265-479c9c70d353
+id: 10f375b4-a93b-433a-85fe-2c5eeca1547e
+rollType: namedChoice
+name: Polder Full Name
+mtime: 1743455949973
+items: false
+ctime: 1743455681917

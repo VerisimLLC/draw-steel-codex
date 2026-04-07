@@ -1,0 +1,236 @@
+__typeName: CharacterOngoingEffect
+association: []
+sustainFormula: ""
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:6d288411-d1f6-4df3-ae6c-7d4a3af48fc6: true
+  sourceguid: 6d288411-d1f6-4df3-ae6c-7d4a3af48fc6
+  description: ""
+  source: Ongoing Effect
+  name: Divine Dragon
+  behavior: activated
+  guid: 26761b74-43d5-42f9-b682-b80e51a02fae
+  activatedAbility:
+    __typeName: ActivatedAbility
+    targetFilter: name = "Divine Dragon"
+    repeatTargets: false
+    implementationDetails: Use this ability to command the dragon. There is a mode for each command available.
+    behaviors: []
+    multipleModes: variations
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.638249754905701
+        s: 0.795897960662842
+        v: 0.919514536857605
+        a: 1
+    sourceReference:
+      __typeName: SourceReference
+      page: 110
+      docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 99f092fb-ab71-4e40-bde1-217d609f17e8
+    modeList:
+    - variation:
+        __typeName: ActivatedAbility
+        targetFilter: Name = "Divine Dragon"
+        repeatTargets: false
+        targetType: map
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Ability
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: cf6c9eb2-701e-44d3-839b-923b065502d1
+        actionResourceId: none
+        domains: []
+        castImmediately: false
+        iconid: ui-icons/skills/1.png
+        persistence: []
+        name: Command Divine Dragon
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          namedAbility: Breathe Fire
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 8d1079d1-1852-4123-b313-498665132d92
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: named
+          runOnController: true
+        - __typeName: ActivatedAbilityReplenishBehavior
+          applyto: caster
+          mode: expend
+          resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        description: Command the dragon to breathe magic fire in a 3 cube within 1 square of them.
+        abilityType: none
+        implementation: 3
+      text: Breathe Fire
+      hasAbility: true
+      rules: Command the dragon to breathe magic fire in a 3 cube within 1 square of them.
+    - variation:
+        __typeName: ActivatedAbility
+        targetFilter: Name = "Divine Dragon"
+        repeatTargets: false
+        targetType: map
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Ability
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: b2d432e5-b1cf-4401-8424-5b88369ca23a
+        actionResourceId: none
+        domains:
+          CharacterOngoingEffect:6d288411-d1f6-4df3-ae6c-7d4a3af48fc6: true
+        castImmediately: true
+        iconid: 2c2b1cb9-6ba0-46f7-b133-07a5d8e8d87e
+        persistence: []
+        name: Command Divine Dragon
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 29c226f3-b371-40d6-80c1-134fe370f2c4
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          runOnController: true
+          standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+          abilityType: standard
+        - __typeName: ActivatedAbilityReplenishBehavior
+          applyto: caster
+          guid: ca85389c-b612-4511-b60d-7cacc48b3c5b
+          resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          mode: expend
+        description: Move the Dragon up to their speed
+        abilityType: none
+        implementation: 3
+      text: Move Speed
+      hasAbility: true
+      rules: Move the Dragon up to their speed
+    - variation:
+        __typeName: ActivatedAbility
+        targetFilter: Name = "Divine Dragon"
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          namedAbility: Divine Dragon Melee Strike
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: c2d08121-f2c2-4bfe-a187-bfcc7e3964b8
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: named
+          runOnController: true
+        - __typeName: ActivatedAbilityReplenishBehavior
+          applyto: caster
+          guid: f351e7e8-d50f-4edb-98b0-8acd93627566
+          resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          mode: expend
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Ability
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: e18d6343-87e9-4776-891c-54a37d58adf2
+        targetType: map
+        domains:
+          CharacterOngoingEffect:6d288411-d1f6-4df3-ae6c-7d4a3af48fc6: true
+        iconid: 2c2b1cb9-6ba0-46f7-b133-07a5d8e8d87e
+        persistence: []
+        name: Command Divine Dragon
+        actionResourceId: none
+        description: Command the dragon to make a melee weapon strike with their claw against adjacent creature or object
+        abilityType: none
+        implementation: 3
+      text: Make Melee Weapon Strike
+      hasAbility: true
+      rules: Command the dragon to make a melee weapon strike with their claw against adjacent creature or object
+    targetType: map
+    domains:
+      CharacterOngoingEffect:6d288411-d1f6-4df3-ae6c-7d4a3af48fc6: true
+    castImmediately: true
+    iconid: 2c2b1cb9-6ba0-46f7-b133-07a5d8e8d87e
+    name: Command Divine Dragon
+    persistence: []
+    description: You can use a main action to command the dragon to breathe magic fire in a 3 cube within 1 square of them. Additionally, you can use a maneuver to move the dragon up to their speed, or to make a melee weapon strike with their claw against an adjacent creature or object.
+    abilityType: none
+    implementation: 3
+source: Ongoing Effect
+endTrigger: dying
+guid: 6d288411-d1f6-4df3-ae6c-7d4a3af48fc6
+id: 6d288411-d1f6-4df3-ae6c-7d4a3af48fc6
+ctime: 1770210168405
+domains:
+  CharacterOngoingEffect:6d288411-d1f6-4df3-ae6c-7d4a3af48fc6: true
+description: ""
+mtime: 1770212220121
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+statusEffect: false
+custom: true
+name: Divine Dragon
+iconid: ui-icons/skills/1.png

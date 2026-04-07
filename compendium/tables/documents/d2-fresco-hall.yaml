@@ -1,0 +1,129 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 7ef8b2fa-3403-4a0c-b55e-5041ca126069
+ctime: 1758059083745
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Gp: "*When the trap is active, the game will freeze when players walk onto it.*\v\v[[/activateobjects trap_area.AreaTemplate activate|Show Trap Area]] [[/activateobjects trap_area.AreaTemplate deactivate|Hide Trap Area]]\v*The players cannot see this red square, and you can hide it when the trap is deactivated.* \n\n}\n \n\n"
+    g: |
+      |Dodge the Scythe Trap: Agility Test
+    Ge: |2
+
+    M: |
+      |Find the Scythe Trap: Reason or Intuition Test
+    GM: |+
+      [[/objectcommand scythe_trap Start; objectcommand scythe_trap playsound;delay 0.5; delay 0.5;|Scythe Trap!]] 
+
+    Y: |
+      |{#The hero triggers the trap.}
+    C: |
+      > * “Frescoes on the wall of this narrow hall show a fallen knight and a large silver chalice being carried by a procession of warriors into a tomb carved with the name ‘Delius’ atop its entrance.”
+    W: |
+      |Disarm the Scythe Trap: Agility Test
+    S: |+
+      |{#The hero finds the pressure plate and can disarm the trap without making a second test.}
+
+    u: |
+      |**Getting Creative With Traps**|
+    e: |+
+      If a creature triggers the trap, each creature standing on the ground in a space that could trigger the trap must make an Agility test as a blade emerges from the slit in the walls and slices across their space.
+
+    s: |+
+      The trap automatically resets once it is triggered. A hero who witnesses the trap being triggered has an edge on tests made to interact with it. The player can click on the 'edge' button when making the roll to apply this.
+
+
+
+    w: "|Traps allow heroes a chance to get creative with their problemsolving skills. This adventure outlines what we think is the most obvious way to deal with the bladed scythe and other traps in this adventure, but the players might come up with other solutions for solving problems that seem like they should work. For example, instead of disarming the trap, the heroes might decide to leap back and forth over the pressure plate, carrying the weaker members of their party who can’t jump more than 1 square or crawl under the slit in the wall where the blade emerges. Allow the players to attempt these creative solutions to problems and call for a test only when necessary. Good ideas just work without a test!|"
+    Q: |
+      |{#The hero finds the pressure plate and notices a slit in the wall.}
+    O: |
+      |{#The hero steps on the pressure plate and triggers the trap while searching for it. Since they were approaching cautiously, they have an edge on the test made to dodge out of the way of the trap.}
+    GU: |
+      [[/activateobjects d2_pressure_plate.PressurePlate activate| Activate Trap]] [[/activateobjects d2_pressure_plate.PressurePlate deactivate|Deactivate Trap]]
+    o: |
+      |**Damage In The Codex**|
+    m: |+
+      |{#The hero takes 4 damage.}
+
+    q: |+
+      |To manually apply damage to one or muliple characters, select them and type the value into the **Damage** field. To select multiple, drag a box around them while you have the character panel open. You can also see a log of a creatures stamina by hovering your mouse cursor over their **Current Stamina**. |
+
+    k: |
+      |{#The hero takes 6 damage.}
+    L: |+
+      *Click on the heading of the applicable roll and then select which hero to prompt.*
+
+    i: |
+      |{#The hero takes 7 damage.}
+    J: |
+      A hero who actively looks for a trap can make a Reason or Intuition test. 
+    G: |
+      {*When a player tokens moves onto the trap the game will automatically freeze, allowing you time to request the relevant roll, and to activate the trap!*
+    H: |
+      ## Trap: Bladed Scythe
+    E: |+
+      {**Secret:** The hall contains a scythe trap that springs from a thin horizontal slit in the southern wall that is 30 inches high and triggered by a pressure plate (shown on the Delian Tomb First Level map). The goblins discovered this trap the hard way and know to duck when moving by the trap to avoid getting their heads cut off.}
+
+    U: |+
+      If a hero notices the trap, they can attempt to disarm it by wedging a thin, sturdy object, like a dagger, under the plate to prevent it from depressing. The hero doing this must make an Agility test.
+
+    c: |+
+      |{#The hero disarms the trap.}
+
+    D: |+
+      > * “The head of a goblin lies on the floor, next to the presumably matching corpse.”
+
+
+    a: |
+      |{#The hero fails to disarm the trap but doesn’t trigger it.}
+    B: |+
+      # D2. Fresco Hall
+
+
+parentFolder: 8e307759-fe9b-408a-bb88-34f90e1fe01b
+updateid: 820cec1f-5bea-46b3-844b-f5222181ea93
+description: D2. Fresco Hall
+content: |-
+  # D2. Fresco Hall
+
+
+  > * “Frescoes on the wall of this narrow hall show a fallen knight and a large silver chalice being carried by a procession of warriors into a tomb carved with the name ‘Delius’ atop its entrance.”
+  > * “The head of a goblin lies on the floor, next to the presumably matching corpse.”
+
+
+  {**Secret:** The hall contains a scythe trap that springs from a thin horizontal slit in the north wall that is 30 inches high and triggered by a pressure plate (shown on the Delian Tomb First Level map). The goblins discovered this trap the hard way and know to duck when moving by the trap to avoid getting their heads cut off.}
+
+  ## Trap: Bladed Scythe
+  A hero who actively looks for a trap can make a Reason or Intuition test. 
+  *Click on the heading of the applicable roll and then select which hero to prompt.*
+
+  |Find the Scythe Trap: Reason or Intuition Test
+  |{#The hero steps on the pressure plate and triggers the trap while searching for it. Since they were approaching cautiously, they have an edge on the test made to dodge out of the way of the trap.}
+  |{#The hero finds the pressure plate and notices a slit in the wall.}
+  |{#The hero finds the pressure plate and can disarm the trap without making a second test.}
+
+  If a hero notices the trap, they can attempt to disarm it by wedging a thin, sturdy object, like a dagger, under the plate to prevent it from depressing. The hero doing this must make an Agility test.
+
+  |Disarm the Scythe Trap: Agility Test
+  |{#The hero triggers the trap.}
+  |{#The hero fails to disarm the trap but doesn’t trigger it.}
+  |{#The hero disarms the trap.}
+
+  If a creature triggers the trap, each creature standing on the ground in a space that could trigger the trap must make an Agility test as a blade emerges from the slit in the walls and slices across their space.
+
+  |Dodge the Scythe Trap: Agility Test
+  |{#The hero takes 7 damage.}
+  |{#The hero takes 6 damage.}
+  |{#The hero takes 4 damage.}
+
+  |**Damage In The Codex**|
+  |To manually apply damage to one or muliple characters, select them and type the value into the Damage field.|
+
+  The trap automatically resets once it is triggered. A hero who witnesses the trap being triggered has an edge on tests made to interact with it. The player can click on the 'edge' button when making the roll to apply this.
+
+
+
+  |**Getting Creative With Traps**|
+  |Traps allow heroes a chance to get creative with their problemsolving skills. This adventure outlines what we think is the most obvious way to deal with the bladed scythe and other traps in this adventure, but the players might come up with other solutions for solving problems that seem like they should work. For example, instead of disarming the trap, the heroes might decide to leap back and forth over the pressure plate, carrying the weaker members of their party who can’t jump more than 1 square or crawl under the slit in the wall where the blade emerges. Allow the players to attempt these creative solutions to problems and call for a test only when necessary. Good ideas just work without a test!|
+mtime: 1774901897580

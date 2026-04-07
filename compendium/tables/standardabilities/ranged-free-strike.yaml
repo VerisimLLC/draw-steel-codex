@@ -1,0 +1,33 @@
+__typeName: ActivatedAbility
+objectTarget: true
+repeatTargets: false
+keywords:
+  Ranged: true
+  Strike: true
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Basic Attack
+range: 5
+description: ""
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 8c0c9118-1554-4b79-9bf6-64352c89f71a
+id: 0ca5fc04-6068-4f47-b5c6-936d3a595f24
+ctime: 1715748044543
+actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+numTargets: "1"
+implementation: 4
+name: Ranged Free Strike
+behaviors:
+- __typeName: ActivatedAbilityDamageBehavior
+  roll: 2*Charges
+  chatMessage: ""
+mtime: 1771254822264
+abilityType: none
+iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9

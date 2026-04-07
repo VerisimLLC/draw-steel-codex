@@ -1,0 +1,1477 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727069166029
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7caa5397-d3ee-4c5d-a388-a480a44a586e
+        source: College of Black Ash Class Feature
+        value: 1
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Cinder Step
+        guid: dbae7c16-0c8c-4dac-9e3f-c47322b2b52c
+        description: Whenever you willingly move, you can teleport. When you teleport this way, it counts as using a shadow ability for the purpose of using your Burning Ash and Trail of Cinders features.
+        behavior: attribute
+        attribute: teleport
+      - __typeName: CharacterModifier
+        text: "Cinder Step: Whenever you willingly move, you can teleport."
+        sourceguid: 7caa5397-d3ee-4c5d-a388-a480a44a586e
+        source: College of Black Ash Class Feature
+        guid: 8e4fb1b9-c433-4d3b-acaa-b78eacb7f6fe
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Cinder Step
+        description: Whenever you willingly move, you can teleport. When you teleport this way, it counts as using a shadow ability for the purpose of using your Burning Ash and Trail of Cinders features.
+        behavior: movementtext
+        color: green
+      source: College of Black Ash Class Feature
+      guid: 7caa5397-d3ee-4c5d-a388-a480a44a586e
+      domains:
+        class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: d5b2e07d-657a-4405-899a-7fed0771f184
+      description: Whenever you willingly move, you can teleport. When you teleport this way, it counts as using a shadow ability for the purpose of using your Burning Ash and Trail of Cinders features.
+      name: Cinder Step
+      implementation: 3
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 42fbd898-0f3f-461a-b1c7-41e11c90b286
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: f70922f7-d381-4945-b215-4de623fb4958
+        description: In a swirl of black ash, you step from one place to another.
+        source: College of Black Ash Class Feature
+        name: Black Ash Teleport
+        behavior: activated
+        guid: dc00a0ab-0c1a-4dba-ae7b-225f08318b54
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: 0
+          targetTextOverride: self
+          repeatTargets: false
+          keywords:
+            Magic: true
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              targetAllegiance: enemy
+              targetType: all
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: 1
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 5604329c-d3d5-479c-8ea3-118ce245c959
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: 082efe38-ad68-4570-9f4d-f643f9446345
+                duration: 0
+                ongoingEffectCustom: 082efe38-ad68-4570-9f4d-f643f9446345
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 9ed879e0-f6a0-4e9c-8f47-5addc57b99a4
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: You can bring an adjacent willing creature along with you.
+            filterTarget: Level >= 5
+            standardAbilityParams:
+              range: "5"
+              targetfilter: friends(Target, Caster)
+            standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+            abilityType: standard
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            applyto: caster
+            guid: 5850237d-c0d2-441a-a352-f62d4f445e2f
+            value: ""
+            triggerName: Burning Ash
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            runOnController: false
+            promptText: You may hide if you have Cover or Concealment.
+            autoTarget: false
+            abilityType: standard
+            standardAbility: f629b9ed-26d2-446f-9963-47442d1db580
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 8689d324-7915-4ad1-8d19-8d4314fb866e
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: In a swirl of black ash, you step from one place to another.
+          categorization: Ability
+          range: 5 + 1*Charges
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          persistence: []
+          modifiers: []
+          numTargets: "1"
+          strain: []
+          guid: 4a6ef0b7-e528-4127-ae4c-085b938d4691
+          sourceReference:
+            __typeName: SourceReference
+            page: 177
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          targetType: emptyspace
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          implementation: 3
+          channelDescription: You teleport +1 square for each Insight spent
+          name: Black Ash Teleport
+          modeList: []
+          description: |-
+            You teleport up to 5 squares. If you have concealment or cover at your destination, you can use the Hide maneuver even if you are observed. If you successfully hide using this maneuver, you gain 1 surge.
+
+            **Spend 1+ Insight:** You teleport 1 additional square for each insight spent.
+          resourceCost: none
+          iconid: be808b00-7a33-4fdd-97c6-86231b9d4e63
+      name: Black Ash Teleport
+      classid: d5b2e07d-657a-4405-899a-7fed0771f184
+      description: In a swirl of black ash, you step from one place to another.
+      source: College of Black Ash Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 903a62c0-49c0-47a4-9533-016c9bee00cb
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c8ca9c51-eb36-433a-8ff3-359b056369e4
+        source: College of Black Ash Class Feature
+        behavior: proficiency
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        guid: 9d2f0024-b8a6-442e-8769-4803ca443304
+        equate: false
+        name: Magic Skill
+        proficiency: proficient
+        description: You gain the Magic skill.
+        subtype: skill
+        skills:
+          57101165-410a-4734-98ee-d4e5b656d3df: true
+      name: Magic Skill
+      classid: d5b2e07d-657a-4405-899a-7fed0771f184
+      description: You gain the Magic skill.
+      source: College of Black Ash Class Feature
+      implementation: 3
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: b05fb9b5-1a50-4496-a6c5-8eca4e8c754f
+        description: |-
+          Whenever you reduce a non-minion creature to 0 Stamina, you can immediately use a free maneuver to use your Black Ash Teleport ability. 
+
+          Additionally, you can now bring an adjacent willing creature along with you whenever you use a shadow ability to teleport. The creature appears in an unoccupied space adjacent to the space into which you teleported. If no such space exists, they can’t teleport with you.
+        source: College of Black Ash Class Feature
+        name: Trail of Cinders
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: You can use your Black Ash Teleport as a free maneuver
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          conditionFormula: (not Target.minion) and (Target.Stamina < 0) and (Target.Stamina + Damage) > 0
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 607458df-7a84-4c47-83c9-4d3f85aaf048
+          abilityType: none
+          trigger: dealdamage
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          persistence: []
+          actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+          name: Trail of Cinders
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            namedAbility: Black Ash Teleport
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: fdcac124-8d75-4539-b00e-56ce89d76470
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          description: 'Whenever you reduce a non-minion creature to 0 Stamina, you can immediately use a free maneuver to use your Black Ash Teleport ability. '
+          subject: self
+          iconid: ui-icons/skills/1.png
+        guid: bab5cf5b-0b96-4eea-ac8a-7b564bc750c4
+      source: College of Black Ash Class Feature
+      guid: b05fb9b5-1a50-4496-a6c5-8eca4e8c754f
+      domains:
+        class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: d5b2e07d-657a-4405-899a-7fed0771f184
+      description: |-
+        Whenever you reduce a non-minion creature to 0 Stamina, you can immediately use a free maneuver to use your Black Ash Teleport ability. 
+
+        Additionally, you can now bring an adjacent willing creature along with you whenever you use a shadow ability to teleport. The creature appears in an unoccupied space adjacent to the space into which you teleported. If no such space exists, they can’t teleport with you.
+      name: Trail of Cinders
+      implementation: 3
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 6th Level Black Ash Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 56190963-222c-4b71-9f22-468263f2e51e
+          description: ""
+          source: College of Black Ash Class Feature
+          name: Black Ash Eruption
+          behavior: activated
+          guid: eb6b0578-245d-45e1-8b03-30bf62ed57f2
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: One creature
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            implementationDetails: The Codex does not force Vertical movement to be straight up.
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 3 + A damage; vertical push 5
+              - 6 + A damage; vertical push 10
+              - 9 + A damage; vertical push 15
+              roll: 2d10 +Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your attack produces a cloud of black ash that launches an enemy into the air.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            numTargets: "1"
+            strain: []
+            guid: f99407cd-a478-4d3b-bd65-f3bc807dcc98
+            targetType: target
+            rangeTextOverride: Melee 1
+            domains:
+              class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 169
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            implementation: 3
+            name: Black Ash Eruption
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: A creature force moved by this ability must be moved straight upward.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of Black Ash Class Feature
+        guid: 56190963-222c-4b71-9f22-468263f2e51e
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: d5b2e07d-657a-4405-899a-7fed0771f184
+        description: ""
+        name: Black Ash Eruption
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: cf637d1c-bd46-4149-975c-5aca59190d5a
+          description: |-
+            Each target can teleport up to 5 squares. For each target in addition to you who teleports away from or into a space adjacent to an enemy, that enemy takes fire damage equal to your Agility score.
+
+            Additionally, a target who ends this movement in concealment or cover can use the Hide maneuver even if they are observed.
+          source: College of Black Ash Class Feature
+          name: Cinderstorm
+          behavior: activated
+          guid: 4a193b47-9adf-42d6-a46a-a783e500d079
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Self and each ally in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              guid: e6af6c2e-f2c9-4eca-88ee-766241a9ff7d
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: enemy
+                targetType: all
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 5604329c-d3d5-479c-8ea3-118ce245c959
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 082efe38-ad68-4570-9f4d-f643f9446345
+                  duration: 0
+                  ongoingEffectCustom: 082efe38-ad68-4570-9f4d-f643f9446345
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  applyto: caster
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    persistence: []
+                    objectTarget: false
+                    abilityType: none
+                    strain: []
+                    guid: 123ef8da-cd3c-4791-8c7c-25520e259a1a
+                    repeatTargets: false
+                    modifiers: []
+                    numTargets: "1"
+                    targetType: target
+                    categorization: Hidden
+                    name: Invoked Ability
+                    behaviors:
+                    - __typeName: ActivatedAbilityDamageBehavior
+                      roll: "<<casteragility>>"
+                      damageType: fire
+                      chatMessage: Cinderstorm damage
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                  standardAbilityParams:
+                    casteragility: ""
+                  promptText: Deal fire damage to adjacent enemy
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  applyto: caster
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: f1f0035b-9a96-49b8-970a-e10e8ec14ab2
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  promptText: Hide if in Cover or Concealment
+                  abilityType: standard
+                  standardAbility: 9683c15c-de03-4129-869c-d4054928cf97
+                multipleModes: variations
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "5"
+                persistence: []
+                modifiers: []
+                strain: []
+                modeList:
+                - variation:
+                    __typeName: ActivatedAbility
+                    objectTarget: false
+                    repeatTargets: false
+                    targetType: target
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    categorization: Hidden
+                    range: 1
+                    persistence: []
+                    modifiers: []
+                    strain: []
+                    guid: 7d752a41-64ae-44a3-80dd-cd9a52174316
+                    domains: []
+                    behaviors:
+                    - __typeName: ActivatedAbilityDamageBehavior
+                      roll: "<<casteragility>>"
+                      damageType: fire
+                      chatMessage: Cinderstorm damage
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      applyto: caster
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        numTargets: "1"
+                        modifiers: []
+                        guid: 8c20bce6-c03f-4061-8710-ba96ed64d329
+                        repeatTargets: false
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        behaviors: []
+                        range: 1
+                        name: Invoked Ability
+                        targetType: self
+                        description: ""
+                        abilityType: none
+                        iconid: ui-icons/skills/1.png
+                      promptText: Teleport 5 squares
+                      standardAbilityParams:
+                        range: "5"
+                      abilityType: standard
+                      standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      applyto: caster
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        numTargets: "1"
+                        modifiers: []
+                        guid: f1f0035b-9a96-49b8-970a-e10e8ec14ab2
+                        repeatTargets: false
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        behaviors: []
+                        range: 1
+                        name: Invoked Ability
+                        targetType: self
+                        description: ""
+                        abilityType: none
+                        iconid: ui-icons/skills/1.png
+                      promptText: Hide if in Cover or Concealment
+                      guid: 6f3af3ba-3e68-45fe-827d-0598011c2fea
+                      abilityType: standard
+                      standardAbility: 9683c15c-de03-4129-869c-d4054928cf97
+                    name: Invoked Ability
+                    numTargets: "1"
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  hasAbility: true
+                  text: Damage Enemy before Teleport
+                - text: Damage Enemy after Teleport
+                numTargets: "1"
+                guid: 36f9b2c8-757e-412b-898f-4d5323aa03d4
+                name: Invoked Ability
+                targetType: emptyspace
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                casteragility: "<<Caster.Agility>>"
+              promptText: Teleport and damage adjacent enemy
+            - __typeName: ActivatedAbilityCustomTriggerBehavior
+              applyto: caster
+              filterTarget: ""
+              value: ""
+              triggerName: Burning Ash
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You teleport your friends in a burst of ash and fire.
+            categorization: Heroic Ability
+            range: "4"
+            channelIncrement: 9
+            targetType: all
+            persistence: []
+            modifiers: []
+            numTargets: "1"
+            strain: []
+            guid: 19e7374a-0c17-477d-8fca-ca1b03bbb8b6
+            sourceReference:
+              __typeName: SourceReference
+              page: 169
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Cinderstorm
+            domains:
+              class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            implementation: 3
+            channeledResource: none
+            selfTarget: true
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: |-
+              Each target can teleport up to 5 squares. For each target in addition to you who teleports away from or into a space adjacent to an enemy, that enemy takes fire damage equal to your Agility score.
+
+              Additionally, a target who ends this movement in concealment or cover can use the Hide maneuver even if they are observed.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of Black Ash Class Feature
+        guid: cf637d1c-bd46-4149-975c-5aca59190d5a
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: d5b2e07d-657a-4405-899a-7fed0771f184
+        description: |-
+          Each target can teleport up to 5 squares. For each target in addition to you who teleports away from or into a space adjacent to an enemy, that enemy takes fire damage equal to your Agility score.
+
+          Additionally, a target who ends this movement in concealment or cover can use the Hide maneuver even if they are observed.
+        name: Cinderstorm
+        implementation: 3
+      classid: d5b2e07d-657a-4405-899a-7fed0771f184
+      guid: 15b7d8f6-fff4-4402-9d03-2232bca61137
+      source: College of Black Ash Class Feature
+      description: Your specialization grants your choice of one of two abilities.
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 55ceec07-62e1-41c9-9cb9-6bc5cccb2d67
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 55ceec07-62e1-41c9-9cb9-6bc5cccb2d67
+        source: College of Black Ash Class Feature
+        behavior: trigger
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Burning Ash
+        resourceRefreshType: turn
+        description: The ash you leave behind burns your foes. The first time on a turn that you use a shadow ability to teleport away from or into a space adjacent to an enemy, that enemy takes fire damage equal to your Agility score.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            guid: e7b2ed0a-d33d-4a16-a4da-df7ea1f2c8cf
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Target.Ongoing Effects has "Burning Ash Target" or Target.Distance(Caster) <= 1
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                titleText: Burning Ash
+                roll: Agility
+                damageType: fire
+                chatMessage: Burning Ash
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Trigger
+              range: "100"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 6284e1db-7314-4b66-8e32-5f1dbe9f0d37
+              iconid: ui-icons/skills/1.png
+              targetType: target
+              name: Burning Ash
+              numTargets: "1"
+              description: The ash you leave behind burns your foes. The first time on a turn that you use a shadow ability to teleport away from or into a space adjacent to an enemy, that enemy takes fire damage equal to your Agility score.
+              abilityType: none
+              implementation: 3
+            promptText: "Burning Ash: Select Target for Damage"
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 7389e7cc-db47-4fed-92ba-4aa59abbd725
+              repeatTargets: false
+              abilityType: none
+              categorization: Hidden
+              behaviors:
+              - __typeName: ActivatedAbilityPurgeEffectsBehavior
+                ongoingEffect: 082efe38-ad68-4570-9f4d-f643f9446345
+                mode: effect
+                conditions: []
+              numTargets: "1"
+              name: Invoked Ability
+              targetType: all
+              description: ""
+              range: "100"
+              iconid: ui-icons/skills/1.png
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: 12dcd311-b362-44c5-9191-3191271b1d14
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 4bbadb3e-3f0f-42f2-b9d8-646a6d966b1b
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          targetType: self
+          conditionFormula: Trigger Name is Burning Ash
+          trigger: custom
+          numTargets: "1"
+          name: Burning Ash
+          castImmediately: false
+          description: The ash you leave behind burns your foes. The first time on a turn that you use a shadow ability to teleport away from or into a space adjacent to an enemy, that enemy takes fire damage equal to your Agility score.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 12dcd311-b362-44c5-9191-3191271b1d14
+      name: Burning Ash
+      classid: d5b2e07d-657a-4405-899a-7fed0771f184
+      description: The ash you leave behind burns your foes. The first time on a turn that you use a shadow ability to teleport away from or into a space adjacent to an enemy, that enemy takes fire damage equal to your Agility score.
+      source: College of Black Ash Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 637cc817-9230-4d3a-906d-781f8f1ab1b0
+          description: You enchant a strike with your teleportation magic.
+          source: College of Black Ash Class Feature
+          name: In a Puff of Ash
+          behavior: activated
+          guid: 5793e7a9-efbd-4b6e-bd85-31dcb60f2cb7
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Weapon: true
+              Melee: true
+              Strike: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + A damage; you can teleport the target 1 square
+              - 10 + A damage; you can teleport the target 3 squares
+              - 14 + A damage; you can teleport the target 5 squares
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 1
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 76452200-088a-4860-a1c2-93e8a7d12d60
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: "In a Puff of Ash: teleport the target 1 square"
+              standardAbilityParams:
+                range: "1"
+              standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+              abilityType: standard
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 2
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 98df7223-8122-4c2c-8b64-3e214dc1f130
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: "In a Puff of Ash: teleport the target 3 squares"
+              standardAbilityParams:
+                range: "3"
+              standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+              abilityType: standard
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 3
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 11a45d9d-24f0-4990-8a3a-8d44dee736a3
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: "In a Puff of Ash: teleport the target 5 squares"
+              standardAbilityParams:
+                range: "5"
+              standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+              abilityType: standard
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You enchant a strike with your teleportation magic.
+            sourceReference:
+              __typeName: SourceReference
+              page: 180
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "5"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: f2f03b82-66cf-4f5b-805d-bcc60d971f29
+            numTargets: "1"
+            categorization: Heroic Ability
+            domains:
+              class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            implementation: 3
+            persistence: []
+            name: In a Puff of Ash
+            targetType: target
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of Black Ash Class Feature
+        guid: 637cc817-9230-4d3a-906d-781f8f1ab1b0
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: d5b2e07d-657a-4405-899a-7fed0771f184
+        description: You enchant a strike with your teleportation magic.
+        name: In a Puff of Ash
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 49990818-7fcb-4034-86a8-b21e3241f3db
+          source: College of Black Ash Class Feature
+          guid: cf12c29f-214b-4cb9-b4ae-59d211563e9f
+          original: In All This Confusion
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          gobefore: false
+          name: Too Slow
+          additionalModifier:
+            __typeName: CharacterModifier
+            keywords: []
+            resourceCostType: cost
+            modtype: none
+            guid: 3c968b76-9c04-460c-a3fc-9e844e87011c
+            rollType: ability_power_roll
+            resourceCostAmount: "5"
+            hasCustomTrigger: true
+            gobefore: true
+            activationCondition: false
+            name: Too Slow
+            rules: ""
+            source: Trigger
+            behavior: power
+            customTrigger:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 15561d84-b78c-4575-bf3e-ca695be58974
+              repeatTargets: false
+              abilityType: none
+              trigger: d20roll
+              targetType: self
+              numTargets: "1"
+              name: New Ability
+              behaviors:
+              - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+                momentaryEffect:
+                  __typeName: CharacterOngoingEffect
+                  guid: 60a4a646-9e28-4b69-8588-17db73bd30e9
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  modifiers:
+                  - __typeName: CharacterModifier
+                    guid: 4d046346-f864-4015-9897-b4d9e26786e7
+                    sourceguid: 60a4a646-9e28-4b69-8588-17db73bd30e9
+                    value: 1
+                    source: Ongoing Effect
+                    name: Too Slow
+                    behavior: attribute
+                    description: ""
+                    attribute: e3a362d8-7a61-4aee-89fe-e1ba927a9184
+                  source: Ongoing Effect
+                  name: Too Slow
+                  description: ""
+                  id: 60a4a646-9e28-4b69-8588-17db73bd30e9
+                  iconid: ui-icons/skills/1.png
+                name: Ability Duration Effect
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                runOnController: true
+                autoTarget: false
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 903cd8c3-3cf5-4f70-aca1-9f7b2ea8a2e0
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: de33babd-8676-4395-8867-3f9c250690bd
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                standardAbilityParams:
+                  numrecoveries: "1"
+                autoTarget: false
+                runOnController: true
+                standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+                targeting: self
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+          description: You avoid any effects associated with the damage that triggered your In All This Confusion ability. Before you teleport, you can make a free strike against a creature who damaged you to trigger In All This Confusion. After you teleport, you can spend a Recovery.
+          behavior: powertableadditional
+        - __typeName: CharacterModifier
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 49990818-7fcb-4034-86a8-b21e3241f3db
+          behavior: triggerdisplay
+          source: College of Black Ash Class Feature
+          name: Too Slow
+          description: You avoid any effects associated with the damage that triggered your In All This Confusion ability. Before you teleport, you can make a free strike against a creature who damaged you to trigger In All This Confusion. After you teleport, you can spend a Recovery.
+          guid: 6bcefae3-19f9-4a4c-a9aa-f6ca3e8c8f03
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: You ignore any effects associated with the damage that triggered your In All This Confusion ability. Before you teleport, you can make a free strike against a creature who damaged you to trigger In All This Confusion. After you teleport, you can spend a Recovery.
+            guid: f27bb860-558b-4c45-bb15-4245e62a26c6
+            distance: Self; see below
+            keywords: []
+            target: 'Self; '
+            trigger: You use your In All This Confusion ability.
+            cost: 5 Insight
+            flavor: Your foe made a big mistake.
+            type: free
+            name: Too Slow
+        source: College of Black Ash Class Feature
+        guid: 49990818-7fcb-4034-86a8-b21e3241f3db
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: d5b2e07d-657a-4405-899a-7fed0771f184
+        description: You avoid any effects associated with the damage that triggered your In All This Confusion ability. Before you teleport, you can make a free strike against a creature who damaged you to trigger In All This Confusion. After you teleport, you can spend a Recovery.
+        name: Too Slow
+        implementation: 3
+      classid: d5b2e07d-657a-4405-899a-7fed0771f184
+      guid: 3283fb45-2297-459e-b690-e0f032f70349
+      description: Your specialization grants your choice of one of two abilities.
+      name: 2nd Level Black Ash Abilities
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 98d1413f-bacb-4b9a-9c5c-671ed205cf4d
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 035d00d9-ccce-4367-bd13-b69ed1652b0e
+        source: College of Black Ash Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          guid: 09d64fb9-45c4-470f-875f-4025ee531596
+          activationCondition: false
+          keywords:
+            Magic: true
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 1402815b-76bb-402f-a0de-141372654376
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: In All This Confusion
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: false
+              runOnController: true
+              promptText: Choose where to teleport
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                range: 4 + Charges
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 4ba6f596-83a3-49ea-abf9-b5b85e295858
+                numTargets: "1"
+                channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+                targeting: direct
+                channelDescription: Use Insight to teleport further
+                name: In All This Confusion
+                targetType: emptyspace
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              autoTarget: false
+              standardAbility: 6fa3f578-a149-4bd1-b06e-80c4b24239f4
+              abilityType: standard
+              standardAbilityParams:
+                range: "4"
+            - __typeName: ActivatedAbilityCustomTriggerBehavior
+              applyto: caster
+              value: ""
+              triggerName: Burning Ash
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: In All This Confusion
+          rules: ""
+          behavior: power
+          rollType: ability_power_roll
+          modtype: none
+        guid: 3c1b2f6a-fdb9-4814-beff-9d577190843e
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        targetType: self
+        trigger: takedamage
+        name: In All This Confusion
+        rules: You halve the damage, then teleport up to 4 squares.
+        description: ""
+        range: 10
+        additionalCostModifiers: []
+      - __typeName: CharacterModifier
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 035d00d9-ccce-4367-bd13-b69ed1652b0e
+        behavior: triggerdisplay
+        source: College of Black Ash Class Feature
+        name: In All This Confusion
+        description: ""
+        guid: f22e9fa3-afa2-40bc-81e7-ad11d584f515
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: |
+            You halve the damage, then can teleport up to 4 squares after the triggering effect resolves.
+            **Spend 1+ Insight:** You teleport 1 additional square for each insight spent.
+          name: In All This Confusion
+          trigger: You take damage.
+          flavor: You vanish in a plume of black smoke to avoid danger.
+          guid: a480aeca-edc1-4936-b0a3-fff21b5aa5a6
+          distance: Self
+          keywords: []
+      name: In All This Confusion
+      classid: d5b2e07d-657a-4405-899a-7fed0771f184
+      description: ""
+      source: College of Black Ash Class Feature
+      implementation: 3
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th Level Black Ash Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: d7999d37-1113-4308-9ad5-57e8c7223c86
+          description: ""
+          source: College of Black Ash Class Feature
+          name: Cacophony of Cinders
+          behavior: activated
+          guid: f688a47a-47fa-46ba-910b-576b24f61494
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            numTargets: "1"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Melee: true
+              Magic: true
+              Weapon: true
+            abilityType: none
+            targetType: emptyspace
+            domains:
+              class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You tumble through the battle, stabbing foes and teleporting allies
+            categorization: Heroic Ability
+            range: Walking Speed *2
+            behaviors:
+            - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              targetMoveVicinity: true
+              vicinity: 1
+              movementType: shift
+              vicinityFilter: ""
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "6 damage; #an ally takes no damage and can teleport up to 3 squares."
+              - "10 damage; #an ally takes no damage and can teleport up to 5 squares"
+              - "14 damage; #an ally takes no damage and can teleport up to 7 squares."
+              filterTarget: not Friends(Caster,Target)
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              runOnController: true
+              filterTarget: Friends(Caster,Target)
+              standardAbilityParams:
+                range: "<<(Cast.Tier *2) + 1>>"
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 86b224b2-cbe1-4c55-8e41-b0a3f5102edb
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+            rangeTextOverride: Self; see below
+            persistence: []
+            modifiers: []
+            implementation: 4
+            strain: []
+            guid: 9cb55ba4-cab7-4c72-871c-9eb7b8927d26
+            sourceReference:
+              __typeName: SourceReference
+              page: 172
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            castImmediately: true
+            targeting: pathfind
+            preDescription: You shift up to twice your speed, making one power roll that targets each creature you come adjacent to during the shift.
+            name: Cacophony of Cinders
+            displayOrder: 1
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of Black Ash Class Feature
+        guid: d7999d37-1113-4308-9ad5-57e8c7223c86
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: d5b2e07d-657a-4405-899a-7fed0771f184
+        description: ""
+        name: Cacophony of Cinders
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 2fc61ad2-1270-491c-860a-c9b345fca99c
+          description: ""
+          source: College of Black Ash Class Feature
+          name: Demon Door
+          behavior: activated
+          guid: bec8b155-cd1f-42fe-8ebb-106c72676d41
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: One creature
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            implementationDetails: ""
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 13 + A corruption damage; push 3
+              - 18 + A corruption damage; push 5
+              - 25 + A corruption damage; push 7
+              filterTarget: ""
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityRemoveCreatureBehavior
+              filterTarget: Cast.Natural Roll >= Caster.Critical Threshold
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You create a temporary portal to allow a massive demonic hand to reach through.
+            categorization: Heroic Ability
+            range: "3"
+            channelIncrement: 11
+            targetType: target
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Melee 3
+            strain: []
+            guid: 5226b8cb-6467-492c-973d-85131b66b6c2
+            numTargets: "1"
+            sourceReference:
+              __typeName: SourceReference
+              page: 172
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            persistence: []
+            implementation: 4
+            name: Demon Door
+            channeledResource: none
+            description: On a critical hit, the target is grabbed by the demon and pulled through the portal before it closes, never to be seen again.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of Black Ash Class Feature
+        guid: 2fc61ad2-1270-491c-860a-c9b345fca99c
+        domains:
+          class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: d5b2e07d-657a-4405-899a-7fed0771f184
+        description: ""
+        name: Demon Door
+        implementation: 4
+      classid: d5b2e07d-657a-4405-899a-7fed0771f184
+      guid: 8a9dac13-d812-42b8-be51-fb69ae79b0f2
+      source: College of Black Ash Class Feature
+      description: Your specialization grants your choice of one of two abilities.
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:d5b2e07d-657a-4405-899a-7fed0771f184: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+details: The College of Black Ash founded the art of being a shadow. Its graduates use Black Ash sorcery to teleport around the battlefield in clouds of soot, and to manipulate and create darkness. Graduates of the college are unmatched in 1mobility. You gain the Magic skill.
+name: College of Black Ash
+mtime: 1773668776776
+id: d5b2e07d-657a-4405-899a-7fed0771f184
+primaryClassId: a58112e5-6466-4189-b810-5d0d93adc075

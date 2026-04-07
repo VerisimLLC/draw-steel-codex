@@ -1,0 +1,451 @@
+__typeName: MarkdownDocument
+annotations:
+  Party:Acted Players:
+    __typeName: RichParty
+    partyid: false
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Available Players:
+    __typeName: RichParty
+    partyid: false
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  image:montageimage:
+    __typeName: RichImage
+    halign: center
+  Party:Current Player:
+    __typeName: RichParty
+    partyid: false
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+id: 66344a80-b0dd-4278-be12-dcd98a18dd91
+ctime: 1761488166782
+textStorage:
+  __typeName: TextStorage
+  sections:
+    yR: |
+      [:Tests]
+      }
+
+      {
+    XQ: |
+      |||
+    yw: |-
+      **Load up the [Arixx Lair Map] and the [Arixx Lair Encounter] Journal to continue**
+      }
+    Xv: |+
+      :<>[[Party:Acted Players]]
+
+    ys: |+
+      Heroes earn no Victories from the montage test, and they begin the combat surprised and prone after falling 4 squares into the lair. The arixx begins the encounter burrowed.
+
+
+
+    Xr: |
+      :<>[[Party:Available Players]]
+    Xj: |
+      |||
+    Xn: |
+      |||
+    i: |
+      |Medium
+      }
+
+      {#
+    XE: |
+      |Successes: |[[---]]|
+    g: |
+      *Special:* The heroes can attempt this challenge twice during the montage test.
+    h: |
+      |Follow the Correct Tunnel: Reason Test (Search or Track)
+    e: |
+      *Suggested Characteristics:* Reason.
+    f: |
+      *Suggested Skills:* Nature, Search, Track.
+    c: |
+      {#
+    d: |
+      **Follow the Correct Tunnel:** Many of the tunnels show signs of an arixx’s passing. Following the tunnel of the most recent passage is tricky. 
+    Xf: |
+      ???query numheroes > 5
+    b: |+
+      Also read [Consequences and Rewards] before starting the montage test. }
+
+    XX: |
+      |||
+    yU: |+
+      ## Montage Test Outcomes
+
+    XT: |
+      ???query numheroes = 5
+    Y: |+
+      ## Montage Challenges
+
+    Z: |
+      The following challenges can be part of the montage test:
+    xHR: |
+      |Medium
+      }
+
+      {#
+    yY: |+
+      One of the following outcomes ends the montage test:
+
+
+    XD: |
+      test
+    XH: |
+      |||
+    yo: |
+      **Total Failure:** The confusing network of tunnels and hazards proves too much for the heroes’ skills. They only find the arixx lair by accident as they fall through the ceiling of the cavern onto the hard floor.
+    xHF: |
+      [ ] 
+      }
+      {
+    yk: |+
+      **Partial Success:** The heroes get lost and suffer minor setbacks along the way, but they find the arixx lair after a while and the creature senses their arrival. It begins the encounter hidden in a burrow within the chamber.
+
+
+    yg: |+
+      [[/awardvp 1|Award Heroes 1 Victory]]
+
+
+
+    yI: |
+      |Manage Dangerous Creatures Encountered: : Intuition or Presence Test (Handle Animals Intimidate, Sneak.)
+    yc: |+
+      **Total Success:** The heroes reach the arixx lair quickly and with only minor hassles. Each hero earns 1 Victory, and the arixx is fully visible in the center of his lair when the heroes arrive there.
+
+    yO: |+
+      **Common Tests you may present to your players during a montage:**
+
+    lA: |
+      *Suggested Skills:* Alchemy, Climb, Jump.
+    pE: |
+      **Notice Weakened Floors and Walls:** Certain tunnel sections are dangerously unstable. These areas must be recognized and treaded on carefully. 
+    EB: |
+      Following the events in [Arixx Nest]
+    FB: |+
+      The fissure in the farmhouse lawn leads to a tunnel, created by the arixx, that leads to its lair. The tunnel, however, crosses to a network of other tunnels, presenting a confusing maze and a number of hazards.
+
+    GB: |
+      A hero who knows that they are hunting an arixx also know that arixx don’t normally leave permanent tunnels when they dig unless they intend to make the area a nest. The creature must be close by!
+      }
+
+
+      {
+    HB: |
+      ## Find the Arixx Montage Test:
+    yL: |
+      |Medium
+      }
+
+
+      {
+    xHt: |
+      [ ] 
+      }
+      {
+    CB: |+
+      {*The information in, and name of, this journal gives away that they are hunting an Arixx, so if your heroes do not know about the nature of the monster, present it to them with this knowledge or keep it hidden.*}
+
+    DB: |
+      ## Overview
+
+      {
+    Xx: |+
+      {Add all your players to the available players party at the start. When a player is acting move them to the current player party by dragging their image. Then to acted players once they are done. At the end of the round move all players back to available players}
+
+
+
+    xHm: |
+      *Suggested Skills:* Handle Animals, Intimidate, Sneak.
+    xHf: |
+      *Suggested Characteristics:* : Intuition, Presence
+    IB: |+
+      The hero must navigate the tunnels and avoid any dangers to reach the arixx lair. The Navigate the Tunnels Test Difficulty table shows this montage test’s success and failure limit based on the number of heroes in the test.
+      }
+
+
+    xHL: |
+      |Hold Up Closing Passages While Others Pass: Might Test (Endurance or Lift)
+    Xt: |
+      :<>[[Party:Current Player]]
+    WBm: |
+      [[setting:Number of Heroes]] 
+
+      }
+
+      {!
+    vH: |
+      **Hold Up Closing Passages While Others Pass:** Some of the tunnels the heroes must follow have weakened walls and ceilings, meaning someone has to hold those weakened areas or move debris.
+    XC: |
+      ???query numheroes < 4
+    uH: |
+      |Medium
+      }
+
+      {#
+    tH: |
+      |Notice Weakened Floors and Walls: Intuition or Reason Test (Alertness or Monsters or Search)
+    Xl: |
+      |Failures: |[[------]]|
+    xH: |
+      *Suggested Skills:* Endurance, Lift.
+    XG: |
+      |Failures: |[[---]]|
+    Xp: |+
+      ???
+      }
+
+    wH: |
+      *Suggested Characteristics:* Might.
+    oD: |
+      |Medium
+      }
+
+      {#
+    Xd: |
+      ???
+    XK: |
+      |Successes: |[[----]]|
+    sH: |
+      [ ] 
+      }
+      {
+    Xh: |
+      |Successes: |[[------]]|
+    XF: |
+      |||
+    qF: |
+      *Suggested Characteristics:* Intuition, Reason.
+    XO: |
+      |Failures: |[[----]]|
+    nC: |
+      |Avoid Fresh Acid: Agility or Reason Test (Alchemy or Climb or Jump)
+    mB: |
+      [ ] 
+      }
+      {
+    XV: |
+      |Successes: |[[-----]]|
+    k: |
+      *Suggested Characteristics:* Agility, Reason.
+    BA: |
+      # Montage Test: Following the Arixx's Trail
+    j: |
+      **Avoid Fresh Acid:** Pools of water dot many of the passages, but some of these pools contain acid. Stepping in those pools is painful.
+    XI: |
+      ???
+    XR: |
+      ???
+    Xb: |
+      |||
+    XM: |
+      |||
+    WBM: |+
+      * For six or more heroes, increase the success and failure limits by 1 for every hero more than five.
+
+
+    a: |
+      {*(You can change the test difficulty before having the players roll, if you want, by clicking on the difficulty text to the right of the test. They are all set to Medium by default. You can also reveal the text before the power roll by clicking "Reveal to Players".)*
+    xHY: |
+      **Manage Dangerous Creatures Encountered:** 
+    XZ: |
+      |Failures: |[[-----]]|
+    NB: |+
+      [[image:montageimage]]
+
+
+    WBZ: |
+      *Use the setting below to adjust the montage difficulty*
+    UB: |+
+      |Six|6|6|
+
+
+    VB: |
+      **Montage Test Adjustment**
+    WB: |
+      * For four or fewer heroes, decrease the success limit and failure limits by 1 (to a minimum of 2) for every hero fewer than five.
+    rG: |
+      *Suggested Skills:* : Alertness, Monsters, Search.
+    QB: |
+      |Heroes|Success Limit|Failure Limit|
+    RB: |
+      |Three|3|3|
+    SB: |
+      |Four|4|4|
+    TB: |
+      |Five|5|5|
+    MB: |+
+      > * {# “The tunnels are unstable and lined with various dangers—wide pools of acid, weakened floors, collapsing passages, and stinging insects are all obstacles to your journey.”}
+
+      }
+
+
+    XJ: |
+      ???query numheroes = 4
+    OB: |+
+      ## Party
+      {
+
+    PB: |
+      **Navigate the Tunnels Test Difficulty**
+    gZ: |
+      [ ] [ ] 
+      }
+      {
+    JB: |+
+      ## Setting The Scene
+
+    KB: |+
+      When this montage test begins, provide the following information:
+
+
+    LB: |
+      > * {# “The tunnel formed from the arixx’s passing intersects with other similar tunnels, making following the correct tunnel difficult.”}
+parentFolder: 5cef1ec9-f44c-4944-8d56-2671f46e304a
+updateid: f921d747-d56a-4f5c-8ffb-2aa11b686fcf
+mtime: 1775224790956
+content: |-
+  # Montage Test: Following the Arixx's Trail
+
+
+  ## Overview
+
+  {
+  Following the events in [Arixx Nest]
+  The fissure in the farmhouse lawn leads to a tunnel, created by the arixx, that leads to its lair. The tunnel, however, crosses to a network of other tunnels, presenting a confusing maze and a number of hazards.
+
+  A hero who knows that they are hunting an arixx also know that arixx don’t normally leave permanent tunnels when they dig unless they intend to make the area a nest. The creature must be close by!
+  }
+
+  ## Find the Arixx Montage Test:
+  The hero must navigate the tunnels and avoid any dangers to reach the arixx lair. The Navigate the Tunnels Test Difficulty table shows this montage test’s success and failure limit based on the number of heroes in the test.
+
+  {
+  **Navigate the Tunnels Test Difficulty**
+  |Heroes|Success Limit|Failure Limit|
+  |Three|3|3|
+  |Four|4|4|
+  |Five|5|5|
+  |Six|6|6|
+
+  }
+
+  [[image:montageimage]]
+
+  {
+  ## Setting The Scene
+
+  When this montage test begins, provide the following information:
+
+
+  > * {# “The tunnel formed from the arixx’s passing intersects with other similar tunnels, making following the correct tunnel difficult.”}
+  > * {# “The tunnels are unstable and lined with various dangers—wide pools of acid, weakened floors, collapsing passages, and stinging insects are all obstacles to your journey.”}
+  }
+
+  ## Party
+
+
+  |Successes:  |[[-----]]|
+  |Failures:  |[[-----]]|
+
+
+
+  [[Party:Available Players]] :<>[[Party:Current Player]] :>[[Party:Acted Players]]
+
+  {Add all your players to the available players party at the start. When a player is acting move them to the current player party. Then to acted players once they are done. At the end of the round move all players back to availableplayers}
+
+
+
+  ## Montage Challenges
+
+  The following challenges can be part of the montage test:
+  {*(Edit the document to change the test difficulty before having the players roll, if you want. They are all set to Medium by default. You can also reveal the text before the power roll by changing the # to an !)*
+  Also read [Consequences and Rewards] before starting the montage test. }
+
+  {# 
+  **Follow the Correct Tunnel:** Many of the tunnels show signs of an arixx’s passing. Following the tunnel of the most recent passage is tricky. 
+  *Suggested Characteristics:* Reason.
+  *Suggested Skills:* Nature, Search, Track.
+  *Special:* The heroes can attempt this challenge twice during the montage test.
+  }
+  {
+  |Follow the Correct Tunnel: Reason Test (Search or Track)
+  |Medium
+  }
+
+  {#
+  **Avoid Fresh Acid:** Pools of water dot many of the passages, but some of these pools contain acid. Stepping in those pools is painful.
+  *Suggested Characteristics:* Agility, Reason.
+  *Suggested Skills:* Alchemy, Climb, Jump.
+  }
+  {
+  |Avoid Fresh Acid: Agility or Reason Test (Alchemy or Climb or Jump)
+  |Medium
+  }
+
+  {#
+  **Notice Weakened Floors and Walls:** Certain tunnel sections are dangerously unstable. These areas must be recognized and treaded on carefully. 
+  *Suggested Characteristics:* Intuition, Reason.
+  *Suggested Skills:* : Alertness, Monsters, Search.
+  }
+  {
+  |Notice Weakened Floors and Walls: Intuition or Reason Test (Alertness or Monsters or Search)
+  |Medium
+  }
+
+  {#
+  **Hold Up Closing Passages While Others Pass:** Some of the tunnels the heroes must follow have weakened walls and ceilings, meaning someone has to hold those weakened areas or move debris.
+  *Suggested Characteristics:* Might.
+  *Suggested Skills:* Endurance, Lift.
+  }
+  {
+  |Hold Up Closing Passages While Others Pass: Might Test (Endurance or Lift)
+  |Medium
+  }
+
+  {#
+  **Manage Dangerous Creatures Encountered:** 
+  *Suggested Characteristics:* : Intuition, Presence
+  *Suggested Skills:* Handle Animals, Intimidate, Sneak.
+  }
+  {
+  |Manage Dangerous Creatures Encountered: : Intuition or Presence Test (Handle Animals Intimidate, Sneak.)
+  |Medium
+  }
+
+
+  {
+  **Common Tests you may present to your players during a montage:**
+
+  [:Tests]
+  }
+
+  {
+  ## Montage Test Outcomes
+
+  One of the following outcomes ends the montage test:
+
+
+  **Total Success:** The heroes reach the arixx lair quickly and with only minor hassles. Each hero earns 1 Victory, and the arixx is fully visible in the center of his lair when the heroes arrive there.
+
+  [[/awardvp 1|Award Heroes 1 Victory]]
+
+
+
+  **Partial Success:** The heroes get lost and suffer minor setbacks along the way, but they find the arixx lair after a while and the creature senses their arrival. It begins the encounter hidden in a burrow within the chamber.
+
+
+  **Total Failure:** The confusing network of tunnels and hazards proves too much for the heroes’ skills. They only find the arixx lair by accident as they fall through the ceiling of the cavern onto the hard floor.
+  Heroes earn no Victories from the montage test, and they begin the combat surprised and prone after falling 4 squares into the lair. The arixx begins the encounter burrowed.
+
+
+
+  **Load up the [Arixx Lair Map] and the [Arixx Lair Encounter] Journal to continue**
+  }
+description: Following the Arixx's Trail

@@ -1,0 +1,23 @@
+__typeName: CharacterFeaturePrefabs
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+      guid: ecf1b910-775f-418e-9bb2-65622277e378
+      source: Character Feature
+      behavior: kitaccess
+      description: You can use and gain the benefits of a kit.
+      kitType: martial
+      name: Kit
+    name: Kit
+    description: You can use and gain the benefits of a kit.
+    guid: df3c71f2-fda7-4886-ad8e-1500f2832f3a
+    source: Character Feature
+    implementation: 3
+name: Kit
+mtime: 1730700395221
+id: ba5daea4-f44f-4b49-b98b-e146d9277663
+ctime: 1730700395221

@@ -1,0 +1,216 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: 72f0634e-8d6a-4afc-884b-b9c824746cc8
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fbd10a93-61bc-428a-98f2-7cdcef932784
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Flesh Mournling	Level 4 Horde Defender
+        Undead	EV 6
+        <b>Stamina</b> 35	<b>Immunity</b> corruption 4, poison 4
+        <b>Speed</b> 6	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>Free Strike</b> 2
+        Might +3	Agility +1	Reason 0	Intuition +2	Presence -1
+        <b>Multiarm Strike</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%B8	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12-16</b>	7 damage
+        %E2%9C%A6	<b>17</b>	9 damage
+        <b>Effect</b> The target can't shift away from the mournling until the end of their turn.
+        <b>1 Malice</b> The mournling targets an additional creature.
+
+        <b>Horrid Wail</b> (Action) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>	Target</b> all enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 psychic damage
+        %E2%98%85	<b>12-16</b>	3 psychic damage; I<2 frightened (save ends)
+        %E2%9C%B8	<b>17</b>	4 psychic damage; I<3 frightened (save ends)
+        <b>Effect</b> If a target is still frightened by this ability at the end of the encounter, they cannot take a respite activity during their next respite.
+
+        <b>Immutable Form</b>
+        The mournling's shape can't change via any external effects.
+
+        <b>Arise</b>
+        The first time in an encounter that the mournling is reduced to 0 Stamina with non-fire/non-holy damage and their body isn't destroyed, they regain half their Stamina and fall prone.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8d3d9988-a061-4c3b-a69e-dd050e64e157: true
+      modifiers: []
+      name: Immutable Form
+      description: The mournling's shape can't change via any external effects.
+      guid: 8d3d9988-a061-4c3b-a69e-dd050e64e157
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ae1b6aec-e1f9-4b01-9352-f9507c16a951: true
+      modifiers: []
+      name: Arise
+      description: The first time in an encounter that the mournling is reduced to 0 Stamina with non-fire/non-holy damage and their body isn't destroyed, they regain half their Stamina and fall prone.
+      guid: ae1b6aec-e1f9-4b01-9352-f9507c16a951
+      source: Trait
+    role: Horde Defender
+    inflictedConditions: []
+    keywords:
+      Undead: true
+    max_hitpoints_roll: "35"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    monster_type: Flesh Mournling
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 35
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 damage
+        - 9 damage
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9111d72e-0371-4dfd-918b-e451aec6c7d0
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Multiarm Strike
+      numTargets: 1
+      description: The target can't shift away from the mournling until the end of their turn.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 psychic damage
+        - 3 psychic damage; I<2 frightened (save ends)
+        - 4 psychic damage; I<3 frightened (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2f92d873-14e0-4023-9c29-3a5596e4a465
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Horrid Wail
+      numTargets: 1
+      description: If a target is still frightened by this ability at the end of the encounter, they cannot take a respite activity during their next respite.
+      abilityType: none
+      implementation: 3
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    movementSpeeds: []
+    ev: 6
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 543293bb-470f-4587-8ae4-9f6cb4ae14fe
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Flesh Mournling
+parentFolder: 68f67367-de21-43f0-8448-61d0408cd721
+artist: null
+ord: 1
+ctime: 1741590251354
+mtime: 1775201137032
+hidden: false

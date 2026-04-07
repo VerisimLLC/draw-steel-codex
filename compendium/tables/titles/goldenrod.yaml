@@ -1,0 +1,11 @@
+__typeName: Title
+effect: Each time you undertake the Fishing project, you can reroll one project roll.
+prerequisite: 300 Cost Reward for fishing
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Goldenrod
+mtime: 1771782108714
+description: Legendary fisher.
+id: c1b8ca34-655b-4bac-a0f6-753af9df91e1
+ctime: 1771782108714

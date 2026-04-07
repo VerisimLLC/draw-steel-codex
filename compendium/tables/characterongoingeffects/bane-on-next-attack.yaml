@@ -1,0 +1,58 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d9703a62-564a-42ee-8317-8886a473a6f8
+  source: Ongoing Effect
+  guid: 90a2165b-e4d6-412a-bcd4-2e382129f209
+  behavior: power
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: bb68dbd3-c946-4619-9bbb-5b1be2784881
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: d9703a62-564a-42ee-8317-8886a473a6f8
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  domains:
+    CharacterOngoingEffect:d9703a62-564a-42ee-8317-8886a473a6f8: true
+  rollType: ability_power_roll
+  activationCondition: true
+  description: ""
+  modtype: bane
+  name: Bane on next attack
+source: Ongoing Effect
+guid: d9703a62-564a-42ee-8317-8886a473a6f8
+id: d9703a62-564a-42ee-8317-8886a473a6f8
+ctime: 1749858406711
+domains:
+  CharacterOngoingEffect:d9703a62-564a-42ee-8317-8886a473a6f8: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Bane on next attack
+custom: true
+description: ""
+mtime: 1757248672045
+iconid: b86a7a42-15dc-4220-b27c-27919193e357

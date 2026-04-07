@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f26aee1b-e16e-4b50-b524-0a1609f40a67
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  activationCondition: true
+  guid: 11d593eb-a98a-4977-8ae1-82c64f76375d
+  name: Soul Burn
+  rollType: test_power_roll
+  description: Bane on Presence test
+  behavior: power
+  attribute: prs
+source: Ongoing Effect
+guid: f26aee1b-e16e-4b50-b524-0a1609f40a67
+id: f26aee1b-e16e-4b50-b524-0a1609f40a67
+ctime: 1757773089309
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Soul Burn
+description: Bane on Presence test
+custom: true
+mtime: 1757773089309
+iconid: ui-icons/skills/1.png

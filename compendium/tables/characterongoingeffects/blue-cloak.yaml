@@ -1,0 +1,30 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: bde74ca5-7978-4b34-901d-6e5e19a065f9
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-Level"
+    damageType: cold
+    apply: Damage Reduction
+  description: You have cold damage weakness equal to your level.
+  name: Blue Cloak
+  guid: 79207e3c-9a65-4b2c-8d93-7433b63335ce
+source: Ongoing Effect
+guid: bde74ca5-7978-4b34-901d-6e5e19a065f9
+id: bde74ca5-7978-4b34-901d-6e5e19a065f9
+ctime: 1757923745201
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Blue Cloak
+iconid: ui-icons/skills/1.png
+description: You have cold damage weakness equal to your level.
+mtime: 1759037481980
+implementation: 3

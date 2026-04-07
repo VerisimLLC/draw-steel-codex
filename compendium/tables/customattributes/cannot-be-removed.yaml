@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "0"
+category: Combat
+name: Cannot Be Removed
+documentation: When this is non-zero, this creature should not be removed from the board even if they are dead.
+mtime: 1758839955720
+id: 7565750e-2376-4809-abc2-47eed82153d1
+ctime: 1758839955720

@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+canEndWithAction: true
+source: Ongoing Effect
+casterTracking: bond
+guid: df1f0464-fa9b-4189-bed9-9b01783f25a2
+id: df1f0464-fa9b-4189-bed9-9b01783f25a2
+ctime: 1764519801240
+domains:
+  CharacterOngoingEffect:df1f0464-fa9b-4189-bed9-9b01783f25a2: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: You can speak telepathically with your bonded ally. Additionally you can attempt to assist them with any test they make.
+name: Invocation of the Heart
+modifiers: []
+custom: true
+mtime: 1769692154338
+iconid: ui-icons/skills/1.png

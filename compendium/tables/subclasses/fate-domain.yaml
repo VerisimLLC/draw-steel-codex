@@ -1,0 +1,237 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 8d723476-2675-4a2a-9e6c-c97672a532f1
+  details: "You gain 2 piety the first time in an encounter that an ally within 10 squares of you gets a tier 3 result or an enemy within 10 squares of you gets a tier 1 result.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: Friend Tier 3/Enemy Tier 1
+isSubclass: true
+ctime: 1728003739445
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: a29bbc70-d098-4805-a0d2-56fa127529d6
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 56bf26fb-833d-48de-976f-97b253b5058b
+        source: Fate Domain Class Feature
+        behavior: trigger
+        domains:
+          class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        name: Fate Domain Piety
+        resourceRefreshType: encounter
+        description: "You gain 2 piety the first time in an encounter that an ally within 10 squares of you gets a tier 3 result or an enemy within 10 squares of you gets a tier 1 result.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Dice Tier Result: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 009fbbdc-5eb2-4afd-8edd-beb71ca36a41
+          guid: 6502ce3d-cd78-4509-bcfd-60347e3509e1
+          persistence: []
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: rollpower
+          domains:
+            class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          conditionFormula: (Tier Three and Friends(self, subject)) or (Tier One and not Friends(self, subject))
+          numTargets: "1"
+          name: Fate Domain Piety
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 2 + 1 when level >= 4
+            checklistid: 8d723476-2675-4a2a-9e6c-c97672a532f1
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Fate Domain - Ally Rolled Tier 3
+          description: |-
+            You gain 2 piety the first time in an encounter that an ally within 10 squares of you gets a tier 3 result or an enemy within 10 squares of you gets a tier 1 result.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: other
+          iconid: ui-icons/skills/1.png
+        guid: 009fbbdc-5eb2-4afd-8edd-beb71ca36a41
+      name: Fate Domain Piety
+      classid: 2bf26b16-d956-4813-8452-deedc0c937ba
+      description: "You gain 2 piety the first time in an encounter that an ally within 10 squares of you gets a tier 3 result or an enemy within 10 squares of you gets a tier 1 result.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+      source: Fate Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: ed260b49-7527-4261-ac1b-b8efa25e3a5e
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: Choose another creature you have line of effect to. That creature automatically gets a tier 1 or tier 3 result (your choice) on their next power roll.
+        source: Fate Domain Class Feature
+        name: Fate Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          keywords:
+            Magic: true
+          targetType: target
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You call on the forces of fate to create a reliable future.
+          categorization: Trigger
+          range: "100"
+          numTargets: "1"
+          modifiers: []
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          domains:
+            class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          modeList:
+          - text: Tier 1 Result
+          - text: Tier 3 Result
+          name: Fate Domain Effect
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: d4f1bec6-6eb3-4a50-afb5-0a425a63f39a
+            filterTarget: ""
+            modesSelected:
+            - 1
+            ongoingEffectCustom: d4f1bec6-6eb3-4a50-afb5-0a425a63f39a
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 8c1e56c7-b7b7-4f2b-a359-42515ca79653
+            filterTarget: ""
+            modesSelected:
+            - 2
+            ongoingEffectCustom: 8c1e56c7-b7b7-4f2b-a359-42515ca79653
+          description: Choose another creature you have line of effect to. That creature automatically gets a tier 1 or tier 3 result (your choice) on their next power roll.
+          abilityType: none
+          iconid: fbfb413b-5378-48cc-9a8d-44af9bddd71c
+      name: Fate Domain Effect
+      classid: 2bf26b16-d956-4813-8452-deedc0c937ba
+      description: Choose another creature you have line of effect to. That creature automatically gets a tier 1 or tier 3 result (your choice) on their next power roll.
+      source: Fate Domain Class Feature
+      implementation: 3
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:2bf26b16-d956-4813-8452-deedc0c937ba: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+name: Fate Domain
+prerequisite: Deity.Domains has "Fate"
+mtime: 1771552343601
+id: 2bf26b16-d956-4813-8452-deedc0c937ba
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

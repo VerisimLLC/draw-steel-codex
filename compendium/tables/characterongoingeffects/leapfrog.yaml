@@ -1,0 +1,65 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:f074610b-99d0-40a1-9653-8738688f19e1: true
+  sourceguid: f074610b-99d0-40a1-9653-8738688f19e1
+  description: |
+    When an angulotl moves through an inactive angulotl’s space, the inactive angulotl can use a free triggered action to jump 3 squares.
+  source: Ongoing Effect
+  name: Leapfrog
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: Jump 3 Squares
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: b877a4b4-b81a-4521-a8af-35f25af549a0
+    abilityType: none
+    trigger: movethrough
+    domains:
+      CharacterOngoingEffect:f074610b-99d0-40a1-9653-8738688f19e1: true
+    numTargets: "1"
+    conditionFormula: target.type = "Angulotl" and subject.type = "Angulotl" and target = self and (not target.your turn)
+    name: Leapfrog
+    behaviors:
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: Jump 3
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  guid: 751cd813-055e-4a38-8d0e-715d53541cbf
+source: Ongoing Effect
+guid: f074610b-99d0-40a1-9653-8738688f19e1
+id: f074610b-99d0-40a1-9653-8738688f19e1
+ctime: 1754535885693
+domains:
+  CharacterOngoingEffect:f074610b-99d0-40a1-9653-8738688f19e1: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.344499945640564
+    s: 0.90429699420929
+    v: 1.00238573551178
+    a: 1
+custom: true
+name: Leapfrog
+iconid: ui-icons/skills/1.png
+description: |
+  When an angulotl moves through an inactive angulotl’s space, the inactive angulotl can use a free triggered action to jump 3 squares.
+mtime: 1756252933423
+implementation: 3

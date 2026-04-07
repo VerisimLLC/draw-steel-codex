@@ -1,0 +1,27 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 2b2a1858-a2bf-4846-8e6d-e721e1039be3
+ctime: 1762855019851
+textStorage:
+  __typeName: TextStorage
+  sections:
+    o: "[[/elevationcircle  -5 4 1.5 -4;activateobjects pit_2.PressurePlate deactivate | Open pit]] [[/elevationcircle  -5 4 1.5 4;activateobjects pit_2.PressurePlate activate | Close pit]]"
+    K: |+
+      # Pit 2
+
+    e: |+
+      A creature who moves onto a weakened square falls into a 4-square- deep pit. Climbing the walls of the pit doesn't require a test.
+
+    U: |+
+      ## Weakened Floor
+
+parentFolder: 5b13b0ba-6e2b-456e-9409-80e65cf0b199
+updateid: 38289365-a64d-4c0a-b16e-841d47cdbf03
+description: Pit 2
+content: |-
+  # Pit 2
+
+  [[/elevationcircle  -5 4 1.5 -4 | Open pit]]
+
+  [[/elevationcircle  -5 4 1.5 4 | Close pit]]
+mtime: 1764324757380

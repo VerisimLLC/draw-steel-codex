@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+id: cb597bd3-5c71-4d96-85bf-226bc666bb97
+ctime: 1772831798255
+domains:
+  CharacterOngoingEffect:cb597bd3-5c71-4d96-85bf-226bc666bb97: true
+custom: true
+guid: cb597bd3-5c71-4d96-85bf-226bc666bb97
+name: PrismHR
+statusEffect: false
+description: ""
+mtime: 1772835184495
+iconid: ui-icons/skills/1.png

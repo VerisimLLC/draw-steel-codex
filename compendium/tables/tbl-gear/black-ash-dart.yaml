@@ -1,0 +1,98 @@
+__typeName: equipment
+itemPrerequisite: Three vials of black ash from the College of Black Ash
+keywords:
+  Magic: true
+projectSource: Texts or lore in Szetch
+flavor: A diamond-shaped dart holds a shimmering black vial at its core.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+iconid: a28bee58-282e-4756-a4fa-5c057b28487f
+id: e7e99f21-03c0-4970-8c46-5437c2d608f6
+ctime: 1758399615903
+projectGoal: 45 (yields 1d3 darts, or three darts if crafted by a shadow)
+mtime: 1768254290189
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  consumables:
+    e7e99f21-03c0-4970-8c46-5437c2d608f6: 1
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  modifiers: []
+  strain: []
+  guid: d866a792-b517-4562-b796-2ec9e0e30aa5
+  persistence: []
+  description: "As a maneuver, you make a ranged free strike using a black ash dart. The strike deals an extra 1 damage and adds the following effects to the tier outcomes of the power roll:"
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      cannotModifyAction: true
+      filterAbility: Ability.Free Strike and Ability.Keywords has "Ranged"
+      behavior: modifyability
+      guid: cee41a9b-1b0b-4722-b577-8d9aae41d9ea
+      attributes: []
+      source: ""
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 4223e8a0-f4ba-4c72-8255-8d22eeeb40ce
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: 64857f2c-cfe0-497d-8f1c-cdd63e990680
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: 64857f2c-cfe0-497d-8f1c-cdd63e990680
+            modtype: none
+            addText: Teleport the target 2/4/6
+            keywords: []
+            activationCondition: true
+            domains: []
+            description: ""
+            name: Black Ash Dart
+            rollType: ability_power_roll
+            damageModifier: "1"
+            behavior: power
+            guid: 328ae56e-ea3f-465c-ba05-dcbcc0b67991
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  name: Black Ash Dart
+  numTargets: "1"
+  attributeOverride: no_attribute
+  abilityType: none
+  iconid: a28bee58-282e-4756-a4fa-5c057b28487f
+name: Black Ash Dart
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+description: |-
+  As a maneuver, you make a ranged free strike using a black ash dart. The strike deals an extra 1 damage and adds the following effects to the tier outcomes of the power roll:
+
+  Tier 1: You can teleport the target up to 2 squares.
+  Tier 2: You can teleport the target up to 4 squares.
+  Tier 3: You can teleport the target up to 6 squares.
+projectRollCharacteristic:
+  agl: true
+  inu: true
+implementation: 3

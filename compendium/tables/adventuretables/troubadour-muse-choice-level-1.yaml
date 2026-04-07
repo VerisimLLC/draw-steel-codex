@@ -1,0 +1,18 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: adventureTables
+      key: b10bf4b7-a2fe-429a-ad74-69c75a0938c6
+  choiceName: Gain Drama
+  id: 25325f6a-ae8a-402d-95ea-23dfb08e83e0
+rollType: namedChoice
+name: Troubadour Muse Choice Level 1
+mtime: 1753669222796
+id: 0fd2f4bc-f37e-4469-b8d3-031970498b45
+ctime: 1753669188681

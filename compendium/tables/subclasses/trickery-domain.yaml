@@ -1,0 +1,246 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 9bb2c553-f23b-4f08-9992-f2a72cc3596a
+  details: "You gain 2 piety the first time in an encounter that  you or a creature within 10 squares of you takes the Aid Attack or Hide maneuver.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: Aid Attack or Hide
+isSubclass: true
+ctime: 1728003845075
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: a4132160-e454-44a1-9b43-1b8e14ed85ee
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b57db4c2-2139-415d-af2f-6cd2bb03be12
+        source: Trickery Domain Class Feature
+        behavior: trigger
+        domains:
+          class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        name: Trickery Domain Piety
+        resourceRefreshType: encounter
+        description: "You gain 2 piety the first time in an encounter that you or a creature within 10 squares of you takes the Aid Attack or Hide maneuver.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Aid Attack or Hide Maneuver: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 6ee0570a-91cf-43e0-afba-07f8b30e7edd
+          numTargets: "1"
+          modifiers: []
+          conditionFormula: Used Ability.name = "Hide" or Used Ability.name = "Aid Attack"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: useability
+          domains:
+            class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 3 when level >= 4 else 2
+            checklistid: 9bb2c553-f23b-4f08-9992-f2a72cc3596a
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Trickery Piety
+          persistence: []
+          name: Trickery Domain Piety
+          guid: b7a16747-beba-4228-be3d-9f20c78f05a5
+          description: |-
+            You gain 2 piety the first time in an encounter that you or a creature within 10 squares takes the Aid Attack or Hide maneuver.
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: any
+          iconid: ui-icons/skills/1.png
+        guid: 6ee0570a-91cf-43e0-afba-07f8b30e7edd
+      name: Trickery Domain Piety
+      classid: 43b02e58-f179-40b8-9023-d26ddf82dbbb
+      description: "You gain 2 piety the first time in an encounter that you or a creature within 10 squares of you takes the Aid Attack or Hide maneuver.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+      source: Trickery Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 572bb086-58d7-4b5a-adb8-f8782f46a251
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: Choose a creature within 10 squares of you. You can slide that creature up to a number of squares equal to 5 + your conduit level.
+        source: Trickery Domain Class Feature
+        name: Trickery Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 0.034541130065918
+              v: 0.863355159759521
+              a: 1
+          categorization: Trigger
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          repeatTargets: false
+          abilityType: none
+          domains:
+            class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: e1fed64d-3ca3-483b-8ff2-eb6ba8550821
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            inheritRange: false
+            abilityType: standard
+            standardAbilityParams:
+              range: "<<level+5>>"
+            standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+          targetType: target
+          name: Trickery Domain Effect
+          flavor: ""
+          description: Choose a creature within 10 squares of you. You can slide that creature up to a number of squares equal to 5 + your conduit level.
+          range: "10"
+          iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+      name: Trickery Domain Effect
+      classid: 43b02e58-f179-40b8-9023-d26ddf82dbbb
+      description: Choose a creature within 10 squares of you. You can slide that creature up to a number of squares equal to 5 + your conduit level.
+      source: Trickery Domain Class Feature
+      implementation: 3
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:43b02e58-f179-40b8-9023-d26ddf82dbbb: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+name: Trickery Domain
+prerequisite: Deity.Domains has "Trickery"
+mtime: 1768291555694
+id: 43b02e58-f179-40b8-9023-d26ddf82dbbb
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

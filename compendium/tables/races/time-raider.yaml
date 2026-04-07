@@ -1,0 +1,407 @@
+__typeName: Race
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    domains:
+      race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+    modifiers:
+    - __typeName: CharacterModifier
+      domains:
+        race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+      sourceguid: 5a02ff7d-f8bc-412e-857c-5bb43f55263f
+      behavior: resistance
+      source: Time Raider Race Feature
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: Level
+        damageType: psychic
+        apply: Damage Reduction
+      guid: 1c677506-8bbe-470f-a964-45e7c35ea24d
+      name: "Signature Trait: Psychic Scar"
+      description: |-
+        Your mind is a formidable layer of defense. You have psychic immunity 
+        equal to your level.
+    source: Time Raider Race Feature
+    description: |-
+      Your mind is a formidable layer of defense. You have psychic immunity 
+      equal to your level.
+    guid: 5a02ff7d-f8bc-412e-857c-5bb43f55263f
+    name: "Signature Trait: Psychic Scar"
+    implementation: 3
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    numChoices: "3"
+    costsPoints: true
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Time Raider Race Feature
+      guid: 592ed6ab-9422-4eef-a75b-c203f48af741
+      pointsCost: 1
+      domains:
+        race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+      name: Beyondsight
+      description: As a maneuver, you can adjust your vision to allow you to see through mundane obstructions that 1 square thick or less. While your vision is adjusted this way, you can’t see and don’t have line of effect to any creatures or objects within 1 square of you. You can return your vision to normal as a maneuver.
+      canHavePrerequisites: true
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+        sourceguid: b777778f-0913-41ca-b4a4-980f4bbe93e8
+        behavior: triggerdisplay
+        source: Time Raider Race Feature
+        name: Foresight
+        description: Your senses extend past mundane obscuration and the veil of the future alike. You instinctively know the location of any concealed creatures who aren’t hidden from you, negating the usual bane on attacks against them. Additionally, whenever you are attacked, you can use a triggered action to impose a bane on the power roll.
+        guid: ce7661b2-bbce-4451-9786-e4a54f606774
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: A bane is imposed on the power roll.
+          trigger: A creature attacks you	
+          name: Foresight
+          guid: 5c3ca93f-b755-4d8c-a120-90cd051f673a
+          distance: Self
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: b777778f-0913-41ca-b4a4-980f4bbe93e8
+        source: Time Raider Race Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          keywords: []
+          activationCondition: false
+          name: Foresight
+          rules: ""
+          rollType: ability_power_roll
+          guid: fd1eb85b-9cca-4019-88d3-5df53914f358
+          modtype: bane
+        guid: 687fe160-73e6-41f7-a901-e2848d3d5d08
+        type: trigger
+        domains:
+          race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+        targetType: self
+        behavior: powertabletrigger
+        name: Foresight
+        rules: The attack against you takes a bane.
+        description: Your senses extend past mundane obscuration and the veil of the future alike. You instinctively know the location of any concealed creatures who aren’t hidden from you, negating the usual bane on attacks against them. Additionally, whenever you are attacked, you can use a triggered action to impose a bane on the power roll.
+        range: 10
+        trigger: strike
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: b777778f-0913-41ca-b4a4-980f4bbe93e8
+        source: Time Raider Race Feature
+        value: 20
+        domains:
+          race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+        name: Foresight
+        guid: 78ba4495-a999-41e0-8893-88ebb2d5c338
+        description: Your senses extend past mundane obscuration and the veil of the future alike. You instinctively know the location of any concealed creatures who aren’t hidden from you, negating the usual bane on attacks against them. Additionally, whenever you are attacked, you can use a triggered action to impose a bane on the power roll.
+        behavior: attribute
+        attribute: e354ecc7-888f-48fc-a248-7a277252675e
+      source: Time Raider Race Feature
+      guid: b777778f-0913-41ca-b4a4-980f4bbe93e8
+      pointsCost: 1
+      domains:
+        race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+      name: Foresight
+      description: Your senses extend past mundane obscuration and the veil of the future alike. You instinctively know the location of any concealed creatures who aren’t hidden from you, negating the usual bane on attacks against them. Additionally, whenever you are attacked, you can use a triggered action to impose a bane on the power roll.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 0b19153c-1539-43ac-85dc-917c702a25d6
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0b19153c-1539-43ac-85dc-917c702a25d6
+        source: Time Raider Race Feature
+        modtype: edge
+        keywords: []
+        activationCondition: true
+        guid: 50b0c5d4-4eca-46bb-883d-0bd3cc0187a9
+        name: Four-Armed Athletics
+        behavior: power
+        description: Your unique physiology enhances your movement. You gain an edge on tests that use the Climb, Gymnastics, or Swim skills when you can use all your arms in the attempt.
+        rollType: test_power_roll
+        skills:
+        - 5052a2e5-938c-46f9-81fd-68a98fe363b5
+        - 98af721e-8904-496a-b4df-a581f09f5af7
+        - 91ee7ea9-f331-42df-8f4b-e4a475d37a98
+      source: Time Raider Race Feature
+      name: Four-Armed Athletics
+      description: Your unique physiology enhances your movement. You gain an edge on tests that use the Climb, Gymnastics, or Swim skills when you can use all your arms in the attempt.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 685eb626-c484-4077-962b-f0905b117284
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 685eb626-c484-4077-962b-f0905b117284
+        modifyDescription: Whenever you use the Grab or Knockback maneuver against an adjacent creature, you can target one additional adjacent creature, using the same power roll for both targets.
+        source: Time Raider Race Feature
+        filterAbility: ability.name = "Grab" or ability.name = "Knockback"
+        behavior: modifyability
+        attributes: []
+        guid: 7e616d47-79f6-49de-918d-a550d7238cd6
+        description: Your multiple arms let you take on multiple tasks at the same time. Whenever you use the Grab or Knockback maneuver against an adjacent creature, you can target one additional adjacent creature, using the same power roll for both targets. Additionally, you can have up to two creatures grabbed at a time.
+        name: Four-Armed Martial Arts
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 31c103f5-670f-4644-b2e1-c7e7241e506f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors: []
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        operation: max
+        sourceguid: 685eb626-c484-4077-962b-f0905b117284
+        source: Time Raider Race Feature
+        value: 2
+        name: Four-Armed Martial Arts
+        guid: 66353f1e-feb8-41ab-9396-d4364f3e0a19
+        description: Your multiple arms let you take on multiple tasks at the same time. Whenever you use the Grab or Knockback maneuver against an adjacent creature, you can target one additional adjacent creature, using the same power roll for both targets. Additionally, you can have up to two creatures grabbed at a time.
+        behavior: attribute
+        attribute: 7a91dad1-97f4-4411-b326-425d58bb2bb2
+      - __typeName: CharacterModifier
+        guid: ccf26636-c6e7-4096-b53d-752e0b9a270f
+        sourceguid: 685eb626-c484-4077-962b-f0905b117284
+        value: 1
+        source: Time Raider Race Feature
+        name: Four-Armed Martial Arts
+        behavior: attribute
+        description: Your multiple arms let you take on multiple tasks at the same time. Whenever you use the Grab or Knockback maneuver against an adjacent creature, you can target one additional adjacent creature, using the same power roll for both targets. Additionally, you can have up to two creatures grabbed at a time.
+        attribute: f438be18-6fc0-46d5-9a68-fed0fe61f418
+      source: Time Raider Race Feature
+      name: Four-Armed Martial Arts
+      description: Your multiple arms let you take on multiple tasks at the same time. Whenever you use the Grab or Knockback maneuver against an adjacent creature, you can target one additional adjacent creature, using the same power roll for both targets. Additionally, you can have up to two creatures grabbed at a time.
+      pointsCost: 2
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: "1		"
+      costsPoints: false
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+        guid: 357a3fae-97d4-4d99-b94a-744da6bf66e6
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+          sourceguid: 357a3fae-97d4-4d99-b94a-744da6bf66e6
+          description: You slam an invisible force down upon the target.
+          source: Time Raider Race Feature
+          name: Concussive Slam
+          behavior: activated
+          guid: 3e34b4cc-9308-484e-9294-f23245a70c79
+          activatedAbility:
+            __typeName: ActivatedAbility
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Psionic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You slam an invisible force down upon the target.
+            categorization: Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 888f5373-ac62-4c60-be3f-9611a24db1d2
+            domains:
+              race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            numTargets: "1"
+            name: Concussive Slam
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R, I, or P damage
+              - 3 + R, I, or P damage; push 1
+              - 5 + R, I, or P damage; push 2; M [strong] prone
+              roll: 2d10 + Reason or Intuition or Presence
+            description: ""
+            abilityType: none
+            iconid: 74db885f-d96e-4b14-af40-69292a0d6a22
+        canHavePrerequisites: true
+        name: Concussive Slam
+        description: You slam an invisible force down upon the target.
+        source: Time Raider Race Feature
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+        guid: 3626e093-0f4c-4500-9487-14de2c6e4339
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+          sourceguid: 3626e093-0f4c-4500-9487-14de2c6e4339
+          description: You shoot forth a beam of psychic purple force that grips your target.
+          source: Time Raider Race Feature
+          name: Psionic Bolt
+          behavior: activated
+          guid: fddac79e-7154-4fd6-8732-14caebfcd4a3
+          activatedAbility:
+            __typeName: ActivatedAbility
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Psionic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You shoot forth a beam of psychic purple force that grips your target.
+            categorization: Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 068683b5-6c08-4041-a744-a60e76af815b
+            domains:
+              race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            numTargets: "1"
+            name: Psionic Bolt
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R, I, or P psychic damage; slide 1
+              - 3 + R, I, or P psychic damage; slide 2
+              - 5 + R, I, or P  psychic damage; slide 3
+              roll: 2d10 + Reason or Intuition or Presence
+            description: ""
+            abilityType: none
+            iconid: ea31d2d9-7401-4f45-88c9-1200b0dc4466
+        canHavePrerequisites: true
+        name: Psionic Bolt
+        description: You shoot forth a beam of psychic purple force that grips your target.
+        source: Time Raider Race Feature
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+        guid: 15cfb703-0c81-4d5a-a809-2425dad21d1e
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+          sourceguid: 15cfb703-0c81-4d5a-a809-2425dad21d1e
+          description: You fill yourself or an ally with a burst of energy.
+          source: Time Raider Race Feature
+          name: Minor Acceleration
+          behavior: activated
+          guid: d2db47bd-3879-4247-ac0e-f73df2342a5c
+          activatedAbility:
+            __typeName: ActivatedAbility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            numTargets: "1"
+            modifiers: []
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            abilityType: none
+            guid: 4b7ed1e5-73ca-439a-98eb-8b65505ee3fb
+            repeatTargets: false
+            keywords:
+              Melee: true
+              Psionic: true
+            domains:
+              race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+            targetType: target
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              durationUntilEndOfTurn: false
+              duration: 1
+              ongoingEffectCustom: 18db6893-4788-44ca-8a84-d3e0eb56452d
+              ongoingEffect: 18db6893-4788-44ca-8a84-d3e0eb56452d
+              stacks: Max(Reason, Max(Intuition, Presence))
+            name: Minor Acceleration
+            flavor: You fill yourself or an ally with a burst of energy.
+            description: The target’s speed increases by an amount equal to your Reason, Intuition, or Presence score (your choice) until the start of your next turn.
+            range: 1
+            iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+        canHavePrerequisites: true
+        name: Minor Acceleration
+        description: You fill yourself or an ally with a burst of energy.
+        source: Time Raider Race Feature
+        implementation: 3
+      description: You gain one of the following abilities.
+      guid: 9b0d5f31-19d7-4ccd-8fcb-639530dae51c
+      pointsCost: 2
+      name: Psionic Gift
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+        sourceguid: 6b208810-289a-43fe-8276-32bcab8f2b16
+        behavior: conditionimmunity
+        source: Time Raider Race Feature
+        conditions:
+        - 7746b7c9-34af-446c-ba60-bed5572dcf54
+        guid: bbea5cc2-1aca-4025-85b2-ad2721b54067
+        name: Unstoppable Mind
+        description: Your mind allows you to maintain your focus in any situation. You can’t be dazed.
+      source: Time Raider Race Feature
+      guid: 6b208810-289a-43fe-8276-32bcab8f2b16
+      pointsCost: 2
+      domains:
+        race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+      name: Unstoppable Mind
+      description: Your mind allows you to maintain your focus in any situation. You can’t be dazed.
+      canHavePrerequisites: true
+      implementation: 3
+    pointsName: Ancestry Points
+    guid: ea1adf38-ae68-41e5-a0ca-ab5e348c19d8
+    name: Purchased Time Raider Traits
+    description: You have 3 ancestry points to spend on the following traits
+  domains:
+    race:7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63: true
+lifeSpan: 50–90
+nameGenerator: 74fa53c8-12fb-478a-bca3-d8bc0915180c
+id: 7cfb7aa7-aad9-4aeb-8a4c-4c91b84bea63
+ctime: 1726827622119
+lore: "“You will tell me the location of the ship you came here in.” \n\nTaxiarch Lycaon paced outside the ruined stone church. The four-armed woman with crystal eyes and flaming pink hair in a strip down the center of her shaved head sneered at him. She was chained to the ruin of a stone column outside the church. \n\n“Is it that your brain is so small you must talk in order to think?” The woman’s smile was a sneer. \n\nLycaon strode toward the alien, grabbed a length of chain around her waist and yanked on it, pulling it taut so the chain around her neck tightened. “You are going to die in any event,” he said. “If you wish to deny me the pleasure of hearing you howl and scream for mercy, tell me what I want to know now and my dogs will kill you quickly.” \n\nUp close, she could see the fine stitching along Lycaon’s cheeks and forehead, the very slight differences in skin tone that showed his skin was not his own. \n\n“You seem to be made of bits,” the alien said as she peered at Lycaon, her crystalline eyes catching and reflecting prismatic light. “And not the best bits. Leftovers? Is that what you are? A walking assemblage of cast-off scraps? Hahah, I thought the proteans were hideous. Someone should let them know! There are creatures even more foul-seeming and useless in the timescape.” \n\nThe taxiarch smiled to himself, nodded with respect at the woman’s epithets. He placed his foot on a low piece of rubble, once part of the wall of the stone church, and leaned his arm on his knee. He was not dressed as the other war dogs. No black leather for him. He wore a gold breastplate with the embossed head of a ram molded into it, a white cape over his back. Gold greaves and red leather boots and gloves. The other war dogs only had patches of hair but his was long and blond. \n\nHe struck a casual, jaunty pose. “Where is your worldship?” he said in a more reasonable voice. “Or came you here in a single-seater starskimmer?” At this, the alien’s crystal eyes went wide, betraying surprise. “You see?” the taxiarch said, impressed with himself. “I am not a primitive like these peasants, who hounded you because you are alien.” He nodded at the folk of the small town watching from the stables some distance away. “I am Ajax’s elite. Better than his chosen. I was made for victory.” Indeed, Taxiarch Lycaon looked almost fully human. Handsome and fit like a statue from Phaedros, which his model had almost certainly been inspired by. Unless you looked closely, there was no sign he was a product of the body banks. “If you agree to lead me to your vessel, I will let you go free.” \n\nThe alien sighed. “‘Blaap blaap blaap,’” she said. “You should hear yourself. Like barking thrazz, you sound to me. Who holds your leash I wonder? For surely a microbrain such as you could not command any more than these rabble.” She nodded her head at the other twenty or so war dogs. \n\nHer taunts worked. Lycaon hauled back and punched the alien in the jaw. Her head smashed into the ruined column. She was dazed but she shook it off and laughed. \n\n“Look how easily this one is goaded!” she said. She spat out dark-blue blood and turned to the peasants gathered. “You people! Why do you let yourselves be cowed by these … bits? Bits of people kludged together? Even the least of you is worth more than these.” \n\n“Perhaps from the air,” Flight Captain Lyria offered, and she stroked the feathers of her giant hawk mount to calm it. “I could scout the forest around the …” \n\n“No!” Taxiarch Lycaon pointed a finger at the Hawklord and strode toward her. “You are the elite of Ajax’s winged harriers, I am his chosen brigade commander. We are not scavengers! This one …” he stabbed a gloved finger at the alien, “… will come to heel, or I will give her to my war dogs.” He turned to face the chained alien, who yawned. Lycaon seethed. \n\n“They may pull you apart,” he said to her, and at this his squadron of soldiers, all in black leather and golden pauldrons, started making barking sounds. Then they laughed at each other. \n\n“Or I may let my crucibite melt the skin from your bones.” At that, a war dog clad in leather from head to foot wearing a heavy mask with glass circles where the eyes should be and some kind of canister over his mouth stepped forward. The long thin brass tube in his hands connected to a large metal tank on his back. \n\n“Shall I let you choose?” the taxiarch said, and drew a dagger from his belt. “I will cut off one finger. If you cry out, I kill you. If not, another finger. And if you cry out then …” "
+moveSpeeds:
+  walk: 5
+details: |-
+  The original servitor species of the synliiroi—evil psions with near god-like power—the kuran’zoi liberated themselves during the First Psychic War. In the centuries since, they built their own culture and civilization as nomads of the timescape. The exonym “time raiders” was given to them by denizens of the lower worlds who, seeing the advanced technology they wield, concluded they must be from the future. 
+
+  Extraordinarily rare in Orden, the time raiders thrive on the Sea of Stars, the Sea Between Worlds, where the winds of limbo roar. 
+
+  In place of eyes, kuran'zoi possess crystalline ocular sensors that grant them high-spectral vision hardened against the extreme radiations encountered in the Sea of Stars, permitting them to operate freely outside their vessels with only their portable rebreathers. Time raiders also have two sets of arms, allowing them to wield melee weapons at the same time as ranged weapons. A single well-trained kuran’zoi is like a squad unto themself.
+name: Time Raider
+mtime: 1764759181584
+height: 5’0’’–6’0’’
+weight: 120–250
+portraitid: 7d802723-8c2a-41e0-9e8b-5b4556cb6866

@@ -1,0 +1,367 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: a5325061-f7bf-4860-9bd6-e016c5047bdc
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |
+        Predator A    Level 1 Elite Brute
+        Animal    EV 16
+        <b>Stamina</b> 80
+        <b>Speed</b> 5    <b>Size</b> 2 /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +1    Agility +2    Reason -2    Intuition +1    Presence +1
+        <b>Natural Weapon</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>    Target</b> Two creatures or objects
+        %E2%9C%A6    %E2%89%A411    7 damage
+        %E2%98%85    12%E2%80%9316    10 damage; M<1 prone
+        %E2%9C%B8    17    13 damage; M<2 prone
+
+        <b>Ready to Strike</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>    Target</b> Self
+        <b>Effect</b> The predator assesses their environment or lets loose a battle cry and gives themself an edge on their next strike.
+
+        <b>Quick Strike </b>(Triggered Action)
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>    Target</b> Triggering creature or object
+        <b>Trigger</b> A creature or object comes within distance.
+        <b>Effect</b> The predator makes a free strike against the target. The predator deals an additional 3 damage if they were hidden from the target.
+
+        <b>Nature Calls</b>
+        The predator ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+        Predator B    Level 2 Elite Brute
+        Animal    EV 16
+        <b>Stamina</b> 100
+        <b>Speed</b> 5    <b>Size</b> 3 /<b> Stability</b> 2
+        <b>    Free Strike</b> 5
+        Might +2    Agility +1    Reason -1    Intuition +1    Presence +0
+        <b>Natural Weapon</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>    Target</b> 2 creatures or objects
+        %E2%9C%A6    <b>%E2%89%A411</b>    7 damage
+        %E2%98%85    <b>12%E2%80%9316</b>    11 damage; push 1; M<1 prone
+        %E2%9C%B8    <b>17</b>    14 damage; push 2; M<2 prone
+
+        <b>Wild Swing</b> (Action)%E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 burst<b>    Target</b> All enemies and objects
+        %E2%9C%A6    <b>%E2%89%A411</b>    3 damage
+        %E2%98%85    <b>12%E2%80%9316</b>    6 damage
+        %E2%9C%B8    <b>17</b>    8 damage; A<2 bleeding (save ends)
+        <b>Effect</b> The predator uses their weapons in a wanton flurry.
+
+        <b>Swat</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1    <b>Target</b> Triggering creature or object
+        <b>Trigger</b> The predator takes damage from a creature or object within distance.
+        <b>Effect</b> Push 5.
+
+        <b>Trample</b>
+        The predator can move through enemies and objects at normal speed. When the predator enters a creature's space for the first time on their turn, the creature takes 3 damage.
+
+        <b>Nature Calls</b>
+        The predator ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+
+        Can I Make A Regular Animal?
+        You certainly can! Animal traits can be applied to the Civilian Stat Block to make less imposing animals that the heroes can rescue (see Harmless Creatures). Surviving a wild animal attack can also be handled through group and montage tests as if they were environmental challenges to overcome.
+
+        Arixx
+        Pebbles dance as the ground quivers. A spray of rock and earth shatters the afternoon's peace, and an arixx blooms from the earth. Their mandibles drip sizzling acid as a talon impales their next meal: sometimes a fat sheep, other times a shepherd.
+        An arixx is a chitinous, burrowing monstrosity larger than a horse. Their hooked claws and serrated mandibles are fearsome weapons, but even more dangerous is the stream of caustic spittle they use to dissolve their prey.
+        Pastoral Pest
+        Although arixxes can be found anywhere, they are a particular plague in settled lands. Arixxes hunt alone, lurking a few feet below roadways and pastures. When their sensitive antennae detect movement above, they burst from the earth, dragging living prey into their tunnels to be devoured. These hit-and-run tactics make arixxes virtually impossible to eradicate-unless they have the bad luck to ambush a party of well-armed adventurers. Many communities pay a handsome bounty for a slain arixx.
+        Terror of the Thaw
+        Arixxes are a year-round menace in the warmest lands. In temperate places, arixxes hibernate during the winter, granting farmers a season of peace ... but this respite is paid for on the first thaw of spring, when every arixx awakens ravenous on the same day and bursts from the ground to feed.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:29885c1a-b8da-42b1-b600-6479d1ad4e98: true
+      modifiers: []
+      name: Nature Calls
+      description: The predator ignores 1 bane on their abilities while in an encounter outside or in a natural environment.Predator B    Level 2 Elite BruteAnimal    EV 16
+      guid: 29885c1a-b8da-42b1-b600-6479d1ad4e98
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0b91e380-34e5-4f38-a9ea-b8e940831fd9: true
+      modifiers: []
+      name: Trample
+      description: The predator can move through enemies and objects at normal speed. When the predator enters a creature's space for the first time on their turn, the creature takes 3 damage.
+      guid: 0b91e380-34e5-4f38-a9ea-b8e940831fd9
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:27a0c7b3-47c2-4dc1-a45b-699a2403d1f1: true
+      modifiers: []
+      name: Nature Calls
+      description: The predator ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+      guid: 27a0c7b3-47c2-4dc1-a45b-699a2403d1f1
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:96894e65-7299-448f-8de2-18796c85d9bf: true
+      modifiers: []
+      name: Nature's Spirit
+      description: While outdoors or in a natural environment, the predator can negate a bane on their abilities or turn a double bane into a bane.
+      guid: 96894e65-7299-448f-8de2-18796c85d9bf
+      source: Trait
+    role: Elite Brute
+    inflictedConditions: []
+    keywords:
+      Animal: true
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    monster_type: Predator A
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 80
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 4274fd41-a660-432f-9561-a4cf16611825
+      implementation: 4
+      numTargets: 2
+      name: Natural Weapon
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage; M<1 prone
+        - 13 damage; M<2 prone
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 188c6f8b-508f-42d1-97b6-27990a9925d6
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Ready to Strike
+      numTargets: 1
+      description: The predator assesses their environment or lets loose a battle cry and gives themself an edge on their next strike.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 00d9b77b-5bc5-43b6-8ed1-4eacc605363b
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: 'Quick Strike '
+      numTargets: 1
+      description: The predator makes a free strike against the target. The predator deals an additional 3 damage if they were hidden from the target.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 7b008f7a-54fe-4dcf-9d1c-d8697d8eaeb1
+      implementation: 4
+      numTargets: 2
+      name: Natural Weapon
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage; M<1 prone
+        - 13 damage; M<2 prone
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 6 damage
+        - 8 damage; A<2 bleeding (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a6c58eb8-0bb8-43c9-b56c-8b4d9c8c9a58
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Wild Swing
+      numTargets: "1"
+      description: The predator uses their weapons in a wanton flurry.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: e8abfaa1-1668-4ee8-9acd-52dadd216a5a
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Swat
+      numTargets: "1"
+      description: Push 5.
+      abilityType: none
+      implementation: 0
+    groupid: a68c91b6-55f3-4c16-82d9-e0da68078b49
+    movementSpeeds: []
+    ev: 12
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 42637538-3b12-4b68-90ad-85536177970e
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Predator A
+parentFolder: 4b3931af-633a-4d06-a87c-a4139290d258
+artist: null
+ord: 4
+ctime: 1741590244140
+mtime: 1775201137032
+hidden: false

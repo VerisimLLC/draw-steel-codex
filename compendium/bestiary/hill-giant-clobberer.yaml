@@ -1,0 +1,337 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ba3507da-6fbe-4a6c-924c-3665c1dbd448
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Hill Giant Clobberer	Level 7 Elite Brute
+        Giant, Hill Giant	EV 36
+        <b>Stamina</b> 200	<b>Immunity</b> damage 3
+        <b>Speed</b> 6 (climb)	<b>Size</b> 4 /<b> Stability</b> 5
+        <b>Free Strike</b> 8
+        Might +4	Agility -1	Reason -1	Intuition -1	Presence -1
+        <b>Clobberin' Club</b> (Action)%E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	12 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	17 damage; prone
+        %E2%9C%B8	<b>17</b>	21 damage; prone
+        <b>Effect</b> This ability deals an additional 12 damage against already prone targets.
+
+        <b>Stomp</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 3 Malice
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	14 damage; prone
+        %E2%98%85	<b>12%E2%80%9316</b>	20 damage; prone M<3 and can't stand (save ends)
+        %E2%9C%B8	<b>17</b>	25 damage; prone M<4 and can't stand (save ends)
+        <b>Effect</b> The target becomes entrenched in a 2 square deep hole in the ground.
+
+        <b>Hill Quake</b> (Maneuver)
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 3 burst<b>	Target</b> All enemies in the burst
+        <b>Effect</b> Each target makes either a <b>Might or Agility test</b>.
+        %E2%9C%B8	<b>%E2%89%A411</b>	6 damage; vertical push 4; prone
+        %E2%98%85	<b>12%E2%80%9316</b>	2 damage; vertical push 4
+        %E2%9C%A6	<b>17</b>	Push 2
+        <b>Effect</b> The clobberer can choose to fall prone, doubling the push distance.
+
+        <b>You Ain't Getting Away</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 3<b>	Target</b> 1 creature
+        <b>Trigger</b> The target moves or shifts away from the clobberer.
+        <b>Effect</b> The target makes an <b>Agility test</b>.
+        %E2%9C%B8	<b>%E2%89%A411</b>	Grabbed, target has a bane on escaping the grab
+        %E2%98%85	<b>12%E2%80%9316</b>	Grabbed
+        %E2%9C%A6	<b>17</b>	No effect
+        <b>2 Malice</b> A grabbed target is released and either slammed on the ground for 5 damage and prone can't stand (EoT) or is vertically pushed 5.
+
+        <b>Destructive Path</b>
+        The clobberer automatically destroys unattended, mundane size 1 objects in their path during their movement. They can break through any mundane wall made of wood, stone, or a similarly sturdy material in this way, so long as the wall is no more than 2 squares thick.
+
+        <b>Distracted</b>
+        Whenever the clobberer targets a creature or object with an ability, the director provides any enemy within range of the ability an opportunity to use a free triggered action to distract the clobberer. The clobberer targets that enemy instead.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6eefc8f5-f9bb-442d-b96c-7654df9d40bc: true
+      modifiers: []
+      name: Destructive Path
+      description: The clobberer automatically destroys unattended, mundane size 1 objects in their path during their movement. They can break through any mundane wall made of wood, stone, or a similarly sturdy material in this way, so long as the wall is no more than 2 squares thick.
+      guid: 6eefc8f5-f9bb-442d-b96c-7654df9d40bc
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a5557068-b8f0-4945-8c11-fce45bd8b1ff: true
+      modifiers: []
+      name: Distracted
+      description: Whenever the clobberer targets a creature or object with an ability, the director provides any enemy within range of the ability an opportunity to use a free triggered action to distract the clobberer. The clobberer targets that enemy instead.
+      guid: a5557068-b8f0-4945-8c11-fce45bd8b1ff
+      source: Trait
+    role: Elite Brute
+    inflictedConditions: []
+    keywords:
+      Giant: true
+      Hill Giant: true
+    max_hitpoints_roll: "200"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: all
+      apply: Damage Reduction
+    opportunityAttack: 8
+    monster_type: Hill Giant Clobberer
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 200
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 12 damage
+        - 17 damage; prone
+        - 21 damage; prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bb0d1546-e867-4577-91dd-f1afb5e35a87
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Clobberin' Club
+      numTargets: 2
+      description: This ability deals an additional 12 damage against already prone targets.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 179aadb1-14e5-4acc-966e-8ed647d10db0
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 14 damage; prone
+        - 20 damage; prone; M<3 can't stand (save ends)
+        - 25 damage; prone; M<4 can't stand (save ends)
+        roll: 2d10 + Might
+      name: Stomp
+      implementation: 3
+      description: The target becomes entrenched in a 2 square deep hole in the ground.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: db62ba16-3ac5-4851-978c-3b906b5bc7d2
+      numTargets: 1
+      targetType: all
+      name: Hill Quake
+      iconid: ui-icons/skills/1.png
+      description: The clobberer can choose to fall prone, doubling the push distance.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 150
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 3
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: A target who would be grabbed by this ability is instead either vertical pushed up to 5 squares; or they take 5 damage, are knocked prone, and can't stand until the end of their next turn.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          targetFilter: ConditionCaster("Grabbed") = Caster
+          guid: 96f914ae-4954-4270-9931-c5c6311119c2
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "5"
+          targetType: all
+          name: Invoked Ability
+          description: ""
+          categorization: Hidden
+          range: "3"
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: A target who would be grabbed by this ability is instead either vertical pushed up to 5 squares; or they take 5 damage, are knocked prone, and can't stand until the end of their next turn."
+        autoTarget: true
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      categorization: Trigger
+      name: You Ain't Getting Away
+      guid: 0a3b7f39-fce6-41ac-93fb-d3ab674cb2c3
+      description: |-
+        The target makes an Agility test.
+        Grabbed, and the target takes a bane on the Escape Grab maneuver.
+
+        Grabbed
+
+        No effect.
+
+
+        **2 Malice**: A target who would be grabbed by this ability is instead either vertical pushed up to 5 squares; or they take 5 damage, are knocked prone, and can't stand until the end of their next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    movementSpeeds:
+      climb: 6
+    ev: 36
+    minion: false
+    levelChoices: []
+    creatureSize: "4"
+  tokenType: null
+  bestiaryId: d8f32e13-9142-4da2-a0c8-1a2ec33634aa
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hill Giant Clobberer
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590315871
+mtime: 1775201137032
+hidden: false

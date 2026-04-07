@@ -1,0 +1,34 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: min
+  sourceguid: c0ec2fac-e6dd-4ade-a088-9e0519eea2f5
+  source: Ongoing Effect
+  behavior: attribute
+  guid: ffb960d2-a268-4879-961e-095cd058af3f
+  name: Zero Stability
+  value: 0
+  displayIcon: false
+  description: This Creatures stability is a maximum of zero.
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+guid: c0ec2fac-e6dd-4ade-a088-9e0519eea2f5
+id: c0ec2fac-e6dd-4ade-a088-9e0519eea2f5
+ctime: 1770904678467
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.56012487411499
+    s: 0.892090082168579
+    v: 1.00155901908875
+    a: 1
+custom: true
+name: Zero Stability
+iconid: 32077eeb-5e0b-4dd8-b538-4bab491da0ed
+description: This Creatures stability is a maximum of zero.
+mtime: 1770904678467
+implementation: 4

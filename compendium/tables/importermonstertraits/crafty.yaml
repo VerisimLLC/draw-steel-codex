@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+testCases:
+- text: The cursespitter doesn't provoke opportunity attacks by moving.
+modifiers:
+- __typeName: CharacterModifier
+  guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+  sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+  value: 1
+  source: Monster
+  name: Crafty
+  behavior: attribute
+  description: ""
+  attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+source: Monster
+guid: 37e008e8-005a-433b-b273-eef5f201e287
+importMatch: "<<monster>> doesn't provoke opportunity attacks by moving."
+ctime: 1731819424531
+name: Crafty
+id: 0bf07484-aacf-4dee-968a-cbe239284893
+description: ""
+mtime: 1743381749167
+implementation: 3

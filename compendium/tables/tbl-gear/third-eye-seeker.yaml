@@ -1,0 +1,61 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Ranged: true
+      Weapon: true
+    activationCondition: true
+    damageTypeMappings: []
+    description: 1/2/3
+    name: Third Eye Seeker Extra Damage
+    behavior: power
+    damageModifierType: psychic
+    modtype: none
+    rollType: ability_power_roll
+  source: Item
+  name: Third Eye Seeker Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 199215df-0133-4dca-9d54-d0cdfb01245e
+itemPrerequisite: Heart strings of a tapir, a pound of tiger’s eye gemstones
+keywords:
+  Bow: true
+  Psionic: true
+projectSource: Texts or lore in Variac
+flavor: The shifting patterns on this bow’s crystalline grip resemble dozens of blinking eyes.
+level9: The weapon’s extra psychic damage increases to 3. Additionally, you have a double edge on weapon abilities that use the weapon against creatures who have used a psionic ability since the end of your last turn.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The weapon’s extra psychic damage increases to 2. Additionally, whenever a creature within distance of your ranged weapon free strike uses a triggered action, you can use a triggered action after their triggered action resolves to make a ranged weapon free strike using this weapon against the creature.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 021fbd10-0dff-40af-94ca-629a700715f1
+ctime: 1759397344059
+name: Third Eye Seeker
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 psychic damage. Additionally, any damage-dealing weapon ability using the weapon that achieves a tier 3 outcome also leaves the target dazed until the end of their next turn.
+mtime: 1759398458801
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: c1b70aa9-c1e0-43f6-9de9-b051c3e0a5fb

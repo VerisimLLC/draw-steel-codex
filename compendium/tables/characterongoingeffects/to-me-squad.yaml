@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+stackable: true
+id: 27df0ea3-47ff-4a8a-8091-2995f0a307da
+ctime: 1765851949224
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 27df0ea3-47ff-4a8a-8091-2995f0a307da
+name: To Me Squad!
+custom: true
+description: ""
+mtime: 1765851975201
+iconid: ui-icons/skills/1.png

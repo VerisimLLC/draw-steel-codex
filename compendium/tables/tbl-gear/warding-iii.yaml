@@ -1,0 +1,77 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 4c3bf3a4-6822-4479-a96f-d593b7b0edf6
+  description: The Stamina bonus for the Warding I enhancement becomes +18. Additionally, you and each ally within 3 squares of you has their characteristic scores treated as 1 higher for the purpose of resisting potencies. This replaces the benefit of Warding II.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 72670147-e87d-45d1-843b-e892faf14b8f
+    sourceguid: 4c3bf3a4-6822-4479-a96f-d593b7b0edf6
+    value: 18
+    source: Warding III Imbuement
+    name: Warding III
+    behavior: attribute
+    description: The Stamina bonus for the Warding I enhancement becomes +18. Additionally, you and each ally within 3 squares of you has their characteristic scores treated as 1 higher for the purpose of resisting potencies. This replaces the benefit of Warding II.
+    attribute: hitpoints
+  - __typeName: CharacterModifier
+    sourceguid: 4c3bf3a4-6822-4479-a96f-d593b7b0edf6
+    source: Warding III Imbuement
+    seq: 8a33d25c-3eb9-4047-81da-a749233d8e3f
+    aura:
+      __typeName: Aura
+      applyto: selfandfriends
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4c3bf3a4-6822-4479-a96f-d593b7b0edf6
+        displayCondition: ability.haspotency
+        source: Warding III Imbuement
+        modtype: none
+        keywords: []
+        activationCondition: ability.haspotency
+        description: You and each ally within 3 squares of you has their characteristic scores treated as 1 higher for the purpose of resisting potencies. This replaces the benefit of Warding II.
+        activationAfterRoll: false
+        name: Warding III
+        rollType: enemy_ability_power_roll
+        potencymod: "-1"
+        behavior: power
+        guid: bf5c8695-761e-4159-8e5d-868cbb1fae7b
+      name: Warding III
+      guid: 3b418fa4-0675-481e-a250-62d4d8ba3708
+      description: You and each ally within 3 squares of you has their characteristic scores treated as 1 higher for the purpose of resisting potencies. This replaces the benefit of Warding II.
+      objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+      implementation: 4
+    radius: "3"
+    guid: 2a097bbe-b5c7-4a4e-8eca-7b8ae65f31db
+    description: The Stamina bonus for the Warding I enhancement becomes +18. Additionally, you and each ally within 3 squares of you has their characteristic scores treated as 1 higher for the purpose of resisting potencies. This replaces the benefit of Warding II.
+    behavior: aura
+    name: Warding III
+  source: Warding III Imbuement
+  name: Warding III
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: b830cb8b-8e41-45b4-9f28-89d8cb7e0a69
+imbuePrereq: 1a641bd3-5278-4b6f-adf2-f1e70a113286
+projectSource: Zaliac
+imbueLevel: 9
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1774492129857
+type: Gear
+ctime: 1770699205313
+projectGoal: "150"
+itemPrerequisite: Heartwood from a two-century-old tree
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Warding III
+imbueTargetType: implement
+description: The Stamina bonus for the Warding I enhancement becomes +18. Additionally, you and each ally within 3 squares of you has their characteristic scores treated as 1 higher for the purpose of resisting potencies. This replaces the benefit of Warding II.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

@@ -1,0 +1,63 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 6954d26b-0865-47fe-9450-36aa43a38169
+    repeatTargets: false
+    trigger: endturn
+    conditionFormula: Type != "Angulotl" and Moved This Turn >= Movement Speed
+    targetType: self
+    persistence: []
+    name: Wet
+    behaviors:
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: Prone
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: If you end your turn with no movement remaining you fall prone.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 37d85356-f40c-4d91-a9d8-37aef4541eba
+  name: Wet
+  sourceguid: b936df43-5c0e-4046-9221-ce360fa5131b
+- __typeName: CharacterModifier
+  sourceguid: b936df43-5c0e-4046-9221-ce360fa5131b
+  source: Ongoing Effect
+  value: 1
+  filterCondition: Type = "Angulotl"
+  name: Wet
+  guid: fece3f15-b47d-4fcd-b6ed-330170299988
+  description: If you end your turn with no movement remaining you fall prone.
+  behavior: attribute
+  attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+source: Ongoing Effect
+guid: b936df43-5c0e-4046-9221-ce360fa5131b
+id: b936df43-5c0e-4046-9221-ce360fa5131b
+ctime: 1754538345479
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.536999940872192
+    s: 0.996094107627869
+    v: 1.0015617609024
+    a: 1
+name: Wet
+description: If you end your turn with no movement remaining you fall prone.
+mtime: 1771876674006
+iconid: 462bede3-f1fc-42e4-8cc0-a72602b4ca95
+implementation: 3

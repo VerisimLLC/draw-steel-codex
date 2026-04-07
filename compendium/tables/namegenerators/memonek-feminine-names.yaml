@@ -1,0 +1,88 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: f5e313aa-4f3b-47c6-8be8-f07545a5bef9
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Abandhaska
+- __typeName: RollTableRow
+  id: 1b7d1804-3282-4cd4-a9ab-5562a4b3d2ed
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ashariyaa
+- __typeName: RollTableRow
+  id: 52b7bf1c-f335-42e0-a790-d0803a88132d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Devidayya
+- __typeName: RollTableRow
+  id: dc856c47-8498-4e14-aae7-c884282f4812
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gandahraji
+- __typeName: RollTableRow
+  id: 06ab609c-e3cb-41f8-a9fe-8af5f6f775c5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kunismyya
+- __typeName: RollTableRow
+  id: a4cd598e-04ba-4ab3-85bf-783ddec09981
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Priyaptaa
+- __typeName: RollTableRow
+  id: 4dca5b63-14a9-4699-86a1-02b4c3b17200
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ruthudeva
+- __typeName: RollTableRow
+  id: 3df65954-8790-475f-9324-8f05089abfa6
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Urivashii
+- __typeName: RollTableRow
+  id: 528e810b-8116-4859-b655-b8d5367c4d8f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vanarishka
+- __typeName: RollTableRow
+  id: 4ae8d63c-8c0c-45d0-ae9c-759e5c9c64a3
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Yashovalla
+name: Memonek Feminine Names
+id: b204f716-d9e6-4e83-b11a-9f48e9dca472
+mtime: 1743445719634
+items: false
+ctime: 1743445350944

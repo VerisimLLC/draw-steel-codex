@@ -1,0 +1,20 @@
+__typeName: equipment
+id: fd392675-7aa4-4ef6-92e6-4df77152b745
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature is also restrained (save ends). While restrained in this way, the creature can't use magic or psionic abilities.
+itemPrerequisite: A chain once used to restrain an angel
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Anjali
+imbuePrereq: none
+name: Imprisoning
+imbueTargetType: weapon
+mtime: 1774275675352
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+imbueLevel: 9

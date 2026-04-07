@@ -1,0 +1,3385 @@
+7ed9148e-8bed-4278-9f15-a8c6be702a95:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 6356241e-7be9-4a94-add7-7b882d4001a3
+    choiceName: Wode Elf Masculine
+    id: e49d27f2-ec19-4e2a-a8cf-eaec769fb2b6
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 369c7643-45d1-4049-aaac-e9962c7206ca
+    choiceName: Wode Elf Gender Neutral
+    id: 3ec0f754-f366-4b2a-bc4c-968c24dbda8b
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 5fc0dfff-efb7-4a5b-a393-cfdd8e8769c9
+    choiceName: Wode Elf Feminine
+    id: 63f582a6-4d43-40b2-81cf-fa176cd7411b
+  subtable: false
+  ctime: 1743456217273
+  rollType: namedChoice
+  id: 7ed9148e-8bed-4278-9f15-a8c6be702a95
+  mtime: 1743457804740
+  items: false
+  name: Wode Elves Name
+cf3554ca-5814-42fd-8aff-6b88ed753354:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 9d5b2cee-55cc-4140-aa28-7c482e938306
+    choiceName: Memonek Masculine
+    id: 114e535b-dc2c-4679-8947-369b78bdcb08
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: ea4d41e3-4e36-49aa-8a03-c608d0177f91
+    choiceName: Memonek Gender Neutral
+    id: 91db194b-88c8-465a-8dfd-94bf8414068e
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: b204f716-d9e6-4e83-b11a-9f48e9dca472
+    choiceName: Memonek Feminine
+    id: ae52d4bb-b3f9-46a5-b231-491f5330d6fa
+  subtable: false
+  ctime: 1743455383163
+  rollType: namedChoice
+  id: cf3554ca-5814-42fd-8aff-6b88ed753354
+  mtime: 1743455383163
+  items: false
+  name: Memonek Name
+088ee59f-6e89-4f99-a665-2b6c4d9b4d77:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 70ad9b34-6992-45f8-9161-15b93ca67287
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Baiqadrazaar
+  - __typeName: RollTableRow
+    id: b457aa9e-ba16-4e45-ba45-0b8d2a891952
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ciniceziar
+  - __typeName: RollTableRow
+    id: 9c60ea63-8743-45d7-9511-8cb4f9a864a3
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Lorikorivox
+  - __typeName: RollTableRow
+    id: cee7f5f6-de36-4f73-97ec-70dd0c7644b9
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vinkarijaan
+  - __typeName: RollTableRow
+    id: a2422330-9735-4171-9365-2d5efbb5638c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Zaikorojax
+  id: 088ee59f-6e89-4f99-a665-2b6c4d9b4d77
+  name: Dragon Knight Gender Neutral Names
+  subtable: true
+  mtime: 1743454954183
+  items: false
+  ctime: 1743443960392
+74fa53c8-12fb-478a-bca3-d8bc0915180c:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 38aa81f3-051f-45e2-bdca-129bdedbd2f1
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: bd08d273-526b-4a99-8879-928e33ba6716
+    choiceName: Time Raider Masculine
+    id: 1c2aae3c-07b3-4cda-877c-e4f24b1aa844
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: eb35301e-c22a-4555-9e00-8a7fa0b8f89f
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: bd08d273-526b-4a99-8879-928e33ba6716
+    choiceName: Time Raider Gender Neutral
+    id: f6039641-ee6b-4424-9b14-dee9a0c03b2d
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: ab71663c-7b83-4796-953c-423665d11387
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: bd08d273-526b-4a99-8879-928e33ba6716
+    choiceName: Time Raider Feminine
+    id: d8da1a8b-a11f-4302-83c4-a4bd38d42d91
+  id: 74fa53c8-12fb-478a-bca3-d8bc0915180c
+  rollType: namedChoice
+  name: Time Raiders Full Name
+  mtime: 1743456096973
+  items: false
+  ctime: 1743456096973
+bd08d273-526b-4a99-8879-928e33ba6716:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 7e8a9d5f-3928-4a7d-b1cb-b6a2b5c90016
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Acerbic
+  - __typeName: RollTableRow
+    id: 6b7e4e13-7cbc-46c0-af61-f0995e33b299
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Cynic
+  - __typeName: RollTableRow
+    id: 0755a1dc-af32-423e-8361-d6f7f9d74670
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Heretic
+  - __typeName: RollTableRow
+    id: 4b31bccb-9ab5-4f99-8f70-7206d73947b9
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Impious
+  - __typeName: RollTableRow
+    id: 0ec026f3-5dff-4c4a-973a-01a9f6116b14
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Irritant
+  - __typeName: RollTableRow
+    id: 43524bd8-7804-4f6b-ae56-32aafbcd32d4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Skeptical
+  - __typeName: RollTableRow
+    id: 381fd9e9-2711-4460-8b08-a16843e85df4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Sneering
+  - __typeName: RollTableRow
+    id: f1ed3d44-3e56-48a4-873a-191e6e7c58e5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Surly
+  - __typeName: RollTableRow
+    id: b69897ad-0e97-49a3-bb32-cfbe62e2ecf4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Unbeliever
+  - __typeName: RollTableRow
+    id: e3512c3b-1097-4d7a-8bf6-a52f018a91a5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: 'The Unruly '
+  id: bd08d273-526b-4a99-8879-928e33ba6716
+  name: Time Raiders Epithet Names
+  subtable: true
+  mtime: 1743456118692
+  items: false
+  ctime: 1743447579952
+5c5cd853-e5c2-406f-b39a-a37515a9094b:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 5d08f12e-b707-497a-87dd-31a0d9bb0a81
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Bottlebrush
+  - __typeName: RollTableRow
+    id: 17695759-36f5-4969-bdf6-633ff85ca579
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Bracegirdle
+  - __typeName: RollTableRow
+    id: 6a98afc4-8f91-4f3d-8483-3eb039adb03c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cheesewright
+  - __typeName: RollTableRow
+    id: 81744e77-cb1c-41e5-966f-e0d39796b66b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cobblestone
+  - __typeName: RollTableRow
+    id: 27870b1f-b105-4ef8-a35c-a03bba22bcf7
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cordwainer
+  - __typeName: RollTableRow
+    id: b2a4dfba-1461-4660-a9de-b672124de8a8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Lamplighter
+  - __typeName: RollTableRow
+    id: 22457815-92c4-467d-89df-846f4b1ac6ff
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Pinwhistle
+  - __typeName: RollTableRow
+    id: d7f634ea-07b9-49cc-902a-a2fd611304d4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Thistlethrush
+  - __typeName: RollTableRow
+    id: 4ed82fab-f3d9-477a-a299-1195084cb1f3
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Twobuckle
+  - __typeName: RollTableRow
+    id: 78db84a6-72f2-40e5-ae9a-3279a128d90c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Underhill
+  id: 5c5cd853-e5c2-406f-b39a-a37515a9094b
+  name: Polder Surnames
+  subtable: true
+  mtime: 1743455697491
+  items: false
+  ctime: 1743446328919
+22a73d02-bf8c-4dae-9ce2-c4c1ad4708fb:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 25403990-5e5a-4e4b-9b91-50e1b8d7d005
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Halciar
+  - __typeName: RollTableRow
+    id: 755e3127-8b8a-48c5-80a7-a3372acddab6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Illion
+  - __typeName: RollTableRow
+    id: 0bed68c4-9341-455f-a6a5-bb037b9475e4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Karya
+  - __typeName: RollTableRow
+    id: 88e3125b-d45b-4ac2-996a-e1911c0e08b8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Moriel
+  - __typeName: RollTableRow
+    id: 14191ad3-c31a-48d1-8269-c7f62f5b08d4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Orliath
+  id: 22a73d02-bf8c-4dae-9ce2-c4c1ad4708fb
+  name: Devil Gender Neutral Names
+  subtable: true
+  mtime: 1743448564090
+  items: false
+  ctime: 1743443734811
+705aeb9f-2fda-4abe-a2e5-3dd615077eb0:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: d400066c-2464-45cc-92c7-9a70527b2fbc
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Bulliarvik
+  - __typeName: RollTableRow
+    id: 1bdc8378-5436-48ef-806c-3a3f3f428e69
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cenoph
+  - __typeName: RollTableRow
+    id: 47ca2e52-25cd-4cdd-acda-b6ef9606d79a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dhult
+  - __typeName: RollTableRow
+    id: b5446699-f223-4a7a-8d4c-f19220534b4c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Jjaro
+  - __typeName: RollTableRow
+    id: 02a6bf70-f792-41b3-9487-c16e6d6d322e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kuryalkin
+  - __typeName: RollTableRow
+    id: 856a1c6f-8e1a-440d-90e0-efa55acd5138
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Radiarsk
+  - __typeName: RollTableRow
+    id: f0930df5-35d9-498e-bcc8-44e19c7a76b6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Tessiar
+  - __typeName: RollTableRow
+    id: 809e1742-e33a-4aca-9b60-c95512f3ff3d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Turayvik
+  - __typeName: RollTableRow
+    id: a660a745-0763-467f-a3db-8bcaa51e98db
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ullian
+  - __typeName: RollTableRow
+    id: c5326a70-fdcf-45da-a28c-04036af3fb54
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Villyroth
+  id: 705aeb9f-2fda-4abe-a2e5-3dd615077eb0
+  name: Devil Masculine Names
+  subtable: true
+  mtime: 1743448562138
+  items: false
+  ctime: 1743442175903
+ab4b469e-385c-48a1-8b9c-01053e48d8d7:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 091a7ffc-081d-4c3a-b5dd-31679241e85f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ahrijiinad
+  - __typeName: RollTableRow
+    id: 274d70c3-a772-434b-a2a5-875782772dc8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cyrrijox
+  - __typeName: RollTableRow
+    id: f139f8ab-f92b-4486-ac0c-54c7c915a705
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kaikorrivar
+  - __typeName: RollTableRow
+    id: 183cfa7b-96c1-44fb-8aa5-662d169114eb
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kalliarx
+  - __typeName: RollTableRow
+    id: 50527642-e712-4485-9980-fc18f85a5504
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Korazajaan
+  - __typeName: RollTableRow
+    id: 3b03e846-bcaa-49de-ab72-074bcb0ed86e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Korovaamijax
+  - __typeName: RollTableRow
+    id: fd873704-f99f-43ea-bb16-b3dbb79fc79a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Orrizarviox
+  - __typeName: RollTableRow
+    id: 63a2d81f-a472-4bc5-87a9-e9dbbb09aa34
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Uriquexicaar
+  - __typeName: RollTableRow
+    id: 6a2da26a-ba7a-4f20-8e7e-e51b917f1798
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ythirix
+  - __typeName: RollTableRow
+    id: b0c2cd20-e3f1-4b9a-a9a7-ff1e2d59d4c4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Zoronivaam
+  id: ab4b469e-385c-48a1-8b9c-01053e48d8d7
+  name: Dragon Knight Feminine Names
+  subtable: true
+  mtime: 1743454957008
+  items: false
+  ctime: 1743444023640
+124bc71a-d675-463c-822c-c06b44ea6d37:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 705aeb9f-2fda-4abe-a2e5-3dd615077eb0
+    choiceName: Devil Masculine
+    id: a01f07d8-fbea-4421-beff-ddf82225860b
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 22a73d02-bf8c-4dae-9ce2-c4c1ad4708fb
+    choiceName: Devil Gender Neutral
+    id: bc97c4e9-45de-45a9-9dd3-2441044ab873
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: c061713f-fd0c-4589-9335-deb924ab4d75
+    choiceName: Devil Feminine
+    id: 07ef68e6-63c3-4704-af39-d57116eba8cb
+  id: 124bc71a-d675-463c-822c-c06b44ea6d37
+  rollType: namedChoice
+  name: Devil Names
+  mtime: 1743454200070
+  items: false
+  ctime: 1743448557266
+9d5b2cee-55cc-4140-aa28-7c482e938306:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: a1eec888-d6af-49e0-a8cf-03b4e230bd91
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ayabaskha
+  - __typeName: RollTableRow
+    id: 5185d3b6-4db4-40b9-9ce5-82fbe9daff7c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dhamayana
+  - __typeName: RollTableRow
+    id: b698959d-c92a-4fb4-9f68-e63c8b15c7ae
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Divarsotto
+  - __typeName: RollTableRow
+    id: e54ee039-570e-47a7-bf81-f92960ebdb14
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Duruvatta
+  - __typeName: RollTableRow
+    id: ec1bf153-0fb5-4815-a6d5-f7ab295637c5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ghaurdamatta
+  - __typeName: RollTableRow
+    id: ddc6ffdc-3208-40df-98ad-0fa021127f1e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Harakshathra
+  - __typeName: RollTableRow
+    id: 50017c58-d888-499f-94a2-0b4d1739c888
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Khasimandru
+  - __typeName: RollTableRow
+    id: 34d9a76a-d9c0-4bea-a09e-df62f3509cf4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Khavettra
+  - __typeName: RollTableRow
+    id: 2a60538c-0490-4c6d-82ac-3d44b97b993d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Virabanu
+  - __typeName: RollTableRow
+    id: a210c210-c607-4d77-ba2c-c732424a2bc9
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vittarkoya
+  name: Memonek Masculine Names
+  id: 9d5b2cee-55cc-4140-aa28-7c482e938306
+  mtime: 1743445455266
+  items: false
+  ctime: 1743445348305
+54ba997a-14af-450f-95fc-2ab3966b4782:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: f014eb20-67b3-434f-89a0-ecee432a41ee
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ashley
+  - __typeName: RollTableRow
+    id: 7237d6f2-c6e8-40b9-b407-7c87b83573d5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Bryn
+  - __typeName: RollTableRow
+    id: ba0b67ec-7e7f-4d5a-8225-e7ef5dbb6b76
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Jennet
+  - __typeName: RollTableRow
+    id: 8cf0e591-6698-4078-b650-6851c3851eec
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Morgan
+  - __typeName: RollTableRow
+    id: 1f823484-558c-439e-abae-6aa0d4a5f7f0
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Taran
+  id: 54ba997a-14af-450f-95fc-2ab3966b4782
+  name: Human Gender Neutral Names
+  subtable: true
+  mtime: 1743455288875
+  items: false
+  ctime: 1743445273657
+2ec75e99-b997-469f-a3ab-ecec85df5e48:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: af90855e-ec00-439a-a236-c1aa91fe8dc5
+    choiceName: Hakaan Masculine
+    id: 593e935e-6d21-46f9-a080-f763765b5309
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 85617750-2e08-436d-acbf-6274933599e6
+    choiceName: Hakaan Gender Neutral
+    id: afc38304-f3ad-421a-8383-bea61f847947
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 60014ae0-21b4-42a1-b80a-b9d883b9aa27
+    choiceName: Hakaan Feminine
+    id: 66f417ce-e670-4f04-b47b-f98e82cc5f8c
+  id: 2ec75e99-b997-469f-a3ab-ecec85df5e48
+  rollType: namedChoice
+  name: Hakaan Name
+  mtime: 1743455159649
+  items: false
+  ctime: 1743455159649
+b204f716-d9e6-4e83-b11a-9f48e9dca472:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: f5e313aa-4f3b-47c6-8be8-f07545a5bef9
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Abandhaska
+  - __typeName: RollTableRow
+    id: 1b7d1804-3282-4cd4-a9ab-5562a4b3d2ed
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ashariyaa
+  - __typeName: RollTableRow
+    id: 52b7bf1c-f335-42e0-a790-d0803a88132d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Devidayya
+  - __typeName: RollTableRow
+    id: dc856c47-8498-4e14-aae7-c884282f4812
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gandahraji
+  - __typeName: RollTableRow
+    id: 06ab609c-e3cb-41f8-a9fe-8af5f6f775c5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kunismyya
+  - __typeName: RollTableRow
+    id: a4cd598e-04ba-4ab3-85bf-783ddec09981
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Priyaptaa
+  - __typeName: RollTableRow
+    id: 4dca5b63-14a9-4699-86a1-02b4c3b17200
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ruthudeva
+  - __typeName: RollTableRow
+    id: 3df65954-8790-475f-9324-8f05089abfa6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Urivashii
+  - __typeName: RollTableRow
+    id: 528e810b-8116-4859-b655-b8d5367c4d8f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vanarishka
+  - __typeName: RollTableRow
+    id: 4ae8d63c-8c0c-45d0-ae9c-759e5c9c64a3
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Yashovalla
+  name: Memonek Feminine Names
+  id: b204f716-d9e6-4e83-b11a-9f48e9dca472
+  mtime: 1743445719634
+  items: false
+  ctime: 1743445350944
+b5ef575c-9574-415c-a419-94598f83f37b:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 64dcda80-d819-43f1-b026-0d80f129fd0f
+    choiceName: Orc Masculine
+    id: cb15bc02-e056-4049-ba2a-a1da806aa583
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: b65edd8f-0419-43d7-a6df-a2f01b85beb9
+    choiceName: Orc Gender Neutral
+    id: 20b1a04e-e17f-4588-9c5a-fc26db801193
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: a1cd62d8-1856-4f89-a46d-e3d0706e612e
+    choiceName: Orc Feminine
+    id: 56c672ed-9cba-4b8c-8a12-63eaf2cfc024
+  id: b5ef575c-9574-415c-a419-94598f83f37b
+  rollType: namedChoice
+  name: Orc Name
+  mtime: 1743455461028
+  items: false
+  ctime: 1743455461028
+3e33c6d0-b603-49aa-916b-c783cf7f7b52:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 3b8f79ed-f171-4632-bbf4-550966114aee
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Aarkizovar
+  - __typeName: RollTableRow
+    id: 9808bcd1-576b-4e10-a45d-477b1b80f40d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dannorax
+  - __typeName: RollTableRow
+    id: aa525526-a945-40b6-bbaa-acae689e16ff
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Denoxavinaax
+  - __typeName: RollTableRow
+    id: bb59ac5c-e49d-4c07-8dbb-c44b59bccf9c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Killexiriax
+  - __typeName: RollTableRow
+    id: b1de46ec-1f74-419b-b119-ea654e84cc48
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Koraavinam
+  - __typeName: RollTableRow
+    id: b0221e83-961f-4ef1-8723-59264d310e9e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Raijorozaan
+  - __typeName: RollTableRow
+    id: 554d41fa-3343-444b-8bb8-7f4125ea0274
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vanazor
+  - __typeName: RollTableRow
+    id: 9fffaec0-5414-4c39-a67c-d0b3e42c0826
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vorokazinaar
+  - __typeName: RollTableRow
+    id: 89dbe4a9-ec52-495a-bfc0-4f6a7d384367
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Zakaarior
+  - __typeName: RollTableRow
+    id: aef94470-4c32-4da3-832c-24967b961a41
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Zexijorovox
+  id: 3e33c6d0-b603-49aa-916b-c783cf7f7b52
+  name: Dragon Knight Masculine Names
+  subtable: true
+  mtime: 1743454971752
+  items: false
+  ctime: 1743443927548
+ab71663c-7b83-4796-953c-423665d11387:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 7d23e637-0f28-489c-a604-a5f8a223d1c3
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ak'karatar
+  - __typeName: RollTableRow
+    id: d690fb27-6ab4-4fa7-a3db-4e61b342fe47
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ip'pritt
+  - __typeName: RollTableRow
+    id: 646c135b-f9e7-4ab2-9209-0302cfc74c54
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ner'radmok
+  - __typeName: RollTableRow
+    id: 2680077b-357c-4dc9-8b5f-a1c25ed8743e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Orov'vika
+  - __typeName: RollTableRow
+    id: df1d331e-511c-4044-ac68-1d326ed0a297
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Phe'kala
+  - __typeName: RollTableRow
+    id: 71db2469-b27c-49ac-bf96-e6d5dac35bf7
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Quix'x
+  - __typeName: RollTableRow
+    id: 89bdfcdc-055e-43e1-a5da-99568970daaf
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Thes'srika
+  - __typeName: RollTableRow
+    id: a5944aba-449f-45e5-9998-b3c9d075d910
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Thos'sivik
+  - __typeName: RollTableRow
+    id: 55290792-987a-4090-b662-b440e891ae74
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Um'manri,
+  - __typeName: RollTableRow
+    id: 0863e3aa-cad3-460e-864d-bd0288b44307
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vir'rikin
+  id: ab71663c-7b83-4796-953c-423665d11387
+  name: Time Raiders Feminine Names
+  subtable: true
+  mtime: 1743456099481
+  items: false
+  ctime: 1743446353203
+69639c5d-29c0-4975-bff1-ce901ec83293:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 851985f2-1df9-49f4-a917-a427167bbefa
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Agatha
+  - __typeName: RollTableRow
+    id: 2911c967-48a8-49ee-acdf-c4b04433f360
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Amaryllis
+  - __typeName: RollTableRow
+    id: bf587519-4e9c-4441-b6f7-afee6037dfdd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Beverly
+  - __typeName: RollTableRow
+    id: 798e80d2-ef9b-4a2a-85f2-18b3f4020fcb
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Esmerelda
+  - __typeName: RollTableRow
+    id: 57ec6d7e-2ba5-41dc-b209-f789fe3584c9
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Marceline
+  - __typeName: RollTableRow
+    id: 5b088a0f-41f7-4df7-a511-64daf9d1e21c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Modesty
+  - __typeName: RollTableRow
+    id: cef59731-0a19-4162-a1ad-25bed7277c2d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Penelope
+  - __typeName: RollTableRow
+    id: 39ac35c0-c484-4dba-b0d0-c044b6686b20
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Rosemarie
+  - __typeName: RollTableRow
+    id: e77a22ae-d7f8-4075-9058-e81cf3b7e7de
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ursula
+  - __typeName: RollTableRow
+    id: a8f9d67b-9324-4f48-8a23-ac132178ad5e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Weatherly
+  id: 69639c5d-29c0-4975-bff1-ce901ec83293
+  name: Polder Feminine Names
+  subtable: true
+  mtime: 1743455560223
+  items: false
+  ctime: 1743445920495
+fa8d0cd8-d2b5-49d8-bc59-62a7fbc1fbea:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 81082411-c151-4b97-a9b5-e644f8c1cd18
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dazria
+  - __typeName: RollTableRow
+    id: 8181e6d8-f34b-4fdc-9297-9b4049dd6ae5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dekka
+  - __typeName: RollTableRow
+    id: 137d411b-de87-449b-a249-da39128a674a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Djorva
+  - __typeName: RollTableRow
+    id: f6d3b588-e528-4ab9-aca0-4d4928bf7e77
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Giria
+  - __typeName: RollTableRow
+    id: 1ab77534-2f5d-4912-b40d-e9851b619d2a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kirza
+  - __typeName: RollTableRow
+    id: 2a143037-f6d1-4571-9d67-5d6e89f9a66c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kuroth
+  - __typeName: RollTableRow
+    id: 5e183303-604b-4d45-8a2d-c4b121f29727
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Lurza
+  - __typeName: RollTableRow
+    id: 8df143a5-a2f1-4724-b95a-f14aa616ad02
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Uur
+  - __typeName: RollTableRow
+    id: dfc9cab6-32ad-4156-a0aa-6630b8999fbc
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Zareth
+  - __typeName: RollTableRow
+    id: e9a760ed-ccc2-4ae0-b73f-c31e1c449cf3
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ziir
+  id: fa8d0cd8-d2b5-49d8-bc59-62a7fbc1fbea
+  name: Dwarves Feminine Names
+  subtable: true
+  mtime: 1743455096766
+  items: false
+  ctime: 1743444171917
+85617750-2e08-436d-acbf-6274933599e6:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 276f2cf1-31ec-48b1-a85a-0caf72a2da92
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Adaska
+  - __typeName: RollTableRow
+    id: 0cd8d675-6cbd-4233-a5b8-d3855644652c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kirashev
+  - __typeName: RollTableRow
+    id: 407e5832-9279-4998-a86e-89dbc1727323
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Oriamos
+  - __typeName: RollTableRow
+    id: 5ae2768a-d444-4a7d-8568-7b3267c93251
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Sandauka
+  - __typeName: RollTableRow
+    id: d1519203-8e4f-4f15-bfff-c566bf76fe8a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ulion
+  id: 85617750-2e08-436d-acbf-6274933599e6
+  name: Hakaan Gender Neutral Names
+  subtable: true
+  mtime: 1743455164153
+  items: false
+  ctime: 1743444441088
+366cb299-84e7-491c-b49d-099a05b6f144:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: ddc002a8-99d3-463a-bf44-26d34df5cf53
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Aimsley
+  - __typeName: RollTableRow
+    id: 538d9ea6-ff32-4d7d-a514-3e00c9058e8f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Alderson
+  - __typeName: RollTableRow
+    id: 6a5e3708-dd31-4033-91f8-0dd231c8991f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Bancroft
+  - __typeName: RollTableRow
+    id: 36e9ec94-2228-4913-babc-052c309ff324
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Beechwood
+  - __typeName: RollTableRow
+    id: 81c834ef-9d82-4088-a0f0-41cc4da3697d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Billingsworth
+  - __typeName: RollTableRow
+    id: b8b3ef36-16c8-474d-8f54-486b7da77cd2
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Broderick
+  - __typeName: RollTableRow
+    id: 46370965-8bbb-484a-afbd-7452f77ae1cd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Langston
+  - __typeName: RollTableRow
+    id: e307ea7b-add6-4873-9030-b298d740ed63
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Owlswick
+  - __typeName: RollTableRow
+    id: 256a1087-1da8-4348-9361-5b58c0188322
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Patterson
+  - __typeName: RollTableRow
+    id: 43926328-d831-4d92-961d-50200dc3ebb4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Willoughby
+  id: 366cb299-84e7-491c-b49d-099a05b6f144
+  name: Polder Masculine Names
+  subtable: true
+  mtime: 1743455694967
+  items: false
+  ctime: 1743445937132
+f18fea72-9406-4cf4-9f09-c45cda0dc83b:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 90226032-7e8a-4fce-8efa-d092b4192364
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Brys
+  - __typeName: RollTableRow
+    id: ac0ab909-14c6-4593-a38f-650a2885d317
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cadwyr
+  - __typeName: RollTableRow
+    id: 00646e95-7958-4d14-9a33-59cbc90e2f8f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dyfan
+  - __typeName: RollTableRow
+    id: 378dcb30-cd26-4450-b59b-0bfe9551ce5b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Edmund
+  - __typeName: RollTableRow
+    id: f35cfc34-a426-4fcb-8b6a-6ab2d57baa4d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Geoffrey
+  - __typeName: RollTableRow
+    id: 21ed1075-b6dc-49bf-a6af-5a1bc78cf686
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gwiddon
+  - __typeName: RollTableRow
+    id: c7ccacf3-6536-4849-9c56-5b99c24f0b59
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Heden
+  - __typeName: RollTableRow
+    id: 0d09e018-f361-4e15-94ac-ef4c6061ce7c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Richard
+  - __typeName: RollTableRow
+    id: 265a66c9-d5c1-4bdd-9720-63781bf821af
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Taegan
+  - __typeName: RollTableRow
+    id: f9f517f8-3eff-4571-9721-9d067b65e8ce
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Taethan
+  id: f18fea72-9406-4cf4-9f09-c45cda0dc83b
+  name: Human Masculine Names
+  subtable: true
+  mtime: 1743455235522
+  items: false
+  ctime: 1743445243399
+eb35301e-c22a-4555-9e00-8a7fa0b8f89f:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 5e683751-b2b9-4134-b338-eb41055ab480
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Jorut'or
+  - __typeName: RollTableRow
+    id: b36858dd-290c-4ab2-8bbc-51b5d0c885a2
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Morp'phan
+  - __typeName: RollTableRow
+    id: 45821081-6362-45d1-84d6-6759b9a07197
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Mot'tira
+  - __typeName: RollTableRow
+    id: 2b9023bb-2085-49a4-911a-a5facdfb9958
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Sonit'ir
+  - __typeName: RollTableRow
+    id: 0016c513-f637-4554-abc2-dfb1bb70e2ec
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Thir'rip
+  id: eb35301e-c22a-4555-9e00-8a7fa0b8f89f
+  name: Time Raiders Gender Neutral Names
+  subtable: true
+  mtime: 1743456102025
+  items: false
+  ctime: 1743446387733
+ea4d41e3-4e36-49aa-8a03-c608d0177f91:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 462afc90-9fac-494a-b077-1342d81a95c9
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Jamiattra
+  - __typeName: RollTableRow
+    id: e9683356-7e2a-4d40-96a1-fee27bdb4e01
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Lotarhixa
+  - __typeName: RollTableRow
+    id: a69b7565-67b4-47af-bf58-cef498999c1b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Mitterirtra
+  - __typeName: RollTableRow
+    id: fbd10121-b9a2-4590-9988-079674070d29
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Sattayarit
+  - __typeName: RollTableRow
+    id: 8c189cc0-9454-4685-a05a-efdf9e0f5415
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Talyana
+  name: Memonek Gender Neutral Names
+  id: ea4d41e3-4e36-49aa-8a03-c608d0177f91
+  mtime: 1743445491043
+  items: false
+  ctime: 1743445352486
+c061713f-fd0c-4589-9335-deb924ab4d75:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 73c0edb3-fbfe-4642-a266-1199039b5b76
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ampeth
+  - __typeName: RollTableRow
+    id: 81440ab5-233b-420a-9317-9e07f0ec7173
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Arrian
+  - __typeName: RollTableRow
+    id: f63b412b-7c9b-4db9-aad2-1272b41e329a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cyrrik
+  - __typeName: RollTableRow
+    id: 628f7632-a99e-4ee9-80b2-ebe6964d121b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Frissia
+  - __typeName: RollTableRow
+    id: 99736878-db80-4a85-ae65-c7cf2569e616
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Illya
+  - __typeName: RollTableRow
+    id: 84913c02-31ba-4d15-9ef0-d4dc86fe1265
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Oreth
+  - __typeName: RollTableRow
+    id: 85fc35d3-a78a-4e50-9838-3058e64c125e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Quallo
+  - __typeName: RollTableRow
+    id: 8b44f4f0-f0f1-4090-865f-f46cf80e8edd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Uryalia
+  - __typeName: RollTableRow
+    id: ebcf6f95-6b91-4afc-98b3-aa126d32e833
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Yllioth
+  - __typeName: RollTableRow
+    id: 9027b21b-9eb2-4952-b288-90f8f5d95a8e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Zorri
+  id: c061713f-fd0c-4589-9335-deb924ab4d75
+  name: Devil Feminine Names
+  subtable: true
+  mtime: 1743448567489
+  items: false
+  ctime: 1743443862437
+c37e7baa-6391-4911-8f87-614f3cd156eb:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 1886e364-2374-400e-ae34-d78104799bcd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Bellamy
+  - __typeName: RollTableRow
+    id: ed52b702-7e0e-498e-a17d-5b2275d45a35
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Bethell
+  - __typeName: RollTableRow
+    id: 96872639-3565-476e-8020-50f075f9e9cc
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Carrington
+  - __typeName: RollTableRow
+    id: 7803aa31-6043-4038-a80b-ea1864ad1ff4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Madison
+  - __typeName: RollTableRow
+    id: ad7e786a-1261-4643-867e-82cdf9e18fb8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Mallory
+  id: c37e7baa-6391-4911-8f87-614f3cd156eb
+  name: Polder Gender Neutral Names
+  subtable: true
+  mtime: 1743455562555
+  items: false
+  ctime: 1743445935886
+a1cd62d8-1856-4f89-a46d-e3d0706e612e:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: a6d95e7c-82d0-4bd3-a06d-e7cdf5bbf841
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Askilli
+  - __typeName: RollTableRow
+    id: 8dc3d931-23ce-40d2-bb69-d541f2134d23
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dorviath
+  - __typeName: RollTableRow
+    id: 782615d3-bca6-4389-95d2-e882ca59266c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Jeddoar
+  - __typeName: RollTableRow
+    id: 728d258d-4847-4626-9712-bc16c99060d9
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Karoskha
+  - __typeName: RollTableRow
+    id: f8b796b1-ef9e-4356-9543-38260a7feb0f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Khorisa
+  - __typeName: RollTableRow
+    id: 72beb97f-293e-4d1e-b65e-6c4ecc12db7f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Khorva
+  - __typeName: RollTableRow
+    id: f9056e2b-3a5f-447d-893f-a3326d110631
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Moraska
+  - __typeName: RollTableRow
+    id: 15b2781c-06ae-4c3f-aff9-daee2d6335ba
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vakarra
+  - __typeName: RollTableRow
+    id: 2665c7ed-29a9-4bfb-b049-4565a6fbe50d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vhorovi
+  - __typeName: RollTableRow
+    id: 775c4225-dec6-4217-a9c6-7d4a04c63f46
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Zhorva
+  id: a1cd62d8-1856-4f89-a46d-e3d0706e612e
+  name: Orc Feminine Names
+  subtable: true
+  mtime: 1743455464261
+  items: false
+  ctime: 1743445731765
+b04d3971-b893-4b5d-a5c4-57a7a1b61588:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 4974b697-2b4a-40f9-a926-9de538a8a512
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Darzok
+  - __typeName: RollTableRow
+    id: ea0f2caf-0915-4995-91ca-e88e8671f4af
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dazran
+  - __typeName: RollTableRow
+    id: 0c976882-0a43-4b38-9b68-5c02250dc2e4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Djorek
+  - __typeName: RollTableRow
+    id: 89dab3c4-ef2d-4270-a4f7-d1343a22fafa
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Durok
+  - __typeName: RollTableRow
+    id: dcfcc6c5-6a9a-461b-a1c8-760441511d1b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Duur
+  - __typeName: RollTableRow
+    id: 772d3875-42c6-4c15-af98-c2a16b9d88cf
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gavok
+  - __typeName: RollTableRow
+    id: 894643e1-c2e5-4a15-a9ba-df683ff4e7a2
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kaaz
+  - __typeName: RollTableRow
+    id: 5e76c651-c429-4f70-b205-c5bbf61f5bf5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kazaan
+  - __typeName: RollTableRow
+    id: 7b6dff16-dc6a-431a-a9be-1222fb65066a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Zaar
+  - __typeName: RollTableRow
+    id: 73daa824-757d-4140-a65e-31d43e17819e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Zarek
+  id: b04d3971-b893-4b5d-a5c4-57a7a1b61588
+  name: Dwarves Masculine Names
+  subtable: true
+  mtime: 1743455087277
+  items: false
+  ctime: 1743444109583
+3ae916a5-9b7a-42be-90ae-38cfd6a0551c:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: b04d3971-b893-4b5d-a5c4-57a7a1b61588
+    choiceName: Dwarf Masculine
+    id: 95fcedb4-0592-413b-b467-dab6e53266df
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 7a6e6c32-7436-45f8-ab4a-ecf14cbf909d
+    choiceName: Dwarf Gender Neutral
+    id: ddc5a0e2-126e-4319-b498-5cb400e0a761
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: fa8d0cd8-d2b5-49d8-bc59-62a7fbc1fbea
+    choiceName: Dwar Feminine
+    id: c267195f-d912-455a-8f8a-d89c55dcc1a4
+  id: 3ae916a5-9b7a-42be-90ae-38cfd6a0551c
+  rollType: namedChoice
+  name: Dwarves Names
+  mtime: 1743455084024
+  items: false
+  ctime: 1743455084024
+b65edd8f-0419-43d7-a6df-a2f01b85beb9:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 2aefd5de-eff7-47ba-90a0-d6ef9d410caf
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dorokor
+  - __typeName: RollTableRow
+    id: 1554d49f-9f79-404b-a9f4-204a8bd9febc
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gorovik
+  - __typeName: RollTableRow
+    id: 53662743-c65e-47af-a303-917d0559d931
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Khettovek
+  - __typeName: RollTableRow
+    id: 7b1fa58e-1a82-47bd-a987-ed01a9f5d58f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Meadior
+  - __typeName: RollTableRow
+    id: 8a97ffe9-b5bd-4efc-859e-fd04eacbff89
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Orosk
+  id: b65edd8f-0419-43d7-a6df-a2f01b85beb9
+  name: Orc Gender Neutral Names
+  subtable: true
+  mtime: 1743455467972
+  items: false
+  ctime: 1743445830273
+0726b8d5-8dfa-41d8-ae17-5ad93f50b7dc:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: f18fea72-9406-4cf4-9f09-c45cda0dc83b
+    choiceName: Human Masculine
+    id: 8bd5b014-92b5-4275-b6f2-8c293a421dd6
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 54ba997a-14af-450f-95fc-2ab3966b4782
+    choiceName: Human Gender Neutral
+    id: d941e987-448d-4bfd-9789-d5619056ab1a
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 570e3160-1d14-48a9-9a8d-8affb280509a
+    choiceName: Human Feminine
+    id: b217a26d-2561-47c9-8dc2-49a224a17302
+  id: 0726b8d5-8dfa-41d8-ae17-5ad93f50b7dc
+  rollType: namedChoice
+  name: Human Name
+  mtime: 1743455233210
+  items: false
+  ctime: 1743455233210
+5c795256-54b6-4c23-9b15-9b238872ee5b:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 18dde301-842d-4cb1-9c8f-ed04e20e428e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Sun Reflected In A Lover's Tear
+  - __typeName: RollTableRow
+    id: ff2b7585-78b1-4dc5-9a39-cbe88ef7d7aa
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Every Flake Of Snow A Memory
+  - __typeName: RollTableRow
+    id: 408735df-c301-4360-a083-a60db5e20c20
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Echoes of Autumn Heat
+  - __typeName: RollTableRow
+    id: 7f3fcc40-1fd2-4caa-87bd-e0dc92107525
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Edges Of A Leaf Torn By The Wind
+  - __typeName: RollTableRow
+    id: c73c4a01-b8aa-453d-9223-9ffc05180e0f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: A Heart That Will Not Yield The Stars
+  - __typeName: RollTableRow
+    id: 432980a4-dfce-4776-a9a7-95af7115f532
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: A Rain of Glass Over A Sea of Dreams
+  - __typeName: RollTableRow
+    id: 985284e7-8c39-4708-a3b1-0628ba120a2d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Earth Cries The Skies Divide
+  - __typeName: RollTableRow
+    id: 43ad71a5-823b-4731-b078-d3dafd96a7a8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Last Star Fading With Morning
+  - __typeName: RollTableRow
+    id: 74a589ee-b4cc-4283-b3c9-83f27cfe811c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: A Crown of Starlight on Winter Snow
+  - __typeName: RollTableRow
+    id: a973c292-a0a2-4f5f-9b11-fbde280ed10e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: The Anticipation of a Sigh Upon His Lips
+  name: High Elves
+  id: 5c795256-54b6-4c23-9b15-9b238872ee5b
+  mtime: 1743444681004
+  items: false
+  ctime: 1743444681004
+7a6e6c32-7436-45f8-ab4a-ecf14cbf909d:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: f55420ed-8da4-4f29-92f9-b2b191b67551
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Arzak
+  - __typeName: RollTableRow
+    id: 826b935e-57c7-49d7-b26a-55f3ba3a054d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Keth
+  - __typeName: RollTableRow
+    id: 0e663126-ffa0-4b21-b29d-fc708547336d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Orikk
+  - __typeName: RollTableRow
+    id: f5e5450c-3e73-4ce7-8289-b924756a6301
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Q'ir
+  - __typeName: RollTableRow
+    id: ac9acd66-b9fa-42cc-8362-032c51562bdd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Qoroth
+  id: 7a6e6c32-7436-45f8-ab4a-ecf14cbf909d
+  name: Dwarves Gender Neutral Names
+  subtable: true
+  mtime: 1743455089385
+  items: false
+  ctime: 1743444217749
+64dcda80-d819-43f1-b026-0d80f129fd0f:
+  __typeName: RollTable
+  text: true
+  rows: []
+  id: 64dcda80-d819-43f1-b026-0d80f129fd0f
+  name: Orc Masculine Names
+  subtable: true
+  mtime: 1743455466221
+  items: false
+  ctime: 1743445742898
+38aa81f3-051f-45e2-bdca-129bdedbd2f1:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: dc516644-eca4-4c1d-879e-f49b5afcb9ff
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Astro'ogor
+  - __typeName: RollTableRow
+    id: 00e97f25-2f66-4869-9992-4e4fd53c5f48
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dak'kara
+  - __typeName: RollTableRow
+    id: 5231773d-3506-44d9-8422-1ef864c27c19
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ik'koq
+  - __typeName: RollTableRow
+    id: 82476900-f18e-4821-8479-d667ce28366f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Jel'lek
+  - __typeName: RollTableRow
+    id: 90b1a2b1-8303-45fe-bf18-6450a2e25289
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kes'slik
+  - __typeName: RollTableRow
+    id: 3767df37-82ef-4320-9476-3dbbb10c9f65
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Laz'zir
+  - __typeName: RollTableRow
+    id: fafc5cb3-d0b6-4478-9dc0-4f5789dc9def
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Mav'vikek
+  - __typeName: RollTableRow
+    id: 8a8f6523-0d1d-444e-9612-c3833feb36c7
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Thork'kar
+  - __typeName: RollTableRow
+    id: fe1563a4-55c2-46e9-a0bd-0494e8c104c3
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Uv'vik
+  - __typeName: RollTableRow
+    id: d1af55cb-da7b-4da2-b10c-7af6f29cf5c6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Va'antak
+  id: 38aa81f3-051f-45e2-bdca-129bdedbd2f1
+  name: Time Raiders Masculine Names
+  subtable: true
+  mtime: 1743456105750
+  items: false
+  ctime: 1743446348060
+10f375b4-a93b-433a-85fe-2c5eeca1547e:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 14756b49-ec40-4b57-8d11-ef41257dfe63
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 5c5cd853-e5c2-406f-b39a-a37515a9094b
+    choiceName: Polder Masculine
+    id: ecf28a4b-4bf2-4af3-b3a4-d76ef7b8e039
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 2431b16c-8c0d-4339-9981-06e63e4318c7
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 5c5cd853-e5c2-406f-b39a-a37515a9094b
+    choiceName: Polder Gender Neutral
+    id: d6175134-f968-4b07-8302-6902e4d2c0b7
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 9f32601b-ff11-412d-8b2f-f63806d3f2fb
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 5c5cd853-e5c2-406f-b39a-a37515a9094b
+    choiceName: Polder Feminine
+    id: 6bfa73df-21c3-424b-b265-479c9c70d353
+  id: 10f375b4-a93b-433a-85fe-2c5eeca1547e
+  rollType: namedChoice
+  name: Polder Full Name
+  mtime: 1743455949973
+  items: false
+  ctime: 1743455681917
+369c7643-45d1-4049-aaac-e9962c7206ca:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 375cae61-c91d-4582-bba9-450ee8bb2f48
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Arriswyth
+  - __typeName: RollTableRow
+    id: 0f4b10b0-450f-4983-8a3f-49d4b9f834c5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gogellwyc
+  - __typeName: RollTableRow
+    id: bb5c06f1-fd69-422c-96fe-99a3fe944374
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Hygglwyc
+  - __typeName: RollTableRow
+    id: 3ba0cb01-25ce-4ba9-82e6-3590a62783bb
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Lliarion
+  - __typeName: RollTableRow
+    id: bd9c9e9d-95c0-4f6d-ba80-e601b42cd093
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Tywso
+  id: 369c7643-45d1-4049-aaac-e9962c7206ca
+  name: Wode Elves Gender Neutral Names
+  subtable: true
+  mtime: 1743456232632
+  items: false
+  ctime: 1743444254140
+5fc0dfff-efb7-4a5b-a393-cfdd8e8769c9:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 9388f306-8285-444e-998e-b3e58daf0856
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Elvyr
+  - __typeName: RollTableRow
+    id: 12876620-ad86-4b6f-9c94-535e55f7ff82
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Eviarwyc
+  - __typeName: RollTableRow
+    id: 4e387432-9de8-4ee1-aee6-9b16cd3d838b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Illwyv
+  - __typeName: RollTableRow
+    id: 0ddb9a69-df50-4bfb-a077-cf88a4f46ee4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Iorwyth
+  - __typeName: RollTableRow
+    id: 303a0335-c2dc-44b5-a78e-fc912e372bff
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Lliarwyn
+  - __typeName: RollTableRow
+    id: ff3f8a79-93b4-4449-aea0-57be6855ea15
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Meithennyn
+  - __typeName: RollTableRow
+    id: 90eb7c04-695a-4a9e-ab33-4b0a891b677d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Nimuë
+  - __typeName: RollTableRow
+    id: 4965bc03-5ded-4f5b-9d16-69fdb79f2796
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Rhegyth
+  - __typeName: RollTableRow
+    id: a2828783-dd31-4adb-8010-c6fec8834be9
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Viarwyn
+  - __typeName: RollTableRow
+    id: 4478daf9-c0b1-4174-9f79-88c5f9deeb71
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ysallwyth
+  id: 5fc0dfff-efb7-4a5b-a393-cfdd8e8769c9
+  name: Wode Elves Feminine Names
+  subtable: true
+  mtime: 1743456229998
+  items: false
+  ctime: 1743444245339
+6356241e-7be9-4a94-add7-7b882d4001a3:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: c58e99ce-7144-4a60-bff2-5d2d326b85e9
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Calliarwyc
+  - __typeName: RollTableRow
+    id: be600418-99c5-4132-9673-d48abfbb491e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cillyv
+  - __typeName: RollTableRow
+    id: e8d325ad-2939-48a1-be3e-b54fbd894108
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Eidior
+  - __typeName: RollTableRow
+    id: d17ba20b-5ebb-49d5-83d0-1a684018b99d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ffyllwyc
+  - __typeName: RollTableRow
+    id: aa0dfa78-da61-478d-9fdc-fff4bc5530af
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gwyllmach
+  - __typeName: RollTableRow
+    id: c51a3680-29a2-41f9-bbaa-37287bcb83a1
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Llyandros
+  - __typeName: RollTableRow
+    id: 3fe84a1a-f43b-44ee-bc25-53e60bddc5a4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ogllvar
+  - __typeName: RollTableRow
+    id: ba0a4306-14e6-4078-a2b1-29972127d94b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Radiarwyn
+  - __typeName: RollTableRow
+    id: c78c7796-5d12-4524-9268-a6b77eb2ca3a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ryll
+  - __typeName: RollTableRow
+    id: c87a72e0-a5ff-489d-b95c-cbcf84653430
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Tafirdwyn
+  id: 6356241e-7be9-4a94-add7-7b882d4001a3
+  name: Wode Elves Masculine Names
+  subtable: true
+  mtime: 1743456241356
+  items: false
+  ctime: 1743444234613
+af90855e-ec00-439a-a236-c1aa91fe8dc5:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 41f7d50b-d624-45e3-b9e3-1341a31f8c99
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Adusiya
+  - __typeName: RollTableRow
+    id: ec1f320f-6942-42bd-a0c1-7b1cfc705748
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Artabānu
+  - __typeName: RollTableRow
+    id: 8ca8c83b-80c8-40f7-8365-7554592c5399
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Farnaspa
+  - __typeName: RollTableRow
+    id: 16465d1e-983c-4326-9dcc-221b1545cefe
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Fravartiš
+  - __typeName: RollTableRow
+    id: 55dfb0f3-5357-4e24-bf1d-f1a395b4ab1e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Jamaspa
+  - __typeName: RollTableRow
+    id: 9991b352-5f8b-45fd-a38f-61ec51ef4263
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Khosrau
+  - __typeName: RollTableRow
+    id: ccd4d939-59a8-4ce5-b94e-31aea4b4c470
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kithara
+  - __typeName: RollTableRow
+    id: 15ddfed4-ccdc-4f66-82be-c6c7ff5f51c3
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Sarames
+  - __typeName: RollTableRow
+    id: ebecebca-6991-4dac-b549-d4c33711dcd2
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Utana
+  id: af90855e-ec00-439a-a236-c1aa91fe8dc5
+  name: Hakaan Masculine Names
+  subtable: true
+  mtime: 1743455162077
+  items: false
+  ctime: 1743444409622
+60014ae0-21b4-42a1-b80a-b9d883b9aa27:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 81d7afd1-fcc4-451a-b678-4f6a21a709ec
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Adrina
+  - __typeName: RollTableRow
+    id: 7c09da74-186d-4566-a866-a4f94d5cb0ed
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Arawanni
+  - __typeName: RollTableRow
+    id: 72b6e3b9-bfd0-435e-a549-ba7f7f922b3f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Barsina
+  - __typeName: RollTableRow
+    id: 65f1ddd1-dab5-4976-b93c-77062ba61688
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Irdabava
+  - __typeName: RollTableRow
+    id: f6f359e0-71d2-4c3c-acdf-56a836812010
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Kiandot
+  - __typeName: RollTableRow
+    id: 5e747344-062c-4514-a8b2-d761d778e6a4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Mavané
+  - __typeName: RollTableRow
+    id: bbc60557-b509-4e4a-b692-39f26d62998a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Osorabi
+  - __typeName: RollTableRow
+    id: e164c9db-96bd-495e-a7c8-b4b726d56688
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Sitarey
+  - __typeName: RollTableRow
+    id: f86d4b4c-82dc-4c41-a592-86e8114a7116
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Tyriti
+  - __typeName: RollTableRow
+    id: 0fbe2072-a26a-4cac-9c52-d235ac3078b5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Ulivesh
+  id: 60014ae0-21b4-42a1-b80a-b9d883b9aa27
+  name: Hakaan Feminine Names
+  subtable: true
+  mtime: 1743455167030
+  items: false
+  ctime: 1743444421552
+570e3160-1d14-48a9-9a8d-8affb280509a:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 4e609a4a-2153-4ee1-8192-6e81af460fca
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Brenwyn
+  - __typeName: RollTableRow
+    id: f476b241-1daa-47a1-8503-7eccf06c5d20
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Demelza
+  - __typeName: RollTableRow
+    id: 50999838-48ec-4d7e-9866-dc598e078a02
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Elzbeth
+  - __typeName: RollTableRow
+    id: d724e57c-9e71-4c6c-b4b2-9be92aef5199
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gwynhyvyr
+  - __typeName: RollTableRow
+    id: 5cb7b319-f003-4897-a5ad-16f34ff610ce
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Maerwyn
+  - __typeName: RollTableRow
+    id: 62fa9be0-7c20-42e1-baf2-35d53b67307f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Margaret
+  - __typeName: RollTableRow
+    id: a07637df-9013-4237-a002-14d8494a12dd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Meliora
+  - __typeName: RollTableRow
+    id: d0b0b4ba-02af-452d-b0dd-4da453f43f70
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Rowenna
+  - __typeName: RollTableRow
+    id: 54faca3f-edaf-4c5c-9efd-98f889173dc5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Tamara
+  - __typeName: RollTableRow
+    id: d4e1726f-b47c-4657-b124-2bd1856396be
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Wenna
+  id: 570e3160-1d14-48a9-9a8d-8affb280509a
+  name: Human Feminine Names
+  subtable: true
+  mtime: 1743455237473
+  items: false
+  ctime: 1743445339175
+f4d4a342-75f6-47da-92ad-b35188545113:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 65a43052-7830-425d-8289-f20cc641e332
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Alert
+  - __typeName: RollTableRow
+    id: 33d38a96-81c1-4739-8195-6ceb77c51560
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Annoyed
+  - __typeName: RollTableRow
+    id: 0e0bca4e-bc25-4117-94b1-b1e1a6400469
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Anxious
+  - __typeName: RollTableRow
+    id: 30b1dfb7-fcbf-4878-b094-c6695387ed5f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Awkward
+  - __typeName: RollTableRow
+    id: ea4c79ad-3cb6-43ca-82f8-1f44f0e7aee7
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Bored
+  - __typeName: RollTableRow
+    id: 0681c1f4-2f35-4165-bd55-83c8855e79dc
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Chirpy
+  - __typeName: RollTableRow
+    id: d524787a-2335-44b1-a75d-9b96b591362a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Clever
+  - __typeName: RollTableRow
+    id: 847df665-9efb-4c8b-8f8d-cdfec9b54cd1
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Confused
+  - __typeName: RollTableRow
+    id: 17d547a4-fa51-422b-98a8-b470778071a8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cowardly
+  - __typeName: RollTableRow
+    id: 929e592f-ee1a-44a5-b9a6-af87071609a1
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cranky
+  - __typeName: RollTableRow
+    id: db310ae2-b91e-413c-930f-805464405f1d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cruel
+  - __typeName: RollTableRow
+    id: d121d598-dcbe-4513-8fa3-bf7a90bb62c6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cunning
+  - __typeName: RollTableRow
+    id: 0a07860d-caad-4ef5-b75d-6fba69894f60
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Curious
+  - __typeName: RollTableRow
+    id: 67c78faf-92b0-4e28-8327-567cd4055a03
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Delighted
+  - __typeName: RollTableRow
+    id: 3255b8ca-561c-4826-b9b5-103da74e3501
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dizzy
+  - __typeName: RollTableRow
+    id: d80d07b9-bb54-4596-97f8-ab54e19dac20
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Eager
+  - __typeName: RollTableRow
+    id: 1c0aa257-1759-49d8-a12b-0cd60108ca59
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Enraged
+  - __typeName: RollTableRow
+    id: e372e00d-9af9-42d3-80f5-ca9b272ffa83
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Enraged
+  - __typeName: RollTableRow
+    id: 42b6c598-e890-4520-a219-b20744be65c2
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Enwisened
+  - __typeName: RollTableRow
+    id: 1b132bf7-5c40-46d4-9a98-01f05df78fba
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Excited
+  - __typeName: RollTableRow
+    id: e218d0ad-ff19-43cc-ba42-90ca1aea34a4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Foolish
+  - __typeName: RollTableRow
+    id: ad4a4ef9-b054-438b-9217-244c2a3006c1
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gaunt
+  - __typeName: RollTableRow
+    id: 2330021b-5cc4-4218-96fc-401ef6de096a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Goofy
+  - __typeName: RollTableRow
+    id: d1d05251-e94a-40bb-b7c2-966a7bce0f07
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Greedy
+  - __typeName: RollTableRow
+    id: b8814786-6205-40fa-b38e-2ab611b2755a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Grumpy
+  - __typeName: RollTableRow
+    id: 7e0cad16-3761-490c-8691-5b0dc6961dff
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Happy
+  - __typeName: RollTableRow
+    id: 3c787d1d-2516-496a-803a-ea4eb41d1f6d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Hasty
+  - __typeName: RollTableRow
+    id: 47880ae6-a108-4bbd-b46c-d39bb7e26f8d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Irritable
+  - __typeName: RollTableRow
+    id: 08e6be68-1b52-42db-a5c6-f95a3fbd130a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Lanky
+  - __typeName: RollTableRow
+    id: cd5f2fa4-92ae-4980-a291-a5b83dbc93df
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Lonely
+  - __typeName: RollTableRow
+    id: dcb157ab-c503-4b2e-b671-8a51064dcce2
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Meek
+  - __typeName: RollTableRow
+    id: d551fdf7-bc53-4a95-a14b-1a5d163e8c7c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Miserable
+  - __typeName: RollTableRow
+    id: 4d38b1b4-4963-47cd-9317-6211a7dc610a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Moody
+  - __typeName: RollTableRow
+    id: c42953b2-f6cb-4452-b5bc-5dfadbe1cbd3
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Mumbling
+  - __typeName: RollTableRow
+    id: d0415f47-15ae-4bed-ba0e-7235848054d6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Obsessed
+  - __typeName: RollTableRow
+    id: 7dc6889a-2731-4368-8a46-b3fcded2bf00
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Savage
+  - __typeName: RollTableRow
+    id: 0ba49e94-66c7-4b94-b6fb-5d68868fdb20
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Scheming
+  - __typeName: RollTableRow
+    id: 22ee78ce-44a5-477e-b870-358460b08d64
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Sinister
+  - __typeName: RollTableRow
+    id: 4ea0dd4f-d968-4a02-b837-9791229b3f86
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Sleepy
+  - __typeName: RollTableRow
+    id: 0ee1bd22-fcf7-4820-8cb4-eaea0f9f44cd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Smarmy
+  - __typeName: RollTableRow
+    id: bcc146ea-5c12-4756-a582-0f3c417034ec
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Smart
+  - __typeName: RollTableRow
+    id: 5d724789-7fbf-4cec-96db-9fe09128c543
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Sneaky
+  - __typeName: RollTableRow
+    id: 649f453b-6a86-44ad-be53-9ed8a61db80a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Sneaky
+  - __typeName: RollTableRow
+    id: f195d868-bcc2-49d9-8506-358fb8ff48ac
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Startled
+  - __typeName: RollTableRow
+    id: 71eb7444-a07c-43cf-9824-bc99256f9bec
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Stout
+  - __typeName: RollTableRow
+    id: 7c973175-f5a2-4791-b5fe-4913fd85272b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Stupid
+  - __typeName: RollTableRow
+    id: 36dc6b41-15d5-4fb2-9828-431859d409ae
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Surprised
+  - __typeName: RollTableRow
+    id: 17784ac9-a76d-4f4c-87ee-5af884b75466
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Thoughtful
+  - __typeName: RollTableRow
+    id: 755d1add-461a-40f8-8f06-8f552c4eb762
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Tired
+  - __typeName: RollTableRow
+    id: 28e9cf7f-a43a-47ac-99ed-76d282aa8930
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Treacherous
+  - __typeName: RollTableRow
+    id: cdeb3d73-5bfd-42a1-b62c-c98ce2b73cf4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vengeful
+  - __typeName: RollTableRow
+    id: 7d27fc07-2c60-4e46-b9c1-602825c199f0
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Vile
+  - __typeName: RollTableRow
+    id: 6440528e-b03e-48a6-a51f-9d2d17c43368
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Wise
+  - __typeName: RollTableRow
+    id: 3f9d410c-0793-4448-82be-97c77033ceab
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Wretched
+  - __typeName: RollTableRow
+    id: 51acbb68-6e72-4a16-9f20-6d2a246ce0d5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Conniving
+  - __typeName: RollTableRow
+    id: 687a615d-e882-43a9-8b0f-52ea4928fdb4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Cackling
+  - __typeName: RollTableRow
+    id: 51b0b39d-8aec-4808-9c01-543c4371505c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Wicked
+  - __typeName: RollTableRow
+    id: ccfea9be-137b-44b0-a415-60fba4d050c1
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Devious
+  - __typeName: RollTableRow
+    id: 7ecb29ca-73ac-4713-858a-5c06710ccfcd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Dastardly
+  name: Generic Monster Adjectives
+  id: f4d4a342-75f6-47da-92ad-b35188545113
+  mtime: 1768101859385
+  items: false
+  ctime: 1751231403920
+3a1af406-9db6-4ab9-b20d-9af36b1ff30f:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 3e33c6d0-b603-49aa-916b-c783cf7f7b52
+    choiceName: Dragon Knight Masculine
+    id: d8127dcb-9505-4cdc-8bd3-30bd3b499b1e
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: 088ee59f-6e89-4f99-a665-2b6c4d9b4d77
+    choiceName: Dragon Knight Gender Neutral
+    id: d289a3bc-282b-4245-ade1-dcdf96399eba
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: nameGenerators
+        key: ab4b469e-385c-48a1-8b9c-01053e48d8d7
+    choiceName: Dragon Knight Feminine
+    id: 17f5db63-21ba-4f35-9686-cd70eea96f47
+  id: 3a1af406-9db6-4ab9-b20d-9af36b1ff30f
+  rollType: namedChoice
+  name: Dragon Knight Names
+  mtime: 1743454985868
+  items: false
+  ctime: 1743453978839

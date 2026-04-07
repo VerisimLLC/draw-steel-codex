@@ -1,0 +1,389 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: df1417bc-7b16-49de-a11b-66211c726f38
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440925
+    portraitOffset:
+      x: -0.04977894
+      y: 0.09952153
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 698a2039-0a2e-43d3-9c15-7da5e8fef7e4
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 72
+    inflictedConditions: []
+    ev: 10
+    max_hitpoints_roll: "72"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Dwarf Shieldwall
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: ConditionCaster("Restrained").type = "Dwarf"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: dbad5212-205c-46ed-8016-b9675b033a0a
+            sourceguid: 0e8db16f-6515-474b-b66e-e1463e270625
+            behavior: attribute
+            source: Ongoing Effect
+            name: Force Move Restrained by Dwarves
+            value: -1
+            description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          name: Force Move Restrained by Dwarves
+          guid: 0e8db16f-6515-474b-b66e-e1463e270625
+          id: 0e8db16f-6515-474b-b66e-e1463e270625
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; slide 1
+        - 10 damage; slide 1
+        - 13 damage; slide 1
+        roll: 2d10 + 2
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 109
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: 1 Target
+      - rules: Spend 3 Malice; add 1 additional target
+        text: 3 Malice
+      categorization: Signature Ability
+      guid: 708a7fee-1b57-4e14-872d-6dadc0e626a6
+      targetType: target
+      numTargets: 2 when mode = 2 else 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Wide Axe
+      implementation: 4
+      description: |-
+        The shieldwall can shift 1 square to remain adjacent to the target.
+
+
+        A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 15293856-4d10-40f7-a93f-9af32bd21baf
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Intercepting Shield
+      implementation: 0
+      description: The shieldwall becomes the strike's target and halves the damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    minion: false
+    stability: 4
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Shieldwall	Level 3 Platoon Defender
+        Dwarf, Humanoid	EV 10
+        <b>Stamina</b> 72
+        <b>Speed </b>5	<b>Size</b> 1M /<b> Stability</b> 4
+        <b>	Free Strike</b> 5
+        Might +2	Agility 0	Reason +0	Intuition +0	Presence +1
+        <b>Wide Axe</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; slide 1
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; slide 1
+        %E2%9C%B8	<b>17</b>	13 damage; slide 1
+        <b>Effect</b> The shieldwall can shift 1 to remain adjacent to the target. A target restrained by a dwarf can be slid by this ability.
+        <b>3 Malice</b> The shieldwall targets an additional creature or object.
+
+        <b>Intercepting Shield</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> A creature strikes an adjacent ally.
+        <b>Effect</b> The shieldwall becomes the strike's target and halves the damage.
+
+        <b> Call to the Wall</b>
+        The shieldwall inflicts taunted (EoT) on a creature whenever they deal damage to the shieldwall or take damage from the shieldwall.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:83090d32-d4f2-48a9-8a64-37b2c642052e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:83090d32-d4f2-48a9-8a64-37b2c642052e: true
+        sourceguid: 83090d32-d4f2-48a9-8a64-37b2c642052e
+        behavior: trigger
+        source: Trait
+        name: " Call to the Wall"
+        description: Whenever a creature deals damage to or takes damage from the shieldwall, the shieldwall can make that creature taunted until the end of the creature's next turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          triggerPrompt: Whenever a creature deals damage to or takes damage from the shieldwall, the shieldwall can make that creature taunted until the end of the creature's next turn.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          whenActive: combat
+          persistence: []
+          guid: 84311db1-67c3-47a3-ad69-6a214452e3d6
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 2677712b-9ca5-4e91-b354-293c5ab0c403
+            duration: end_of_next_turn
+            ongoingEffectCustom: false
+          trigger: losehitpoints
+          name: " Call to the Wall"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 0878f94d-17c6-4364-9594-0bf183041d56
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:83090d32-d4f2-48a9-8a64-37b2c642052e: true
+        sourceguid: 83090d32-d4f2-48a9-8a64-37b2c642052e
+        behavior: trigger
+        source: Trait
+        name: Call to the Wall (Deal Damage)
+        description: Whenever the shieldwall deals damage to a creature, the shieldwall can make that creature taunted until the end of the creature's next turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: target
+          triggerPrompt: The shieldwall dealt damage to a creature. Taunt them until the end of their next turn?
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          whenActive: combat
+          guid: 2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7f
+          numTargets: "1"
+          name: Call to the Wall (Deal Damage)
+          trigger: dealdamage
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 2677712b-9ca5-4e91-b354-293c5ab0c403
+            duration: end_of_next_turn
+            ongoingEffectCustom: false
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6e
+      source: Trait
+      description: Whenever a creature deals damage to or takes damage from the shieldwall, the shieldwall can make that creature taunted until the end of the creature's next turn.
+      guid: 83090d32-d4f2-48a9-8a64-37b2c642052e
+      name: " Call to the Wall"
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:24c11d56-f1ce-4b6c-bad1-38ffa48b12fe: true
+        CharacterFeature:9f73aede-ee50-4395-9351-f18a6ca27ac5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:24c11d56-f1ce-4b6c-bad1-38ffa48b12fe: true
+          CharacterFeature:9f73aede-ee50-4395-9351-f18a6ca27ac5: true
+        sourceguid: 24c11d56-f1ce-4b6c-bad1-38ffa48b12fe
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Intercepting Shield
+        description: |-
+          Trigger: A creature makes a strike against an ally adjacent to the shieldwall.
+
+          Effect: The shieldwall becomes the target of the triggering strike and halves the damage.
+        guid: 32f87ddf-a6e2-4202-8e72-acdb3d75b896
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One allied creature
+          effect: The shieldwall becomes the target of the triggering strike and halves the damage.
+          trigger: A creature makes a strike against an ally adjacent to the shieldwall.
+          name: Intercepting Shield
+          guid: fb4d51b2-d484-4856-8239-f28a9572504e
+          distance: "1"
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 24c11d56-f1ce-4b6c-bad1-38ffa48b12fe
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          name: Intercepting Shield
+          changeTargetFilter: monster.type is "dwarf shieldwall"
+          changeTargetRange: ability
+          guid: deb21357-00cd-477c-b3cc-d0c841c7b7cc
+          source: Trigger
+          keywords:
+            Strike: true
+          activationCondition: false
+          behavior: power
+          damageMultiplier: half
+          rollType: ability_power_roll
+          rules: ""
+          description: You can select the shieldwall to become the target of the triggering strike and halves the damage.
+          modtype: none
+          changeTarget: true
+        guid: 55d1f9f4-d8ee-4af2-9b9e-7b7007a89222
+        type: trigger
+        domains:
+          CharacterFeature:24c11d56-f1ce-4b6c-bad1-38ffa48b12fe: true
+          CharacterFeature:9f73aede-ee50-4395-9351-f18a6ca27ac5: true
+        targetType: ally
+        trigger: takedamage
+        name: Intercepting Shield
+        rules: |-
+          When a creature makes a strike against an ally adjacent to the shieldwall.
+
+          The shieldwall becomes the target of the triggering strike and halves the damage.
+        description: |-
+          Trigger: A creature makes a strike against an ally adjacent to the shieldwall.
+
+          Effect: The shieldwall becomes the target of the triggering strike and halves the damage.
+        range: "1"
+        behavior: powertabletrigger
+      source: Character Feature
+      description: |-
+        Trigger: A creature makes a strike against an ally adjacent to the shieldwall.
+
+        Effect: The shieldwall becomes the target of the triggering strike and halves the damage.
+      guid: 24c11d56-f1ce-4b6c-bad1-38ffa48b12fe
+      name: Intercepting Shield
+      implementation: 4
+    role: Platoon Defender
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    availableTriggers: []
+    damage_taken: 0
+    opportunityAttack: 5
+    resources: []
+    keywords:
+      Dwarf: true
+      Humanoid: true
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: e268b519-1031-416c-b42d-c2b6c46e9115
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 8c0a76d7-1110-4a76-a96f-a5c415d97f30
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Dwarf Shieldwall
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590279934
+mtime: 1775201137032
+hidden: false

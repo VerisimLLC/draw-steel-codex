@@ -1,0 +1,34 @@
+__typeName: ActivatedAbility
+objectTarget: false
+id: f8036538-bbbf-4476-97ad-a2b4526200ad
+behaviors: []
+multipleModes: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+modeList:
+- text: Acid
+- text: Cold
+- text: Corruption
+- text: Fire
+- text: Lightning
+- text: Poison
+- text: Sonic
+guid: 486cf6ef-a796-485b-a262-6635a7640567
+ctime: 1773496262383
+targetType: self
+persistence: []
+description: ""
+name: Weakness to Specific Elemental Damage
+repeatTargets: false
+mtime: 1773496262383
+abilityType: none
+iconid: ui-icons/skills/1.png

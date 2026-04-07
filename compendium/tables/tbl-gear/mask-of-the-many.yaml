@@ -1,0 +1,65 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 0a4b2d95-47ef-464e-b601-94ec2b513b36
+    guid: d0ed8807-487b-4165-a77a-08b39ec89bcf
+    source: Item
+    behavior: activated
+    description: ""
+    name: Transform Maneuver
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: fcf4597d-594a-4bf9-a134-4e7e8940bbae
+      domains: []
+      persistence: []
+      behaviors: []
+      name: 'Transform '
+      numTargets: "1"
+      description: |-
+        While you wear this mask, you can use a maneuver to transform into any humanoid of equivalent size that you have previously seen.
+        The humanoid’s appearance reflects the last time you saw them, including whatever they were wearing. Your clothing and gear are transformed into the figure’s clothing and gear, absorbed into your body, or retain their original forms, as you determine. If the figure possessed any treasures when you last saw them, they are duplicated as mundane copies while you are transformed.
+      abilityType: none
+      iconid: bf1ed5e0-4242-4707-88d5-c6d172834e14
+  source: Item
+  name: Transform Maneuver
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 0a4b2d95-47ef-464e-b601-94ec2b513b36
+id: aca43fa9-ef4a-49d4-8285-95822711d6bf
+keywords:
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: A plain white mask is lined with soft black velvet—which smells faintly of blood.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+ctime: 1758402033837
+projectGoal: "150"
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+itemPrerequisite: One used death shroud
+name: Mask of the Many
+mtime: 1759282403492
+description: |-
+  While you wear this mask, you can use a maneuver to transform into any humanoid of equivalent size that you have previously seen.
+
+  The humanoid’s appearance reflects the last time you saw them, including whatever they were wearing. Your clothing and gear are transformed into the figure’s clothing and gear, absorbed into your body, or retain their original forms, as you determine. If the figure possessed any treasures when you last saw them, they are duplicated as mundane copies while you are transformed.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: bf1ed5e0-4242-4707-88d5-c6d172834e14

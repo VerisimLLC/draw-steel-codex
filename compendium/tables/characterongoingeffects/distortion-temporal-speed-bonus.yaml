@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: f18308d2-adca-4a06-a5e1-03f4732efe27
+  sourceguid: 44869e47-8fe6-47ff-904e-0017206b1bad
+  value: 2
+  source: Ongoing Effect
+  name: Distortion Temporal speed bonus
+  behavior: attribute
+  description: You gain a +2 bonus to speed
+  attribute: speed
+source: Ongoing Effect
+guid: 44869e47-8fe6-47ff-904e-0017206b1bad
+id: 44869e47-8fe6-47ff-904e-0017206b1bad
+ctime: 1766115455735
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Distortion Temporal speed bonus
+description: You gain a +2 bonus to speed
+custom: true
+mtime: 1766115455735
+iconid: ui-icons/skills/1.png

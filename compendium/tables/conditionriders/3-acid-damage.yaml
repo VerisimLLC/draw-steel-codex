@@ -1,0 +1,54 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: bc900185-b5dc-4999-a200-b01579b1d74e
+    repeatTargets: false
+    abilityType: none
+    trigger: beginturn
+    targetType: self
+    numTargets: "1"
+    name: 3 Acid Damage
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Grab Damage
+      roll: "3"
+      damageType: acid
+      chatMessage: Acid damage while grabbed.
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: cbf461b3-bce7-4d55-80bf-66aa1ea763ad
+  name: 3 Acid Damage
+  sourceguid: f424560a-6b95-4be5-ba3e-76e55b64c1f1
+source: Ongoing Effect
+guid: f424560a-6b95-4be5-ba3e-76e55b64c1f1
+id: f424560a-6b95-4be5-ba3e-76e55b64c1f1
+ctime: 1756407514963
+condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: 3 Acid Damage
+description: ""
+mtime: 1756407514963
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65

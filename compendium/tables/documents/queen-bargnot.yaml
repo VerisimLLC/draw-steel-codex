@@ -1,0 +1,34 @@
+__typeName: MarkdownDocument
+description: Queen Bargnot
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 77f385b2-2543-406c-95c3-1fbab1d7238a
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.600000610351562
+    halign: center
+    image: 0d8a7d96-bec3-4a6c-87eb-21bf78f69bf3
+id: 3d7cdabb-80ca-4378-926f-d0bf0ea11ac0
+mtime: 1761309528979
+content: |-
+  # Queen Bargnot
+
+  [[image]]
+
+  *Leader of the Jagged Edge Goblins*
+  {
+  Secret: 
+  **Part 1:**
+  Queen Bargnot wants the cup to turn her ragtag band of goblins into elite soldiers who can then lay siege to the peaceful village of Broadhurst, claiming its farms and resources as her own. But there’s a problem—the cup lies in the lowest level of the tomb, which is behind two magically sealed passages. Unable to bash them down, Queen Bargnot ordered her retinue to capture a villager from Broadhurst and perform a wicked blood ritual to break the seals.
+
+
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.
+  How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761308689790

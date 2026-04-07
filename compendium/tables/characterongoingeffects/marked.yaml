@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 7de9bdb4-afd0-47c8-8faf-9dbfa91f9aa6
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Marked
+  guid: 4746b151-71d2-4fa4-8d14-55aef4d45260
+  description: The blackguard and their allies gain an edge on abilities targeting you
+  modtype: edge
+  rollType: enemy_ability_power_roll
+source: Ongoing Effect
+guid: 7de9bdb4-afd0-47c8-8faf-9dbfa91f9aa6
+id: 7de9bdb4-afd0-47c8-8faf-9dbfa91f9aa6
+ctime: 1764193125615
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Marked
+description: The blackguard and their allies gain an edge on abilities targeting you
+custom: true
+mtime: 1764193125615
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,81 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:12798e7a-3f18-447a-983e-e54b5f692ef0: true
+  sourceguid: 12798e7a-3f18-447a-983e-e54b5f692ef0
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "5"
+    damageType: all
+    apply: Damage Reduction
+  guid: 9feac9de-5059-4538-ab63-7b18449e1eca
+  name: Rampage - Ogre
+  description: Until the end of the round, each ogre has damage immunity 5 and deals an extra 5 damage with abilities, heroic abilities that target ogres cost one less Heroic Resource (minimum of 1)
+- __typeName: CharacterModifier
+  sourceguid: 12798e7a-3f18-447a-983e-e54b5f692ef0
+  source: Ongoing Effect
+  guid: 922e3f66-f0c5-478e-b938-312ae48277aa
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:12798e7a-3f18-447a-983e-e54b5f692ef0: true
+  rollType: ability_power_roll
+  name: Rampage - Ogre
+  modtype: none
+  description: Until the end of the round, each ogre has damage immunity 5 and deals an extra 5 damage with abilities, heroic abilities that target ogres cost one less Heroic Resource (minimum of 1)
+  damageModifier: "5"
+  behavior: power
+- __typeName: CharacterModifier
+  source: Ongoing Effect
+  sourceguid: 12798e7a-3f18-447a-983e-e54b5f692ef0
+  displayCondition: ability.Heroic and ability.HeroicResourceCost > 1
+  resourceCostType: cost
+  domains:
+    CharacterOngoingEffect:12798e7a-3f18-447a-983e-e54b5f692ef0: true
+  behavior: power
+  guid: e0fa37d1-0e17-4a1a-8f49-68fa80b7479d
+  keywords: []
+  activationCondition: ability.Heroic and ability.HeroicResourceCost > 1
+  resourceCostAmount: ability.HeroicResourceCost-1
+  overrideCost: true
+  name: Rampage - Ogre
+  resourceRefreshType: none
+  description: Until the end of the round, each ogre has damage immunity 5 and deals an extra 5 damage with abilities, heroic abilities that target ogres cost one less Heroic Resource (minimum of 1)
+  rollType: enemy_ability_power_roll
+  modtype: none
+- __typeName: CharacterModifier
+  sourceguid: 12798e7a-3f18-447a-983e-e54b5f692ef0
+  source: Ongoing Effect
+  value: 5
+  domains:
+    CharacterOngoingEffect:12798e7a-3f18-447a-983e-e54b5f692ef0: true
+  name: Rampage - Ogre
+  guid: 4c87aaf2-dc32-42c1-a008-bddbbba8384a
+  description: Until the end of the round, each ogre has damage immunity 5 and deals an extra 5 damage with abilities, heroic abilities that target ogres cost one less Heroic Resource (minimum of 1)
+  behavior: attribute
+  attribute: 0c15efd6-bf73-47bb-aa60-7da385613f9a
+source: Ongoing Effect
+guid: 12798e7a-3f18-447a-983e-e54b5f692ef0
+id: 12798e7a-3f18-447a-983e-e54b5f692ef0
+ctime: 1758094233475
+domains:
+  CharacterOngoingEffect:12798e7a-3f18-447a-983e-e54b5f692ef0: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.964285731315613
+    v: 0.878431379795074
+    a: 1
+name: Rampage - Ogre
+custom: true
+description: Until the end of the round, each ogre has damage immunity 5 and deals an extra 5 damage with abilities, heroic abilities that target ogres cost one less Heroic Resource (minimum of 1)
+mtime: 1761520912380
+iconid: de2d492d-2ea9-4023-9738-d0125cd31734

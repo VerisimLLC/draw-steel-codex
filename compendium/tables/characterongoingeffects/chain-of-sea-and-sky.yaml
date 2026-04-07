@@ -1,0 +1,73 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 7153aef9-f8fe-4357-b142-b2e50856bb54
+  sourceguid: cdf75b21-f65c-49ee-824c-75600a863b58
+  value: 1
+  source: Ongoing Effect
+  name: Chain of Sea and Sky
+  behavior: attribute
+  description: Whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+  attribute: fly
+- __typeName: CharacterModifier
+  text: You move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns
+  sourceguid: cdf75b21-f65c-49ee-824c-75600a863b58
+  source: Ongoing Effect
+  behavior: movementtext
+  filterCondition: Movement Type = "fly"
+  name: Chain of Sea and Sky
+  description: Whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+  guid: 4dae9560-aaba-4530-9891-20ad6e3c6814
+  color: green
+- __typeName: CharacterModifier
+  description: Whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+  sourceguid: cdf75b21-f65c-49ee-824c-75600a863b58
+  behavior: activated
+  source: Ongoing Effect
+  resourceRefreshType: turn
+  guid: 88ad51f5-38b2-4756-bd57-871de80e7204
+  name: Chain of Sea and Sky
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    behaviors: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: 1
+    usageLimitOptions:
+      resourceRefreshType: turn
+      charges: "1"
+      resourceid: 88ad51f5-38b2-4756-bd57-871de80e7204
+      multicharge: false
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 2f1eaeeb-5f68-4b44-9eee-35eccace4e61
+    domains: []
+    targetType: self
+    name: Chain of Sea and Sky
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: cdf75b21-f65c-49ee-824c-75600a863b58
+id: cdf75b21-f65c-49ee-824c-75600a863b58
+ctime: 1774875819893
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+custom: true
+name: Chain of Sea and Sky
+iconid: ui-icons/skills/1.png
+description: Whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+mtime: 1774875819893
+implementation: 3

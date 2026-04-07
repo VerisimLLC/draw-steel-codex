@@ -1,0 +1,401 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8bbc13c6-8ea3-41ae-8391-a8eda7aef1e9
+    offtokenPortraitId: 5e633841-be0c-43b5-9a87-8268f142f995
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.5126472
+    portraitOffset:
+      x: -0.0641914
+      y: 0.1327434
+    frameHueShift: 0.4205879
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 07ef4bdf-bc36-4c2e-9c9e-c9159ac23cf5
+  properties:
+    __typeName: monster
+    groupid: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Angulotl: true
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        ANGULOTL WAVE	LEVEL 1 HORDE CONTROLLER
+        Angulotl, Humanoid	EV 3
+        Stamina 10	Immunity poison 2
+        Speed 5 (swim, climb)	Size 1S / Stability 0
+        Free Strike 1
+        Might 0	Agility 0	Reason 0	Intuition +2	Presence +2
+        Refulgent Beams (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        Keywords Magic, Ranged, Strike
+        Distance Ranged 8	Target 2 creatures or objects
+        %E2%9C%B8	%E2%89%A411	3 holy damage
+        %E2%98%85	12%E2%80%9316	4 holy damage; R<1 illuminated (save ends)
+        %E2%9C%A6	17	5 holy damage; R<2 illuminated (save ends)
+        Effect Illuminated creatures and objects can't Hide or turn invisible, and strikes made against them have an edge until the condition ends.
+
+        Noxious Bubble (Action) %E2%97%86 2 Malice
+        Keywords Area, Magic, Ranged
+        Distance 2 Cube of unoccupied space within 10	Target Special
+        Effect A bubble of toxic gas fills the area, ready to pop. If a creature or object touches the bubble, or the bubble takes damage, it bursts. Each angulotl within 1 becomes wet (save ends) (see Wet) and each enemy within 1 makes a Might test.
+        %E2%9C%B8	%E2%89%A411	3 poison damage; wet and weakened (save ends)
+        %E2%98%85	12%E2%80%9316	2 poison damage; wet (save ends)
+        %E2%9C%A6	17	1 poison damage; wet (EoT)
+
+        Toxiferous
+        When an adjacent enemy grabs or uses a melee ability against the wave, they take 2 poison damage.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+        CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+        CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+        CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+        sourceguid: ec4426d5-b894-4154-a4ee-acf74c5a231c
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the wave or uses a melee ability against them, that enemy takes 2 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous
+            roll: "2"
+            damageType: poison
+            chatMessage: Melee ability vs toxic creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 78fcc0c8-76b3-489c-815a-9b29f1ffcee6
+          persistence: []
+          domains:
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          conditionFormula: target = self and (UsedAbility.Keywords has "Melee")
+          subject: enemy
+          name: Toxiferous
+          trigger: targetwithability
+          targetType: subject
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 932d333e-a635-43cb-adef-28e62124c4ef
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+        sourceguid: 014e497d-86b9-4eeb-9958-db7261fe30f8
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the wave or uses a melee ability against them, that enemy takes 2 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 707c0f0a-249d-4502-a335-c6b0c4a5def9
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "2"
+            damageType: poison
+            guid: b2778aba-d949-4c29-a3bd-ce8613a7c864
+            titleText: Toxiferous
+            chatMessage: Grabbed a Toxiferous Creature
+          domains:
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          conditionFormula: condition = "Grabbed" and (HasAttacker)
+          numTargets: "1"
+          trigger: inflictcondition
+          name: Toxiferous
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: cc1e4089-bc89-4ee2-b113-10f36cb6f593
+      source: Character Feature
+      description: Whenever an adjacent enemy grabs the wave or uses a melee ability against them, that enemy takes 2 poison damage.
+      guid: 37850676-df57-4b42-b97b-89ce9a28640f
+      name: Toxiferous
+      implementation: 3
+    role: Horde Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 1
+    equipmentMeta:
+      offhand0: []
+    innateLanguages:
+      e14c1512-fc48-4cb6-945c-18b3eb0b808d: true
+    damage_taken: 0
+    ev: 3
+    walkingSpeed: 5
+    savingThrowRatings: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: ff0c14f5-630d-4c90-bffe-472b3be22629-14
+        used: 1
+    monster_type: Angulotl Wave
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 8
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 1811c4c6-500a-4213-b5cf-79a63690c5c5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 2
+      iconid: ui-icons/skills/1.png
+      name: Refulgent Beams
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 holy damage
+        - 4 holy damage; R<1 the target is illuminated (save ends)
+        - 5 holy damage; R<2 the target is illuminated (save ends)
+        roll: 2d10 + Presence
+      description: An illuminated creature or object can't hide or become invisible, and any strike made against an illuminated target gains an edge.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: cube
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Heroic Ability
+      range: 10
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 00cde3a0-7c9c-429a-aaf3-b27b2d4f2cf4
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        aliveafterdeath: true
+        aura:
+          __typeName: Aura
+          modifiers: []
+          name: Noxious Bubble
+          triggers:
+          - destroyaura: true
+            ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 45d5345f-76c6-467b-bffe-53c3235c8975
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Remove Aura
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: 30bb49ac-e433-44fb-9407-0912697c2e6f
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          implementation: 2
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Noxious Bubble
+      radius: "2"
+      description: |
+        A bubble of toxic gas fills the area, ready to pop. If any creature or object touches the bubble or if the bubble takes damage, it bursts. Each angulotl adjacent to the bubble is wet until the end of the encounter, and each enemy adjacent to the bubble makes a Might test. 
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    movementSpeeds:
+      climb: 5
+      swim: 5
+    creatureSize: 1S
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        730c37df-000b-4025-b86e-af6a1a94a509:
+          note: Refulgent Beams
+          abilityid: 1811c4c6-500a-4213-b5cf-79a63690c5c5
+          refreshid: ff0c14f5-630d-4c90-bffe-472b3be22629-14
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    initiativeGrouping: 96ae0283-cab7-4186-8757-c8e5588f1b7e
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: f4bef0ee-3d13-4e78-977e-3d04b2fbf67d-10389
+  tokenType: null
+  bestiaryId: 70dcfa7a-bc45-48a9-9b19-aea05b612f94
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1738222235594
+description: Angulotl Wave
+parentFolder: b4d6a13f-3431-4ade-b564-2cc17bcde303
+artist: null
+ord: 0
+ctime: 1741590265891
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,125 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a561704f-5985-4871-9067-55b3bc4f0dec: true
+  sourceguid: a561704f-5985-4871-9067-55b3bc4f0dec
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-2*Stacks"
+    stacks: true
+    damageType: all
+    apply: Damage Reduction
+  guid: ab973673-3d4f-4e42-bf89-36ceca96d1c2
+  name: Corroded
+  description: The target gains damage weakness 2 and reduces the potency of their potency effects by 1 (save ends). Each time the target fails this saving throw, the damage weakness increases by 2 and the potency of their potency effects is reduced by 1
+- __typeName: CharacterModifier
+  guid: ceeccd92-fef1-4a4b-8e86-7ba42cc6fa14
+  sourceguid: a561704f-5985-4871-9067-55b3bc4f0dec
+  value: "-1*Stacks"
+  source: Ongoing Effect
+  name: Corroded
+  behavior: attribute
+  description: The target gains damage weakness 2 and reduces the potency of their potency effects by 1 (save ends). Each time the target fails this saving throw, the damage weakness increases by 2 and the potency of their potency effects is reduced by 1
+  attribute: f09c8c3c-a863-456f-868f-1bbbace18380
+- __typeName: CharacterModifier
+  guid: 46f59423-6023-4efc-9c29-b4054e3445ae
+  sourceguid: a561704f-5985-4871-9067-55b3bc4f0dec
+  value: "-1*Stacks"
+  source: Ongoing Effect
+  name: Corroded
+  behavior: attribute
+  description: The target gains damage weakness 2 and reduces the potency of their potency effects by 1 (save ends). Each time the target fails this saving throw, the damage weakness increases by 2 and the potency of their potency effects is reduced by 1
+  attribute: 1422a518-b444-4ac5-b200-2f0b33aca87b
+- __typeName: CharacterModifier
+  guid: af1206d1-91fc-4709-9413-4bac9fb63bd4
+  sourceguid: a561704f-5985-4871-9067-55b3bc4f0dec
+  value: "-1*Stacks"
+  source: Ongoing Effect
+  name: Corroded
+  behavior: attribute
+  description: The target gains damage weakness 2 and reduces the potency of their potency effects by 1 (save ends). Each time the target fails this saving throw, the damage weakness increases by 2 and the potency of their potency effects is reduced by 1
+  attribute: 39e08262-baa3-4947-98cd-fb8045ff991e
+- __typeName: CharacterModifier
+  guid: e6b436d6-b597-4d3f-84cf-3225acc20370
+  sourceguid: a561704f-5985-4871-9067-55b3bc4f0dec
+  value: "-1*Stacks"
+  source: Ongoing Effect
+  name: Corroded
+  behavior: attribute
+  description: The target gains damage weakness 2 and reduces the potency of their potency effects by 1 (save ends). Each time the target fails this saving throw, the damage weakness increases by 2 and the potency of their potency effects is reduced by 1
+  attribute: e4c0b067-bfc8-4a41-8b6d-4f167da13591
+- __typeName: CharacterModifier
+  guid: 2da3c7ab-2bc1-457e-8328-0f069c92b9b9
+  sourceguid: a561704f-5985-4871-9067-55b3bc4f0dec
+  value: "-1*Stacks"
+  source: Ongoing Effect
+  name: Corroded
+  behavior: attribute
+  description: The target gains damage weakness 2 and reduces the potency of their potency effects by 1 (save ends). Each time the target fails this saving throw, the damage weakness increases by 2 and the potency of their potency effects is reduced by 1
+  attribute: 23e48f75-9484-47a6-a068-fbdb31a2e77c
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a561704f-5985-4871-9067-55b3bc4f0dec: true
+  sourceguid: a561704f-5985-4871-9067-55b3bc4f0dec
+  description: The target gains damage weakness 2 and reduces the potency of their potency effects by 1 (save ends). Each time the target fails this saving throw, the damage weakness increases by 2 and the potency of their potency effects is reduced by 1
+  source: Ongoing Effect
+  name: Corroded
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: ""
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: true
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: a561704f-5985-4871-9067-55b3bc4f0dec
+      duration: save_ends
+      ongoingEffectCustom: false
+    conditionFormula: Trigger Name is "madesave" and (Trigger Value < Subject.Save Ends)
+    castImmediately: false
+    trigger: custom
+    numTargets: "1"
+    name: Corroded
+    guid: f380b43d-a921-41d0-8b07-bae58e536ed9
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 123f885c-b64d-4b60-a36e-20990e83d798
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.357000112533569
+    s: 0.97265613079071
+    v: 0.915366530418396
+    a: 1
+stackable: true
+id: a561704f-5985-4871-9067-55b3bc4f0dec
+ctime: 1763461735124
+domains:
+  CharacterOngoingEffect:a561704f-5985-4871-9067-55b3bc4f0dec: true
+implementation: 3
+custom: true
+name: Corroded
+guid: a561704f-5985-4871-9067-55b3bc4f0dec
+description: The target gains damage weakness 2 and reduces the potency of their potency effects by 1 (save ends). Each time the target fails this saving throw, the damage weakness increases by 2 and the potency of their potency effects is reduced by 1
+mtime: 1764064439211
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

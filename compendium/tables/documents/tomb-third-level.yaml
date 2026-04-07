@@ -1,0 +1,41 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 137a6183-edad-46d6-941b-2f908b38a10d
+ctime: 1761751128744
+textStorage:
+  __typeName: TextStorage
+  sections:
+    p: |+
+      **Stairs:** For every 2 squares a stairway covers horizontally, it rises 1 square vertically.
+
+    M: |+
+      Some of the areas of this level of the tomb are different, depending on who enters the last level of the tomb first. If the [Gilded Hand] enter before the heroes, read the **After the Hand** in each area before running that area.
+
+    k: |+
+      **Illumination:** The third level of the tomb is illuminated by glowing crystals embedded in the ceiling.
+
+    I: |+
+      With the [item:Delian Knight Commander's Ring] or if the [Gilded Hand] unlocks the third level of the tomb, the heroes can descend into the lowest depths of the Caelian crypt.
+
+    u: "**Map:** The areas here are keyed to the [Delian Tomb - Level 3] map.\n\n \n"
+    V: |+
+      ## Third Level Features
+
+    f: |+
+      **Ceilings:** The ceilings are 4 squares high.
+
+    E: |+
+      # Tomb Third Level	
+
+    a: |+
+      This level of the tomb has the following features:
+
+    Q: |+
+      This level of the tomb is built for the sole purpose of defending the [item:Cup of Iulius], and its construction reflects this.
+
+
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 155824b4-14a0-481a-8a80-8be62dc0a037
+mtime: 1764105910061
+content: "# Tomb Third Level	\n\nWith the [Delian Knight Commander’s Ring] or if the [Gilded Hand] unlocks the third level of the tomb, the heroes can descend into the lowest depths of the Caelian crypt.\n\nSome of the areas of this level of the tomb are different, depending on who enters the last level of the tomb first. If the [Gilded Hand] enter before the heroes, read the **After the Hand** in each area before running that area.\n\nThis level of the tomb is built for the sole purpose of defending the [Cup of Iulius], and its construction reflects this.\n\n\n## Third Level Features\n\nThis level of the tomb has the following features:\n\n**Ceilings:** The ceilings are 4 squares high.\n\n**Illumination:** The third level of the tomb is illuminated by glowing crystals embedded in the ceiling.\n\n**Stairs:** For every 2 squares a stairway covers horizontally, it rises 1 square vertically.\n\n**Map:** The areas here are keyed to the [Delian Tomb - Level 3] map.\n\n \n"
+description: Tomb Third Level

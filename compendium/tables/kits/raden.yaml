@@ -1,0 +1,581 @@
+__typeName: Kit
+disengage: 1
+health: 3
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+id: 2624da89-11d7-4765-a50c-7065f8b2b0e7
+ctime: 1727319382009
+type: stormwight
+portraitid: "-MPrGgX3K0y1bVYdd6NY"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: b65f4701-4af4-42c9-b611-22f1139c6e8c
+      source: Raden Kit Feature
+      modtype: edge
+      keywords: []
+      activationCondition: true
+      guid: 72e984e8-255d-484c-bddd-2b3730e5da32
+      name: Aspect Benefits
+      behavior: power
+      description: You gain an edge on tests made to hide and sneak. Additionally, you ignore difficult terrain.
+      rollType: test_power_roll
+      skills:
+      - fdd43bde-6062-484d-aea6-3803d396ea8e
+      - ae13b5cf-718a-42a4-ab5e-18d46b289ac6
+    - __typeName: CharacterModifier
+      guid: 82ed75fb-f56d-48c8-94b4-d9615110d0ed
+      sourceguid: b65f4701-4af4-42c9-b611-22f1139c6e8c
+      value: 1
+      source: Raden Kit Feature
+      name: Aspect Benefits
+      behavior: attribute
+      description: You gain an edge on tests made to hide and sneak. Additionally, you ignore difficult terrain.
+      attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+    name: Aspect Benefits
+    description: You gain an edge on tests made to hide and sneak. Additionally, you ignore difficult terrain.
+    guid: b65f4701-4af4-42c9-b611-22f1139c6e8c
+    source: Raden Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 8bdb4181-defe-4c2b-9b46-04df8dbadcc3
+      guid: 22dc5b3b-db68-4068-9fd4-b3bcf77d9b7a
+      source: Raden Kit Feature
+      behavior: activated
+      description: |-
+        *8Animal Form: Rat**
+        While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Rat**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+      name: Rat Form
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: f14140a5-af68-497c-afc3-bb6eee0b956d
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: eefdae74-9375-4d11-ae64-7763a3901d9f
+          mode: effect
+          guid: 090d8607-b21f-433b-94a5-b844cd7f8491
+          conditions: []
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          ongoingEffect: 4147e269-a3bc-4069-997e-10fa0a82f079
+          ongoingEffectCustom: 4147e269-a3bc-4069-997e-10fa0a82f079
+        - __typeName: ActivatedAbilityDisguiseBehavior
+          monsterType: acc6c48c-e553-4d2e-9485-c5d122edd8c3
+          mode: bestiary
+          appearanceName: Raden Form
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          page: 143
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        modifiers: []
+        domains: []
+        strain: []
+        guid: 9040df39-4255-4009-bad3-4872d076edef
+        numTargets: "1"
+        iconid: ui-icons/skills/1.png
+        castImmediately: true
+        targetType: self
+        categorization: Hidden
+        name: "Animal Form: Raden"
+        persistence: []
+        description: "**Rat:** While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, use your allies as cover when you hide, and remain hidden while moving through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild."
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      filterCondition: Ongoing Effects has "Raden Form" or Ongoing Effects has "Hybrid Raden Form"
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      description: |-
+        *8Animal Form: Rat**
+        While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Rat**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+      source: Raden Kit Feature
+      name: Bear Form
+      behavior: activated
+      guid: 7fdcc30e-3698-4cae-896d-9d9e71eb3ade
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 4147e269-a3bc-4069-997e-10fa0a82f079
+          mode: effect
+          guid: e1391992-7498-4d76-8165-33bdc482c400
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: f14140a5-af68-497c-afc3-bb6eee0b956d
+          mode: effect
+          guid: cda14f94-0573-4558-b9dd-86bf200e292b
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: eefdae74-9375-4d11-ae64-7763a3901d9f
+          mode: effect
+          guid: b6aad93b-f3e6-4e9e-88ed-b8f03968e358
+          conditions: []
+        multipleModes: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        modeList:
+        - text: Do Not Change Form
+        - text: Rat Form
+        guid: 820333ae-fce7-445e-87d1-4e44231b3f8a
+        iconid: ui-icons/skills/1.png
+        castImmediately: true
+        domains: []
+        numTargets: "1"
+        name: True Form
+        targetType: self
+        description: ""
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      sourceguid: 6ca8abbf-32cb-4144-b820-42328806c27f
+      guid: ec65cda3-8408-42b5-a86e-f03bcfcd727c
+      source: Raden Kit Feature
+      behavior: activated
+      description: |-
+        *8Animal Form: Rat**
+        While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Rat**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+      name: Rat Form
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        targetType: self
+        multipleModes: true
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          page: 143
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        categorization: Hidden
+        numTargets: "1"
+        modifiers: []
+        modeList:
+        - rules: You become a 1S hybrid rat.
+          text: Size 1S
+        - rules: You become a 1M hybrid rat.
+          text: Size 1M
+        strain: []
+        guid: 16917494-8100-4928-89a7-9ec9668a4c78
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 4147e269-a3bc-4069-997e-10fa0a82f079
+          mode: effect
+          guid: bd4d2266-0990-4f80-b5f5-246408918098
+          conditions: []
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          ongoingEffect: eefdae74-9375-4d11-ae64-7763a3901d9f
+          modesSelected:
+          - 1
+          ongoingEffectCustom: eefdae74-9375-4d11-ae64-7763a3901d9f
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          ongoingEffect: f14140a5-af68-497c-afc3-bb6eee0b956d
+          modesSelected:
+          - 2
+          ongoingEffectCustom: f14140a5-af68-497c-afc3-bb6eee0b956d
+        - __typeName: ActivatedAbilityDisguiseBehavior
+          monsterType: acc6c48c-e553-4d2e-9485-c5d122edd8c3
+          mode: bestiary
+          appearanceName: Hybrid Raden Form
+        castImmediately: false
+        domains: []
+        iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+        persistence: []
+        name: "Hybrid Form: Raden"
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        description: "**Rat:** While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving."
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      description: |-
+        *8Animal Form: Rat**
+        While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Rat**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+      sourceguid: 6ca8abbf-32cb-4144-b820-42328806c27f
+      behavior: alternateappearance
+      name: Rat Form
+      source: Raden Kit Feature
+      guid: d180a715-b32a-4ce1-b408-462f7371c468
+      monsterDefault: acc6c48c-e553-4d2e-9485-c5d122edd8c3
+      appearance: Raden Form
+    - __typeName: CharacterModifier
+      description: |-
+        *8Animal Form: Rat**
+        While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+        **Hybrid Form: Rat**
+        While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+      sourceguid: 6ca8abbf-32cb-4144-b820-42328806c27f
+      behavior: alternateappearance
+      name: Rat Form
+      source: Raden Kit Feature
+      guid: 58beeaa1-0435-4467-84f9-b98f7e901553
+      monsterDefault: acc6c48c-e553-4d2e-9485-c5d122edd8c3
+      appearance: Hybrid Raden Form
+    name: Rat Form
+    description: |-
+      *8Animal Form: Rat**
+      While you are in your rat form, your size is 1T and you can automatically climb at full speed while moving. You can use the Hide maneuver as a free maneuver, you can use your allies as cover when you hide, and you can stay hidden while you move through squares occupied by any creature. Additionally, you gain an edge on tests made to climb other creatures. You can’t use any abilities while in this form except for Aspect of the Wild.
+      **Hybrid Form: Rat**
+      While you are in your hybrid form, your size is your choice of 1S or 1M. At 4th level, you can automatically climb at full speed while moving.
+    guid: 6ca8abbf-32cb-4144-b820-42328806c27f
+    source: Raden Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Raden Kit Feature
+      value: Agility
+      filterCondition: Heroic Resources This Turn >= 2
+      name: Raden Growing Ferocity
+      guid: f5082f1d-6538-4d48-93fc-9fd046ab3fa1
+      description: ""
+      behavior: attribute
+      attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Raden Kit Feature
+      behavior: trigger
+      filterCondition: Heroic Resources This Turn >= 4
+      name: Raden Growing Ferocity
+      resourceRefreshType: turn
+      description: ""
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        usageLimitOptions:
+          resourceRefreshType: turn
+          charges: "1"
+          resourceid: f258a444-df0a-4ab2-a47d-7d65c2d6c4ec
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: b04d837b-4e68-49d1-a177-06039b72f0c0
+        conditionFormula: path.shift
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          chatMessage: "Growing Ferocity: Gain 1 surge when shifting"
+          quantity: 2 when Heroic Resources This Turn >= 8 and Level >= 4 else 1
+        name: Corven Growing Ferocity
+        trigger: move
+        numTargets: "1"
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      guid: f258a444-df0a-4ab2-a47d-7d65c2d6c4ec
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Raden Kit Feature
+      behavior: power
+      keywords: []
+      activationCondition: false
+      modtype: edge
+      filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+      name: Raden Growing Ferocity
+      rollType: test_power_roll
+      description: When you have 6 or more Ferocity, you gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      guid: c3e4bc74-5a06-46ea-85a5-d821bd5d292a
+      attribute: agl
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      displayCondition: ability.name = "Escape Grab" or ability.name = "Knockback"
+      source: Raden Kit Feature
+      modtype: edge
+      keywords: []
+      activationCondition: "1"
+      filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or Level < 7)
+      name: Raden Growing Ferocity
+      rollType: ability_power_roll
+      description: When you have 6 or more Ferocity, you gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      guid: 947dbfe8-abee-4a90-8199-a68eb3568f5b
+      behavior: power
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Raden Kit Feature
+      behavior: power
+      keywords: []
+      activationCondition: false
+      modtype: double_edge
+      filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+      name: Raden Growing Ferocity
+      rollType: test_power_roll
+      description: When you have 10 or more Ferocity, you gain a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      guid: b00dc73c-5842-4bff-b59a-43f5bc31de57
+      attribute: agl
+    - __typeName: CharacterModifier
+      filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      description: ""
+      source: Raden Kit Feature
+      name: Raden Growing Ferocity
+      behavior: trigger
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: ae447302-faac-4610-8843-40262637abd5
+        repeatTargets: false
+        trigger: useability
+        conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+        targetType: self
+        persistence: []
+        name: Raden Growing Ferocity
+        behaviors:
+        - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+          stamina: "10"
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      guid: a11bf5fe-091a-48cc-ad2f-770470932277
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      source: Raden Kit Feature
+      modtype: none
+      keywords: []
+      activationCondition: false
+      filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      description: |-
+        When you have 10 or more Ferocity, the potency of 
+        any effects targeting you is reduced by 2 for you.
+      name: Raden Growing Ferocity
+      rollType: enemy_ability_power_roll
+      potencymod: "-2"
+      behavior: power
+      guid: 58dc3ecc-c27c-4da9-a2b8-e4f6b5b68623
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      displayCondition: ability.name = "Escape Grab" or ability.name = "Knockback"
+      source: Raden Kit Feature
+      modtype: double_edge
+      keywords: []
+      activationCondition: "1"
+      filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+      guid: 6db41ec0-ee49-46eb-9a6f-c56d4433fd5f
+      name: Raden Growing Ferocity
+      rollType: ability_power_roll
+      description: When you have 10 or more Ferocity, you gain a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      behavior: power
+      attribute: all
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      progression:
+      - level: 0
+        description: Disengage speed +{Agility|increases by your Agility score}.
+        resources: 2
+        tooltip: Whenever you use the Disengage move action, the distance you can shift gains a bonus equal to your Agility score.
+      - level: 0
+        description: When you shift, gain 1 surge (1/turn).
+        resources: 4
+        tooltip: The first time you shift on a turn, you gain 1 surge.
+      - level: 0
+        description: Edge on Agility tests, Escape Grab and Knockback.
+        resources: 6
+        tooltip: You gain an edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      - level: 4
+        description: When you shift, gain 2 surges (1/turn).
+        resources: 8
+        tooltip: The first time you shift on a turn, you gain 2 surges instead of 1.
+      - level: 7
+        description: Double Edge on Agility tests, Escape Grab and Knockback.
+        resources: 10
+        tooltip: You have a double edge on Agility tests, the Escape Grab maneuver, and the Knockback maneuver.
+      - level: 10
+        description: When you use a heroic ability gain 10 temporary Stamina. Potency of effects targeting you reduced by 2.
+        resources: 12
+        tooltip: Whenever you use a heroic ability, you gain 10 temporary Stamina. Additionally, the potency of any effects targeting you is reduced by 2 for you.
+      source: Raden Kit Feature
+      description: ""
+      guid: 1bc7f76f-b8d1-4ebf-a35b-df2dc0feb0de
+      behavior: growingresources
+      name: Raden Growing Ferocity
+    name: Raden Growing Ferocity
+    description: ""
+    guid: c57c6815-8f5e-4a11-a6c3-9faf10c478de
+    source: Raden Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Your primordial damage type is corruption.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: cf7ca5c1-d78d-41cd-b504-08536e8232dc
+      displayCondition: Ability.name is Visceral Roar or Ability.name is Deluge	
+      source: Raden Kit Feature
+      guid: 9ea0cfdc-28bf-4328-a0ee-436bfde22b7a
+      keywords: []
+      activationCondition: "1"
+      damageTypeMappings:
+        untyped: corruption
+      rollType: ability_power_roll
+      modtype: none
+      description: Your primordial damage type is corruption.
+      behavior: power
+      name: "Primordial Storm: Rat Flood"
+    source: Raden Kit Feature
+    canHavePrerequisites: true
+    guid: a363a6a7-bdc1-4bf1-9cc5-dd4518aab3a2
+    name: "Primordial Storm: Rat Flood"
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+      source: Raden Kit Feature
+      behavior: resistance
+      filterCondition: Level >= 7
+      name: Elemental Form
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: Might*2 when Level < 10 else Might*3
+        damageType: corruption
+        apply: Damage Reduction
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      guid: 9817a60d-103f-4788-89f9-e451d78ff4da
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+    source: Raden Kit Feature
+    guid: a53dbd0a-bbef-4584-8d6a-7de17f402620
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+    canHavePrerequisites: true
+    classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+    description: |-
+      You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+      Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+    name: Elemental Form
+    implementation: 4
+name: Raden
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Strike: true
+    Melee: true
+    Weapon: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: -0.00199413299560547
+      v: 0.404611676931381
+      a: 1
+  flavor: Your enemies try in vain to fall back from your pouncing attack.
+  sourceReference:
+    __typeName: SourceReference
+    page: 145
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: ef9466b8-af39-4f1e-a8e7-b2345d882161
+  categorization: Signature Ability
+  persistence: []
+  sequentialTargeting: true
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  implementation: 3
+  name: Driving Pounce
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 4 damage
+    - 5 damage; push 1
+    - 6 damage; push 2
+    roll: 2d10 + Agility
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: bd36750e-4f41-419a-8e97-3beddec395fb
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    promptText: Shift the number of squares the target was pushed
+    standardAbilityParams:
+      distance: "2"
+    filterTarget: ""
+    standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+    tiersSelected:
+    - 3
+    - 2
+  description: You can shift up to the same number of squares that you pushed the target.
+  abilityType: none
+  iconid: a393d50b-bef4-4a90-a1bf-767971ef2117
+mtime: 1773366631230
+description: With this stormwight kit, you channel your primordial ferocity into the form of a rat, becoming mobile and elusive. Raden are associated with the wild nature of the rat, before cities became their habitat. This aspect is associated with the rat flood—a surge of corrupted water that draws forth hordes of rats.
+speed: 3

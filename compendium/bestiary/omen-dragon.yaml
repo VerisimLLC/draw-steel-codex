@@ -1,0 +1,531 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: feec195f-9264-4598-ae4c-0f93a11e2dd6
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 6
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Omen Dragon	Level 8 Solo
+        Dragon, Elemental	EV 100
+        <b>Stamina</b> 550	<b>Immunity</b> corruption 6
+        <b>Speed</b> 10 (fly)	<b>Size</b> 5 /<b> Stability</b> 6
+        <b>Free Strike</b> 9
+        Might +3	Agility +4	Reason +2	Intuition +3	Presence +5
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The dragon takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the dragon can take 15 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Stagnant Wyrmscale Aura</b>
+        The dragon's scales emit a 4 aura barrier of stagnancy. The affected area is considered difficult terrain for enemies, and no creature but the omen dragon can regain Stamina in the aura. Whenever a dragonsealed creature starts their turn in the dragon's aura without a Deathcount, they gain a Deathcount of 12.
+
+        <b>Deathcount</b>
+        Several of the dragon's abilities impose a Deathcount on the target. At the end of every turn, a creature with a Deathcount has their Deathcount reduce by 1 if they are within the dragon's aura. When a creature's Deathcount hits 0, they die. Multiple instances of a Deathcount don't stack; only the lowest Deathcount takes effect. Each Deathcount is lifted when the dragon is destroyed.
+
+        <b>Corroding Breath</b> (Action) %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 5 cube within 10<b>	Target</b> All enemies and objects
+        <b>Effect</b> Each target makes an <b>Agility test.</b>
+        %E2%9C%B8	%E2%89%A411	18 corruption damage; dragonsealed (save ends)
+        %E2%98%85	12%E2%80%9316	14 corruption damage; dragonsealed (save ends)
+        %E2%9C%A6	17+	9 corruption damage
+        <b>Effect</b> Only creatures with souls can be dragonsealed. Until the condition ends, a dragonsealed creature appears ghastly and pale, their Presence score is considered 1 lower when resisting potencies, and they can't regard other creatures as allies.
+
+        <b>Barbed Tail Swing</b> (Action) %E2%97%86 2d10 + 5
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 4<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	14 damage; M<3 bleeding (save ends)
+        %E2%98%85	12%E2%80%9316	19 damage; M<4 bleeding (save ends)
+        %E2%9C%B8	17+	23 damage M<5 bleeding (save ends)
+        <b>3 Malice</b> Pull 5. The potency of this ability increases by 2.
+
+        <b>Detonation</b> (Maneuver) %E2%97%86 5 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst <b>	Target</b> All dragonsealed enemies in the burst
+        <b>Effect</b> Each target takes 9 corruption damage, and the omen dragon regains Stamina equal to half the total damage dealt. This lifts the dragonseal on the target.
+
+        <b>Blood! Blood! </b>(Free Maneuver)
+        Once per turn, the dragon chooses 1 dragonsealed target within line of effect and imposes the bleeding condition (save ends).
+
+        <b>Don't Turn Away</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> A creature leaves the dragon's aura
+        <b>Effect</b> The dragon shifts up to their speed. The Deathcount of each dragonsealed creature that comes within 1 of the dragon during their movement is reduced by 1.
+
+        <b>Repent!</b> (Free Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 2 or Ranged 5<b>	Target</b> Triggering creature
+        <b>Trigger</b> A dragonsealed creature deals damage to the dragon.
+        <b>Effect</b> The dragon allows the target to choose between making a free strike against themself or gaining a Deathcount of 5.
+
+        <b>Omen Dragon's Domain</b>
+        If the encounter map is a location the dragon has occupied for 1 week or more, all healing abilities used in the area are only half as effective. Additionally, when a creature with a soul dies, the dragon absorbs the soul, granting the Director 1 Malice. The creature can't resurrect until the dragon is destroyed.
+
+        <b>What You Deserve</b> (Villain Action 1) %E2%97%86 2d10 + 5
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	%E2%89%A411	Pull 1; Deathcount 10 (See Deathcount)
+        %E2%98%85	12%E2%80%9316	Pull 2; Deathcount 8
+        %E2%9C%B8	17+	Pull 3; Deathcount 6
+        <b>Effect</b> Each target receives a premonition of their imminent death.
+
+        <b>Souls of the Broken</b> (Villain Action 2) %E2%97%86 2d10 + 5
+        <b>Keywords</b> Magic, Strike, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> 5 creatures or objects
+        <b>Effect </b>The dragon spits fragments of souls to possess targets, making a separate roll for each target.
+        %E2%9C%A6	%E2%89%A411	P<5 frightened (save ends)
+        %E2%98%85	12%E2%80%9316	P<5 moves up to their speed towards the dragon
+        %E2%9C%B8	17+	P<5 makes free strike against nearest ally
+
+        <b>So Long, and Goodnight</b> (Villain Action 3)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 6 burst <b>	Target</b> All dragonsealed creatures in the burst
+        <b>Effect</b> The dragon's eyes glow with malicious intent. If a target has a Deathcount, it is reduced to 1. (See Deathcount)
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:81dd42b6-1ff0-4202-abbd-6c2752a6fcb5: true
+      modifiers: []
+      name: Stagnant Wyrmscale Aura
+      description: The dragon's scales emit a 4 aura barrier of stagnancy. The affected area is considered difficult terrain for enemies, and no creature but the omen dragon can regain Stamina in the aura. Whenever a dragonsealed creature starts their turn in the dragon's aura without a Deathcount, they gain a Deathcount of 12.
+      guid: 81dd42b6-1ff0-4202-abbd-6c2752a6fcb5
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:df4fd4cf-b1ae-4c05-8c7a-ac4cae641c64: true
+      modifiers: []
+      name: Deathcount
+      description: Several of the dragon's abilities impose a Deathcount on the target. At the end of every turn, a creature with a Deathcount has their Deathcount reduce by 1 if they are within the dragon's aura. When a creature's Deathcount hits 0, they die. Multiple instances of a Deathcount don't stack; only the lowest Deathcount takes effect. Each Deathcount is lifted when the dragon is destroyed.
+      guid: df4fd4cf-b1ae-4c05-8c7a-ac4cae641c64
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6d8b94bc-a912-4bf5-bff7-a3abf72e9c03: true
+      modifiers: []
+      name: Omen Dragon's Domain
+      description: If the encounter map is a location the dragon has occupied for 1 week or more, all healing abilities used in the area are only half as effective. Additionally, when a creature with a soul dies, the dragon absorbs the soul, granting the Director 1 Malice. The creature can't resurrect until the dragon is destroyed.
+      guid: 6d8b94bc-a912-4bf5-bff7-a3abf72e9c03
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b55cde13-8dba-46b9-844d-8a3b8099536e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "15"
+            purgeType: one
+          triggerPrompt: End effect for 15
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the dragon can take 15 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.The dragon can take two turns each round. They can't take turns consecutively.
+      guid: b55cde13-8dba-46b9-844d-8a3b8099536e
+      name: Solo Monster
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ea9b0162-2691-40e5-acce-12a8f50098ea: true
+      modifiers: []
+      name: Death or Victory
+      description: Once per turn, the dragon chooses one creature with a Deathcount within line of effect. That creature can choose to take 1d6 damage and lose a recovery to increase their Deathcount by 5.
+      guid: ea9b0162-2691-40e5-acce-12a8f50098ea
+      source: Trait
+    role: Solo
+    inflictedConditions: []
+    keywords:
+      Elemental: true
+      Dragon: true
+    max_hitpoints_roll: "550"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: corruption
+      apply: Damage Reduction
+    opportunityAttack: 9
+    monster_type: Omen Dragon
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 5
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 10
+    resources: []
+    max_hitpoints: 550
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ebda31cd-bd80-47e2-b98a-2220ffe3441f
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Corroding Breath
+      numTargets: 1
+      description: Only creatures with souls can be dragonsealed. Until the condition ends, a dragonsealed creature appears ghastly and pale, their Presence score is considered 1 lower when resisting potencies, and they can't regard other creatures as allies.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 4
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ad7a68a5-1954-49b1-a68b-3e4721596a81
+      implementation: 3
+      numTargets: 2
+      name: Barbed Tail Swing
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 14 damage; M<3 bleeding (save ends)
+        - 19 damage; M<4 bleeding (save ends)
+        - 23 damage; M<5 bleeding (save ends)
+        roll: 2d10 + Presence
+      description: |2-
+
+        **3 Malice**: The potency increases by 2, and each target is also pulled up to 5 squares.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 6e7850f2-e6c1-475f-8ddb-0c7bd71b3970
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Detonation
+      implementation: 0
+      description: Each target takes 9 corruption damage, and the omen dragon regains Stamina equal to half the total damage dealt. This lifts the dragonseal on the target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 0652bf38-eb49-48c6-a1f4-bd7c9c7aa684
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Don't Turn Away
+      numTargets: 1
+      description: The dragon shifts up to their speed. The Deathcount of each dragonsealed creature that comes within 1 of the dragon during their movement is reduced by 1.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 6fd88e99-016a-41ff-8c69-655246f9d714
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Repent!
+      implementation: 0
+      description: The dragon allows the target to choose between making a free strike against themself or gaining a Deathcount of 5.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - the target has a Deathcount of 10; pull 1
+        - the target has a Deathcount of 8; pull 2
+        - the target has a Deathcount of 6; pull 3
+        roll: 2d10 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'a287cb22-48e4-499f-861"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 3c69f9f6-46f3-4027-8318-23a753f58f26
+      numTargets: 1
+      targetType: all
+      implementation: 3
+      name: What You Deserve
+      effectImplemented: false
+      description: Each target receives a premonition of their imminent death.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a948882c-21fa-4e8b-974d-f57b5cbcba7a
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '2f56a2c8-7f2e-4e60-8b1"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - P<5 frightened (save ends)
+        - P<5 the target moves up to their speed toward the dragon
+        - P<5 the target makes a free strike against the nearest ally
+        roll: 2d10 + Presence
+      name: Souls of the Broken
+      numTargets: 5
+      description: The dragon spits fragments of souls to possess targets, making a separate roll for each target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8410b066-f877-43be-be3d-6a352ce47056
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: b0a263b9-560d-42ab-9f6a-e00995dbd32d
+        multicharge: false
+      implementation: 0
+      behaviors: []
+      name: So Long, and Goodnight
+      numTargets: "1"
+      description: The dragon's eyes glow with malicious intent. If a target has a Deathcount, it is reduced to 1. (See Deathcount)
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 101
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 6
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 67d87f18-1dbd-4d60-82c4-a8fae1b424ee
+        multicharge: false
+      villainAction: Villain Action 3
+      numTargets: 1
+      modifiers: []
+      guid: 8b1dc6b0-d9c9-4994-ad6e-eeb9896673f6
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      name: So Long & Goodnight
+      categorization: Villain Action
+      description: |
+        Each target must be dragonsealed. The dragon's eyes glow with unequalled malevolence, and any target who has a Deathcount has that Deathcount reduced to 1.
+      abilityType: none
+      implementation: 0
+    groupid: f62ca9b1-4703-4f88-b765-1373ae3e31f1
+    movementSpeeds:
+      fly: 10
+    ev: 120
+    minion: false
+    levelChoices: []
+    creatureSize: "5"
+  tokenType: null
+  bestiaryId: 57f3f6c7-5880-45c9-8127-cf4613835e95
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Omen Dragon
+parentFolder: aa240fca-4fa8-4add-ac99-cb9c5724a8dd
+artist: null
+ord: 2
+ctime: 1741590252901
+mtime: 1775201137032
+hidden: false

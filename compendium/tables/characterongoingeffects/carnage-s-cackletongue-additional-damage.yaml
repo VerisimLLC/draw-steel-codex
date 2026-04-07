@@ -1,0 +1,41 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 07269e65-cd0e-4c2b-9ffc-1b03e46f5622
+  source: Ongoing Effect
+  guid: 680dcd73-7658-4e42-889c-c598674fe0d3
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:2726a01b-6433-446b-be34-ced4aa535c60: true
+    CharacterOngoingEffect:07269e65-cd0e-4c2b-9ffc-1b03e46f5622: true
+  rollType: ability_power_roll
+  name: Carnage's Cackletongue Additional Damage
+  modtype: none
+  description: Each target deals an extra 3 damage with their next strike until the start of the carnage’s next turn.
+  damageModifier: "3"
+  behavior: power
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0269999504089355
+    s: 0.924288749694824
+    v: 0.610317528247833
+    a: 1
+guid: 2726a01b-6433-446b-be34-ced4aa535c60
+id: 2726a01b-6433-446b-be34-ced4aa535c60
+ctime: 1755609158002
+domains:
+  CharacterOngoingEffect:2726a01b-6433-446b-be34-ced4aa535c60: true
+description: Each target deals an extra 3 damage with their next strike until the start of the carnage’s next turn.
+name: Carnage's Cackletongue Additional Damage
+condition: none
+custom: true
+mtime: 1756705734164
+endTrigger: attack
+iconid: 250ddc07-460c-4f6c-8bf9-b691c3393649

@@ -1,0 +1,98 @@
+__typeName: CharacterComplication
+drawback: In combat, whenever a creature makes a strike against you and you are not taunted, you are taunted by that creature until the end of your next turn. Additionally, whether in casual conversation or if you are involved in a negotiation, whenever a creature insults you, you must either spend a Recovery or be compelled to reply with an insult.
+mtime: 1769091219902
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: While you are taunted by a creature, you gain an edge on strikes against that creature. Additionally, you can spend 1 Heroic Resource to have a double edge instead.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 91a63735-52e5-485b-a3e6-6473a16d50cf
+      displayCondition: Target = ConditionCaster("Taunted")
+      source: Feat
+      modtype: edge
+      keywords: []
+      activationCondition: ""
+      rollType: ability_power_roll
+      guid: 65567296-15e0-4f63-b49b-2b2e64045fe5
+      description: While you are taunted by a creature, you gain an edge on strikes against that creature. Additionally, you can spend 1 Heroic Resource to have a double edge instead.
+      behavior: power
+      name: Wrathful Spirit - Edge
+    - __typeName: CharacterModifier
+      sourceguid: 91a63735-52e5-485b-a3e6-6473a16d50cf
+      displayCondition: Target = ConditionCaster("Taunted")
+      source: Feat
+      modtype: double_edge
+      keywords: []
+      activationCondition: ""
+      resourceCostType: cost
+      name: Wrathful Spirit - Double Edge
+      rollType: ability_power_roll
+      description: While you are taunted by a creature, you gain an edge on strikes against that creature. Additionally, you can spend 1 Heroic Resource to have a double edge instead.
+      behavior: power
+      guid: 321acb80-1a13-4065-9983-51034a59e1e0
+    source: Feat
+    canHavePrerequisites: true
+    guid: 91a63735-52e5-485b-a3e6-6473a16d50cf
+    name: Wrathful Spirit - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: In combat, whenever a creature makes a strike against you and you are not taunted, you are taunted by that creature until the end of your next turn. Additionally, whether in casual conversation or if you are involved in a negotiation, whenever a creature insults you, you must either spend a Recovery or be compelled to reply with an insult.
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: true
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: c6de8bcd-44ce-46bc-b121-39fd95a481fd
+        conditionFormula: not Conditions has "Taunted"
+        castImmediately: true
+        behaviors:
+        - __typeName: ActivatedAbilityFloatTextBehavior
+          text: Wrathful Spirit
+          color:
+            __usertype: LuaColor
+            h: 0
+            s: 0.9638671875
+            v: 0.978164851665497
+            a: 1
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          rule: taunted (EoT)
+        - __typeName: ActivatedAbilityConditionSourceBehavior
+          applyto: all_creatures
+          filterTarget: Target = Attacker
+          conditionMode: ability
+          condid: 85e26e12-e853-464d-bbbc-98ddf2c0071a
+        numTargets: "1"
+        trigger: attacked
+        name: Wrathful Spirit - Drawback
+        description: In combat, whenever a creature makes a strike against you and you are not taunted, you are taunted by that creature until the end of your next turn.
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: In combat, whenever a creature makes a strike against you and you are not taunted, you are taunted by that creature until the end of your next turn. Additionally, whether in casual conversation or if you are involved in a negotiation, whenever a creature insults you, you must either spend a Recovery or be compelled to reply with an insult.
+      source: Feat
+      behavior: trigger
+      guid: 4dcd6f59-7f55-4e49-8f38-3fbbb8fa10cf
+      name: Wrathful Spirit - Drawback
+      sourceguid: ac4350d5-0459-4cc6-bd91-b24eb3fa4094
+    source: Feat
+    canHavePrerequisites: true
+    guid: ac4350d5-0459-4cc6-bd91-b24eb3fa4094
+    name: Wrathful Spirit - Drawback
+    implementation: 2
+name: Wrathful Spirit
+ctime: 1755518514677
+description: You’re quick to anger, never letting an insult go without slinging one right back. In combat, you fight as if possessed by a literal spirit of wrath. No matter the tactical circumstances, when someone injures you, you feel compelled to answer blood with blood.
+id: 88987f84-5478-4136-9334-a57a4e8dbbf3
+benefit: While you are taunted by a creature, you gain an edge on strikes against that creature. Additionally, you can spend 1 Heroic Resource to have a double edge instead.

@@ -1,0 +1,59 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: due to weakend at end of combat, you cannot take a respite activity at your next respite.
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 7520ce45-9638-43e7-8a43-ee4b46f73162
+    numTargets: "1"
+    whenActive: combat
+    characterConditionRequired: 567a3454-ead6-4416-b338-ed73d64b7805
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      applyto: caster
+      ongoingEffect: 306edb40-a97b-4c2e-aae8-5ec199693fb7
+      duration: until_rest
+      ongoingEffectCustom: false
+    trigger: endcombat
+    name: "Condition Rider: Cannot Take Respite Activity"
+    description: If this ongoing effect remains active at the end of combat, a new ongoing effect is added to remind the player they cannot take a respite activity during their next respite.
+    abilityType: none
+    iconid: 006e8403-6056-46d1-bd48-db8804433d39
+  description: If the target is weakened this way at the end of the encounter, they can't take a respite activity during their next respite.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: b375bb39-289a-43be-b4c9-77bb66cadeff
+  name: Cannot Take Respite Activity
+  sourceguid: c0a419ef-7034-4c57-ae8d-f27ea494c2c0
+source: Ongoing Effect
+guid: c0a419ef-7034-4c57-ae8d-f27ea494c2c0
+id: c0a419ef-7034-4c57-ae8d-f27ea494c2c0
+ctime: 1770106539117
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+name: Cannot Take Respite Activity
+description: If the target is weakened this way at the end of the encounter, they can't take a respite activity during their next respite.
+mtime: 1770108650319
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+implementation: 3

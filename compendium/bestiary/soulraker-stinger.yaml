@@ -1,0 +1,279 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ca1f66a0-4d6e-4341-bda3-69d651f89bc6
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Soulraker Stinger    Level 7 Minion Artillery
+        Abyssal, Demon, Soulraker    EV 9 for four minions
+        <b>Stamina</b> 10    <b>Weakness</b> Holy 5
+        <b>Speed</b> 6 (climb)    <b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Edge on strikes<b>Free Strike</b> 4
+        Might +0    Agility -1    Reason +4    Intuition +4    Presence +0
+        <b>Barb Launch</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Attack, Magic, Ranged, Weapon
+        <b>Distance</b> Ranged 20<b>    Target</b> One creature or object per minion
+        %E2%9C%A6    <b>%E2%89%A411</b>    4 poison damage
+        %E2%98%85    <b>12-16</b>    7 poison damage
+        %E2%9C%B8    <b>17</b>    8 poison damage
+        <b>Effect</b> All soulraker demons are concealed from the target until the start of the stinger's next turn.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the stinger can't be hidden from them.
+
+        <b>Abyssal Buzzing</b>
+        A creature who starts their turn with 2 or more soulraker minions adjacent to them takes 3 sonic damage.
+        Demon Blight Phage    Level 7 Horde Controller
+        Abyssal, Demon    EV 9
+        <b>Stamina</b> 40    <b>Weakness</b> Holy 5
+        <b>Speed</b> 6    <b>Size</b> 3 /<b> Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +0    Agility +0    Reason +4    Intuition +2    Presence +4
+        <b>Blight Puss </b>(Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>    Target</b> One creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    7 corruption damage
+        %E2%98%85    <b>12-16</b>    10 corruption damage
+        %E2%9C%B8    <b>17</b>    11 corruption damage
+        Effect This ability leaves a puddle of Blight in the target's square (see Seeping Blight).
+
+        <b>Blight Rain </b>(Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 5 burst<b>    Target</b> All enemies
+        Effect     The blight phage floats 6 squares straight upward, spins, and sheds corruptive blight everywhere below it. The entire area is coated in blight (see Seeping Blight).
+        <b>2 Malice The blight phage launches three additional 2 cube pools of Blight onto the ground within 10 of themself.</b>
+
+        <b>Lethe</b>
+        While winded, the blight phage has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the blight phage can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e30eb686-1587-4c5b-afc0-6c7edbdffd11: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the stinger can't be hidden from them.
+      guid: e30eb686-1587-4c5b-afc0-6c7edbdffd11
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:99da3d4c-f6e6-45c4-b477-3e0197e94296: true
+      modifiers: []
+      name: Abyssal Buzzing
+      description: A creature who starts their turn with 2 or more soulraker minions adjacent to them takes 3 sonic damage.Demon Blight Phage    Level 7 Horde ControllerAbyssal, Demon    EV 9
+      guid: 99da3d4c-f6e6-45c4-b477-3e0197e94296
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a35b6b6a-3ba8-4a8f-857a-a465868c1eb1: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the blight phage has an edge on strikes, and strikes have an edge against them.
+      guid: a35b6b6a-3ba8-4a8f-857a-a465868c1eb1
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1c232284-7c1d-457a-b9c3-7b4f8125e28c: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the blight phage can't be hidden from them.
+      guid: 1c232284-7c1d-457a-b9c3-7b4f8125e28c
+      source: Trait
+    role: Minion Artillery
+    inflictedConditions: []
+    ev: 9
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 4
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    monster_type: Soulraker Stinger
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 4
+        id: rea
+      inu:
+        baseValue: 4
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    withCaptain: Gain an edge on strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 10
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Magic: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 poison damage
+        - 7 poison damage
+        - 8 poison damage
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 20
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 25f32024-cf8c-4b41-951b-aebaf1880d59
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Barb Launch
+      numTargets: 1
+      description: All soulraker demons are concealed from the target until the start of the stinger's next turn.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 19513170-08e1-44a2-a8c1-bb3a2af89540
+      implementation: 4
+      numTargets: 1
+      name: 'Blight Puss '
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 corruption damage
+        - 10 corruption damage
+        - 11 corruption damage
+        roll: 2d10 + 4
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 34f2d047-4833-49c2-9cd6-2d8179557e69
+      abilityType: none
+      implementation: 0
+      numTargets: 1
+      name: 'Blight Rain '
+      targetType: all
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Abyssal: true
+      Soulraker: true
+      Demon: true
+    movementSpeeds:
+      climb: 6
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 5dac621c-80cd-4931-b2e0-db6352fd92e5
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Soulraker Stinger
+parentFolder: d28dbebc-b729-459f-858a-44e596d131e0
+artist: null
+ord: 3
+ctime: 1741590256180
+mtime: 1775201137032
+hidden: false

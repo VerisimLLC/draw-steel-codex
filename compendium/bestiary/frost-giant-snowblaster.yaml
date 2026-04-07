@@ -1,0 +1,159 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: bf88b7a2-cdae-494b-9513-d1df40ec840a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Frost Giant Snowblaster	Level 8 Minion Artillery
+        Frost Giant, Giant	EV 10 for four minions
+        <b>Stamina</b> 12	<b>Immunity</b> cold 8
+        <b>Speed</b> 7	<b>Size</b> 4 /<b> Stability</b> 5
+        <b>With Captain</b> Strike damage +3<b>Free Strike</b> 4
+        Might +3	Agility -1	Reason -1	Intuition +4	Presence +2
+        <b>Slushfall</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 12<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 cold damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 cold damage
+        %E2%9C%B8	<b>17</b>	9 cold damage; prone
+
+        <b>Kingdom of Isolation</b>
+        The blizzard is surrounded by a snowstorm. An enemy that starts their turn within 2 squares of the blizzard can't shift.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:643c07fc-7e98-4a35-8e71-a975c29556d4: true
+      modifiers: []
+      name: Kingdom of Isolation
+      description: The blizzard is surrounded by a snowstorm. An enemy that starts their turn within 2 squares of the blizzard can't shift.
+      guid: 643c07fc-7e98-4a35-8e71-a975c29556d4
+      source: Trait
+    role: Minion Artillery
+    keywords:
+      Giant: true
+      Frost Giant: true
+    max_hitpoints_roll: "12"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 8
+      damageType: cold
+      apply: Damage Reduction
+    opportunityAttack: 4
+    monster_type: Frost Giant Snowblaster
+    max_hitpoints: 12
+    withCaptain: +3 damage bonus to strikes
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 4
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    levelChoices: []
+    equipment: []
+    walkingSpeed: 7
+    traitNames: []
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 12
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 657e56d0-8b1e-4ba2-af00-32fd9956b848
+      implementation: 4
+      numTargets: 1
+      name: Slushfall
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 cold damage
+        - 7 cold damage
+        - 9 cold damage; prone
+        roll: 2d10 + Intuition
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds: []
+    damage_taken: 0
+    minion: true
+    ev: 10
+    creatureSize: "4"
+  tokenType: null
+  bestiaryId: e9b4683c-f54d-4081-b764-8e61feff11e0
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222946034
+description: Frost Giant Snowblaster
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590323025
+mtime: 1775201137032
+hidden: false

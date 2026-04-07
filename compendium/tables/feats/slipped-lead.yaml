@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: intrigue perk
+name: Slipped Lead
+description: You gain an edge on tests made to escape bonds. Given 1 uninterrupted minute, you can escape any mundane bonds without making a test. Additionally, it’s not immediately obvious when you’ve escaped bonds until you do something that makes it clear you have done so (cast them off, use an ability that harms one or more creatures, and so forth).
+mtime: 1755374325111
+id: 1ba87ee8-d226-4590-ab42-1fe08a1431a2
+ctime: 1730449736744

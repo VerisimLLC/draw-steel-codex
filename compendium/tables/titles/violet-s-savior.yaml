@@ -1,0 +1,30 @@
+__typeName: Title
+effect: You have an edge on tests made to influence people from broadhurst.
+prerequisite: You freed Violet and ended the ritual draining her life.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    source: Feat
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 88b0b232-8bf1-414d-a54e-90a80cc2a771
+      source: Feat
+      modtype: edge
+      keywords: []
+      activationCondition: false
+      rollType: test_power_roll
+      behavior: power
+      description: You have an edge on tests made to influence people from Broadhurst.
+      guid: f3f1fefc-b921-467c-976b-da43da8b427d
+      name: Violet's Saviour
+    canHavePrerequisites: true
+    name: Violet's Saviour
+    description: You have an edge on tests made to influence people from Broadhurst.
+    guid: 88b0b232-8bf1-414d-a54e-90a80cc2a771
+    implementation: 2
+name: Violet's Savior
+mtime: 1770128113941
+description: There's the hero of Broadhurst!
+id: 4ddf7a02-108f-474a-a7a8-4758cb006a4e
+ctime: 1763105897776

@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 43511ad9-a211-439a-8742-e7a62c08c0f8
+id: 43511ad9-a211-439a-8742-e7a62c08c0f8
+ctime: 1768904808828
+domains:
+  CharacterOngoingEffect:43511ad9-a211-439a-8742-e7a62c08c0f8: true
+description: ""
+hiddenFromEnemies: true
+name: Splinter Dagger
+statusEffect: true
+mtime: 1768906189969
+custom: true
+iconid: 170fa23d-cb8f-4f7a-8608-1d281994f844

@@ -1,0 +1,83 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Maestro Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 1f1452e2-5c10-40e1-ab58-e12f58fc5b87
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Angelic Chorus
+      description: You can use the lessons of musical improvisation in combat. Choose one class act triggered action from the troubadour class. You gain that ability regardless of whether your class and subclass allow you to take it. If this ability allows you to gain or spend drama, you can gain or spend the Heroic Resource of your class in place of drama.
+      guid: 49c2aa2e-ffc3-4b19-bb01-91c5541906d5
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2f0c9d38-e9fd-492c-8fea-e6e12d89fb54
+        guid: e5652ac9-b974-4312-aa69-343923f6d84a
+        source: Feat
+        behavior: activated
+        description: You have the following ability, which can be paid for using the Heroic Resource of your class.
+        name: Devil’s Opera
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "9"
+          repeatTargets: false
+          keywords:
+            Magic: true
+            Area: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - You take 4 sonic damage unless you have the Performance skill.
+            - 6 sonic damage; M < average, weakened (save ends)
+            - 10 sonic damage; M < strong, weakened and bleeding (save ends)
+            roll: 2d10 + Presence
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: Helloooo Orden!
+          categorization: Heroic Ability
+          range: "5"
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 70a44bb0-fff2-4042-8093-0e7878598b51
+          abilityType: none
+          implementation: 1
+          domains: []
+          persistence: []
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          name: The Devil’s Chord
+          targetType: all
+          description: The soul of any creature killed by this ability is dragged to Hell.
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+      name: Devil’s Opera
+      description: You have the following ability, which can be paid for using the Heroic Resource of your class.
+      guid: 2f0c9d38-e9fd-492c-8fea-e6e12d89fb54
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Music of the Spheres
+      description: As a main action, you sing or play a note as delicate and sharp as glass—and just as easily shattered. Until the start of your next turn, whenever a creature within 10 squares makes a strike, they take 8 sonic damage. Whenever you make a strike during that same period, you also take 8 sonic damage.
+      guid: fdb54ce6-e959-41e2-ba49-21d544384d57
+      canHavePrerequisites: true
+      source: Feat
+id: a09a8d52-25ad-4a09-80c4-c984a7a863e2
+ctime: 1762351969947
+name: Maestro
+description: When I saw the bloodstained manuscript under Fellwander’s arm, I knew his quest for the Opera was over—and with it, his chance for redemption.
+mtime: 1775215275232
+echelon: "3"
+prerequisite: You visit the realms of gods, devils, or other immortal beings and hear a note of the Music of Creation.

@@ -1,0 +1,28 @@
+__typeName: CultureAspect
+mtime: 1756162947161
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories: []
+    name: Martial Skill
+    source: Martial Culture Feature
+    description: "Choose one of the following: Blacksmithing or Fletching from the crafting skill group; Climb, Endurance, or Ride from the exploration group; Intimidate from the interpersonal group; Alertness or Track from the intrigue group; or Monsters or Strategy from the lore skill group. (*Quick Build:* Intimidate)"
+    guid: ec5b839b-afc0-4cb9-9ca0-47452995aaf1
+    individualSkills:
+      5ca5c242-fe6d-43b3-86b0-b5314a9fe39a: true
+      50ca6145-2d22-4496-a355-c7b2df2cf0de: true
+      1c837bdc-17cc-4c7a-9814-f2f8b92cf55a: true
+      a1a8f269-3223-476c-bae6-2f8904680e7f: true
+      cb214a42-7f8c-4d02-b6ac-1399724a8b5f: true
+      7edbc5b3-92f7-4c39-bd05-165bb2990924: true
+      9522f7af-6d83-4b82-a962-075ac80a367d: true
+      5052a2e5-938c-46f9-81fd-68a98fe363b5: true
+      bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a: true
+      db532974-aa0a-41a9-aacf-4adc1e6121d3: true
+      a27ca113-bc01-49d0-9864-3316e6f525f4: true
+name: Martial
+category: upbringing
+description: A hero with a martial upbringing was raised by warriors. These might have been the soldiers of an established army, a band of mercenaries, a guild of monster-slaying adventurers, or any other folk whose lives revolve around combat. Heroes with a martial upbringing are always ready for a fight—and they know how to finish that fight.
+id: afc08d55-ddae-4863-8fcd-d09e053f90bf
+ctime: 1730730217525

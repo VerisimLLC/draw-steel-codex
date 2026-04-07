@@ -1,0 +1,192 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        invisibleToPlayers:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 15,-15,1
+        - __usertype: LuaLoc
+          loc: 15,-14,1
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 2
+      - appearances:
+        - false
+        - false
+        minHeroes: 4
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 2
+        invisibleToPlayers:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 13,-17,1
+        - __usertype: LuaLoc
+          loc: 13,-16,1
+      - appearances:
+        - false
+        - false
+        minHeroes: 5
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 2
+        invisibleToPlayers:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 13,-14,1
+        - __usertype: LuaLoc
+          loc: 13,-13,1
+      - appearances: []
+        minHeroes: 6
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 2
+        invisibleToPlayers: []
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 9,-10,1
+        - __usertype: LuaLoc
+          loc: 12,-16,1
+id: 35a9371e-b9e2-485b-a967-533a13e0e89a
+ctime: 1761282990960
+textStorage:
+  __typeName: TextStorage
+  sections:
+    u: |+
+      To **Shake the Screen** to visually simulate a tower collapse, press the button below.
+
+    Y: |+
+      [[setting:Number of Heroes]]
+
+
+    m: |+
+      [[/awardvp 1|Award Victories]]
+
+    W: |+
+      Allow easy adjustment of the number of heroes to balance for:
+
+    Q: |+
+      ## Ending the Encounter
+
+    U: |+
+      ## Combat
+
+    O: |+
+      He's careful not to harm Bassa, since he believes the dwarf will be instrumental in restoring the tower. If he becomes winded, he flees for the stairs, using Glowing Recovery to heal himself.
+
+    S: |+
+      The encounter ends when Vurkor is reduced to 0 Stamina, which causes the zombies to fall down dead.
+
+    w: |
+      [[/broadcast screenshake 5 .2|Shake Screen]]
+    q: |2+
+       Vurkor carries source material in Variac for crafting Mirror Tokens ([item:Mirror Token Recipe]) as well as six [item:sheets of glass] and enough [item:sunbaked gold dust] to make two tokens. 
+
+    c: |+
+      [[encounter]]
+
+    o: |
+      ## Loot
+    D: |+
+      ## Dangerous Compounds
+
+    M: |
+      If the heroes fight Vurkor, he chooses a magic-wielder, preferably another elementalist, as the target of his Rivalry trait. At the start of the encounter, the zombies animate and attack under his command. Vurkor stays behind them, using ranged attacks to harm his foes.  
+    s: |+
+      If a hero touches Vurkor’s amulet, they know the item allows them to create a door in the first level of the tower (no action required). However, if someone other than Vurkor touches the amulet after his death, it also causes the tower to collapse.
+
+    k: |+
+      The heroes gain 1 VP if they win the battle.
+
+    L: |+
+      ## Tactics
+
+    i: |+
+      [End Combat] once the battle is over.
+
+    J: |+
+      Bassa, a **civilian**, is the last to act during the round. She flees to the stairs. Vurkor lets her run, knowing she can't escape the tower.
+
+    g: |+
+      ## Aftermath and Rewards
+
+    H: |+
+      ## Bassa
+
+    e: |+
+      When you are ready, [[/rollinitiative 0 -28 23 5 |Draw Steel!]]
+
+    F: |+
+      The tables in Vurkor's laboratory area contain dangerous chemical compounds and alchemical mixtures. A creature who is force moved into a laboratory table takes 3 acid damage, or 5 acid damage if the table breaks.
+
+    C: |2+
+       The heroes fight Vurkor in the top level of his tower.
+
+    d: |2
+
+    a: |
+      [[/activateobjects M4_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects M4_start.AreaTemplate deactivate|Hide Hero Start Area]]
+    B: |+
+      # Combat
+
+parentFolder: 7cb5c634-6ed3-43bd-970d-7877c47b4772
+updateid: c146e466-6e73-4ab5-97d5-37c630a73771
+description: Fourth Floor Combat
+content: |
+  # Combat
+
+   The heroes fight Vurkor in the top level of his tower.
+
+  ## Dangerous Compounds
+
+  The tables in Vurkor's laboratory area contain dangerous chemical compounds and alchemical mixtures. A creature who is force moved into a laboratory table takes 3 acid damage, or 5 acid damage if the table breaks.
+
+  ## Bassa
+
+  Bassa, a **civilian**, is the last to act during the round. She flees to the stairs. Vurkor lets her run, knowing she can't escape the tower.
+
+  ## Tactics
+
+  If the heroes fight Vurkor, he chooses a magic-wielder, preferably another elementalist, as the target of his Rivalry trait. At the start of the encounter, the zombies animate and attack under his command. Vurkor stays behind them, using ranged attacks to harm his foes.  
+  He's careful not to harm Bassa, since he believes the dwarf will be instrumental in restoring the tower. If he becomes winded, he flees for the stairs, using Glowing Recovery to heal himself.
+
+  ## Ending the Encounter
+
+  The encounter ends when Vurkor is reduced to 0 Stamina, which causes the zombies to fall down dead.
+
+  ## Combat
+
+  Allow easy adjustment of the number of heroes to balance for:
+
+  [[setting:Number of Heroes]]
+
+  [[encounter]]
+
+  When you are ready, [Draw Steel!]
+
+  ## Aftermath and Rewards
+
+  [End Combat] once the battle is over.
+
+  The heroes gain 1 VP if they win the battle.
+
+  [[/awardvp 1|Award Victories]]
+
+  ## Loot
+   Vurkor carries source material in Variac for crafting Mirror Tokens (see Treasure in Handouts) as well as six sheets of glass and enough sunbaked gold dust to make two tokens.
+
+  If a hero touches Vurkor’s amulet, they know the item allows them to create a door in the first level of the tower (no action required). However, if someone other than Vurkor touches the amulet after his death, it also causes the tower to collapse.
+
+  To **Shake the Screen** to visually simulate a tower collapse, press the button below.
+
+  [[/broadcast screenshake 5 .2|Shake Screen]]
+mtime: 1773667923157

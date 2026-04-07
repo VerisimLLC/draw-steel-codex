@@ -1,0 +1,38 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: You can't be subjected to forced movement unless you choose to be. Effects that ignore Stability also ignore this enhancement.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: e5f6a7b8-c9d0-1235-efab-345678901efab
+    sourceguid: d4e5f6a7-b8c9-0124-defa-234567890def
+    value: 1
+    source: Unbending Imbuement
+    name: Unbending Cannot Be Force Moved
+    behavior: attribute
+    description: You can't be subjected to forced movement unless you choose to be. Effects that ignore Stability also ignore this enhancement.
+    attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+  source: Unbending Imbuement
+  name: Unbending
+  addText: Add Magical Property
+  itemAttached: true
+  guid: d4e5f6a7-b8c9-0124-defa-234567890def
+id: 144ae497-8860-498c-912a-2c7c34acfa2c
+imbuePrereq: none
+projectSource: High Kuric
+imbueLevel: 9
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: A spearhead or other weapon broken off in the body of a stone giant, and ossified for a year or more
+mtime: 1774182740727
+name: Unbending
+imbueTargetType: armor
+description: You can't be subjected to forced movement unless you choose to be. Effects that ignore Stability also ignore this enhancement.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

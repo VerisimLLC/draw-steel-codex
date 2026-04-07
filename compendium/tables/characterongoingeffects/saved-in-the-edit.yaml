@@ -1,0 +1,153 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:da872511-c566-41f4-97c1-962e6d64eb6e: true
+  sourceguid: da872511-c566-41f4-97c1-962e6d64eb6e
+  description: |-
+    Until the end of the encounter, whenever you deal rolled damage to a creature or object, or enable a creature to spend a Recovery, you can use a free triggered action to give that creature or object one of the following effects until the start of your next turn. If this ability is triggered by multiple targets taking damage or multiple creatures spending Recoveries simultaneously, each target receives the same effect:
+    - The target has damage weakness equal to your Presence score against any magic, psionic, or weapon ability.
+    - The target has damage immunity equal to your Presence score.
+    - The target has a bonus to stability and a penalty to speed equal to your Presence score.
+    - The target has a bonus to speed and a penalty to stability equal to your Presence score.
+  source: Ongoing Effect
+  name: Saved in the Edit
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetType: target
+    triggerPrompt: Choose an effect to apply
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: "100"
+    actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+    persistence: []
+    modifiers: []
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: targets
+      customAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        targetFilter: Target.ID = <<targetid>>
+        repeatTargets: false
+        targetType: all
+        multipleModes: true
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: "100"
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: de111047-e397-4d9a-aa9e-86823b65dc07
+        modeList:
+        - rules: The target has damage weakness equal to your Presence score against any magic, psionic, or weapon ability.
+          text: Damage weakness
+        - rules: The target has damage immunity equal to your Presence score.
+          text: Damage immunity
+        - rules: The target has a bonus to stability and a penalty to speed equal to your Presence score.
+          text: Stability bonus and speed penalty
+        - text: Speed bonus and stability penalty
+          rules: The target has a bonus to speed and a penalty to stability equal to your Presence score.
+          condition: ""
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          durationUntilEndOfTurn: false
+          modesSelected:
+          - 1
+          ongoingEffectCustom: 37b2f661-e2a2-4578-9016-2a071e6db967
+          ongoingEffect: 37b2f661-e2a2-4578-9016-2a071e6db967
+          stacks: Invoker.Presence
+          duration: 1
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          durationUntilEndOfTurn: false
+          modesSelected:
+          - 2
+          ongoingEffectCustom: 49ec8906-b55f-4544-85fa-186855a1d883
+          ongoingEffect: 49ec8906-b55f-4544-85fa-186855a1d883
+          stacks: Invoker.Presence
+          duration: 1
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          durationUntilEndOfTurn: false
+          modesSelected:
+          - 3
+          ongoingEffectCustom: 711e567a-0bd8-4609-86c0-96887fcdaa68
+          ongoingEffect: 711e567a-0bd8-4609-86c0-96887fcdaa68
+          stacks: Invoker.Presence
+          duration: 1
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          durationUntilEndOfTurn: false
+          modesSelected:
+          - 4
+          ongoingEffectCustom: ffa95dd8-fa3f-444a-b274-c365bbac94cf
+          ongoingEffect: ffa95dd8-fa3f-444a-b274-c365bbac94cf
+          stacks: Invoker.Presence
+          duration: 1
+        iconid: ui-icons/skills/1.png
+        preDescription: |-
+          Choose an effect:
+          - The target has damage weakness equal to your Presence score against any magic, psionic, or weapon ability.
+          - The target has damage immunity equal to your Presence score.
+          - The target has a bonus to stability and a penalty to speed equal to your Presence score.
+          - The target has a bonus to speed and a penalty to stability equal to your Presence score.
+        persistence: []
+        name: Invoked Ability
+        selfTarget: false
+        description: ""
+        abilityType: none
+        implementation: 4
+      promptText: "Choose an effect to apply:"
+      standardAbilityParams:
+        targetid: "<<Target.ID>>"
+      invokeOnCaster: true
+    strain: []
+    guid: 199bb008-1790-4cb9-9acf-bacbbe163c29
+    multipleModes: false
+    conditionFormula: Used Ability.doesdamage
+    domains:
+      CharacterOngoingEffect:da872511-c566-41f4-97c1-962e6d64eb6e: true
+    numTargets: "1"
+    modeList: []
+    trigger: dealdamage
+    name: Saved in the Edit
+    description: |-
+      Until the end of the encounter, whenever you deal rolled damage to a creature or object, or enable a creature to spend a Recovery, you can use a free triggered action to give that creature or object one of the following effects until the start of your next turn. If this ability is triggered by multiple targets taking damage or multiple creatures spending Recoveries simultaneously, each target receives the same effect:
+      - The target has damage weakness equal to your Presence score against any magic, psionic, or weapon ability.
+      - The target has damage immunity equal to your Presence score.
+      - The target has a bonus to stability and a penalty to speed equal to your Presence score.
+      - The target has a bonus to speed and a penalty to stability equal to your Presence score.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 87387722-b709-4f02-bf39-fa606cf9c646
+source: Ongoing Effect
+guid: da872511-c566-41f4-97c1-962e6d64eb6e
+id: da872511-c566-41f4-97c1-962e6d64eb6e
+ctime: 1772949725374
+domains:
+  CharacterOngoingEffect:da872511-c566-41f4-97c1-962e6d64eb6e: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Saved in the Edit
+custom: true
+description: |-
+  Until the end of the encounter, whenever you deal rolled damage to a creature or object, or enable a creature to spend a Recovery, you can use a free triggered action to give that creature or object one of the following effects until the start of your next turn. If this ability is triggered by multiple targets taking damage or multiple creatures spending Recoveries simultaneously, each target receives the same effect:
+  - The target has damage weakness equal to your Presence score against any magic, psionic, or weapon ability.
+  - The target has damage immunity equal to your Presence score.
+  - The target has a bonus to stability and a penalty to speed equal to your Presence score.
+  - The target has a bonus to speed and a penalty to stability equal to your Presence score.
+mtime: 1772953810312
+iconid: ui-icons/skills/1.png

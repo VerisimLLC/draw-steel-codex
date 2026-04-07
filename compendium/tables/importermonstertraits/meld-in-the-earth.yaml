@@ -1,0 +1,10 @@
+__typeName: CharacterFeature
+modifiers: []
+source: Monster
+guid: 1f34ecd4-e469-4583-a004-68ffb5ce8011
+importMatch: "<<monster>> can burrow through mundane <<terrain>> and <<terraintwo>>."
+ctime: 1711782750512
+name: Meld in the Earth
+description: ""
+id: e114a544-3e38-4c9b-9ba9-17aab755ef09
+mtime: 1711782750512

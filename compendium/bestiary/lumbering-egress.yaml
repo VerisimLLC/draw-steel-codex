@@ -1,0 +1,403 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f3ec3ab0-30cd-4d47-b3e1-5dbbb8d0666c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Lumbering Egress	Level 6 Leader
+        Abyssal, Demon	EV 32
+        <b>Stamina</b> 180	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6	<b>Size</b> 3 /<b> Stability</b> 3
+        <b>Free Strike</b> 7
+        Might +4	Agility -1	Reason +1	Intuition +2	Presence +2
+        <b>Ensnarer Cannon</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> Two creature or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 corruption damage; A<2 restrained (save ends)
+        %E2%98%85	<b>12-16</b>	16 corruption damage; A<3 restrained (save ends)
+        %E2%9C%B8	<b>17</b>	19 corruption damage; A<4 restrained (save ends)
+        <b>2 Malice</b> Two <b>ensnarers</b> appear adjacent next to each target. Four ensnarers appear on a tier-3 result.
+
+        <b>Demonic Egress</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> 3 burst	<b>Target</b> Special
+        <b>Effect</b> Four level 1 demon minions (<b>ensnarer</b>, <b>frenzied</b>, <b>pitling</b>) burst forth from the egress and appear in unoccupied squares.
+        <b>2 Malice </b>Four level 4 demon minions (<b>orflig, wobalas, grulqin</b>) appear instead.
+
+        <b>Abyssal Protectors</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> 5 burst<b>	Target</b> Special
+        <b>Trigger</b> The last ally minion on the encounter map dies, or the Egress falls below 25 Stamina.
+        <b>Effect</b> Eight <b>ensnarers</b> appear anywhere in range.
+
+        <b>End Effect</b>
+        At the end of their turn, the egress can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the egress can't be hidden from them.
+
+        <b>Frenzied Deluge </b>(Villain Action 1) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 corruption damage
+        %E2%98%85	<b>12-16</b>	12 corruption damage
+        %E2%9C%B8	<b>17</b>	15 corruption damage; two frenzieds appear in an unoccupied square adjacent to each target
+
+        <b>Fold Space </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 20<b>	Target</b> Self
+        <b>Effect</b> The egress folds into their own portal and teleports to an unoccupied space within distance. Four level 4 demon minions (<b>orflig, wobalas, grulqin</b>) appear in the space the egress leaves behind.
+
+        <b>Blood of the Abyss</b> (Villain Action 3) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 10 x 3 line within 1<b>	Target</b> All enemies and objects in the line
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 corruption damage; R<2 weakened (save ends)
+        %E2%98%85	<b>12-16</b>	10 corruption damage; R<3 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	13 corruption damage; R<4 weakened (save ends)
+        <b>Effect</b> The egress recalls and instantly destroys any ally minions on the encounter map. A torrent of churned up minion bodies and blood erupts from the egress, dealing an additional 1 damage for each minion destroyed this way.
+        Demons - 3rd Echelon
+        Soulraker Hivemind
+        In a plane of chaos, the soulraker demon is notable for fashioning a facsimile of order within themself. The demon's wasps make up a single, chaotic hive mind. They serve the demon's hivequeen, who relies on cannibalizing her children to ingest any souls they've consumed.
+        The soulraker utilizes handmaiden parasites to propagate. Handmaidens gestate inside a host until they're ready to emerge from the body, consuming souls until they're strong enough to transform into a new hivequeen.
+        Higher Categories of Demons
+        The following demons have been identified across categories 7-9:
+        <b>Soulraker Scouts</b> are the vile progeny of a hivequeen, demonic wasps emerging from her distended abdomen with an earsplitting buzz.
+        <b>Soulraker Soldiers</b> are armored wasps covered in hooked barbs that lock opponents into vicious combat.
+        <b>Soulraker Stingers</b> are wasps covered in gnarled, poisonous stingers that launch like quills. Their wings are atrophied, tiny, and unusable.
+        <b>Blight phages</b> were once angelic creatures. Corrupted by demonic forces, they're now a cruel, distended mockery of a cherubic form covered in with pustulant boils that seep ruinous blight.
+        A horrifying amalgam of multiple demonic forms that have melded into a unique monstrosity. The <b>chimeron </b>feels as unslakable hunger for souls.
+        The <b>Styrich's </b>lanky body is covered in a mane of long, razor sharp hair which it whips around the battlefield, shredding its enemies to pieces.
+        <b>Soulraker Handmaidens</b> are abyssal parasites that are implanted in victims by Soulraker Hivequeens. They slowly feed on their hosts' souls little by little until they can assume full control of the body.
+        <b>Soulraker Praetorians</b> are demonic wasps covered in hard chiton that drips with foul smelling ichors. The elite guard of the hivequeens.
+        <b>Soulraker Hivequeen</b> is a wasp-like demon whose abdomen houses its own soulraker wasp hive and a vicious stinging ovipositor capable of implanting its victims with handmaiden parasites
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f4c52105-2686-450c-93c7-f531e6b4f81b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the egress can take 10 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+      guid: f4c52105-2686-450c-93c7-f531e6b4f81b
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1056ce58-5d6f-45d2-a014-91574b7e340b: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the egress can't be hidden from them.
+      guid: 1056ce58-5d6f-45d2-a014-91574b7e340b
+      source: Trait
+    role: Leader
+    inflictedConditions: []
+    keywords:
+      Demon: true
+      Abyssal: true
+    max_hitpoints_roll: "180"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Lumbering Egress
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 180
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9645afde-79b5-4cd8-977d-01156a43bb74
+      implementation: 3
+      numTargets: 2
+      name: Ensnarer Cannon
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 corruption damage; A<2 restrained (save ends)
+        - 16 corruption damage; A<3 restrained (save ends)
+        - 19 corruption damage; A<4 restrained (save ends)
+        roll: 2d10 + Might
+      description: |-
+        Ensnarer
+        **2 Malice**: Two ensnarers appear in unoccupied spaces adjacent to each target. On a tier 3 outcome, four ensnarers appear.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 111d35c5-c249-4747-a94f-03d341ccf281
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Demonic Egress
+      implementation: 0
+      description: Four level 1 demon minions (ensnarer, frenzied, pitling) burst forth from the egress and appear in unoccupied squares.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 7658f928-be33-48dd-ac4b-7f5fba78c50b
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Abyssal Protectors
+      implementation: 0
+      description: Eight ensnarers appear anywhere in range.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'a2110587-f05a-43eb-8c7"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 3e0e8f9e-b12f-411b-8580-642d2cfe4cd4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 corruption damage
+        - 12 corruption damage
+        - 15 corruption damage; two frenzieds appear in unoccupied spaces adjacent to each target
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      name: 'Frenzied Deluge '
+      numTargets: 1
+      description: Frenzied
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 824d5e4d-f9f3-489f-8ca8-9ea795f0c697
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '1bfd53ac-6d76-4726-89f"
+      implementation: 0
+      behaviors: []
+      name: 'Fold Space '
+      numTargets: 1
+      description: The egress folds into their own portal and teleports to an unoccupied space within distance. Four level 4 demon minions (orflig, wobalas, grulqin) appear in the space the egress leaves behind.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e8c00b73-f6c4-43e0-a8d7-8edc98bbf48d
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'd4fbf2ba-381a-40bc-bb7"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 corruption damage; R<2 weakened (save ends)
+        - 11 corruption damage; R<3 weakened (save ends)
+        - 14 corruption damage; R<4 weakened (save ends)
+        roll: 2d10 + Might
+      name: Blood of the Abyss
+      numTargets: 1
+      description: The egress recalls and instantly destroys any ally minions on the encounter map. A torrent of churned up minion bodies and blood erupts from the egress, dealing an additional 1 damage for each minion destroyed this way.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds: []
+    ev: 32
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 2cc8674d-839d-427e-9780-7912493d685f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Lumbering Egress
+parentFolder: d2197625-9db6-4f37-8d6f-353a079bffdf
+artist: null
+ord: 7
+ctime: 1741590233531
+mtime: 1775201137032
+hidden: false

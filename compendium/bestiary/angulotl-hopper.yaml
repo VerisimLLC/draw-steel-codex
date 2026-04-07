@@ -1,0 +1,406 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 3b15f124-5ff7-47ec-8d4b-2dbd6db5105e
+    offtokenPortraitId: d9bf08e5-b9b3-4cf5-a6ca-7c262da372c3
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: f40a29ea-0020-49a5-8f75-1092a3710dad
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4440401
+    portraitOffset:
+      x: -0.04830319
+      y: 0.1368908
+    frameHueShift: 0.08120719
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 68c6a19f-e692-4320-9718-0f6a36c9b55a
+  properties:
+    __typeName: follower
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Angulotl: true
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        cfa25be7-7868-4e3a-98ec-821c85927e46:
+          timestamp: 1763835430126
+          note: Leapfrog
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        c0fc7625-d4e4-4544-bf79-efec0e80f052:
+          timestamp: 1763835415833
+          note: Leapfrog
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 356
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 94c638ff-2def-461b-840f-c6d0427b0e53
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 279efa08-fc81-4919-91da-9c65509ec890
+          repeatTargets: false
+          abilityType: none
+          categorization: Hidden
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: jump
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: emptyspace
+          description: ""
+          range: "4"
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 1
+        promptText: Jump 2 squares, or 4 squares if moving over mentor's space
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + Highest Characteristic
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 279efa08-fc81-4919-91da-9c65509ec890
+          repeatTargets: false
+          abilityType: none
+          categorization: Hidden
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: jump
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: emptyspace
+          description: ""
+          range: "4"
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: Jump 2 squares, or 4 squares if moving over mentor's space
+        guid: f908bedc-d89d-4930-ad6a-714010d4cc93
+      modeList:
+      - text: Jump before Strike
+      - text: Jump after Strike
+      categorization: Signature Ability
+      iconid: ui-icons/skills/1.png
+      persistence: []
+      name: Leapfrog
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: Before or after making this strike, the hopper jumps up to 2 squares, or up to 4 squares if they jump over their mentor’s space.
+      abilityType: none
+      implementation: 3
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    minion: false
+    followerType: retainer
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9c3057d0-773d-46f9-9d62-a2afee89eef0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 9c3057d0-773d-46f9-9d62-a2afee89eef0
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:9c3057d0-773d-46f9-9d62-a2afee89eef0: true
+        name: Movement
+        guid: 6599e2f1-f9f7-4cc9-b265-3fff8f45aad8
+        description: ""
+        behavior: attribute
+        attribute: climb
+      - __typeName: CharacterModifier
+        sourceguid: 9c3057d0-773d-46f9-9d62-a2afee89eef0
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:9c3057d0-773d-46f9-9d62-a2afee89eef0: true
+        name: Movement
+        guid: fdc46370-8cf3-489f-8b68-83d445fb0d97
+        description: ""
+        behavior: attribute
+        attribute: swim
+      name: Movement
+      guid: 9c3057d0-773d-46f9-9d62-a2afee89eef0
+      description: ""
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b8b8b185-b9a0-4bdb-8ce5-451512d83729: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b8b8b185-b9a0-4bdb-8ce5-451512d83729: true
+        sourceguid: b8b8b185-b9a0-4bdb-8ce5-451512d83729
+        description: Whenever an adjacent enemy grabs the hopper or uses a melee ability against them, that enemy takes 3 poison damage.
+        source: Character Feature
+        name: Toxiferous
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 76755cf9-41d9-4b6e-b7fe-6fa70e256a41
+          conditionFormula: Has Attacker and Condition is grabbed
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous Damage
+            roll: "3"
+            damageType: poison
+            chatMessage: Toxiferous Damage
+          name: Toxiferous
+          trigger: inflictcondition
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 1703e080-90ab-4990-abe5-4d1da2bc65d8
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b8b8b185-b9a0-4bdb-8ce5-451512d83729: true
+        sourceguid: b8b8b185-b9a0-4bdb-8ce5-451512d83729
+        description: Whenever an adjacent enemy grabs the hopper or uses a melee ability against them, that enemy takes 3 poison damage.
+        source: Character Feature
+        name: Toxiferous
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous Damage
+            roll: "3"
+            damageType: poison
+            chatMessage: Toxiferous Damage
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          guid: b5f56f45-8e89-4f24-832c-26d91a4d7fcf
+          persistence: []
+          conditionFormula: ""
+          targetType: attacker
+          name: Toxiferous
+          trigger: attacked
+          subject: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: ddc17125-876b-437e-b2ef-267f6342ecb6
+      name: Toxiferous
+      guid: b8b8b185-b9a0-4bdb-8ce5-451512d83729
+      description: Whenever an adjacent enemy grabs the hopper or uses a melee ability against them, that enemy takes 3 poison damage.
+      source: Character Feature
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 130a4c0e-3f74-442f-8df6-d777ec8852f9
+        source: Custom
+        value: -1
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: Custom Modification
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: ""
+        behavior: attribute
+        attribute: creatureSize
+      source: Custom
+      guid: 130a4c0e-3f74-442f-8df6-d777ec8852f9
+      id: 6450780b-d70f-4bf2-ae23-9620e047e693
+      ctime: 1756099470349
+      domains:
+        CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+      name: Custom Modification
+      description: ""
+      mtime: 1756099470349
+      implementation: 3
+    role: Follower Harrier
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    availableRolls: 0
+    availableTriggers: []
+    damage_taken: 0
+    opportunityAttack: 2
+    retainer: true
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 876c57ab-670e-4ca8-8247-9cb2960d7d95-221
+    innateAttacks: []
+    walkingSpeed: 6
+    groupid: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      5bd90f9b-46be-4cf2-8ca6-a96430d62949:
+        __typeName: CharacterResource
+        used: 0
+        refreshid: none
+      2d3d5511-4b80-46d1-a8c6-4705b9aa45ca:
+        __typeName: CharacterResource
+        refreshid: ""
+        unbounded: 0
+        used: 0
+    monster_type: Angulotl Hopper
+    initiativeGrouping: bf62c361-b1ea-4451-86b1-b2261482f9db
+    notes:
+    - text: ""
+      title: Monster Notes
+    5bd90f9b-46be-4cf2-8ca6-a96430d62949_history:
+      __typeName: StatHistory
+      entries:
+        a4793ce2-b0a0-4e6f-8b31-575d5c4d5ef2:
+          note: Manually Set
+          timestamp: 1763733908710
+          refreshid: none
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/0
+  tokenType: null
+  bestiaryId: 8075b9f5-2bec-41a3-9c69-ae53c9107f70
+  summonerid: null
+  ownerId: ""
+  partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+  size: 2
+  createdTimestamp: 1763701459367
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 1
+ctime: 1763702076107
+mtime: 1775167450230
+hidden: false

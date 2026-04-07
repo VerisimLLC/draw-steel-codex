@@ -1,0 +1,52 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 3be94bec-3f4a-43ce-b3cc-dcb43597ca76
+    repeatTargets: false
+    trigger: losehitpoints
+    conditionFormula: Damage Type is fire
+    targetType: self
+    persistence: []
+    name: Giant's-Blood Flame
+    behaviors:
+    - __typeName: ActivatedAbilityLimitBehavior
+      key: dab37dfd-2f8d-4019-9449-43bceea54953
+      refresh: encounter
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 2a449438-b5a4-44c5-812d-21d8a5b93fdb
+      ongoingEffectCustom: 2a449438-b5a4-44c5-812d-21d8a5b93fdb
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: d40a7b11-dd31-4114-81ab-8aa015dff3b4
+  name: "Giant's-Blood Flame: Throw"
+  sourceguid: b8b10e56-4be5-48ef-99d6-d933e99ecc61
+source: Ongoing Effect
+guid: b8b10e56-4be5-48ef-99d6-d933e99ecc61
+id: b8b10e56-4be5-48ef-99d6-d933e99ecc61
+ctime: 1761691884309
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: "Giant's-Blood Flame: Throw"
+description: ""
+custom: true
+mtime: 1761692060620
+iconid: ui-icons/skills/1.png

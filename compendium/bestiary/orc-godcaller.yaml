@@ -1,0 +1,425 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 43bdff99-6aa5-41a8-9229-cf8c626cf57c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Orc Godcaller	Level 1 Support
+        Humanoid, Orc	EV 13
+        <b>Stamina</b> 30
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +1	Agility 0	Reason 0	Intuition +1	Presence +1
+        <b>Power Chord</b> (Action) %E2%97%86 2d10 + 1 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Magic, Melee, Ranged
+        <b>Distance</b> Reach 1 or Ranged 10<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 sonic damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 sonic damage; weakened (EoT)
+        %E2%9C%B8	<b>17</b>	7 sonic damage; weakened (PRS ends)
+
+        <b>Cadenza</b> (Action)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 ally
+        <b>Effect</b> The godcaller's song enables the target to move up to their speed and take an action.
+        <b>3 VP</b> This ability targets a second ally.
+
+        <b>Rallying Ostinato</b> (Maneuver) %E2%97%86 2 VP
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 10<b>	Target</b> Self and up to 3 allies
+        <b>Effect</b> Each target regains 15 Stamina and ignores difficult terrain until the end of the encounter.
+
+        <b>Relentless</b>
+        If the godcaller's Stamina drops to 0, they can take a reach 1 or ranged 5 free strike before dying. If the target is reduced to 0 Stamina by the attack, the godcaller lives and their Stamina is reduced to 1 instead.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+        CharacterFeature:bda4f71c-49b1-43d7-8fc8-cd9b034936fb: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+          CharacterFeature:bda4f71c-49b1-43d7-8fc8-cd9b034936fb: true
+        sourceguid: bda4f71c-49b1-43d7-8fc8-cd9b034936fb
+        behavior: trigger
+        source: Trait
+        name: Relentless
+        description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 4bef0214-1c0a-410a-9cb3-1c645fc9d2ca
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: 52e35d40-1621-4dc4-af39-b02c91f80505
+              repeatTargets: false
+              persistence: []
+              targetType: self
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  source: ""
+                  filterAbility: Ability.Free Strike
+                  guid: ebd61ff8-6d6d-4d16-94d8-9502ceb43143
+                  name: Modify Attack
+                  attributes: []
+                  cannotModifyAction: true
+                  description: ""
+                  behavior: modifyability
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: f6647899-8e36-4f57-9eb1-6b1cb3c780bf
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      invokeOnCaster: true
+                      filterTarget: target.stamina <= 0
+                      abilityType: custom
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        numTargets: "1"
+                        modifiers: []
+                        abilityType: none
+                        strain: []
+                        guid: 298b785f-7e71-4288-8694-6faf2e5cfaac
+                        repeatTargets: false
+                        persistence: []
+                        targetType: self
+                        behaviors:
+                        - __typeName: ActivatedAbilityHealBehavior
+                          applyto: caster
+                          roll: "1"
+                        iconid: ui-icons/skills/1.png
+                        name: Relentless - Heal if target of free strike dies
+                        preDescription: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc lives and drops to 1 stamina instead.
+                        description: ""
+                        range: 1
+                        implementation: 3
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              iconid: ui-icons/skills/1.png
+              name: Relentless Free Strike
+              description: ""
+              sourceReference:
+                __typeName: SourceReference
+                page: 218
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: 1
+              implementation: 3
+            invokeOnCaster: true
+            promptText: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc  lives and drops to 1 stamina instead.
+          domains:
+            CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+            CharacterFeature:bda4f71c-49b1-43d7-8fc8-cd9b034936fb: true
+          whenActive: combat
+          numTargets: "1"
+          trigger: zerohitpoints
+          name: Relentless
+          description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 6d68e744-8fd3-4850-875f-361bb5eebf54
+      source: Trait
+      description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+      guid: bda4f71c-49b1-43d7-8fc8-cd9b034936fb
+      name: Relentless
+      implementation: 3
+    role: Platoon Support
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    walkingSpeed: 6
+    attributes:
+      agl:
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_type: Orc Godcaller
+    equipment: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 30
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    keywords:
+      Humanoid: true
+      Orc: true
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 sonic damage
+        - 7 sonic damage
+        - 9 sonic damage; P<2 weakened (save ends)
+        roll: 2d10 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 220
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 2fb1603c-9595-41c8-9a9c-80b9fddb7ab3
+      targetType: target
+      numTargets: 1
+      categorization: Signature Ability
+      implementation: 4
+      name: Power Chord
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: d15fe212-5892-433b-869f-4778a5a9604d
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 0ba4bfe0-3e7d-4d2a-afdd-fe2c16102312
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: move
+          targetType: self
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        autoTarget: false
+        namedAbility: Move Speed
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: named
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      description: |-
+        The target moves up to their speed and can use a main action.
+
+        **3 Malice**: The godcaller targets a second ally.
+      persistence: []
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      strain: []
+      guid: 0061f0c1-f00e-4b70-b5e6-e908eddae0e8
+      numTargets: 2 when Mode = 2 else 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 220
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      preDescription: The target to move up to their speed and can use a main action.
+      targetType: target
+      implementation: 3
+      name: Cadenza
+      modeList:
+      - text: One Target
+      - rules: The Godcaller can target a second ally.
+        text: 3 Malice
+      channeledResource: none
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityHealBehavior
+        applyto: caster_and_targets
+        roll: "15"
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 531917a1-7305-4e49-9015-9ebda58a83f2
+        duration: eoe
+        ongoingEffectCustom: 94c0896e-e35d-4c97-ac97-dab818156fba
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 531917a1-7305-4e49-9015-9ebda58a83f2
+        duration: eoe
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: e8a8f435-d0a7-4912-b697-779426e940b2
+      selfTarget: true
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 3
+      implementation: 3
+      sourceReference:
+        __typeName: SourceReference
+        page: 220
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Rallying Ostinato
+      targetType: target
+      description: Each target regains 15 Stamina and ignores difficult terrain until the end of the encounter.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    movementSpeeds: []
+    monster_category: Monster
+    minion: false
+    creatureSize: 1M
+    opportunityAttack: 3
+  tokenType: null
+  bestiaryId: 214fc0e4-6ea9-4afa-82bd-a3634c5992d7
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Orc Godcaller
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590229275
+mtime: 1775201137032
+hidden: false

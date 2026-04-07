@@ -1,0 +1,100 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: enemy
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Vessel of Retribution
+      roll: "15"
+      damageType: holy
+      chatMessage: Vessel of Retribution - Winded
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      applyto: subject
+      mode: effect
+      ongoingEffect: a5e2bfa6-f4d6-47b0-82b2-3b77b031fb61
+      guid: a041e99f-618d-49e2-a6a7-062643ad3d9e
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "5"
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    targetType: all
+    numTargets: "1"
+    name: Vessel of Retribution
+    trigger: winded
+    guid: e7dd65fe-7a47-4576-9fac-efeb9320f499
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: eeaa8c20-399a-477c-8b3c-76e813a35c8c
+  name: Vessel of Retribution
+  sourceguid: a5e2bfa6-f4d6-47b0-82b2-3b77b031fb61
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: enemy
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Vessel of Retribution
+      roll: "15"
+      damageType: holy
+      chatMessage: Vessel of Retribution - Winded
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: a5e2bfa6-f4d6-47b0-82b2-3b77b031fb61
+      mode: effect
+      conditions: []
+      applyto: subject
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "5"
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    targetType: all
+    numTargets: "1"
+    name: Vessel of Retribution
+    trigger: dying
+    guid: aa18eaed-f801-4e48-a139-f1a3fe1c9d17
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 389af57f-157f-4be8-85e6-5fc0adbf5ebc
+  name: Vessel of Retribution
+  sourceguid: a5e2bfa6-f4d6-47b0-82b2-3b77b031fb61
+source: Ongoing Effect
+guid: a5e2bfa6-f4d6-47b0-82b2-3b77b031fb61
+id: a5e2bfa6-f4d6-47b0-82b2-3b77b031fb61
+ctime: 1765340341328
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Vessel of Retribution
+description: ""
+custom: true
+mtime: 1765340341328
+iconid: ui-icons/skills/1.png

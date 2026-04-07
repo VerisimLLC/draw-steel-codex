@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 599fde37-faa6-48aa-9ad4-4224a4e90859
+  modifyRoll: +1 edge
+  source: Ongoing Effect
+  behavior: damage
+  name: Flanking Assist
+  resourceRefreshType: round
+  description: You have an edge on the next melee attack you make against the flanked enemy.
+  guid: ca117572-92e3-449c-8a64-fe9f1e8fc70c
+  damageFilterCondition: false
+source: Ongoing Effect
+guid: 599fde37-faa6-48aa-9ad4-4224a4e90859
+id: 599fde37-faa6-48aa-9ad4-4224a4e90859
+ctime: 1709478170128
+name: Flanking Assist
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.404499888420105
+    s: 0.861788630485535
+    v: 0.482352942228317
+    a: 1
+mtime: 1709479490879
+custom: true
+description: You have an edge on the next melee attack you make against the flanked enemy.
+iconid: c4893538-9809-4de1-8ef9-2fa83a84fe2b

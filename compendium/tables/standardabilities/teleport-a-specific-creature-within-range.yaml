@@ -1,0 +1,49 @@
+__typeName: ActivatedAbility
+targetFilter: "<<targetid>> = Target.ID"
+id: 86145a1e-29cd-4658-8561-81705fa48c62
+targetType: all
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "100"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 03a946fd-5989-4f32-bc45-f149a6f2873b
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 399bcfbb-771c-4cb2-8451-b50dfa9ef3e5
+    repeatTargets: false
+    abilityType: none
+    categorization: Hidden
+    behaviors:
+    - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    numTargets: "1"
+    name: Invoked Ability
+    targetType: emptyspace
+    description: ""
+    range: "<<range>>"
+    iconid: ui-icons/skills/1.png
+ctime: 1772947086071
+numTargets: "1"
+mtime: 1772947793469
+repeatTargets: false
+selfTarget: true
+name: Teleport a specific creature within range
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

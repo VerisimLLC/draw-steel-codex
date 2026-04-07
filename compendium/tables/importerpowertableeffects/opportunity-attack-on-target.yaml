@@ -1,0 +1,70 @@
+__typeName: ActivatedAbility
+id: f1cf1186-c643-428f-8aec-355bc4d833f3
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: caster
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    targetFilter: not enemy
+    guid: 3422f086-1503-4540-9962-df86dc1ba30e
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      runOnController: true
+      promptText: You have been led to make an Oppportunity Attack
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: c9f2ca5d-a18d-4b56-bdcd-0abbe2e4a808
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 5
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      abilityType: standard
+      standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+    abilityType: none
+    name: Invoked Ability
+    targetType: target
+    description: ""
+    range: 5*<<range>>
+    iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+testCases:
+- text: an ally within 5 can make an opportunity attack against the target as a free triggered action.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: e4792149-833e-4853-96c9-1b10751e389f
+importMatch: an ally within <<range>> can make an opportunity attack against the target as a free triggered action.
+ctime: 1711425547550
+targetType: self
+repeatTargets: false
+description: ""
+name: Opportunity Attack on Target
+numTargets: "1"
+mtime: 1759805797297
+abilityType: none
+iconid: ui-icons/skills/1.png

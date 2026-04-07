@@ -1,0 +1,56 @@
+__typeName: ActivatedAbility
+id: dfe93550-c4f1-47e6-abd2-3770a15dac2f
+behaviors:
+- __typeName: ActivatedAbilityApplyAbilityDurationEffect
+  applyto: caster
+  momentaryEffect:
+    __typeName: CharacterOngoingEffect
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: 07af9d43-1926-45e9-81c6-5e42e002adc8
+      sourceguid: ec86b14c-727d-46c6-a16a-9449134baa92
+      value: 1
+      source: Ongoing Effect
+      name: Strained
+      behavior: attribute
+      description: ""
+      attribute: 62e6c0c2-f940-46e3-bbe2-1559d0b4a4aa
+    source: Ongoing Effect
+    guid: ec86b14c-727d-46c6-a16a-9449134baa92
+    id: ec86b14c-727d-46c6-a16a-9449134baa92
+    name: Strained
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.50797963142395
+        s: 0.806280136108398
+        v: 1.00306534767151
+        a: 1
+    description: ""
+    implementation: 3
+    iconid: 489e5e7e-4f0c-4a59-9ff1-97f6b104a9a8
+  name: Ability Duration Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: a8269dfb-7538-4b1f-8072-cc3b56721253
+ctime: 1748297734527
+targetType: self
+numTargets: "1"
+mtime: 1748300600784
+name: Strained During Ability
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

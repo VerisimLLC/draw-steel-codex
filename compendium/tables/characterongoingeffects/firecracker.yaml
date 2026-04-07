@@ -1,0 +1,53 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 5ad967c4-6fef-4eb5-84b8-3c53b130109d
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 5
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 234d102a-42fe-4870-ae02-0d5a522b3d9a
+      mode: effect
+      conditions: []
+    name: End Firecracker
+    trigger: endturn
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: You cannot use Triggered Actions until the end of your next turn.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: ed8c1747-83ac-40c7-a78e-9c032624136e
+  name: Firecracker
+  sourceguid: 234d102a-42fe-4870-ae02-0d5a522b3d9a
+source: Ongoing Effect
+guid: 234d102a-42fe-4870-ae02-0d5a522b3d9a
+id: 234d102a-42fe-4870-ae02-0d5a522b3d9a
+ctime: 1699695108974
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00119054317474
+    v: 1.00136578083038
+    a: 1
+custom: true
+name: Firecracker
+iconid: 462bede3-f1fc-42e4-8cc0-a72602b4ca95
+description: You cannot use Triggered Actions until the end of your next turn.
+mtime: 1745103941364
+implementation: 3

@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 44f0d6ba-5096-4a40-bcd6-7440a302e6c9
+id: 44f0d6ba-5096-4a40-bcd6-7440a302e6c9
+ctime: 1756239014279
+domains:
+  CharacterOngoingEffect:44f0d6ba-5096-4a40-bcd6-7440a302e6c9: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Star Solo Target
+stackable: false
+description: You can use this ability against the same target for the next 2 combat rounds without spending drama.
+mtime: 1756239448463
+iconid: d8513de7-c130-4f23-a069-acd0349b994b

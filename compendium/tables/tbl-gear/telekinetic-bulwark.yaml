@@ -1,0 +1,55 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: d93eaabe-b176-47b0-865e-b705a0b47d54
+  description: 2/5/9
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: eb5cde90-dec2-4bcc-988c-88efac2ce742
+    sourceguid: d93eaabe-b176-47b0-865e-b705a0b47d54
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "2"
+        threshold: 1
+      - script: "5"
+        threshold: 5
+      - script: "9"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    source: Item
+    name: Telekinetic Bulwark Stamina Increase
+    behavior: attribute
+    description: 2/5/9
+    attribute: hitpoints
+  source: Item
+  name: Telekinetic Bulwark Stamina Increase
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: Three ingots of steel, six crystals that resonate with psionic power
+keywords:
+  Shield: true
+  Psionic: true
+projectSource: Texts or lore in Variac
+flavor: An unseen force seems to draw this steel shield toward nearby creatures.
+level9: The shield’s bonus to Stamina increases to +9. Additionally, you can use a maneuver to pull any number of targets the shield has grabbed up to 5 squares.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The shield’s bonus to Stamina increases to +5, and you can use the shield’s free triggered action against any enemy within 10 squares who uses an ability. Additionally, any enemy who uses the Escape Grab maneuver while grabbed this way takes a bane on the test.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 6092debc-daa9-45db-b9e5-b554be1bdb93
+ctime: 1759400575273
+name: Telekinetic Bulwark
+description: While you wield or carry this shield, you gain a +2 bonus to Stamina. This Stamina bonus adds to the Stamina bonus granted by other treasures. Additionally, once per turn when an adjacent enemy uses an ability, you can use a free triggered action to use the Grab maneuver against that enemy. You can have any number of enemies grabbed in this way.
+mtime: 1759400575273
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 61696f63-34a2-41b0-be78-2c36ecd0bce0

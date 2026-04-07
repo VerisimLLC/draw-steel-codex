@@ -1,0 +1,560 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 01dbe1a6-7092-438b-aea6-4a8e05e759c3
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8bdd8399-1ce5-46b6-aec9-e33e21f08a64
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    max_hitpoints_roll: "20"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        8bfc7272-695a-465d-896c-06c3ba8f7ae0:
+          set: 1/1
+          note: Fury Flail
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 418603c1-61bf-4fb6-bc72-fa32bb05e4f0
+        da6c9179-2ab2-4581-b4a2-7c0b4d8fd9dc:
+          set: 1/1
+          note: Melee Free Strike
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+        3a65054b-ad0e-4413-8c49-1b6ace096173:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        b4f80e04-8cbf-4bfa-a294-9ac53876ea53:
+          note: Fury Flail
+          abilityid: 418603c1-61bf-4fb6-bc72-fa32bb05e4f0
+          refreshid: c8099eec-faf0-4e23-9584-2f439aa9f639-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 1
+        id: mgt
+      rea:
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Gnoll
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetType: target
+      abilityType: none
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      channelIncrement: 2
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 5 damage
+        - 7 damage; A<2 bleeding (save ends); Prone
+        roll: 2d10 + Power Roll Bonus
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      iconid: ui-icons/skills/1.png
+      numTargets: 1 + Charges
+      persistence: []
+      modifiers: []
+      sourceReference:
+        __typeName: SourceReference
+        page: 157
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      strain: []
+      modeList: []
+      reasonedFilters: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      guid: 418603c1-61bf-4fb6-bc72-fa32bb05e4f0
+      abilityFilters: []
+      channelDescription: This ability targets one additional target for each 2 Malice spent.
+      name: Fury Flail
+      description: "2+ Malice: This ability targets one additional target for each 2 Malice spent."
+      channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      resourceCost: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: false
+      repeatTargets: false
+      keywords: []
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        duration: endround
+        ongoingEffectCustom: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        ongoingEffect: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        guid: 0864d8d7-c6f8-4a66-ae9c-590401846847
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: b50c3a84-d703-4515-bcc7-a5aad0cea68e
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Shift up to your speed
+        abilityType: standard
+        standardAbilityParams:
+          distance: Walking Speed
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      - __typeName: ActivatedAbilityCustomTriggerBehavior
+        filterTarget: not Ongoing Effects has "Used Cackletongue"
+        guid: 3d54dab6-a756-4e75-9dc8-b771270825bc
+        value: ""
+        triggerName: Cackletongue
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 1ee989b3-4761-4c43-bbb6-9a8874123737
+      numTargets: 1
+      selfTarget: true
+      sourceReference:
+        __typeName: SourceReference
+        page: 157
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      targetType: all
+      implementation: 2
+      name: Marauder's Cackletongue
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: Each target shifts up to their speed. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    damageEntries:
+      6291d2e3-7c0d-4773-a9a7-72e020c82226:
+        id: 6291d2e3-7c0d-4773-a9a7-72e020c82226
+        heal: 20
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        78914ae2-54e7-4c75-867c-46024303cbc1:
+          disposition: bad
+          note: 20 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        f22d73e3-ff00-47db-bbd3-d4c2eca38bda:
+          disposition: good
+          note: 20 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 20
+        c0783106-bfaa-46bf-8815-8c88fb4d3ab9:
+          disposition: good
+          note: 20 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 20
+        7b1bd068-f4e4-4449-9e95-c6b1c89d32bd:
+          disposition: bad
+          note: 20 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        95ff4d3e-1e99-4c51-a000-fb446c3898c7:
+          disposition: good
+          note: 20 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 20
+        4312be82-a2a8-423e-9f8f-2c56f0af433d:
+          disposition: good
+          note: 20 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 20
+        a7972efa-d025-469c-ad78-c3c60e3855e9:
+          disposition: bad
+          note: 20 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        c89c5efa-2c9b-41d1-b94e-f1827eed15a4:
+          disposition: bad
+          note: 20 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Gnoll Marauder	Level 2 Horde Harrier
+        Abyssal, Gnoll	EV 4
+        <b>Stamina</b> 20
+        <b>Speed</b> 7	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 2
+        Might +1	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Fury Flail</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 damage
+        %E2%9C%B8	<b>17</b>	7 damage; prone; A<2 bleeding (save ends)
+        <b>2+ Malice</b> The marauder targets an additional creature or object for every 2 malice spent.
+
+        <b>Cackletongue</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self and 2 burst<b>	Target</b> Self and all allies
+        <b>Effect</b> Each target shifts up to their speed. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+
+        <b>Death Frenzy</b>
+        Whenever a non-minion ally within 7 is reduced to 0 Stamina, the marauder moves up to their speed and makes a free strike.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8df99cab-1857-4f7d-b9fb-9c47b8ca8556: true
+        CharacterFeature:72b72f7b-b181-4f25-86d9-da526795d273: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:330bb759-a4bd-43f9-9e2e-a7183caac87c: true
+          CharacterFeature:72b72f7b-b181-4f25-86d9-da526795d273: true
+        sourceguid: 330bb759-a4bd-43f9-9e2e-a7183caac87c
+        behavior: trigger
+        source: Trait
+        name: Death Frenzy
+        description: Whenever a non-minion ally within 7 squares of the marauder is reduced to 0 Stamina, the marauder moves up to their speed and can make a melee free strike.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Move speed and make a melee free strike
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          subjectRange: "7"
+          strain: []
+          guid: 3a482b88-dcb4-4eef-ac79-93f6d72dcfc0
+          abilityType: none
+          trigger: zerohitpoints
+          castImmediately: true
+          numTargets: "1"
+          domains:
+            CharacterFeature:330bb759-a4bd-43f9-9e2e-a7183caac87c: true
+            CharacterFeature:72b72f7b-b181-4f25-86d9-da526795d273: true
+          name: Death Frenzy
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            runOnController: true
+            standardAbility: dfb59889-b651-40a6-80be-56d38bd34198
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2071ae07-2a9a-4f45-86b0-3681fdc99a7b
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: aa8f4afb-0cd9-4397-973f-f7a7a6b9a5b4
+      source: Trait
+      description: Whenever a non-minion ally within 7 squares of the marauder is reduced to 0 Stamina, the marauder moves up to their speed and can make a melee free strike.
+      guid: 72b72f7b-b181-4f25-86d9-da526795d273
+      name: Death Frenzy
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:453e37c5-e347-4837-8db4-5cd0f62e8ece: true
+        CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+        CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+        CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+        CharacterFeature:0fd65992-d3bb-45ed-b0df-b711539e8aef: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:453e37c5-e347-4837-8db4-5cd0f62e8ece: true
+          CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+          CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+          CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+          CharacterFeature:0fd65992-d3bb-45ed-b0df-b711539e8aef: true
+        sourceguid: 1973bc9c-2c26-497e-be94-a73fba966ef2
+        behavior: trigger
+        source: Character Feature
+        name: Cackletongue Trigger
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 36940624-3907-4780-877e-8366bb26e624
+              repeatTargets: false
+              abilityType: none
+              persistence: []
+              targetType: self
+              categorization: Hidden
+              name: Use Cackletongue
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Name = "Marauder's Cackletongue"
+                  behavior: modifyability
+                  guid: d5f4351b-d59b-464f-8081-999dd3ba0737
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 2fd2c65b-c931-4b2b-9b19-e0740bd797d7
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            namedAbility: Archer's Cackletongue
+            abilityType: custom
+            runOnController: true
+          triggerPrompt: Use Marauder's Cackletongue at no cost
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 86ea5a17-9ca4-45e5-bbbe-b019b4b2e046
+          domains:
+            CharacterFeature:453e37c5-e347-4837-8db4-5cd0f62e8ece: true
+            CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+            CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+            CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+            CharacterFeature:0fd65992-d3bb-45ed-b0df-b711539e8aef: true
+          targetType: self
+          numTargets: "1"
+          trigger: custom
+          name: Cackletongue
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 13a98295-b140-42e5-839e-edeafb8748bc
+      source: Character Feature
+      description: ""
+      guid: 453e37c5-e347-4837-8db4-5cd0f62e8ece
+      name: Cackletongue Trigger
+      implementation: 3
+    role: Horde Harrier
+    equipment: []
+    opportunityAttack: 2
+    skillRatings: []
+    resistances: []
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+    ongoingEffects: []
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: b0f3c043-faa5-4d27-9040-8f3abe8ac6d1-183
+    max_hitpoints: 20
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    initiativeGrouping: 4bd469bc-434c-429d-ae8b-20f8a36030a9
+    deathSavingThrowFailures: 0
+    damage_taken: 0
+    ev: 4
+    walkingSpeed: 7
+    traitNames: []
+    innateAttacks: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+        used: 1
+    equipmentMeta:
+      offhand0: []
+    movementSpeeds: []
+    monster_type: Gnoll Marauder
+    availableTriggers: []
+    creatureSize: 1M
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        f7ab497d-7497-48bd-a949-6bf71b55fe5d:
+          set: 1/1
+          note: Marauder's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 1ee989b3-4761-4c43-bbb6-9a8874123737
+        71209496-ec40-49ec-a635-ad9b0191270a:
+          set: 1/1
+          note: Marauder's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 1ee989b3-4761-4c43-bbb6-9a8874123737
+        99e519c1-0d87-4cc4-9a13-cf58f46259b5:
+          note: Marauder's Cackletongue
+          abilityid: 1ee989b3-4761-4c43-bbb6-9a8874123737
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        a3385413-16c2-4253-a7de-d02dc26a8fda:
+          set: 1/1
+          note: Marauder's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 1ee989b3-4761-4c43-bbb6-9a8874123737
+        4ee6c97d-133f-4c91-aaf3-ecd3fe452b5b:
+          set: 1/1
+          note: Marauder's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 1ee989b3-4761-4c43-bbb6-9a8874123737
+  tokenType: null
+  bestiaryId: 33cc10a7-ad8a-4c80-ad25-b2a20eeb9c73
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Gnoll Marauder
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1741590236584
+mtime: 1775201137032
+hidden: false

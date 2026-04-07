@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Harim
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 5f93e0a5-9817-4cf4-b750-78b1c8de1773
+annotations:
+  image:
+    __typeName: RichImage
+id: b7d43c31-0a89-4a8d-ac4f-b807056567d4
+mtime: 1761421418464
+content: |-
+  # Harim
+
+  [[image]]
+
+  *Harim the cobbler is exhausted. As the only cobbler in town, they work long hours to keep everyone’s feet covered and safe. The cobbler tends to keep answers short and gets exasperated with longer conversations and people who don’t cut to the point, but they are grateful if the heroes offer help.*
+  {
+  Secret: See [B12. Cobbler]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761395574033

@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 091a7ffc-081d-4c3a-b5dd-31679241e85f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ahrijiinad
+- __typeName: RollTableRow
+  id: 274d70c3-a772-434b-a2a5-875782772dc8
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cyrrijox
+- __typeName: RollTableRow
+  id: f139f8ab-f92b-4486-ac0c-54c7c915a705
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kaikorrivar
+- __typeName: RollTableRow
+  id: 183cfa7b-96c1-44fb-8aa5-662d169114eb
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kalliarx
+- __typeName: RollTableRow
+  id: 50527642-e712-4485-9980-fc18f85a5504
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Korazajaan
+- __typeName: RollTableRow
+  id: 3b03e846-bcaa-49de-ab72-074bcb0ed86e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Korovaamijax
+- __typeName: RollTableRow
+  id: fd873704-f99f-43ea-bb16-b3dbb79fc79a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Orrizarviox
+- __typeName: RollTableRow
+  id: 63a2d81f-a472-4bc5-87a9-e9dbbb09aa34
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Uriquexicaar
+- __typeName: RollTableRow
+  id: 6a2da26a-ba7a-4f20-8e7e-e51b917f1798
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ythirix
+- __typeName: RollTableRow
+  id: b0c2cd20-e3f1-4b9a-a9a7-ff1e2d59d4c4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Zoronivaam
+id: ab4b469e-385c-48a1-8b9c-01053e48d8d7
+name: Dragon Knight Feminine Names
+subtable: true
+mtime: 1743454957008
+items: false
+ctime: 1743444023640

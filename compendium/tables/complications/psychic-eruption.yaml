@@ -1,0 +1,160 @@
+__typeName: CharacterComplication
+drawback: Whenever you become bleeding, frightened, or weakened, you must use Psychic Blast as a free triggered action.
+mtime: 1775087474513
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 761c939d-25c4-4b51-aeb8-602d57e9862d
+      guid: f27deca8-5e87-413b-974d-a360496edcf4
+      source: Feat
+      behavior: activated
+      description: ""
+      name: Psychic Eruption - Benefit
+      activatedAbility:
+        __typeName: ActivatedAbility
+        resourceNumber: Heroic Resources Available to Spend
+        repeatTargets: false
+        keywords:
+          Area: true
+          Psionic: true
+        implementationDetails: ""
+        targetType: all
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.798250198364258
+            s: 0.895507633686066
+            v: 0.919514298439026
+            a: 1
+        flavor: Psionic energy bursts from your body in an iridescent shimmer.
+        categorization: Ability
+        range: "3"
+        abilityType: none
+        persistence:
+          enabled: false
+        modifiers: []
+        numTargets: "1"
+        strain: []
+        guid: 0b1e098e-c830-4e7d-8bd6-a176f36f8fb1
+        preDescription: Using this ability costs all your Heroic Resource.
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        domains: []
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - "#1 psychic damage for each Heroic Resource you spend, to a maximum equal to your level"
+          - "#1 psychic damage for each Heroic Resource you spend, to a maximum equal to your level + your highest characteristic"
+          - "#1 psychic damage for each Heroic Resource you spend"
+          roll: 2d10 + Highest Characteristic
+        - __typeName: ActivatedAbilityDamageBehavior
+          tiersSelected:
+          - 1
+          roll: Heroic Resources Available to Spend when Heroic Resources Available to Spend <= Level else Level
+        - __typeName: ActivatedAbilityDamageBehavior
+          tiersSelected:
+          - 2
+          filterTarget: ""
+          roll: Heroic Resources Available to Spend when (Heroic Resources Available to Spend <= (Level+Highest Characteristic)) else (Level+HighestCharacteristic)
+        - __typeName: ActivatedAbilityDamageBehavior
+          tiersSelected:
+          - 3
+          roll: Heroic Resources Available to Spend
+        sourceReference:
+          __typeName: SourceReference
+          page: 242
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        name: Psychic Blast
+        implementation: 3
+        description: ""
+        resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+        iconid: d549bb7f-11c6-4595-9d3d-2714c2106df1
+    source: Feat
+    canHavePrerequisites: true
+    guid: 761c939d-25c4-4b51-aeb8-602d57e9862d
+    name: Psychic Eruption - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Whenever you become bleeding, frightened, or weakened, you must use Psychic Blast as a free triggered action.
+    modifiers:
+    - __typeName: CharacterModifier
+      filterCondition: Heroic Resources Available to Spend > 0
+      sourceguid: cdbd5730-9731-4ece-a0f8-4f92a818b3ff
+      description: Whenever you become bleeding, frightened, or weakened, you must use Psychic Blast as a free triggered action.
+      source: Feat
+      name: Psychic Eruption - Drawback
+      behavior: trigger
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: Whenever you become bleeding, frightened, or weakened, you must use Psychic Blast as a free triggered action.
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.79824560880661
+            s: 0.893162429332733
+            v: 0.917647063732147
+            a: 1
+        mandatory: false
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        hasManualVersion: false
+        strain: []
+        guid: b20ee62b-9f3a-471e-8c80-520870134773
+        conditionFormula: Condition = "Bleeding" or Condition = "Frightened" or Condition = "Weakened"
+        actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+        castImmediately: true
+        trigger: inflictcondition
+        persistence: []
+        name: Psychic Eruption - Drawback
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          runOnController: true
+          promptText: ""
+          namedAbility: Psychic Blast
+          abilityType: named
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: fd439c6a-9fbf-48e0-a64a-f09f1aa76083
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        description: ""
+        abilityType: none
+        iconid: d549bb7f-11c6-4595-9d3d-2714c2106df1
+      guid: c682a81a-e4bd-4a72-869c-e4bf010dd2f5
+    source: Feat
+    canHavePrerequisites: true
+    guid: cdbd5730-9731-4ece-a0f8-4f92a818b3ff
+    name: Psychic Eruption - Drawback
+    implementation: 3
+name: Psychic Eruption
+ctime: 1755516547857
+description: In times of stress, you get headaches. Psionic energy builds up in your mind until you feel as though your head might explode. And if you’re not careful, it actually does explode, radiating psychic waves that harm friends and enemies alike.
+id: a5b6a59f-d82a-40d7-9ca0-f57b82066b3f
+benefit: |-
+  You have the following heroic ability:
+  Psychic Blast (Special Heroic Resource Cost)

@@ -1,0 +1,228 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 37aad305-377b-4b0e-b57f-7e7b5fd98dcd
+    offtokenPortraitId: null
+    portraitFrameId: 332770d5-bdfb-40bb-92c0-f8476e7e80f2
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.05648202
+      y: 0.1451861
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b2ed2160-d0c4-4817-970c-f722d800e3cc
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |
+        Siege Hawk	Level 1 Mount
+        Animal	EV 28
+        <b>Stamina</b> 60
+        <b>Speed</b> 7 (flying)	<b>Size</b> 3/ <b>Stability</b> 0
+        <b>Free Strike</b> 4
+        Might +1	Agility +1	Reason -3	Intuition +1	Presence -2
+        <b>Talons</b> (Action) %E2%97%86 2d10 + 1 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Reach 1	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	4 damage
+        %E2%98%85	12%E2%80%9316	7 damage
+        %E2%9C%B8	17+	10 damage
+        <b>Effect </b>The target is grabbed by the siege hawk. The siege hawk can have two targets grabbed at a time.
+
+        <b>Bombs Away!</b> (Action) %E2%97%86 <b>AGL RR</b> %E2%97%86 7 VP
+        <b>Keywords</b> Area, Magic, Ranged, Resistance
+        <b>Distance</b> 5 cube within 10	<b>Target</b> Each creature and object
+        %E2%9C%B8	%E2%89%A411	7 fire damage; restrained (EoT)
+        %E2%98%85	12%E2%80%9316	6 fire damage; slowed (EoT)
+        %E2%9C%A6	17+	3 fire damage
+        <b>Special</b> The siege hawk must be flying to use this ability.
+
+        <b>Dive</b> (Maneuver)
+        The hawk moves up to their speed.
+
+        <b>Mounted Platform</b>
+        Any creature riding the hawk can make a free strike during or after the hawk's movement.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8bb12f86-6972-46ee-adee-ff22acc6ebc2: true
+      modifiers: []
+      name: Mounted Platform
+      description: Any creature riding the hawk can make a free strike during or after the hawk's movement.
+      guid: 8bb12f86-6972-46ee-adee-ff22acc6ebc2
+      source: Trait
+    role: Mount
+    inflictedConditions: []
+    keywords:
+      Animal: true
+      Human: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    monster_type: Siege Hawk
+    walkingSpeed: 7
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: -3
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    levelChoices: []
+    monster_category: Monster
+    resources: []
+    max_hitpoints: 60
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage
+        - 10 damage
+        roll: 2d10 + 1
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      targetAdditionalCriteria: or objects
+      guid: e79d9e7b-ece5-46b7-ad0c-30a4ec877ad6
+      iconid: ui-icons/skills/1.png
+      numTargets: 2
+      name: Talons
+      targetType: target
+      description: The target is grabbed by the siege hawk. The siege hawk can have two targets grabbed at a time.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 7
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+        Resistance: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 61345200-ea20-4b4d-a6f5-1bf2e5a8d2a7
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: agl
+        roll: 2d6 + Might or Agility
+        resistanceRoll: true
+        tiers:
+        - 7 fire damage; restrained (EoT)
+        - 6 fire damage; slowed (EoT)
+        - 3 fire damage
+      name: Bombs Away!
+      numTargets: "1"
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 57b2cbe6-8842-4164-87d1-3a0cbe630412
+      implementation: 0
+      numTargets: 1
+      name: Dive
+      behaviors: []
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    movementSpeeds:
+      fly: 7
+    damage_taken: 0
+    minion: false
+    opportunityAttack: 4
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: beff2e36-7fe8-4ab2-b717-d2e7deabe147
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Siege Hawk
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590302372
+mtime: 1775201137032
+hidden: false

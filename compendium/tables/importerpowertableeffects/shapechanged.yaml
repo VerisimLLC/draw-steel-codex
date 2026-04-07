@@ -1,0 +1,36 @@
+__typeName: ActivatedAbility
+id: 1e7518ab-a397-46f4-bd03-34a5895855dd
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: 402241f6-ce1d-4b30-8d57-52e66c2b11e8
+  stacks: "1"
+  duration: save_ends
+  ongoingEffectCustom: 6051dc66-321c-4037-8572-3c67f9a32188
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.0084376335144
+    v: 1.00962698459625
+    a: 1
+categorization: Hidden
+range: 1
+guid: 149b202c-35eb-47fb-8f95-843666649f3e
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: A shapechanged creature is slowed and has fire weakness 10 as their limbs stretch and their skin becomes paper thin.
+importMatch: the target is shapechanged \(save ends\)
+ctime: 1758305912939
+targetType: self
+persistence: []
+description: ""
+name: Shapechanged
+repeatTargets: false
+mtime: 1770658430483
+abilityType: none
+iconid: b9e47bcb-e55c-453a-a874-54aada00f152

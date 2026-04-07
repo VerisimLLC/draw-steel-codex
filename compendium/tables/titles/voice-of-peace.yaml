@@ -1,0 +1,39 @@
+__typeName: Title
+effect: "Choose one of the following benefits:\n\nLegendary Talker: If you are negotiating with a creature who your Renown doesn’t influence, you can spend a hero token to influence the creature as if it did. \n\nSzetch Smoothtalker: You must know Szetch to gain this benefit. When you make a Reason, Intuition, or Presence test to influence a creature who understand Szetch while speaking that language, you can reroll the test. You must use the new result and can’t use this benefit twice or more during the same conversation. \n\nUnoffensive: When you make an argument that invokes a pitfall during a negotiation, the NPC’s patience doesn’t decrease. "
+prerequisite: Make a successful argument in a negotiation with Queen Bargnot and have that negotiation end with her interest at 5
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Benefit
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      canHavePrerequisites: true
+      source: Title
+      guid: bbe774bb-a970-4410-9adf-c23ab333ff45
+      name: Legendary Talker
+      description: 'If you are negotiating with a creature who your Renown doesn’t influence, you can spend a hero token to influence the creature as if it did. '
+    - __typeName: CharacterFeature
+      modifiers: []
+      canHavePrerequisites: true
+      source: Feat
+      guid: 7b631f56-0788-4da1-b40f-e883a7c7e1a5
+      name: Szetch Smoothtalker
+      description: 'You must know Szetch to gain this benefit. When you make a Reason, Intuition, or Presence test to influence a creature who understand Szetch while speaking that language, you can reroll the test. You must use the new result and can’t use this benefit twice or more during the same conversation. '
+    - __typeName: CharacterFeature
+      modifiers: []
+      canHavePrerequisites: true
+      source: Feat
+      guid: b06266c6-65da-495b-9d8a-f7c8cfd4cd64
+      name: Unoffensive
+      description: 'When you make an argument that invokes a pitfall during a negotiation, the NPC’s patience doesn’t decrease. '
+    description: "Choose one of the following benefits:"
+    numChoices: 1
+    guid: 0d0ea765-8384-4ead-870f-c7c7a926b610
+name: Voice of Peace
+mtime: 1770130833806
+description: You talked Bargnot into a truce? You must have some gabby gift there, pal.
+id: b76fde05-835c-4add-8d61-973fa520eeff
+ctime: 1764025561238

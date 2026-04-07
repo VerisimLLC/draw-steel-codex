@@ -1,0 +1,29 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 3fdc5a6a-79c9-4270-a306-3518f234127f
+      displayCondition: (Count Nearby Enemies(1) > 0) and (ability.keywords has "ranged")
+      source: Ranged Strikes Global Rule Mod Feature
+      modtype: bane
+      keywords:
+        Ranged: true
+        Strike: true
+      activationCondition: "1"
+      rollType: ability_power_roll
+      guid: 7acde52c-c92c-4815-b629-61d4f59b8269
+      description: If you make a ranged strike while an enemy is adjacent to you, you have a bane on the strike’s power roll.
+      behavior: power
+      name: Adjacent Enemy on Ranged Strike
+    name: Adjacent Enemy on Ranged Strike
+    description: If you make a ranged strike while an enemy is adjacent to you, you have a bane on the strike’s power roll.
+    guid: 3fdc5a6a-79c9-4270-a306-3518f234127f
+    source: Ranged Strikes Global Rule Mod Feature
+    implementation: 4
+name: Ranged Strikes
+mtime: 1774788180054
+id: 85913b3a-c2b7-45ae-b2f0-52b32b685395
+ctime: 1747286022983

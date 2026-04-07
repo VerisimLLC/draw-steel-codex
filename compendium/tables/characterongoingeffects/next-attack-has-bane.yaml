@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.989500045776367
+    s: 0.795321643352509
+    v: 0.670588254928589
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  modtype: bane
+  keywords:
+    Strike: true
+  surges: stacks
+  behavior: power
+  domains:
+    CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+  name: Next Attack Has Bane
+  rollType: ability_power_roll
+  description: The next attack this creature makes has a Bane
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  activationCondition: true
+source: Ongoing Effect
+endTrigger: attack
+stackable: true
+id: bf68e539-df8f-4e11-97dc-1b2d11c7b02e
+ctime: 1740886517818
+domains:
+  CharacterOngoingEffect:a9ef06ef-c643-4316-a177-b9f45291461e: true
+implementation: 3
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+name: Next Attack Has Bane
+categorization: common
+description: The next attack this creature makes has a Bane
+mtime: 1740886517818
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e

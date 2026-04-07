@@ -1,0 +1,56 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:a03530c3-11f0-4745-bf0d-1cb9ac4888e5: true
+  sourceguid: a03530c3-11f0-4745-bf0d-1cb9ac4888e5
+  description: When you start your turn, you gain a bonus to speed and damage equal to the number of allies within 10 squares of you. This bonus lasts until the start of your next turn.
+  source: Ongoing Effect
+  name: Our Hearts, Your Strength
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 80f26a00-de15-45fe-966d-12afa2779534
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:a03530c3-11f0-4745-bf0d-1cb9ac4888e5: true
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      applyto: targets
+      durationUntilEndOfTurn: false
+      duration: 1
+      ongoingEffectCustom: a27b6143-d4f5-49b5-b4a4-0253bd224d6d
+      ongoingEffect: a27b6143-d4f5-49b5-b4a4-0253bd224d6d
+      stacks: Count Nearby Friends(10)
+    trigger: beginturn
+    name: Our Hearts, Your Strength
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: bff39d69-9e2d-40a3-9f08-5c3f9d18633e
+source: Ongoing Effect
+guid: a03530c3-11f0-4745-bf0d-1cb9ac4888e5
+id: a03530c3-11f0-4745-bf0d-1cb9ac4888e5
+ctime: 1746680330683
+domains:
+  CharacterOngoingEffect:a03530c3-11f0-4745-bf0d-1cb9ac4888e5: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Our Hearts, Your Strength
+custom: true
+description: When you start your turn, you gain a bonus to speed and damage equal to the number of allies within 10 squares of you. This bonus lasts until the start of your next turn.
+mtime: 1746681573680
+iconid: 05683164-b131-4f9d-86e1-606061e3ae87

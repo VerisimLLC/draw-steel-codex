@@ -1,0 +1,117 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: b9927b21-e965-4086-8f8d-f17aee1e8ab1
+  description: 6/12/21
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 951d0828-36d9-4967-b442-d3e2125061ab
+    sourceguid: e1ca3cd3-5ab7-47f7-82a3-1f34f0beb348
+    behavior: attribute
+    source: Item
+    name: Bloodbound Band Stamina
+    description: 6/12/21
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "6"
+        threshold: 1
+      - script: "12"
+        threshold: 5
+      - script: "21"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    attribute: hitpoints
+  source: Item
+  name: Bloodbound Band Stamina
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: bba39c55-f5db-4528-aad8-5899aef3b62d
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: bba39c55-f5db-4528-aad8-5899aef3b62d
+    guid: c24f69cb-2f32-4399-b290-22af3b60875b
+    source: Item
+    behavior: activated
+    description: ""
+    name: Bloodbound Band
+    activatedAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      targetTextOverride: Allies
+      repeatTargets: false
+      rangeTextOverride: Touch
+      targetAllegiance: ally
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 00e0e4f6-4c91-4b63-94ea-86cd69dd08b9
+      reasonedFilters:
+      - formula: target has "Bloodbound Band"	
+        reason: Is not wearing a Bloodbound Band
+      numTargets: "99"
+      domains: []
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster_and_targets
+        ongoingEffect: d9102445-20e7-4a87-866c-de62fda4c8e7
+        ongoingEffectCustom: d9102445-20e7-4a87-866c-de62fda4c8e7
+      name: Bloodbound Band
+      actionResourceId: 5758da29-8660-47d3-805b-7c6038f476a1
+      description: Target allies who wear a Bloodbound Band. They may not be related to you by blood. Bonded creatures can each use the highest recovery value of any bonded creature in place of their own, and can spend each other’s Recoveries as if they were their own. Whenever any other bonded creature takes damage, each bonded creature takes 1 damage that can’t be reduced in any way. Your bond ends if you remove the ring, use it to bond with one or more other creatures, or die, but other rings continue to be bonded to each other.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  - __typeName: CharacterModifier
+    operation: max
+    sourceguid: bba39c55-f5db-4528-aad8-5899aef3b62d
+    source: Item
+    value: BoundCreatures("Bloodbound").Highest("Recovery Value")
+    name: Bloodbound Band
+    guid: 33fe3d00-fb0d-4623-b9ed-ee9789f0b56e
+    description: ""
+    behavior: attribute
+    attribute: recoveryvalue
+  source: Item
+  name: Bloodbound Band
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: A pair of obituaries that each mention the subject of the other
+keywords:
+  Magic: true
+  Ring: true
+projectSource: Texts or lore in Caelian
+flavor: This ring appears to be traced by dried blood, which returns each time it is rubbed away.
+level9: The ring’s bonus to Stamina increases to +21. Additionally, if a creature bonded with you dies, you can choose to die in their place. Your sacrifice twists fate to remove the creature from danger, and they regain Stamina equal to their winded value. Your ring then teleports into their possession and ceases to be magic.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+projectGoal: "450"
+ctime: 1759398738755
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+domains:
+  item:9e8eea25-436a-4a04-975e-d28a87dca2e8: true
+level5: The ring’s bonus to Stamina increases to +12. Additionally, you have damage immunity 2.
+id: 9e8eea25-436a-4a04-975e-d28a87dca2e8
+name: Bloodbound Band
+description: While you wear this ring, you gain a +6 bonus to Stamina. Additionally, during a respite, you can touch the ring to any number of other Bloodbound Bands worn by willing creatures to form a bond among all of you. Creatures related by blood can’t form bonds in this way. Bonded creatures can each use the highest recovery value of any bonded creature in place of their own, and can spend each other’s Recoveries as if they were their own. Whenever any other bonded creature takes damage, each bonded creature takes 1 damage that can’t be reduced in any way. Your bond ends if you remove the ring, use it to bond with one or more other creatures, or die, but other rings continue to be bonded to each other.
+mtime: 1760740444015
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 276f2833-a274-432b-a245-a424de1b2ab5

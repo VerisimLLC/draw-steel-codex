@@ -1,0 +1,136 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 0f840834-5f3f-4959-b31e-fad45c306032
+  description: While you wield or carry this shield, you gain a +3 bonus to Stamina. This Stamina bonus adds to the Stamina bonus granted by other treasures. Additionally, you can use a maneuver to make the shield’s lion face roar, choosing one adjacent creature or object and pushing that target up to 3 squares.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 951d0828-36d9-4967-b442-d3e2125061ab
+    sourceguid: e1ca3cd3-5ab7-47f7-82a3-1f34f0beb348
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "3"
+        threshold: 1
+      - script: "6"
+        threshold: 5
+      - script: "9"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    source: Item
+    name: 1st Level
+    behavior: attribute
+    description: While you wield or carry this shield, you gain a +3 bonus to Stamina. This Stamina bonus adds to the Stamina bonus granted by other treasures. Additionally, you can use a maneuver to make the shield’s lion face roar, choosing one adjacent creature or object and pushing that target up to 3 squares.
+    attribute: hitpoints
+  - __typeName: CharacterModifier
+    suppressOthers: false
+    sourceguid: 0f840834-5f3f-4959-b31e-fad45c306032
+    behavior: activated
+    source: Item
+    name: 1st Level
+    description: While you wield or carry this shield, you gain a +3 bonus to Stamina. This Stamina bonus adds to the Stamina bonus granted by other treasures. Additionally, you can use a maneuver to make the shield’s lion face roar, choosing one adjacent creature or object and pushing that target up to 3 squares.
+    guid: 65e5e0c1-f2f7-49ab-a73b-18fe166b2485
+    activatedAbility:
+      __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        filterTarget: Caster.Level < 5
+        rule: push 3
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        filterTarget: Caster.Level > 5 and Caster.Level < 9
+        rule: push 4
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        filterTarget: Caster.Level >= 9
+        rule: push 5
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 328
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range:
+        __typeName: GoblinScriptTable
+        entries:
+        - script: "1"
+          threshold: 1
+        - script: "3"
+          threshold: 5
+        - script: "6"
+          threshold: 9
+        editableField: true
+        id: table
+        field: Level
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: cc08b515-a005-4fb0-b174-6f3eb2ca3c05
+      categorization: Ability
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      domains: []
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: King's Roar
+      numTargets: "1"
+      description: |-
+        **1st Level:** You make the shield’s lion face roar, choosing one adjacent creature or object and pushing that target up to 3 squares
+        **5th Level:** When you cause the shield to roar, you target one creature or object within 3 squares and push that target up to 4 squares.
+        **9th Level:** When you cause the shield to roar, you target one creature or object within 6 squares, you push that target up to 5 squares, and the target is slowed until the end of their next turn.
+      abilityType: none
+      implementation: 4
+  source: Item
+  name: 1st Level
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+- __typeName: CharacterFeature
+  guid: 751cb402-0bb7-4e07-8e16-c5e997d23b4f
+  description: The shield’s bonus to Stamina increases to +6. When you cause the shield to roar, you target one creature or object within 3 squares and push that target up to 4 squares.
+  modifiers: []
+  source: Item
+  name: 5th Level
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+- __typeName: CharacterFeature
+  guid: 0061d8cf-1a08-4430-af3c-05cfc8df2ca6
+  description: The shield’s bonus to Stamina increases to +9. When you cause the shield to roar, you target one creature or object within 6 squares, you push that target up to 5 squares, and the target is slowed until the end of their next turn.
+  modifiers: []
+  source: Item
+  name: 9th Level
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A ballad of heroism, two ingots of sunmetal
+keywords:
+  Magic: true
+  Shield: true
+projectSource: Songs in High Rhyvian
+level5: The shield’s bonus to Stamina increases to +6. When you cause the shield to roar, you target one creature or object within 3 squares and push that target up to 4 squares.
+level9: The shield’s bonus to Stamina increases to +9. When you cause the shield to roar, you target one creature or object within 6 squares, you push that target up to 5
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+projectGoal: "450"
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+implementation: 4
+ctime: 1759206042904
+domains:
+  item:ab2e5802-2f6f-4d9e-ba42-dcd63665167d: true
+description: While you wield or carry this shield, you gain a +3 bonus to Stamina. This Stamina bonus adds to the Stamina bonus granted by other treasures. Additionally, you can use a maneuver to make the shield’s lion face roar, choosing one adjacent creature or object and pushing that target up to 3 squares.
+flavor: A sunmetal kite shield bears the face of a lion on its front, its mouth opening wider over the course of battle.
+name: King's Roar
+id: ab2e5802-2f6f-4d9e-ba42-dcd63665167d
+mtime: 1774879917046
+projectRollCharacteristic:
+  prs: true
+  rea: true
+  inu: true
+iconid: 81e82e2f-1e51-4686-9e3a-2e0cc33d30e9

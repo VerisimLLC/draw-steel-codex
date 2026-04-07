@@ -1,0 +1,119 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:ff7d1a85-bfcf-4fc2-8ecd-1e8347451101: true
+  sourceguid: ff7d1a85-bfcf-4fc2-8ecd-1e8347451101
+  description: The first time on a turn that you or any ally deals damage to a target marked by you, the creature who dealt the damage can push the target up to 2 squares and then shift up to 2 squares. Additionally, any ally using the Charge main action to target a creature marked by you can use a melee strike signature ability or a melee strike heroic ability instead of a melee free strike.
+  source: Ongoing Effect
+  name: Frontal Assault
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: attacker
+    characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    characterConditionInflictedBySelf: true
+    range: 1
+    persistence: []
+    modifiers: []
+    domains:
+      CharacterOngoingEffect:ff7d1a85-bfcf-4fc2-8ecd-1e8347451101: true
+    strain: []
+    whenActive: always
+    abilityType: none
+    trigger: losehitpoints
+    conditionFormula: HasAttacker
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      runOnController: true
+      promptText: "Frontal Assault: Push the marked creature"
+      targetingFormula: ""
+      targeting: prompt
+      filterTarget: ""
+      standardAbility: 75946ad2-cfe5-4d05-9e2a-5a70ed5173a6
+      autoTarget: true
+      standardAbilityParams:
+        targetid: "<<Subject.id>>"
+        prompt: "Frontal Assault: Push the marked creature"
+        distance: "2"
+        range: "2"
+      abilityType: standard
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 2859f39c-dc46-40c6-b76b-6dd43129db9a
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      runOnController: true
+      promptText: "Frontal Assault: Shift 2 after damaging a marked creature"
+      standardAbilityParams:
+        distance: "2"
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: a1d3240c-5ffb-4743-b8de-4ecaffaa418f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      abilityType: standard
+      standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+    numTargets: "1"
+    name: Frontal Assault
+    guid: 9e54c926-8ba6-4054-b5b9-a7ede92b0f51
+    description: ""
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: af04fdfd-ac19-4a01-b34e-e3f8c4dce765
+source: Ongoing Effect
+guid: ff7d1a85-bfcf-4fc2-8ecd-1e8347451101
+id: ff7d1a85-bfcf-4fc2-8ecd-1e8347451101
+ctime: 1753425691342
+domains:
+  CharacterOngoingEffect:ff7d1a85-bfcf-4fc2-8ecd-1e8347451101: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.586999893188477
+    s: 1.00166630744934
+    v: 1.0019109249115
+    a: 1
+custom: true
+name: Frontal Assault
+iconid: 11d94f0a-d2cb-4f82-a64e-b36bc75e8670
+description: The first time on a turn that you or any ally deals damage to a target marked by you, the creature who dealt the damage can push the target up to 2 squares and then shift up to 2 squares. Additionally, any ally using the Charge main action to target a creature marked by you can use a melee strike signature ability or a melee strike heroic ability instead of a melee free strike.
+mtime: 1759805122580
+implementation: 3

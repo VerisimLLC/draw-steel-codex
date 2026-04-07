@@ -1,0 +1,341 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: aaefb72e-e2a3-4780-a386-3033376752ea
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Penteulu	Level 3 Leader
+        Fey, Humanoid. Wode Elf	EV 54
+        <b>Stamina</b> 120
+        <b>Speed</b> 7 (teleport)	<b>Size</b> 1M / <b>Stability</b> 2
+        	<b>Free Strike</b> 5
+        Might +2	Agility +3	Reason +2	Intuition +2	Presence +2
+        <b>Wodeblade</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> 3 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; M<1 restrained (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	9 damage; M<2 restrained (save ends)
+        %E2%9C%B8	<b>17</b>	12 damage; M<3 restrained (save ends)
+        <b>	Effect</b> The penteulu strikes each target one at a time and can teleport 3 squares between each strike.
+        <b>2 Malice</b> A target restrained by this ability takes an additional 3 damage.
+
+        <b>Fairness is a Human Concept</b> (Maneuver) %E2%97%86 5 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst<b>Target</b> All allies in the burst
+        <b>Effect</b> Each target can make a free strike and then shifts 3. A target immediately hides at the end of the penteulu's turn while in cover or concealment.
+
+        <b>Wode Sickness</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger</b> An ally ends their turn.
+        <b>	Distance</b> Ranged 10	<b>Target</b> 1 enemy
+        <b>Effect</b> The target must take their turn now, if they have not already taken it. <b>P<2</b> the target is bleeding and has a bane on their strikes until the end of their turn.
+
+        <b>End Effect</b>
+        At the end of their turn, the penteulu can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Hunter's Glamor</b>
+        The penteulu immediately hides at the end of their turn, even if they are observed.
+
+        <b>You Will ALL Witness my Blade </b>(Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> 5 burst<b>Target</b> All enemies in the burst
+        <b>Effect</b> The penteulu uses Wodeblade against each target with an edge.
+
+        <b>Suppressing Volley </b>(Villain Action 2)
+        <b>Keywords</b> Area
+        <b>Distance</b> 5 burst<b>Target</b> All allies in the burst
+        <b>Effect</b> The penteulu uses Wodeblade against a single creature or object. Each target then makes a free strike.
+
+        <b>Is it Now or is it Then? Where are We? </b>(Villain Action 3)
+        <b>Keywords</b> Area
+        <b>Distance</b> Self and 5 burst<b>Target</b> Self and all allies in the burst
+        <b>Effect</b> Each target becomes invisible until the start of the next round. The penteulu then uses Wodeblade.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a181a3cb-dd25-44ca-aff4-ff25df3a31af: true
+      modifiers: []
+      name: End Effect
+      description: At the end of their turn, the penteulu can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: a181a3cb-dd25-44ca-aff4-ff25df3a31af
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d2e7cc3a-6852-47ec-86da-e3b867c2fa1e: true
+      modifiers: []
+      name: Hunter's Glamor
+      description: The penteulu immediately hides at the end of their turn, even if they are observed.
+      guid: d2e7cc3a-6852-47ec-86da-e3b867c2fa1e
+      source: Trait
+    role: Leader
+    keywords:
+      Elf: true
+      Wode Elf: true
+      Fey: true
+      Humanoid: true
+      Wode: true
+    max_hitpoints_roll: "120"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    monster_type: Wode Elf Penteulu
+    opportunityAttack: 5
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    levelChoices: []
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    walkingSpeed: 7
+    max_hitpoints: 120
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; M<1 restrained (save ends)
+        - 9 damage; M<2 restrained (save ends)
+        - 12 damage; M<3 restrained (save ends)
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5d09d391-00f2-4925-99f7-8ac90e826daa
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Wodeblade
+      numTargets: 3
+      description: The penteulu strikes each target one at a time and can teleport 3 squares between each strike.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: eae09536-eede-42af-bb71-cfb089b8419d
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Fairness is a Human Concept
+      implementation: 0
+      description: Each target can make a free strike and then shifts 3. A target immediately hides at the end of the penteulu's turn while in cover or concealment.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 6a147866-ced8-4078-9604-e80f087f4edd
+      numTargets: 1
+      targetType: target
+      name: Wode Sickness
+      iconid: ui-icons/skills/1.png
+      description: The target must take their turn now, if they have not already taken it. P<2 the target is bleeding and has a bane on their strikes until the end of their turn.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 9c7171cc-d2e6-4b1f-805c-af48ad1a374c
+        multicharge: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9ab2e107-23e7-4381-98e6-8a194a088c46
+      numTargets: 1
+      targetType: all
+      implementation: 0
+      name: 'You Will ALL Witness my Blade '
+      effectImplemented: false
+      description: The penteulu uses Wodeblade against each target with an edge.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ca84a796-b505-4b69-be06-de9c0e0250c7
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: a025d1a9-6bb6-4d58-b7ff-0c8fe2f44597
+        multicharge: false
+      implementation: 0
+      behaviors: []
+      name: 'Suppressing Volley '
+      numTargets: 1
+      description: The penteulu uses Wodeblade against a single creature or object. Each target then makes a free strike.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 3f5a1aea-0cbd-44f1-9573-74c8e234c850
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 2470dd3d-4b02-4453-a24a-4a43c9c6e9d9
+        multicharge: false
+      implementation: 0
+      behaviors: []
+      name: 'Is it Now or is it Then? Where are We? '
+      numTargets: "1"
+      description: Each target becomes invisible until the start of the next round. The penteulu then uses Wodeblade.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds:
+      teleport: 7
+    damage_taken: 0
+    minion: false
+    ev: 54
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: c4b8ea4d-d34c-4f1f-918e-48a05b5c4926
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Wode Elf Penteulu
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590304760
+mtime: 1775201137032
+hidden: false

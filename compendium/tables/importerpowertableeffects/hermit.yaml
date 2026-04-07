@@ -1,0 +1,74 @@
+__typeName: ActivatedAbility
+targetFilter: ""
+id: 3363708f-d04f-4821-a1b6-04668a167a43
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: caster
+  inheritRange: true
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 89de0e15-8ac9-49fc-8e5c-e1a41147ed3d
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: targets
+      targeting: self
+      standardAbility: 62d8c42b-c4af-4941-aa73-658bdbe80c9d
+      runOnController: true
+      abilityType: standard
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 500ace0e-b3f2-4266-9ef7-541588683e98
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 5
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    range: 5
+    name: Invoked Ability
+    targetType: target
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  promptText: Choose Hero to Make a Save
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: "5"
+repeatTargets: false
+testCases:
+- text: a hero within range can make a save
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+guid: bd6ed3a5-75d5-4c8a-a746-2d96c414bd74
+importMatch: a hero within range can make a save
+ctime: 1711322542865
+persistence: []
+mtime: 1768251102072
+selfTarget: false
+name: Hermit
+targetType: target
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

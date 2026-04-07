@@ -1,0 +1,70 @@
+__typeName: Kit
+armor: Light
+health: 3
+id: 0f6bf560-11cb-4c6e-ba36-b556fd7fd278
+weapons:
+  Net: true
+  Polearm: true
+reach: 1
+disengage: 1
+name: Retiarius
+description: The retiarius is often depicted as a lightly armored warrior with a net in one hand and a trident in the other, and this kit gives you the equipment and fighting technique to make that happen. Tie up your foe with a net and then poke them to death!
+portraitid: aea9ba1a-ebe6-4886-82c5-962ab45d0a06
+kitManeuver: false
+type: martial
+speed: 1
+imported: f00d5a62-59c0-4e1e-8a3a-f83638aa576b
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 4 + M or A damage; A < weak, slowed (EoT)
+    - 6 + M or A damage; A < average, slowed (EoT)
+    - 8 + M or A damage; A < strong, restrained (EoT)
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: The well-thrown net that follows your main attack leaves your foes right where you want them.
+  sourceReference:
+    __typeName: SourceReference
+    page: 222
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 2
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  modifiers: []
+  strain: []
+  guid: b6d58e0d-f8d1-455b-8cf9-78ba51dcf28a
+  categorization: Signature Ability
+  numTargets: 1
+  implementation: 4
+  persistence: []
+  name: Net and Stab
+  targetType: target
+  description: ""
+  abilityType: none
+  iconid: 80eefb2e-eed0-4e13-8f19-21bad620cc8d
+mtime: 1770565465696
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+equipmentDescription: You wear light armor, and wield a polearm and several ensnaring weapons.

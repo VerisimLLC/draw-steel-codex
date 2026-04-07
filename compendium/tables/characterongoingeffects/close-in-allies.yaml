@@ -1,0 +1,59 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:78373684-dfe9-42e6-8b98-a59ca23fbcce: true
+  sourceguid: 78373684-dfe9-42e6-8b98-a59ca23fbcce
+  description: Any Enemy Creature adjacent to this creature will need to make a Intuition Test as the Orc Warleader ability "Close In"
+  source: Ongoing Effect
+  name: Close In Allies
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: enemy
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: f5bd3f0d-e7b6-435e-8899-57a15eab15ba
+      duration: 0
+      ongoingEffectCustom: f5bd3f0d-e7b6-435e-8899-57a15eab15ba
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    targetType: all
+    domains:
+      CharacterOngoingEffect:78373684-dfe9-42e6-8b98-a59ca23fbcce: true
+    name: Close In Allies
+    numTargets: "1"
+    trigger: finishmove
+    guid: b30fdea6-c75c-425f-9112-977824a817c3
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 9ef585a6-c6e2-4ad9-b7c3-232b5792b71c
+source: Ongoing Effect
+guid: 78373684-dfe9-42e6-8b98-a59ca23fbcce
+id: 78373684-dfe9-42e6-8b98-a59ca23fbcce
+ctime: 1768321349611
+domains:
+  CharacterOngoingEffect:78373684-dfe9-42e6-8b98-a59ca23fbcce: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Close In Allies
+statusEffect: true
+description: Any Enemy Creature adjacent to this creature will need to make a Intuition Test as the Orc Warleader ability "Close In"
+mtime: 1768321578902
+iconid: ebc8b529-f450-4bee-9466-86374c26dc13

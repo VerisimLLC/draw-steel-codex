@@ -1,0 +1,188 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 31c14396-9031-471c-a124-125724e591f1
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 2
+    import:
+      type: mcdm
+      data: |+
+        Cradle Credenza	Level 2 Support
+        Construct, High Elf	EV 16
+        <b>Stamina</b> 49
+        <b>Speed</b> 4	<b>Size</b> 2 /<b> Stability</b> 3
+        <b>Free Strike</b> 4
+        Might +2	Agility 0	Reason 0	Intuition 0	Presence +2
+        <b>Book Wall</b> (Action) %E2%97%86 Signature
+        <b>Keywords</b> Area
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The cradle credenza speed becomes 0 and they extend themself into a 5 wall until the start of their next turn. Allies adjacent to the wall at the start of their turn regain 5 Stamina and can apply the Magic keyword to their weapon abilities until the end of their turn.
+
+        <b>Elemental Chaos</b> (Action)%E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 fire damage; 2 cold damage; 2 lightning damage
+        %E2%98%85	<b>12%E2%80%9316</b>	3 fire damage; 3 cold damage; 3 lightning damage; push 3
+        %E2%9C%B8	<b>17</b>	4 fire damage; 4 cold damage; 4 lightning damage; push 5
+
+        <b>Defend the Books</b>
+        Each ally within 5 of a creature that strikes the cradle credenza can make a free strike against them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ebd3f8dc-b685-4bbb-b21f-2ffbfd9e6ded: true
+      modifiers: []
+      name: Defend the Books
+      description: Each ally within 5 of a creature that strikes the cradle credenza can make a free strike against them.
+      guid: ebd3f8dc-b685-4bbb-b21f-2ffbfd9e6ded
+      source: Trait
+    role: Support
+    inflictedConditions: []
+    keywords:
+      Elf: true
+      High: true
+      Construct: true
+      High Elf: true
+    max_hitpoints_roll: "49"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    monster_type: Cradle Credenza
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 4
+    resources: []
+    max_hitpoints: 49
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6400bd16-571f-460f-89f9-58a21215288e
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Book Wall
+      numTargets: "1"
+      description: The cradle credenza speed becomes 0 and they extend themself into a 5 wall until the start of their next turn. Allies adjacent to the wall at the start of their turn regain 5 Stamina and can apply the Magic keyword to their weapon abilities until the end of their turn.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9cd802c6-9879-4339-a490-a18836a5886e
+      implementation: 4
+      numTargets: 1
+      name: Elemental Chaos
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 fire damage; 2 cold damage; 2 lightning damage
+        - 3 fire damage; 3 cold damage; 3 lightning damage; push 3
+        - 4 fire damage; 4 cold damage; 4 lightning damage; push 5
+        roll: 2d10 + 2
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    movementSpeeds: []
+    ev: 16
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: d6531516-0714-4e6b-9bab-13a017ff1701
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Cradle Credenza
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590314072
+mtime: 1775201137032
+hidden: false

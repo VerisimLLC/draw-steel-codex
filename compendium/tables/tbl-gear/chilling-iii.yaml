@@ -1,0 +1,46 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: f6a7b8c9-d0e1-2345-fabc-456789012345
+  description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 9 cold damage and is slowed (save ends). This replaces the benefit of Chilling II.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: f6a7b8c9-d0e1-2345-fabc-456789012345
+    displayCondition: ability.doesdamage
+    source: Item
+    modtype: none
+    keywords:
+      Weapon: true
+    activationCondition: ability.doesdamage
+    guid: e5f6a7b8-c9d0-1234-efab-345678901234
+    name: Chilling III
+    description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 9 cold damage and is slowed (save ends). This replaces the benefit of Chilling II.
+    addText: // // 9 cold damage; slowed (eot)
+    rollType: ability_power_roll
+    behavior: power
+  source: Item
+  name: Chilling III
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: The weapon must be dipped in the Glacial Forge in the coldest depths of Hell
+imbuePrereq: 829815e9-def3-45f7-8d35-13d7a494990d
+projectSource: Yllyric
+imbueLevel: 9
+imbueReplacesPrereq: true
+category: Gear
+description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature takes 9 cold damage and is slowed (save ends). This replaces the benefit of Chilling II.
+type: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+ctime: 1770699205313
+projectGoal: "150"
+implementation: 4
+id: bff3b449-0b49-4271-bb99-5e8fbf544d19
+name: Chilling III
+imbueTargetType: weapon
+mtime: 1773927284070
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 33b57980-7aa6-45f4-836a-5b97fb8638c5

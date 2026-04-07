@@ -1,0 +1,431 @@
+__typeName: Race
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    costsPoints: true
+    options:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6a78bbd7-f7be-4f29-b639-e1595c758137
+        source: Devil Race Feature
+        behavior: power
+        guid: 7d683e2e-3e2a-4543-a249-b5297334c7ba
+        keywords:
+          Strike: true
+          Melee: true
+        activationCondition: false
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        description: Your pointy tail allows you to punctuate all your actions. Once per round, you can deal extra damage equal to your highest characteristic score on a melee strike.
+        rollType: ability_power_roll
+        resourceRefreshType: round
+        damageModifier: Might or Agility or Intuition or Presence or Reason
+        modtype: none
+        name: Barbed Tail
+      source: Devil Race Feature
+      guid: 6a78bbd7-f7be-4f29-b639-e1595c758137
+      pointsCost: 1
+      domains:
+        race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      name: Barbed Tail
+      description: Your pointy tail allows you to punctuate all your actions. Once per round, you can deal extra damage equal to your highest characteristic score on a melee strike.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: b20b793c-2ab0-40c3-813d-a71d3f07555e
+        source: Devil Race Feature
+        value: "6	"
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        name: Beast Legs
+        guid: 9476a055-a41b-4bfd-a9aa-8c2d59bb8bfa
+        description: Your powerful legs improve your speed. Your speed becomes 6.
+        behavior: attribute
+        attribute: speed
+      source: Devil Race Feature
+      guid: b20b793c-2ab0-40c3-813d-a71d3f07555e
+      pointsCost: 1
+      domains:
+        race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      name: Beast Legs
+      description: Your powerful legs improve your speed. Your speed becomes 6.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        sourceguid: 5e49d00d-545f-4470-b5c5-a768b274e3e0
+        description: Your eyes are a solid, vibrant color that flares to show your excitement or rage. Whenever you take damage from a creature, you can use a triggered action to curse that creature for daring to do you harm. The creature takes 1d10 + your level psychic damage.
+        source: Devil Race Feature
+        name: Glowing Eyes
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: psychic
+            roll: 1d10 + level
+          triggerPrompt: Deal 1d10 + your level in psychic damage to your attacker
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: "100"
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 333f5412-ca99-4da2-a220-2a5a1412a397
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          numTargets: "1"
+          targetType: attacker
+          trigger: losehitpoints
+          name: Glowing Eyes
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 188885f3-f7b9-4833-b211-260b8f4f371e
+      - __typeName: CharacterModifier
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        sourceguid: 5e49d00d-545f-4470-b5c5-a768b274e3e0
+        behavior: triggerdisplay
+        source: Devil Race Feature
+        name: Glowing Eyes
+        description: Your eyes are a solid, vibrant color that flares to show your excitement or rage. Whenever you take damage from a creature, you can use a triggered action to curse that creature for daring to do you harm. The creature takes 1d10 + your level psychic damage.
+        guid: 7692a475-adf9-4287-a859-6f300c7b43d1
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One creature
+          effect: The target takes 1d10 + {level|Your Level} psychic damage.
+          name: Glowing Eyes
+          trigger: The target does damage to you.
+          flavor: Your eyes are a solid, vibrant color that flares to show your excitement or rage.
+          guid: 23df80c9-f5f4-4089-b677-cfc6acea7242
+          distance: Entire Map
+          keywords: []
+      source: Devil Race Feature
+      guid: 5e49d00d-545f-4470-b5c5-a768b274e3e0
+      pointsCost: 1
+      domains:
+        race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      name: Glowing Eyes
+      description: Your eyes are a solid, vibrant color that flares to show your excitement or rage. Whenever you take damage from a creature, you can use a triggered action to curse that creature for daring to do you harm. The creature takes 1d10 + your level psychic damage.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 6e83aee9-bf9c-43ee-8d8d-d59842a42a33
+        source: Devil Race Feature
+        value: 1
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        name: Hellsight
+        guid: 50a6add4-8c42-4306-87d2-d17fa41341cf
+        description: Your eyes let you see through the dark, fog, and other types of concealment. You don’t take a bane on attacks against concealed, unhidden creatures.
+        behavior: attribute
+        attribute: 16228928-9f29-4510-a703-65344f2356ef
+      - __typeName: CharacterModifier
+        sourceguid: 6e83aee9-bf9c-43ee-8d8d-d59842a42a33
+        source: Devil Race Feature
+        value: 30
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        name: Hellsight
+        guid: 350c9e39-27b5-474d-b622-894fd6d66015
+        description: Your eyes let you see through the dark, fog, and other types of concealment. You don’t take a bane on attacks against concealed, unhidden creatures.
+        behavior: attribute
+        attribute: darkvision
+      source: Devil Race Feature
+      guid: 6e83aee9-bf9c-43ee-8d8d-d59842a42a33
+      pointsCost: 1
+      domains:
+        race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      name: Hellsight
+      description: Your eyes let you see through the dark, fog, and other types of concealment. You don’t take a bane on attacks against concealed, unhidden creatures.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 1490ae69-5d46-415e-bbb7-38106f05752d
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: min
+        sourceguid: 1490ae69-5d46-415e-bbb7-38106f05752d
+        source: Devil Race Feature
+        value: "5	"
+        name: Impressive Horns
+        guid: c780ef24-1437-4723-8d11-8fd6001a647a
+        description: Your cherished horns are larger than the average devil and a hardened representation of your force of will, allowing you to succeed on a roll of 5 or higher with saving throws.
+        behavior: attribute
+        attribute: 006e37a7-bd0d-4602-8a76-05e1ef6c56d3
+      source: Devil Race Feature
+      name: Impressive Horns
+      description: Your cherished horns are larger than the average devil and a hardened representation of your force of will, allowing you to succeed on a roll of 5 or higher with saving throws.
+      pointsCost: 2
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 19658dae-3771-48d3-9d06-0ed017eb06f9
+        source: Devil Race Feature
+        value: 1
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        name: Prehensile Tail
+        guid: 26eb1f08-7731-4186-8ae9-87f56d9fe37b
+        description: Your prehensile tail allows you to challenge foes on all sides. You can’t be flanked.
+        behavior: attribute
+        attribute: 0dede2a8-4f44-45aa-be20-342fdffd4916
+      source: Devil Race Feature
+      guid: 19658dae-3771-48d3-9d06-0ed017eb06f9
+      pointsCost: 2
+      domains:
+        race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      name: Prehensile Tail
+      description: Your prehensile tail allows you to challenge foes on all sides. You can’t be flanked.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: add
+        sourceguid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+        source: Devil Race Feature
+        value: Movement Speed
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        name: Wings
+        guid: d8a087bc-689f-47f1-bde9-304c4d27b1af
+        description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+        behavior: attribute
+        attribute: fly
+      - __typeName: CharacterModifier
+        sourceguid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+        source: Devil Race Feature
+        behavior: resistance
+        filterCondition: Movement Type = "Fly" and Level <= 3
+        name: Wings
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "-5"
+          damageType: all
+          apply: Damage Reduction
+        description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+        guid: 8159cfc7-58d8-4092-a112-5eb165298945
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      - __typeName: CharacterModifier
+        domains:
+          race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+        sourceguid: e5f3a1e3-0d9b-4957-85de-85103c8a81a5
+        description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+        source: Devil Race Feature
+        name: Wings
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: bb77c6ce-5af5-4e2a-a9dd-a4427c77e486
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 6a6f4254-937b-4500-92cd-9fcfa26350ea
+            ongoingEffectCustom: 6a6f4254-937b-4500-92cd-9fcfa26350ea
+          - __typeName: ActivatedAbilityFizzleBehavior
+            filterTarget: Stacks("Flying Fatigue") < Might
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            instant: false
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              modifiers:
+              - __typeName: CharacterModifier
+                operation: set
+                sourceguid: 342f981a-0f2b-4895-8556-45765bccc1e1
+                source: Ongoing Effect
+                value: 0
+                name: Fall
+                guid: d00ee953-ee46-4f6e-b717-58caa3cda261
+                description: ""
+                behavior: attribute
+                attribute: fly
+              source: Ongoing Effect
+              guid: 342f981a-0f2b-4895-8556-45765bccc1e1
+              id: 342f981a-0f2b-4895-8556-45765bccc1e1
+              name: Fall
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              description: ""
+              implementation: 3
+              iconid: ui-icons/skills/1.png
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityDelayBehavior
+            delay: "0.5"
+          - __typeName: ActivatedAbilityFallBehavior
+          conditionFormula: Movement Type = "Fly"
+          whenActive: combat
+          numTargets: "1"
+          trigger: beginround
+          name: Wings
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 46f68649-467f-4020-9a2e-29ad08853e7b
+      source: Devil Race Feature
+      guid: a91d6cb8-96c2-4ec1-be98-51e691ff5b70
+      pointsCost: 2
+      domains:
+        race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+      name: Wings
+      description: You possess wings powerful enough to take you airborne. While using your wings to fly, you can stay aloft for a number of rounds equal to your Might score (minimum 1 round) before you fall. While using your wings to fly at 3rd level or lower, you have damage weakness 5.
+      canHavePrerequisites: true
+      implementation: 3
+    numChoices: "3"
+    guid: aee57141-16bc-418d-9aca-dab7d44f0ecc
+    description: You have 3 ancestry points to spend on the following traits.
+    name: Purchased Devil Traits
+  - __typeName: CharacterSkillChoice
+    categories:
+      interpersonal: true
+    name: "Signature Trait: Silver Tongue Skill"
+    guid: c951f948-9c75-4785-83fe-0a432aa26867
+    description: Your innate magic allows you to twist how your words are perceived to get a better read on people and convince them to see things your way. You gain an interpersonal skill of your choice, and you have an edge when attempting to discover an NPC’s motivations and pitfalls during negotiations (see Negotiation).
+    source: Devil Race Feature
+  domains:
+    race:84780fe9-1790-43ad-b985-27ec83d6131e: true
+lifeSpan: 70–120
+nameGenerator: 124bc71a-d675-463c-822c-c06b44ea6d37
+id: 84780fe9-1790-43ad-b985-27ec83d6131e
+ctime: 1726551501570
+lore: |-
+  Adelard scuttled across the floor of his basement, a heavy tome clutched in one hand, his index finger marking a page. Occasionally he would stop, open the book, consult a diagram, look at the chalk markings he’d made on the floor, tilt his head, then bend down and refine or rub out an esoteric symbol.
+
+  One of the red candles suddenly guttered out, making the small room noticeably darker. “Damn and blast!” he hissed. Then he relit it from another candle.
+
+  Stepping back to admire his handiwork, Adelard crossed his arms and nodded. He’d spent his last coppers on the candles—they weren’t cheap. And he feared the skull might be fake, but did it matter? The book just said a skull—it didn’t even specify a human skull! Did it matter if it was real? It was probably real. What kind of market was there for replica skulls? But it was awfully cheap. Anyway, did it matter? How would the ritual know if the skull was real?
+
+  He was wittering, putting off the inevitable. He pulled himself together. It was either going to work, or it wasn’t, and wittering wasn’t going to help. He opened the book and turned the page—then began to speak the ritual.
+
+  Moments later, the candles flared, there was a burst of flame, and acrid brimstone filled his nostrils. When the smoke cleared … there was a devil standing in his basement—dark purple skin, horns, even a twitching tail.
+
+  “Aha! Yes, finally.” The creature rubbed his hands together. “It’s about time,” he said, pulling on the bottom of his waistcoat to straighten it. “Now then! How does it go? Oh, yes.” He cleared his throat. “On behalf of my lord, his grace Archduke Dispater, Lord of Dis, I am empowered to offer you …” But his speech fell on deaf ears.
+
+  “It worked!” Adelard said, holding his clenched fists up. “Ahahaha! It worked! Finally, after years! I will have my revenge! Hahaha …! *cough* *cough*” Adelard was suddenly gripped by a coughing fit, but he kept crowing. 
+
+  “Dismiss me from service, will they?! *cough* Old and useless … am I?! I’ll show them!” He coughed again, fighting to breathe now. “I will hex them and torture them until they …” 
+
+  He stopped cavorting and capering, and his eyes went wide. “Until they … until …” He clutched his chest.
+
+  “Uh-oh,” the devil said, genuinely worried.
+
+  “HNNG!” Adelard grunted. Then he collapsed to the ground, curled into a fetal position, obviously in immense pain.
+
+  “Nono. Nurse!” the devil called out. “Doctor?! Is anyone … you should lie down. Well, you are lying down. Do some … some deep-breathing exercises. Have a cup of tea! That always …”
+
+  Adelard gasped one last time and uncurled, muscles relaxed. Eyes open but unseeing. 
+
+  “… calms me down,” the devil said quietly.
+
+  Suddenly, the candles were extinguished as one, plunging the room into pitch blackness. The devil’s hellsight meant this was only a minor inconvenience for him. “Um,” he said to the empty room. “Uh-oh.”
+
+  He poked the tip of his boot at the chalk symbol surrounding him on the floor. Nothing happened. He stepped on it. Nothing happened. He put his weight on that foot. No alarms went off.
+
+  He walked out of the circle. Nothing happened. No one, it seemed, cared. 
+
+  A few moments later, the door to a small home, little more than a wooden shack, on the outskirts of a small village opened. A well-dressed devil peeked out and then slowly emerged, stepping onto the dirt road that led through the center of the village. A keep stood atop a hill in the distance.
+
+  “Ah,” the devil said.
+
+  A wide woman dressed in wool, carrying a pile of clean clothes, saw him and stopped in her tracks, her mouth open.
+
+  “Oh! Good day to you, madam. I wonder if you could tell me …”
+
+  “AAAHHHHH!!!” she screamed. For quite a long time. Then she dropped her laundry and ran.
+
+  “Ah. Um. Hmm.”
+
+  A young man in a low, stone building saw this exchange, grabbed what looked like a long iron poker, and ran out to confront the new arrival.
+
+  “Have at you, devil!” he said, assuming something like a dueling pose.
+
+  “I say! Steady on!” The devil raised his hands.
+
+  The two of them stood there, frozen in the middle of the street for a few moments.
+
+  Then the devil turned and ran away as quickly as he could.
+
+                                                                                         •
+  “And that’s how I ended up here!” Riyalkin toasted his dinner companion. “Now, after years of obscurity, a legendary hero!”
+
+  “Legendarily vain,” his dinner guest teased with a smile.
+
+  “Simply playing my part, darling. People expect a certain amount of vanity in a troubadour, don’t they?”
+
+  She laughed. “Riyalkin the Red Pen is every bit as advertised.”
+
+  “Thank you. And besides, accusations of vanity are a bit rich coming from my leading lady.”
+
+  “Not all actors are vain.” She took offense beautifully. “Just the good ones.” She sipped her drink.
+
+  “Well then, you must be very vain indeed,” the devil said. “Anyway, does that answer your question?”
+
+  “Mostly. Do they speak Caelian in Hell?”
+
+  “What a good question. Unless it’s very old, the ritual usually grants knowledge of the summoner’s language. I gather in the bad old days, we used to just show up in a cloud of brimstone and gabble at people. I’m sure it was impressive, but what did it achieve? Not very professional, I can tell you that.”
+
+  “No cloud of brimstone now?” she teased.
+
+  He waggled his eyebrows. “Style counts for something.”
+
+  “But wait, that was …” She did some quick mental math. “Fifteen years ago?”
+
+  “Well, I was an accountant here in Capital for several years in between.”
+
+  “An accountant!”
+
+  Riyalkin shrugged. “It’s what I did before. I’m moderately good at it.”
+
+  “And how does one go from being an alien accountant to a famous troubadour?”
+
+  “Well …” Riyalkin seemed uncomfortable suddenly. “It’s just that … the thing is, accountancy in the Seven Cities is just so much more interesting than it is here. Plotting and scheming, always on the lookout for an assassin, people constantly trying to claw their way up the ladder, usually over your dead body. And I guess I just … missed the excitement.”
+
+  “The excitement of being an accountant.”
+
+  “The excitement of being an accountant in Hell,” Riyalkin said. “In any event, enough about me and the thrill of double-entry bookkeeping. Perhaps you can enlighten me. Why is it, in spite of my impeccable taste and the outrageous sums I spend looking good, I always feel underdressed in your presence? Do you employ sorcery? Or is it that any outfit is improved by your unearthly beauty?”
+
+  She blushed in spite of herself and raised her own glass in a toast.
+
+  “You silver-tongued devil.”
+moveSpeeds:
+  walk: 5
+details: "The native ancestry of the Seven Cities of Hell, devils are humanoids with red or blue skin expressed in a wide variety of hues, from bright crimson to deep purple. Each devil is born with some hellmark—horns, a tail, cloven hooves, a forked tongue, fanged incisors, or even wings. \n\nHell is dominated by the Seven Cities of Hell, each ruled by a different archdevil who constantly plots and schemes against the others in the hope of ascending to the Throne of Hell. \n\nThose devils who join “the trade,” as their civil service is called, spend their days in bureaucratic service hoping or scheming for promotion. Devils looking for a quick path up the bureaucratic ladder sign up for the Exchange, whereby mortals in the mundane world who perform the right rituals can summon a devil, who bargains with the supplicant on behalf of their archdevil. Archdevils can grant temporary worldly power in exchange for a supplicant’s soul, with the summoned devil acting as the broker.  \n\nOn rare occasions, though, the summoning goes wrong and the supplicant dies before the deal can be struck, stranding the summoned devil on Orden permanently. Some stranded devils seek to return to Hell, but most prefer life in Orden, where the phrase “stabbed in the back by a colleague” is usually a metaphor. \n\nThe majority of devils in Orden are not from, nor have ever been to, the Seven Cities. They are descendants of devils who were stranded in the mundane world decades, centuries, even millennia ago.  "
+name: Devil
+mtime: 1774155639898
+height: 5’0’’–6’0’’
+weight: 120–250
+portraitid: 35995efc-298b-4806-88df-4fb90b59ed18

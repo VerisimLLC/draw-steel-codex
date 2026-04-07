@@ -1,0 +1,150 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:7bbd660a-e705-4a28-8972-73d60875005b: true
+  sourceguid: 7bbd660a-e705-4a28-8972-73d60875005b
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: stacks
+    stacks: true
+    damageType: all
+    apply: Damage Reduction
+  guid: 630ea81a-e63a-48e9-9533-23728cf459c1
+  name: Force Orbs
+  description: A numer of 1T orbs orbit your body.
+- __typeName: CharacterModifier
+  operation: add
+  sourceguid: 7bbd660a-e705-4a28-8972-73d60875005b
+  source: Ongoing Effect
+  value: stacks
+  domains:
+    CharacterOngoingEffect:7bbd660a-e705-4a28-8972-73d60875005b: true
+  name: Force Orbs
+  guid: 9d93d00a-87e6-456e-b90b-a280578f1338
+  description: A numer of 1T orbs orbit your body.
+  behavior: attribute
+  attribute: bfce8c46-3dbe-40a9-9cd4-994ba6eb53f2
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:7bbd660a-e705-4a28-8972-73d60875005b: true
+  sourceguid: 7bbd660a-e705-4a28-8972-73d60875005b
+  description: A numer of 1T orbs orbit your body.
+  source: Ongoing Effect
+  name: Force Orbs
+  behavior: activated
+  guid: b2a58f3c-8930-4063-846f-906fb30c1206
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: true
+    repeatTargets: false
+    keywords:
+      Ranged: true
+      Telepathy: true
+      Strike: true
+      Psionic: true
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      applyto: targets
+      roll: 2d10 + Reason
+      tiers:
+      - 2 damage
+      - 3 damage
+      - 5 damage
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      applyto: caster
+      mode: effect
+      purgeType: all
+      ongoingEffect: 7bbd660a-e705-4a28-8972-73d60875005b
+      stacksFormula: "1"
+      useStacks: true
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Heroic Ability
+    range: "5"
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 26746011-412d-4af1-8016-5389ffe6ee74
+    sourceReference:
+      __typeName: SourceReference
+      page: 208
+      docid: a623e586-b67d-4563-a5b8-62744d648c31
+    domains:
+      CharacterOngoingEffect:7bbd660a-e705-4a28-8972-73d60875005b: true
+    iconid: ui-icons/skills/1.png
+    targetType: target
+    name: Force Orbs
+    persistence: []
+    description: Once on each of your turns, you can use a free maneuver to fire an orb at a creature or object within 5 squares as a ranged strike, losing the orb after the strike.
+    abilityType: none
+    implementation: 3
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:7bbd660a-e705-4a28-8972-73d60875005b: true
+  sourceguid: 7bbd660a-e705-4a28-8972-73d60875005b
+  description: A numer of 1T orbs orbit your body.
+  source: Ongoing Effect
+  name: Force Orbs
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: losehitpoints
+    strain: []
+    guid: b1acf0a6-85fc-465f-8beb-3114e7babcb3
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:7bbd660a-e705-4a28-8972-73d60875005b: true
+    targetType: self
+    persistence: []
+    name: Force Orbs Remove from Damage
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      mode: effect
+      purgeType: all
+      ongoingEffect: 7bbd660a-e705-4a28-8972-73d60875005b
+      guid: 922bc3cb-441b-43cb-9622-b4717d19f483
+      useStacks: true
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: f12e40b1-681d-4668-9b82-021927d33968
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+stackable: true
+id: 7bbd660a-e705-4a28-8972-73d60875005b
+ctime: 1757727890079
+domains:
+  CharacterOngoingEffect:7bbd660a-e705-4a28-8972-73d60875005b: true
+condition: none
+custom: true
+name: Force Orbs
+guid: 7bbd660a-e705-4a28-8972-73d60875005b
+description: A numer of 1T orbs orbit your body.
+mtime: 1760736054865
+iconid: 11b8136c-1bbf-4d74-a1ec-c58f81e66f57

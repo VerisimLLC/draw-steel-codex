@@ -1,0 +1,48 @@
+__typeName: ActivatedAbility
+id: 38d34cbb-6e59-4f5e-b9b5-34f93220601e
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  abilityType: standard
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: a39e1c90-0573-4d2d-ba52-894f9f19852d
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  standardAbility: e19f1d97-6e44-4366-8f35-418bd5c5ab8e
+  promptText: Choose an adjacent ally to attack the target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: One ally adjacent to the target can make a free strike against them.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 6bbfe5da-3d5a-4f72-bedc-4822bbadb7b5
+importMatch: One ally adjacent to the target can make a free strike against them.
+ctime: 1740887054572
+targetType: self
+repeatTargets: false
+description: ""
+name: Adjacent Ally Free Strike
+numTargets: "1"
+mtime: 1773102895726
+abilityType: none
+iconid: 62341b12-58ba-48d7-8571-df506f2099b9

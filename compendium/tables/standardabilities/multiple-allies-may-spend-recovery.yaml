@@ -1,0 +1,53 @@
+__typeName: ActivatedAbility
+targetFilter: enemy
+id: 9b297e5d-46e9-44fd-a92e-3f567eb7cf8b
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  runOnController: true
+  promptText: ""
+  applyto: targets
+  targeting: self
+  standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+  autoTarget: false
+  standardAbilityParams:
+    numrecoveries: "<<numrecoveries>>"
+  abilityType: standard
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 88d0fda3-29a3-4d76-ae54-e9253c73ccb1
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 7b7825ea-2ad7-40e5-b25b-800c6ad39543
+ctime: 1746807449768
+targetType: all
+numTargets: ""
+description: ""
+name: Multiple Allies May Spend Recovery
+repeatTargets: false
+mtime: 1768318322373
+abilityType: none
+iconid: ui-icons/skills/1.png

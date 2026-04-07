@@ -1,0 +1,203 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 35084e22-b9e4-449d-a5d4-987d92e70f18
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        War Dog War Frog	Level 4 Ambusher Minion
+        Humanoid, War Dog	EV 8
+        <b>Stamina</b> 10	<b>Immunity</b> Poison 4
+        <b>Speed</b> 5 (swim, climb)	<b>Size</b> 1S /<b>Stability</b> 0
+        <b>With Captain</b> Speed +2	<b>Free Strike</b> 3
+        Might -1	Agility +3	Reason +0	Intuition +2	Presence +0
+        <b>Poisoned Dagger</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Attack, Melee, Ranged, Weapon
+        <b>Distance</b> Melee 1 or Ranged 4<b>Target</b> One creature per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 poison damage
+        %E2%98%85	<b>12-16</b>	5 poison damage
+        %E2%9C%B8	<b>17</b>	7 poison damage
+        <b>Effect</b> The war frog jumps 3 squares before or after making their attack. If the war frog lands in cover or concealment, they can take the Hide maneuver as part of this ability.
+
+        <b>Loyalty Collar</b>
+        When the war frog dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:dad018b0-d225-4cad-8719-d0b0129a3684: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the war frog is reduced to 0 Stamina, their loyalty collar explodes, dealing 1d6 damage to each adjacent enemy and object.
+      guid: dad018b0-d225-4cad-8719-d0b0129a3684
+      name: Loyalty Collar
+      implementation: 3
+    role: Minion Ambusher
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 3
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    monster_type: War Dog War Frog
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: -1
+        id: mgt
+    withCaptain: +2 bonus to speed
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 8
+    traitNames:
+    - With Captain Speed +2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 poison damage
+        - 5 poison damage
+        - 7 poison damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 4
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d8859019-b840-4a93-b452-53a6388ce721
+      meleeRange: 1
+      numTargets: 1
+      targetType: target
+      name: Poisoned Dagger
+      iconid: ui-icons/skills/1.png
+      description: The war frog jumps 3 squares before or after making their attack. If the war frog lands in cover or concealment, they can take the Hide maneuver as part of this ability.
+      abilityType: none
+      implementation: 3
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    movementSpeeds:
+      climb: 5
+      swim: 5
+    monster_category: Monster
+    minion: true
+    creatureSize: 1S
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 849d0333-3d50-47a0-8f1e-b5d587a30591
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: War Dog War Frog
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 3
+ctime: 1749972312057
+mtime: 1775201137032
+hidden: false

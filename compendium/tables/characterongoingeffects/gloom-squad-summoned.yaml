@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 44d4b9b9-94d2-4a8d-8c5f-6f415c0b7de7
+  source: Ongoing Effect
+  value: 0
+  name: Gloom Squad Summoned
+  guid: a86bd795-1a7b-4b47-927f-731719446c69
+  description: ""
+  behavior: attribute
+  attribute: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+source: Ongoing Effect
+guid: 44d4b9b9-94d2-4a8d-8c5f-6f415c0b7de7
+id: 44d4b9b9-94d2-4a8d-8c5f-6f415c0b7de7
+ctime: 1772112126524
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1772112126524
+name: Gloom Squad Summoned
+custom: true
+description: ""
+endTrigger: endturn
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,97 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: ally
+    behaviors:
+    - __typeName: ActivatedAbilitySaveBehavior
+      includeProne: true
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 227c92fa-7fae-4801-9423-8255e41b973a
+    numTargets: "1"
+    targetType: all
+    selfTarget: false
+    trigger: endturn
+    name: Implement of Wrath Save Bonus
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: +2 bonus to saving throws.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: db287150-141f-4e7c-852a-8e022c0af82f
+  name: Implement of Wrath Save Bonus
+  sourceguid: bfe3eb0b-69d3-4583-b51a-860e670d93a9
+- __typeName: CharacterModifier
+  sourceguid: bfe3eb0b-69d3-4583-b51a-860e670d93a9
+  source: Ongoing Effect
+  seq: f820b921-3a2c-4424-903c-b2d44fb41740
+  aura:
+    __typeName: Aura
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: 0dda3dac-4c57-4723-a6b2-27636040b5f1
+      sourceguid: bfe3eb0b-69d3-4583-b51a-860e670d93a9
+      value: 2
+      source: Ongoing Effect
+      name: Implement of Wrath Save Bonus
+      behavior: attribute
+      description: +2 bonus to saving throws.
+      attribute: 34e099f4-afe1-4b99-abd0-8784cac7f857
+    guid: ce439d3f-aed6-41f1-877c-0a5a966413c3
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+    applyto: selfandfriends
+    name: Improved Implement of Wrath
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: You gain a +2 bonus to saving throws
+    iconid: 2c2b1cb9-6ba0-46f7-b133-07a5d8e8d87e
+    implementation: 4
+  radius: "1"
+  guid: 0249f60f-9f94-48d8-bb9a-4983c6954645
+  description: +2 bonus to saving throws.
+  behavior: aura
+  name: Implement of Wrath Save Bonus
+- __typeName: CharacterModifier
+  sourceguid: bfe3eb0b-69d3-4583-b51a-860e670d93a9
+  guid: 2959e672-227f-4cdf-9771-d3b40099c4f7
+  source: Ongoing Effect
+  behavior: triggerdisplay
+  description: +2 bonus to saving throws.
+  name: Implement of Wrath Save Bonus
+  ability:
+    __typeName: TriggeredAbilityDisplay
+    type: passive
+    name: Improved Implement of Wrath
+    guid: 88bd8e6f-a7ae-465a-af01-bea78541d5ff
+    effect: At the end of each of your turns, each ally adjacent to the wielder makes a saving throw against each effect on them that is ended by a saving throw
+    keywords: []
+source: Ongoing Effect
+guid: bfe3eb0b-69d3-4583-b51a-860e670d93a9
+id: bfe3eb0b-69d3-4583-b51a-860e670d93a9
+ctime: 1768353872031
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Implement of Wrath Save Bonus
+description: +2 bonus to saving throws.
+custom: true
+mtime: 1774545348528
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,250 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8aaccb81-4e5c-4799-9c8b-01731edb9d07
+    offtokenPortraitId: fa598cca-5b78-4d9e-856c-b8dc4917d7d5
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.06903261
+      y: 0.1493361
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Brune
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 42a727cf-7b1d-4f94-a9e1-b076676d6da4
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 40
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    attributes:
+      agl:
+        id: agl
+        baseValue: 1
+      prs:
+        id: prs
+        baseValue: 0
+      rea:
+        id: rea
+        baseValue: 0
+      inu:
+        id: inu
+        baseValue: 0
+      mgt:
+        id: mgt
+        baseValue: 2
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    opportunityAttack: 4
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Human Brawler	Level 1 Platoon Brute
+        Human, Humanoid	EV 6
+        <b>Stamina</b> 40	<b>Immunity</b> Corruption 1, Psychic 1
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 4
+        Might +2	Agility +1	Reason +0	Intuition +0	Presence +0
+        <b>Haymaker</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	6 damage
+        %E2%98%85	12%E2%80%9316	9 damage
+        %E2%9C%B8	17+	12 damage; M<2 grabbed, target has a bane on escaping the grab
+        <b>Effect </b>brawler deals an additional 2 damage if the target is already grabbed.
+
+        <b>Throw</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1	<b>Target</b> One creature grabbed by the brawler
+        <b>Effect </b>Push 5.
+
+        <b>Shoot the Hostage</b>
+        The brawler takes half damage from strikes if they have a creature or object grabbed. The grabbed creature or object takes the other half of the damage.
+
+        <b>Supernatural Insight</b>
+        The brawler ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bafe3792-6342-4e7d-9c93-7612e4de3e3b: true
+      modifiers: []
+      source: Trait
+      guid: bafe3792-6342-4e7d-9c93-7612e4de3e3b
+      name: Shoot the Hostage
+      description: The brawler takes half damage from strikes if they have a creature or object grabbed. The grabbed creature or object takes the other half of the damage.
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6bd96fed-a5df-49ec-9f7e-72ab015386fb: true
+      modifiers: []
+      source: Trait
+      guid: 6bd96fed-a5df-49ec-9f7e-72ab015386fb
+      name: Supernatural Insight
+      description: The brawler ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+    role: Leader Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - title: Monster Notes
+      text: ""
+    initiativeGrouping: 4f36b1a5-3e13-4f49-a3c4-f3cf6ce7fb7e
+    damage_taken: 0
+    walkingSpeed: 5
+    creatureSize: 1M
+    minion: false
+    keywords:
+      Humanoid: true
+      Human: true
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      multipleModes: false
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList: []
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: Target.Conditions has "Grabbed"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          source: Ongoing Effect
+          name: Extra Damage
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 6f94eaa6-3211-493b-8d4e-082874a77bc1
+            behavior: resistance
+            source: Ongoing Effect
+            resistances:
+            - __typeName: ResistanceEntry
+              apply: Damage Reduction
+              stacks: true
+              damageType: all
+              dr: "-2"
+            guid: f4d01856-4f46-498e-a073-bab5c70b920c
+            name: Extra Damage
+            description: ""
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          guid: 6f94eaa6-3211-493b-8d4e-082874a77bc1
+          description: ""
+          id: 6f94eaa6-3211-493b-8d4e-082874a77bc1
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage
+        - 12 damage; M<2 grabbed, target has a bane on escaping the grab
+        roll: 2d10 + 2
+      numTargets: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Butcher Knife
+      guid: 321d5d70-df30-4268-9b5e-749ce8058d5c
+      description: brawler deals an additional 2 damage if the target is already grabbed.
+      abilityType: none
+      iconid: e134fb21-dba5-4b1e-90a5-ff1f62cb14f8
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetFilter: Target.Conditions has "grabbed"
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 3b972e45-5d12-4c64-9da7-55bd58976629
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: push 5
+      persistence: []
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Throw
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      description: Push 5.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    movementSpeeds: []
+    resources: []
+    monster_type: Brune
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    resistances:
+    - __typeName: ResistanceEntry
+      apply: Damage Reduction
+      damageType: corruption
+      dr: 1
+    - __typeName: ResistanceEntry
+      apply: Damage Reduction
+      damageType: psychic
+      dr: 1
+  tokenType: null
+  bestiaryId: 895f79ff-ba20-4f35-83d2-0784b3adf9ec
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: null
+parentFolder: edd4505a-7246-47c9-be0b-3fd58daeb2a5
+artist: null
+ord: 1
+ctime: 1761411889518
+mtime: 1764064559281
+hidden: false

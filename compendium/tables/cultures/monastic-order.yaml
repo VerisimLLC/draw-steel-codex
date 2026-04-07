@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Monastic Order
+id: 399c4f6c-ec75-460c-8a64-e645924c721f
+mtime: 1769349265078
+aspects:
+  upbringing: 788c28f1-06bb-4a18-94d9-b58ba8d9af88
+  environment: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796431014

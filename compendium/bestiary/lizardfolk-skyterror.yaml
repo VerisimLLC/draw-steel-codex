@@ -1,0 +1,246 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 02f2ae8f-86ab-4c4a-b47d-a20f3f693ab5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Lizardfolk Skyterror	Level 1 Platoon Harrier
+        Humanoid, Lizardfolk	EV 6
+        <b>Stamina</b> 30
+        <b>Speed</b> 7 (swim)	<b>Size</b> 1S /<b> Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +1	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Glaive Rush</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage
+        %E2%9C%B8	<b>17</b>	9 damage; prone
+        <b>Effect</b> The skyterror can shift 4 after using this ability if they are flying.
+
+        <b>Poison Blowdart</b> (Action) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Ranged, Weapon
+        <b>Distance</b> Ranged 5	<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage; M<0 weakened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	5 damage; M<1 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	7 damage; M<2 weakened (save ends)
+        <b>Effect</b> A creature that ends their turn adjacent to a creature or object weakened by this ability is weakened (EoT).
+
+        <b>Glider</b>
+        The skyterror adds the flying keyword to their movement until the end of their next turn whenever they move at least 2 squares along the ground or fall at least 2 squares.
+
+        <b>Reptilian Escape</b>
+        While the skyterror still has a tail, whenever the skyterror is grabbed, slowed, weakened, or knocked prone, the skyterror can lose their tail to immediately end the effect and shift 2.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:266ae4dc-09cc-4662-b382-796fa3779431: true
+      modifiers: []
+      name: Glider
+      description: The skyterror adds the flying keyword to their movement until the end of their next turn whenever they move at least 2 squares along the ground or fall at least 2 squares.
+      guid: 266ae4dc-09cc-4662-b382-796fa3779431
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0d63a02f-d7ab-4c82-a582-fb80cf68acf4: true
+      modifiers: []
+      name: Reptilian Escape
+      description: While the skyterror still has a tail, whenever the skyterror is grabbed, slowed, weakened, or knocked prone, the skyterror can lose their tail to immediately end the effect and shift 2.
+      guid: 0d63a02f-d7ab-4c82-a582-fb80cf68acf4
+      source: Trait
+    role: Platoon Harrier
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Lizardfolk: true
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: Lizardfolk Skyterror
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 30
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 damage
+        - 9 damage; Prone
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: fcac2331-ce14-48ac-8d9b-61efd952d310
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Glaive Rush
+      numTargets: 1
+      description: The skyterror can shift 4 after using this ability if they are flying.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; M<0 weakened (save ends)
+        - 5 damage; M<1 weakened (save ends)
+        - 7 damage; M<2 weakened (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b78d4857-58d1-45f5-83cc-177daa108874
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Poison Blowdart
+      numTargets: 1
+      description: A creature that ends their turn adjacent to a creature or object weakened by this ability is weakened (EoT).
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; M<0 weakened (save ends)
+        - 5 damage; M<1 weakened (save ends)
+        - 7 damage; M<2 weakened (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ca4002b2-610f-43aa-8e7b-5073a68bd373
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Poison Blow Dart
+      sourceReference:
+        __typeName: SourceReference
+        page: 200
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: Any creature who ends their turn adjacent to a target weakened this way is weakened until the end of their next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: d3456343-2a59-400e-af7d-dbb4bd9c8347
+    movementSpeeds:
+      swim: 7
+    ev: 6
+    minion: false
+    levelChoices: []
+    creatureSize: 1S
+  tokenType: null
+  bestiaryId: 21a23974-d7ba-4dd9-85c7-3db5a4d01ba5
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Lizardfolk Skyterror
+parentFolder: 40714605-54b3-4a20-b782-f427973a5a25
+artist: null
+ord: 0
+ctime: 1741590229783
+mtime: 1775201137032
+hidden: false

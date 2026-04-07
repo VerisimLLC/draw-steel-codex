@@ -1,0 +1,433 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: 5+ Mistakes":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 20,-13,1
+        - __usertype: LuaLoc
+          loc: 22,-13,1
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 15,-11,1
+        - __usertype: LuaLoc
+          loc: 15,-7,1
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 15,-13,1
+        - __usertype: LuaLoc
+          loc: 15,-5,1
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 18,-11,1
+        - __usertype: LuaLoc
+          loc: 16,-10,1
+        - __usertype: LuaLoc
+          loc: 17,-8,1
+        - __usertype: LuaLoc
+          loc: 17,-10,1
+        - __usertype: LuaLoc
+          loc: 16,-8,1
+        - __usertype: LuaLoc
+          loc: 18,-5,1
+        - __usertype: LuaLoc
+          loc: 18,-13,1
+        - __usertype: LuaLoc
+          loc: 18,-7,1
+        monsters:
+          c5c8667e-322f-46e2-b50c-4603960c20f7: 8
+      name: 5+ Mistakes
+  encounter:3-4 Mistakes:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 15,-11,1
+        - __usertype: LuaLoc
+          loc: 15,-7,1
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 22,-13,1
+        - __usertype: LuaLoc
+          loc: 20,-13,1
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 18,-5,1
+        - __usertype: LuaLoc
+          loc: 18,-7,1
+        - __usertype: LuaLoc
+          loc: 18,-13,1
+        - __usertype: LuaLoc
+          loc: 18,-8,1
+        - __usertype: LuaLoc
+          loc: 18,-11,1
+        - __usertype: LuaLoc
+          loc: 16,-10,1
+        - __usertype: LuaLoc
+          loc: 18,-10,1
+        - __usertype: LuaLoc
+          loc: 16,-8,1
+        monsters:
+          c5c8667e-322f-46e2-b50c-4603960c20f7: 8
+      name: 3-4 Mistakes
+    spawns:
+    - 858e3edd-e5da-46f4-a1b0-5885a05cb289
+    - a6cfa55d-3bb8-47b9-840b-58ee19edcae8
+    - d63555d6-254b-496a-8ffa-a66e613687cf
+    - 89538c92-e5a6-4d3a-88b6-921b5d681f35
+    - 7a2e7fac-c2f4-4943-b791-7dc25c5a8002
+    - c448f019-e772-4b31-8dc8-f66053e95afd
+    - 764d2fbe-bda7-47e8-8e19-3cadcd15b6d5
+    - 02445f16-f38f-49f1-b115-5922691620c2
+    - 91a7cafd-c257-4fb8-aa1c-a416b183139a
+    - 9fd96e35-1b7b-4abd-8c26-f7075ae8c829
+    - 09b0103a-3cb8-4f49-b029-c547b8b9ebf3
+    - c9d8552c-2409-4250-8a35-37d9ede1d7f9
+  encounter:1-2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:3-4:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: D":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:1-2 Mui:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: D6":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"2176bc6d-e482-4a63-8851-a65dca87b6ef\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.5411757,\"portraitOffset\": {\"x\": 0.03404326,\"y\": 0.1523438},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Ghost\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"2176bc6d-e482-4a63-8851-a65dca87b6ef\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.5411757,\"portraitOffset\": {\"x\": 0.03404326,\"y\": 0.1523438},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Ghost\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"2176bc6d-e482-4a63-8851-a65dca87b6ef\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.5411757,\"portraitOffset\": {\"x\": 0.03404326,\"y\": 0.1523438},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Ghost\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"2176bc6d-e482-4a63-8851-a65dca87b6ef\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.5411757,\"portraitOffset\": {\"x\": 0.03404326,\"y\": 0.1523438},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Ghost\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"2176bc6d-e482-4a63-8851-a65dca87b6ef\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.5411757,\"portraitOffset\": {\"x\": 0.03404326,\"y\": 0.1523438},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Ghost\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"2176bc6d-e482-4a63-8851-a65dca87b6ef\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.5411757,\"portraitOffset\": {\"x\": 0.03404326,\"y\": 0.1523438},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Ghost\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"2176bc6d-e482-4a63-8851-a65dca87b6ef\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.5411757,\"portraitOffset\": {\"x\": 0.03404326,\"y\": 0.1523438},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Ghost\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 16,-9,1
+        monsters:
+          6e6907ea-19a9-42b0-8ea2-248602f6144a: 1
+      - appearances:
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cunning Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 19,-10,1
+        - __usertype: LuaLoc
+          loc: 17,-12,1
+        minHeroes: 4
+      - appearances:
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cackling Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cackling Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cackling Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cackling Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cackling Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cackling Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cackling Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 19,-8,1
+        - __usertype: LuaLoc
+          loc: 17,-6,1
+        minHeroes: 5
+      - appearances:
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Lonely Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Sinister Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Lonely Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Sinister Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Lonely Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Sinister Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Lonely Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Sinister Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Lonely Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Sinister Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Lonely Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Sinister Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Lonely Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Sinister Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 22,-5,1
+        - __usertype: LuaLoc
+          loc: 20,-5,1
+        minHeroes: 6
+      name: Encounter D6
+    spawns:
+    - 8aea50f6-9064-4091-a065-e685cd01d5ff
+    - b17968e9-28fa-49bf-93c6-6144822d0b73
+    - c768e3b4-2424-420d-ba08-4eb4475d3846
+    - e711ad86-60cd-40cf-9b75-fc322ac3da0b
+    - 680cbcf4-aa52-44b2-a758-bf71184a34da
+    - 1457c3bb-8e17-4323-984a-ce02dce2eb8c
+    - 5a5af3aa-75fc-4436-93ca-6358a759564d
+  encounter:1-2 M:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:1-2 Mu:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:1-2 Mistakes:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Chirpy Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Cowardly Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 20,-12,1
+        - __usertype: LuaLoc
+          loc: 22,-12,1
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+      - appearances:
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Miserable Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Meek Specter\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 15,-11,1
+        - __usertype: LuaLoc
+          loc: 15,-7,1
+        monsters:
+          38da0240-ca9b-4508-9fa4-d10b319e62db: 2
+      name: 1-2 Mistakes
+    spawns:
+    - 6fe2bb48-4de3-4016-bec3-70e94e55fce4
+    - 159d7f3e-1000-4d9b-aeb5-3930b83ea6b9
+    - 63f9b29d-138a-465e-9e72-f97aa926b894
+    - a1d9c53a-eb0b-437f-bf90-f203707ea522
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: 38efca03-ecfc-42e1-a910-0246eff38102
+ctime: 1761691581522
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Em: |+
+      [[/activateobjects E6_Start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    x: |+
+      [[/awardvp 1; objectcommand D6_door.Door closedoor; |Close The Compartment]]
+
+
+
+
+    u: |+
+      If the ghost and all other enemies are destroyed, the plaque pops open, revealing a compartment. The heroes earn 1 Victory each.
+
+    v: |
+      [[/awardvp 1; objectcommand D6_door.Door opendoor; |Open The Compartment and Award Heroes 1 Victory]]
+    s: |
+      ## Ending the Encounter
+    q: |2
+
+    o: |
+      The ghost uses Haunt on themself or an ally each round to damage as many enemies as possible with Corruptive Phasing. They keep their distance from foes, using Heat Death each round. The specters move into melee position, each taking on a different hero if they can. On the first round, they use Decaying Touch to weaken foes. On subsequent rounds, they move through foes with Corruptive Phasing before doing so again. If shades are present, each targets a different creature, spreading the damage around as much as possible. They move through their foes when possible, to avoid being targeted by an opportunity attack. The undead save their Malice to use Dread March and the ghost's Shriek triggered action.
+    m: |+
+      ## Tactics
+
+    k: |+
+      > * For three heroes, remove four specters.
+
+
+    i: |
+      > * For four heroes, remove two specters.
+    g: |
+      > * For six heroes, add two specters.
+    e: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    c: |
+      **Encounter Adjustments**
+    a: |+
+      |7|Two [Specter]s (Optional)|
+
+    Y: |
+      |6|Eight [Shade]s (Optional, Minion Squad)|
+    EM: |2
+
+    U: |
+      |4|Two [Specter]s (Optional)|
+    S: |
+      |3|Two [Specter]s|
+    Q: |
+      |2|Two [Specter]s|
+    O: |
+      |1|One [Ghost]|
+    M: |
+      |Group	|Creatures|
+    K: |+
+      [[encounter: 5+ Mistakes]]
+
+    L: |
+      **D6 Groups**
+    I: |
+      [[encounter:1-2 Mistakes]]
+    J: |
+      [[encounter:3-4 Mistakes]]
+    W: |
+      |5|Two [Specter]s (Optional)|
+    H: |
+      **Only add the highest one applicable**
+    E: |+
+      [[encounter: D6]]
+
+    F: |
+      **Optional based on mistakes in [D6. Hall of Triumph]'s Ghostly Encounter Puzzle**
+    C: |+
+      The heroes encounter incorporeal undead if they solve the puzzle incorrectly in the Hall of Triumph.
+
+
+    D: |+
+      [[setting:numheroes]]
+
+    EZ: |
+      [[/activateobjects E6_Start.AreaTemplate activate|Show Hero Start Area]]
+    B: |+
+      # Encounter D6
+
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: e5ebfff0-5680-4ce5-9461-229f2fcad22b
+mtime: 1768580765430
+content: |+
+  # Encounter D6
+
+  The heroes encounter incorporeal undead if they solve the puzzle incorrectly in the Hall of Triumph.
+
+
+  [[setting:numheroes]]
+
+  [[encounter: D6]]
+
+  **Optional based on mistakes in [D6. Hall of Triumph]'s Ghostly Encounter Puzzle**
+  **Only add the highest one applicable**
+  |[[encounter:1-2 Mistakes]]|[[encounter:3-4 Mistakes]]|[[encounter: 5+ Mistakes]]|
+
+  **D6 Groups**
+  |Group	|Creatures|
+  |1|One Ghost|
+  |2|Two Specters|
+  |3|Two Specters|
+  |4|Two Specters (Optional)|
+  |5|Two Specters (Optional)|
+  |6|Eight Shades (Optional, Minion Squad)|
+  |7|Two Specters (Optional)|
+
+  **Encounter Adjustments**
+  If this encounter has more or fewer than five heroes, make the following adjustments:
+  > * For six heroes, add two specters.
+  > * For four heroes, remove two specters.
+  > * For three heroes, remove four specters.
+
+
+  ## Tactics
+
+  The ghost uses Haunt on themself or an ally each round to damage as many enemies as possible with Corruptive Phasing. They keep their distance from foes, using Heat Death each round. The specters move into melee position, each taking on a different hero if they can. On the first round, they use Decaying Touch to weaken foes. On subsequent rounds, they move through foes with Corruptive Phasing before doing so again. If shades are present, each targets a different creature, spreading the damage around as much as possible. They move through their foes when possible, to avoid being targeted by an opportunity attack. The undead save their Malice to use Dread March and the ghost's Shriek triggered action.
+
+  ## Ending the Encounter
+  If the ghost and all other enemies are destroyed, the plaque pops open, revealing a compartment. The heroes earn 1 Victory each.
+
+  [[/awardvp 1; objectcommand D6_door.Door opendoor; |Open The Compartment and Award Heroes 1 Victory]]
+
+
+
+description: Encounter D6

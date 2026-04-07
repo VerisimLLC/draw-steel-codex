@@ -1,0 +1,57 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:bcfe2155-8718-439d-9c71-d3a9907f1319: true
+  sourceguid: bcfe2155-8718-439d-9c71-d3a9907f1319
+  description: 'Tracking the number of times the creature has been targeted by Accursed Bite in order to increase potency. '
+  source: Ongoing Effect
+  name: Accursed Bite Target
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: bcfe2155-8718-439d-9c71-d3a9907f1319
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: c8667858-db48-48d1-bf4c-2496cb3a4b96
+    persistence: []
+    conditionFormula: Ongoing Effects has "Lycanthropy"
+    subject: enemy
+    targetType: self
+    trigger: endturn
+    name: Accursed Bite Target
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: c622bfcf-1c94-4fba-a504-c61754b10693
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+id: bcfe2155-8718-439d-9c71-d3a9907f1319
+ctime: 1760339784155
+domains:
+  CharacterOngoingEffect:bcfe2155-8718-439d-9c71-d3a9907f1319: true
+name: Accursed Bite Target
+custom: true
+endTrigger: none
+guid: bcfe2155-8718-439d-9c71-d3a9907f1319
+description: 'Tracking the number of times the creature has been targeted by Accursed Bite in order to increase potency. '
+mtime: 1760355271792
+iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd

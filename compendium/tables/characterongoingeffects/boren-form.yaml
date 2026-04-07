@@ -1,0 +1,77 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 16043a7a-9aa0-4185-8aec-bbb16e87d2d3
+  source: Ongoing Effect
+  value: 5
+  domains:
+    CharacterOngoingEffect:16043a7a-9aa0-4185-8aec-bbb16e87d2d3: true
+  name: Boren Form
+  guid: aec9132f-dc99-4f19-980e-4d747f03384a
+  description: ""
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  sourceguid: 16043a7a-9aa0-4185-8aec-bbb16e87d2d3
+  source: Ongoing Effect
+  filterAbility: not Ability.Keywords has "Area"
+  behavior: modifyability
+  keywords:
+    Melee: true
+    Weapon: true
+  domains:
+    CharacterOngoingEffect:16043a7a-9aa0-4185-8aec-bbb16e87d2d3: true
+  attributes:
+  - operation: Add
+    value: "1"
+    id: range
+  guid: 2a311bd9-f613-4b40-8c41-64935a190064
+  description: ""
+  name: Boren Form
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 2c998533-3aee-41d0-8311-1b49620e182c
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: 16043a7a-9aa0-4185-8aec-bbb16e87d2d3
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:16043a7a-9aa0-4185-8aec-bbb16e87d2d3: true
+  name: Boren Form
+  guid: 4799a016-fdf7-4023-9462-2783be8d3d97
+  description: ""
+  behavior: attribute
+  attribute: disguised
+source: Ongoing Effect
+guid: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+id: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+ctime: 1770688805988
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Boren Form
+iconid: 54d12486-b6eb-4290-b19c-ffdbab61d585
+description: ""
+mtime: 1770688890584
+implementation: 4

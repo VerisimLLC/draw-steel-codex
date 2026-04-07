@@ -1,0 +1,60 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+  sourceguid: f01c752e-d091-4aa4-9428-02ea6e85bbac
+  source: Ongoing Effect
+  guid: 2a037ce1-5a41-41f5-b860-46e452b36d6c
+  description: You are stuck in Adhesive. You must use a maneuver to break free, or be restrained until the end of your turn.
+  behavior: bestowcondition
+  name: Stuck in Adhesive
+- __typeName: CharacterModifier
+  sourceguid: f01c752e-d091-4aa4-9428-02ea6e85bbac
+  guid: 655dd421-4cdc-4ace-a528-e95756d3b4a5
+  source: Ongoing Effect
+  behavior: activated
+  description: You are stuck in Adhesive. You must use a maneuver to break free, or be restrained until the end of your turn.
+  name: Stuck in Adhesive
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: f01c752e-d091-4aa4-9428-02ea6e85bbac
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 8a83feb7-6a8d-4a68-9cc6-05bf6fa08186
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    domains: []
+    castImmediately: true
+    targetType: self
+    name: Remove Adhesive
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: f01c752e-d091-4aa4-9428-02ea6e85bbac
+id: f01c752e-d091-4aa4-9428-02ea6e85bbac
+ctime: 1754546959539
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Stuck in Adhesive
+iconid: ui-icons/skills/1.png
+description: You are stuck in Adhesive. You must use a maneuver to break free, or be restrained until the end of your turn.
+mtime: 1754547066513
+implementation: 3

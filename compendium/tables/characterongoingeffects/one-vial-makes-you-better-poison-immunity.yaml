@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 410766ff-04aa-4cec-9d0c-e22c1e7e8afd
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: Level
+    damageType: poison
+    apply: Damage Reduction
+  description: ""
+  name: One Vial Makes You Better - Poison Immunity
+  guid: 3ed13796-a4bf-4d70-98ce-73a65776005b
+source: Ongoing Effect
+guid: 410766ff-04aa-4cec-9d0c-e22c1e7e8afd
+id: 410766ff-04aa-4cec-9d0c-e22c1e7e8afd
+ctime: 1767504580026
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: One Vial Makes You Better - Poison Immunity
+description: ""
+custom: true
+mtime: 1767504580026
+iconid: ui-icons/skills/1.png

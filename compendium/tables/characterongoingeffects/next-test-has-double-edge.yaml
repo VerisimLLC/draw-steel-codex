@@ -1,0 +1,30 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c127b6da-fa97-4335-95e6-10d58e8e4d0c
+  source: Ongoing Effect
+  modtype: double_edge
+  keywords: []
+  activationCondition: true
+  rollRequirement: none
+  rollType: test_power_roll
+  guid: b8fe1a4a-4243-48ec-b046-6e6a8bef419d
+  description: This creature has a double edge on the next test they make.
+  behavior: power
+  name: Next Test has Double Edge
+source: Ongoing Effect
+guid: c127b6da-fa97-4335-95e6-10d58e8e4d0c
+id: c127b6da-fa97-4335-95e6-10d58e8e4d0c
+ctime: 1746334936423
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1746336905199
+endTrigger: rollpower
+statusEffect: true
+description: This creature has a double edge on the next test they make.
+name: Next Test has Double Edge
+iconid: ui-icons/skills/1.png

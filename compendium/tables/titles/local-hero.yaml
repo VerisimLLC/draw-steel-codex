@@ -1,0 +1,86 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+prerequisite: You save a community from certain destruction.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    options:
+    - __typeName: CharacterFeature
+      description: You gain an edge on tests made using skills from the interpersonal and intrigue skill groups when influencing members of a community that you have saved.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 386851d3-34d0-40cc-b2ec-2acf60bdaf17
+        source: Feat
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: e50baa41-00c5-453d-96ca-ca0d8455a1b0
+        name: Easy Marks
+        behavior: power
+        description: You gain an edge on tests made using skills from the interpersonal and intrigue skill groups when influencing members of a community that you have saved.
+        rollType: test_power_roll
+        skills:
+        - d533510d-0f1f-4ce3-a48c-cc21acadb6c6
+        - 47a38ee9-41ad-4173-a010-adf9e185e221
+        - 9f41a684-4b8c-4026-8175-df136fc5134f
+        - 81442e8b-10cb-41f5-8aa9-110a2256b663
+        - ff54a691-e0a0-4246-8ceb-7975b8826e92
+        - 4290580d-9e08-4bd2-859c-7ac147f108aa
+        - cb214a42-7f8c-4d02-b6ac-1399724a8b5f
+        - 27995005-8a25-435d-9f50-351c9d08a7b4
+        - 4f4b7168-8702-469d-b001-65d250fd4082
+        - d188b959-e993-4239-a350-5e7ad69d27b6
+        - bd66a379-6ea9-4ecc-ad82-c9a2b82750d4
+        - 28573ee3-e9df-47fe-98f1-2ac0bfee797a
+        - 30a30090-3699-48f1-b252-ce7d0445abee
+        - db532974-aa0a-41a9-aacf-4adc1e6121d3
+        - 54c39860-b658-4563-9ae1-66d36f26e50f
+        - b0bf2f97-6776-4a9e-b691-4845275df2f8
+        - c9eb14a5-e283-448a-80f1-7ea071e0d883
+        - 772f0953-2cee-4aad-a2ed-de9af9fa9b47
+        - fdd43bde-6062-484d-aea6-3803d396ea8e
+        - fc095c29-84cd-4e3f-8f65-03cd7a7736ad
+        - 978652ee-5553-40ee-97d8-44c607ecdf15
+        - cab282ce-2063-4ce3-b94c-209e81b22e0b
+        - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+        - ae13b5cf-718a-42a4-ab5e-18d46b289ac6
+        - a27ca113-bc01-49d0-9864-3316e6f525f4
+      source: Feat
+      canHavePrerequisites: true
+      guid: 386851d3-34d0-40cc-b2ec-2acf60bdaf17
+      name: Easy Marks
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You earn 1 Renown.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 725296f7-2814-4d6e-862d-81375f28d548
+        sourceguid: 8195e8e7-3b13-4a1f-a8bb-3bef2a503e9e
+        value: 1
+        source: Feat
+        name: Local Fame
+        behavior: attribute
+        description: You earn 1 Renown.
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      source: Feat
+      canHavePrerequisites: true
+      guid: 8195e8e7-3b13-4a1f-a8bb-3bef2a503e9e
+      name: Local Fame
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: A New Dawn
+      description: Each time you finish a respite while in a community you have saved, the party gains a hero token. This hero token disappears at the end of your next respite if it hasn’t been used.
+      guid: bbfa6b1a-e255-4790-87d0-a42d3fdc54f3
+      canHavePrerequisites: true
+      source: Feat
+    guid: 3b9085a6-806b-4275-a7b6-1de9866c0978
+    numChoices: 1
+    name: Local Hero Choice
+name: Local Hero
+mtime: 1773772096969
+description: Your coin won’t spend here. The Heroes of Gravesford drink for free in this tavern!
+id: 38eb060b-2fae-4dcd-87b0-9f5c383852d8
+ctime: 1762349710990

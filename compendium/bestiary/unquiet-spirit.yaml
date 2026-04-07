@@ -1,0 +1,212 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9b75b3af-d9dc-4434-9555-87f0e53cf172
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Unquiet Spirit	Level 1 Hexer Retainer
+        Incorporeal, Undead	EV 11
+        <b>Stamina</b> 20	<b>Immunity</b> corruption 3, poison 3
+        <b>Speed</b> 5 (fly)	<b>Size</b> 1M/<b>Stability</b> 1
+        <b>Free Strike</b> 2
+        Might -4	Agility +1	Reason 0	Intuition 0	Presence +2
+        <b>Chill of Death</b> (Action) - 2d10 + highest characteristic - Signature
+        <b>Keywords</b> Magic, Ranged ,Strike
+        <b>Distance</b> Ranged 10 	<b>Target </b>One creature or object
+        %E2%9C%A6 %E2%89%A411 		3 cold damage
+        %E2%98%85 12%E2%80%9316 	5 cold damage
+        %E2%9C%B8 17+ 		7 cold damage; P (strong) slowed (EoT)
+
+        <b>Spirit Meld</b> (Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1	<b>Target</b> the unquiet spirit's mentor
+        <b>Effect</b> The spirit moves into their mentor's space while in an adjacent space, or moves into an adjacent space from their mentor's space.When the unquiet spirit enters their mentor's space in this way, they move with the mentor, can't be sensed, can't affect or be affected by other creatures or objects, and can't take actions, maneuvers, or move actions except for Spirit Meld.
+
+        <b>Corruptive Phasing</b>
+        The specter can move through other creatures and objects at normal speed. The first time in a round that the specter passes through a creature other than their mentor, the creature takes 2 corruption damage.
+
+        Level 4 Retainer Advancement Ability
+        <b>Curse of Defenselessness</b> (Action, Encounter)  - 2d10 + highest characteristic
+        <b>Keywords</b> Ranged, Magic, Strike
+        <b>Distance</b> Ranged 10	<b>Target</b> 1 creature
+        %E2%9C%A6 %E2%89%A411		6 corruption damage; defenselessness 1
+        %E2%98%85 12%E2%80%9316		10 corruption damage; defenselessness 2
+        %E2%9C%B8 17+		14 corruption damage; defenselessness 3
+        <b>Effect</b> The first attack against the target gains 1 surge for each level of defenselessness.
+
+        Level 7 Retainer Advancement Ability
+        <b>Ectoplasm</b> (Action, Encounter)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 cube within 1	<b>Target</b> All enemies
+        <11		A (weak) slowed and weakened (save ends)
+        %E2%98%85 12%E2%80%9316		A (average) slowed and weakened (save ends)
+        %E2%9C%B8 17+		A (strong) slowed and weakened (save ends)
+
+        Level 10 Retainer Advancement Ability
+        <b>Death Phase</b> (Action, Encounter)
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 5	<b>Target</b> One creature
+        <b>Effect</b> P (strong) phased (EoT). A phased target gains the unquiet spirit's Corruptive Phasing trait and their movement gains the Fly tag. They are visible but can't affect or be affected by other creatures or objects. A willing creature can automatically fail the Presence test.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:11f4ac49-58b0-4ccc-ad1b-1ba580d13507: true
+      modifiers: []
+      name: Corruptive Phasing
+      guid: 11f4ac49-58b0-4ccc-ad1b-1ba580d13507
+      description: The specter can move through other creatures and objects at normal speed. The first time in a round that the specter passes through a creature other than their mentor, the creature takes 2 corruption damage.
+      source: Trait
+    role: Hexer Retainer
+    inflictedConditions: []
+    keywords:
+      Incorporeal: true
+      Undead: true
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    monster_type: Unquiet Spirit
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 21
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: 1
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      abilityType: none
+      guid: ebf13ab4-56b2-43c0-bd5f-8e30a05a87e7
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors: []
+      targetType: target
+      categorization: Signature Ability
+      name: Chill of Death
+      flavor: ""
+      description: ""
+      range: 10
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: eb1d8aaa-6b7f-4c95-8e93-51188538f3e8
+      numTargets: "1"
+      name: Spirit Meld
+      behaviors: []
+      description: The spirit moves into their mentor's space while in an adjacent space, or moves into an adjacent space from their mentor's space.When the unquiet spirit enters their mentor's space in this way, they move with the mentor, can't be sensed, can't affect or be affected by other creatures or objects, and can't take actions, maneuvers, or move actions except for Spirit Meld.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    movementSpeeds:
+      fly: 5
+    ev: 11
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 87120f00-0cc4-458b-9fb9-e8b9290dccc6
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: Unquiet Spirit
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 11
+ctime: 1741590277779
+mtime: 1775167544862
+hidden: false

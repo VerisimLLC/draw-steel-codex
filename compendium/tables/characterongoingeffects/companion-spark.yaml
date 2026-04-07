@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: f910a4cb-b3ac-48c0-bac8-5ce7ae1f1a64
+id: f910a4cb-b3ac-48c0-bac8-5ce7ae1f1a64
+ctime: 1770382864338
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: ""
+name: Companion Spark
+hiddenOnToken: true
+mtime: 1770382864338
+custom: true
+iconid: ui-icons/skills/1.png

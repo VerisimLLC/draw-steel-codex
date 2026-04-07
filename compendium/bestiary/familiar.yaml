@@ -1,0 +1,167 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: b5853360-9041-487e-888a-a65b465c275a
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: 8cb10975-3537-45c1-bf2f-275e4238addc
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Familiar
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 462fcca1-d390-4e29-b453-6192e87231ed
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    - text: Summoned by Hero Level 10
+      title: Summoned
+    monster_category: Monster
+    initiativeGrouping: 5b0c6698-a3ed-43c4-8a99-0c00473c9eb1
+    damage_taken: 0
+    walkingSpeed: 5
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:44ae12f9-5107-45ea-a484-8a995b5ae920: true
+      modifiers: []
+      name: Telepathic
+      guid: 44ae12f9-5107-45ea-a484-8a995b5ae920
+      description: The While you and your familiar are within 10 squares of each other, you can communicate telepathically and share each other’s senses. While sharing senses, each of you also benefits from your own senses at the same time
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5df753aa-b4a8-4930-905c-1bc3ae8a6e41: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 5df753aa-b4a8-4930-905c-1bc3ae8a6e41
+        source: Character Feature
+        value: 2 * Summoner.Level
+        domains:
+          CharacterFeature:5df753aa-b4a8-4930-905c-1bc3ae8a6e41: true
+        name: Stamina
+        guid: ef91cf41-ca10-41a3-97a8-9526945dbf11
+        description: 2 * Hero Level
+        behavior: attribute
+        attribute: hitpoints
+      source: Character Feature
+      description: 2 * Hero Level
+      guid: 5df753aa-b4a8-4930-905c-1bc3ae8a6e41
+      name: Stamina
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1662876d-8787-4cb6-accb-bea35da5daec: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 1662876d-8787-4cb6-accb-bea35da5daec
+        source: Character Feature
+        value: 1
+        filterCondition: not Flanked By(Summoner)
+        guid: 3c75407b-0d6e-4d40-936f-0689b28ceb21
+        name: Flanking
+        domains:
+          CharacterFeature:1662876d-8787-4cb6-accb-bea35da5daec: true
+        description: They can flank in combat, but only with you.
+        behavior: attribute
+        attribute: b3eda2a2-a0da-44c7-8a67-e34f4805ff96
+      source: Character Feature
+      description: They can flank in combat, but only with you.
+      guid: 1662876d-8787-4cb6-accb-bea35da5daec
+      name: Flanking
+      implementation: 2
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: -3
+        id: mgt
+    levelChoices: []
+    resources: []
+    creatureSize: 1T
+    availableTriggers: []
+    monster_type: Familiar
+  tokenType: null
+  bestiaryId: affc11be-5ac7-407e-8e61-c9297d6aef5f
+  summonerid: 5b0c6698-a3ed-43c4-8a99-0c00473c9eb1
+  ownerId: PARTY
+  partyid: null
+  size: 2
+  createdTimestamp: 1770142389599
+description: null
+parentFolder: 082f6b74-a48e-4d83-bcdb-725c4c2f097e
+artist: null
+ord: 9
+ctime: 1770142389599
+mtime: 1775167439314
+hidden: false

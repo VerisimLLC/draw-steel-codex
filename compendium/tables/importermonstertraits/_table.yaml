@@ -1,0 +1,1692 @@
+521d32cd-c491-4ff5-9ff5-d03716f6ba53:
+  __typeName: CharacterFeature
+  testCases:
+  - text: If the blitzer is reduced to 0 Stamina, they can make a free strike before dying.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: ed0cc9e3-415c-4267-a2fc-5a02324026d2
+      repeatTargets: false
+      abilityType: none
+      trigger: creaturedeath
+      targetType: self
+      numTargets: "1"
+      name: 'Bloodfire Burn '
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          guid: 87a399f7-a326-4f13-b203-f37419e85ec0
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: fd3f0da3-8e04-4bd8-8802-4d152b530157
+            sourceguid: 87a399f7-a326-4f13-b203-f37419e85ec0
+            value: 1
+            source: Ongoing Effect
+            name: Cannot Be Removed
+            behavior: attribute
+            description: ""
+            attribute: 7565750e-2376-4809-abc2-47eed82153d1
+          source: Ongoing Effect
+          name: Cannot Be Removed
+          description: ""
+          id: 87a399f7-a326-4f13-b203-f37419e85ec0
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetTextOverride: 1 creature
+          repeatTargets: false
+          rangeTextOverride: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              modifyDescription: ""
+              source: ""
+              filterAbility: Ability.Free Strike
+              behavior: modifyability
+              guid: d7ed3f3c-0f86-4e87-ae33-c518062ba528
+              name: Modify Attack
+              attributes: []
+              description: ""
+              cannotModifyAction: true
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 6d07d93d-2ecf-4902-bbfc-391eee4d8c7b
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                behaviors: []
+                abilityType: none
+                name: New Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 1ca07533-f72e-41af-b6d8-541ded563e0a
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        promptText: Select creature to free strike.
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: 7a4155f2-3986-438f-be95-475724b85608
+    name: 'Bloodfire Burn '
+    sourceguid: fa90dcef-f87e-4136-b980-54fd94633db1
+  - __typeName: CharacterModifier
+    guid: e35c7b47-d6d6-4169-9f33-f159efeaa530
+    sourceguid: fa90dcef-f87e-4136-b980-54fd94633db1
+    value: 1
+    source: Monster
+    name: 'Bloodfire Burn '
+    behavior: attribute
+    description: ""
+    attribute: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+  source: Monster
+  guid: fa90dcef-f87e-4136-b980-54fd94633db1
+  importMatch: If <<monster>> is reduced to 0 Stamina, they can make a free strike before dying.
+  ctime: 1775011293419
+  name: 'Bloodfire Burn '
+  id: 521d32cd-c491-4ff5-9ff5-d03716f6ba53
+  description: ""
+  mtime: 1775011741509
+  implementation: 3
+67486fef-a4f5-401a-adaa-33acc10ef333:
+  __typeName: CharacterFeature
+  testCases:
+  - text: ""
+  - text: Acid immunity 5
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: e9c200bf-734a-4998-a05a-89a24eac713e
+    behavior: resistance
+    source: Monster
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "<<immunity>>"
+      damageType: acid
+      apply: Damage Reduction
+    description: ""
+    name: Acid Immunity
+    guid: c505095a-7f3f-4ad1-a60a-aa6762e79b72
+  source: Monster
+  guid: e9c200bf-734a-4998-a05a-89a24eac713e
+  importMatch: acid Immunity <<immunity>>
+  ctime: 1711734307236
+  name: Acid Immunity
+  description: ""
+  id: 67486fef-a4f5-401a-adaa-33acc10ef333
+  mtime: 1711784286245
+ea23971f-272d-473d-ba99-375653d385a2:
+  __typeName: CharacterFeature
+  modifiers: []
+  source: Monster
+  guid: ff5dfcec-2faa-4faf-b1b8-d5b55cf9df28
+  importMatch: At the start of each of their turns, the weatherwise can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+  ctime: 1771874802557
+  name: Otherworldly Grace
+  description: ""
+  id: ea23971f-272d-473d-ba99-375653d385a2
+  mtime: 1774923627758
+3a06b6f5-ce05-4a84-86e7-b8a0b7d206d6:
+  __typeName: CharacterFeature
+  testCases:
+  - text: As an action, this goblin chooses any 3 goblins within 10 squares. Each of those goblins can make a weapon attack.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: c7793d49-5289-49c9-a933-1de99db619b8
+    guid: 19c42ad2-a6ba-4efd-95f4-ebf93ba4521c
+    source: Monster
+    behavior: activated
+    description: ""
+    name: Fight On!
+    activatedAbility:
+      __typeName: ActivatedAbility
+      numTargets: "<<count>>"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      guid: 198e5082-17ba-4884-bf15-26f0e98ed14b
+      repeatTargets: false
+      abilityType: none
+      domains: []
+      targetType: target
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 324b9cbd-c193-48d2-ab85-bcfd446377a4
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: f9a871ca-ece9-4ee2-b3ab-57c19c7e4f57
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 5
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 72cc1f37-0ba0-47e6-a9f1-20f3c9ad653c
+          range: 5
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: custom
+        runOnController: false
+        standardAbility: 72cc1f37-0ba0-47e6-a9f1-20f3c9ad653c
+        targeting: self
+      name: Fight On!
+      categorization: Signature Ability
+      description: ""
+      range: "<<range>> * 5"
+      iconid: 7960d94e-8d18-4fa2-984d-126de8590736
+  source: Monster
+  guid: c7793d49-5289-49c9-a933-1de99db619b8
+  importMatch: As an action, <<monster>> chooses any <<count>> goblins within <<range>> squares. Each of those goblins can make a weapon attack.
+  ctime: 1716705339840
+  name: Fight On!
+  id: 3a06b6f5-ce05-4a84-86e7-b8a0b7d206d6
+  description: ""
+  mtime: 1716706064968
+  implementation: 3
+94fd1eac-721d-4130-b623-ccca038d7fab:
+  __typeName: CharacterFeature
+  testCases:
+  - text: If the bloodrunner is reduced to 0 Stamina, they can make a free strike before dying. If the target of the free strike is reduced to 0 Stamina, the bloodrunner is reduced to 1 Stamina instead.
+  - text: |
+      If the garroter is reduced to 0 Stamina, they can make a free strike before dying. If the target of the free strike is reduced to 0 Stamina, the garroter is reduced to 1 Stamina instead.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      whenActive: combat
+      repeatTargets: false
+      trigger: zerohitpoints
+      numTargets: "1"
+      targetType: self
+      guid: e168a528-282a-4e55-8e54-d78f6ac8cec9
+      name: Relentless
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: b0717a35-062b-4d19-aeee-388b4f032e41
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              modifyDescription: ""
+              source: ""
+              filterAbility: Ability.Free Strike
+              behavior: modifyability
+              guid: 4b791ce6-bd11-4d62-83c7-18eed493ecc2
+              name: Modify Attack
+              attributes: []
+              description: ""
+              cannotModifyAction: true
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                strain: []
+                guid: 919b46fc-57c6-4671-a2a5-d3702e28e3f1
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  invokeOnCaster: true
+                  filterTarget: target.stamina <=0	
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    persistence: []
+                    modifiers: []
+                    abilityType: none
+                    strain: []
+                    guid: 7d006c85-411f-41fb-94be-7ec8f9fcfcc1
+                    repeatTargets: false
+                    numTargets: "1"
+                    targetType: self
+                    behaviors:
+                    - __typeName: ActivatedAbilityHealBehavior
+                      applyto: caster
+                      roll: "1"
+                    implementation: 3
+                    name: Relentless - Heal if target of free strike dies
+                    preDescription: The dying Orc selects a creature to Free Strike. If the target is reduced to 0 stamina, the orc lives and drops to 1 stamina instead.
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                  promptText: ""
+                abilityType: none
+                name: New Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          targetType: self
+          name: Relentless Free Strike
+          implementation: 3
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        promptText: Select a creature to free strike. If the target is reduced to 0 stamina, the orc lives and drops to 1 stamina instead.
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: 32ac037e-27b0-4b45-8249-b297c4bd920e
+    name: Relentless
+    sourceguid: 10f8614c-92cb-4493-8f21-180e3b53721f
+  source: Monster
+  guid: 10f8614c-92cb-4493-8f21-180e3b53721f
+  importMatch: If <<monster>> is reduced to 0 Stamina, they can make a free strike before dying. If the target of the free strike is reduced to 0 Stamina, <<monster>> is reduced to 1 Stamina instead.
+  ctime: 1775012335140
+  name: Relentless
+  id: 94fd1eac-721d-4130-b623-ccca038d7fab
+  description: ""
+  mtime: 1775012335140
+  implementation: 3
+e6c1cb12-3572-4c0a-ba20-85ce5bcb7418:
+  __typeName: CharacterFeature
+  testCases:
+  - text: When the sharpshooter dies, they explode, dealing 1d6 damage to each adjacent enemy
+  - text: When the amalgamite dies, they explode, dealing 1d6 damage to each adjacent enemy
+  - text: When the cognivite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      numTargets: "1"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      targetFilter: Enemy
+      guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+      repeatTargets: false
+      abilityType: none
+      trigger: creaturedeath
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: 1d6
+      persistence: []
+      name: Loyalty Collar
+      targetType: all
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+    name: Loyalty Collar
+    sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+  source: Monster
+  guid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+  importMatch: When the <<monster>> dies, they explode, dealing 1d6 damage to each adjacent enemy
+  ctime: 1747453072119
+  name: Loyalty Collar
+  id: e6c1cb12-3572-4c0a-ba20-85ce5bcb7418
+  description: ""
+  mtime: 1747673961404
+  implementation: 3
+be5239c8-a5dd-4c54-866e-6ce4e99717e9:
+  __typeName: CharacterFeature
+  testCases:
+  - text: The artifex takes 2 turns each round.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 41b5a94f-3523-4087-b3e7-856d9e53a357
+    sourceguid: 02b3f255-8bc0-4d26-aa65-57d78d9e8cd9
+    value: "<<number>> - 1"
+    source: Monster
+    name: Leader Turns
+    behavior: attribute
+    description: ""
+    attribute: extraturns
+  source: Monster
+  importMatchType: rules
+  importMatch: "<<monster>> takes <<number>> turns each round."
+  ctime: 1709455464730
+  id: be5239c8-a5dd-4c54-866e-6ce4e99717e9
+  name: Leader Turns
+  guid: 02b3f255-8bc0-4d26-aa65-57d78d9e8cd9
+  mtime: 1709455464730
+  description: ""
+  implementation: 3
+bdfcea46-7c6f-4a34-9e11-b9f8d5b3117d:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 26d996e2-6b31-466e-9813-10f0eaaeab5e
+    guid: ef8a3a62-6713-452c-9c33-57bf0b590475
+    source: Monster
+    behavior: activated
+    description: ""
+    name: Testudo
+    activatedAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: c5e5063c-85df-4db9-ba6e-ad22be2a0c78
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      domains: []
+      behaviors: []
+      abilityType: none
+      name: Testudo
+      targetType: self
+      description: ""
+      range: 5
+      iconid: ui-icons/skills/1.png
+  source: Monster
+  guid: 26d996e2-6b31-466e-9813-10f0eaaeab5e
+  importMatch: At the start of a combat encounter, <<monster>> picks a creature to be their commander. That creature cumulatively reduces the damage of Weapon attacks made against them by 1 (up to a maximum reduction of 4) while the tiro remains within 1 square of the commander and isn’t dazed or prone.
+  ctime: 1709477018064
+  name: Testudo
+  id: bdfcea46-7c6f-4a34-9e11-b9f8d5b3117d
+  description: ""
+  mtime: 1709536491633
+  importMatchType: rules
+2e21b64e-ec05-43e6-8a7a-37e70630554e:
+  __typeName: CharacterFeature
+  testCases:
+  - text: Allies within 5 of the signifier have  and :shield:. If the signifier is killed, a minion from their squad can retrieve the signum and replace their stat block with the signifier stat block.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: f5b26dc4-ca8d-46c3-9c0e-eba72e1d701e
+    source: Monster
+    seq: 9377fc79-b61f-4124-aad6-6760b2f50fb9
+    aura:
+      __typeName: Aura
+      applyto: friends
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.943999886512756
+          s: 0.931249856948853
+          v: 1.00238597393036
+          a: 1
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f7ad2e35-31ec-4a59-9036-7d8d6345f34c
+        source: Aura
+        modtype: none
+        keywords:
+          Attack: true
+        surges: "1"
+        guid: 4f665ed7-5e56-47a2-a5c9-ef42f3ab4e8c
+        name: Signifier
+        rollType: ability_power_roll
+        description: "Kobolds in the Aura gain :shield: and :surge:"
+        behavior: power
+        activationCondition: true
+      - __typeName: CharacterModifier
+        sourceguid: f7ad2e35-31ec-4a59-9036-7d8d6345f34c
+        source: Aura
+        modtype: none
+        keywords:
+          Attack: true
+        activationCondition: true
+        guid: eec7367c-8530-4277-bf45-ab774cc8c57a
+        rollType: enemy_ability_power_roll
+        shields: "1"
+        description: "Kobolds in the Aura gain :shield: and :surge:"
+        behavior: power
+        name: Signifier
+      name: Signifier
+      guid: f7ad2e35-31ec-4a59-9036-7d8d6345f34c
+      description: "Kobolds in the Aura gain :shield: and :surge:"
+      implementation: 3
+      iconid: 2dbee8c9-19b0-40da-acda-bf20c2401f4e
+    radius: "5"
+    guid: 563dcc66-0ca6-4ce4-aa2e-8f8eeb173446
+    description: ""
+    behavior: aura
+    name: Signifier
+  source: Monster
+  guid: f5b26dc4-ca8d-46c3-9c0e-eba72e1d701e
+  importMatch: "Allies within <<range>> of the signifier have :surge: and :shield:. If the signifier is killed, a minion from their squad can retrieve the signum and replace their stat block with the signifier stat block."
+  ctime: 1731823479349
+  name: Signifier
+  id: 2e21b64e-ec05-43e6-8a7a-37e70630554e
+  description: ""
+  mtime: 1731823980339
+  implementation: 2
+76af4511-60e9-4dc6-8f82-4f2871cc10c3:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 38864cdb-b509-4f1b-a1d7-8da114911a67
+    behavior: resistance
+    source: Monster
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "5"
+      damageType: fire
+      apply: Damage Reduction
+    description: ""
+    name: Fire Immunity
+    guid: 6c047d23-3490-4db5-8a14-2a0f0207b964
+  source: Monster
+  guid: 38864cdb-b509-4f1b-a1d7-8da114911a67
+  importMatch: fire Immunity <<immunity>>
+  ctime: 1711734264984
+  name: Fire Immunity
+  description: ""
+  id: 76af4511-60e9-4dc6-8f82-4f2871cc10c3
+  mtime: 1711784242726
+f8c3d97e-4c85-4c40-be39-ac0580971564:
+  __typeName: CharacterFeature
+  testCases:
+  - text: Abilities targeting <<monster>> that would take a bane from cover or concealment have a double bane instead.
+  modifiers: []
+  source: Monster
+  guid: e7eeda00-aa4a-41bb-9986-2fe2c0ef7952
+  importMatch: Abilities targeting the arrowswift that would take a bane from cover or concealment have a double bane instead.
+  ctime: 1774923413970
+  name: Masking Glamor
+  description: ""
+  id: f8c3d97e-4c85-4c40-be39-ac0580971564
+  mtime: 1774923413970
+0bf07484-aacf-4dee-968a-cbe239284893:
+  __typeName: CharacterFeature
+  testCases:
+  - text: The cursespitter doesn't provoke opportunity attacks by moving.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+    sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+    value: 1
+    source: Monster
+    name: Crafty
+    behavior: attribute
+    description: ""
+    attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+  source: Monster
+  guid: 37e008e8-005a-433b-b273-eef5f201e287
+  importMatch: "<<monster>> doesn't provoke opportunity attacks by moving."
+  ctime: 1731819424531
+  name: Crafty
+  id: 0bf07484-aacf-4dee-968a-cbe239284893
+  description: ""
+  mtime: 1743381749167
+  implementation: 3
+983d91d0-9d70-4a7c-9cc3-2f0148f0e8ab:
+  __typeName: CharacterFeature
+  testCases:
+  - text: While the bendrak is winded, they gain an edge on strikes, and any strike made against them gains an edge.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+    source: Monster
+    modtype: edge
+    keywords:
+      Attack: true
+    activationCondition: true
+    guid: 7d597fb7-e5d7-4b09-8970-f39bab3a58f1
+    rollType: ability_power_roll
+    filterCondition: hitpoints <= Maximum Hitpoints/2
+    description: ""
+    behavior: power
+    name: Lethe
+  - __typeName: CharacterModifier
+    sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+    source: Monster
+    modtype: edge
+    keywords:
+      Attack: true
+    activationCondition: true
+    guid: 5291759e-34d8-4db9-a54b-965c5ac91163
+    rollType: enemy_ability_power_roll
+    filterCondition: Hitpoints <= Maximum Hitpoints/2
+    description: ""
+    behavior: power
+    name: Lethe
+  source: Monster
+  guid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+  importMatch: While <<monster>> is winded, they gain an edge on strikes, and any strike made against them gains an edge.
+  ctime: 1728880087734
+  name: Lethe
+  id: 983d91d0-9d70-4a7c-9cc3-2f0148f0e8ab
+  description: ""
+  mtime: 1773969943229
+  implementation: 3
+b24762dd-833e-4e5e-9f19-2316a161687b:
+  __typeName: CharacterFeature
+  testCases:
+  - text: Uraxxinoth can walk and climb on ice as if it were normal terrain.
+  modifiers: []
+  source: Monster
+  importMatchType: rules
+  importMatch: "<<monster>> can walk and climb on ice as if it were normal terrain."
+  ctime: 1709486216388
+  name: Ice Walker
+  id: b24762dd-833e-4e5e-9f19-2316a161687b
+  mtime: 1709535272425
+  description: ""
+  guid: bc960f50-42cb-4857-bd6f-3f7c438bfc71
+94958076-e79c-46ee-87c5-a4adef0f01b5:
+  __typeName: CharacterFeature
+  testCases:
+  - text: Immediately after making an attack, this goblin can shift 1/2/3 squares.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 86e6e5e7-a748-436e-bb2e-5bcee6368d00
+    source: Monster
+    modtype: none
+    keywords:
+      Attack: true
+    activationCondition: true
+    guid: ab2619d2-0542-40cb-a1ea-37413f572814
+    name: Agile Retreat
+    behavior: power
+    addText: You shift <<tiera>>/<<tierb>>/<<tierc>> Squares
+    rollType: ability_power_roll
+    description: ""
+  source: Monster
+  guid: 86e6e5e7-a748-436e-bb2e-5bcee6368d00
+  importMatch: Immediately after making an attack, this goblin can shift <<tiera>>/<<tierb>>/<<tierc>> squares.
+  ctime: 1715814617597
+  name: Agile Retreat
+  id: 94958076-e79c-46ee-87c5-a4adef0f01b5
+  description: ""
+  mtime: 1715816310455
+  implementation: 3
+3355aee3-51e0-4a35-9216-6e029c2da392:
+  __typeName: CharacterFeature
+  testCases:
+  - text: Uraxxinoth takes 2 turns each round. They can use two actions on each of their turns and can take each turn after an enemy turn they choose. While dazed, Uraxxinoth can take one action and one maneuver per turn.
+  - text: The ankheg takes 2 turns each round. They can use two actions on each of their turns and can take each turn after an enemy turn they choose. While dazed, the aknheg can take one action and one maneuver per turn.
+  modifiers:
+  - __typeName: CharacterModifier
+    resourceType: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    sourceguid: ab649a0a-65ef-4a57-8780-c77f7bacea98
+    behavior: resource
+    source: Monster
+    name: Solo Turns
+    num: 1
+    description: ""
+    guid: 46f7bc68-cd5b-4625-b5b1-d8219a66face
+  - __typeName: CharacterModifier
+    guid: 1ca07220-2a79-461b-888d-b011ed235893
+    sourceguid: ab649a0a-65ef-4a57-8780-c77f7bacea98
+    value: 1
+    source: Monster
+    name: Solo Turns
+    behavior: attribute
+    description: ""
+    attribute: armorClass
+  source: Monster
+  importMatchType: rules
+  importMatch: "<<monster>> takes 2 turns each round. They can use two actions on each of their turns and can take each turn after an enemy turn they choose. While dazed, <<monster>> can take one action and one maneuver per turn."
+  ctime: 1709486866108
+  id: 3355aee3-51e0-4a35-9216-6e029c2da392
+  name: Solo Turns
+  guid: ab649a0a-65ef-4a57-8780-c77f7bacea98
+  mtime: 1774923694322
+  description: ""
+  implementation: 3
+ad6ef535-88ac-4fe1-ad19-39addb390949:
+  __typeName: CharacterFeature
+  testCases:
+  - text: The adeptus and one other 1/2 level ally can take their turn at the same time.
+  modifiers: []
+  source: Monster
+  importMatchType: rules
+  importMatch: "<<monster>> and one other 1/2 level ally can take their turn at the same time."
+  ctime: 1709485515055
+  name: Two for One
+  id: ad6ef535-88ac-4fe1-ad19-39addb390949
+  mtime: 1709533616511
+  description: ""
+  guid: 52628188-be6e-47c7-b483-ff55e08eb469
+de3830a9-cc72-4738-ad7e-0ab9837243ee:
+  __typeName: CharacterFeature
+  testCases:
+  - text: The veles can shift 1 square before or after making an Attack.
+  modifiers: []
+  source: Monster
+  importMatchType: rules
+  importMatch: "<<Monster>> can shift <<move>> square before or after making an Attack."
+  ctime: 1709485421060
+  id: de3830a9-cc72-4738-ad7e-0ab9837243ee
+  name: Shifty Feet
+  guid: bf154afd-cb81-4d9c-ad4a-691b83b957b5
+  mtime: 1715816275421
+  description: ""
+  implementation: 1
+482b15c2-d903-4c59-ad0a-75623917508f:
+  __typeName: CharacterFeature
+  testCases:
+  - text: The warrior ignores concealment if it's granted by a supernatural effect.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: eab2bebe-0202-4fea-988c-606d8e765b55
+    displayCondition: Target.condition has "concealment"
+    source: Monster
+    modtype: remove_bane
+    keywords: []
+    activationCondition: ""
+    activationAfterRoll: false
+    name: Supernatural Insight
+    rollType: ability_power_roll
+    description: The {shortname} ignores concealment if it's granted by a supernatural effect.
+    guid: 8185d4a2-6882-4a60-8303-5e7e6683f3e1
+    behavior: power
+  source: Monster
+  guid: eab2bebe-0202-4fea-988c-606d8e765b55
+  importMatch: "<<monster>> ignores concealment if it's granted by a supernatural effect."
+  ctime: 1775005778937
+  name: Supernatural Insight
+  id: 482b15c2-d903-4c59-ad0a-75623917508f
+  description: ""
+  mtime: 1775010071591
+  implementation: 3
+29aa2e26-638e-497e-b8f0-48d0e49bd1c1:
+  __typeName: CharacterFeature
+  testCases:
+  - text: At the end of each of his turns, Ajax can take 20 damage to end up to two effects on him that can be ended by a saving throw. This damage can't be reduced in any way.
+  modifiers: []
+  source: Monster
+  guid: 90fdb375-8fa3-4c91-a93b-10ecd06b135b
+  importMatch: At the end of each of his turns, <<monster>> can take <<num>> damage to end up to <<number>> effects on him that can be ended by a saving throw. This damage can't be reduced in any way.
+  ctime: 1774923184062
+  name: End Effect
+  description: ""
+  id: 29aa2e26-638e-497e-b8f0-48d0e49bd1c1
+  mtime: 1774923184062
+7809a2a5-7d04-4087-8db0-d2836013a2e8:
+  __typeName: CharacterFeature
+  testCases:
+  - text: Whenever a non-minion ally within 5 squares of the mage mauler is reduced to 0 Stamina, the mage mauler can move up to their speed.
+  - text: Whenever a non-minion ally within 7 squares of the wildling is reduced to 0 Stamina, the wildling can move up to their speed.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      despawnBehavior: corpse
+      targetType: self
+      triggerPrompt: Moves up to their speed.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      subjectRange: "<<distance>>"
+      strain: []
+      guid: f3c3c7cd-b756-440e-ae89-5c977575c44a
+      abilityType: none
+      trigger: zerohitpoints
+      numTargets: "1"
+      repeatTargets: false
+      name: Death Circle
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 9233b145-896d-4fec-8d2b-d4fa75519b7a
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+        promptText: "<<monster>> can move up to their speed."
+      description: ""
+      subject: allies
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: 30ac2fb5-509f-4b30-9445-4fb1f90a4d25
+    name: Death Circle
+    sourceguid: cfddca75-95b3-44c9-a374-42a7dd0678f6
+  source: Monster
+  guid: cfddca75-95b3-44c9-a374-42a7dd0678f6
+  importMatch: Whenever a non-minion ally within <<distance>> squares of <<monster>> is reduced to 0 Stamina, <<monster>> can move up to their speed.
+  ctime: 1775010539841
+  name: Death Circle
+  id: 7809a2a5-7d04-4087-8db0-d2836013a2e8
+  description: ""
+  mtime: 1775073381575
+  implementation: 3
+6eb8968f-4699-44fa-b698-f71ae6d10c0e:
+  __typeName: CharacterFeature
+  testCases:
+  - text: Each ally within 5 squares of the subcommander adds 3 to their stability.
+  modifiers:
+  - __typeName: CharacterModifier
+    operation: add
+    sourceguid: f4bf8d6d-dce4-4afc-bc97-9b53740d25ea
+    source: Monster
+    value: "<<num>>"
+    name: Ally gets Stability
+    guid: 532470a1-fdae-4dea-83ad-672464086044
+    description: ""
+    behavior: attribute
+    attribute: forcedmoveresistance
+  source: Monster
+  guid: f4bf8d6d-dce4-4afc-bc97-9b53740d25ea
+  importMatch: Each ally within <<distance>> squares of the subcommander adds <<num>> to their stability
+  ctime: 1747680151544
+  name: Ally gets Stability
+  id: 6eb8968f-4699-44fa-b698-f71ae6d10c0e
+  description: ""
+  mtime: 1747680423546
+  implementation: 3
+e2120e66-fdae-4bb4-8ed5-1eb74f5e2b8d:
+  __typeName: CharacterFeature
+  testCases:
+  - text: At the end of each of their turns, the ground commander can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+  - text: At the end of each of his turns, Lord Syuul can take 10 damage to end one effect on him that can be ended by a saving throw. This damage can't be reduced in any way.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions: []
+        targetDuration: save
+        damageToSelf: "<<dmg>>"
+        purgeType: one
+      triggerPrompt: End effect for <<dmg>>
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+      numTargets: "1"
+      castImmediately: true
+      whenActive: combat
+      targetType: self
+      trigger: endturn
+      name: End Effect
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+    name: End Effect
+    sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+  source: Monster
+  guid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+  importMatch: At the end of each of (their|his|her) turns, <<monster>> can take <<dmg>> damage to end one effect on (them|him|her) that can be ended by a saving throw. This damage can't be reduced in any way.
+  ctime: 1775013447382
+  name: End Effect
+  id: e2120e66-fdae-4bb4-8ed5-1eb74f5e2b8d
+  description: ""
+  mtime: 1775013447382
+  implementation: 3
+99bade4a-dd39-45bb-8ec2-50af000a9b9b:
+  __typeName: CharacterFeature
+  testCases:
+  - text: At the start of an encounter, the conduit chooses one creature within their line of effect. Both the conduit and the creature can add a d3 roll to power rolls they make against each other.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 6a3f3d63-3c68-4474-9ace-07b7654f674e
+      repeatTargets: false
+      abilityType: none
+      trigger: rollinitiative
+      targetType: self
+      numTargets: "1"
+      name: Rivalry
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetTextOverride: Choose a Hero as the target for your Rivalry.
+          repeatTargets: false
+          targetAllegiance: enemy
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+            ongoingEffectSource: specific
+            duration: eoe
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "50"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 0e46cae3-a11b-4cbb-b76a-3fd334c03123
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Choose a player Hero as the target for your Rivalry.
+        autoTarget: false
+        filterTarget: "	"
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        duration: eoe
+        ongoingEffectCustom: false
+        ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+        ongoingEffectSource: specific
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: b4c95233-3e76-41e0-af24-86349934170f
+    name: Rivalry
+    sourceguid: 0294f0e0-f445-4324-a573-6c3bce8dc563
+  source: Monster
+  guid: 0294f0e0-f445-4324-a573-6c3bce8dc563
+  importMatch: At the start of an encounter, <<monster>> chooses one creature within their line of effect. Both the conduit and the creature can add a d3 roll to power rolls they make against each other.
+  ctime: 1775009801576
+  name: Rivalry
+  id: 99bade4a-dd39-45bb-8ec2-50af000a9b9b
+  description: ""
+  mtime: 1775009801576
+  implementation: 3
+07adc8da-192e-492b-946d-a6098a918c1c:
+  __typeName: CharacterFeature
+  testCases:
+  - text: The first time in an encounter that the ankheg drops to 0 Stamina, they regain 25 Stamina. This regain of Stamina can’t be stopped in any way.
+  - text: The first time in an encounter that Uraxxinoth drops to 0 Stamina, she regain 50 Stamina. This regain of Stamina can’t be stopped in any way.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      numTargets: "1"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: bf091628-a361-447a-955f-ac149d17c93c
+      repeatTargets: false
+      range: 5
+      conditionFormula: Hitpoints = <<stamina>>
+      behaviors:
+      - __typeName: ActivatedAbilityHealBehavior
+        applyto: caster
+        roll: "<<healing>>"
+      targetType: self
+      name: Second Wind
+      trigger: losehitpoints
+      description: ""
+      abilityType: none
+      iconid: 2dbee8c9-19b0-40da-acda-bf20c2401f4e
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: 7279c6d4-cfca-4964-8883-7d8cf8634edd
+    name: Second Wind
+    sourceguid: 3c28b076-1b6f-4677-b0dd-08771b913e0f
+  source: Monster
+  guid: 3c28b076-1b6f-4677-b0dd-08771b913e0f
+  importMatch: The first time in an encounter that <<monster>> drops to <<stamina>> Stamina, <<monster>> regains? <<healing>> Stamina. This regain of Stamina can’t be stopped in any way.
+  ctime: 1711734862540
+  name: Second Wind
+  description: ""
+  id: 07adc8da-192e-492b-946d-a6098a918c1c
+  mtime: 1711994196786
+de82f9b5-f60d-4389-8950-8bb9450cadb1:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 9fee1696-ac0c-481e-b5a2-b234341491ac
+    source: Monster
+    modtype: double_edge
+    keywords:
+      Attack: true
+    activationCondition: true
+    guid: 9602db47-d383-4db3-a558-938076260e1a
+    rollType: ability_power_roll
+    filterCondition: has condition "hiding"
+    description: ""
+    behavior: power
+    name: Ambush Expert
+  source: Monster
+  guid: 9fee1696-ac0c-481e-b5a2-b234341491ac
+  importMatch: "<<Monster>> has a <<double>> edge on Attacks against creatures they are hidden from."
+  ctime: 1709485733358
+  name: Ambush Expert
+  id: de82f9b5-f60d-4389-8950-8bb9450cadb1
+  description: ""
+  mtime: 1711783357197
+  importMatchType: rules
+54e14264-5773-45d2-bdc5-067c98f8165c:
+  __typeName: CharacterFeature
+  testCases:
+  - text: "An enemy adjacent to the drangolin has :shield: on attacks and can't be hidden."
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 9a32c9e3-dd75-4001-9b82-8548e6809358
+    source: Monster
+    seq: 2cb942bc-db34-45a9-a545-3f234334a66a
+    aura:
+      __typeName: Aura
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ff632439-9e34-4bf8-aa20-93203a67afdc
+        source: Ash Shot
+        modtype: none
+        keywords:
+          Attack: true
+        activationCondition: true
+        guid: a747aacf-76fc-455b-835d-d1205d3c47a0
+        rollType: ability_power_roll
+        shields: "1"
+        description: "A :shield: applies to your attacks while you are next to the Dragonlin"
+        behavior: power
+        name: Ash Shot
+      source: Ash Shot
+      guid: ff632439-9e34-4bf8-aa20-93203a67afdc
+      applyto: enemies
+      name: Ash Shot
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      description: "A :shield: applies to your attacks while you are next to the Dragonlin"
+      iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+      implementation: 2
+    radius: "1"
+    guid: 7bdaf11c-165e-456b-9d27-f5e418bc0421
+    description: ""
+    behavior: aura
+    name: Ash Shot
+  source: Monster
+  guid: 9a32c9e3-dd75-4001-9b82-8548e6809358
+  importMatch: "An enemy adjacent to <<monster>> has :shield: on attacks and can't be hidden."
+  ctime: 1731828158850
+  name: Ash Shot
+  id: 54e14264-5773-45d2-bdc5-067c98f8165c
+  description: ""
+  mtime: 1731828354990
+  implementation: 2
+e114a544-3e38-4c9b-9ba9-17aab755ef09:
+  __typeName: CharacterFeature
+  modifiers: []
+  source: Monster
+  guid: 1f34ecd4-e469-4583-a004-68ffb5ce8011
+  importMatch: "<<monster>> can burrow through mundane <<terrain>> and <<terraintwo>>."
+  ctime: 1711782750512
+  name: Meld in the Earth
+  description: ""
+  id: e114a544-3e38-4c9b-9ba9-17aab755ef09
+  mtime: 1711782750512
+c148a928-e69b-43bc-bc52-16a03285f95b:
+  __typeName: CharacterFeature
+  testCases:
+  - text: When the skeleton dies, each enemy within 1 square takes 1 damage.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      numTargets: "1"
+      modifiers: []
+      guid: b89503e3-6691-4f22-8dc5-65c89f7daf60
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: "<<distance>>*5"
+      targetType: all
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "<<damage>>"
+      name: Hail of Bones
+      trigger: zerohitpoints
+      description: ""
+      abilityType: none
+      iconid: 74db885f-d96e-4b14-af40-69292a0d6a22
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: 6911a5e6-a903-4e27-aabf-df4cb6db73f5
+    name: Hail of Bones
+    sourceguid: 009c76dc-6425-4355-a5bd-3df14aa55a93
+  source: Monster
+  importMatchType: rules
+  importMatch: When <<monster>> dies, each enemy within <<distance>> square takes <<damage>> damage.
+  ctime: 1709487128182
+  id: c148a928-e69b-43bc-bc52-16a03285f95b
+  name: Hail of Bones
+  guid: 009c76dc-6425-4355-a5bd-3df14aa55a93
+  mtime: 1709535982786
+  description: ""
+  implementation: 3
+9ebb6e83-f0d4-48ea-8a8f-7e63d2a1f7ea:
+  __typeName: CharacterFeature
+  modifiers: []
+  source: Monster
+  guid: 8b1e11fc-9c6e-4f33-8100-57ee8740816b
+  importMatch: "<<monster>> can’t grant the <<condition>> flanking benefit to allies."
+  ctime: 1711783050195
+  name: Disorganized
+  description: ""
+  id: 9ebb6e83-f0d4-48ea-8a8f-7e63d2a1f7ea
+  mtime: 1711783050195
+d1fbac41-db60-4b0b-9825-ef8cb2b46f5b:
+  __typeName: CharacterFeature
+  testCases:
+  - text: The assassin can take the Hide maneuver even while observed, though they still must have cover or concealment.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: dfe68f83-08c8-4890-8d0c-1fd5610c7530
+    modifyDescription: "<<monster>> can hide even while observed, though they still must have cover or concealment."
+    source: Monster
+    filterAbility: ability.name = "Hide"
+    behavior: modifyability
+    attributes: []
+    guid: 33f0ca65-e70b-463b-a059-eb89679340ca
+    description: ""
+    name: Hide While Observed
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 356f8ef7-ccfc-4269-963b-455cc05223cb
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Monster
+  guid: dfe68f83-08c8-4890-8d0c-1fd5610c7530
+  importMatch: "<<monster>> can take the Hide maneuver even while observed, though they still must have cover or concealment."
+  ctime: 1742879814125
+  name: Hide While Observed
+  description: ""
+  id: d1fbac41-db60-4b0b-9825-ef8cb2b46f5b
+  mtime: 1742879814125
+a6bb6845-bdf1-440b-ac1e-b2be80d58b42:
+  __typeName: CharacterFeature
+  testCases:
+  - text: The gorer can't obtain less than a tier 2 outcome when making tests to navigate, search, or seek.
+  - text: The lackey can't obtain less than a tier 2 outcome when making tests to navigate, search, or seek.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 9431624a-f91d-49f3-86a3-c52767c014b5
+    source: Monster
+    modtype: nottierone
+    keywords: []
+    activationCondition: false
+    guid: 87a3e17f-8c08-4f4d-97e8-adebbcd9e06a
+    name: Minotaur Sense
+    behavior: power
+    description: The {shortname} can't obtain less than a tier 2 outcome when making tests to navigate, search, or seek.
+    rollType: test_power_roll
+    skills:
+    - 0c7d0c53-2056-4579-8c83-1bec3098cc56
+    - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+  source: Monster
+  guid: 9431624a-f91d-49f3-86a3-c52767c014b5
+  importMatch: "<<monster>> can't obtain less than a tier 2 outcome when making tests to navigate, search, or seek"
+  ctime: 1775012588533
+  name: Minotaur Sense
+  id: a6bb6845-bdf1-440b-ac1e-b2be80d58b42
+  description: ""
+  mtime: 1775012588533
+  implementation: 3
+d11584fd-fc91-4646-aac0-355db98629e5:
+  __typeName: CharacterFeature
+  testCases:
+  - text: Cold Immunity 5	
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 4738375e-968d-454d-8bd0-966b3841e554
+    behavior: resistance
+    source: Monster
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "<<immunity>>"
+      damageType: cold
+      apply: Damage Reduction
+    description: ""
+    name: Cold Immunity
+    guid: 83af3cd5-75a6-4af9-9bd6-869cb5e28b6d
+  source: Monster
+  guid: 4738375e-968d-454d-8bd0-966b3841e554
+  importMatch: cold Immunity <<immunity>>
+  ctime: 1710226929002
+  name: Cold Immunity
+  description: ""
+  id: d11584fd-fc91-4646-aac0-355db98629e5
+  mtime: 1711784294855
+38e9ebf6-07aa-4504-b7fd-d8d14209b3d5:
+  __typeName: CharacterFeature
+  testCases:
+  - text: When this goblin makes a ranged attack, they can target two creatures within distance.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 9c847911-b9a4-48ba-9a6d-127ac49c5b5f
+    modifyDescription: The attack may target two creatures.
+    source: Monster
+    filterAbility: (Ability.Keywords Has "Attack") and (Ability.Keywords Has "Ranged")
+    behavior: modifyability
+    attributes:
+    - operation: Set
+      value: "2"
+      id: numtargets
+    guid: d37e8ac6-6866-492f-9b55-348616cb8fdb
+    description: ""
+    name: Rain Arrows
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 8deaf81e-9cfb-4d02-8a5b-17901021835e
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 5
+      iconid: ui-icons/skills/1.png
+  source: Monster
+  guid: 9c847911-b9a4-48ba-9a6d-127ac49c5b5f
+  importMatch: When <<monster>> makes a ranged attack, they can target two creatures within distance.
+  ctime: 1715816697562
+  name: Rain Arrows
+  description: ""
+  id: 38e9ebf6-07aa-4504-b7fd-d8d14209b3d5
+  mtime: 1715817351805
+84fcac64-6e40-4200-866c-cc42c8dad37e:
+  __typeName: CharacterFeature
+  modifiers: []
+  source: Monster
+  importMatchType: rules
+  importMatch: "<<monster>> can always attempt to hide using the Hide maneuver if they are adjacent to at least two allies, even if observed (though they must still have cover or concealment)."
+  ctime: 1709485854694
+  id: 84fcac64-6e40-4200-866c-cc42c8dad37e
+  name: Lost in the Crowd
+  guid: 14682871-7fa8-4fa0-9b7f-6e848719b33a
+  description: ""
+  mtime: 1709535010654
+  implementation: 1
+c196efa0-2833-439e-bbdd-962b7e297743:
+  __typeName: CharacterFeature
+  testCases:
+  - text: "<<monster>> ignores concealment if it's granted by a supernatural effect."
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 2605afba-f361-420b-997e-6b5afb17642d
+    displayCondition: Target.Conditions has "concealment"
+    source: Monster
+    modtype: remove_bane
+    keywords: []
+    activationCondition: ""
+    activationAfterRoll: false
+    name: Supernatural Insight
+    rollType: ability_power_roll
+    description: ""
+    guid: 74c80afb-2814-4ac5-a394-d8ee19837c11
+    behavior: power
+  source: Monster
+  guid: 2605afba-f361-420b-997e-6b5afb17642d
+  importMatch: The warrior ignores concealment if it's granted by a supernatural effect.
+  ctime: 1774922885222
+  name: Supernatural Insight
+  description: ""
+  id: c196efa0-2833-439e-bbdd-962b7e297743
+  mtime: 1774923920952
+8c02f175-35fb-442d-a33a-75d38b75195b:
+  __typeName: CharacterFeature
+  testCases:
+  - text: Whenever an adjacent enemy grabs the cleaver or uses a melee ability against them, that enemy takes 2 poison damage.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      targetTextOverride: 1 square
+      repeatTargets: false
+      rangeTextOverride: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        titleText: Toxiferous
+        roll: "<<number>>"
+        damageType: poison
+        chatMessage: Melee Ability Vs. Toxic Creature
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 0569f005-2683-4adc-92ff-2bc18f9c1c80
+      persistence: []
+      conditionFormula: target = self and (Used Ability.Keywords has "Melee")	
+      abilityType: none
+      targetType: subject
+      trigger: targetwithability
+      name: Toxiferous
+      description: ""
+      subject: enemy
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: b23da00d-6901-42f3-a9af-c18a93b6e496
+    name: Toxiferous
+    sourceguid: 899d7be5-9c24-4936-b4a7-1133b5ee6fd5
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      targetTextOverride: 1 square
+      repeatTargets: false
+      rangeTextOverride: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        titleText: Toxiferous
+        roll: "<<number>>	"
+        damageType: poison
+        chatMessage: Grabbed by a Toxiferous Creature
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: bd4cc27c-afe1-45e6-9932-edbc03d52580
+      conditionFormula: Condition = "Grabbed" and (Has Attacker)
+      targetType: attacker
+      name: Toxiferous
+      trigger: inflictcondition
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Monster
+    behavior: trigger
+    guid: f202e506-f5e0-425a-a09c-858ef3681bb1
+    name: Toxiferous
+    sourceguid: 899d7be5-9c24-4936-b4a7-1133b5ee6fd5
+  source: Monster
+  guid: 899d7be5-9c24-4936-b4a7-1133b5ee6fd5
+  importMatch: Whenever an adjacent enemy grabs <<monster>> or uses a melee ability against them, that enemy takes <<number>> poison damage.
+  ctime: 1771874044626
+  name: Toxiferous
+  id: 8c02f175-35fb-442d-a33a-75d38b75195b
+  description: ""
+  mtime: 1771875784453
+  implementation: 4
+ccd8ad08-d40e-492d-b0e5-6d90e2369d91:
+  __typeName: CharacterFeature
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: d9c4bf41-189c-45f6-9d16-60cb336c5b46
+    source: Monster
+    modtype: double_edge
+    keywords: []
+    activationCondition: Soft Underbelly
+    guid: a5151d58-af31-44df-a186-0733b404df32
+    rollType: enemy_ability_power_roll
+    filterCondition: Ongoing Effect has "prone"
+    description: ""
+    behavior: power
+    name: Soft Underbelly
+  source: Monster
+  guid: d9c4bf41-189c-45f6-9d16-60cb336c5b46
+  importMatch: " A prone creature makes a <<melee>>melee attack against the ankheg, the attack has <<boon>> instead of <<bane>>."
+  ctime: 1711782493685
+  name: Soft Underbelly
+  description: ""
+  id: ccd8ad08-d40e-492d-b0e5-6d90e2369d91
+  mtime: 1711782493685
+95a0c240-1c57-479d-9c8a-64dc75a9ba44:
+  __typeName: CharacterFeature
+  testCases:
+  - text: "The goblin's melee attack gains the effect: push 2"
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 35a02ed8-a9a9-484c-b2a1-f6f0bbdf6d44
+    source: Monster
+    modtype: none
+    rollType: ability_power_roll
+    keywords:
+      Melee: true
+      Attack: true
+    hasCustomTrigger: false
+    customTrigger:
+      __typeName: TriggeredAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 00893710-f0d3-4b1e-b470-959b56c805fa
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 5
+      targetType: self
+      behaviors: []
+      name: New Ability
+      trigger: d20roll
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    behavior: power
+    name: Big Hit
+    description: ""
+    addText: Push 2
+    guid: 8e163979-64e5-4c16-9aa4-3a8cccbcf248
+    activationCondition: true
+  source: Monster
+  guid: 35a02ed8-a9a9-484c-b2a1-f6f0bbdf6d44
+  importMatch: "<<monster>> melee attack gains the effect: push 2"
+  ctime: 1715812890230
+  name: Big Hit
+  id: 95a0c240-1c57-479d-9c8a-64dc75a9ba44
+  description: ""
+  mtime: 1715815407834
+  implementation: 3
+97ece922-c1d5-4c34-897b-3c39b3540960:
+  __typeName: CharacterFeature
+  testCases:
+  - text: If the target has a loyalty collar, they are reduced to 0 Stamina.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 77e7c5c3-cb54-4bd4-b25d-f5dbd389c0a6
+    guid: 21cf7f24-286e-4e6b-a0a2-1a935dc6fb4f
+    source: Monster
+    behavior: activated
+    description: ""
+    name: Posthumous Promotion
+    activatedAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: Target has "Loyalty Collar"
+      targetTextOverride: 1 creature
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "10	"
+      persistence: []
+      modifiers: []
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      strain: []
+      guid: 6bb0131d-d192-45ea-bb63-3194497914e8
+      rangeTextOverride: Ranged 10
+      numTargets: "1"
+      domains: []
+      iconid: ui-icons/skills/1.png
+      selfTarget: true
+      name: Posthumous Promotion
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      implementation: 3
+  source: Monster
+  guid: 77e7c5c3-cb54-4bd4-b25d-f5dbd389c0a6
+  importMatch: If the target has a loyalty collar, they are reduced to 0 Stamina.
+  ctime: 1775013027602
+  name: Posthumous Promotion
+  id: 97ece922-c1d5-4c34-897b-3c39b3540960
+  description: ""
+  mtime: 1775081774119
+  implementation: 3
+34d6e463-7cd2-4f2f-b81c-855fc9177e3f:
+  __typeName: CharacterFeature
+  modifiers: []
+  source: Monster
+  guid: 4d3e4f4d-1ec1-4b0d-b8ef-946f1d247f9c
+  importMatch: |-
+    <<monster>> Stamina drops to <<stamina>> when they’re targeted with 
+    an <<attack>> attack that deals damage.
+  ctime: 1711782981674
+  name: Minion
+  description: ""
+  id: 34d6e463-7cd2-4f2f-b81c-855fc9177e3f
+  mtime: 1711782981674
+3e8783ac-f872-4dd2-a7de-a4a710b5244d:
+  __typeName: CharacterFeature
+  testCases:
+  - text: The adeptus has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.	
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+    source: Monster
+    iconColor: "#ffffffff"
+    behavior: icon
+    filterCondition: AdjacentAlliesWithFeature("<<trait>>")
+    statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+    name: Shield? Shield!
+    description: ""
+    guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+  - __typeName: CharacterModifier
+    sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+    source: Monster
+    value: "<<num>>"
+    filterCondition: AdjacentAlliesWithFeature("<<trait>>")
+    name: Shield? Shield!
+    guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+    description: ""
+    behavior: attribute
+    attribute: forcedmoveresistance
+  - __typeName: CharacterModifier
+    operation: set
+    sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+    source: Monster
+    value: 1
+    filterCondition: AdjacentAlliesWithFeature("<<trait>>")
+    name: Shield? Shield!
+    guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+    description: ""
+    behavior: attribute
+    attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+  - __typeName: CharacterModifier
+    operation: set
+    sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+    source: Monster
+    value: 1
+    filterCondition: AdjacentAlliesWithFeature("<<trait>>")
+    name: Shield? Shield!
+    guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+    description: ""
+    behavior: attribute
+    attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+  source: Monster
+  importMatchType: rules
+  importMatch: "<<monster>> has cover, a Stability of <<num>>, and can act as cover for allies when adjacent to an ally who also has this trait."
+  ctime: 1709449263735
+  id: 3e8783ac-f872-4dd2-a7de-a4a710b5244d
+  name: Shield? Shield!
+  guid: 7bec624d-8307-47dc-ba04-8487c909462a
+  mtime: 1743550113582
+  description: ""
+  implementation: 3
+b8a8a0be-511d-4ffa-8ae9-2833d2f3539f:
+  __typeName: CharacterFeature
+  modifiers: []
+  source: Monster
+  guid: e5ac73c7-4fd9-47f7-8d80-aa9ff8b90d39
+  importMatch: "<<monster>> can burrow through mundane stone as if it were difficult terrain and leaves behind a 2 x 2 tunnel opening in the stone"
+  ctime: 1709486030850
+  name: Stone-Burrower
+  id: b8a8a0be-511d-4ffa-8ae9-2833d2f3539f
+  description: ""
+  mtime: 1709535048406
+  importMatchType: rules

@@ -1,0 +1,242 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 087e302f-c0dd-47c1-bcce-18e9b901c614
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 4
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Redglare	Level 6 Platoon Hexer
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 16
+        <b>Stamina</b> 70	<b>Immunity</b> fire 6
+        <b>Speed</b> 5 (teleport)	<b>Size</b> 1L /<b> Stability</b> 4
+        <b>Free Strike</b> 6
+        Might 0	Agility +2	Reason +2	Intuition +3	Presence +3
+        <b>Eye Flash</b> (Action) %E2%97%86 2d10+3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 corruption damage; P<1 slowed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	14 corruption damage; P<2 restrained (save ends)
+        %E2%9C%B8	<b>17</b>	17 corruption damage; P<3 restrained (save ends)
+
+        <b>Glare of the Old Judgements</b> (Action) %E2%97%86 2d10+3 %E2%97%86 5 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> 1 creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 corruption damage
+        %E2%98%85	<b>12%E2%80%9316</b>	10 corruption damage or P<2 Target is judged
+        %E2%9C%B8	<b>17</b>	Target is judged
+        <b>Effect</b> A judged target takes 10 corruption damage for each turn they've taken during the encounter.  The target then regains 5 Stamina for each recovery they enabled a creature to spend during the encounter.
+
+        <b>Infernal Ichor</b>
+        If the redglare's Stamina drops to 0, they spray burning blood. Each creature within 1 of the redglare takes 3 fire damage.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9002b749-49f3-44a5-bef1-c1e31af4ac5f: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the redglare's Stamina drops to 0, they spray burning blood. Each creature within 1 of the redglare takes 3 fire damage.
+      guid: 9002b749-49f3-44a5-bef1-c1e31af4ac5f
+      source: Trait
+    role: Platoon Hexer
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Hobgoblin Redglare
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: aa8588b7-5818-4971-915f-9219fe7178f1
+      implementation: 4
+      numTargets: 1
+      name: Eye Flash
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 corruption damage; P<1 slowed (save ends)
+        - 14 corruption damage; P<2 restrained (save ends)
+        - 17 corruption damage; P<3 restrained (save ends)
+        roll: 2d10 + Intuition
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2cc6f054-3dbe-473c-a2cf-84c2e59fee4b
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 corruption damage
+        - 10 corruption damage or P<2 Target is judged
+        - Target is judged
+        roll: 2d10+3
+      name: Glare of the Old Judgements
+      implementation: 3
+      description: A judged target takes 10 corruption damage for each turn they've taken during the encounter.  The target then regains 5 Stamina for each recovery they enabled a creature to spend during the encounter.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      numTargets: 1
+      modifiers: []
+      guid: 33ba0535-6ca5-443e-a12f-1ab9ba0c9822
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 corruption damage
+        - 10 corruption damage; or if the target has P<2 they are judged
+        - 0 damage; the target is judged
+        roll: 2d10 + Intuition
+      name: Glare of the Old Judgments
+      sourceReference:
+        __typeName: SourceReference
+        page: 175
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: Until the end of the encounter, a judged target takes 10 corruption damage at the start of each of their turns, and regains 5 Stamina each time they use an ability or other effect that allows another creature to spend a Recovery.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 3
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds:
+      teleport: 5
+    ev: 16
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: 73735fe0-9371-4631-9746-8e30c91ec724
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin Redglare
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590266361
+mtime: 1775201137032
+hidden: false

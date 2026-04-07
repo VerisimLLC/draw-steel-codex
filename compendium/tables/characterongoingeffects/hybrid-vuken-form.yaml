@@ -1,0 +1,55 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: e6562c1c-4e1f-4d1d-ac6b-ade21b144475
+  sourceguid: 5c4ee585-abb0-4ad1-b137-af7704fd3424
+  value: 2
+  source: Ongoing Effect
+  name: Hybrid Vuken Form
+  behavior: attribute
+  description: Whenever your rage is 4 or higher, you can shapeshift to become a hybrid bipedal wolf of your true form’s size. You gain 10 temporary Stamina the first time you shapeshift into hybrid wolf form during an encounter.
+  attribute: speed
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 5c4ee585-abb0-4ad1-b137-af7704fd3424
+  source: Ongoing Effect
+  value: 4
+  name: Hybrid Vuken Form
+  guid: a63eb73b-6661-42bc-bca9-2f037a337896
+  description: Whenever your rage is 4 or higher, you can shapeshift to become a hybrid bipedal wolf of your true form’s size. You gain 10 temporary Stamina the first time you shapeshift into hybrid wolf form during an encounter.
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  guid: 6b898ae5-78a1-47d4-bea9-4a5450a35412
+  sourceguid: 5c4ee585-abb0-4ad1-b137-af7704fd3424
+  value: 1
+  source: Ongoing Effect
+  name: Hybrid Vuken Form
+  behavior: attribute
+  description: Whenever your rage is 4 or higher, you can shapeshift to become a hybrid bipedal wolf of your true form’s size. You gain 10 temporary Stamina the first time you shapeshift into hybrid wolf form during an encounter.
+  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+- __typeName: CharacterModifier
+  guid: d416b0d5-033f-4eec-91de-7245d147cd4e
+  sourceguid: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+  value: 1
+  source: Ongoing Effect
+  name: Vuken Form
+  behavior: attribute
+  description: ""
+  attribute: disguised
+source: Ongoing Effect
+guid: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+id: e1fd7ea5-c550-4f7a-8c84-ae48c5b76a70
+ctime: 1770691146318
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Hybrid Vuken Form
+iconid: 54d12486-b6eb-4290-b19c-ffdbab61d585
+description: ""
+mtime: 1770691252744
+implementation: 3

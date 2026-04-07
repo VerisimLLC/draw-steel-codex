@@ -1,0 +1,47 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 32af37ce-bd63-436f-8ec6-27c832b5eba2
+  sourceguid: 3879f6cd-b068-4482-8618-4218b5d4cf01
+  value: Walking Speed
+  source: Ongoing Effect
+  name: Levitated
+  behavior: attribute
+  description: You can fly, but are weakened and slowed while flying.
+  attribute: fly
+- __typeName: CharacterModifier
+  conditionid: 567a3454-ead6-4416-b338-ed73d64b7805
+  sourceguid: 3879f6cd-b068-4482-8618-4218b5d4cf01
+  source: Ongoing Effect
+  guid: 0ed16241-7889-4b97-95b0-eec28a597d50
+  description: You can fly, but are weakened and slowed while flying.
+  behavior: bestowcondition
+  name: Levitated
+- __typeName: CharacterModifier
+  conditionid: 68f455f5-135f-495c-822d-40d809d2b15f
+  sourceguid: 3879f6cd-b068-4482-8618-4218b5d4cf01
+  source: Ongoing Effect
+  guid: 5d90d962-6d3e-4685-8e2b-5799e345f66d
+  description: You can fly, but are weakened and slowed while flying.
+  behavior: bestowcondition
+  name: Levitated
+source: Ongoing Effect
+guid: 3879f6cd-b068-4482-8618-4218b5d4cf01
+id: 3879f6cd-b068-4482-8618-4218b5d4cf01
+ctime: 1750565719101
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.509500205516815
+    s: 0.376953363418579
+    v: 1.00306558609009
+    a: 1
+name: Levitated
+description: You can fly, but are weakened and slowed while flying.
+mtime: 1750565719101
+iconid: 5ab4af83-d9d2-4642-ba34-dc72b8c3ae34
+implementation: 3

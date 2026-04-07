@@ -1,0 +1,38 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 3cfee38a-1af5-4558-8a03-82430f05a0ce
+  displayCondition: ""
+  source: Ongoing Effect
+  guid: abc7b34b-aa84-4988-97f4-6758f770db16
+  keywords: []
+  activationCondition: Ability.name = "Dirt Devil"
+  filterCondition: type = "arixx"
+  domains:
+    CharacterOngoingEffect:3cfee38a-1af5-4558-8a03-82430f05a0ce: true
+  rollType: ability_power_roll
+  behavior: power
+  description: ""
+  modtype: double_edge
+  name: Underground
+source: Ongoing Effect
+guid: 3cfee38a-1af5-4558-8a03-82430f05a0ce
+id: 3cfee38a-1af5-4558-8a03-82430f05a0ce
+ctime: 1757010011376
+domains:
+  CharacterOngoingEffect:3cfee38a-1af5-4558-8a03-82430f05a0ce: true
+name: Underground
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0975302457809448
+    s: 0.494951725006104
+    v: 0.73606926202774
+    a: 1
+mtime: 1757017032118
+description: ""
+iconid: b86a7a42-15dc-4220-b27c-27919193e357

@@ -1,0 +1,71 @@
+__typeName: Kit
+armor: Heavy
+stability: 1
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+description: The Shining Armor kit provides the most protection a kit can afford, providing you with the sword, shield, and armor necessary to play the prototypical knight.
+health: 12
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+id: 66405ba9-8a0f-4b47-85e0-75e4dab23780
+kitManeuver: false
+type: martial
+portraitid: 09f877d5-ee1b-4b81-8916-821a9ff780d2
+imported: 63abbfe2-a1d0-4ebe-9a41-7403d109071c
+equipmentDescription: You wear heavy armor and wield a shield and a medium weapon.
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: The strength of your assault makes it impossible for your foe to ignore you.
+  sourceReference:
+    __typeName: SourceReference
+    page: 222
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  effectImplemented: false
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 98c5ab96-d827-40ae-b963-8e999f3095cc
+  numTargets: 1
+  categorization: Signature Ability
+  implementation: 4
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 + M or A damage
+    - 8 + M or A damage
+    - 11 + M or A damage
+    roll: 2d10 + Might or Agility
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: Taunted (EoT)
+  name: Protective Attack
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  description: The target is taunted (EoT).
+  abilityType: none
+  iconid: 92a6d94b-65ab-49b6-b33e-0dae78f3a332
+mtime: 1770565492543
+name: Shining Armor
+weapons:
+  Medium: true
+  Shield: true

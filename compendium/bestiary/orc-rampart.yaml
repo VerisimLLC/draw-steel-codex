@@ -1,0 +1,701 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 646cb39f-aeef-4ae1-b52f-f5125ca1fdcb
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: true
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 6a32694a-48b7-4fb3-8af9-086c642e34fd
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 8
+    max_hitpoints_roll: "59"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: 2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    creatureSize: 1L
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        5d363fac-5f9e-4ede-8fc6-c33b35db272f:
+          refreshid: d044f15b-1423-412e-ab67-7896dc6965ca-3
+          note: "Used triggered ability: No"
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        fd807210-5457-4729-ba11-8f73dc1b700a:
+          refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-3
+          note: "Used triggered ability: No"
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        a4873645-0f35-4d90-9ee3-11c27808950e:
+          refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-2
+          note: "Used triggered ability: No"
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        81a46801-d3d8-48f6-8e9f-d64ae24a46a2:
+          refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-6
+          note: "Used triggered ability: No"
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        d952d92b-839c-47c8-b6ac-2707540611fa:
+          refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-1
+          note: "Used triggered ability: No"
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        b9a3425c-67c3-488e-9661-4b3fdd9462c4:
+          refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-5
+          note: "Used triggered ability: No"
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        4a291a8f-4624-4573-8795-8041eff5ca42:
+          refreshid: d044f15b-1423-412e-ab67-7896dc6965ca-2
+          note: "Used triggered ability: No"
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 221
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 7f31a9f7-318b-43db-a0ec-ecb7cd2ed40e
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      preDescription: This ability has a double edge against any target who dealt damage to the rampart this round.
+      persistence: []
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      name: My Spear, My Foe
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage; taunted (EoT)
+        - 12 damage; taunted (EoT)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: b059ae11-570e-47f4-8ff8-2e4c9ceca493
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: b059ae11-570e-47f4-8ff8-2e4c9ceca493
+          modtype: double_edge
+          keywords: []
+          activationCondition: self.casterSet("My Spear, My Foe") has target and Ability.name = "My Spear, My Foe"
+          guid: 84e1a7c6-f973-44a8-95ae-e235989b2cec
+          rollType: ability_power_roll
+          domains: []
+          description: This ability has a double edge against any target who dealt damage to the rampart this round.
+          name: My Spear, My Foe
+          behavior: power
+      description: This ability has a double edge against any target who dealt damage to the rampart this round.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      targetFilter: ""
+      repeatTargets: false
+      keywords: []
+      targetType: emptyspace
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: Walking Speed
+      effectImplemented: true
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: b89e162c-8be6-48cf-860f-9a286e049131
+      persistence: []
+      implementation: 3
+      targeting: pathfind
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        movementType: shift
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          objectTarget: false
+          abilityType: none
+          strain: []
+          guid: eaba1e94-1324-4d8b-ba8f-76fa8a8e462b
+          repeatTargets: false
+          modifiers: []
+          targetAllegiance: ally
+          targetType: target
+          numTargets: "1"
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: shift
+            swapCreatures: true
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        autoTarget: false
+        promptText: The rampart moves or shifts up to their speed adjacent to an allied target, then can swap place with the target.
+      name: Castling
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: The rampart moves or shifts up to their speed to a square adjacent to the target and then swaps places with the target.
+      abilityType: none
+      iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: true
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 91004b66-eee2-4e32-a53f-7daa5a1fe0b0
+      iconid: ui-icons/skills/1.png
+      numTargets: 1
+      name: No.
+      behaviors: []
+      description: The rampart becomes the attack's target.
+      abilityType: none
+      implementation: 0
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      ongoingEffectid: b7e750f9-c079-423a-974f-d69ec715a75c
+      time:
+        __typeName: TimePoint
+        time: 2.60907284418742
+        initiativeord: 0
+        queueguid: 81c11d7e-519d-4e57-a74d-d25b01589efc
+        initiativeid: b385829e-6a3a-424a-84fa-d892c0f21c2e
+        round: 7
+      seq: 1
+      casterSet:
+        b385829e-6a3a-424a-84fa-d892c0f21c2e: true
+      removeAtRoundEnd: true
+      sourceDescription: Applied by Orc Rampart's <b>My Spear, My Foe Bonus</b> ability
+      id: 13fe1e39-23ef-4877-bacd-05ba57cbd54f
+      stacks: 1
+      casterInfo:
+        abilityName: My Spear, My Foe Bonus
+        tokenid: b385829e-6a3a-424a-84fa-d892c0f21c2e
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        0f145e03-6ee3-44b1-adc7-304d46673015:
+          note: 2 damage from Orc Rampart's Collision
+          disposition: bad
+          attackerid: ecbee62c-a18f-40f9-a01e-d032873ea7d5
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 10
+        fb038c39-a6d3-413f-bc0e-25eb8451cd62:
+          note: 7 damage from Elementalist's Hurl Element
+          disposition: bad
+          attackerid: b385829e-6a3a-424a-84fa-d892c0f21c2e
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 38
+        269a6f86-34c2-4caf-b86c-f58981179e3a:
+          note: 9 damage from Elementalist's Hurl Element
+          disposition: bad
+          attackerid: b385829e-6a3a-424a-84fa-d892c0f21c2e
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 24
+        525d11c7-3e37-4313-b3e9-fe395d6dc7de:
+          note: 2 damage from Orc Rampart's Collision
+          disposition: bad
+          attackerid: ecbee62c-a18f-40f9-a01e-d032873ea7d5
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 36
+        5b10356d-1948-4502-ac24-be4e34c898b1:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 45
+        b840fbec-5ab5-4f52-b5a7-3011465751b5:
+          note: 5 damage from Elementalist's Hurl Element
+          disposition: bad
+          attackerid: b385829e-6a3a-424a-84fa-d892c0f21c2e
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 12
+        ce100595-07de-4dcb-8428-d33d72fee6e0:
+          note: 7 damage from Elementalist's Hurl Element
+          disposition: bad
+          attackerid: b385829e-6a3a-424a-84fa-d892c0f21c2e
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 17
+        c3c2c71e-b805-42cf-b2ef-bfe1543dd758:
+          disposition: good
+          note: 50 Healing
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 45
+    minion: false
+    stability: 2
+    import:
+      type: mcdm
+      data: |+
+        Orc Rampart	Level 2 Defender
+        Humanoid, Orc	EV 17
+        <b>Stamina</b> 45	Immunity weapon 2
+        <b>Speed</b> 6	<b>Size</b> 1L /<b> Stability</b> 2
+        <b>Free Strike</b> 4
+        Might +2	Agility +1	Reason 0	Intuition +1	Presence 0
+        <b>My Spear, My Foe</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Reach 2<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage; taunted (EoT)
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage; taunted (EoT)
+        %E2%9C%B8	<b>17</b>	10 damage; taunted (INU ends)
+        <b>Effect</b> The rampart has an edge on the attack if the target attacked them within the round.
+
+        <b>Castling</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Special<b>	Target</b> 1 ally
+        <b>Effect</b> The rampart moves or shifts up to their speed to a square adjacent to the target and then swaps places with the target.
+
+        <b>No.</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger</b> A creature attacks an adjacent ally.
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The rampart becomes the attack's target.
+
+        <b>Relentless</b>
+        If the rampart's Stamina drops to 0, they can take a free strike before dying. If the target is reduced to 0 Stamina by the attack, the rampart lives and their Stamina is reduced to 1 instead.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3fac0992-8147-4855-b5fd-6634567d627f: true
+        CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3fac0992-8147-4855-b5fd-6634567d627f: true
+          CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+        sourceguid: 3fac0992-8147-4855-b5fd-6634567d627f
+        description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+        source: Trait
+        name: Relentless
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 2863316a-814c-4221-becb-77ef4b4cb7fe
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              persistence: []
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: b8ed2253-deca-4a3d-bb3d-14689fc9d53e
+              repeatTargets: false
+              iconid: ui-icons/skills/1.png
+              numTargets: "1"
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  cannotModifyAction: true
+                  filterAbility: Ability.Free Strike
+                  behavior: modifyability
+                  guid: 5037dd14-3b29-4a1f-821b-b68243a01b60
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: 8f71edd8-280b-4715-8565-14ea2c252e19
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      invokeOnCaster: true
+                      filterTarget: target.stamina <= 0
+                      abilityType: custom
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        numTargets: "1"
+                        modifiers: []
+                        abilityType: none
+                        strain: []
+                        guid: 1a1d25d8-6851-491a-915f-69b3ac7bc0be
+                        repeatTargets: false
+                        persistence: []
+                        behaviors:
+                        - __typeName: ActivatedAbilityHealBehavior
+                          applyto: caster
+                          roll: "1"
+                        targetType: self
+                        iconid: ui-icons/skills/1.png
+                        name: Relentless - Heal if target of free strike dies
+                        preDescription: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc lives and drops to 1 stamina instead.
+                        description: ""
+                        range: 1
+                        implementation: 3
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              targetType: self
+              name: Relentless Free Strike
+              description: ""
+              sourceReference:
+                __typeName: SourceReference
+                page: 218
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: 1
+              implementation: 3
+            invokeOnCaster: true
+            promptText: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc  lives and drops to 1 stamina instead.
+          domains:
+            CharacterFeature:3fac0992-8147-4855-b5fd-6634567d627f: true
+            CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+          whenActive: combat
+          numTargets: "1"
+          trigger: zerohitpoints
+          name: Relentless
+          description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: b992596c-811b-40fd-9760-e3cd273fbdd0
+      source: Trait
+      description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+      guid: 3fac0992-8147-4855-b5fd-6634567d627f
+      name: Relentless
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:564da431-7965-47b8-9e10-b4524d9978c9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:564da431-7965-47b8-9e10-b4524d9978c9: true
+        sourceguid: 564da431-7965-47b8-9e10-b4524d9978c9
+        description: The ability "My Spear, My Foe" has a Double Edge on targets who dealt damage to the rampart this round.
+        source: Character Feature
+        name: My Spear, My Foe Bonus
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            duration: endround
+            ongoingEffectCustom: b7e750f9-c079-423a-974f-d69ec715a75c
+            ongoingEffect: b7e750f9-c079-423a-974f-d69ec715a75c
+            casteridFormula: cast.FirstTarget.id
+          conditionFormula: ""
+          numTargets: "1"
+          guid: 4910834e-e282-4e54-bb5b-8c0ab400c0a2
+          trigger: losehitpoints
+          name: My Spear, My Foe Bonus
+          description: My Spear, My Foe Double Edge on targets who dealt damage to the Rampart this round.
+          abilityType: none
+          iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9
+        guid: 9c7a910c-8cae-4dcd-92af-de0e86e32bc6
+      name: My Spear, My Foe Bonus
+      guid: 564da431-7965-47b8-9e10-b4524d9978c9
+      description: The ability "My Spear, My Foe" has a Double Edge on targets who dealt damage to the rampart this round.
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9f73aede-ee50-4395-9351-f18a6ca27ac5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:9f73aede-ee50-4395-9351-f18a6ca27ac5: true
+        sourceguid: 9f73aede-ee50-4395-9351-f18a6ca27ac5
+        description: |-
+          Trigger: A creature targets an ally adjacent to the rampart with an ability that doesn’t also target the rampart.
+
+          Effect: The rampart becomes the target of the triggering ability instead.
+        source: Character Feature
+        name: "No"
+        behavior: triggerdisplay
+        guid: 466f2900-646d-4f81-aff6-684f48a0349a
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One allied creature
+          effect: The rampart becomes the target of the triggering ability instead.
+          trigger: A creature targets an ally adjacent to the rampart with an ability that doesn’t also target the rampart.
+          name: No.
+          guid: db59e8d4-61b3-4959-8da3-5c7d99a4351b
+          distance: Ranged 1
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 9f73aede-ee50-4395-9351-f18a6ca27ac5
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          changeTargetRange: ability
+          behavior: power
+          guid: 7b9e86e5-1413-4c55-a5d4-acb098874924
+          keywords: []
+          activationCondition: false
+          name: No.
+          changeTargetFilter: monster.type is "orc rampart"
+          rollType: ability_power_roll
+          rules: ""
+          description: You can select the Rampart to be the target of the triggering ability.
+          modtype: none
+          changeTarget: true
+        guid: 1e71e502-e51f-45ec-a239-3d22481bcc29
+        domains:
+          CharacterFeature:9f73aede-ee50-4395-9351-f18a6ca27ac5: true
+        type: trigger
+        targetType: ally
+        trigger: takedamage
+        name: "No"
+        rules: If an ally adjacent to the rampart is targeted by an ability that doesn't also target the rampart; then the rampart can choose to become the target of the triggering ability instead
+        description: |-
+          Trigger: A creature targets an ally adjacent to the rampart with an ability that doesn’t also target the rampart.
+
+          Effect: The rampart becomes the target of the triggering ability instead.
+        range: "1"
+        behavior: powertabletrigger
+      source: Character Feature
+      description: |-
+        Trigger: A creature targets an ally adjacent to the rampart with an ability that doesn’t also target the rampart.
+
+        Effect: The rampart becomes the target of the triggering ability instead.
+      guid: 9f73aede-ee50-4395-9351-f18a6ca27ac5
+      name: "No"
+      implementation: 3
+    role: Platoon Defender
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    monster_category: Monster
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-7
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-6
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 59
+    availableTriggers: []
+    initiativeGrouping: c9d20eb8-f5e0-4282-a769-bc98ba0a1562
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        5c078837-983f-44f1-ba9e-5ff5625eac49:
+          refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-7
+          note: My Spear, My Foe
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+    walkingSpeed: 6
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    deathSavingThrowFailures: 0
+    damageEntries:
+      997645a7-d03a-467e-86a1-4c34f51ba515:
+        seq: 1
+        id: 997645a7-d03a-467e-86a1-4c34f51ba515
+        heal: 50
+      0152a8d8-91e7-492b-80c8-ebed149b7f7e:
+        damage: 2
+        seq: 4
+        attackerid: b385829e-6a3a-424a-84fa-d892c0f21c2e
+        id: 0152a8d8-91e7-492b-80c8-ebed149b7f7e
+        damage_type: collide
+      5e24f004-b9e7-4a2a-9adf-c1dcd1530aae:
+        damage: 7
+        seq: 2
+        attackerid: b385829e-6a3a-424a-84fa-d892c0f21c2e
+        id: 5e24f004-b9e7-4a2a-9adf-c1dcd1530aae
+        damage_type: acid
+    traitNames: []
+    movementSpeeds: []
+    equipmentMeta:
+      offhand0: []
+    keywords:
+      Humanoid: true
+      Orc: true
+    monster_type: Orc Rampart
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: f408955c-d546-406f-90a5-307f04b59edc-703
+  tokenType: null
+  bestiaryId: 2fffe2f8-799a-4890-8d48-96dc02ab5cb3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1726301040866
+description: Orc Rampart
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590234359
+mtime: 1775184669617
+hidden: false

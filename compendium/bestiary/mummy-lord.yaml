@@ -1,0 +1,438 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 839b8bdc-88ca-439e-9423-e2601acfb921
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 4
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Mummy Lord	Level 4 Leader
+        Mummy, Undead	EV 24
+        <b>Stamina</b> 155	<b>Immunity</b> corruption 6, poison 6 / <b>Weakness</b> fire 5
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 4
+        <b>Free Strike</b> 6
+        Might +4	Agility +0	Reason +2	Intuition +4	Presence +2
+        <b>Accursed Slam</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 corruption damage; I<2 bleeding (save ends)
+        %E2%98%85	<b>12-16</b>	14 corruption damage; I<3 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	17 corruption damage; I<4 bleeding (save ends)
+        <b>Effect</b> The potency of abilities used against a target bleeding from this ability increase by 1.
+
+        <b>Binding Curse</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 1 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 20	<b>Target</b> One creature
+        %E2%9C%B8	<b>%E2%89%A411</b>	7 corruption damage; I<2 frightened (save ends)
+        %E2%98%85	<b>12-16</b>	12 corruption damage; I<3 frightened (save ends)
+        %E2%9C%A6	<b>17</b>	16 corruption damage; I<4 frightened (save ends)
+        <b>Effect A target frightened by this ability takes 4 psychic damage whenever they use a move action until the condition ends.</b>
+        <b>2+ Malice</b> The mummy lord targets an additional creature for every 2 malice spent.
+
+        <b>Summon my Guard!</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> Special
+        <b>Trigger</b> The Mummy Lord becomes winded for the first time.
+        <b>Effect</b> Two <b>mummies</b> and 4 <b>ghoul carvers</b> appear within distance.
+
+        <b>Cursed Transference</b>
+        At the end of their turn, the mummy lord can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        <b>5 Malice</b> The effect is transferred to a creature within 10.
+
+        <b>Plague of Flies</b> (Villain Action 1) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 poison damage
+        %E2%98%85	<b>12-16</b>	8 poison damage
+        %E2%9C%B8	<b>17</b>	10 poison damage
+        <b>Effect</b> Each target has a bane on their next strike.
+
+        <b>Land's Guardian </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The mummy lord's speed increases by 2 and adds the burrow keyword to their movement. The mummy lord burrows up to their speed. Each enemy within 2 squares of the mummy lord's movement must make an <b>Agility test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	Prone, can't stand (EoT)
+        %E2%98%85	<b>12-16</b>	Prone
+        %E2%9C%A6	<b>17</b>	no effect
+
+        <b>Unbound Horrors</b> (Villain Action 3) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 corruption damage; I<2 frightened (save ends)
+        %E2%98%85	<b>12-16</b>	8 corruption damage; I<3 frightened (save ends)
+        %E2%9C%B8	<b>17</b>	10 corruption damage; I<4 frightened and restrained (save ends)
+        Undead - 3rd Echelon
+        Whether through intentional craft of undead, or by exotic and unique circumstance, especially dangerous undead lurk in isolated, untouched places.
+        Koptourok
+        Koptourok is a Variac name that roughly translates to "dead tourist." It's given to those who meet their end suffocating in the depths, whether they drowned in a subterranean lake, wandered into a cave of trapped gas, or were crushed by a rockslide. These rasping, slouching undead rise from their grave desperate for the one thing they've lost: breath.
+        Haunt
+        Born of mass death events that leave many souls stranded in agony together, a haunt is a violent nuclear chaos driven by a maladaptive hatred for the living. They stake claim to the scene of their death, where their grief forbids them from leaving and strands them in the Mundane World. No one soul within the haunt is necessarily malicious, and all of them would individually prefer to move on and find peace, but their accumulated grief drives them to tremendous anger. As such, haunts will commit sadistic acts of violence against the living, even if not one soul within the haunt would've been capable of doing so in life.
+        Waxen
+        When a corpse is preserved improperly, its body fat can become a substance known as corpse wax, which some necromancers will harvest and use to enhance their own minions, transforming them into waxens. These awkward, loping creatures cake their foes in foul-smelling wax to slow and sicken them. Some necromancers might light their own waxen minions ablaze-doing so usually means sacrificing the creature to the flames, but also makes their fistfulls of wax significantly more dangerous in the process.
+        Vampires and Vampire Lords
+        By drinking the blood of a true vampire, a vampire spawn can transcend their feral beginnings and rise to become a true vampire themself. However, this need not be the end of their ambitions. Through many nights of cunning, a vampire can grow old and powerful enough to control vast amounts of territory and vassals. The term "vampire lord" thus refers not to a specific age or threshold of physical prowess, but rather status and influence. A vampire who refers to themself as a lord invites challenges to their title and is prepared to crush those who come to end their reign.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bf740b12-f295-411f-847f-67afe31060f7: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the mummy lord can take 10 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.The effect that is ended is transferred to another creature within 10 squares.
+      guid: bf740b12-f295-411f-847f-67afe31060f7
+      name: Cursed Transference
+      implementation: 3
+    role: Leader
+    inflictedConditions: []
+    keywords:
+      Undead: true
+      Mummy: true
+    max_hitpoints_roll: "155"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: poison
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Mummy Lord
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 4
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 155
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 corruption damage; I<2 bleeding (save ends)
+        - 14 corruption damage; I<3 bleeding (save ends)
+        - 17 corruption damage; I<4 bleeding (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8943183d-d68e-4694-ab54-d654b3d4de90
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Accursed Slam
+      numTargets: 2
+      description: The potency of abilities used against a target bleeding from this ability increase by 1.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 20
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9c844a67-7db4-4801-9013-2152d4c83337
+      abilityType: none
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 corruption damage; I<2 frightened (save ends)
+        - 12 corruption damage; I<3 frightened (save ends)
+        - 16 corruption damage; I<4 frightened (save ends)
+        roll: 2d10 + Might
+      name: Binding Curse
+      numTargets: 1
+      description: |-
+        While frightened this way, a target takes 4 psychic damage whenever they use a move action.
+        **Spend Malice**: This ability targets one additional target for each 2 Malice spent.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: a8540339-c764-4974-bfc3-1fc2f1aac424
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Summon my Guard!
+      implementation: 0
+      description: Two mummies and 4 ghoul carvers appear within distance.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 poison damage
+        - 8 poison damage
+        - 10 poison damage
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '9e9faf2c-1bc4-4c50-850"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bf2635f1-db6c-496a-8930-f6bdaa8d4828
+      numTargets: 1
+      targetType: all
+      implementation: 3
+      name: Plague of Flies
+      effectImplemented: false
+      description: Each target has a bane on their next strike.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c2bacf51-1b8a-48ea-a7be-f2171c25395b
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '0ddb55f9-a0c0-4039-871"
+      implementation: 0
+      behaviors: []
+      name: "Land's Guardian "
+      numTargets: 1
+      description: The mummy lord's speed increases by 2 and adds the burrow keyword to their movement. The mummy lord burrows up to their speed. Each enemy within 2 squares of the mummy lord's movement must make an Agility test.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'bd8379ce-a643-471e-aa2"
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 50929622-1481-48fa-9bb0-f823dce815bb
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 corruption damage; I<2 frightened (save ends)
+        - 8 corruption damage; I<3 frightened (save ends)
+        - 10 corruption damage; I<4 frightened and restrained (save ends)
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      name: Unbound Horrors
+      numTargets: 1
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 10
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 107aad8c-3be7-4704-9824-62da9e4e451d
+      abilityType: none
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 268
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Summon My Guard
+      numTargets: 1
+      description: |
+        One Mummy or four Ghoul Cravers appear within distance.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    movementSpeeds: []
+    ev: 24
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 08f5d504-9e48-462e-acf3-e69ca27bf388
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969981
+description: Mummy Lord
+parentFolder: 68f67367-de21-43f0-8448-61d0408cd721
+artist: null
+ord: 7
+ctime: 1741590217340
+mtime: 1775201137032
+hidden: false

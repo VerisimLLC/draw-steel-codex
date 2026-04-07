@@ -1,0 +1,58 @@
+__typeName: CharacterOngoingEffect
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: df00268e-7110-4cc8-af71-6344425800d3
+  modifyRoll: +1 boon
+  source: Ongoing Effect
+  behavior: damage
+  name: Holy Infusion
+  resourceRefreshType: round
+  description: |-
+    The attack gains 1 boon.
+
+    Spend 1 <B>Conduit</B>Virtue: The attack gains 1 additional boon.
+  guid: ca896e71-b28f-40d4-9df5-1278dbdca4cc
+  damageFilterCondition: true
+- __typeName: CharacterModifier
+  sourceguid: df00268e-7110-4cc8-af71-6344425800d3
+  source: Ongoing Effect
+  behavior: power
+  keywords:
+    Magic: true
+    Attack: true
+    Kit: true
+    Psionic: true
+    Weapon: true
+    Focus: true
+  activationCondition: true
+  name: Holy Infusion
+  guid: 8cbe2909-4cfa-4406-8d68-1315bee64e7d
+  description: |-
+    The attack gains 1 boon.
+
+    Spend 1 <B>Conduit</B>Virtue: The attack gains 1 additional boon.
+  modtype: edge
+  rollType: ability_power_roll
+source: Ongoing Effect
+guid: df00268e-7110-4cc8-af71-6344425800d3
+id: df00268e-7110-4cc8-af71-6344425800d3
+ctime: 1709657974601
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.111413039267063
+    s: 0.769874513149261
+    v: 0.937254905700684
+    a: 1
+description: |-
+  The attack gains 1 boon.
+
+  Spend 1 <B>Conduit</B>Virtue: The attack gains 1 additional boon.
+name: Holy Infusion
+iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+custom: true
+mtime: 1709658061307
+implementation: 3

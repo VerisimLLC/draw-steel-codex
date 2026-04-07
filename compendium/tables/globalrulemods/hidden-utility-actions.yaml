@@ -1,0 +1,45 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: ba8f616f-4a74-4aa6-bbc0-7eb90ae63edd
+      guid: 3d8f64e4-ea0f-4e28-ae9c-eecf16c1b2fd
+      source: Hidden Utility Actions Global Rule Mod Feature
+      behavior: activated
+      description: ""
+      name: Move Speed
+      activatedAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        guid: 4894c586-0725-456c-8ceb-11d22f6a8711
+        repeatTargets: false
+        abilityType: none
+        domains: []
+        targeting: pathfind
+        behaviors:
+        - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          movementType: move
+        name: Move Speed
+        targetType: emptyspace
+        description: ""
+        range: self.Movement Speed
+        iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+    name: Move Speed
+    description: ""
+    guid: ba8f616f-4a74-4aa6-bbc0-7eb90ae63edd
+    source: Hidden Utility Actions Global Rule Mod Feature
+    implementation: 3
+name: Hidden Utility Actions
+mtime: 1742767387833
+id: 6159aea6-6748-4e32-bd20-a953822c60df
+ctime: 1742767387833

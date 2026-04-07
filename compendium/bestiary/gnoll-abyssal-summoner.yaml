@@ -1,0 +1,654 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 0ca4c139-1da3-4fd4-8533-c8e617a6f756
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c38d42eb-46c3-43c0-b3c5-700dd381cff9
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 1
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    creatureSize: 1M
+    levelChoices: []
+    deathSavingThrowFailures: 0
+    damageEntries:
+      74209d93-60f1-442c-8f5b-f55b0df22d2b:
+        id: 74209d93-60f1-442c-8f5b-f55b0df22d2b
+        heal: 20
+      60ae2791-b044-4071-b77d-d2ac1a3f0f8d:
+        damage: 20
+        id: 60ae2791-b044-4071-b77d-d2ac1a3f0f8d
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        ec0c56d8-dd5f-46ee-adda-e6fd578477bb:
+          disposition: bad
+          note: 1 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        0b67dac4-abfb-48b7-bab1-ec9138e2e23b:
+          disposition: good
+          note: 20 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 14
+        8ef2b22b-2d92-4908-9670-9196d3e8b240:
+          disposition: bad
+          note: 20 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: -6
+        e0aef177-f533-4a9a-ae94-a1b8c962adb6:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1
+        81f310d0-26b8-43f0-a90f-3d051804efa2:
+          note: 3 damage from Abyssal Hyena's Melee Free Strike
+          disposition: bad
+          attackerid: b8e0a4a8-dc09-42de-be92-3350c3a04abe
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 14
+        2ce42d15-cd48-4ccd-86e6-f2f7f19a952b:
+          note: 3 damage from Abyssal Hyena's Melee Free Strike
+          disposition: bad
+          attackerid: 8a0d518b-07d0-4b63-bc9a-56d8d86a7d98
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 17
+        842a5819-5e25-49a5-b14a-f26ddef9d20b:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1
+        e58ec0bf-c9d1-4c44-a3d2-bb6dffd96398:
+          disposition: good
+          note: 20 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 20
+    minion: false
+    stability: 1
+    opportunityAttack: 2
+    import:
+      type: mcdm
+      data: |+
+        Gnoll Abyssal Summoner	Level 2 Horde Support
+        Abyssal, Gnoll	EV 4
+        <b>Stamina</b> 20
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 2
+        Might +1	Agility 0	Reason 0	Intuition +2	Presence +2
+        <b>Flame Wad</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 fire damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 fire damage
+        %E2%9C%B8	<b>17</b>	7 fire damage; I<2 burning (save ends)
+        <b>Effect</b> A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+
+        <b>Call Abyssal Hyenas</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 5<b>	Target</b> Special
+        <b>Effect</b> 2 <b>abyssal hyenas</b> claw out of the ground into unoccupied squares.
+
+        <b>Cackletongue</b> (Maneuver) %E2%97%86 4 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> 2 burst<b>	Target</b> All allies
+        <b>Effect</b> 1 abyssal hyena target turns into a <b>gnoll maurader</b>, keeping their Stamina. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+
+        <b>Death Frenzy</b>
+        Whenever a non-minion within 5 is reduced to 0 Stamina, the abyssal summoner moves up to their speed and makes a free strike.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:330bb759-a4bd-43f9-9e2e-a7183caac87c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:330bb759-a4bd-43f9-9e2e-a7183caac87c: true
+        sourceguid: 330bb759-a4bd-43f9-9e2e-a7183caac87c
+        behavior: trigger
+        source: Trait
+        name: Death Frenzy
+        description: Whenever a non-minion ally within 5 squares of the abyssal summoner is reduced to 0 Stamina, the abyssal summoner moves up to their speed and can make a melee free strike.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Move speed and make a melee free strike
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "5"
+          strain: []
+          guid: 3a482b88-dcb4-4eef-ac79-93f6d72dcfc0
+          persistence: []
+          castImmediately: true
+          abilityType: none
+          trigger: zerohitpoints
+          name: Death Frenzy
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            runOnController: true
+            standardAbility: dfb59889-b651-40a6-80be-56d38bd34198
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2071ae07-2a9a-4f45-86b0-3681fdc99a7b
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 27e88296-e13c-4f28-95f6-0a317175270b
+      source: Trait
+      description: Whenever a non-minion ally within 5 squares of the abyssal summoner is reduced to 0 Stamina, the abyssal summoner moves up to their speed and can make a melee free strike.
+      guid: 330bb759-a4bd-43f9-9e2e-a7183caac87c
+      name: Death Frenzy
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+        CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+          CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+        sourceguid: 1973bc9c-2c26-497e-be94-a73fba966ef2
+        behavior: trigger
+        source: Character Feature
+        name: Cackletongue Trigger
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 36940624-3907-4780-877e-8366bb26e624
+              repeatTargets: false
+              abilityType: none
+              persistence: []
+              targetType: self
+              categorization: Hidden
+              name: Use Cackletongue
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Name = "Summoner's Cackletongue"
+                  behavior: modifyability
+                  guid: d5f4351b-d59b-464f-8081-999dd3ba0737
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 2fd2c65b-c931-4b2b-9b19-e0740bd797d7
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            namedAbility: Archer's Cackletongue
+            abilityType: custom
+            runOnController: true
+          triggerPrompt: Use Summoner's Cackletongue at no cost
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 86ea5a17-9ca4-45e5-bbbe-b019b4b2e046
+          domains:
+            CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+            CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+          targetType: self
+          numTargets: "1"
+          trigger: custom
+          name: Cackletongue
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 13a98295-b140-42e5-839e-edeafb8748bc
+      name: Cackletongue Trigger
+      description: ""
+      guid: 583ce3a4-b856-421e-8928-c8f7ca85e1bb
+      source: Character Feature
+    role: Horde Support
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+    equipment: []
+    titles: []
+    ongoingEffects: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    skillRatings: []
+    resistances: []
+    max_hitpoints: 20
+    initiativeGrouping: e679bf33-2989-433f-9cae-5edefd9f686b
+    activeOngoingEffects: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        f63bf99e-f9cd-4ed2-81aa-05b18e31b6f2:
+          note: Flame Wad
+          abilityid: b7e7f5a5-4cac-4bbd-b9a4-bb500cf06d56
+          refreshid: 999e4994-bb40-428a-83a2-74de96a2b3a8-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        231fdc2b-3981-4928-86f5-aef9402c72d3:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        7bd7ce05-81f5-47fe-ab78-e5e521fb1781:
+          note: Flame Wad
+          abilityid: b7e7f5a5-4cac-4bbd-b9a4-bb500cf06d56
+          refreshid: ea8af389-6c1a-4765-bff2-41aed96c6e90-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        c5941fbf-208e-4b06-aac0-fe96da949154:
+          note: Flame Wad
+          abilityid: b7e7f5a5-4cac-4bbd-b9a4-bb500cf06d56
+          refreshid: a681a164-79e3-46a0-bcb3-fb7341cc914b-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        fc29c731-95c2-440e-8ac3-8a7e4b41cb56:
+          note: Flame Wad
+          abilityid: b7e7f5a5-4cac-4bbd-b9a4-bb500cf06d56
+          refreshid: d973c7a9-f537-434e-b73e-ba3c8b499dd5-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        a84f5ec7-ae75-4c43-b2e0-8fd776f0e948:
+          set: 1/1
+          note: Melee Free Strike
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+        705de030-fa9b-4d85-b420-006aeb382049:
+          set: 1/1
+          note: Melee Free Strike
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: cc0e43f8-ae06-4ea2-a2e5-420f98f5f5e3-135
+    availableTriggers: []
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    damage_taken: 0
+    ev: 4
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-1
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-1
+        used: 1
+    walkingSpeed: 5
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 fire damage
+        - 5 fire damage
+        - 7 fire damage; I<2 burning (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: e42504bd-9018-4ca5-97e0-f38b03dadf17
+        tiersSelected:
+        - 3
+        duration: save_ends
+        ongoingEffectCustom: e42504bd-9018-4ca5-97e0-f38b03dadf17
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: b7e7f5a5-4cac-4bbd-b9a4-bb500cf06d56
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 155
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      targetType: target
+      implementation: 4
+      name: Flame Wad
+      persistence: []
+      description: A burning creature takes 1d6 fire damage at the start of each of their turns. A burning object takes 1d6 fire damage at the end of each round.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilitySummonBehavior
+        monsterType: 3267ab98-0772-452d-afe4-0256b7b66f35
+        casterChoosesCreatures: false
+        groupInitiativeWithCaster: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 155
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 5
+      effectImplemented: true
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: fa296930-ac49-49ed-b1bf-2dfe9f5dcf0a
+      abilityType: none
+      targetType: emptyspace
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 2
+      implementation: 3
+      name: Call Abyssal Hyenas
+      categorization: Heroic Ability
+      description: 2 abyssal hyenas claw out of the ground into unoccupied squares.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 4
+      objectTarget: false
+      targetFilter: target.name="Abyssal Hyena"
+      repeatTargets: false
+      reasonedFilters: []
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        duration: endround
+        ongoingEffectCustom: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        ongoingEffect: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        guid: ba3bb274-cac8-4c1f-a1d8-ec24cc50630d
+      - __typeName: ActivatedAbilityRemoveCreatureBehavior
+        leavesCorpse: false
+        guid: 7855ebfa-fb8e-445c-bd89-4b8fa247f2da
+        waitForAbilitiesToFinish: false
+        filterTarget: ""
+      - __typeName: ActivatedAbilityDelayBehavior
+        delay: "0.5"
+      - __typeName: ActivatedAbilitySummonBehavior
+        replaceCaster: false
+        bestiaryFilter: beast.name="Gnoll Marauder"
+        groupInitiativeWithCaster: false
+        guid: ac2ef6b1-3f6d-4b8d-9d5f-d3f75a3e72f0
+        casterChoosesCreatures: false
+        monsterType: custom
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: fd514296-80ab-42ca-af98-ec8a40d2a5e0
+        guid: 1dd27edf-9336-45d2-ae00-b09ff265ad3c
+        ongoingEffectCustom: fd514296-80ab-42ca-af98-ec8a40d2a5e0
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            filterTarget: not Ongoing Effects has "Used Cackletongue"
+            guid: 9afc767b-c616-4075-b8e3-079b4d855ef9
+            value: ""
+            triggerName: Cackletongue
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d1d71f25-faf5-4d26-ad8f-c36cacb92c07
+          numTargets: "1"
+          name: Use Cackletongue
+          targetType: all
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: ""
+        filterTarget: ""
+        guid: 3edf329e-2736-4d9e-bb6f-ca20d455ad82
+        abilityType: custom
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: true
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 52d10101-1f5f-4541-886e-148adb2c01ce
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      keywords: []
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 155
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      targetType: target
+      name: Summoner's Cackletongue
+      implementation: 1
+      description: 1 abyssal hyena target turns into a gnoll maurader, keeping their Stamina. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    equipmentMeta:
+      offhand0: []
+    movementSpeeds: []
+    abilityUses:
+      Cackletongue Limit:
+        refreshid: d0fc66df-541d-4569-85f7-c2ee9cefccbc-1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        1b15ba99-f610-487a-b35a-82236deb5c80:
+          note: Summoner's Cackletongue
+          abilityid: 52d10101-1f5f-4541-886e-148adb2c01ce
+          refreshid: d0fc66df-541d-4569-85f7-c2ee9cefccbc-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        e328b0c9-5a41-4cbf-97d7-cc23ee434cd4:
+          note: Call Abyssal Hyenas
+          abilityid: fa296930-ac49-49ed-b1bf-2dfe9f5dcf0a
+          refreshid: 999e4994-bb40-428a-83a2-74de96a2b3a8-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        f935ef38-84a6-4931-a4ef-a6e37e5583c2:
+          note: Summoner's Cackletongue
+          abilityid: 52d10101-1f5f-4541-886e-148adb2c01ce
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        6d5efd7d-7ced-40d0-a38f-9959cec94ea9:
+          set: 1/1
+          note: Call Abyssal Hyenas
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: fa296930-ac49-49ed-b1bf-2dfe9f5dcf0a
+        8521ebb0-bdee-4fc8-ae23-8dd5cb20fa84:
+          set: 1/1
+          note: Call Abyssal Hyenas
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: fa296930-ac49-49ed-b1bf-2dfe9f5dcf0a
+        ff83d10e-ece6-4fba-9a82-f99d5875d9a6:
+          set: 1/1
+          note: Summoner's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 52d10101-1f5f-4541-886e-148adb2c01ce
+        57bb5192-0ab3-4c8d-9086-44607459febd:
+          set: 1/1
+          note: Summoner's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 52d10101-1f5f-4541-886e-148adb2c01ce
+        eba73a07-e4a2-4242-9d23-cf35369c26f1:
+          set: 1/1
+          note: Summoner's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 52d10101-1f5f-4541-886e-148adb2c01ce
+    monster_type: Gnoll Abyssal Summoner
+    monster_category: Gnoll
+  tokenType: null
+  bestiaryId: f737e24f-c29d-4b6d-ac09-f59af5e1fafd
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Gnoll Abyssal Summoner
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1741590328894
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,208 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: be59aec3-6a83-45fe-aacd-99a2b8bc81f6
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Time Raider Cannonfall	Level 3 Platoon Artillery
+        Humanoid, Time Raider	EV 10
+        <b>Stamina</b> 40	<b>Immunity</b> Psychic 3
+        <b>Speed</b> 5	<b>Size</b> 1L / <b>Stability</b> 3
+        <b>Free Strike</b> 5
+        Might +0	Agility +2	Reason +2	Intuition +2	Presence +0
+        <b>Sunderbuss</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Area, Psionic, Ranged, Weapon
+        <b>Distance</b> 3 cube within 10	<b>Target</b> All enemies in the cube
+        %E2%9C%A6	%E2%89%A411	4 sonic damage
+        %E2%98%85	12%E2%80%9316	7 sonic damage
+        %E2%9C%B8	17+	10 sonic damage; prone; M<2 slowed (save ends)
+        <b>Effect</b> A layer of ground or floor beneath the area that is 1 square deep is destroyed.
+
+        <b>Buss Buffer</b> (Free Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> Self and 5 burst	<b>Target</b> Self and all allies in the burst
+        <b>Trigger</b> A creature damages the cannonfall with a ranged or area ability.
+        <b>Effect</b> The damage is reduced by half for the cannonfall and each target also affected by the triggering ability.
+
+        <b>Foresight </b>
+        The cannonfall doesn't have a bane on strikes against concealed creatures.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a81863f5-dd47-4500-a5de-892d5955122f: true
+      modifiers: []
+      name: 'Foresight '
+      description: The cannonfall doesn't have a bane on strikes against concealed creatures.
+      guid: a81863f5-dd47-4500-a5de-892d5955122f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c42a7c06-ad45-42da-8564-391cd1075c5a: true
+      modifiers: []
+      name: Foresight Squared
+      description: The cannonfall doesn't take a bane on strikes against creatures with concealment or cover.
+      guid: c42a7c06-ad45-42da-8564-391cd1075c5a
+      source: Trait
+    role: Platoon Artillery
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Time Raider: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Time Raider Cannonfall
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 40
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Psionic: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 sonic damage
+        - 7 sonic damage
+        - 10 sonic damage; prone; M<2 slowed (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ef91194c-0a0e-4549-9210-2c882cd5c9e6
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Sunderbuss
+      numTargets: 1
+      description: A layer of ground or floor beneath the area that is 1 square deep is destroyed.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 3a425a97-30b3-4e9a-a64d-e61f7f216bf2
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Buss Buffer
+      implementation: 0
+      description: The damage is reduced by half for the cannonfall and each target also affected by the triggering ability.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 0fd6ab3a-e0ae-4c61-86e3-82f06865d109
+    movementSpeeds: []
+    ev: 10
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: 223828dd-0509-4b1c-aa1a-0d1501f8990a
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Time Raider Cannonfall
+parentFolder: 37d52d89-62a2-4615-ad94-8549d23e461a
+artist: null
+ord: 0
+ctime: 1741590230359
+mtime: 1775201137032
+hidden: false

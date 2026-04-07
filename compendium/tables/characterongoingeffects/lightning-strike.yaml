@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: c665a8e1-2c32-4a33-84be-fdb4ac65f5fc
+  source: Ongoing Effect
+  value: 0
+  name: Lightning Strike
+  guid: b3d65a5a-6292-4f89-96b0-a601372d7691
+  description: You cannot use a maneuver or move this turn
+  behavior: attribute
+  attribute: 9ee45115-de41-4698-952f-ae7eb42ad17f
+- __typeName: CharacterModifier
+  resourceType: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  sourceguid: c665a8e1-2c32-4a33-84be-fdb4ac65f5fc
+  behavior: resource
+  source: Ongoing Effect
+  name: Lightning Strike
+  num: -1
+  description: You cannot use a maneuver or move this turn
+  guid: 7484c090-3d28-4118-921a-1dfcdd783441
+source: Ongoing Effect
+guid: c665a8e1-2c32-4a33-84be-fdb4ac65f5fc
+id: c665a8e1-2c32-4a33-84be-fdb4ac65f5fc
+ctime: 1761850845957
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Lightning Strike
+description: You cannot use a maneuver or move this turn
+custom: true
+mtime: 1772558037069
+iconid: ui-icons/skills/1.png

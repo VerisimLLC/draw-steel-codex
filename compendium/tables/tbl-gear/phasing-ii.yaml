@@ -1,0 +1,40 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: fae5a9dc-6836-47e3-9c59-4de9a8d09df4
+  description: When you use the armor's Phasing I enhancement, you can move through 3 squares of solid matter per turn.
+  modifiers:
+  - __typeName: CharacterModifier
+    text: Once per turn, you can move through 3 squares of solid matter. If you end your turn inside solid matter, you are forced out into the space from which you entered it and you take 5 damage that can't be reduced in any way.
+    sourceguid: fae5a9dc-6836-47e3-9c59-4de9a8d09df4
+    guid: 1bcb4940-aa86-41e2-9fa8-b41a67eae7fa
+    source: Item
+    name: Phasing II
+    description: When you use the armor's Phasing I enhancement, you can move through 3 squares of solid matter per turn.
+    behavior: movementtext
+    color: green
+  source: Item
+  name: Phasing II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+id: 55d9adf8-2535-49b3-b9a5-c197e7f7a19c
+imbuePrereq: 395578bb-3a19-4a04-a598-281abc00694e
+projectSource: Szetch
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1774485002586
+type: Gear
+ctime: 1770698928353
+projectGoal: "150"
+itemPrerequisite: ""
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Phasing II
+imbueTargetType: armor
+description: When you use the armor's Phasing I enhancement, you can move through 3 squares of solid matter per turn.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  mgt: true
+implementation: 2

@@ -1,0 +1,77 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: bc886702-86fb-4912-bf9f-ac15d1a194d3
+  description: |-
+    The damage immunity conveyed by the armor increases to 10.**DIRECTOR INSTRUCTIONS**
+    As there are many possible combinations of immunities and we can't know the choice of the player ahead of time, the item will imbue with 3 damage immunity modifiers, currently all set to 'all' damage. When the item is in the inventory, you can right click on it and click 'Edit Item' Then Edit the feature that says 'Damage Immunity II and the damage immunity behaviours will display. Click the dropwdown where it displays 'all damage' and change it to the required damage type.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: bc886702-86fb-4912-bf9f-ac15d1a194d3
+    behavior: resistance
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "10"
+      damageType: all
+      apply: Damage Reduction
+    description: |-
+      The damage immunity conveyed by the armor increases to 10.**DIRECTOR INSTRUCTIONS**
+      As there are many possible combinations of immunities and we can't know the choice of the player ahead of time, the item will imbue with 3 damage immunity modifiers, currently all set to 'all' damage. When the item is in the inventory, you can right click on it and click 'Edit Item' Then Edit the feature that says 'Damage Immunity II and the damage immunity behaviours will display. Click the dropwdown where it displays 'all damage' and change it to the required damage type.
+    name: Damage Immunity I
+    guid: f76bf0db-38fa-4d79-b5a0-ff6feb0a35c8
+  - __typeName: CharacterModifier
+    sourceguid: bc886702-86fb-4912-bf9f-ac15d1a194d3
+    behavior: resistance
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "10"
+      damageType: all
+      apply: Damage Reduction
+    description: |-
+      The damage immunity conveyed by the armor increases to 10.**DIRECTOR INSTRUCTIONS**
+      As there are many possible combinations of immunities and we can't know the choice of the player ahead of time, the item will imbue with 3 damage immunity modifiers, currently all set to 'all' damage. When the item is in the inventory, you can right click on it and click 'Edit Item' Then Edit the feature that says 'Damage Immunity II and the damage immunity behaviours will display. Click the dropwdown where it displays 'all damage' and change it to the required damage type.
+    name: Damage Immunity I
+    guid: 37d74a8d-07dc-4624-85db-c93e4b3947d2
+  - __typeName: CharacterModifier
+    sourceguid: bc886702-86fb-4912-bf9f-ac15d1a194d3
+    behavior: resistance
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "10"
+      damageType: all
+      apply: Damage Reduction
+    description: |-
+      The damage immunity conveyed by the armor increases to 10.**DIRECTOR INSTRUCTIONS**
+      As there are many possible combinations of immunities and we can't know the choice of the player ahead of time, the item will imbue with 3 damage immunity modifiers, currently all set to 'all' damage. When the item is in the inventory, you can right click on it and click 'Edit Item' Then Edit the feature that says 'Damage Immunity II and the damage immunity behaviours will display. Click the dropwdown where it displays 'all damage' and change it to the required damage type.
+    name: Damage Immunity I
+    guid: 8fb401d8-5bf1-48c8-b52c-0ede59fe2cdd
+  source: Item
+  name: Damage Immunity I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+id: 589d3d6e-46f0-4330-bf29-8bca2709b803
+imbuePrereq: 0f59699e-79b7-40b2-b600-d01357756b8e
+projectSource: Zaliac
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1774485729219
+type: Gear
+ctime: 1770698928353
+projectGoal: "150"
+itemPrerequisite: The essence of an elemental who is still alive
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Damage Immunity II
+imbueTargetType: armor
+description: |-
+  The damage immunity conveyed by the armor increases to 10.**DIRECTOR INSTRUCTIONS**
+  As there are many possible combinations of immunities and we can't know the choice of the player ahead of time, the item will imbue with 3 damage immunity modifiers, currently all set to 'all' damage. When the item is in the inventory, you can right click on it and click 'Edit Item' Then Edit the feature that says 'Damage Immunity II and the damage immunity behaviours will display. Click the dropwdown where it displays 'all damage' and change it to the required damage type.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 2

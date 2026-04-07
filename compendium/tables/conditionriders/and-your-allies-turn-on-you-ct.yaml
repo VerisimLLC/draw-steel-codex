@@ -1,0 +1,79 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetFilter: ""
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 38fe3216-0672-44f5-b2cd-5e96ca5d687f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      promptText: You must make a Free Strike against your Ally
+      filterTarget: ""
+      standardAbilityParams:
+        targetid: "<<Caster.id>>"
+      abilityType: standard
+      standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    hasManualVersion: true
+    strain: []
+    guid: 8e96c861-84e2-4f27-89f5-448dbcf7cc90
+    abilityType: none
+    trigger: beginturn
+    conditionFormula: ""
+    subjectRange: "5"
+    numTargets: "1"
+    name: and Your Allies Turn on You!ct
+    targetType: subject
+    description: You must make a free strike against your ally targeted by *Your Allies Turn on You*
+    subject: allies
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 8b0f8d07-f608-4427-afc1-19b768162ccb
+  name: and Your Allies Turn on You!ct
+  sourceguid: 9946d3ef-ca5c-431d-94da-e266b88b204d
+source: Ongoing Effect
+guid: 9946d3ef-ca5c-431d-94da-e266b88b204d
+id: 9946d3ef-ca5c-431d-94da-e266b88b204d
+ctime: 1768263545677
+condition: 68f455f5-135f-495c-822d-40d809d2b15f
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: and Your Allies Turn on You!ct
+description: ""
+mtime: 1768263545677
+iconid: c97f2b52-07a3-43ac-8e5b-f10944132412

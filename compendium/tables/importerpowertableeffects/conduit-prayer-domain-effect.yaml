@@ -1,0 +1,52 @@
+__typeName: ActivatedAbility
+id: c7c86345-89b7-49c6-b56e-a75a0084cb09
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  namedAbility: Conduit Domain Effect
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 5ad6d48d-7cd9-4b25-b2ff-6b1a8026b373
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  promptText: Choose a Domain Effect
+  abilityType: standard
+  runOnController: false
+  standardAbility: fe1648f3-9dac-4a52-9383-77648aca2f87
+  targeting: prompt
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: choose and use a domain effect
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 228387f3-5252-45e6-ac0e-9d2889e84510
+importMatch: choose and use a domain effect
+ctime: 1728017348504
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Conduit Prayer Domain Effect
+targetType: self
+mtime: 1769069316457
+abilityType: none
+iconid: ui-icons/skills/1.png

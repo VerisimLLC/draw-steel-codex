@@ -1,0 +1,17 @@
+__typeName: CultureAspect
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+      interpersonal: true
+    name: Urban Skill
+    guid: 2873b911-3464-4734-a846-fc38d638f644
+    description: Choose one skill from the interpersonal or intrigue skill groups. (*Quick Build:* Alertness)
+    source: Urban Culture Feature
+name: Urban
+description: 'An urban culture is always centered in a city. Such a culture might arise within the walls of Capital, a massive metropolis with a cosmopolitan population; within a network of caverns that hold an underground city; or in any other place where a large population lives relatively close together. The people of urban cultures often learn to effectively misdirect others in order to navigate the crowds and the political machinations that can come with city life. '
+mtime: 1756163908091
+id: c54e61f2-fe01-4ccf-92a7-2e553700477e
+ctime: 1730729692775

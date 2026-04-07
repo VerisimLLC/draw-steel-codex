@@ -1,0 +1,176 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: 72f0634e-8d6a-4afc-884b-b9c824746cc8
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 861860dd-abc4-4e87-9e61-d8790d60c189
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Skeleton Knight	Level 10 Minion Defender
+        Undead	EV 12 for four minions
+        <b>Stamina</b> 17	<b>Immunity</b> corruption 10, poison 10
+        <b>Speed</b> 5	<b>Size</b> 1L /<b> Stability</b> 2
+        <b>	With Captain</b> Edge on strikes<b>Free Strike</b> 4
+        Might +3	Agility +5	Reason -2	Intuition +4	Presence -2
+        <b>Four Swords Swing </b>(Action) %E2%97%86 2d10 + 5 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	4 damage
+        %E2%98%85	12%E2%80%9316	7 damage
+        %E2%9C%B8	17	9 damage; the target can't shift away from the knight until the end of their turn
+
+        <b>More Swings</b>
+        The knight makes two free strikes where they normally make one.
+
+        <b>Bitter Bones</b>
+        If the knight is reduced to 0 Stamina, their bones pile and obstruct their square. An enemy takes 5 damage whenever they enter a square adjacent to the obstructed square or start their turn there.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ae0f94e5-f9ed-4d86-942b-969e2490fef9: true
+      modifiers: []
+      name: More Swings
+      description: The knight makes two free strikes where they normally make one.
+      guid: ae0f94e5-f9ed-4d86-942b-969e2490fef9
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:39d0de1b-039d-47ad-abf7-fae27111012d: true
+      modifiers: []
+      name: Bitter Bones
+      description: If the knight is reduced to 0 Stamina, their bones pile and obstruct their square. An enemy takes 5 damage whenever they enter a square adjacent to the obstructed square or start their turn there.
+      guid: 39d0de1b-039d-47ad-abf7-fae27111012d
+      source: Trait
+    role: Minion Defender
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "17"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 10
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 10
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 4
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    monster_type: Skeleton Knight
+    attributes:
+      agl:
+        baseValue: 5
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: 4
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    withCaptain: Gain an edge on strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 17
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c8f937ac-e096-4a9d-914a-3884dac565b3
+      implementation: 4
+      numTargets: 1
+      name: 'Four Swords Swing '
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage
+        - 9 damage; the target can't shift (EoT)
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Undead: true
+      Soulless: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1L
+    levelChoices: []
+  tokenType: null
+  bestiaryId: dc87dec4-4999-453f-a739-74b4df24d771
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: Skeleton Knight
+parentFolder: d808b7d0-f3af-4e88-8ad1-d3d26ca961e9
+artist: null
+ord: 6
+ctime: 1741590317788
+mtime: 1775201137032
+hidden: false

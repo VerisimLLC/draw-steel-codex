@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+id: 003a1b5e-0b14-4c99-b948-0f0fc715bbf2
+behaviors:
+- __typeName: ActivatedAbilityDrawSteelCommandBehavior
+  rule: Hidden (EoE)
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: Used if a creature may hide while using an ability. e.g. Black Ash Teleport.
+importMatch: ""
+ctime: 1746894273854
+targetType: self
+persistence: []
+description: ""
+name: Caster May Hide
+repeatTargets: false
+mtime: 1771336902100
+abilityType: none
+iconid: ui-icons/skills/1.png

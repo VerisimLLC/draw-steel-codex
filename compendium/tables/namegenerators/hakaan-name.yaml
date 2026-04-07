@@ -1,0 +1,39 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: af90855e-ec00-439a-a236-c1aa91fe8dc5
+  choiceName: Hakaan Masculine
+  id: 593e935e-6d21-46f9-a080-f763765b5309
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 85617750-2e08-436d-acbf-6274933599e6
+  choiceName: Hakaan Gender Neutral
+  id: afc38304-f3ad-421a-8383-bea61f847947
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 60014ae0-21b4-42a1-b80a-b9d883b9aa27
+  choiceName: Hakaan Feminine
+  id: 66f417ce-e670-4f04-b47b-f98e82cc5f8c
+id: 2ec75e99-b997-469f-a3ab-ecec85df5e48
+rollType: namedChoice
+name: Hakaan Name
+mtime: 1743455159649
+items: false
+ctime: 1743455159649

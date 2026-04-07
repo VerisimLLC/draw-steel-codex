@@ -1,0 +1,61 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 3b0530be-85dd-443f-92ac-aa81be8bed27
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:3b0530be-85dd-443f-92ac-aa81be8bed27: true
+  name: Raden Form
+  guid: e1cb47d6-4bc1-4481-a254-5b4c281f08e7
+  description: ""
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 3b0530be-85dd-443f-92ac-aa81be8bed27
+  source: Ongoing Effect
+  value: Walking Speed
+  domains:
+    CharacterOngoingEffect:3b0530be-85dd-443f-92ac-aa81be8bed27: true
+  name: Raden Form
+  guid: 61d141f3-140c-4000-a4be-53f7795791ba
+  description: ""
+  behavior: attribute
+  attribute: climb
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:216d46d9-5d14-413d-ba43-e7f45e2bcd2b: true
+  sourceguid: 216d46d9-5d14-413d-ba43-e7f45e2bcd2b
+  abilityFilter: ability.Categorization != "Signature Ability" and ability.Categorization != "Heroic Ability" and ability.Categorization != "Basic Attack" and Ability.name != Aspect of the Wild
+  source: Ongoing Effect
+  behavior: suppressabilities
+  guid: 716b9938-c093-4005-b23b-f1f35f34a557
+  name: Raden Form
+  description: ""
+- __typeName: CharacterModifier
+  guid: 8d20fd7d-a8f0-490b-b313-3aa975e486d6
+  sourceguid: 4147e269-a3bc-4069-997e-10fa0a82f079
+  value: 1
+  source: Ongoing Effect
+  name: Raden Form
+  behavior: attribute
+  description: ""
+  attribute: disguised
+source: Ongoing Effect
+guid: 4147e269-a3bc-4069-997e-10fa0a82f079
+id: 4147e269-a3bc-4069-997e-10fa0a82f079
+ctime: 1770690478346
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Raden Form
+iconid: 54d12486-b6eb-4290-b19c-ffdbab61d585
+description: ""
+mtime: 1770691970954
+implementation: 3

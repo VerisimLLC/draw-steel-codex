@@ -1,0 +1,769 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 37aad305-377b-4b0e-b57f-7e7b5fd98dcd
+    offtokenPortraitId: null
+    portraitFrameId: 332770d5-bdfb-40bb-92c0-f8476e7e80f2
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.05648202
+      y: 0.1451861
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions:
+    - x: -0.09210926
+      y: -0.3089064
+    - x: -0.3414845
+      y: 0.262383
+    - x: 0.3001171
+      y: 0.27375
+    - x: -0.18
+      y: 0.18
+    - x: -0.3
+      y: 0
+    - x: 0.3
+      y: 0
+    - x: 0
+      y: 0.3
+    - x: 0
+      y: -0.3
+    - x: -0.42
+      y: -0.42
+    - x: 0.42
+      y: -0.42
+    - x: 0.42
+      y: 0.42
+    - x: -0.42
+      y: 0.42
+    - x: -0.48
+      y: 0
+    - x: 0.48
+      y: 0
+    - x: 0
+      y: 0.48
+    - x: 0
+      y: -0.48
+    - x: 0
+      y: -0.6
+    saddles: 17
+    saddleSize: 3
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy:
+    4f17317a-7681-4cb1-ab6c-0651c298f3ad:
+      timestamp: 1769679388926
+      saddle: 2
+  updateid: 0fbd7baf-e499-41d5-bcf0-f3eac24da146
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 3
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 20
+    max_hitpoints_roll: "100"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: -4
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Scyza
+    aurasEnteredTurnId: 70377e57-ca8f-495f-8878-b063c1fe80b9-4-a5db6592-1171-466e-8114-2105a599c330
+    levelChoices: []
+    moveDistance: 6
+    traitNames: []
+    damageEntries:
+      b594e686-07ce-466d-8711-929adfe81f5b:
+        damage: 3
+        seq: 9
+        attackerid: b2b0cfef-bcba-47a2-9558-6e7eb1c5565b
+        id: b594e686-07ce-466d-8711-929adfe81f5b
+        damage_type: collide
+      27928482-e4c7-498b-8c3d-1621caef549d:
+        damage: 3
+        seq: 6
+        attackerid: b2b0cfef-bcba-47a2-9558-6e7eb1c5565b
+        id: 27928482-e4c7-498b-8c3d-1621caef549d
+        damage_type: collide
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        02fdef6a-0ba5-442a-97ee-35ccd55bfab8:
+          note: 3 damage from Scyza 1's Collision
+          disposition: bad
+          attackerid: b2b0cfef-bcba-47a2-9558-6e7eb1c5565b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 45
+        1adde967-639e-4d2e-af99-ea3ef97bff50:
+          note: 8 damage from Fury's Wing Buffet
+          disposition: bad
+          attackerid: 33796017-5d13-4c74-bf96-0816cbab92a7
+          userid: steam-76561198767161997
+          set: 48
+        eef77837-a579-4531-92a9-f1a4a6a31bd3:
+          note: 3 damage from Scyza 1's Collision
+          disposition: bad
+          attackerid: b2b0cfef-bcba-47a2-9558-6e7eb1c5565b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 42
+        ee0ec557-8d14-43b5-a83e-58b1dafb0287:
+          note: 3 damage from Scyza 1's Collision
+          disposition: bad
+          attackerid: b2b0cfef-bcba-47a2-9558-6e7eb1c5565b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 57
+        c873f737-a177-424b-bb4d-6c4e933ecf90:
+          note: 3 damage from Scyza 1's Collision
+          disposition: bad
+          attackerid: b2b0cfef-bcba-47a2-9558-6e7eb1c5565b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 54
+        cdd7a1ed-45a6-45a8-8b6f-96c7949cd53e:
+          note: 3 damage from Scyza 1's Collision
+          disposition: bad
+          attackerid: b2b0cfef-bcba-47a2-9558-6e7eb1c5565b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 48
+        7e50eb0b-87cd-41f0-b6d7-e72f65c4dc99:
+          note: 3 damage from Scyza 1's Collision
+          disposition: bad
+          attackerid: b2b0cfef-bcba-47a2-9558-6e7eb1c5565b
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 51
+        cdf2ed37-fa73-4ab9-aee2-bc870274cbad:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 100
+    minion: false
+    stability: 3
+    opportunityAttack: 5
+    import:
+      type: mcdm
+      data: |+
+        Scyza	Level 1 Mount
+        Animal, Orc	EV 28
+        <b>Stamina</b> 60
+        <b>Speed</b> 6	<b>Size</b> 4 /<b> Stability</b> 3
+        <b>Free Strike</b> 4
+        Might +4	Agility -1	Reason -4	Intuition 0	Presence -1
+        <b>Clawed Kick</b> (Action) %E2%97%86 2d10+4 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Reach 2<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage; prone
+        %E2%9C%B8	<b>17</b>	10 damage; prone
+        <b>Effect</b> The scyza roars and the target is frightened (EoT)
+
+        <b>Whiptail</b> (Action) %E2%97%86 2d10+4
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Reach 3<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	6 damage; bleeding (EoT)
+        %E2%9C%B8	<b>17</b>	9 damage; bleeding (MGT ends)
+        <b>Effect</b> This attack deals an extra 3 damage to a target on top of the scyza and knocks the target prone into an unoccupied adjacent square.
+
+        <b>Crestfall</b> (Action) %E2%97%86 2d10+4 %E2%97%86 2 VP
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 3 Cube within 2<b>	Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage; 1 sonic damage; dazed (EoT)
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage; 3 sonic damage; prone
+        %E2%9C%B8	<b>17</b>	10 damage; 5 sonic damage; prone can't stand (EoT)
+
+        <b>Sandstorm</b> (Maneuver) %E2%97%86 <b>INU RR</b> %E2%97%86 3 VP
+        <b>Keywords</b> Resistance, Maneuver
+        <b>Distance</b> 3 Burst<b>	Target</b> All enemies
+        %E2%9C%B8	<b>%E2%89%A411</b>	10 damage; prone; slowed (EoT)
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage; slowed (EoT)
+        %E2%9C%A6	<b>17</b>	4 damage
+        <b>Effect</b> The scyza kicks up a sandstorm concealing all allies in the affected area until the end of the scyza's next turn.
+
+        <b>War Harness</b>
+        Three of the scyza's size 1 allies can occupy the same space while riding the scyza.
+
+        <b>Terrible</b>
+        The scyza deals double damage to objects.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f9bd5eeb-f43c-4222-802a-38b16a6cd85f: true
+      modifiers: []
+      name: War Harness
+      description: Three of the scyza's size 1 allies can occupy the same space while riding the scyza.
+      guid: f9bd5eeb-f43c-4222-802a-38b16a6cd85f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ea16f0da-745f-4368-a163-0f8e2d5891df: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ea16f0da-745f-4368-a163-0f8e2d5891df
+        source: Character Feature
+        guid: 185f9b51-4c6f-45be-98ab-69430154330c
+        keywords: []
+        activationCondition: Target.Object
+        domains:
+          CharacterFeature:ea16f0da-745f-4368-a163-0f8e2d5891df: true
+        rollType: ability_power_roll
+        name: Terrible Beast
+        modtype: none
+        description: ""
+        damageModifier: "6"
+        behavior: power
+      name: Terrible Beast
+      description: ""
+      guid: ea16f0da-745f-4368-a163-0f8e2d5891df
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1ed24333-9f3e-4198-9adf-72a412f08427: true
+        CharacterFeature:538dc609-22be-4438-be13-4c6bac3c427e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1ed24333-9f3e-4198-9adf-72a412f08427: true
+          CharacterFeature:538dc609-22be-4438-be13-4c6bac3c427e: true
+        sourceguid: 538dc609-22be-4438-be13-4c6bac3c427e
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Brace and Break
+        description: |-
+          Trigger: The scyza or an ally riding the scyza is targeted by an ability.
+
+          Effect: Any damage dealt by the triggering ability is halved. If the creature or object who used the ability is within 3 squares of the scyza, the scyza can make a free strike against them.
+        guid: 6736148c-6717-4259-af4f-8f2abf34f1de
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: Any damage dealt by the triggering ability halved. If the triggering creature is within 3 squares of the scyza, the scyza can make a free strike against them.
+          trigger: The scyza or an ally riding the scyza take damage.
+          name: Skitter
+          guid: a15ca8d7-1762-4bd3-a58b-869fdbe78bb7
+          distance: Self
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 538dc609-22be-4438-be13-4c6bac3c427e
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          guid: b69a629b-163c-483d-8c7d-f502ae76e232
+          activationCondition: true
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: ac6d455d-87f0-49ff-998f-aa824ec20f9d
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: false
+              runOnController: true
+              abilityType: standard
+              promptText: "Brace and Break: Free Strike against the creature who triggered the Brace and Break ability."
+              autoTarget: false
+              standardAbilityParams:
+                distance: "2"
+              standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 3f42edc7-5905-445f-9a12-82295d75423e
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                targetType: self
+                range: 1
+                name: Invoked Ability
+                behaviors: []
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            targetType: self
+            name: Brace and Break Free Strike
+            numTargets: "1"
+            description: If the creature or object who used the ability is within 3 squares of the scyza, the scyza can make a free strike against them.
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Brace and Break
+          rules: ""
+          modtype: none
+          rollType: ability_power_roll
+          behavior: power
+        guid: ebbb1c43-09d4-46f6-849c-6d247e66f1c7
+        type: trigger
+        domains:
+          CharacterFeature:1ed24333-9f3e-4198-9adf-72a412f08427: true
+          CharacterFeature:538dc609-22be-4438-be13-4c6bac3c427e: true
+        targetType: selforally
+        trigger: takedamage
+        name: Brace and Break
+        rules: Halve the damage, then make a free strike against the triggering creature.
+        description: |-
+          Trigger: The scyza or an ally riding the scyza is targeted by an ability.
+
+          Effect: Any damage dealt by the triggering ability is halved. If the creature or object who used the ability is within 3 squares of the scyza, the scyza can make a free strike against them.
+        range: "0"
+        behavior: powertabletrigger
+      name: Brace and Break
+      description: |-
+        Trigger: The scyza or an ally riding the scyza is targeted by an ability.
+
+        Effect: Any damage dealt by the triggering ability is halved. If the creature or object who used the ability is within 3 squares of the scyza, the scyza can make a free strike against them.
+      guid: 538dc609-22be-4438-be13-4c6bac3c427e
+      source: Character Feature
+    role: Elite Mount
+    notes:
+    - text: ""
+      title: Monster Notes
+    equipment: []
+    titles: []
+    max_hitpoints: 100
+    initiativeGrouping: 342ba45b-f2c4-49e2-9f3f-9b472ea4347b
+    moveDistanceRoundId: 81c11d7e-519d-4e57-a74d-d25b01589efc-9
+    resistances: []
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        228860d9-82e6-43d1-bfe3-dd016930370b:
+          refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-8
+          note: "Used triggered ability: Brace and Break"
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        a467b5b4-67e2-4128-a3ab-24fed06c4d49:
+          refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-8
+          note: Whiptail
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        6714249c-f299-48b7-9b26-346f8b6d3b0a:
+          refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-9
+          note: Whiptail
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 7b29fb50-6179-4b77-a6bd-0acc8767bfe8-369
+    creatureSize: "4"
+    availableTriggers: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        2fec1414-70a0-4414-91d0-f7d70b794265:
+          refreshid: 70377e57-ca8f-495f-8878-b063c1fe80b9-3
+          note: Sandstorm
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+        209d3fe3-aacb-4c39-8b8a-537f6d98bc48:
+          refreshid: 70377e57-ca8f-495f-8878-b063c1fe80b9-2
+          note: Sandstorm
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+    monster_category: Monster
+    damage_taken: 0
+    deathSavingThrowFailures: 0
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-9
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 70377e57-ca8f-495f-8878-b063c1fe80b9-3
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: 81c11d7e-519d-4e57-a74d-d25b01589efc-8
+        used: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 11 damage; Prone
+        - 14 damage; Prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: The scyza roars, and if the target has i<2, they are frightened (save ends).
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      persistence:
+        enabled: false
+      modifiers: []
+      strain: []
+      guid: 34954697-99ba-4b38-ba04-e2e69ba737c4
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 223
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Clawed Kick
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: The scyza roars, and if the target has I<2 they are frightened (save ends).
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      implementationDetails: "Target on top of Scyza is teleported and not pushed unoccupied adjacent square.\v\vA push would cause collision damage into Scyza, and so teleport was used instead. zero gameplay impact as the target square must be empty and flavor only."
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage
+        - 13 damage; prone
+        - 16 damage; A<2 bleeding (save ends)
+        roll: 2d10+4
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 5946b173-ac3a-4394-8576-7b9becdb6dab
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 5946b173-ac3a-4394-8576-7b9becdb6dab
+          modtype: edge
+          keywords: []
+          activationCondition: Distance(Target) = 0
+          guid: 6eb6d0ef-68d9-4fe9-b7e5-80b66cbad463
+          rollType: ability_power_roll
+          domains: []
+          description: Against a target on top of the scyza, this ability gains an edge, and the target is pushed into an unoccupied adjacent square and knocked prone.
+          name: Whiptail Effect
+          behavior: power
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: fdedfaff-3455-4da7-ae94-476ea3690259
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors: []
+          targetType: self
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        promptText: The target is pushed into an unoccupied adjacent square.
+        filterTarget: Distance(target) = 0
+        standardAbilityParams:
+          range: "2"
+        abilityType: standard
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: c885a4ba-bb51-4676-977d-95df9aa19d85
+        filterTarget: Distance(target) = 0
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 7d4fb27e-2551-4c17-917c-895098e9a9be
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 223
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      implementation: 3
+      name: Whiptail
+      persistence: []
+      description: Against a target on top of the scyza, this ability gains an edge, and the target is pushed into an unoccupied adjacent square and knocked prone.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Malice
+      range: 3
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: aa50c21f-7d45-443f-9be1-8ff511b66dff
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 223
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: inu
+        filterTarget: not Friends(target, caster)
+        tiers:
+        - 10 damage; prone; slowed (EoT)
+        - 7 damage; slowed (EoT)
+        - 4 damage
+        resistanceRoll: true
+        roll: 2d6 + Might or Agility
+      - __typeName: ActivatedAbilityAuraBehavior
+        applyto: caster
+        aura:
+          __typeName: Aura
+          modifiers: []
+          blocks_line_of_effect: false
+          guid: 09bec898-494b-407c-878b-e70cd6802701
+          objectid: b864db19-9020-43e3-9dda-1c28f6cc1ae4
+          applyto: selfandfriends
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          name: Sandstorm Concealment Aura
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 7d56fcd7-1b6e-4baa-b67f-038e1a1db788
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Aura Trigger
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          description: The scyza kicks up a sandstorm concealing all allies in the affected area until the end of the scyza's next turn.
+          concealment: true
+          iconid: d38cfd57-01a7-4bae-bc92-74689ddc4e92
+        duration: endnextturn
+      iconid: d38cfd57-01a7-4bae-bc92-74689ddc4e92
+      name: Sandstorm
+      selfTarget: true
+      description: The scyza kicks up a sandstorm concealing all allies in the affected area until the end of the scyza's next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage, 1 sonic damage; R<0 dazed (save ends)
+        - 7 damage, 2 sonic damage; R<1 dazed (save ends)
+        - 9 damage, 3 sonic damage; R<2 dazed (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 223
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: af89e930-dfae-4907-81d7-9ae7329172b6
+      numTargets: 1
+      targetType: cube
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      radius: "3"
+      name: Crestfall
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: b72317ec-5ac4-4def-abeb-22afcf05987c
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Brace & Break
+      sourceReference:
+        __typeName: SourceReference
+        page: 222
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        Any damage dealt by the triggering ability is halved. If the creature or object who used the ability is within 3 squares of the scyza, the scyza can make a Free Strike against them.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    auras: []
+    aurasEntered:
+      bb65434e-4196-4542-9ab6-9d1b0993f703: true
+    walkingSpeed: 6
+    movementSpeeds: []
+    equipmentMeta:
+      offhand0: []
+    skillRatings: []
+    keywords:
+      Animal: true
+      Orc: true
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+  tokenType: null
+  bestiaryId: eb35dd23-f3dc-4ce6-99a5-b78ac80ccc1c
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 6
+  createdTimestamp: 1726301040866
+description: Scyza
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590324459
+mtime: 1775201137032
+hidden: false

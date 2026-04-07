@@ -1,0 +1,168 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 69ef6dee-9da8-49b1-88f8-cc1bee65e078
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Time Raider Myriad	Level 3 Minion Brute
+        Humanoid, Time Raider	EV 5 for four minions
+        <b>Stamina</b> 8	<b>Immunity</b> Psychic 3
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Strike damage +1<b>Free Strike</b> 3
+        Might +2	Agility +1	Reason +2	Intuition +1	Presence +1
+        <b>Fifth Fist</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Psionic, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	3 damage; slide 1
+        %E2%98%85	12%E2%80%9316	5 damage; slide 2
+        %E2%9C%B8	17+	6 damage; slide 3; prone
+
+        <b>Foresight </b>
+        The myriad doesn't have a bane on strikes against concealed creatures.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:45ca56af-824d-4081-b6fe-36ec031d0a0d: true
+      modifiers: []
+      name: 'Foresight '
+      description: The myriad doesn't have a bane on strikes against concealed creatures.
+      guid: 45ca56af-824d-4081-b6fe-36ec031d0a0d
+      source: Trait
+    role: Minion Brute
+    inflictedConditions: []
+    ev: 5
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 3
+    walkingSpeed: 5
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Time Raider Myriad
+    equipment: []
+    withCaptain: +1 damage bonus to strikes
+    levelChoices: []
+    damage_taken: 0
+    max_hitpoints: 8
+    resources: []
+    traitNames: []
+    minionSquad: Time Raider Myriad Squad 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6c58aa54-96c2-4274-9061-37643d139f53
+      implementation: 4
+      numTargets: 1
+      name: Fifth Fist
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; slide 1
+        - 5 damage; slide 2
+        - 6 damage; prone; slide 3
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Humanoid: true
+      Time Raider: true
+    movementSpeeds: []
+    groupid: 0fd6ab3a-e0ae-4c61-86e3-82f06865d109
+    minion: true
+    monster_category: Monster
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 0609e87d-2ab2-482a-aa0a-d721d0024e46
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Time Raider Myriad
+parentFolder: 37d52d89-62a2-4615-ad94-8549d23e461a
+artist: null
+ord: 0
+ctime: 1741590216156
+mtime: 1775201137032
+hidden: false

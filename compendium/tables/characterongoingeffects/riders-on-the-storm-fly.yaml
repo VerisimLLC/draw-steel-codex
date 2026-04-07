@@ -1,0 +1,27 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 0c3e1d9e-8583-4439-a193-5ff6d5d3c6b3
+  sourceguid: 3ea7e1a7-0d4d-43c0-9417-937f2424bf54
+  value: 1
+  source: Ongoing Effect
+  name: Riders on the Storm fly
+  behavior: attribute
+  description: You can fly until the start of your next turn
+  attribute: fly
+source: Ongoing Effect
+casterTracking: one
+guid: 3ea7e1a7-0d4d-43c0-9417-937f2424bf54
+id: 3ea7e1a7-0d4d-43c0-9417-937f2424bf54
+ctime: 1767200477240
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Riders on the Storm fly
+description: You can fly until the start of your next turn
+custom: true
+mtime: 1767200544321
+iconid: ui-icons/skills/1.png

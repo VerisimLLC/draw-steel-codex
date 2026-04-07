@@ -1,0 +1,706 @@
+1b442a9a-19fb-4214-aaa4-63165473a745:
+  __typeName: Deity
+  mtime: 1754151185319
+  group: Evil Gods
+  name: Eseld of the Eye
+  description: |
+    Eseld of the Eye, the Eye of Hate, sought mastery of the Tower of Summoning. But though she studied hard, there were always other mages more fortunate.
+    Cursing those who succeeded where she failed, Eseld sought the Tome of Boiling Hate, written by Cyrvis himself during his life. Acquiring the tome required years of research and treachery. Eseld left a trail of poisoned librarians and tortured loremasters behind her before finally unearthing the tome from its resting place at the bottom of the inverted Tower of Blood.
+    But though the tome was written in an ancient dialect Eseld knew, the words moved under her gaze and she could not extract meaning from them. Many oracles were consulted and tortured before she learned the prophesy.
+    “Only one with singular vision will see the secrets in the Lich’s writing.” 
+    With a flash of certain insight, Eseld understood the riddle. She took a dagger and carved out her own eye. With only one good eye remaining, blood from her eyesocket pouring onto the page, she could read the lore within.
+    In that moment was Eseld made a saint of Cyrvis. 
+    Filled with sorcerous power, Eseld no long sought mastery of the Tower of Enchantment, returning instead to the hidden Tower of Blood, restoring it to its former glory—there to start her own cult. Eventually Eseld was overthrown by the Darkling Shades, her own cadre of elite sorceresses who pass on her lore to this day.
+    Eseld teaches that spite is a virtue. Only fools follow rules, and sorcery is a route to ultimate power.
+  domainList:
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - a091ea75-1971-4c0e-953e-1d76af617395
+  id: 1b442a9a-19fb-4214-aaa4-63165473a745
+  ctime: 1752524870171
+fc45ba28-ce3b-41fa-9826-24f0c166d545:
+  __typeName: Deity
+  mtime: 1754151185450
+  group: Space Gods of the Timescape
+  name: Nebular the Star Mother
+  description: |-
+    The Queen of Suns. A living nebula. Desperate ships in need sometimes find themselves enveloped within Nebular, their systems repairing, their injuries healing. 
+    She is a stellar nursery leaving a trail of infant stars in her wake. Hers is the Engine of Law transforming darkness into light, chaos into order. She is the most popular god among the memonek and the senior god among the Lords of Law insofar as their hierarchy can be discerned by mortal minds.
+    She is the goddess of creation and for some of her followers, life itself, as her children’s energies feed all life on all worlds. Her priests teach that life is the opposite of entropy, and the natural byproduct of her solar incubator.
+  domainList:
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - defb6845-d9c3-4d31-8527-5bff55548072
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  id: fc45ba28-ce3b-41fa-9826-24f0c166d545
+  ctime: 1752525740493
+1f2c7e9f-5f53-48ff-8b8c-d23cd7e22753:
+  __typeName: Deity
+  mtime: 1754151185480
+  group: Space Gods of the Timescape
+  name: 'OV the Wave Pilot '
+  description: "OV the Wave Pilot, the Navigator, an enigmatic humanoid figure described as masculine, appears to live inside the pilot-wave. In those rare instances where a mortal is directly exposed to the energies that propel ships across the sea of stars, they occasionally report seeing a figure that matches the description of OV.\nLost ships sometimes find their navigation systems lighting up, a clear path home suddenly visible where no such path was possible before. OV aids those who are lost regardless of their affiliation with law or chaos, and is one of the Lords of Balance. His herald works to stop conflicts by guiding ships around and past routes that might cause them to intercept hostile entities.\nOV is the god of navigators and those who seek safe passage through treacherous scenarios. Because he cares little for the politics of the timescape, he is respected by the time raiders, though none would call him or any other being their “god.” \nWhen a time raider swears, “OV guide me,” the meaning is not, “Show me the right thing to do.” But: “Show me a way out of this mess.” "
+  domainList:
+  - 3b37f32a-52e5-40ff-ad5c-be45700b8e9c
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - 3bea86a2-5a42-4e4f-8759-06e7675e55e0
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  id: 1f2c7e9f-5f53-48ff-8b8c-d23cd7e22753
+  ctime: 1752525944661
+8fe5e309-2806-4c4c-92fc-6b1b263e40bd:
+  __typeName: Deity
+  mtime: 1754151185505
+  group: Heroes of the Elves
+  name: Thyll Hylacae
+  description: |-
+    Thyll Hylacae, the Forestal, Apothachron, also known as the Sacrifice. Thyll spoke to the plants, learned their truths—discovered many magics hidden within. The power to heal, harm, change. It was Hylacae who first sensed, then learned, the language of trees. She studied, cared for them, and protected them when the folk of farm and field came to cut them down.
+    Though she was mighty in warlore, she could not be everywhere. In the end, she sacrificed herself for the trees, the ritual she performed uplifted a small population of trees, creating the derwic—the thinking speaking tree-peoples few of whom remain in Orden.
+  domainList:
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - 9382788b-954d-41c1-a616-58a518b97b57
+  id: 8fe5e309-2806-4c4c-92fc-6b1b263e40bd
+  ctime: 1752329344672
+40583864-e99e-405d-a72a-a01633481197:
+  __typeName: Deity
+  mtime: 1755734438463
+  group: ""
+  name: All Domains
+  description: You've choosen to not select a deity.
+  domainList:
+  - 2fb06067-80cc-4e97-ba16-a6aadaa19b05
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - 3b37f32a-52e5-40ff-ad5c-be45700b8e9c
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - defb6845-d9c3-4d31-8527-5bff55548072
+  - 9382788b-954d-41c1-a616-58a518b97b57
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  - 3bea86a2-5a42-4e4f-8759-06e7675e55e0
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  - a091ea75-1971-4c0e-953e-1d76af617395
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: 40583864-e99e-405d-a72a-a01633481197
+  ctime: 1755734438463
+a5615bfa-6971-45d5-b73d-51539a4fa538:
+  __typeName: Deity
+  mtime: 1754151185461
+  group: Space Gods of the Timescape
+  name: The Calling of Cho'kassa the Time Raider
+  description: "“Take the helm and damn them all!!”\nCho’kassa and her family-clan were prisoners of UNISOL being taken to Ordos, the capital of Axiom for trial on charges of piracy and insurgency. UNISOL, she deemed, made arrests first and invented whichever laws were convenient afterward.\nHalfway through their journey, the UNISOL corvette was attacked by a protean heavy patrol vessel. The smaller protean ship latched itself onto the hull of the UNISOL corvette, lamprey-like, and its digestive acids quickly burned a hole in the plasteel, allowing the protean boarding party to invade.\nThough the rest of her captured clan believed the proteans had, for some reason, come to free them, Cho’kassa was not so optimistic. Eventually, the boarding party made it to the prison deck and opened the cells. They were evidently as surprised to find the imprisoned kuran’zoi as the time raiders were to be rescued by proteans!\n“You were prisoners, now you are our thralls. Obey and earn your freedom.”\nThe rest of her clan were unsure of their options, but Cho’kassa grabbed the protean captain’s hardlight pistol out of his hand and shot him in the chest. Her clan were now sure.\nWith that pistol shot, the fight for the UNISOL corvette became a running battle between three factions. The time raiders stole weapons from the bodies their enemies left behind, and the small band fought their way to the bridge, none knowing what they would do once they got there.\nOn gaining the bridge, messages blared from every signal receiver. Each side demanding the time raiders join them and defeat their enemies. Many promises and threats were made. The kuran’zoi looked to Cho’kassa.\n“Take the helm and damn them all!” she called out. “There must be a way home!” And in that instant, the navigation screens sprung to life. “Look!” her brother said. A route had already been plotted. One that made no literal sense. Was the ship’s logic system malfunctioning? \nWas there a way out? Could the impossible course on the star chart be trusted? It was a moot point, as the ship was still caught in the grip of the protean’s ship’s sucker-mouth.\n“There is a way” her brother said, but pulling away from the protean ship would require disabling all the safety circuits preventing the star-engine from going into overload. It might damn them all, but for at least a moment, the ship would have enough power to rip itself away from its parasitic attacker.\nCho’kassa ordered her clan to hold the bridge and seal the door behind her, and she fled alone to the engine room. She picked up a protean rifle as she ran, and though she could hear the battle between the memonek and proteans raging, her path was mercifully clear of enemies. \nFinally facing the great star-engine of the UNISOL ship, Cho’kassa punched in the override codes, and used her recovered rifle to blast the shielding off the star core. Bathed in brilliant yellow light that was killing her second by second, Cho’kassa leapt off the gangplank across the safety gap, and into the star core itself.\nOthers thought this a strange way to end one’s life. But Cho’kassa had seen the sign of the Wave Pilot when the navigation screens on the bridge came to life, and instinct compelled her. Some insight said that only if she joined with the ship could she save her clan. When her consciousness continued even after the engine disintegrated her body, she knew her faith proved correct.\nNow part of the ship itself, Cho’kassa could see the relationship between time and space. The Wave Pilot appeared before her, an enigmatic figure made of gold-green light, and conveyed without words the secret. The dark star, Procellon Beta, warped space and time around it, and that was why the plotted chart that appeared on the bridge could not be understood.\nThe energies of the wounded star-engine ripped through the ship killing the memonek and proteans onboard, but did not breach the door to the bridge. Cho’kassa piloted her new body with her family nestled safely inside through the course the wave pilot had set.\nThe harrowing, twisting path brought the ship close to the horizon of the dark star, through an inverted waveform, and they emerged weeks before they set out. Cho’kassa followed the course until it brought them to the UNISOL ship well before the events that led to the capture of her people. \nWith her clan manning the blaster turrets, Cho’kassa destroyed the memonek ship. Erasing the timeline in which they had originally been captured.\n“What just happened?” one kuran’zoi asked. “How can we be here, now?”\nThe ship returned to manual control. Cho’kassa was no longer the ship. Her brother looked through the viewscreen at the starry sea outside, and said, “Only the stars know.”\nCho’kassa the Time Rider is the herald of OV the Wave Pilot invoked by those who are lost and yearn for home. She sometimes appears riding her single-seat metal star bike, the Wavebreaker which she employs as a tug, pulling ships that ventured too close to a dark star out of danger. "
+  domainList:
+  - 3bea86a2-5a42-4e4f-8759-06e7675e55e0
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  id: a5615bfa-6971-45d5-b73d-51539a4fa538
+  ctime: 1752526076015
+47ffe837-3036-4e79-9035-64ddd535b605:
+  __typeName: Deity
+  mtime: 1754151185467
+  group: Heroes of the Elves
+  name: The Taste of Morning
+  description: |-
+    The Taste of Morning, also known as the Librarian. Credited with building the first library, most scholars consider this a real, historical event (never a certainty with the tales of the legendary heroes) and adventurers through all ages have sought this legendary building. If, indeed, it was a building.
+    He canonized the idea that knowledge, truth, was a kind of beauty. The Library of Morning was a temple to thought, wisdom, scholarship. It contained plays, poems, histories, treatises on the nature of reality. The knowledge held within was incalculable. Legends say it held codices written by the elder dragons, though modern scholars suspect this is a literary conceit, as there is no evidence the elder dragons bothered with writing.
+  domainList:
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  id: 47ffe837-3036-4e79-9035-64ddd535b605
+  ctime: 1752329044975
+40deef80-9bd7-4eb2-a071-1cc58e902482:
+  __typeName: Deity
+  mtime: 1754151185451
+  group: ""
+  name: Val
+  description: |-
+    Val, the Noble Lord, First Among Equals, is the patron of the elves. He created the celestials—the true elves, second of the five speaking peoples—who then created the younger elves: the high, wode, and shadow elves. His name is the root of the Caelian word “valiant,” and the dwarves named the most precious ore in Orden—Valiar, the truemetal—after him.
+    Val holds that the greatest purpose a thinking being can commit themselves to is the creation of art and the appreciation of beauty. He keeps the magical, elf-haunted forests called wodes close to his heart because they represent his vision for Orden. What the world could have been. His growing disgust with the concept of war led him to leave Orden and take up residence in his private manifold, Arcadia where all elves hope to someday join their patron
+  domainList:
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - 9382788b-954d-41c1-a616-58a518b97b57
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  id: 40deef80-9bd7-4eb2-a071-1cc58e902482
+  ctime: 1752328944689
+ff4b52ec-4ee7-45cd-9d0c-eb542a5858f5:
+  __typeName: Deity
+  mtime: 1754151185460
+  group: 'Human Gods of Vasloria '
+  name: Gwenllian The Fell-Handed
+  description: |
+    “Work your ritual, loremaster. And I will make your life worthy of a god’s memory.”
+    The Red Sun hobgoblins seemed unstoppable. The baron began to think he might need to evacuate the entire barony, else allow his people to be slaughtered. His greatest knights perished against the Red Sun, who wielded some magic that granted them invulnerability.
+    Then the loremaster came. Zür the wizard, dwarf and master of the Tower of Enchantment arrived. Seeing the need, he opened his tomes and researched what might the hobgoblins might wield. He presented himself to the baron’s court with a solution. The Red Sun had found an ancient spring dedicated to a Gol demon-god. The Red Sun hobgoblins had bathed in the spring and awoken the blessing of the demon within and, having bathed in the river, they were now invulnerable.
+    Zür believed he could remove the enchantment and rob the Ren Sun of their power. But the way to the spring was dangerous and he had no guard. The baron was at a loss, his greatest knights were almost all dead, thanks to the Red Sun. 
+    “I will attend,” Lady Gwenllian volunteered. The baron objected. Lady Gwenllian was his personal knight and bodyguard, just as her mother had been to his father. “If we succeed,” Gwenllian said, “you will have no need of bodyguards. If we fail, it will be the same.” 
+    The baron could not say no to his closest and most loyal knight, and so Lady Gwenllian, daughter of Morwetha, rode out with Zür the Enchanter. “It will take time to perform the ritual,” Zür said. “Once I start, the demon will send creatures to stop me. They will be terrible.”
+    Gwenllian swore to defend the dwarf against all who might come for as long as it might take. In later years, Zür professed he felt the weight of her vow and knew the gods were watching. “How long to work your ritual?” she asked, and she could tell the answer would be dire.
+    “Ten days,” Zür said. “Ten days must I work this weaving without pause or rest or food or water.” Dour Gwenllian merely nodded. “So be it.”
+    Arriving at the spring which ran red, Zür prepared his weaving. “You understand,” he said coating his hands in a rare powder, “that once we begin, we cannot stop, no matter how horrible the fiends the demon sends at us.”
+    Well-versed in the faith of Ord and the dwarves, Gwenllian responded. “Work your ritual, loremaster. And I will make your life worthy of a god’s memory.”
+    For ten days and nine nights, Zür spake his weaving and lightning sprang from his fingertips as he grappled with the demon of the spring. And horrors came as he did so.
+    Creatures unseen in Orden, assemblages of organs, teeth, and claws. Animals with too many legs or too few heads. The dead came, trees that walked whose branches dripped blood came. The tale of all detailed in the Lay of Lady Gwenllian. And while the endurance of the dwarves is well documented, Lady Gwenllian did not falter, did not rest. 
+    On the seventh day did a group from the Barony come to tell the dwarf the Red Sun had been defeated. Zaar hesitated, but Lady Gwenllian did not. Exhausted, spent, she could not be fooled. She saw through the demon’s guise and the men who were not men erupted in tentacles and spines.
+    Lady Gwenllian dispatched them all. 
+    Twelve days after they rode out, Zür returned with Lady Gwenllian’s body on her horse. The spring had been consecrated by the green. The Red Sun had lost their invulnerable skin and were beaten. Lady Gwenllian protected Zür as she swore, but she died upon dispatching the last demon spawn.
+    “I bring you her body,” Zür said to the baron. “And one thing more will I do for you. I shall build you a church here. A cathedral worthy of the life of Saint Gwenllian.”
+    Gwenllian is the saint of those who stand watch, of all those who must carry a burden ceaselessly. Gwenllian teaches that vigilance is its own reward. 
+  domainList:
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: ff4b52ec-4ee7-45cd-9d0c-eb542a5858f5
+  ctime: 1752523924227
+debad736-73ec-45a2-bfc6-46f2a9042b42:
+  __typeName: Deity
+  mtime: 1754151185286
+  group: Heroes of the Dwarves
+  name: Zarok the Law-Giver
+  description: |-
+    Zarok the Law-Giver. Zarok the Teacher. Zarok who is Justice. The first, great hero of the dwarves, Zarok was a noted general, diplomat, and poet. In his time each dwarf city-state had its own laws which were mostly just lists of offenses with punishments listed next to them. There was no consistency from one city to another and no underlying theory of law. The strong ruled, the rest obeyed.
+    It was after Zarok retired from his career as a warmaster and became the ambassador to the elves that he undertook a study of how different cultures express the idea of justice. He surveyed the various traditions of elves, humans, and orcs and wrote The Conversations—a series of fictional dialogues in which two characters, deliberately chosen from dwarf theater so as to be familiar to his audience, debate the question: “What are the characteristics of a just society?”
+    The Conversations marks the beginning of legal theory in Orden. It sought not only to state what a just society was, but to prove it ethically through a series of logical statements. Most of the work concerns itself with the proper, ethical uses of political power. The adversarial system of legal representation is his.
+    Zarok teaches that all people should be equal under the law. His is the principle of fair play—sportsmanship. Respect for your adversary. The responsibility of the strong to protect the weak.
+    Zarok’s The Conversations are still quoted today. There is a long legal tradition, when a prestigious lawyer in Capital wishes to write an amicus brief without revealing their identity, they sign it “Z.”
+  domainList:
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: debad736-73ec-45a2-bfc6-46f2a9042b42
+  ctime: 1752329762107
+98e31a25-ec7d-4377-a6f6-ce7770b85985:
+  __typeName: Deity
+  mtime: 1754151185277
+  group: Heroes of the Elves
+  name: Ripples of Honey on a Shore of Gold
+  description: |-
+    Ripples of Honey on a Shore of Gold, also known as Warkiller, the Diplomat, was both scholar, sage, and soldier. She served as emissary between the humans and the dragons when the former sought war against the latter. For many years she brokered peace, but she could not stem the tides of war forever.
+    In the end, her efforts failed, and the elder dragons live no more in this world. Like Val, the Diplomat hated war so much, after her failure she sought to pen a new codex. A work so powerful it would bind the world. The Codex Pax Universalis would banish the concept of war from Orden. Alas, in the end she realized there was only one way to finish her great work, and she was not willing to take that final step.
+    Your mythmaking has a gravitas to it—each figure carries the weight of aspiration and sorrow. It’s like a history written in the margins of reality. Would you like help building a visual reference guide or timeline for these figures and events?
+  domainList:
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  id: 98e31a25-ec7d-4377-a6f6-ce7770b85985
+  ctime: 1752329134182
+a713863a-9c48-4df5-9af3-6d9ecba4ca99:
+  __typeName: Deity
+  mtime: 1754151185474
+  group: ""
+  name: Ord
+  description: |
+    Ord, the Maker, the Engineer, is the patron of the dwarves. Ord, along with his siblings Aan, Eth, and Kul, created Orden. These four saw the world as a dynamic expression of their philosophies.
+
+    Ord values integrity, honor, faithfulness to an ideal. Courage in battle and fair play. Treating your opponent honorably, Ord teaches, is an expression of your own worthiness. Ord is associated with permanence, which some elder dwarves take to mean a kind of slavish devotion to tradition. But Ord teaches permanence is the quality of reliability, of steadfastness. Young dwarves who chafe at the stale and stifling traditions of their elders remind the graybeards that Ord is the Maker. He expects his children to create marvels, to bring forth new discoveries, new insights. To remake the world anew each generation.
+  domainList:
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: a713863a-9c48-4df5-9af3-6d9ecba4ca99
+  ctime: 1752329682150
+5d03a8ef-5670-439d-8b13-a0437c30d76b:
+  __typeName: Deity
+  mtime: 1754151185235
+  group: Heroes of the Elves
+  name: Illwyv li Orchiax
+  description: |-
+    Illwyv li Orchiax, the Moonknight, Marshall of the Gloaming, Manslayer. When humans first arrived in Orden—it is said—they were welcomed by the other speaking peoples. But they were unlike the other creations in the world. While the dwarves cut rock for the ore within, humans cut down trees simply because they were in the way. Other ancestries had their own territories and homelands, but humans sought constant expansion into even the most inhospitable territories.
+    Illwyv it was who first realized the folly of treating with these creatures. A great hunter of the Quercus Court, she gathered her band of elite Helriath Harriers and made war on the humans who would kill the wode.
+  domainList:
+  - 9382788b-954d-41c1-a616-58a518b97b57
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  id: 5d03a8ef-5670-439d-8b13-a0437c30d76b
+  ctime: 1752329403202
+88c4c17e-a0a6-46b1-acbf-bb26b12ccd0b:
+  __typeName: Deity
+  mtime: 1754151185372
+  group: Evil Gods
+  name: Nikros the Tyrant
+  description: |-
+    Nikros is strength. He is dominance. His is the right of the strong to rule over the weak. He is the Tyrant.
+    Nikros believes that strength is the only virtue, and those who are born strong were born to rule. Because of this, followers of Nikros are often mistaken for followers of Adûn—a mask they are happy to wear. Both teach that strength is good. But for Adûn strength is a tool for helping others. For Nikros, strength is power to enact your will heedless of the consequences. Might is right.
+    Many is the baron or duke who attained power through sheer strength and ruthlessness, seeing their people as mere resources to be spent. Many of these rulers only come to Nikros after achieving power, their ears poisoned by a priest of the Tyrant.
+    Though he and Cyrvis are brothers, Nikros hates Cyrvis because Cyrvis is feeble and weak. Both teach that strength is the only virtue. But Cyrvis teaches that the weak can exploit treachery and sorcery to become strong. Nikros spits upon these feeble wastes and preaches to the strong to take what is theirs by right.
+    Like Cyrvis, his priests worship in secret. Like Cyrvis, folk hate followers of Nikros, while sometimes secretly admiring them. Bullies always have their sycophants.
+    Nikros’s censors take what they want, ignore the law heedless of consequence, and teach that all folk should live thus. To subjugate one’s will to the law, or the community, or the family, is to be weak! Weakness is a disease and it must be eradicated!
+  domainList:
+  - 2fb06067-80cc-4e97-ba16-a6aadaa19b05
+  - 3bea86a2-5a42-4e4f-8759-06e7675e55e0
+  - 3b37f32a-52e5-40ff-ad5c-be45700b8e9c
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: 88c4c17e-a0a6-46b1-acbf-bb26b12ccd0b
+  ctime: 1752524629910
+090d0750-25a0-4733-91b5-a2fb19360575:
+  __typeName: Deity
+  mtime: 1754151185530
+  group: Human Gods of Vasloria
+  name: Gaed the Confessor
+  description: |
+    Gaed the Confessor, son of Malgen, son of Germoc, was the abbot of a small monastery dedicated to Saint Anthony—Shield of the North—in eastern Aendrim during the rule of the tyrant Baron Kaveran. Kaveran was a secret censor of the church of Saint Pallad, winning the baronial throne though a combination of treachery and good strategic battle principles. Once on the throne, he threw off the black cloth covering the device on his shield, revealing himself to be a servant of Pallas, Saint of Nikros.
+    Kaveran sought to consolidate his rule by extinguishing the church of Saint Anthony, Shield of the North specifically, and worship of Adûn generally. In this, he almost succeeded. Gaed’s monastery was small, his province obscure. But as he refused to renounce his faith, his monastery attracted more and more refugees, making it harder and harder for Kaveran to deal with him without causing a revolt. 
+    Kaveran abducted Gaed, his knights dragging the abbot out of his monastery in the middle of the night, and tortured him for seven days, hoping to break his faith and force him to convert to Saint Pallad. Gaed neither renounced his faith nor called out for aid. 
+    Kaveran was no fool, and knew killing Gaed would make a martyr of him, and so attacked the abbot’s flock. Hoping—by putting their homes to the fire—to pressure Gaed into recanting his faith. Kaveran barred several families in a tavern, set fire to it, and brought Gaed to witness the horror. 
+    But Kaveran had not thought to shackle Gaed, and the abbot countered by lifting the bar on the burning building and walking into the tavern in full view of hundreds of his followers. He spoke Saint Anthony’s words as he did so, but it was Adûn who clothed him in a shimmering blue light. 
+    It was Gaed, son of Malgen, son of Germoc, who entered the tavern—it was Saint Gaed the Confessor who emerged, unscathed, leading the people inside to safety. In that moment the people and many of Kaveran’s own followers turned on the cruel Baron, dragging him off his horse and spitting his body with kitchen knives and pitchforks.
+    Gaed teaches the virtue of being true to one’s principles even—especially—when doing so is the most difficult thing in the world. The title “confessor” is granted to those who persisted in their faith in public, even when doing so was dangerous or deadly.
+  domainList:
+  - defb6845-d9c3-4d31-8527-5bff55548072
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  id: 090d0750-25a0-4733-91b5-a2fb19360575
+  ctime: 1752523586217
+310768d6-6d4b-47e0-88c8-e746d9ad35c2:
+  __typeName: Deity
+  mtime: 1754151185461
+  group: Humans Gods of Vasloria
+  name: 'Eriarwen the Wroth '
+  description: |
+    Eriarwen the Wroth apprenticed to her mother as a witch just as her mother had apprenticed under her mother. Her family were witches in service to Halcyon the Moonmaiden, saint of Viras, the Lady of Spring. They had tended to the souls and health of the people of five villages for two centuries. Eriarwen was not yet of age, and so not yet a full mistress of the craft when the blight came. 
+    At first it was a newborn foal born with seven eyes and a writhing grasping tentacle where it tongue should have been. It took three farmers to kill the infant beast and though they dismissed it as an accident of birth, the three were harrowed.
+    Soon, it was a cat, then a herd of cows. Then every kind of beast and bird in the wood emerged with hideous mutations, defects, and deformities. The creatures had not just been driven mad, they were filled with hate for the people of the farms and villages. Though they could not know it, it was the Red Blight of Caswyn the Plaguemaster.
+    In a matter of a week, the people were forced to all gather together in one town for protection, and they feared they were doomed. All attempts to stop the blight had already failed.
+    Her mother and grandmother, the other witches of their coven, spent their time trying to protect the people and heal the afflicted animals, but this was not possible. There could be no cure, for these creatures were not sick. Caswyn had changed their nature making new things out of the wildlife.
+    When her grandmother’s horse changed underneath her, turning into a merging of horse and crab, Eriarwen saw her mother summon a killing spell, but her grandmother forbade it and turned to try and calm and reason with the steed who had carried her for twenty-seven years.
+    Then Eriarwen saw the beast rip her grandmother apart with a single bite.
+    Her mother raced to her mother’s corpse. And Eriarwen called out.
+    Eriarwen did not scream or cry, nor call out for aid or even mercy. She did not call to Viras, nor any of her saints. She called out to Salorna the Summer Storm and demanded the Woodland Mistress act. 
+    Eriarwen felt a growing heat and joy in her heart, and, feeling like she could fly, she suddenly saw the world through a million eyes all at once, and where she had stood, a humanoid figure composed entirely of bees filled the space. Eriarwen the Swarm exploded in a cloud of bees and each bee was Eriarwen. She sped across the countryside from one village to the next, stinging every animal affected by the Red Blight, and the villagers watched as the woodland creatures, their own pets and livestock, returned to normal. Good as new! None knew then that it was Eriarwen who saved them, but all knew it must be a member of her family. Who else?
+    But Eriarwen was just getting started. Returning to her grandmother’s corpse, the swarm coalesced and Eriarwen emerged, a young woman again. But her hair was flame and lightning crackled where she walked. 
+    “CASWYN!” she thundered. “I SUMMON THEE! COME! YOU CANNOT RESIST! I COMPEL THEE!”
+    Caswyn, furious at the death of his blight, furious at the girl who dared oppose him, could not resist. He revealed himself and in that moment, it was Caswyn the Pestilent, saint of Cyrvis who appeared.
+    Saint Caswyn and Saint Eriarwen battled and grappled with each other, each growing to great size infused with the power of their gods. But their figures were unrecognizable. Caswyn was a rotting giant, a mutated dragon, a griffon oozing blood. 
+    Eriarwen was a wolf made of fire, a crow made of lightning, a bear made of stone. 
+    Caswyn the Chimera hurled Eriarwen the Lion to the ground and it was Caswyn the Cobra who struck. But it was Eriarwen the Elk who spit Caswyn upon her antlers, banishing the saint from the mundane world.
+    Eriarwen returned to herself, and though she was now an immortal saint, she sensed that Salorna had given her yet more power. She saw her mother weeping over her grandmother’s body. The old woman’s horse, restored by Eriarwen’s sting, nuzzled at her mistress’s curled gray hair.
+    Eriarwen smiled, and knew the task before her. She conjured lightning from her fingertip, and her grandmother was renewed. Mothers and daughters reunited.
+    Eriarwen teaches that nature holds the power to destroy—that Mother Nature is also the fury of a hurricane. She preaches revenge against those who would pervert the natural world. And that those who seek to preserve the balance between humans and nature must be willing to take violent action if necessary.
+  domainList:
+  - 9382788b-954d-41c1-a616-58a518b97b57
+  - 3bea86a2-5a42-4e4f-8759-06e7675e55e0
+  id: 310768d6-6d4b-47e0-88c8-e746d9ad35c2
+  ctime: 1752524403573
+729216d9-e6bc-4cb6-80cb-7d6c777661ba:
+  __typeName: Deity
+  mtime: 1754151185335
+  group: Space Gods of the Timescape
+  name: The Calling of Lady Magnetar
+  description: |
+    Captain Kalisdrossa was the leader of Sword Squadron an elite cadre of legendary UNISOL fighter pilots. Her crew believed unwaveringly that with Kalisdrossa as their leader, though one or two may perish in battle, the squadron would always come home.
+    In the legendary Battle of Cassiar IV against Grotenhulk the Evolver, flagship of the protean fleet, the protean mutate-commander Oruth-phor intended to break Sword Squadron’s winning streak, and from the body of PCS Grotenhulk, a giant swam of living drone-sprites, each specially evolved to seek and destroy UNISOL Arrestor-class ships, spawned.
+    Sword Squadron’s meson repeaters were too imprecise to target the tiny drone-sprites. Not only were the pilots unable to carry out their orders, they were being picked off one by one. Many privately believed this was the final flight of Sword Squadron.
+    When one of her pilots dropped his countermeasures and temporarily distracted the swarm, Captain Kalisdrossa had a flash of insight. Seeing an opportunity to destroy the swarm, save her crew, and give them a fighting chance to complete their mission, she ordered Sword Squadron to ignore the drone and proceed with their attack on the protean flagship.
+    Her wingman sent back, “The drones will kill us before we’re halfway there!”
+    “No they won’t,” she responded—and then sent her last message. “Squad, you have your orders. First lieutenant Vachsimnatta is in command. Kalisdrossa out.”
+    As her squad peeled away to begin their final run at the protean capital ship, Kalisdrossa dropped all her countermeasures and flipped on her turbothrusters, believing the overheating engines would ignite the metal sensor-chaff she had jettisoned.
+    Her instincts were precise and correct. The resulting chemonuclear reaction generated so much light and heat—the entire swarm of drone sprites turned to pursue Sword-1. 
+    There was only one place to lead them. The surface of Cassiar Prime was a boiling sea of plasma condensate powerful enough to rip planets apart. “It should make short work of these drones,” Captain Kalisdrossa thought.
+    Sword-1 plunged into the fermionic sea, the hull boiling away moments before impact. A million drone-sprites followed into oblivion. Commander Oruth-phor howled his fury into empty space and ordered his ship to envelop the UNISOL capital ship, literally swallow it whole. Grotenhulk the Evolver understood the command and knew it was suicide, but the ship was compelled to obey.
+    Watching the great maw of the living changeship open to swallow an entire flagship struck terror into every memonek in the fleet. 
+    Then, crackling across every signal unit, a voice. “COME FORTH LADY MAGNETAR, CHOSEN OF THE MOTHER OF STARS.” And out of the blue plasma sea that was the surface of the star Cassiar Prime arose a figure, humanoid, made of solid boiling plasma.
+    It was Kalisdrossa, still wearing the helmet that marked her captain of Sword Squadron, holding in her hand the blue-topaz Fusion Rod—a powerful artifact that would serve as her weapon, and the symbol of her office as Herald of Nebular.
+    Lady Magnetar flew across the void of space at lightning speed, evaporating protean fighters as she went. Until finally she faced Grotenhulk the Evolver, his maw poised to envelop the UNISOL capital ship.
+    She punched a hole right through the hullskin of the changeship and battled her way, deck by deck, toward the heart of the beast. Though a thousand protean soldiers stood in her way, none could touch her or slow her relentless progress.
+    The memonek officers and soldiers of UNISOL watched the bleeding changeship convulse, then explode as brilliant shafts of blue light tore the ship apart. Ending the Battle of Cassiar IV.
+    Lady Magnetar is the Herald of Nebulon the Star Mother aiding those who fight in the cause of light and life and order. She is invoked whenever a great sacrifice must be made. “Lady Magnetar, let my sacrifice not be in vain.”
+  domainList:
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  id: 729216d9-e6bc-4cb6-80cb-7d6c777661ba
+  ctime: 1752525871506
+fb442ef4-1ad3-4ad8-a139-80e4a22fbd36:
+  __typeName: Deity
+  mtime: 1754151185459
+  group: Evil Gods
+  name: Pentalion the Paladin
+  description: |
+    Pentalion the Paladin, the Usurper, served at the right hand of Uther the Callous, aiding him in his ascent to the throne. Uther mastered fell sorceries under the tutelage of a priest of Cyrvis. In public, Uther’s illusions kept him hale seeming, but in reality his addiction to sorcery had withered him. 
+    Pentalion was Uther’s greatest knight, general, and chief of his secret police. He ferreted out conspiracies and rebellious coalitions. His tactic: infiltrate the rebels with his own agents—give them a taste of success but at the cost of relying on his power. Then, in their moment of triumph, Pentalion’s agents revealed themselves and the insurgents found themselves surrounded by enemies without and within.
+    Eventually serving at the right hand of the conqueror was not enough. Pentalion loathed Uther for his physical weakness and growing dependence on sorcery. After Pentalion helped Uther depose a nearby duke, the paladin helped the dead duke’s daughter plot revenge. 
+    He used all his usual tactics. His agents aided the duke’s daughter and helped her build her insurgency, but in a critical moment when she confronted Uther with only Lord Pentalion as witness, the evil paladin killed first Uther, then the duke’s daughter assuming leadership of both the kingdom and the rebellion. 
+    Savior to all, Pentalion was made a saint of Nikros for this act. He ruled well into old age, always finding new enemies within and without to be cruel to. And the more cruel he was to his invented enemies, the more the people loved him.
+    Saint Pentalion teaches that one should bide their time and build their power before striking. That treachery in service to growing your own power is no vice. 
+  domainList:
+  - 2fb06067-80cc-4e97-ba16-a6aadaa19b05
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: fb442ef4-1ad3-4ad8-a139-80e4a22fbd36
+  ctime: 1752524726233
+e5e09d88-ea82-4604-96bd-fed92c936f5d:
+  __typeName: Deity
+  mtime: 1754151185455
+  group: Heroes of the Elves
+  name: A Sea of Suns
+  description: |-
+    A Sea of Suns, also known as the Composer.
+    Credited with inventing harmony, it is said that after she discovered the power of blending many voices into one, the elves sang for an entire century uninterrupted. The harmonics so complicated they created new beings like faeries, dryads, and the elgenwights.
+    The Composer discovered, or invented, the power of music to manipulate reality. Her troubadours, it was said, could return the dead to life. “In the music, you can live forever.” Legend has it she was at the battle of Kalas Valiar when the first Army of Night besieged its walls. When their corruption engines weakened the impenetrable walls, she stood alone on the parapets and sang. For forty days did her voice bolster the walls, stemming the flood of evil. Her song ended only when her life was taken by A Heart Trapped in Amber, the sorcerer-assassin of the star elves.
+  domainList:
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  id: e5e09d88-ea82-4604-96bd-fed92c936f5d
+  ctime: 1752329020604
+06f3ef01-b1f6-4e23-95c1-1f65681406b9:
+  __typeName: Deity
+  mtime: 1754151185328
+  group: Human Gods of Vasloria
+  name: Adûn
+  description: |
+    Adûn believes that truth and hard work are virtues. He embodies the Vaslorian belief that hard work is honesty. Someone who works hard—real physical labor—is an honest person. Anyone who does no obvious work for a living is someone not to be trusted. Adûn is more worshiped in the field than in the city. Farmers distrust city folk because many of them make a living writing, or counting money, and never break a sweat.
+    Vaslorians in remote villages still use the ancient test of strength to determine truth. Two individuals in a legal dispute may find the reeve asking them to fell a tree or build a wall. Whoever finishes first is in the right, because they worked harder and are therefore more honest. Many walls and fields owe their existence to this ancient legal tradition.
+    A priest following Adûn expresses their faith through labor. They build things. Many priests are also masons or carpenters. Joining the church for them did not mean abandoning their former trade. It intensified it.
+    A knight following Adûn spends their time aiding others through hard work, inspiring people to honest speech and hard labor, as opposed to Adûn’s brother Cavall who seeks to right wrongs.
+    Adûn and Cavall are brothers and the line between them is not a sharply defined one. Truth and justice are close companions.
+  domainList:
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - defb6845-d9c3-4d31-8527-5bff55548072
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  id: 06f3ef01-b1f6-4e23-95c1-1f65681406b9
+  ctime: 1752523482371
+974c370b-247e-4e2b-9986-5e27c12bcfef:
+  __typeName: Deity
+  mtime: 1760073998439
+  name: Grole the One-Handed
+  group: Heroes of the Orcs
+  _fork: H4sIAAAAAAAACnWVQY/bNhCF/wrhs2WsLWlt5dY0bbdotwW6QXtZYEFRI4swRaokZccN8t/7hpJ24wA5WSCHM/O+eaQ/r15e4nWgP2RPq3erD6TjdbUWq6N344CFB/KOgnCtiB2JP70KvNu4Xmr7uw5x9e7zaou4vayaQ3W/zfK8zLNCbdusqoo82+1zld+3Zbsrcj65Q2yl2vqgDkW23R5kVuSVyuRhX2WHsi4Lqnb7Qys59sWM8qOsDRprpQn0BWu64QT7QuX7uzrbFXvKCtrVKHa4z0ra7dV2V6uWWk7QR82qtvuy2JYoVpZ5gWX1urwryrKqqrt9jmU7IfjFO0OTWkvZg7QNNUkzBeX1ELWz34lai2n10jnxZOiStp8AKjK/p9NoTFgL40IUnQ7CUIsPnBQyptD3MkYcR+yH0YtHx2uXjjwJfIToHCKNsyTkEUnDdKhzvklnGpKxMxSC4JTY0l70MkTy6xRo9Fnbowipn0fnEc3HHqW9io9kG69N2IhFlxuPHQo4UY9XwbxE63xqW/r+yhvAIYcJQWu4t6WHNc5Ebtzy5hUVL3M7F+kNyYa8OHo5DIb7mRRdNLq5wfWXi+vpvKcz+UCLJk/Ro8xG/MMVZiFGhg4RjgtzKm70yGHyE4m/dVCEMAhgNIHzIThJfR53d9vq62G03vWL0PVtUJIeRn/EaeCAHMy8RpkTK+H2o/5mGBvxbB8WahcZFbcpg/htNK+lNaNmexG7SDi74HJjWpiYrZe5XsXJwlzTpDrZiJoAQnUu4Ke+cmqhOQds1bueLFj9MJkFmOLiUs4202unaaMt+neUbANcdJjOuxTVSH8S3dhLO7tnmh4LiW5IiaVVGoXAzRhMZhkBj/bI3khkp7qDGe1xmiZWuPWftaf1PDLE9Wx8v9AJsmbtKOvmdpedjqSHGkBb6L+a59bUz3Z2NUngDymUPkUvcXW0lf4K+NQEoVzfA/5ADuKEglypsAafhk7odmKvgFC0KD0ZZb5n2jag9ivcB4hvrwBwwSGpYfXTGVIDLpYBNyscCNegockr0MDcem5aeu8uYXb+HB0iqHIwv4V89QbysF+f8PJI0WeSzTcFbDepYLPI1pNiFGQdaarpOYdfRCsVw9P94ELQnL4hhOGNg5yHdLaVZ+fnDvnpmvNMpnx7MV7ZSp4Ja003e/meX6yvCrmmgc7bOZy1wi3VxPcFbObQjfiRbHA+/Q1N5VwbkbXRwzyAt+sL52t7Ai0QIlFPTyqYhWtfO6P/o9sr3WvUAAE+u/nmTyf6kb78D4fCTskhBwAA
+  domainList:
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  description: |-
+    Grole the One-Handed, Grole who Slew the Saint of Skulls, lost his left hand at the Battle of Dur Mothe where he stood alone against the horde of deathless and their master, the living saint Morath of Many Tendrils. Grole thought to buy time for his army to escape the flood of death, but when they saw their warleader grappling alone with the Saint of Rot, they reversed their retreat. When Morath lashed out with his greataxe Viscerator and severed Grole’s left hand from his arm, Grole’s army surged forward, breaking the tide of deathless. 
+    His army watched as Kul’s light descended on their wounded leader, and they knew Grole had been chosen by Kul in that moment. At the last, Grole and Morath fought as equals. Orc hero and dark human saint grappled atop the ancient hill. With his one good hand Grole plunged the Green Fire, his grandmother’s saber, into Morath’s heart, ending the Saint of Many Tendrils.
+    Grole teaches the extraordinary deeds common people can accomplish if they cast fear from their minds. It was Grole who said, “Even should an orc be pierced by many arrows, they should still be able to perform one last act of revenge.”
+    Grole is the orcish hero of those facing impossible decisions. He is favored by most orcish leaders. Grole teaches that, even alone, even against impossible odds, extraordinary victories are possible. Censors of Grole often dip their left hand in ink before battle to symbolize Grole’s missing hand.
+  id: 974c370b-247e-4e2b-9986-5e27c12bcfef
+  ctime: 1760073998439
+4287ca32-b031-4716-aeaa-8fd3505bad3c:
+  __typeName: Deity
+  mtime: 1754151185504
+  group: Saints of Hell
+  name: Kuryalka the False Principle
+  description: |
+    Kuryalka the False Principle, Soulstealer, Audacity, Saint of Ambition is credited with inventing the trading scheme known as the Kuryalka Ploy. Daughter and eldest child of Orliath IX—Marquis of Naraka, the City of Blood—tradition held Kuryalka would ascend to the house throne upon her mother’s death and rule, but from childhood Kuryalka was obsessed with what was informally known as “the Trade”—the buying and selling of mortal souls from Orden and elsewhere in the timescape.
+    It occurred to Kuryalka that as long as people saw their soul-power increasing on paper they wouldn’t inquire too closely about her stewardship of their investment. They signed their accumulated souls over to young Kuryalka, who promised them great returns. It seemed too good to be true! But she published a report every quarter showing marvelous gains, and while no one could understand her math or references to “integrals,” they were well pleased with their growing wealth. Whenever someone complained about the lack of disbursements, Kuryalka would quickly pay them out of her growing hoard of souls.
+    Of course, there was no investment taking place. She simply kept the souls and grew in power, using new investors’ souls to pay out old investors. She was not the first to use this technique, but she became the most famous and successful—and the scheme was named after her—because of one innovation. Kuryalka had developed an equation that showed exactly when the ploy would collapse. 
+    Days before that moment, supreme in the fullness of her soulpower, Kuryalka did not withdraw her souls and escape into the timescape with her near-infinite wealth. She went to the Archdevil Sutekh, Lord of Naraka, and offered him her vast soul wealth in exchange for immortality and a place in the Court of the Seven Cities. 
+    Sutekh’s terrifying hollow laughter could be heard throughout Hell. No mortal, he said, had ever embodied such naked ambition. He accepted her offer, making her the first Saint of Hell. Sutekh took Kuryalka’s souls and founded the Exchange, making the trade in souls an official government department in Hell, and building an entire bureaucracy around it. 
+    Kuryalka teaches the virtue of ambition—that if you are willing to risk everything, you can gain everything. “The world is yours, if only you tell a lie big enough.” That the greatest ambitions are those that are so audacious, no one else has even imagined them yet. In this manner does one avoid competition. 
+    Kuryalka features in many folktales in Hell, including “Of the Childe Whomst Kepte the Sheeps,” in which she appears to a young shepherd boy warning him against getting caught telling his first lies. Kuryalka instructs him in the proper use of manipulation: “Never tell the same lie twice!”
+  domainList:
+  - 2fb06067-80cc-4e97-ba16-a6aadaa19b05
+  - a091ea75-1971-4c0e-953e-1d76af617395
+  id: 4287ca32-b031-4716-aeaa-8fd3505bad3c
+  ctime: 1752459286782
+3094e3ac-d55e-4efe-959a-4a0e95f98436:
+  __typeName: Deity
+  mtime: 1754151185233
+  group: Human Gods of Vasloria
+  name: Draighen the Warden
+  description: |
+    Saint Draighen the Warden, the Ranger, Draighen of the Wood was known in her life for her mastery of the elf haunted wodes which she could cross without incident. Draighen it was who first treated with the derwic, whom even the wode elves had not seen in many ages of the world.
+    The awakened trees were happy to hear news of the world and while it was impossible for her to satiate their endless curiosity (“How fare the steel dwarves?”), Draighen provided many services for them. Chief among those—locating the Stone of Hyllc a large flagstone infused with magic, which the derwic used as a kind of altar for communing with their creator. Many traditions had the derwic forsworn after the loss of their symbolic meeting-stone, and they were sore grateful to the human who took their problems as her own.
+    Years later, a fire threatened to engulf the local wode, and the elves within refused all aid. Their stoic refusal to prevent their own extinction infuriated Draighen, whom they already resented because of her special relationship with the walking trees. 
+    Draighen proposed a trick the humans—“the men of farm and field”—used when fire threaten to burn their crops after a drought. “Starve the fire,” she proposed. The elves, initially curious, rejected her idea as soon as they understood it. “Cut down the trees?!” they exclaimed, and exiled the human.
+    Refusing to give up on the elves, even after they chose to die with their forest, Draighen went to the derwic, who immediately praised her plan and were eager to help. The elves of the wode were astonished when Draighen returned with a dozen derwic who immediately began uprooting a line of trees ten miles long and a thousand feet wide. What would have taken the elves or humans many days even working together, the derwic did in an hour. The fire reached the edge of the break the walking trees had made … and died out. 
+    When the elves remarked upon this, taking the derwic to task for their actions, Hurolathornindrascyl, derwic’s chief, looked at Draighen in confusion and then pointed to the sea of uprooted trees. “They would have moved on their own if they could! We just helped them along.”
+    The elves were properly chastised and realized their shame. Though the derwic disappeared back into the wode, the elves celebrated Draighen, naming her Elf-Friend and Wode Warden. In the ceremony, Draighen was surrounded by a golden light and her brown eyes turned green. The elves knew she was Saint Draighen now. 
+    Draighen teaches solutions can always be found if people are willing to talk. That even the darkest forest is not a thing to be threatened by if you carry wisdom and an open heart with you. That the proper reaction to unknown territory is curiosity.
+  domainList:
+  - 9382788b-954d-41c1-a616-58a518b97b57
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  id: 3094e3ac-d55e-4efe-959a-4a0e95f98436
+  ctime: 1752524148832
+f939fab0-158d-45b7-888c-aa61a0c35c27:
+  __typeName: Deity
+  mtime: 1754151185540
+  group: Heroes of the Orcs
+  name: Khorvath Who Slew a Thousand
+  description: |
+    When Khorvath, warleader for the Lightning orc clan set out with her warband of bloodrunners, they numbered less than fifty. When they finally arrived at the Heliopolis, seat of the pharaoh of Khemhara, they had grown to over two thousand orcs from over thirty orc clans, all eager for battle. Legends later swelled that number to ten thousand. 
+    Upon their arrival, the bloodrunners found their prospective employer embattled and surrounded by enemies, the pharaoh’s brother having raised rebellion against him. Principally due to Khorvath’s help, the pharaoh’s brother was killed and his army defeated. But the pharaoh died in the battle, and Khorvath found herself and her warband without a patron in an alien land surrounded by enemies fighting a war of succession.
+    “What do we do, warleader?” Her death captain asked. 
+    Khorvath oriented herself and pointed northwest. “Home is that way. We march!”
+    Death Captain Voyrik’s eyes went wide. “It’s three thousand miles,” he pointed out—and the journey to Khemhara had not been uneventful!
+    “Best get started,” Khorvath said, and set off. 
+    How long it took the bloodrunners of the Lightning to cross the desert is not well-attested. It took four or six months depending on which accounts you read, but even six months would make their march a legendary journey.
+    Opposed at every turn by the local noble houses and then eventually the desert clans who sought the bounty placed on Khorvath’s head, the ten thousand grew in battle prowess as they demolished any enemy foolish enough to get in their way. Given the many tens of thousands of warriors the bloodrunners dispatched over the course of four (or six) months, it may well be that Khorvath’s sobriquet was literal.
+    Success was a double edged sword. The more victories they earned in battle, the easier they were to follow. “Our enemies walk the red road,” Voyrik once said, looking at the vast swath of blood they left in their wake.
+    “We have nothing to fear,” Khorvath said. “These people fight for pride, or a bounty. We’re fighting for our lives. All it takes is one good punch in the nose and they retreat.” And indeed this proved true for many weeks.
+    Eventually three of the desert tribes allied themselves and this was a coalition that could take a few bloody noses without giving up. They cornered the bloodrunners in a ravine that led to a mountain pass. It was possible to navigate the narrow pass, but only two or three orcs at a time. It would take hours to retreat that way. And the three tribes blocked their way out.
+    Khorvath saw the way. She unwound her mother’s hand wraps from her forearms and wrapped them around her own fists. The brown stains on the knuckles made Khorvath proud.
+    “I will take the best warrior from each of the 30 tribes,” Khorvath pronounced, and word spread almost instantly. Within minutes, the thirty best warriors among the ten thousand stood with Khorvath. “We thirty will hold the pass.”
+    Death Captain Voyrik, eyes wide, whispered Khorvath’s name.
+    Khorvath removed her torque of leadership and handed it to Voyrik. “When you arrive home, give this to my son.” She looked at the torque in Voyrik’s hands. “Tell him my last thoughts were of him. And that it is my wish that this torque inspire him to great deeds.”
+    The tale of Khorvath’s Thirty is still popular among the orcs, though everyone listening understands the “three days of war” is pure fiction, as none of the thirty survived. It is nonetheless broadly taken as true.
+    Khorvath’s Thirty bought the bloodrunners the time they needed to escape through the pass, and onward unimpeded.
+    By the time they reached the eastern side of the Myr, Khorvath’s name was already a legend, and many bloodrunners wore her clan fetish as their talisman. Scaling the slopes of the Myr was not easy but as the orcs descended down the western face, through the clouds, and saw the endless sea of green that was the Great Wode, they cried out together “Cekana! Cekana!” The trees! The trees! 
+    The ten thousand were not home, but they were home free. For this was territory held by their allies. The church of Khorvath Who Slew a Thousand spread quickly and now all orcs invoke her name whenever faced with a seemingly impossible task.
+    Khorvath, like most orc heroes, teaches the virtue of endurance. That great problems are often just many tiny problems in disguise and that by fighting each day as it comes, great battles can be won.
+    Khorvath Who Slew a Thousand would probably prefer to be remembered as she was in life—Khorvath Who Brought Ten Thousand Home, but even as one of the chief orc heroes, she has little influence over the way the people choose to remember her.
+    Voyrik gave his warleader’s torque to her son, who grew to lead the Lightning first as warleader, then chieftain. He was a good ruler for the Lightning. 
+  domainList:
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: f939fab0-158d-45b7-888c-aa61a0c35c27
+  ctime: 1752455688337
+10aea154-e2c8-43b6-ba65-be5cf7bcdc54:
+  __typeName: Deity
+  mtime: 1754151185326
+  group: Human Gods of Vasloria
+  name: Salorna
+  description: |
+    Salorna believes that nature is a moral good. That to behave in a manner not in accord with the natural balance (she would never use the word “order”) is to commit offense against the gods.
+    Salorna teaches that humans are a product of nature, so then a tilled farm is as much a natural phenomenon as a forest. Indeed, tilling the land is a form of caring for it. But she also teaches balance in all things. A land of farms and no trees would be just as unnatural to her as a land of all trees and no people.
+    Felling a tree for lumber is natural. People need lumber to make homes for shelter. This is proper and good. Felling a tree because it’s in the way of a road is mere convenience and therefore a moral wrong. Salorna curses a straight road.
+    Killing for food is likewise natural. People need to eat and the pig knows this as well as the person. Killing for sport is a moral wrong, however. It is unnatural, Salorna says.
+    A wheel that harnesses the power of the river is a beautiful thing. Humans and river physically connected. A dam that blocks the river is a desecration.
+    Some of Salorna’s priests are conduits; some are mages of the green. Both seek to preserve the balance and respect for nature. Because much of Vasloria is covered in elven forest, Salorna’s druids are also often diplomats to the elves.
+    Salorna has few censors, but not none! Favoring light armor and ranged weapons, her censors are often mistaken for rangers. They seek to punish those who hunt for sport, or those who would defile the natural order.
+  domainList:
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - 9382788b-954d-41c1-a616-58a518b97b57
+  - 3bea86a2-5a42-4e4f-8759-06e7675e55e0
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  id: 10aea154-e2c8-43b6-ba65-be5cf7bcdc54
+  ctime: 1752523994106
+ed515733-19ed-449a-a985-88c4f5d73a7a:
+  __typeName: Deity
+  mtime: 1754151214201
+  group: ""
+  name: Kul
+  description: |-
+    Kul, Father of Flames, Lord of the Forge, the Cleansing Fire who put fire and magma within the world at its creation. He saw his sibling gods creating their own children and placing them within the world, and so followed suit, creating the orcs, the last of the original five speaking peoples.
+    Kul’s fire is the fire that destroys, but it is also the fire that creates, the fire of the forge, the fire that makes meat safe to eat, the fire that cauterizes wounds. Kul teaches that action is the defining characteristic of being. Kul’s heroes are not philosophers or poets, but warriors and hunters.
+    Uniquely among the Elder Creator Gods, Kul does not desire worship—finds it distasteful. Orcs still call out to Kul in desperate times as “Kul Who Once Spoke.” But in those moments, they do not call out for aid—only that Kul witness them, and that they might prove worthy of his attention.
+  domainList:
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  - a091ea75-1971-4c0e-953e-1d76af617395
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: ed515733-19ed-449a-a985-88c4f5d73a7a
+  ctime: 1752330266544
+4e89d124-9972-496d-ad85-8eede9566642:
+  __typeName: Deity
+  mtime: 1754151185588
+  group: Human Gods of Vasloria
+  name: Gryffyn the Stout
+  description: |
+    Gryffyn the Stout was an infant dwarf when his parents’ cart was waylaid by bandits who killed his mother and father, stole all their wares, and set fire to the cart. They were unaware of the child nestled within.
+    A nearby farmer saw the flames and rode out to investigate. When she arrived, she could hear the bawling of the dwarf babe. Though wreathed in flame, the infant’s skin was too hardy to feel the heat. In the horse’s pack were a pair of tongs the farmer used to extract the child without harming herself, and she took the baby dwarf home to her husband.
+    Naming the child Gryffyn, the farmers raised him as one of their own. The boy grew up wanting to be a farmer like his adoptive mother and father, but they encouraged him to take up masonry, believing stonework to be a natural part of his ancestry.
+    Gryffyn had no particular aptitude for stonework, but desirous to please his parents he worked hard until eventually he was apprenticed to a mason and, after many years effort (more years than most, it was noted) he produced his master work and became a master mason.
+    One day, years later after his parents had passed, hundreds of people from other nearby towns and villages arrived at the quarry where Gryffyn worked. Cinis the necromancer had discovered an ancient tome of lore and summoned a horde of ghouls. She used her new army to conquer the surrounding barony, causing a flood of refugees. Gryffyn’s quarry could not shelter a tenth this number of refugees, so he proposed the people cross the White Ravine to the north and seek asylum among the elves of the Orchid Court. 
+    The people were appalled, the White Ravine was impossible to cross for any but the most experienced ranger. “There is no choice” Gryffyn said. “Cinis’s army will be here in a matter of days, and there is nowhere else to run.”
+    The people cried and prepared for death. Gryffyn saw this, and his heart felt like it would burst. “There are stones enough in the quarry,” he said enigmatically. “Yoke the oxen and bring the stones to the ravine and do not stop, even in darkness, even in rain, until the ghouls come or the quarry is empty.”
+    When the army of Cinis the Pale arrived, the people fled to the ravine, the path being easy as their carts and oxen had worn a clear road. Thinking they would throw themselves into the ravine rather than be eaten by the ghouls, they were astonished to discover … the miracle. A great stone bridge crossing the ravine. It had not existed three days prior, and all agreed it could not have taken less than a year to build. 
+    Fleeing across the bridge, the refugees found the body of Gryffyn, author of this marvel, his fingers bleeding, hammer in his hand, his heart having finally failed. He knew his labors would cost his life. But Gryffyn’s Arch still stands, almost a thousand years later.
+    Saint Gryffyn the Stout teaches that despair is the enemy of action. That unyielding endurance is the cure for impossible odds. That more than sword and spell, hard work is the savior of the people.
+  domainList:
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  id: 4e89d124-9972-496d-ad85-8eede9566642
+  ctime: 1752523660504
+48cad4bc-5008-4fb5-9530-90f17eed8953:
+  __typeName: Deity
+  mtime: 1754151185440
+  group: Saints of Hell
+  name: Uryal the Subtle
+  description: |
+    Uryal the Subtle, Deception, the Hidden Hand, Saint of Lies rose to the rank of senior adjudicator in the Bank of Vorilom in Styx. His manager had been permanent undersecretary of finance for over three hundred years, which Uryal felt was taking the title a tad literally.
+    A dozen senior adjudicators had tried to usurp the permanent undersecretary for generations. Their corpses made excellent lamps and even better examples. But Uryal believed he was different. He knew the game the finance managers played, and thought it was stale. Lying, double-dealing, and backstabbing have their place, but there are even subtler tools in the deceiver’s toolbox.
+    During a critical trading session, it was Uryal’s job to ferret out the text of the upcoming bloodfruit futures report from the Ministry of Goods and Services. Already an accomplished spy before he moved into finance, this Uryal did easily. 
+    Uryal faithfully relayed the contents of the report. Every detail, unredacted, no embellishments. In other words, he told the truth. The permanent undersecretary never considered this, and interpreted the report assuming Uryal had edited it to favor his own placed wagers.
+    The permanent undersecretary ordered the bank to corner the market on bloodfruit futures, believing the price would skyrocket. Uryal, meanwhile, shorted bloodfruit. When the report was finally published, saying exactly what Uryal said it would, the Bank of Vorilom was left owing billions in futures trades, causing the entire bank to default. 
+    The permanent undersecretary was, of course, fired. Literally. Uryal awaited his promotion and counted the enormous sums he made betting on cheap bloodfruit. He was not disappointed. 
+    Uyral’s use of truth in a war of lies attracted Moloch’s attention, but lining his own pockets in the bargain and becoming one of the single richest people in Hell earned Moloch’s favor. He raised Uryal to sainthood and a privileged position in the court of Styx, the City of Lies. 
+    Uryal teaches that deception is only one tool in the art of lies. That the point is manipulation, and that any tool, including the truth, should be used to achieve one’s ends. Uryal teaches the virtue of flexibility of character and morality. The virtue of unpredictability—always behaving in a manner that is open to interpretation so as to prevent your opponent from learning your tells. 
+    Uryal is the Saint of Hell’s diplomatic corps. His unofficial motto, falsely attributed to him but oft-repeated: “Do unto the other guy as he would do unto you. But do it to him first.”
+  domainList:
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - a091ea75-1971-4c0e-953e-1d76af617395
+  id: 48cad4bc-5008-4fb5-9530-90f17eed8953
+  ctime: 1752457041867
+7c302c5e-e963-4192-a806-507aae917a02:
+  __typeName: Deity
+  mtime: 1754151185455
+  group: Heroes of the Hakaan
+  name: Mahsiti the Weaver
+  description: |
+    Mahsiti the Weaver was a fresco painter and mathematician of the hakaan who discovered, or invented, a way of drawing very precise geometric shapes following patterns that repeat at any scale. Believing it could be a new way to devise spells, she took to weaving tapestries using lines of thread to better understand the numerical relationships within the patterns.
+    It took time to master weaving, but she took to it quickly and produced a series of essays, each a tapestry, proving correct her suspicions. The Tapestries of Mahsiti are a series of thirteen legendary artifacts of varying sizes, one as small as a napkin, one over two hundred feet long. Each has a powerful spell written into it, available for use by anyone who can read the patterns. 
+    One of Mahsiti’s weavings, titled The Shepherd and the Sheep, was used by her whole clan when war came to them. The hakaan had no doubt they could defend their home but were equally certain there would be enormous loss of life. Mahsiti suggested they use the tapestry, but the people of her clan did not understand. Use it how? It was simply a picture of a tree in a field with many sheep gathered around it.
+    But this image, as Mahsiti showed, was formed out of thousands of repeating geometric patterns. The tapestry had been a gift from Mahsiti to her chieftain who hung it in their great receiving hall. Mahsiti cast the spell within the tapestry—and walked into the tapestry. The people were amazed and followed. 
+    When the enemy army arrived, they found the clan’s villages empty, and did not notice the tapestry with hundreds of hakaan depicted within. Once the enemy left, Mahsiti finished the spell, and her people emerged, safe.
+    Mahsiti teaches that art and science, creativity and knowledge, are the same thing. Those who follow her teachings believe that the act of creating, of bringing a new idea or work of art into being, is the act of participating in the same process the gods used to create the world. 
+  domainList:
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - a091ea75-1971-4c0e-953e-1d76af617395
+  id: 7c302c5e-e963-4192-a806-507aae917a02
+  ctime: 1752456251704
+8566dea5-38e8-4cc7-b851-33b614e504db:
+  __typeName: Deity
+  mtime: 1754151185283
+  group: Heroes of the Dwarves
+  name: Stakros the Engineer
+  description: |-
+    Stakros the Engineer, the Machine Mind, the Operator, founder of the Order of Fabrication. Stakros it was—not a steel dwarf—who forged the first strife-engine, a great war-walker manned by thirty dwarves. At the battle of Kalas Mithral, the war-walker grappled with the legion of yllindyr the star elves summoned to defeat the walls of the steel dwarf capital.
+    After the war, Stakros turned his talents to peaceful pursuits. He forged the first magma diver, designed to withstand enormous temperatures and pressures, all the while protecting the operator within. Inside his marvel Stakros personally dove into the great volcano Oxor-myr, returning with marvelous ores never before seen in Orden. His design soon evolved into a variety of armored frames to suit a variety of purposes.
+    Stakros teaches the value of knowledge for knowledge’s sake, and the power of the mind to overcome any obstacle. He also teaches that knowledge is power, and in unready hands can only be dangerous.
+  domainList:
+  - b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  id: 8566dea5-38e8-4cc7-b851-33b614e504db
+  ctime: 1752330208452
+0643a17a-a813-4193-8e81-5e9101d673dd:
+  __typeName: Deity
+  mtime: 1754151185452
+  group: Heroes of the Hakaan
+  name: Atossa the Shepherd
+  description: |
+    The great dam built by their ancestors that created Lake Tospah was going to fail, Atossa’s doomsight said. The people would not listen, they said she read the signs wrong. 
+    When the rains came and would not stop, and the water in Lake Tospah rose putting more pressure on the dam, Atossa opened the gates to the sheep pen and let the tribe’s herd of sheep out. 
+    The people ran after them, effectively evacuating the village. But the rains stopped, and the damn did not burst. The people returned to their homes, put the sheep back in the pen, and blamed the shepherd for worrying too much and leading them on wild goose chases. 
+    The next year, the rains came again. And this time the lake was already near capacity. When the shepherd tried to warn the people, they reminded her that it had rained the year before and there was no danger—and so would not listen. 
+    When the first cracks appeared at the base of the dam, Atossa knew her wyrd was before her. She took a piece of the broken dam back to the village to show the elders. They frowned and wondered what Atossa was up to now, but agreed amongst themselves to go up the valley and inspect the dam in person. 
+    Atossa tried to warn them they were walking to their doom, and became even more agitated when the rest of the village followed. When the elders reached the cracked dam, they sounded no alarm. Instead, they argued and debated, “Chewing their beards”—rish javid—the hakaan say about elders who argue instead of acting.
+    Desperate, Atossa climbed to the top of the dam, and dove into the water, swimming down to the bottom of the lake where she could see the stone cracking. Her people were on the other side.
+    When the crack widened and water began to pour through at incredible pressure, the people panicked and ran. But Atossa was not worried. This was her doom. She knew what to do.
+    She let the flowing water carry her toward the widening crack until her body slammed against the stone, blocking the water. The hakaan are famed for being able to hold their breath, but though her people ran as quickly as they could, there was no way Atossa could block the water long enough.
+    When the dam eventually burst and washed away the village, the people were not there. Atossa had bought them the time to run to safety. They walked among the ruins and found her crushed body among the rubble. They knew they would see her again.
+    That night, there was a new constellation in the sky. 
+    Atossa teaches that it is not for the shepherd to judge the flock—only to protect and care for them. Even though they might be foolish, or cowardly. “Let the gods judge,” Atossa said. “We have sheep to worry after.”
+  domainList:
+  - 3b37f32a-52e5-40ff-ad5c-be45700b8e9c
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  - a091ea75-1971-4c0e-953e-1d76af617395
+  id: 0643a17a-a813-4193-8e81-5e9101d673dd
+  ctime: 1752456452251
+2ea039c4-2097-4ee6-b55a-06efd16552eb:
+  __typeName: Deity
+  mtime: 1754151185463
+  group: Human Gods of Vasloria
+  name: Cavall
+  description: |
+    Cavall believes that mortals cannot live where injustice thrives. To followers of Cavall, the unjust society is the Wasted Land, where people live false lives. The concepts of civil law and just punishment are his.
+    A watchhouse chaplain is almost certainly a priest of Cavall. A rector serving a small town may be welcome on the town council, but would consider passing judgment on a fellow citizen a breach of duty. The maxim of the church of Saint Gwiddon the Vigilant translates as: “To watch, report, but not to judge.” The law, Cavall says, belongs to mortals.
+    Censors of Cavall, on the other hand, have no such motto. The nobility often sponsor knights of Cavall to roam the countryside and dispense justice in remote wilderness areas where the noble’s influence cannot reach.
+    Brother to Adûn and patron of the country of Corwell, Cavall also believes that people, no matter how vile, can be bettered. “Let the law judge,” said Saint Llewellyn, “Let us forgive.”
+  domainList:
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - defb6845-d9c3-4d31-8527-5bff55548072
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: 2ea039c4-2097-4ee6-b55a-06efd16552eb
+  ctime: 1752523741333
+20172be9-273e-4a69-9854-0396dff53e73:
+  __typeName: Deity
+  mtime: 1754151185272
+  group: Heroes of the Dwarves
+  name: Valak-koth the Seeker
+  description: |-
+    Valak-koth the Seeker, the Delver, the Unquenchable Fire, Koth Who Brought Light to Darkness, said she heard voices in the rock as a child. These days this would result in a visit to the apothecary or a change in diet, but in those days the world was young and a child who heard voices might turn out to be a prophet of Ord. Her parents listened and soon none doubted. 
+    She would run, heedless of danger, into the dark caves below and wherever she pointed, marvels were found: metals, gems, fantastic ores. Caves as big as nations. It was Valak-koth it was who first discovered aerithyst, the Sungem, a crystal mineral which glows upon contact with living things.
+    Valak-koth teaches bravery in the face of the unknown, the virtue of curiosity, to seek endlessly and quest for knowledge, not to fear the darkness. To bring light into dark places. Valak-koth it was who first discovered the World Below, the Dark Under All, though it was not recognized as a separate manifold until after her death. After her death, the original Sungem she found refused to dim. It was enshrined in her temple-tomb, now lost along with the ancient stone dwarf city of Kas Koriar.
+  domainList:
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  id: 20172be9-273e-4a69-9854-0396dff53e73
+  ctime: 1752329840861
+6b82ef7c-fda0-4fee-bce6-43e0286fdc9a:
+  __typeName: Deity
+  mtime: 1754151185457
+  group: Heroes of the Elves
+  name: Yllin Dyrvis
+  description: |-
+    Yllin Dyrvis, also known as the Beast Heart, the Wodespeaker, the Warden, witnessed the Composer’s first song, and took it upon themselves to communicate with and care for the speaking creatures A Sea of Suns created. The dryads, elgenwights, the giant birds and intelligent fish who populated the ancient wode that once covered all Orden, all came under the Beast Heart’s care. Dyrvis learned their speech and taught them who they were.
+    To this day, many ages of the world later, the wode elves consider themselves the stewards of the speaking creatures, and those creatures rely upon the wode elves for protection.
+  domainList:
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - 9382788b-954d-41c1-a616-58a518b97b57
+  id: 6b82ef7c-fda0-4fee-bce6-43e0286fdc9a
+  ctime: 1752329210397
+8dcc693c-8a1d-4e1f-a8c7-4b49780a3d92:
+  __typeName: Deity
+  mtime: 1754151185452
+  group: Heroes of the Hakaan
+  name: Prexaspes the Stargazer
+  description: |
+    Prexaspes Stargazer, the Astronomer, the Sun-sage mapped the skies and was one of the first people in all Orden to correctly calculate the repeating pattern of Orden’s three moons. Because of his growing mastery of the cycles of nature, he predicted a coming famine and prepared his clan. When the famine came but the people had storehouses of food ready, he became a hero of his tribe.
+    After receiving the doomsight, Prexaspes turned his attention to the sun itself. He studied ancient tomes written by scholars of many people, believing eclipses were predictable events. His research yielded a pattern, but his insight led him further. What if, he wondered, an eclipse was more than a celestial event? What if it was an opening, a portal? Prexaspes studied the stars and prepared a ritual.
+    Years later, Prexaspes’ tribe was besieged by hobgoblins and all hope was lost. He begged his chieftain to continue fighting—not abandon their homes. The Astronomer promised an eclipse, and though none doubted his calculations, no one could guess how this could help the beleaguered and besieged people. 
+    But the hakaan trusted their sage, and kept up the fight. When the eclipse came, Prexaspes performed his experimental ritual opening a portal to the sun. A line of golden fire erupted from the portal, evaporating many hobgoblins, but this was just a side-effect of the ritual.
+    With his people watching, shielding their eyes from the brilliant light, Prexaspes entered the portal, and emerged on the surface of the sun. In that moment, the people knew this was his doom. He was only gone a few moments, but when he emerged from the portal his flesh was solid sunstuff, and he waded into the remaining battalions of hobgoblins, destroying them with rays of heat and purifying flame. 
+    Though he died in the act, Prexaspes saved his people becoming a hero of all hakaan, taking his place among the stars as a new constellation.
+    Prexaspes teaches that nature is a moral good and is worth defending, and that the sun is the source of power for all life on Orden.
+  domainList:
+  - 9382788b-954d-41c1-a616-58a518b97b57
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  - c16cad58-fa50-4223-ba55-97f56196c1bb
+  id: 8dcc693c-8a1d-4e1f-a8c7-4b49780a3d92
+  ctime: 1752456328233
+b73f374a-e2dc-44b3-a75e-b444d20e7e12:
+  __typeName: Deity
+  mtime: 1754151185225
+  group: Heroes of the Orcs
+  name: Khravila Who Ran Forty Leagues
+  description: |
+    Khravila Who Ran Forty Leagues, The Eternal Runner, Khravila The Unstoppable.
+    On the eve of a war between elves and humans that would certainly result in the death of many orcs caught between the two great powers, Khravila’s dying father had been incapable of deciding what should be done. Equally incapable of choosing who should succeed him as chieftain—his son or daughter.
+    At the moment of his death, when the god-caller rang the bell of souls officially announcing her father’s passing to the tribe, Khravila looked at her brother and saw hesitation. Khravila had never known doubt.
+    She snatched her tribe’s oriflamme from her father’s dead hands … and ran. For many leagues she ran and the tales of the creatures—manticores, griffins, chimeras—who barred her passage passed into legend. Orc children still delight at the tricks and wordplay Khravila employed to thwart the beasts, avoid fighting, and continue her epic run.
+    Less than five hours after her father died, Khravila arrived at the Astragalus Court, forty leagues from home and while many elements of her legend are certainly mythical, the time and distance are well attested. Khravila held forth the oriflamme and announced that, should the elves continue their assault on the humans, there would be war between them and her tribe. “Chose quickly,” she said. “My people are right behind me, and eager for battle.” They could not have known she was bluffing.
+    The elves called off their attacks and Khravila brokered peace between them and the humans. When her brother arrived with their kin folk some hours later—itself an impressive feat—Khravila handed him the oriflamme, and collapsed, dead. It was Khravila the chieftain who ran. It was Khravila the Unstoppable who died, a legendary orc hero.
+    Khravila teaches the virtue of persistence, endurance, and—above all—wits. Not only the wits necessary to foil the tests that barred her way, but to conceive her legendary plan in the first place, and the dedication to pull it off. “Perhaps another orc could have run,” her brother said. “But only Khravila could have bluffed.”
+  domainList:
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - a091ea75-1971-4c0e-953e-1d76af617395
+  id: b73f374a-e2dc-44b3-a75e-b444d20e7e12
+  ctime: 1752456004089
+ba3e2287-9f62-4649-8b6f-404680e1b0bf:
+  __typeName: Deity
+  mtime: 1754151185452
+  group: Saints of  Hell
+  name: Thellasko the Great Designer
+  description: |
+    Thellasko the Great Designer, the Game Master, Saint of Strategy did not invent war—humans in Orden hold that honor. Thellasko invented war simulation. Creating what were effectively games to train cadets and lieutenants at the wartable to ensure victory on the field.
+    Thellasko served in Dispater’s army, rising to the rank of major general. He retired with honors after the Battle of the River Rhye, intending to take what he had learned on the field and write a book about the proper way to conduct a war.
+    He felt the high command of Hell’s armies fought battles on outdated principles. Which side had the best fighting spirit, which side’s officers had the greater noble pedigree. Thellasko’s treatise, never published, was titled The Proper Application of Force. As he wrote, he created a kind of ideal battlefield to use as his running example. The example became more and more critical to the text, more robust, such that eventually Thellasko put his manuscript down to develop the example into a proper game. 
+    This first game was played on a board of sixty-four squares arranged in an eight-by-eight grid. There were two armies each with sixteen pieces. Eight serfs, two soldiers, two prelates, two towers, a king and queen. The game was superficially simple but held hidden depths. It taught the principles of sacrifice and territory control, of thinking like your enemy.
+    The game evolved into the game of Shere, played throughout the timescape. But while the game was immediately popular far outside its intended audience, Thellasko grew dissatisfied with it, and began work on his masterpiece simply called The Game of War. It was complex, using hexagonal tiles to build modular terrain boards, and featuring dozens of different unit types with extensive tables that factored supplies, morale, visibility. Unlike Shere, which was an abstraction, The Game of War was a true simulation.
+    Expensive to produce, The Game of War was never very popular outside the Academy of Dis, but Thellasko used it to train a generation of lieutenants on the art of war. His students and best players led the armies of Dis from victory to victory. Thellasko taught his students that an army must fight. All other things being equal, the army with the most experience wins.
+    In Thellasko’s time, the most senior noble was always the senior commander, regardless of experience or, indeed, sanity. After Thellasko and The Game of War, commanders were chosen from among the soldiers with the most battlefield experience.
+    Thellasko was granted sainthood on his deathbed after a generation of successful battles won by his students, all of whom carried a symbol of graduation from Thellasko’s school—three adjacent hexagons. The students praised him on the battlefield during his life, and his church continues to advance his theories
+    Thellasko teaches the virtue of accepting the battle as it is, not as you wish it might be. To take action based on available data, not what tradition says. That wars are not won based solely on the size of one’s army, but based on which side is best able to bring its force to bear against the opponent. 
+  domainList:
+  - f161a172-69a7-400a-a2bc-5b11dad6eddf
+  - 9cfb8c84-118a-439c-a879-85b54e9278fa
+  id: ba3e2287-9f62-4649-8b6f-404680e1b0bf
+  ctime: 1752457164907
+9926f1fd-81c9-46bc-bcb9-167cb9fbf27f:
+  __typeName: Deity
+  mtime: 1754151185547
+  group: Human Gods of Vasloria
+  name: Llewellyn the Valiant
+  description: |
+    Llewellyn the Valiant was a knight in service to Duke Melianus of Gant known as Melianus the Bright. His mother the duchess died from a withering illness none could cure, and Melianus, her only son, assumed the throne.
+    Almost from the beginning of his rule, there were rumors that a sorcerer in the marsh was behind Melanius’s power, poisoning his mother to hasten his ascent, but as the marsh was nigh impassable this could not be proven and was taken for little more than a spiteful rumor.
+    Duke Melianus’s reign was cruel almost from the outset. He accused all those loyal to his mother of treachery, and found occasion to have them each imprisoned and executed without trial. Sir Llewellyn had served the duchess loyally and strove to acquit himself of his duty under the new duke. But he struggled to reconcile his sense of duty with the new duke’s capricious malice.
+    The new duke yearned to imprison his mother’s favored knight, but all the guards, the reeves, the people of city and village, looked up to Llewellyn. Melianus instead contrived to send Sir Llewellyn on a series of quests, each more deadly than the last. 
+    The Trials of Llewellyn, as they came to be known, passed into legend and their tale is still told in Corwell. Llewellyn and the Dragon With Seven Eyes, Llewellyn and the Witch of the Fen, Llewellyn and the Onyx Tower.
+    When Llewellyn slew Ghruk the Trollhag, she cried out, “Follow Melianus!” as she died. These words echoed in Llewellyn’s ears and his heart. He assumed she meant, “Obey him—be loyal to him.” But as he rode his great destrier Silverheart back to Castle Gant, Llewellyn began to suspect what Ghruk meant.
+    That night, Llewellyn waited in the stables and, at midnight, Melianus appeared. He mounted his great black warhorse Coalfire and rode. To where, Llewellyn could not guess. But the knight followed the duke as he rode east toward the marsh, he remembered the rumors. 
+    At the edge of the marsh, Coalfire’s eyes began to glow with a baleful flame and his mane burst into crimson fire. Llewellyn’s breath caught in his throat. “A nightmare!” he realized. The rumors were true! The sorcerer had given Melianus a devil steed. 
+    On flaming nightmare hooves was Melianus able to cross the impassable swamp. Llewellyn balked, no one could cross the cursed bog. But Silverheart champed at her bit, pulled on the reins. She would not yield. Placing his trust in his steed, Llewellyn let the reins lie slack, and Silverheart took the lead.
+    Llewellyn and Silverheart plunged into the bog and though it was night and the mud sucked at her hooves, Silverheart pushed on. In the hour before dawn, they arrived at an island with an ancient tower. “The tower of the sorcerer,” Llewellyn thought. Thunder rolled, and rain began to fall.
+    Looking to the upper window of the tower, Llewellyn saw someone performing a dark ritual. A flash of lightning illuminated the figure. It was Melianus! Melianus was the sorcerer! Llewellyn called out, and the duke descended the tower and mounted his hellsteed. On his shield now—the screaming-skull symbol of Cyrvis, the Lich, god of malice.
+    Cyrvis had rewarded his loyal servant for years of cruelty, and the figure astride the nightmare was Saint Melianus the Bright. The Dark Saint charged Llewellyn, his lance gleaming with balefire. Llewellyn and Silverheart returned the charge and the two clashed together, Melianus’s blow strong enough to unseat a giant. But Llewellyn was not thrown. His strength was the strength of ten, for his heart was pure. 
+    Coalfire struck with flaming hooves at Silverheart but the destrier struck back, blow for bite and bite for blow. Then the hellsteed, roared and a rotting green flame burned Silverheart’s flesh and stole her breath until, choking, she fell to the ground, dead. 
+    Llewellyn’s heart burst. He threw his body over the corpse of his loyal steed, and Melianus’s lance pierced his armor, his back, and his heart. Knight and horse, dead. Melianus crowed as the lightning flashed again. But, in that moment, the miracle.
+    Cavall stood between the Dark aint and loyal knight. Cavall pulled the lance from Llewellyn’s back. “Rise my son, and rise thy steed. Thy work shalt never be done.”
+    Saint Llewellyn the Valiant and Silverheart his Eversteed rose, immortal, and the battle against evil renewed itself, the two armored saints clashing on barded steeds. 
+    Weeks later, neither having returned, the people of Gant laboriously forded the swamp and found the tower of the sorcerer. The ground around the tower turned black from the baleful energies unleashed. Though no bodies were found, the armor of both knights lay on the ground—Melianus’s breastplate having been pierced.
+    Llewellyn and Silverheart had rid the people of their cursed, hateful duke.
+    Saint Llewellyn is Cavall’s greatest saint. He teaches that the greatest loyalty is to the well-being of the people, and that it is the responsibility of the strong to protect the weak. That the only proper use of power is in pursuit of justice.
+  domainList:
+  - 7a9d8961-3353-4c1f-9943-273c36f5f243
+  - ec4ea071-19a4-435c-8c55-50094988e4ef
+  id: 9926f1fd-81c9-46bc-bcb9-167cb9fbf27f
+  ctime: 1752523834894

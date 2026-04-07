@@ -1,0 +1,34 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e402100a-1afc-47a7-b651-75eabb36e3cf
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Bend Fate
+  guid: a9a94f6b-8dc9-4c17-ad09-c09216076b86
+  description: Until the end of the encounter or until you are dying, each of the target’s power rolls has its outcome improved by one tier.
+  modtype: tierup
+  rollType: ability_power_roll
+source: Ongoing Effect
+guid: e402100a-1afc-47a7-b651-75eabb36e3cf
+id: e402100a-1afc-47a7-b651-75eabb36e3cf
+ctime: 1770266780586
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.154499769210815
+    s: 0.970702946186066
+    v: 0.979445993900299
+    a: 1
+mtime: 1770266913632
+name: Bend Fate
+custom: true
+description: Until the end of the encounter or until you are dying, each of the target’s power rolls has its outcome improved by one tier.
+endTrigger: none
+iconid: 5ab4af83-d9d2-4642-ba34-dc72b8c3ae34

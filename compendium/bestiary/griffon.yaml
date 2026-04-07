@@ -1,0 +1,1077 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5e929560-9387-4806-ac77-f350a911e7d9
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.4159119
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions:
+    - x: 0.204915
+      y: 0.3842499
+    - x: 0.18
+      y: -0.18
+    - x: 0.18
+      y: 0.18
+    - x: -0.18
+      y: 0.18
+    - x: -0.3
+      y: 0
+    - x: 0.3
+      y: 0
+    - x: 0
+      y: 0.3
+    - x: 0
+      y: -0.3
+    - x: -0.42
+      y: -0.42
+    - x: 0.42
+      y: -0.42
+    - x: 0.42
+      y: 0.42
+    - x: -0.42
+      y: 0.42
+    - x: -0.48
+      y: 0
+    - x: 0.48
+      y: 0
+    - x: 0
+      y: 0.48
+    - x: 0
+      y: -0.48
+    - x: 0
+      y: -0.6
+    saddles: 1
+    saddleSize: 3
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b62dbdd9-70ae-48ff-a307-f864e877d612
+  properties:
+    __typeName: monster
+    groupid: cd4b3117-654e-4293-be42-bbf547b2a6fa
+    moveDiag: 0
+    cr: 2
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    animations:
+      anim:
+      - animType: consumeResource
+        resources:
+          b9bc06dd-80f1-4f33-bc55-25c114e3300c: 1
+      guid: 4149bc69-7047-4f8e-a035-720f22dafa9a-527
+    keywords:
+      Griffon: true
+      Beast: true
+    max_hitpoints_roll: "80"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        5d76bc73-62bf-4d92-9dae-9594ac2a52d2:
+          refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-1
+          note: Claw Swipes
+          userid: steam-76561198767161997
+          set: 0/1
+        d3b96e0c-d9f3-4c2e-85be-114e7d0c492a:
+          refreshid: 260697be-8d51-48f9-b36e-9172b41b8bf3-1
+          note: Claw Swipes
+          userid: steam-76561198767161997
+          set: 0/1
+        86c5a461-da94-4a89-b59e-e96de0305d45:
+          refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-2
+          note: Claw Swipes
+          userid: steam-76561198767161997
+          set: 0/1
+        7021231e-5ed6-4f53-8147-984c81233f86:
+          refreshid: 92d65e4f-4dfc-4e0e-8798-07a55ee73669-1
+          note: Claw Swipes
+          userid: steam-76561198767161997
+          set: 0/1
+        ab2553b9-24fb-4134-b92e-62d0ada713b2:
+          note: Claw Swipes
+          userid: steam-76561198767161997
+          set: 1/1
+        637ff900-db16-4af7-b502-81be4fab6786:
+          refreshid: 92d65e4f-4dfc-4e0e-8798-07a55ee73669-1
+          note: Critical Hit!
+          userid: steam-76561198767161997
+          set: 1/1
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      rea:
+        baseValue: -1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    loopemotes: []
+    monster_type: Griffon
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        d41ccbd8-5fd7-42ef-a60c-bbb4ba32a9b2:
+          refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-12
+          note: "Used triggered ability: Zephyr Feint"
+          userid: steam-76561198767161997
+          set: 0/1
+    levelChoices: []
+    moveDistance: 25
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      implementationDetails: |-
+        Grab is prompted even if not used as part of the Charge main action.
+
+        Text prompt suggests to grab only if used as part of the charge main action.
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage
+        - 13 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 8e2dc9f2-f9d6-4f43-ae0b-5a3ed6a30b86
+        duration: 0
+        ongoingEffectCustom: 8e2dc9f2-f9d6-4f43-ae0b-5a3ed6a30b86
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: Target.Ongoing Effects has "Damage Taken This Turn"
+          repeatTargets: false
+          targetAllegiance: enemy
+          behaviors:
+          - __typeName: ActivatedAbilityApplyRidersBehavior
+            conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+            filterTarget: ""
+            riderid: 151356cb-4497-4917-a281-80c182c8e88f
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: grabbed
+            filterTarget: ""
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+            page: 168
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 76acc56f-13dc-421f-982b-98a9f0cee343
+          targetType: target
+          name: Invoked Ability
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        namedAbility: Grab
+        promptText: If this ability was used as part of the Charge main action, the griffon can grab one of the targets. Skip this step if not.
+        autoTarget: false
+        invokeOnCaster: true
+        abilityType: custom
+        filterTarget: ""
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 749e4067-159a-4a31-a09c-39add427c33d
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        tiersSelected:
+        - 1
+        promptText: The griffon may shift up to 1 square on a Tier 1 result.
+        standardAbilityParams:
+          distance: "1"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+        invokeOnCaster: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: dd80914c-69bc-40f4-bfd5-44d4f9cd994d
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        tiersSelected:
+        - 2
+        promptText: The griffon may shift up to 2 squares on a Tier 2 result.
+        standardAbilityParams:
+          distance: "2"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+        invokeOnCaster: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: d19546c6-2bb3-4fa9-b591-43d067869b77
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        tiersSelected:
+        - 3
+        promptText: The griffon may shift up to 3 squares on a Tier 3 result.
+        standardAbilityParams:
+          distance: "3"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+        invokeOnCaster: true
+      display:
+        saturation: 1
+        brightness: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 2
+      modifiers: []
+      strain: []
+      guid: 0e35b1df-1380-4366-b44b-902542cb9eac
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+        page: 168
+      persistence: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Claw Swipes
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: |-
+        If this ability is used as part of the Charge main action, the
+        griffon can grab one of the targets.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - A>0 Push 3; A<0 forced movement is vertical
+        - A>1 Push 4; A<1 forced movement is vertical
+        - A>2 Push 5; A<2 forced movement is vertical
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptWhenResolvingText: Choose Target to Vertically Push
+        promptText: Choose Target to Vertically Push 3
+        promptWhenResolving: true
+        tiersSelected:
+        - 1
+        filterTarget: 'Target.Agility <0 '
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 36194d01-1ae9-4eb6-9d1f-62b81bc29369
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          range: "3"
+        standardAbility: 6c340696-278d-45ed-9ff0-2f317313b8af
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptWhenResolvingText: Now choose targets to push
+        promptText: Push the target up to 3 squares
+        promptWhenResolving: true
+        tiersSelected:
+        - 1
+        filterTarget: Target.Agility >= 0
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 5ca82064-d28b-4d0b-bcab-3aac12d82a98
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          range: "3"
+        standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 2
+        filterTarget: Target.Agility <1
+        promptWhenResolvingText: Choose targets to vertically push
+        standardAbilityParams:
+          range: "4"
+        standardAbility: 6c340696-278d-45ed-9ff0-2f317313b8af
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 7c081345-c262-42cc-97bc-6bd8e94943e7
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        promptWhenResolving: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptWhenResolvingText: Now choose targets to push
+        promptText: Push the target up to 4 squares
+        promptWhenResolving: true
+        tiersSelected:
+        - 2
+        filterTarget: Target.Agility >= 1
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 4e77d005-afdc-43e4-94a5-7344c59fc226
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          range: "4"
+        standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        promptWhenResolvingText: Choose Targets to vertically push
+        promptWhenResolving: true
+        tiersSelected:
+        - 3
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 92231ff8-0459-4acd-b1c5-39c3872a7664
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        filterTarget: Target.Agility <2
+        standardAbilityParams:
+          range: "5"
+        standardAbility: 6c340696-278d-45ed-9ff0-2f317313b8af
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptWhenResolvingText: now choose targets to push
+        promptText: Push the target up to 5 squares
+        promptWhenResolving: true
+        tiersSelected:
+        - 3
+        filterTarget: Target.Agility >= 2
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 49477a2d-4d80-4d59-92a3-37b1003e758f
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          range: "5"
+        standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+      display:
+        saturation: 1
+        brightness: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 4
+      persistence: []
+      modifiers: []
+      targetType: target
+      strain: []
+      guid: a3693597-64e0-43fc-82ae-3487cf8e18ef
+      sourceReference:
+        __typeName: SourceReference
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+        page: 168
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      radius: 2
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      numTargets: 1
+      name: Wing Buffet
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: |
+        Special: A target object must be size 2 or smaller.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        saturation: 1
+        brightness: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: ea80f61d-e078-433f-99e9-54f01d4dac48
+      targetType: self
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      numTargets: 1
+      name: Zephyr Feint
+      iconid: ui-icons/skills/1.png
+      description: The griffon halves the damage, doesn't suffer any effect associated with it, and shifts 2 squares.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 4e0087c6-beac-4231-8a35-4525a2de195f
+          repeatTargets: false
+          targetType: self
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          distance: "4"
+        promptText: The griffon flies up to half their speed toward the ground, then sends the creature or object they've grabbed hurtling down.
+        standardAbility: 4a993863-896f-47d0-8449-74c1fe2279b0
+        namedAbility: move speed
+        abilityType: standard
+        invokeOnCaster: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: Target.ConditionCaster("Grabbed").id = <<casterid>>
+          repeatTargets: false
+          targetAllegiance: enemy
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              targetType: self
+              strain: []
+              guid: 9ce36e26-1acc-4750-a353-992953369118
+              repeatTargets: false
+              range: 1
+              castImmediately: true
+              behaviors:
+              - __typeName: ActivatedAbilityPurgeEffectsBehavior
+                conditions:
+                - 70504ebe-3899-41d3-9f60-74b52ce35e39
+              - __typeName: ActivatedAbilityDelayBehavior
+                delay: "2"
+              - __typeName: ActivatedAbilityFallBehavior
+              persistence: []
+              display:
+                saturation: 1
+                brightness: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "1"
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 5c148b8d-2da1-4a24-9ecd-f6d461c3ae9c
+          castImmediately: true
+          targetType: target
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          casterid: "<<caster.id>>"
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage; A<1 Push 3
+        - 9 Damage; A<2 push 4; prone
+        roll: 2d10 + 2
+      multipleModes: true
+      display:
+        saturation: 1
+        brightness: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 8
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      targetType: cube
+      strain: []
+      modeList:
+      - rules: "Special: The griffon must be flying and have a creature or object grabbed"
+        text: Standard
+        condition: Self.Movement Type = "flying" and Self.Grab Characteristic = 1
+      sourceReference:
+        __typeName: SourceReference
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+        page: 144
+      radius: 3
+      persistence: []
+      numTargets: 1
+      guid: 9d11c9b4-0846-475e-9436-83c844adc7c5
+      name: Crack the Earth
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      description: The griffon flies up to half their speed towards the ground and then sends the creature or object they've grappled hurtling towards the affected area.
+      abilityType: none
+      implementation: 3
+    damageEntries:
+      2899c171-a6da-4fc2-acd0-fed99b6c5ed9:
+        damage: 4
+        seq: 5
+        attackerid: 274df070-d36b-4e46-8e32-7f6443076b53
+        id: 2899c171-a6da-4fc2-acd0-fed99b6c5ed9
+        damage_type: corruption
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        30ece636-bbce-4854-b307-4a7b4f94d852:
+          userid: steam-76561198767161997
+          note: 100 Healing
+          disposition: good
+          set: 80
+        5b684a15-afd0-43d0-bf5d-c1b820300ff5:
+          note: 7 damage from Tactician2's Melee Free Strike
+          userid: steam-76561198767161997
+          attackerid: 96c5aa09-e05b-40d0-a862-0f4ca7f233a2
+          disposition: bad
+          set: 71
+        1b4045bd-669b-43d9-b290-571dec954b96:
+          note: 3 damage from Talent's Optic Blast
+          userid: steam-76561198767161997
+          attackerid: dba6aae3-ad1e-4dbd-aacc-631cf11e404a
+          disposition: bad
+          set: 77
+        4c1d8383-2c19-415f-8d61-a98fdb2d9e53:
+          userid: steam-76561198767161997
+          note: 100 Healing
+          disposition: good
+          set: 80
+        9426d0d7-cfe3-4e3f-9fcb-391ce53cee6f:
+          note: 4 damage from Conduit's Penance
+          userid: steam-76561198767161997
+          attackerid: 274df070-d36b-4e46-8e32-7f6443076b53
+          disposition: bad
+          set: 65
+        1cd0803a-edbe-4162-a2a7-5526177ec0c1:
+          userid: steam-76561198767161997
+          note: 100 Healing
+          disposition: good
+          set: 80
+        44203dc0-1227-4394-99a4-89de7653d76d:
+          note: 2 damage from Talent's Optic Blast
+          userid: steam-76561198767161997
+          attackerid: dba6aae3-ad1e-4dbd-aacc-631cf11e404a
+          disposition: bad
+          set: 78
+        04b410fb-a789-49a4-921f-293db148fa77:
+          note: 8 damage from Talent's Optic Blast
+          userid: steam-76561198767161997
+          attackerid: dba6aae3-ad1e-4dbd-aacc-631cf11e404a
+          disposition: bad
+          set: 69
+    minion: false
+    stability: 2
+    import:
+      type: mcdm
+      data: |+
+        Griffon	Level 2 Elite Mount
+        Beast, Griffon	EV 16
+        <b>Stamina</b> 80
+        <b>Speed</b> 9 (fly)	<b>Size</b> 2 /<b>Stability</b> 2
+        <b>Free Strike</b> 5
+        Might +2	Agility +2	Reason -1	Intuition +1	Presence +2
+        <b>Claw Swipes</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; shift 1
+        %E2%98%85	<b>12-16</b>	10 damage; shift 2
+        %E2%9C%B8	<b>17</b>	13 damage; shift 3
+        <b>Effect</b> If this ability is used while charging, the griffon grapples one of the targets.
+
+        <b>Crack the Earth</b> (Maneuver)
+        <b>Keywords</b> Area, Ranged
+        <b>Distance</b> 3 cube within 8 (while flying)	<b>Target</b> All enemies
+        <b>Special</b> The griffon must be grabbing a creature or object to use this maneuver.
+        <b>Effect</b> The griffon flies up to half their speed towards the ground and then sends the creature or object they've grappled hurtling towards the affected area.
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12-16</b>	6 damage; A<1 push 3
+        %E2%9C%B8	<b>17</b>	9 damage; A<2 push 4 and prone
+
+        <b>Wing Buffet</b> (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 4 x 2 line within 1<b>Target</b> All creatures and objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	Push 3; A<0 forced movement is vertical
+        %E2%98%85	<b>12-16</b>	Push 4; A<1 forced movement is vertical
+        %E2%9C%B8	<b>17</b>	Push 5; A<2 forced movement is vertical
+
+        <b>Zephyr Feint</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Trigger</b> The griffon takes damage
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The griffon halves the damage, doesn't suffer any effect associated with it, and shifts 2 squares.
+
+        <b>Beast of Prey</b>
+        Creatures have a double bane on escaping the griffon's grab.
+
+        <b>Steady</b>
+        Creatures have a bane on power rolls that could knock the griffon or their rider prone.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a66f9a79-94ef-4c8a-af90-679f21a4cbfd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a66f9a79-94ef-4c8a-af90-679f21a4cbfd: true
+        sourceguid: a66f9a79-94ef-4c8a-af90-679f21a4cbfd
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyRidersBehavior
+            conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+            riderid: 151356cb-4497-4917-a281-80c182c8e88f
+          characterConditionRequired: 70504ebe-3899-41d3-9f60-74b52ce35e39
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          guid: c2a3e8d0-80d3-4097-95e2-66f8177c6b5d
+          whenActive: combat
+          trigger: inflictcondition
+          conditionFormula: ""
+          targetType: subject
+          subject: enemy
+          name: Beast of Prey
+          persistence: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        name: Beast of Prey
+        source: Trait
+        description: While grabbed by the griffon, a creature has a double bane on the Escape Grab maneuver..
+        behavior: trigger
+        guid: 8ac26f69-c89c-4ff1-a499-2ee7d74f3de0
+      name: Beast of Prey
+      source: Trait
+      description: While grabbed by the griffon, a creature has a double bane on the Escape Grab maneuver..
+      guid: a66f9a79-94ef-4c8a-af90-679f21a4cbfd
+      implementation: 1
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2fea6620-0d2b-45c5-9911-de771f16c3f7: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2fea6620-0d2b-45c5-9911-de771f16c3f7
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Ability.inflicts("prone")
+        rollType: enemy_ability_power_roll
+        name: Steady
+        behavior: power
+        description: Creatures have a bane on power rolls that could knock the griffon or their rider prone.
+        guid: d0d7aacb-a17e-4a9a-9344-370f31bb525e
+        domains:
+          CharacterFeature:2fea6620-0d2b-45c5-9911-de771f16c3f7: true
+      name: Steady
+      description: Creatures have a bane on power rolls that could knock the griffon or their rider prone.
+      source: Trait
+      guid: 2fea6620-0d2b-45c5-9911-de771f16c3f7
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0019a93a-e421-4b04-8387-7fa4d719f10b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:0019a93a-e421-4b04-8387-7fa4d719f10b: true
+        sourceguid: 0019a93a-e421-4b04-8387-7fa4d719f10b
+        source: Character Feature
+        name: Zephyr Feint
+        guid: 79550b9f-499f-4b2f-ad89-07c4ec98e40e
+        behavior: triggerdisplay
+        description: |-
+          Trigger: The griffon takes damage.
+
+          Effect: The griffon halves the damage, ignores any nondamaging effects associated with it, and shifts up to 2 squares.
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The griffon halves the damage, ignores any nondamaging effects associated with it, and shifts up to 2 squares.
+          guid: cc06af83-2866-44ea-af4a-76de49ed3671
+          trigger: The griffon takes damage.
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 0019a93a-e421-4b04-8387-7fa4d719f10b
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          modtype: none
+          rollType: ability_power_roll
+          keywords: []
+          activationCondition: false
+          customTrigger:
+            __typeName: TriggeredAbility
+            numTargets: "1"
+            modifiers: []
+            trigger: d20roll
+            strain: []
+            guid: dac1e673-2349-4022-a474-eec21eff8717
+            repeatTargets: false
+            targetType: self
+            range: 1
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              promptText: The griffin may shift up to 2 squares
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 79721236-23d0-4853-b4cd-dc3658359542
+                repeatTargets: false
+                targetType: self
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                display:
+                  saturation: 1
+                  brightness: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            persistence: []
+            name: Zephyr Feint Shift
+            display:
+              saturation: 1
+              brightness: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Triggered Modifier
+          rules: ""
+          hasCustomTrigger: true
+          behavior: power
+          guid: d9d0f07d-7112-4577-9db3-3bf37cf2401b
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          CharacterFeature:0019a93a-e421-4b04-8387-7fa4d719f10b: true
+        targetType: self
+        trigger: takedamage
+        name: Zephyr Feint
+        rules: |-
+          Trigger: The griffon takes damage.
+
+          Effect: The griffon halves the damage, ignores any nondamaging effects associated with it, and shifts up to 2 squares.
+        description: |-
+          Trigger: The griffon takes damage.
+
+          Effect: The griffon halves the damage, ignores any nondamaging effects associated with it, and shifts up to 2 squares.
+        range: 10
+        guid: bf7ce221-ccd1-4b83-867e-457e341af1de
+      name: Zephyr Feint
+      description: |-
+        Trigger: The griffon takes damage.
+
+        Effect: The griffon halves the damage, ignores any nondamaging effects associated with it, and shifts up to 2 squares.
+      source: Character Feature
+      guid: 0019a93a-e421-4b04-8387-7fa4d719f10b
+    role: Elite Mount
+    equipment: []
+    titles: []
+    walkingSpeed: 9
+    traitNames: []
+    moveDistanceRoundId: 4ea39469-4e70-4e77-8822-68428b639cc7-2
+    notes:
+    - text: ""
+      title: Monster Notes
+    skillRatings: []
+    savingThrowRatings: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        a9ffaed1-6ede-45a6-8d03-d67d7ee52e85:
+          refreshid: 260697be-8d51-48f9-b36e-9172b41b8bf3-1
+          note: Grab
+          userid: steam-76561198767161997
+          set: 0/1
+        00ff17bf-3ba9-44ae-8c58-e45ebee6b705:
+          refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-2
+          note: Crack the Earth
+          userid: steam-76561198767161997
+          set: 0/1
+    resistances: []
+    opportunityAttack: 5
+    availableTriggers: []
+    innateAttacks: []
+    damage_taken: 0
+    currentMoveType: walk
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-2
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-2
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-12
+        used: 1
+    ev: 16
+    inflictedConditions: []
+    deathSavingThrowFailures: 0
+    initiativeGrouping: ecc07b57-f91d-4566-bf13-468d2b4b5aec
+    movementSpeeds:
+      fly: 9
+    equipmentMeta:
+      offhand0: []
+    creatureSize: "2"
+    max_hitpoints: 80
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: 6902144e-54c7-4c0a-809d-e3f2eda01b8c
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Griffon
+parentFolder: f7ab9ad0-44d0-4780-96de-36a39f555b3a
+artist: null
+ord: 0
+ctime: 1775245718191
+mtime: 1775245718191
+hidden: false

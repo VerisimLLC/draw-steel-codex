@@ -1,0 +1,96 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:f6b99052-7275-488c-81c7-5ccd0c927d3f: true
+  sourceguid: f6b99052-7275-488c-81c7-5ccd0c927d3f
+  description: This ongoing affect allows you to restrain spend 3 malice to restrain one additional target when using hte Snare Bow ability.
+  source: Ongoing Effect
+  name: New Ongoing Effect
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    resourceNumber: 3
+    repeatTargets: false
+    abilityType: none
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        resourceNumber: "3"
+        objectTarget: false
+        targetFilter: ""
+        repeatTargets: false
+        targetAllegiance: enemy
+        targetType: target
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: "16"
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: f93b1064-d546-43a2-96b2-27505b9a4b01
+        abilityType: none
+        persistence: []
+        name: Invoked Ability
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+          duration: save_ends
+          ongoingEffectCustom: false
+        description: ""
+        resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+        iconid: ui-icons/skills/1.png
+      promptText: "Spend 3 Malice: 1 enemy adjacent to the target is also restrained (save ends)."
+    characterConditionRequired: 2989a051-204f-442e-967d-edafc2dd5e43
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    characterConditionInflictedBySelf: true
+    trigger: inflictcondition
+    range: 1
+    guid: 8724905d-e93c-40df-9c43-f5c5660ba879
+    domains:
+      CharacterOngoingEffect:f6b99052-7275-488c-81c7-5ccd0c927d3f: true
+    persistence: []
+    modifiers: []
+    subjectRange: ""
+    strain: []
+    whenActive: combat
+    numTargets: "1"
+    targetType: self
+    conditionFormula: ""
+    resourceCost: none
+    triggerPrompt: "Spend 3 Malice: 1 enemy adjacent to the target is also restrained (save ends)."
+    name: New Ongoing Effect
+    mandatory: false
+    description: ""
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: 7a7892bc-ae43-439e-b7de-c800c4fa7d9f
+source: Ongoing Effect
+domains:
+  CharacterOngoingEffect:f6b99052-7275-488c-81c7-5ccd0c927d3f: true
+guid: f6b99052-7275-488c-81c7-5ccd0c927d3f
+id: f6b99052-7275-488c-81c7-5ccd0c927d3f
+ctime: 1768929237214
+hiddenFromEnemies: true
+mtime: 1769702200415
+hiddenOnToken: false
+name: Snare Bow
+endTrigger: none
+custom: true
+description: This ongoing affect allows you to spend 3 malice to restrain one additional target when using hte Snare Bow ability.
+iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af

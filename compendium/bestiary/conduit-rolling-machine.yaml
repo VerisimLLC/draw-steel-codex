@@ -1,0 +1,126 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 01e27644-7c40-4bc9-b51c-3621c8f349a5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:67ba0c58-0bd9-4992-b146-3dcda98cce35: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 67ba0c58-0bd9-4992-b146-3dcda98cce35
+        source: Character Feature
+        guid: ef1c4554-51ce-4008-a8c1-da256d928632
+        domains:
+          CharacterFeature:67ba0c58-0bd9-4992-b146-3dcda98cce35: true
+        abilityFilter: "0"
+        name: No Abilities or Maneuvers
+        description: ""
+        explanation: The Roling Machine has not abilities or maneuvers
+        behavior: suppressabilities
+      source: Character Feature
+      description: ""
+      guid: 67ba0c58-0bd9-4992-b146-3dcda98cce35
+      name: No Abilities or Maneuvers
+      implementation: 2
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Monster
+    levelChoices: []
+    resources: []
+    damage_taken: 0
+    deathSavingThrowFailures: 0
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 100
+      damageType: poison
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 100
+      damageType: psychic
+      apply: Damage Reduction
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        46f91edc-2a01-4b71-9e34-3ecabd38fd9e:
+          timestamp: 1770869599856
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 10
+    walkingSpeed: 5
+    max_hitpoints: 50
+    monster_type: Conduit Rolling Machine
+  tokenType: null
+  bestiaryId: 71bfbee4-2cf1-4692-ab88-c7a0f1c53116
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1770869567212
+description: null
+parentFolder: null
+artist: null
+ord: 0
+ctime: 1770869567212
+mtime: 1775167432501
+hidden: false

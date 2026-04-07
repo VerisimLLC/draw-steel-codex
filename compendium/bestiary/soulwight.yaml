@@ -1,0 +1,259 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 127b42bf-7593-4bf6-bef1-cc0b22424834
+    offtokenPortraitId: d68e8ea3-dd9e-4aea-9c60-e0e1a8406317
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3628325
+    portraitOffset:
+      x: -0.1368904
+      y: 0.195787
+    frameHueShift: 0.5590838
+    frameSaturation: 0.2327211
+    frameBrightness: 0.2233511
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e62d435d-6b72-4b90-aba2-1194aea673c5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 3eba2e86-9891-471f-b3a7-e486621a5d44
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage
+        - 4 corruption damage; M<1 slowed (save ends)
+        - 5 corruption damage; M<2 slowed and weakened (save ends)
+        roll: 2d10 + Might
+      name: Soulstealer Longsword
+      iconid: 64c8fbe4-c9d7-49e7-b223-bcb6cc3688ad
+      description: The target appears to rapidly age each time they take damage from this ability. The target regains their former appearance when the soulwight is destroyed.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: c2c166e0-5103-46db-bf78-0c3c92db5b49
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      numTargets: 1
+      name: Stolen Vitality
+      behaviors:
+      - __typeName: ActivatedAbilityHealBehavior
+        roll: "10"
+      description: The target regains 10 Stamina. The soulwight can't use this maneuver again until they attack a creature with their lifestealer longsword.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 2
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Soulwight	Level 1 Horde Hexer
+        Undead	EV 3
+        <b>Stamina</b> 10	<b>Immunity</b> corruption 1, poison 1
+        <b>Speed</b> 5	<b>Size</b> 1M/<b> Stability</b> 0
+        <b>Free Strike</b> 1
+        Might +2	Agility +1	Reason 0	Intuition 0	Presence +1
+        <b>Soulstealer Longsword</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	3 corruption damage
+        %E2%98%85	12%E2%80%9316	4 corruption damage; M<1 slowed (save ends)
+        %E2%9C%B8	17+	5 corruption damage; M<2 slowed and weakened (save ends)
+        <b>Effect</b> The target appears to rapidly age each time they take damage from this ability. The target regains their former appearance when the soulwight is destroyed.
+
+        <b>Stolen Vitality</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5	<b>Target</b> One ally
+        <b>Effect</b> The target regains 10 Stamina. The soulwight can't use this maneuver again until they attack a creature with their lifestealer longsword.
+
+        <b>Arise</b>
+        The first time the soulwight is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they regain half their Stamina and fall prone.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e7a58832-63f4-43ea-9bb9-f4070fd610cc: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5dfcd239-8451-4760-b966-de47ace83f71
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+        name: Arise
+        resourceRefreshType: encounter
+        description: The first time the soulwight is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they instead have 1 Stamina and fall prone.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b3ebebbe-7f14-4100-a2b9-636f20cb525d
+          conditionFormula: Damage Type != "Fire" And Damage Type != "Holy"
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: (-Stamina) + 1
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            applyto: caster
+            text: Arise!
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            applyto: caster
+            rule: prone
+          name: Arise
+          trigger: zerohitpoints
+          numTargets: "1"
+          description: The first time the soulwight is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they instead have 1 Stamina and fall prone.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f8f843d3-f28f-462b-b20c-6c6da1c1b1fe
+      source: Trait
+      description: The first time the soulwight is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they instead have 1 Stamina and fall prone.
+      guid: e7a58832-63f4-43ea-9bb9-f4070fd610cc
+      name: Arise
+      implementation: 3
+    role: Horde Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 1
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: 6a26ba01-ec6c-4c1c-aeb8-bf10769a81f8
+    keywords:
+      Undead: true
+    monster_type: Soulwight
+  tokenType: null
+  bestiaryId: eb1dd295-16cf-4e44-9e1b-622c0c029297
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: Soulwight
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 8
+ctime: 1741590324120
+mtime: 1775201137032
+hidden: false

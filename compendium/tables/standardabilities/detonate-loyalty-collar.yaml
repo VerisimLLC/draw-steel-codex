@@ -1,0 +1,31 @@
+__typeName: ActivatedAbility
+targetFilter: Target has "loyalty collar"
+id: 510e436e-6f80-4716-bdf5-080f7b7d1208
+behaviors:
+- __typeName: ActivatedAbilityDestroyBehavior
+  applyto: target_proximity
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "10"
+selfTarget: true
+testCases:
+- text: The target’s loyalty collar detonates, killing them instantly.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 783682bc-799c-4525-8b76-366ad9c6b9b0
+importMatch: The target’s loyalty collar detonates, killing them instantly
+ctime: 1747670071285
+numTargets: "1"
+repeatTargets: false
+mtime: 1755557036318
+name: Detonate Loyalty Collar
+targetType: target
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+id: 0b1cc306-e0b8-4898-836a-c84b0ee7df47
+behaviors:
+- __typeName: ActivatedAbilityPurgeEffectsBehavior
+  conditions: []
+  targetDuration: save|eot
+  purgeType: one
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 990f2487-a588-47b6-bf44-a753f52732bd
+ctime: 1745902242051
+targetType: self
+numTargets: "1"
+mtime: 1770658377005
+name: Purge Save Ends Effect
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,40 @@
+__typeName: CharacterComplication
+drawback: Your health suffered in prison. Whenever you are winded, you are stricken with a hacking cough that makes it impossible for you to hide or sneak.
+mtime: 1764625646246
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      crafting: true
+      lore: true
+      intrigue: true
+      exploration: true
+    name: Wrongly Imprisoned Benefit
+    numChoices: 2
+    guid: 14bc686e-c0bd-40a5-9f95-c56265d138c1
+    description: You have two skills of your choice, neither of which can be from the interpersonal skill group.
+    source: Feat
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      filterCondition: self.Winded
+      sourceguid: 42a87d98-a828-4a38-a454-da2bbec48057
+      behavior: conditionimmunity
+      source: Complication
+      conditions:
+      - 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+      guid: 3ad3929a-d74d-4368-8f9e-63b6dfd3a1d3
+      name: Wrongly Imprisoned Drawback
+      description: ""
+    source: Complication
+    canHavePrerequisites: true
+    guid: 42a87d98-a828-4a38-a454-da2bbec48057
+    name: Wrongly Imprisoned Drawback
+    implementation: 2
+name: Wrongly Imprisoned
+ctime: 1755518554579
+description: You spent many years imprisoned for a crime you didn’t commit. During your long hours of solitary confinement, you honed your skills and recited the names of those who framed you. Someday, you will have your revenge.
+id: 45f4eaaa-6027-441a-ae67-09ab09208234
+benefit: You have two skills of your choice, neither of which can be from the interpersonal skill group.

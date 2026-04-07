@@ -1,0 +1,210 @@
+__typeName: MarkdownDocument
+annotations:
+  image:1:
+    __typeName: RichImage
+    identifier: "1"
+  image:high:
+    __typeName: RichImage
+    identifier: high
+  'image:Wode Elf ':
+    __typeName: RichImage
+    identifier: 'Wode Elf '
+  image:Wode Elf Troub:
+    __typeName: RichImage
+    identifier: Wode Elf Troub
+  image:Human Null:
+    __typeName: RichImage
+    uiscale: 1
+    halign: right
+    identifier: Human Null
+    image: 1fb171bd-371d-4a19-a7ba-648b5ee0e5ad
+  image:high elf t:
+    __typeName: RichImage
+    identifier: high elf t
+  image:Orc Conduit:
+    __typeName: RichImage
+    uiscale: 1
+    halign: right
+    identifier: Orc Conduit
+    image: f980e094-03e2-466b-8d02-fee07803e5ee
+  image:dwarf fur:
+    __typeName: RichImage
+    identifier: dwarf fur
+  image:Wode Elf T:
+    __typeName: RichImage
+    identifier: Wode Elf T
+  image:Orc Condu:
+    __typeName: RichImage
+    identifier: Orc Condu
+  image:Polder:
+    __typeName: RichImage
+    identifier: Polder
+  image:Polder E:
+    __typeName: RichImage
+    identifier: Polder E
+  image:
+    __typeName: RichImage
+    uiscale: 0.249999694824219
+    halign: center
+    image: 4d41ed39-2355-4202-bb40-1de8ba2b3f8b
+  'image:Human ':
+    __typeName: RichImage
+    identifier: 'Human '
+  image:Wode Elf Trou:
+    __typeName: RichImage
+    identifier: Wode Elf Trou
+  image:Wode Elf Trouba:
+    __typeName: RichImage
+    identifier: Wode Elf Trouba
+  image:dwarf:
+    __typeName: RichImage
+    identifier: dwarf
+  'image:Polder ':
+    __typeName: RichImage
+    identifier: 'Polder '
+  image:dwarf fury:
+    __typeName: RichImage
+    uiscale: 1
+    halign: right
+    identifier: dwarf fury
+    image: 91de7c9d-f2d1-45e9-baf6-04ea81b1b188
+  image:Human Ce:
+    __typeName: RichImage
+    identifier: Human Ce
+  image:Hu:
+    __typeName: RichImage
+    identifier: Hu
+  image:Wode Elf:
+    __typeName: RichImage
+    identifier: Wode Elf
+  image-1:
+    __typeName: RichImage
+    identifier: false
+  image:Polder Shadow:
+    __typeName: RichImage
+    uiscale: 1
+    halign: right
+    identifier: Polder Shadow
+    image: dac98309-fb00-4ddf-b903-a95db8e7b126
+  image:high elf tactician:
+    __typeName: RichImage
+    uiscale: 1
+    halign: right
+    identifier: high elf tactician
+    image: 80569cde-4e1a-42bd-9b70-7ee1af59326b
+  image:Wode E:
+    __typeName: RichImage
+    identifier: Wode E
+  image:Human Censor:
+    __typeName: RichImage
+    uiscale: 1
+    halign: right
+    identifier: Human Censor
+    image: 47d0d587-c809-447c-817e-1d308c7dafa5
+  image:Orc Con:
+    __typeName: RichImage
+    identifier: Orc Con
+  image:Human Talent:
+    __typeName: RichImage
+    uiscale: 1
+    halign: right
+    identifier: Human Talent
+    image: b1f01693-23ec-460b-a2d9-283ae16a0835
+  'image:dwarf ':
+    __typeName: RichImage
+    identifier: 'dwarf '
+  image:Human Ta:
+    __typeName: RichImage
+    identifier: Human Ta
+  image:dwarf f:
+    __typeName: RichImage
+    identifier: dwarf f
+  image:Wode Elf Troubadour:
+    __typeName: RichImage
+    uiscale: 1
+    halign: right
+    identifier: Wode Elf Troubadour
+    image: 3949a38d-1b74-4eef-9e19-39eb1bf79fdc
+  image:Human:
+    __typeName: RichImage
+    identifier: Human
+  image:high e:
+    __typeName: RichImage
+    identifier: high e
+  "image:":
+    __typeName: RichImage
+    identifier: ""
+  image:d:
+    __typeName: RichImage
+    identifier: d
+  image:dwar:
+    __typeName: RichImage
+    identifier: dwar
+  image:Polder Elementalist:
+    __typeName: RichImage
+    uiscale: 1
+    halign: right
+    identifier: Polder Elementalist
+    image: 60ca5052-830b-4c1a-ad4c-72d896e49756
+id: f75cddb4-4e24-4b67-920b-74768c13bb13
+ctime: 1762748473109
+textStorage:
+  __typeName: TextStorage
+  sections:
+    O: |+
+      Your hero is a person motivated to fight forces of evil to protect the innocent, but each hero has their own personal reason for doing so. You don’t have to be a pure beacon of good. Heroes have flaws and are complex, just like people in the real world. But your hero should be someone who isn’t afraid to battle monsters for altruistic reasons.
+
+    p: |
+      |:<>[[/createcharacter "Polder Shadow"; closedocuments|Play as the Polder Shadow]]|:<>[[/createcharacter "Human Censor"; closedocuments|Play as the Human Censor]]|:<>[[/createcharacter "Human Null"; closedocuments|Play as the Human Null]]|
+    m: |
+      |[[image:Polder Shadow]]|[[image:Human Censor]]|[[image:Human Null]]|
+    E: |+
+      # Welcome to the Delian Tomb
+
+    L: |
+      To begin, you need a hero. You can create one now, or chose one of the Pregenerated Heroes included with the Adventure (see below). 
+    I: |
+      This is the Start Here adventure for *Draw Steel*. 
+    j: |
+      |:<>[[/createcharacter "Dwarf Fury"; closedocuments|Play as the Dwarf Fury]]|:<>[[/createcharacter "Orc Conduit"; closedocuments|Play as the Orc Conduit]]|:<>[[/createcharacter "Polder Elementalist"; closedocuments|Play as the Polder Elementalist]]|
+    g: |
+      |[[image:dwarf fury]]|[[image:Orc Conduit]]|[[image:Polder Elementalist]]|
+    X: |+
+      If you have time before your session, you may also go through the [Starter Rules](Delian Tomb Starter Rules v1.02) or the [Draw Steel Heroes] book. You can also read the "Making A Hero" chapter [pdf:Draw Steel Heroes:15] for detailed character creation information.
+
+
+    U: |
+      Keep your [Rules Reference](Draw Steel Rules Reference v1.02) handy during play.
+    v: "|:<>[[/createcharacter \"High Elf Tactician\"; closedocuments|Play as the High Elf Tactician]]|:<>[[/createcharacter \"Human Talent\"; closedocuments|Play as the Human Talent]]|:<>[[/createcharacter \"Wode Elf Troubadour\"; closedocuments|Play as the Wode Elf Troubadour]]|\n\n\n\n\n\n\n\n\n\n\n\n "
+    s: |
+      |[[image:high elf tactician]]|[[image:Human Talent]]|[[image:Wode Elf Troubadour]]|
+    d: |+
+      :<>#### Or Select A Pregen:
+
+
+    a: ":><[[/createcharacter; closedocuments|Create a New Hero]][[/importfs; closedocuments|Import From Forge Steel]]\n\n \n"
+    R: |+
+      The hero you create will be roleplayed by you. Often when referring to your hero, the rules use second-person pronouns (you/your) for shorthand, making a distinction between you and your hero only when that distinction is important.
+
+
+parentFolder: private
+updateid: 49882ffa-3f41-4324-8cca-9faa0fc6f063
+description: New Player Welcome
+content: |
+  # Welcome to the Delian Tomb
+
+  This is the Start Here adventure for *Draw Steel*. 
+  To begin, you need a hero. You can create one now, or chose one of the Pregenerated Heroes included with the Adventure. These should be included in the [Inn of Beginnings], and you can ask your Director to assign one to you.
+  Your hero is a person motivated to fight forces of evil to protect the innocent, but each hero has their own personal reason for doing so. You don’t have to be a pure beacon of good. Heroes have flaws and are complex, just like people in the real world. But your hero should be someone who isn’t afraid to battle monsters for altruistic reasons.
+
+  The hero you create will be roleplayed by you. Often when referring to your hero, the rules use second-person pronouns (you/your) for shorthand, making a distinction between you and your hero only when that distinction is important.
+
+  Check p.30 of [Draw Steel Heroes], the "Making A Hero" chapter for detailed character creation information.
+
+  :<>[[/createcharacter; closedocuments|Create Hero]]
+
+  Keep your Rules Reference handy ([Draw Steel Rules Reference v1.02]) during play.
+  If you have time before your session, you may also go through the Starter Rules: [Delian Tomb Starter Rules v1.02]
+
+  [[image]]
+mtime: 1764449481422

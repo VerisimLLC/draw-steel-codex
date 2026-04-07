@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 23e6b92e-f2ba-478f-9e07-028c077dcffb
+id: 23e6b92e-f2ba-478f-9e07-028c077dcffb
+ctime: 1770724059264
+domains:
+  CharacterOngoingEffect:23e6b92e-f2ba-478f-9e07-028c077dcffb: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Used Bait and Ambush
+statusEffect: false
+description: 'This creature has used the Bait and Ambush benefit before the strike and cannot shift after the strike. '
+mtime: 1770725019251
+iconid: ui-icons/skills/1.png

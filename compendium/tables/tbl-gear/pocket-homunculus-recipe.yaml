@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: dd9c0133-247a-4639-bc0b-81aab7544116
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765468046314
+ctime: 1765468046314
+name: Pocket Homunculus Recipe
+flavor: Text or lore in Zaliac
+description: The project source necessary to craft a Pocket Homunculus
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

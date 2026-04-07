@@ -1,0 +1,54 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.503634643554687
+    halign: center
+    image: 16cf506d-e4c2-4763-9f5e-363ecae993f2
+id: 4325195b-7892-4c76-94e4-47ab0225fe99
+ctime: 1762883858252
+textStorage:
+  __typeName: TextStorage
+  sections:
+    G: |+
+      # Aldiva
+
+    e: |+
+      Director Notes: 
+
+    S: |
+      *Leader of the Forsaken Wraiths*
+      {
+    s: |-
+      Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+      }
+    l: |
+      *Use this area to make notes for yourself about the NPC. Suggested information would be:
+    Y: |
+      Secret: See [Fort Forsaken]
+      }
+
+      {
+    M: |+
+      [[image]]
+
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 566c1a08-fd4e-408f-8a00-4ebfa3943535
+mtime: 1764266898316
+content: |-
+  # Aldiva
+
+  [[image]]
+
+  *Leader of the Forsaken Wraiths*
+  {
+  Secret: Quests or hidden information
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+description: Aldiva

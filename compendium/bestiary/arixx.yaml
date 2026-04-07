@@ -1,0 +1,1252 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 2c1e3bfe-46fd-4b12-aa5b-10aa95122da7
+    offtokenPortraitId: fd88a0f1-078d-479c-bc1d-877161e3e955
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4565293
+    portraitOffset:
+      x: 0.07052017
+      y: 0.1549125
+    frameHueShift: 0.1530458
+    frameSaturation: 0.6325132
+    frameBrightness: 0.5107015
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: cad63a97-89cd-49a7-8caa-738eedfc8ec9
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 30
+    max_hitpoints_roll: "200"
+    innateAttacks: []
+    currentMoveType: walk
+    monster_category: Arixx
+    aurasEnteredTurnId: 9ba0975e-deac-4118-ab84-7d899b274685-6-6038527c-0247-4dca-a083-400c8c5553e8
+    levelChoices: []
+    moveDistance: 1
+    fac8a069-5ae1-4986-b2fc-498ea0459f09_history:
+      __typeName: StatHistory
+      entries:
+        a095d00b-9f3d-4c4d-a849-41eb1a68c1bd:
+          note: Violence will not Aid Thee
+          abilityid: 3e7cfe0c-b3e6-4b8c-8ff4-c184ef2e83a5
+          timestamp: 1757061435977
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/0
+    auras: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -4
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 3
+        id: mgt
+      rea:
+        baseValue: -3
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage; grabbed
+        - 13 damage; grabbed
+        - 16 damage; grabbed
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+        filterTarget: Target.Size < 2
+        riderid: f424560a-6b95-4be5-ba3e-76e55b64c1f1
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 46
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 564c24ea-3dc6-4c4e-b7e2-8840da4b78c2
+      implementation: 4
+      persistence: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      name: Bite
+      categorization: Signature Ability
+      description: A size 1 target grabbed this way takes 3 acid damage at the start of each of their turns.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; A<1 grabbed
+        - 8 damage; A<2 grabbed
+        - 11 damage; A<3 grabbed
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        filterTarget: Conditions has "grabbed"
+        rule: vertical slide 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 46
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: dcc3658a-d6f9-4ec9-89e9-f3a22a2a0a8e
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      implementation: 4
+      name: Claw Swing
+      numTargets: 2
+      description: The arixx can vertically slide each grabbed target up to 3 squares.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      implementationDetails: ""
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 46
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 149fb57c-dca8-4643-b1ee-3370e3117076
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 acid damage
+        - 6 acid damage
+        - 7 acid damage; prone
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityAuraBehavior
+        applyto: targets
+        aura:
+          __typeName: Aura
+          modifiers: []
+          movedamage: none
+          guid: e242a608-a03a-4eb4-8440-44b82a945953
+          objectid: 64ba3b69-3e4c-4273-9148-902b006051ae
+          applyto: enemies
+          name: Burning Acid
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              objectTarget: true
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: 2 acid damage
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 649f1b42-d01d-451e-a5be-4190f0a2f2a9
+              numTargets: "1"
+              name: Burning Acid
+              targetType: self
+              trigger: onenter
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          damage: 2
+        duration: none
+      categorization: Signature Ability
+      numTargets: "2"
+      name: Spitfire
+      implementation: 4
+      description: 'The ground beneath each target is covered in burning acid until the end of the encounter. Any enemy who enters an affected space for the first time in a round or starts their turn there takes 2 acid damage. '
+      abilityType: none
+      iconid: 1a0325f6-defa-4b4d-a2cf-368610f0e2fd
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: enemy
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: "3"
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: f4a15063-290b-4273-951f-fc916f9deac4
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage; push 2
+        - 7 damage; push 4
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityAuraBehavior
+        applyto: caster
+        aura:
+          __typeName: Aura
+          modifiers: []
+          name: Dirt Devil Difficult Terrain
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          guid: d4a60682-dc87-4b81-a1f7-c407f30d8e80
+          difficult_terrain: true
+          objectid: b864db19-9020-43e3-9dda-1c28f6cc1ae4
+      numTargets: "1"
+      persistence: []
+      sourceReference:
+        __typeName: SourceReference
+        page: 52
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Dirt Devil
+      implementation: 2
+      description: |-
+        The arixx flings rocks and debris to fill the area, and has a double edge on the power roll if they started their turn underground.
+        The area is difficult terrain.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 2d7c7b89-79ad-4f20-8fa5-77296b4650a9
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 52
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: c28e6c42-4370-4cc6-b96e-6602e25eae0d
+      categorization: Signature Ability
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        duration: nextturn
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 3d4a2437-ea1c-4593-a5b3-208214560f5f
+            source: Aura
+            modtype: bane
+            keywords: []
+            activationCondition: true
+            guid: 79f58a5c-496a-44da-8ad5-b20dd424c6ed
+            rollType: all
+            filterCondition: target.Auras Affecting has not "Dust Cloud Target"
+            description: The arixx kicks up dust to fill the area until the start of their next turn, then moves up to their speed. Any enemy in the area or who targets a creature in the area takes a bane on power rolls.
+            behavior: power
+            name: Hero Inside Dust Cloud
+          name: Dust Cloud
+          guid: 3d4a2437-ea1c-4593-a5b3-208214560f5f
+          description: The arixx kicks up dust to fill the area until the start of their next turn, then moves up to their speed. Any enemy in the area or who targets a creature in the area takes a bane on power rolls.
+          objectid: b864db19-9020-43e3-9dda-1c28f6cc1ae4
+          implementation: 3
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          applyto: selfandfriends
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: d74ab70f-50c3-4601-8d75-b7b50a3b9ef0
+            source: Aura
+            behavior: power
+            keywords: []
+            activationCondition: true
+            name: Dust Cloud Target
+            guid: 1041cb75-b1ce-4f89-8019-1f51d70f6fe0
+            description: The arixx kicks up dust to fill the area until the start of their next turn, then moves up to their speed. Any enemy in the area or who targets a creature in the area takes a bane on power rolls.
+            modtype: bane
+            rollType: enemy_ability_power_roll
+          name: Dust Cloud Target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          guid: d74ab70f-50c3-4601-8d75-b7b50a3b9ef0
+          description: The arixx kicks up dust to fill the area until the start of their next turn, then moves up to their speed. Any enemy in the area or who targets a creature in the area takes a bane on power rolls.
+          objectid: b864db19-9020-43e3-9dda-1c28f6cc1ae4
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 566f1a2f-6963-45db-87e2-540b3f631818
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+        abilityType: standard
+      selfTarget: true
+      name: Dust Cloud
+      displayOrder: 45
+      description: The arixx kicks up dust to fill the area until the start of their next turn, then moves up to their speed. Any enemy in the area or who targets a creature in the area takes a bane on power rolls.
+      abilityType: none
+      iconid: 10e02029-d7ca-49d2-a060-872a135bcaed
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetType: line
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 46
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      effectImplemented: false
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 7ec0a598-cddc-42cd-bffe-633c432a08e7
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 acid damage
+        - 8 acid damage
+        - 11 acid damage
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers: []
+          name: Acid Spew
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: 2 acid damage
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: a7c2fc6f-aecf-44c6-930c-bd32370afc03
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Acid Spew
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: ff567057-ff31-4004-a939-935f3fa43281
+          objectid: 64ba3b69-3e4c-4273-9148-902b006051ae
+          implementation: 3
+      categorization: Heroic Ability
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 6f0441ed-0688-4d7d-b2ab-170e7fbc3fed
+        multicharge: false
+      numTargets: "1"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Acid Spew
+      radius: "2"
+      description: The ground in the area is covered in a puddle of acid until the end of the encounter. Any enemy who enters the area for the first time in a round or starts their turn there takes 2 acid damage.
+      abilityType: none
+      iconid: 2ac12adf-0648-438b-8e51-227a5594ad70
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: e361eeae-ee67-4f00-a950-b54a9c66b055
+        multicharge: false
+      villainAction: Villain Action 2
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 7f16f540-6ca2-4c39-956d-76967c95ef68
+      persistence: []
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      iconid: 6e4b74ab-b382-49ac-b2c2-bbc8dc629f04
+      name: 'Sinkhole '
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: dcde64ca-0f37-4efb-b706-7fb54d572f67
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+        standardAbilityParams:
+          distance: "5"
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 49930d5e-a5d1-4e4d-a929-bac45d71ab23
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        abilityType: named
+        namedAbility: Bite
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: adcfd9dc-5446-4fa3-b8c3-4346501d85ca
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        abilityType: named
+        namedAbility: Dig
+      description: The arixx shifts up to their speed. If they end this shift above ground and within 2 squares of a creature, they use Bite against the creature and can then use the Dig maneuver.
+      abilityType: none
+      implementation: 2
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: "2"
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: d7626558-1717-458d-a7b4-2ae9e3115c18
+        multicharge: false
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4a04facd-b326-4bb2-8431-11a4425e1c36
+      numTargets: "1"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 acid damage; M<1 weakened (save ends)
+        - 8 acid damage; M<2 weakened (save ends)
+        - 11 acid damage; M<3 weakened (save ends)
+        roll: 2d10 + 3
+      name: Acid and Claws
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: c6984795-d477-41d0-aa45-325bf0792fa8
+    - __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 5e9b630d-7064-4106-ac81-aa817bf3081c
+      repeatTargets: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      abilityType: none
+      targetType: self
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 3cfee38a-1af5-4558-8a03-82430f05a0ce
+        ongoingEffectCustom: false
+      name: Dig
+      numTargets: "1"
+      description: It takes extra effort to dig vertically through the ground as opposed to tunneling horizontally, requiring a creature to use a special maneuver. To use the Dig maneuver, a creature must have “burrow” in their speed entry, they must have a speed that is equal to or greater than their size, and they must be touching terrain that can be burrowed through. When a creature uses the Dig maneuver, they can move vertically up to a number of squares equal to their size. If a burrowing creature has a creature who is not unconscious grabbed, they can’t willingly move deeper into the ground. It’s too difficult to dig with a flailing enemy in your claws.
+      range: 1
+      iconid: 63864356-6bf1-4516-8ef1-58a1436a99c1
+    damageEntries:
+      0ebdb86e-2183-4a62-bb6f-c3c7f48304fc:
+        damage: 10
+        id: 0ebdb86e-2183-4a62-bb6f-c3c7f48304fc
+        timestamp: 1757064999932
+      3897f366-0431-40db-bd57-146c3376068f:
+        damage: 9
+        id: 3897f366-0431-40db-bd57-146c3376068f
+        timestamp: 1757064995460
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        8a4c37a0-c50c-4ef8-b451-2e6d89a57252:
+          note: "Used triggered ability: Skitter"
+          timestamp: 1756836714893
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        f9016b39-c325-44f1-a1bc-ef2b82fd8ea1:
+          note: Manually Set
+          timestamp: 1756836695699
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        a6fee993-a763-4e17-8837-cd9270879e16:
+          note: "Used triggered ability: Skitter"
+          timestamp: 1756836613963
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        b40fec22-5448-4e8a-b44b-ecf8bc1d9acf:
+          note: Manually Set
+          timestamp: 1756836799365
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        d2843f45-6f97-47d9-bb7b-54987faa3a84:
+          note: "Used triggered ability: Skitter"
+          timestamp: 1756836539512
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        f475f5fb-6692-4367-9740-d62eef1cfe50:
+          note: "Used triggered ability: Skitter"
+          timestamp: 1756836821357
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        fd7542a8-263b-4952-9558-3c6cc5d7f647:
+          note: Manually Set
+          timestamp: 1756836574339
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        eb9a94a3-44da-4f9b-aa4c-19a6a9c31614:
+          note: 10 damage from Confused Arixx's Violence will not Aid Thee
+          disposition: bad
+          timestamp: 1757064999932
+          attackerid: 4b0eddce-b5b8-4f46-bedc-f8ab5d34c91c
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 120
+        6f52a242-319e-4233-b1cd-bd2ff2a95469:
+          note: 4 damage from Confused Arixx's Violence will not Aid Thee
+          disposition: bad
+          timestamp: 1757064852494
+          attackerid: 4b0eddce-b5b8-4f46-bedc-f8ab5d34c91c
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 140
+        d58fdf95-b226-4d05-bc2a-34f70a606f37:
+          note: 1 damage from Confused Arixx's Violence will not Aid Thee
+          disposition: bad
+          timestamp: 1757064858653
+          attackerid: 4b0eddce-b5b8-4f46-bedc-f8ab5d34c91c
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 139
+        5f8cb0da-8572-4aff-b98e-88e3c60e73dd:
+          note: 5 damage from Conduit Lv3's Violence will not Aid Thee
+          disposition: bad
+          timestamp: 1757064690475
+          attackerid: 90893372-b320-47b5-b5ab-9ba6a1e2d829
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 163
+        a21e97ed-0147-430a-89bf-e091caa06d31:
+          note: 9 damage from Confused Arixx's Violence will not Aid Thee
+          disposition: bad
+          timestamp: 1757064995460
+          attackerid: 4b0eddce-b5b8-4f46-bedc-f8ab5d34c91c
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 130
+        3e28bfb1-603f-4e22-8ec5-2d003b722f50:
+          note: 10 damage from Confused Arixx's Violence will not Aid Thee
+          disposition: bad
+          timestamp: 1757064771481
+          attackerid: 4b0eddce-b5b8-4f46-bedc-f8ab5d34c91c
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 153
+        12793cff-3041-4ef9-abc8-be06454670fe:
+          timestamp: 1757065293552
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 200
+        f9afc684-d2e8-403c-bd13-03e30ab676c4:
+          note: 9 damage from Confused Arixx's Violence will not Aid Thee
+          disposition: bad
+          timestamp: 1757064812120
+          attackerid: 4b0eddce-b5b8-4f46-bedc-f8ab5d34c91c
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 144
+    opportunityAttack: 5
+    notes:
+    - text: ""
+      title: Monster Notes
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 3bba7e34-b062-4a4d-bf9d-b624cb479cac-1005
+    0c8624d6-cab0-4d6b-afe6-5fac5d79de30_history:
+      __typeName: StatHistory
+      entries:
+        d05751a2-3e41-46b8-9cf0-218f2a4a1743:
+          note: Violence will not Aid Thee
+          abilityid: dbc9df14-357d-4f73-b699-c8a3d56df1cc
+          timestamp: 1757061726110
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-4-ca9280b6-9a45-4dee-b597-74a13509ff11
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+        6b9cfe4a-9447-4f64-a913-f3cf108352d5:
+          note: Violence will not Aid Thee
+          abilityid: dbc9df14-357d-4f73-b699-c8a3d56df1cc
+          timestamp: 1757061067652
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-3-ca9280b6-9a45-4dee-b597-74a13509ff11
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+        3a1b5c2e-25c9-4748-a8b7-62c1004728b4:
+          note: Violence will not Aid Thee
+          abilityid: dbc9df14-357d-4f73-b699-c8a3d56df1cc
+          timestamp: 1757063639475
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-7-ca9280b6-9a45-4dee-b597-74a13509ff11
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+        fd33dc3a-466d-44eb-be41-62f9528e87c8:
+          note: Violence will not Aid Thee
+          abilityid: dbc9df14-357d-4f73-b699-c8a3d56df1cc
+          timestamp: 1757061767530
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-5-ca9280b6-9a45-4dee-b597-74a13509ff11
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+        fc8d2229-a08b-46b9-8e84-7d1b73937a09:
+          note: Violence will not Aid Thee
+          abilityid: dbc9df14-357d-4f73-b699-c8a3d56df1cc
+          timestamp: 1757060944871
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-2-ca9280b6-9a45-4dee-b597-74a13509ff11
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+    stability: 2
+    max_hitpoints: 200
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:703e3651-8c1b-4935-aae4-f8733a9f139e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 703e3651-8c1b-4935-aae4-f8733a9f139e
+        source: Trait
+        modtype: bane_double_edge
+        keywords:
+          Melee: true
+          Weapon: true
+        activationCondition: Conditions has "prone"
+        guid: cef9a547-f5f0-44e8-a86d-d48d082a6732
+        rollType: enemy_ability_power_roll
+        domains:
+          CharacterFeature:703e3651-8c1b-4935-aae4-f8733a9f139e: true
+        description: A prone creature gains an edge on melee strikes against the arixx instead of taking a bane.
+        behavior: power
+        name: Soft Underbelly
+      source: Trait
+      description: A prone creature gains an edge on melee strikes against the arixx instead of taking a bane.
+      guid: 703e3651-8c1b-4935-aae4-f8733a9f139e
+      name: Soft Underbelly
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:139091cd-1ad7-4026-baa5-b5cbd09f7827: true
+      modifiers: []
+      name: Earthwalk
+      guid: 139091cd-1ad7-4026-baa5-b5cbd09f7827
+      description: Difficult terrain composed of earth or loose rock doesn't cost the arixx extra movement.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ec05b6c4-b132-4dad-9eb7-cedd7fd1040e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:ec05b6c4-b132-4dad-9eb7-cedd7fd1040e: true
+        sourceguid: ec05b6c4-b132-4dad-9eb7-cedd7fd1040e
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Skitter
+        description: |-
+          The arixx halves the damage and shifts up to 3 squares after
+          the triggering effect resolves.
+        guid: f36a7e8c-aa27-4db2-85c9-ff1c51487cb4
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: The arixx halves the damage and shifts up to 3 squares after the triggering effect resolves.
+          trigger: The Arixx takes damage.
+          name: Skitter
+          guid: edf08e44-e421-49d7-919d-55b2bb48c978
+          distance: Self
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: ec05b6c4-b132-4dad-9eb7-cedd7fd1040e
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          guid: 0ee1ec30-b3c8-4fa6-9a26-c3bc9d9f9852
+          activationCondition: true
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 83323631-609a-452a-9025-f5348749aa65
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              runOnController: true
+              applyto: caster
+              standardAbilityParams:
+                distance: "3"
+              abilityType: standard
+              guid: 00ab3598-d51f-478d-9d6e-8e3073413c1f
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: f04761d4-a4c7-45f8-9e24-f00ee6b452a5
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Triggered Modifier
+          rules: ""
+          behavior: power
+          rollType: ability_power_roll
+          modtype: none
+        guid: e3ecb7cb-c14c-4a95-aca3-34ff5aec42cc
+        type: trigger
+        domains:
+          CharacterFeature:ec05b6c4-b132-4dad-9eb7-cedd7fd1040e: true
+        targetType: self
+        behavior: powertabletrigger
+        name: Skitter
+        rules: The arixx halves the damage and shifts up to 3 squares after the triggering effect resolves.
+        description: |-
+          The arixx halves the damage and shifts up to 3 squares after
+          the triggering effect resolves.
+        range: 10
+        trigger: takedamage
+      source: Character Feature
+      description: |-
+        The arixx halves the damage and shifts up to 3 squares after
+        the triggering effect resolves.
+      guid: ec05b6c4-b132-4dad-9eb7-cedd7fd1040e
+      name: Skitter
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+        CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+          CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+        sourceguid: 58bdd65e-5a1b-4448-8a61-1b18d5171e7b
+        description: At the end of their turn, the arixx can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        source: Trait
+        name: End Effect
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: End one save ends effect on self, take 5 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: f2459800-5424-4e21-9879-b320a1a0b74e
+          conditionFormula: SaveEndsEffects
+          trigger: endturn
+          castImmediately: true
+          persistence: []
+          domains:
+            CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+            CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+          name: End Effect
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "5"
+            conditions: []
+            purgeType: one
+            targetDuration: save
+          description: |
+            At the end of each of their turns, the arixx can take 5 damage to end one effect on them that can be ended by a saving throw. 
+            This damage can’t be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: e33ea2d9-6393-4e4a-93c5-af808f232588
+      source: Trait
+      description: At the end of their turn, the arixx can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: ef38cf8f-1ce1-4963-8886-8ab0f0ff650b
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cafd4a84-1bbe-4907-8be5-6382cdd5c948
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+        name: Solo Turn
+        guid: 5346c414-b1b1-4ed4-b3ca-ec3a699009ad
+        description: The arixx can take two turns each round. They can’t take turns consecutively.
+        behavior: attribute
+        attribute: extraturns
+      source: Character Feature
+      description: The arixx can take two turns each round. They can’t take turns consecutively.
+      guid: cafd4a84-1bbe-4907-8be5-6382cdd5c948
+      name: Solo Turn
+      implementation: 2
+    role: Solo
+    initiativeGrouping: 301d4e3d-cf03-4d35-bb68-8e681b919ce0
+    equipment: []
+    titles: []
+    aurasEntered:
+      8b7c0977-cb9b-4ed7-b7d5-9c0da318859a: true
+      65ff269e-6341-4e40-99ab-7460f059ad7f: true
+    9e830af3-0fe1-4ac0-8726-6dd0853b825b_history:
+      __typeName: StatHistory
+      entries:
+        e5e73d99-4fe3-4885-94aa-294657c1f5b3:
+          note: Skitter
+          abilityid: 41c82eef-164a-4eae-ad95-598c6a8c7816
+          timestamp: 1756836541057
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+    moveDistanceRoundId: 28757ca8-5683-4525-8ebe-937158282942-1
+    resistances: []
+    creatureSize: "2"
+    availableTriggers: []
+    minion: false
+    monster_type: Arixx
+    expectedDamage: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        e48f24e0-8501-458b-b599-351433b9329e:
+          note: Dust Cloud
+          abilityid: c28e6c42-4370-4cc6-b96e-6602e25eae0d
+          timestamp: 1756835704024
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        612d3788-43d9-46ba-b973-3c0e88c2d4b7:
+          note: Dust Cloud
+          abilityid: c28e6c42-4370-4cc6-b96e-6602e25eae0d
+          timestamp: 1756596815144
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        87d3fea5-95b0-40b5-b886-1b103c78a9b1:
+          note: Grab
+          abilityid: adc7542e-9f0f-488e-b8dc-47247339044d
+          timestamp: 1756680237048
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        3bbe3ce7-89bd-4290-88bf-4f3d84b13d7f:
+          note: Dig
+          abilityid: 5e9b630d-7064-4106-ac81-aa817bf3081c
+          timestamp: 1757016812813
+          refreshid: 7cb59ba5-4231-4a2e-a817-1c322c88451d-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    ongoingEffects: []
+    damage_taken: 0
+    keywords:
+      Beast: true
+      Arixx: true
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 28757ca8-5683-4525-8ebe-937158282942-10
+      99683ba3-d40d-4ec8-a014-93a713f10d75:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-9
+      0c8624d6-cab0-4d6b-afe6-5fac5d79de30:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 28757ca8-5683-4525-8ebe-937158282942-7-ca9280b6-9a45-4dee-b597-74a13509ff11
+      fac8a069-5ae1-4986-b2fc-498ea0459f09:
+        __typeName: CharacterResource
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 7cb59ba5-4231-4a2e-a817-1c322c88451d-1
+      9e830af3-0fe1-4ac0-8726-6dd0853b825b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-6
+    skillRatings: []
+    groupid: 989b079c-c001-4b96-af1d-4f54b6f6fa58
+    deathSavingThrowFailures: 0
+    equipmentMeta:
+      offhand0: []
+    movementSpeeds:
+      burrow: 5
+    traitNames: []
+    walkingSpeed: 5
+    99683ba3-d40d-4ec8-a014-93a713f10d75_history:
+      __typeName: StatHistory
+      entries:
+        ac45f51d-731b-4ac7-8df7-ccbe34f3e532:
+          note: Solo Turn
+          abilityid: c932f4a5-144c-42d7-8bd6-d7c195db910b
+          timestamp: 1756837791996
+          refreshid: 9ba0975e-deac-4118-ab84-7d899b274685-9
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        c909e2b5-9a64-4a1c-97f3-ebe6166591f5:
+          note: Solo Action
+          timestamp: 1757062005488
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-5
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        07a68540-0a7d-491a-ae79-7a2592960a47:
+          note: Claw Swing
+          abilityid: dcc3658a-d6f9-4ec9-89e9-f3a22a2a0a8e
+          timestamp: 1757063634874
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-7
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        52d90b02-091e-420e-9bea-040e5a8ed50e:
+          note: Dirt Devil
+          abilityid: f4a15063-290b-4273-951f-fc916f9deac4
+          timestamp: 1757062660224
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-6
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        0562b941-82d7-4e27-bc8b-615697738829:
+          note: Claw Swing
+          abilityid: dcc3658a-d6f9-4ec9-89e9-f3a22a2a0a8e
+          timestamp: 1757064849887
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-9
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        6958d46e-e560-41a6-b67a-79da5f92e7f8:
+          note: Claw Swing
+          abilityid: dcc3658a-d6f9-4ec9-89e9-f3a22a2a0a8e
+          timestamp: 1757061722952
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-4
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        f1f51051-fe9f-4fdc-bd03-599c1fd379f0:
+          note: Bite
+          abilityid: 564c24ea-3dc6-4c4e-b7e2-8840da4b78c2
+          timestamp: 1757061764008
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-5
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        98496ff1-e4af-4644-8bb0-f1603330438f:
+          note: Bite
+          abilityid: 564c24ea-3dc6-4c4e-b7e2-8840da4b78c2
+          timestamp: 1757064637596
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-8
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        58f2fce0-2487-4799-9c53-87807858d63e:
+          note: Claw Swing
+          abilityid: dcc3658a-d6f9-4ec9-89e9-f3a22a2a0a8e
+          timestamp: 1757064992870
+          refreshid: 28757ca8-5683-4525-8ebe-937158282942-10
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+  tokenType: null
+  bestiaryId: 22f45493-ced6-4eb4-bfe8-05c1c83b5e31
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1738222235594
+description: null
+parentFolder: 4ba83683-cb97-49fa-b432-5eee096affbf
+artist: null
+ord: 5
+ctime: 1762939303262
+mtime: 1775167424000
+hidden: false

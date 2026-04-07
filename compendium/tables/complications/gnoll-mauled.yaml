@@ -1,0 +1,142 @@
+__typeName: CharacterComplication
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: Whenever an ally within 5 squares is reduced to 0 Stamina, you can use a triggered action to move up to your speed and make a free strike.
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: Move up to your speed and make a free strike
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+        modifiers: []
+        subjectRange: "5"
+        strain: []
+        guid: 3d969664-5050-4346-9db5-51f67edbb872
+        abilityType: none
+        trigger: dying
+        castImmediately: true
+        persistence: []
+        numTargets: "1"
+        name: Gnoll-Mauled - Benefit
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          applyto: targets
+          runOnController: true
+          standardAbility: 1c423f02-73e6-4c44-8341-17d854f15fc5
+          abilityType: standard
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 9f1b12bd-0ddc-4120-8c43-609de2cc08e9
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        description: ""
+        subject: otherheroes
+        iconid: ui-icons/skills/1.png
+      description: Whenever an ally within 5 squares is reduced to 0 Stamina, you can use a triggered action to move up to your speed and make a free strike.
+      source: Complication
+      behavior: trigger
+      guid: 8132a2e1-e525-4260-a720-0c804f5bdd16
+      name: Gnoll-Mauled - Benefit
+      sourceguid: 46d202df-85a8-4fc9-ada1-a0642a73066c
+    source: Complication
+    canHavePrerequisites: true
+    guid: 46d202df-85a8-4fc9-ada1-a0642a73066c
+    name: Gnoll-Mauled - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: While you are dazed, if you start your turn adjacent to one or more creatures, you must use your main action to make a melee free strike against an adjacent creature.
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        characterConditionRequired: c27e0b16-291a-45ad-8406-973e26576a44
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 0a206e38-179f-45af-ba93-08884f05f2bf
+        conditionFormula: Count Nearby Creatures(1)
+        castImmediately: true
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          runOnController: true
+          promptText: "Gnoll-Mauled Drawback: You must use your main action to make a melee free strike against an adjacent creature."
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 0eea24e6-77c1-495d-b9a8-fb9d6fd619b6
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: standard
+          standardAbility: 9b123334-6d7c-4848-8b17-db3255c4012c
+        name: Gnoll-Mauled - Benefit
+        trigger: beginturn
+        numTargets: "1"
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: While you are dazed, if you start your turn adjacent to one or more creatures, you must use your main action to make a melee free strike against an adjacent creature.
+      source: Complication
+      behavior: trigger
+      guid: 4b4c4a0f-6c81-438a-b70f-5d3c8dd67161
+      name: Gnoll-Mauled - Drawback
+      sourceguid: 613929b1-d446-43f8-b6c7-f2cf2d02f518
+    source: Complication
+    canHavePrerequisites: true
+    guid: 613929b1-d446-43f8-b6c7-f2cf2d02f518
+    name: Gnoll-Mauled - Drawback
+    implementation: 3
+id: 80494f4c-aa4d-40c3-97c3-fcc2f8934697
+ctime: 1755515013789
+drawback: While you are dazed, if you start your turn adjacent to one or more creatures, you must use your main action to make a melee free strike against an adjacent creature.
+name: Gnoll-Mauled
+mtime: 1765790000841
+description: |-
+  As a child, you survived a gnoll attack. But that attack left you with a jagged scar and the occasional fit of bloodlust.
+
+  Special: You can’t take this complication if you can’t be made dazed.
+benefit: Whenever an ally within 5 squares is reduced to 0 Stamina, you can use a triggered action to move up to your speed and make a free strike.
+prerequisite: not Condition Immunities has "Dazed"

@@ -1,0 +1,10 @@
+__typeName: Party
+noncombatant: true
+ord: 9
+name: Non-Combatants
+id: b72876c4-e9d7-42dc-a8a1-cd4c3744056c
+mtime: 1773663831468
+allyParties:
+  336f53d5-438e-4450-ac09-9e7a49412d53: true
+  0339ff3e-f288-4a85-a02c-a458c091684f: true
+ctime: 1773663831468

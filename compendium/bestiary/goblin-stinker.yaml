@@ -1,0 +1,338 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5bb4a700-f68d-44ad-b6d5-03ed67fde2cb
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.158824
+    portraitOffset:
+      x: -0.02343714
+      y: 0.03181362
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2f450dc6-9265-4242-a947-d4482a77413d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 10
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    attackNames:
+    - Light Melee
+    monster_type: Goblin Stinker
+    levelChoices: []
+    pr: 1
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Goblin Stinker	Level 1 Horde Controller
+        Goblin, Humanoid	EV 3
+        <b>Stamina</b> 10
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1S / <b>Stability</b> 0
+        	<b>Free Strike</b> 1
+        Might -2	Agility +1	Reason +0	Intuition +0	Presence +2
+        <b>Toxic Winds</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 15	<b>Target</b> Each enemy in the cube
+        %E2%9C%A6	%E2%89%A411	1 poison damage; slide 1
+        %E2%98%85	12%E2%80%9316	2 poison damage; slide 2
+        %E2%9C%B8	17+	3 poison damage; slide 3
+        <b>1+ Malice</b> Increase the slide for one target by 1 square for each malice spent.
+
+        <b>Swamp Gas</b> (Maneuver)
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 10	<b>Target</b> Special
+        <b>Effect</b> The area is filled with a green haze until the start of the stinker's next turn or until the stinker is reduced to Stamina 0. The area is difficult terrain for non-goblin creatures, and each such creature who moves within the area takes 2 poison damage for each square moved. The haze can't be dispersed by wind.
+
+        <b>Crafty</b>
+        The stinker doesn't provoke opportunity attacks by moving.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e3477ff0-0837-4260-bed3-978987013799: true
+        CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:e3477ff0-0837-4260-bed3-978987013799: true
+        name: Crafty
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        description: The stinker doesn't provoke opportunity attacks by moving.
+        behavior: attribute
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Crafty: you do not provoke opportunity attacks while moving."
+        sourceguid: eae4d953-c53f-41d8-aae3-cc9de122b1f8
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        description: The stinker doesn't provoke opportunity attacks by moving.
+        guid: 02b087c5-68cc-42d3-9f55-ff942c57ab16
+        color: green
+      source: Trait
+      description: The stinker doesn't provoke opportunity attacks by moving.
+      guid: e3477ff0-0837-4260-bed3-978987013799
+      name: Crafty
+      implementation: 3
+    role: Horde Controller
+    equipment: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 1
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    keywords:
+      Goblin: true
+      Humanoid: true
+    initiativeGrouping: ef8295f4-0df3-4301-981c-a97499b5a0ab
+    notes:
+    - text: ""
+      title: Monster Notes
+    damage_taken: 0
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 9e3141e3-64e7-407b-8b5c-35179e898efd-20
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 0caa7f36-1f3b-4106-8dbf-32469bc65a08-2
+        used: 1
+    creatureSize: 1S
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 0a60a2c0-4ec2-472f-b6f7-4148f92d1069-4091
+    walkingSpeed: 5
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: eaaa3465-1cb0-4d37-8aa7-6a86343b5fbf
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 poison damage; slide 1
+        - 2 poison damage; slide 2
+        - 3 poison damage; slide 3
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 064441de-1279-4c36-8617-dd88368d9e4f
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 064441de-1279-4c36-8617-dd88368d9e4f
+          resourceCostType: multicost
+          modtype: none
+          adjustments:
+          - type: slide
+            value: charges
+          keywords: []
+          activationCondition: false
+          domains: []
+          rollType: ability_power_roll
+          name: "Toxic Winds: 1+ Malice"
+          description: For every Malice spent, one target can be moved one additional square.
+          behavior: power
+          guid: 39c4c68c-c3c5-4536-9269-53310a01f5af
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      implementation: 4
+      numTargets: 1
+      name: Toxic Winds
+      radius: 3
+      description: |2-
+
+        **Spend Malice**: For each Malice spent, one target can be force moved 1  additional square.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: cube
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.323750138282776
+          s: 1.00267505645752
+          v: 1.0030654668808
+          a: 1
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: true
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: b212d70a-ccee-47c2-9f1b-e12f24a5060b
+      numTargets: 1
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        duration: nextturn
+        aura:
+          __typeName: Aura
+          difficult_terrain: true
+          movedamage: poison
+          guid: ddb2101f-0c27-4105-bf08-d3d1bbce0e82
+          objectid: 4623e5a8-2823-4611-98aa-63ee700f38ab
+          applyto: othertype
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.316500425338745
+              s: 1.00267481803894
+              v: 1.0030654668808
+              a: 1
+          modifiers: []
+          name: Swamp Gas
+          triggers: []
+          description: The area is difficult terrain for non-goblin creatures, and each such creature who moves within the area takes 2 poison damage for each square moved. The haze can't be dispersed by wind.
+          damage: 2
+          iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+      radius: 3
+      name: Swamp Gas
+      persistence: []
+      description: The area is filled with a green haze until the start of the stinker's next turn or until the stinker is reduced to Stamina 0. The area is difficult terrain for non-goblin creatures, and each such creature who moves within the area takes 2 poison damage for each square moved. The haze can't be dispersed by wind.
+      abilityType: none
+      iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+    movementSpeeds:
+      climb: 5
+    fmr: 0
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        a6e5ae95-ed7c-4f36-9c97-77ba859234f3:
+          refreshid: 0caa7f36-1f3b-4106-8dbf-32469bc65a08-2
+          note: Swamp Gas
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    monster_category: Monster
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        06ffec71-9ac5-4f15-9d14-d55a393b7938:
+          note: Toxic Winds
+          abilityid: eaaa3465-1cb0-4d37-8aa7-6a86343b5fbf
+          refreshid: 9e3141e3-64e7-407b-8b5c-35179e898efd-20
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+  tokenType: null
+  bestiaryId: 1fbc1702-f1c0-4710-aa4b-d26d325c0366
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1715748088616
+description: Goblin Stinker
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590228118
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,46 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 344a6062-6023-4b03-8872-c7a097e36052
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:344a6062-6023-4b03-8872-c7a097e36052: true
+  name: Step of the Mist
+  guid: b8e76995-4e3a-4432-9e4c-2cab24cc8084
+  description: Water Wolf can fly and gains a +2 bonus to the distance of forced movement from their abilities
+  behavior: attribute
+  attribute: fly
+- __typeName: CharacterModifier
+  sourceguid: 344a6062-6023-4b03-8872-c7a097e36052
+  source: Ongoing Effect
+  value: 2
+  domains:
+    CharacterOngoingEffect:344a6062-6023-4b03-8872-c7a097e36052: true
+  name: Step of the Mist
+  guid: 882dde30-679f-4da1-85a6-0e39daa1ef84
+  description: Water Wolf can fly and gains a +2 bonus to the distance of forced movement from their abilities
+  behavior: attribute
+  attribute: b92d0101-f9a6-4c66-81e4-cdad46e6f1bb
+source: Ongoing Effect
+guid: 344a6062-6023-4b03-8872-c7a097e36052
+id: 344a6062-6023-4b03-8872-c7a097e36052
+ctime: 1760184530341
+domains:
+  CharacterOngoingEffect:344a6062-6023-4b03-8872-c7a097e36052: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.642000019550323
+    s: 0.857421934604645
+    v: 0.755040347576141
+    a: 1
+name: Step of the Mist
+custom: true
+description: Water Wolf can fly and gains a +2 bonus to the distance of forced movement from their abilities
+mtime: 1760185088608
+iconid: a6181095-2968-4f20-9dab-f7d58772f34e

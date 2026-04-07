@@ -1,0 +1,88 @@
+__typeName: ActivatedAbility
+id: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: Ability.Usable as Signature Ability and (Ability.keywords has "Strike")
+    behavior: modifyability
+    guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+    cannotModifyAction: true
+    attributes: []
+    mustPayResourceCost: true
+    description: ""
+    name: Modify Attack
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors:
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 24da8f4f-7301-4684-aa46-70cc29cb969e
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 24da8f4f-7301-4684-aa46-70cc29cb969e
+          displayCondition: "<<edges=0>> = 1"
+          modtype: edge
+          keywords: []
+          activationCondition: "<<edges=0>> = 1"
+          guid: e1bd4f29-1a1d-4f76-bd67-15036b48dc26
+          name: Added Edges
+          domains: []
+          description: These edge(s) were added as part of invoking this ability.
+          behavior: power
+          rollType: ability_power_roll
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 8b467e22-c22c-4058-9f01-c19d5dd04c91
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 24da8f4f-7301-4684-aa46-70cc29cb969e
+          displayCondition: "<<edges=0>> = 2"
+          modtype: double_edge
+          keywords: []
+          activationCondition: "<<edges=0>> = 2"
+          guid: e1bd4f29-1a1d-4f76-bd67-15036b48dc26
+          name: Added Edges
+          domains: []
+          description: These edge(s) were added as part of invoking this ability.
+          behavior: power
+          rollType: ability_power_roll
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+importMatch: ""
+ctime: 1728091875221
+repeatTargets: false
+targetType: self
+numTargets: "1"
+name: Signature Strike
+mtime: 1771813187243
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

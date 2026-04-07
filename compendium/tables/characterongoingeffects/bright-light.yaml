@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: b15fa107-38d7-4552-b2d3-aba88e4e3869
+id: b15fa107-38d7-4552-b2d3-aba88e4e3869
+ctime: 1770819355709
+domains:
+  CharacterOngoingEffect:b15fa107-38d7-4552-b2d3-aba88e4e3869: true
+custom: true
+description: Visual FX only
+name: Bright Light
+statusEffect: false
+mtime: 1770819514231
+emoji: 95919a3e-5b47-4928-bc5d-f100e03456df
+iconid: ui-icons/skills/1.png

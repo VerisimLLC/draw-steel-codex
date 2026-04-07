@@ -1,0 +1,37 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  behavior: power
+  keywords:
+    Melee: true
+    Attack: true
+  activationCondition: true
+  name: Next Melee Attack Against Has Edge
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  description: The next melee attack against this creature has an Edge
+  modtype: edge
+  rollType: enemy_ability_power_roll
+source: Ongoing Effect
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+id: 9f718744-c510-4313-9b48-219388823620
+ctime: 1742895416101
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.564452886581421
+    v: 1.00193929672241
+    a: 1
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+description: The next melee attack against this creature has an Edge
+endTrigger: attacked
+name: Next Melee Attack Against Has Edge
+categorization: common
+mtime: 1742895448697
+implementation: 3

@@ -1,0 +1,526 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:The Cava:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: The Cava
+  encounter:Burning Square QB:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Burning Square QB
+  encounter:Burning Square:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: Burning Square
+  'encounter:The ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'The '
+  encounter:The:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: The
+  encounter:The Cavalry-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: The Cavalry
+  encounter:The Cavalry:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-1,14,2"
+        - __usertype: LuaLoc
+          loc: "0,14,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "7,13,2"
+        - __usertype: LuaLoc
+          loc: "8,13,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-1,16,2"
+        - __usertype: LuaLoc
+          loc: "0,16,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          1fbc1702-f1c0-4710-aa4b-d26d325c0366: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "7,16,2"
+        - __usertype: LuaLoc
+          loc: "8,16,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          1fbc1702-f1c0-4710-aa4b-d26d325c0366: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "7,11,2"
+        - __usertype: LuaLoc
+          loc: "8,11,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-1,12,2"
+        - __usertype: LuaLoc
+          loc: "0,12,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-1,9,2"
+        - __usertype: LuaLoc
+          loc: "0,9,2"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 4
+      - appearances:
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "7,9,2"
+        - __usertype: LuaLoc
+          loc: "8,9,2"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 5
+      - appearances:
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "5,7,2"
+        - __usertype: LuaLoc
+          loc: "6,7,2"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 6
+      name: The Cavalry
+    identifier: The Cavalry
+  encounter:civilians:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "7,12,2"
+        - __usertype: LuaLoc
+          loc: "7,15,2"
+        - __usertype: LuaLoc
+          loc: "-1,13,2"
+        - __usertype: LuaLoc
+          loc: "-1,11,2"
+        - __usertype: LuaLoc
+          loc: "-1,15,2"
+        - __usertype: LuaLoc
+          loc: "7,10,2"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          50f884a7-8b66-4cf9-b7aa-f35cb3065cd8: 6
+      - appearances:
+        - false
+        monsters:
+          50f884a7-8b66-4cf9-b7aa-f35cb3065cd8: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-1,8,2"
+        invisibleToPlayers:
+        - false
+        minHeroes: 4
+      - appearances:
+        - false
+        monsters:
+          50f884a7-8b66-4cf9-b7aa-f35cb3065cd8: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "7,8,2"
+        invisibleToPlayers:
+        - false
+        minHeroes: 5
+      - appearances:
+        - false
+        monsters:
+          50f884a7-8b66-4cf9-b7aa-f35cb3065cd8: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "5,6,2"
+        invisibleToPlayers:
+        - false
+        minHeroes: 6
+      name: Civilians
+    identifier: civilians
+  encounter:civi:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: civi
+  encounter:civ:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: civ
+  encounter:T:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: T
+  encounter:The Cavalry QB:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "8,13,2"
+        - __usertype: LuaLoc
+          loc: "7,13,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,14,2"
+        - __usertype: LuaLoc
+          loc: "-1,14,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          2505b4b1-fbe1-4966-81a5-3b75b75dcec0: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,16,2"
+        - __usertype: LuaLoc
+          loc: "-1,16,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          1e16b64f-44bc-450a-b2bd-2dfb8958f9c1: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "8,16,2"
+        - __usertype: LuaLoc
+          loc: "7,16,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          1e16b64f-44bc-450a-b2bd-2dfb8958f9c1: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "8,11,2"
+        - __usertype: LuaLoc
+          loc: "7,11,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,12,2"
+        - __usertype: LuaLoc
+          loc: "-1,12,2"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+      - appearances:
+        - false
+        - false
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,9,2"
+        - __usertype: LuaLoc
+          loc: "-1,9,2"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 4
+      - appearances:
+        - false
+        - false
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "8,9,2"
+        - __usertype: LuaLoc
+          loc: "7,9,2"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 5
+      - appearances:
+        - false
+        - false
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 1
+          d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "5,7,2"
+        - __usertype: LuaLoc
+          loc: "6,7,2"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 6
+      name: The Cavalry QB
+    identifier: The Cavalry QB
+  encounter:The Caval:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: The Caval
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: ""
+id: 7bff37a3-0836-45c4-a25b-30bb9e822095
+ctime: 1764024710476
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Nc: |+
+      ## The Heroes have the Cup of Iulius
+
+    "No": |+
+      ## Queen Bargnot has the Cup of Iulius
+
+    NW: |+
+      [[encounter:civilians]]
+
+    t: |+
+      ## Ending the Encounter
+
+    Ni: |+
+      [[encounter:The Cavalry]]
+
+    r: |+
+      Goblins drawn into the battle have straightforward tactics. The assassins and warriors move around the battlefield with their worgs, running in and out of melee while the stinkers ride around the edge of the battlefield and attempt to keep the heroes away from still-captive civilians.
+
+
+    MM: |+
+      *Place down the relevant Monsters, and then mount up the goblins by dragging them into the mount slots*
+
+    Nu: |+
+      [[encounter:The Cavalry QB]]
+
+
+    n: |+
+      The well at the center of the town is 4 squares deep and has less than 1 square of water in it.
+
+
+    l: |+
+      ## Well
+
+    j: |+
+      The goblins favor targeting the heroes over freed captives, but they don't mind if a captive gets caught in the crossfire.
+
+
+    g: |+
+      A hero who is adjacent to a restrained captive can use a maneuver to free a captive, pulling them off the worg into an unoccupied adjacent square and ending the restrained condition for that captive. If a captive is force moved, they are similarly freed.
+
+    h: |+
+      Each freed captive acts at the end of the round, moving toward the nearest edge of the map that they can while avoiding danger. If they move off the edge of the map, they are safe and leave the encounter.
+
+    e: |+
+      Each of the eight worg-riding goblins has a captive on their back, a restrained civilian. While restrained, the civilian can occupy the same space as a goblin riding a worg.
+
+    f: |+
+      While a goblin has a captive on their back, they attempt to reach the south end of the map, leaving the encounter if they move off that edge of the map with the captive. If a goblin loses their captive, they turn and fight the heroes instead.
+
+    c: |+
+      * For three heroes, remove two goblin warriors and two worgs and two civilians.
+
+
+    d: |+
+      ##Freeing the Captives
+
+    a: |
+      * For six heroes, add one goblin warrior riding one worg who carries one civilian captive.
+    b: |
+      * For four heroes, remove one goblin warrior, one worg, and one civilian.
+    Y: |
+      **Encounter Adjustments**
+    Z: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    W: |
+      |7 |One [goblin warrior] (rider) One [worg] (mount)|
+    X: |+
+      |8 |One [goblin warrior] (rider) One [worg] (mount)|
+
+    U: |
+      |5 |One [goblin warrior] (rider) One [worg] (mount)|
+    V: |
+      |6 |One [goblin warrior] (rider) One [worg] (mount)|
+    S: |
+      |3 |One [goblin stinker] (rider) One [worg] (mount)|
+    T: |
+      |4 |One [goblin stinker] (rider) One [worg] (mount)|
+    Q: |
+      |1 |One [goblin assassin] (rider) One [worg] (mount)|
+    R: |
+      |2 |One [goblin assassin] (rider) One [worg] (mount)|
+    O: |
+      **The Cavalry Groups**
+    P: |
+      |**Group** |**Creatures**|
+    K: |+
+      > *  “The goblin in front calls, ‘Let’s take ’em back to base and watch ’em squirm!’”
+
+
+    L: |+
+      The heroes free villagers captured by worg-riding goblins as the Jagged Edge raid Broadhurst.
+
+    I: |
+      > *  “A howl sounds as a band of canine-riding goblins comes into the square.”
+    J: |
+      > *  “Each goblin has a farmer tied and gagged on the back of their wolf as they attempt to thunder across the square.”
+    LH: |+
+      [[/activateobjects e23_start.AreaTemplate activate|Show Hero Start Area]][[/activateobjects e23_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+
+    H: |2+
+
+
+    x: |
+      [[//awardvp 1|Award Heroes 1 Victory]] [[//awardvp 2|Award Heroes 2 Victories]]
+    v: |
+      Goblins and worgs without captives fight until the heroes outnumber the whole group two to one, and then they flee. If the heroes save half or more civilians, they earn 1 Victory each. If they save every civilian, they earn 2 Victories each.
+    p: |+
+      ## Tactics
+
+    G: |
+      # Encounter 2: The Cavalry
+    NR: |+
+      [[setting:Number of Heroes]]
+
+
+parentFolder: 3c68a98c-720a-433b-977c-dee19e9fcaf4
+updateid: cf49a83b-8690-4617-96a5-d62476c637f6
+mtime: 1772545243339
+content: "# Room 2"
+description: "Encounter 2: The Cavalry"

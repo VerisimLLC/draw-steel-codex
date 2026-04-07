@@ -1,0 +1,146 @@
+__typeName: CharacterComplication
+drawback: Each time you use your Posthumous Retirement ability, the Director can spend 3 Malice to make your collar malfunction and deal its damage to you in addition to the usual targets.
+mtime: 1768342479138
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      description: ""
+      sourceguid: 248c9b2d-f9ec-452f-859e-d1e6fcf42679
+      behavior: activated
+      source: Feat
+      resourceRefreshType: none
+      guid: 31cac8fe-fd24-40bd-a2a2-a2d57ef771e3
+      name: War Dog Collar - Benefit
+      activatedAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        repeatTargets: false
+        keywords:
+          Magic: true
+          Area: true
+        targetAllegiance: enemy
+        targetType: all
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0
+            s: 0.940429747104645
+            v: 0.929467916488647
+            a: 1
+        flavor: You make your modified collar explode.
+        sourceReference:
+          __typeName: SourceReference
+          page: 246
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        usageLimitOptions:
+          resourceRefreshType: none
+          charges: "1"
+          resourceid: 31cac8fe-fd24-40bd-a2a2-a2d57ef771e3
+          multicharge: false
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 187d4f70-b4c8-4199-b596-1c9f083b4d28
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        numTargets: "1"
+        domains: []
+        behaviors:
+        - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+          applyto: first_target
+          lingerTime: 3
+          momentaryEffect:
+            __typeName: CharacterOngoingEffect
+            guid: c96e4f19-1e89-4161-bcfd-3b0cf0914ce8
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0
+                s: 0.940429747104645
+                v: 0.929467916488647
+                a: 1
+            modifiers:
+            - __typeName: CharacterModifier
+              triggeredAbility:
+                __typeName: TriggeredAbility
+                resourceNumber: 3
+                repeatTargets: false
+                targetType: attacker
+                triggerPrompt: Deal equal damage to the caster of Posthumous Retirement
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                mandatory: false
+                range: "50"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: c1a6caab-bb0b-41eb-b682-28479df3dd86
+                abilityType: none
+                trigger: losehitpoints
+                conditionFormula: ""
+                behaviors:
+                - __typeName: ActivatedAbilityDamageBehavior
+                  damageType: fire
+                  roll: Attacker.level + 5
+                - __typeName: ActivatedAbilityReplenishBehavior
+                  applyto: caster
+                  mode: expend
+                  resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+                  quantity: "3"
+                numTargets: "1"
+                name: Posthumous Retirement malfunction
+                subject: self
+                description: ""
+                resourceCost: none
+                iconid: ui-icons/skills/1.png
+              description: ""
+              source: Malice Global Rule Mod Feature
+              behavior: trigger
+              guid: 68a0b822-3dfa-4746-aeaf-e15fd6cf15df
+              name: Posthumous Retirement trigger
+              sourceguid: c066c8ad-9a24-486b-b5d3-e5c6a116f8fe
+            source: Ongoing Effect
+            name: Posthumous Retirement Malice Response
+            description: ""
+            id: c96e4f19-1e89-4161-bcfd-3b0cf0914ce8
+            iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+          name: Ability Duration Effect
+        - __typeName: ActivatedAbilityDamageBehavior
+          damageType: fire
+          roll: 5+Level
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          ongoingEffect: c53587cb-53a6-46e1-92ef-ac3eb5d35efb
+          duration: eoe
+          ongoingEffectCustom: c53587cb-53a6-46e1-92ef-ac3eb5d35efb
+        categorization: Ability
+        name: Posthumous Retirement
+        implementation: 3
+        description: Your loyalty collar detonates, dealing fire damage equal to 5 plus your level to each target. Once you use this ability, you can’t use it again until you spend 1 uninterrupted minute out of combat resetting the collar
+        abilityType: none
+        iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+    name: War Dog Collar - Benefit
+    description: ""
+    guid: 248c9b2d-f9ec-452f-859e-d1e6fcf42679
+    canHavePrerequisites: true
+    source: Feat
+name: War Dog Collar
+ctime: 1755518283176
+description: "You wear a loyalty collar from one of Ajax’s war dogs (see Draw Steel: Monsters). You’ve managed to rig the collar so it explodes outward while keeping you safe."
+id: 6d150697-ecb9-4300-8d15-6adb67fe6b1e
+benefit: |-
+  Even if you are a war dog yourself, other war dogs can’t use their Posthumous Promotion ability on you while you wear your collar. Additionally, you have the following ability:
+
+  Posthumous Retirement

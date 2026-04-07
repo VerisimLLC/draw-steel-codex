@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 5d346701-ddd8-47a2-8a8e-0df7c46adeb6
+id: 5d346701-ddd8-47a2-8a8e-0df7c46adeb6
+ctime: 1771325194979
+domains:
+  CharacterOngoingEffect:5d346701-ddd8-47a2-8a8e-0df7c46adeb6: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Targeted This Ability
+statusEffect: false
+description: This creature was targeted during this ability.
+mtime: 1771325436279
+iconid: ui-icons/skills/1.png

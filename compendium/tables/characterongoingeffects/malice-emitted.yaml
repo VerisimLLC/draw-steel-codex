@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 8148e1e8-224b-4b15-8424-b281f9d319d9
+id: 8148e1e8-224b-4b15-8424-b281f9d319d9
+ctime: 1763631737367
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Malice Emitted
+statusEffect: false
+mtime: 1764583620857
+description: Malice Emitter trigger has been used by an Ichor this turn
+iconid: ui-icons/skills/1.png

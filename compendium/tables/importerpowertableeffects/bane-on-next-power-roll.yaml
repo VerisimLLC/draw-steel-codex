@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: 3179dda3-d29b-4779-b796-17b28e9381a4
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: db4a514a-7380-47d7-a842-e5f09309d372
+  ongoingEffectCustom: d9703a62-564a-42ee-8317-8886a473a6f8
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: the target takes a bane on their next power roll
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 9e71271a-affd-4021-adb2-bbb7fcfe0ae5
+importMatch: "<<monster>> takes a bane on their next power roll"
+ctime: 1758982300103
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Bane on next power roll
+targetType: self
+mtime: 1774013704331
+abilityType: none
+iconid: ui-icons/skills/1.png

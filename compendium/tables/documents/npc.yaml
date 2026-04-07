@@ -1,0 +1,51 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+id: dde17c72-6661-4088-9023-d5e68f23b3f3
+ctime: 1761308426759
+textStorage:
+  __typeName: TextStorage
+  sections:
+    G: |+
+      # Name
+
+    M: |+
+      [[image]]
+
+    s: |-
+      Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+      }
+    S: |
+      *Description, Known Information*
+      {
+    l: |
+      *Use this area to make notes for yourself about the NPC. Suggested information would be:
+    Y: |
+      Secret: Quests or hidden information
+      }
+
+      {
+    e: |+
+      Director Notes: 
+
+parentFolder: templates
+updateid: ad94773e-4791-4202-ad92-b5eb298b53ab
+mtime: 1768858949137
+content: |-
+  # Name
+
+  [[image]]
+
+  *Description, Known Information*
+  {
+  Secret: Quests or hidden information
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+description: NPC

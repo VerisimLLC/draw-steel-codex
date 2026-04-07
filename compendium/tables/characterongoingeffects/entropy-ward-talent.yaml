@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: d3a01212-1b3b-4a43-957e-02a1b9b7f416
+  sourceguid: ee79555f-ba72-4612-81ae-428a0382656e
+  value: "-Stacks"
+  source: Ongoing Effect
+  name: Entropy Ward (Talent)
+  behavior: attribute
+  description: 'You ward slows time for your enemies. Whenever a creature deals damage to you, their speed is reduced by an amount equal to your Reason score and they can’t use triggered actions, all until the end of their next turn. '
+  attribute: speed
+- __typeName: CharacterModifier
+  operation: add
+  sourceguid: ee79555f-ba72-4612-81ae-428a0382656e
+  source: Ongoing Effect
+  value: 1
+  name: Entropy Ward (Talent)
+  guid: c743361d-fe0c-4609-821c-b0865fd1db71
+  description: 'You ward slows time for your enemies. Whenever a creature deals damage to you, their speed is reduced by an amount equal to your Reason score and they can’t use triggered actions, all until the end of their next turn. '
+  behavior: attribute
+  attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+source: Ongoing Effect
+guid: ee79555f-ba72-4612-81ae-428a0382656e
+id: ee79555f-ba72-4612-81ae-428a0382656e
+ctime: 1743411642071
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Entropy Ward (Talent)
+description: 'You ward slows time for your enemies. Whenever a creature deals damage to you, their speed is reduced by an amount equal to your Reason score and they can’t use triggered actions, all until the end of their next turn. '
+custom: true
+mtime: 1749180248095
+iconid: c97f2b52-07a3-43ac-8e5b-f10944132412

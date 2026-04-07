@@ -1,0 +1,103 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: d6e7f8a9-b0c1-2346-defa-456789012dfa
+  description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature also can't use magic abilities until the end of their next turn.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 5ca25da3-c348-4643-8520-c5f655ef4c97
+      repeatTargets: false
+      trigger: useability
+      conditionFormula: Used Ability.doesdamage and Cast.tier = 3
+      targetType: self
+      persistence: []
+      name: Silencing
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          objectTarget: false
+          abilityType: none
+          strain: []
+          guid: 5057d629-bad6-4ad1-b0d0-91fef8974af4
+          repeatTargets: false
+          modifiers: []
+          numTargets: "1"
+          targetType: target
+          categorization: Hidden
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 8af3bf3b-2934-4e57-ae82-15843f01d457
+            duration: end_of_next_turn
+            ongoingEffectCustom: 8af3bf3b-2934-4e57-ae82-15843f01d457
+          description: ""
+          range: "100"
+          iconid: ui-icons/skills/1.png
+        promptText: Select creature you damaged to silence them.
+      description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature also can’t use magic abilities until the end of their next turn.
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature also can't use magic abilities until the end of their next turn.
+    source: Item
+    behavior: trigger
+    guid: d3bbb100-60c9-410b-bfab-d586b292aa61
+    name: Silencing
+    sourceguid: d6e7f8a9-b0c1-2346-defa-456789012dfa
+  - __typeName: CharacterModifier
+    sourceguid: d6e7f8a9-b0c1-2346-defa-456789012dfa
+    guid: 4d450d2c-5aaf-4eb3-a75d-6bcde4c16d7e
+    source: Item
+    behavior: triggerdisplay
+    description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature also can't use magic abilities until the end of their next turn.
+    name: Silencing
+    ability:
+      __typeName: TriggeredAbilityDisplay
+      target: ""
+      effect: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature also can't use magic abilities until the end of their next turn.
+      name: Silencing
+      type: passive
+      guid: 22c323dc-7769-419f-b64e-b0540d06b487
+      distance: ""
+      keywords: []
+  source: Item
+  name: Silencing
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+id: c2189eb8-c2b6-4498-9d56-bd7eac45a3ea
+imbuePrereq: none
+projectSource: The First Language
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: An executioner's hood worn during the execution of a mage
+mtime: 1774708407326
+name: Silencing
+imbueTargetType: weapon
+description: Whenever you damage a creature with an ability using this weapon and obtain a tier 3 outcome, that creature also can't use magic abilities until the end of their next turn.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 3

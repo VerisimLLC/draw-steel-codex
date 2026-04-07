@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 3ae9320b-ce98-46d5-908e-49ff747634d4
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1763107457363
+ctime: 1761786395985
+name: Red Ichor
+flavor: A pint of red ichor
+description: ""
+weight: 1
+iconid: db806e97-fb71-48d7-b99c-f7bf8afa3d2c

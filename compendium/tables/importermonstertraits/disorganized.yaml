@@ -1,0 +1,10 @@
+__typeName: CharacterFeature
+modifiers: []
+source: Monster
+guid: 8b1e11fc-9c6e-4f33-8100-57ee8740816b
+importMatch: "<<monster>> can’t grant the <<condition>> flanking benefit to allies."
+ctime: 1711783050195
+name: Disorganized
+description: ""
+id: 9ebb6e83-f0d4-48ea-8a8f-7e63d2a1f7ea
+mtime: 1711783050195

@@ -1,0 +1,491 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 92e7d06b-ecf3-4cf1-9581-14cb2d68b7d5
+    offtokenPortraitId: f0c1659d-4ba4-4f75-ba52-452e0b91dddd
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.05781257
+    frameSaturation: 0.5575522
+    frameBrightness: 0.4825914
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8e2a0ced-d95f-4cfe-9bce-deebcde74da2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 240
+    inflictedConditions: []
+    ev: 48
+    max_hitpoints_roll: "240"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 4
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      objectTarget: false
+      targetTextOverride: Self and five allies
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster_and_targets
+        ongoingEffect: 21827a29-9af8-46ac-86a0-fc74841584a8
+        ongoingEffectCustom: 21827a29-9af8-46ac-86a0-fc74841584a8
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Malice
+      range: "10"
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: f1271ad5-5335-4c84-8ded-c62381e0a155
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: "5"
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 233
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      name: Imbue with Might
+      selfTarget: false
+      description: Each target gains an edge on their next strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 holy damage
+        - 10 holy damage
+        - 13 holy damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        inheritRange: true
+        promptText: Select the caster or one ally within distance to regain Stamina equal to half the damage dealt.
+        autoTarget: false
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            roll: "<<damagedealt>>"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 6824a654-b1ac-4576-8122-f5464b0ca4eb
+          numTargets: "1"
+          selfTarget: true
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          damagedealt: "<<cast.damage dealt>>"
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 233
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: fd303009-2db3-4aec-81b1-8c7b08186c31
+      categorization: Signature Ability
+      numTargets: "2"
+      targetType: target
+      iconid: be6edf35-8c11-4d0b-bdb8-427772e9ad2f
+      name: Thunder from Heavens
+      persistence: []
+      description: The conduit or one ally within distance regains Stamina equal to half the damage dealt.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Magic: true
+        Melee: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 243
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      abilityType: none
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: Two additional allies within distance regain the same  amount of Stamina.
+        text: Malice
+        condition: ""
+      guid: d5510197-2fd4-4798-b213-378b3e710ad1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; vertical slide 3; M<3 5 lightning damage
+        - 20 damage; vertical slide 4; M<4 7 lightning damage
+        - 24 damage; vertical slide 5; M<5 9 lightning damage
+        roll: 2d10 + Intuition
+      numTargets: 2
+      iconid: ui-icons/skills/1.png
+      categorization: Signature Ability
+      name: Sunder the Very Skies
+      meleeRange: 1
+      description: |-
+        The conduit or one ally within distance regains Stamina equal to half the damage dealt.
+        **2 Malice**: Two additional allies within distance regain the same  amount of Stamina.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 10
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 9c03a53d-b8df-492e-b37d-d802a4e81a04
+      abilityType: none
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 243
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Empyrean Boon
+      numTargets: 5
+      description: Each target has a double edge on their next strike, and that strike deals an extra 10 holy damage. Additionally, they can vertical slide each creature targeted by the strike up to 2 squares.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      casterInfo:
+        abilityName: Rivalry
+        tokenid: b1350c94-bfc7-42d6-87f6-ed4982a08f26
+      ongoingEffectid: e349e64f-4422-4fa9-995b-130c492a473a
+      seq: 1
+      time:
+        __typeName: TimePoint
+        time: 2.61544333065257
+      sourceDescription: Applied by Dizzy Rival Conduit's <b>Rivalry</b> ability
+      stacks: 1
+      id: 0f7d9c1a-b233-4683-b82a-2b2661bf2144
+      removeOnEoE: true
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        dcc0b5ee-3dc6-4187-970c-4e0274f1991e:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 240
+    opportunityAttack: 10
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Rival Conduit	Level 10 Elite Support
+        Humanoid, Rival	EV 48
+        <b>Stamina</b> 240
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 10
+        Might +4	Agility +1	Reason +1	Intuition +5	Presence +3
+        <b>Sunder the Very Skies</b> (Action) %E2%97%86 2d10 + 5 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Ranged, Strike
+        <b>Distance</b> Melee 1 or Ranged 10<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	15 damage; vertical slide 3; M<3 5 lightning damage
+        %E2%98%85	12%E2%80%9316	20 damage; vertical slide 4; M<4 7 lightning damage
+        %E2%9C%B8	17	24 damage; vertical slide 5; M<5 9 lightning damage
+        <b>Effect</b> The conduit or an ally within distance regains Stamina equal to half the damage dealt.
+        <b>2 Malice </b>Two additional allies within distance regain Stamina.
+
+        <b>Empyrean Boon</b> (Maneuver) %E2%97%86 5 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 10<b>	Target</b> Self and up to 5 allies
+        <b>Effect</b> Each target has a double edge, deals an additional 10 holy damage, and inflicts vertical slide 2 on their next strike.
+
+        <b>Unwavering Defender</b>
+        Damage dealt to allies adjacent to the conduit is halved.
+
+        <b>Rivalry</b>
+        The conduit selects one creature within line of effect at the start of an encounter. Both the conduit and the creature can add a 1d3 to all power rolls made against each other.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+        CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+          CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+        sourceguid: 3146422c-eb42-4160-ae0e-642168383dc6
+        behavior: trigger
+        source: Trait
+        name: Rivalry
+        description: The Conduit selects one creature within line of effect at the start of an encounter. Both the Conduit and the creature can add a 1d3 to all power rolls made against each other.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetTextOverride: Choose another magic-wielder as the target for your Rivalry
+              repeatTargets: false
+              targetAllegiance: enemy
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+                duration: eoe
+                ongoingEffectCustom: e349e64f-4422-4fa9-995b-130c492a473a
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 240
+                docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+              range: "50"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: c4193d77-d471-4d84-8d0b-925f72f62cac
+              targetType: target
+              iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              implementation: 3
+            promptText: Choose a player Hero as the target for your Rivalry.
+            autoTarget: false
+            abilityType: custom
+            applyto: caster
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+            duration: eoe
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          guid: c171ef5c-50db-42ed-93a9-9c72ad7ea4bc
+          numTargets: "1"
+          domains:
+            CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+            CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+          description: ""
+          targetType: self
+          trigger: rollinitiative
+          name: Rivalry
+          abilityFilters: []
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 6fc99f50-afce-47f7-b90f-464a3b25089f
+      source: Trait
+      description: The Conduit selects one creature within line of effect at the start of an encounter. Both the Conduit and the creature can add a 1d3 to all power rolls made against each other.
+      guid: 03d6d373-36c8-4559-b50f-0166af9ad568
+      name: Rivalry
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:09216344-a766-4b52-a516-5d684b7076cf: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 09216344-a766-4b52-a516-5d684b7076cf
+        source: Character Feature
+        seq: 2750da31-8f0d-4ba3-b080-65c284a22c0c
+        guid: 905f9894-455b-4c41-ac63-eab47f45e7b4
+        domains:
+          CharacterFeature:09216344-a766-4b52-a516-5d684b7076cf: true
+        radius: "1"
+        behavior: aura
+        description: Strikes made against allies adjacent to the conduit take a bane.
+        aura:
+          __typeName: Aura
+          applyto: friends
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 9a146a57-c340-44a8-9b58-d77c4963a551
+            source: Aura
+            modtype: bane
+            keywords: []
+            activationCondition: true
+            name: Stalwart Guardian Aura
+            guid: ee4520b7-927d-4ad3-9d82-a9d07f0c796f
+            description: Strikes made against allies adjacent to the conduit take a bane.
+            rollType: enemy_ability_power_roll
+            behavior: power
+          name: Stalwart Guardian Aura
+          guid: 9a146a57-c340-44a8-9b58-d77c4963a551
+          description: Strikes made against allies adjacent to the conduit take a bane.
+          objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+          implementation: 3
+        name: Stalwart Guardian
+      source: Character Feature
+      description: Strikes made against allies adjacent to the conduit take a bane.
+      guid: 09216344-a766-4b52-a516-5d684b7076cf
+      name: Stalwart Guardian
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:89a30f23-150a-4d30-bd36-10f0e86835ca: true
+      modifiers: []
+      name: Unwavering Defender
+      description: Damage dealt to any ally adjacent to the conduit is halved.
+      guid: 89a30f23-150a-4d30-bd36-10f0e86835ca
+      source: Trait
+    role: Elite Support
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    xp: 0
+    initiativeGrouping: 6bfb091f-bc8b-4708-b978-6b44d9bf186b
+    keywords:
+      Humanoid: true
+      Rival: true
+    damage_taken: 0
+    notes:
+    - text: ""
+      title: Monster Notes
+    walkingSpeed: 5
+    groupid: 5163b6cd-991f-4277-b81c-8e42a53d328e
+    minion: false
+    resources: []
+    traitNames: []
+    movementSpeeds: []
+    deathSavingThrowSuccesses: 0
+    deathSavingThrowFailures: 0
+    creatureSize: 1M
+    monster_type: Rival Conduit
+  tokenType: null
+  bestiaryId: dba98be2-f430-458e-abd7-54876b2dedfb
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961969981
+description: Rival Conduit
+parentFolder: 62dde676-136f-4d24-9390-903417c9a726
+artist: null
+ord: 0
+ctime: 1765818103667
+mtime: 1765818103667
+hidden: false

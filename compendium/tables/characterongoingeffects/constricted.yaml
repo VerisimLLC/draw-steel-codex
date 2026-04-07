@@ -1,0 +1,43 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e6af2fc8-f8c3-4f56-96cb-4c3f1e82d4c8
+  displayCondition: ability.name = "Escape Grab"
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  activationCondition: "1"
+  activationAfterRoll: false
+  name: Constricted
+  rollType: ability_power_roll
+  description: You take a bane on the Escape Grab Maneuver and strikes against the creature constricting you.
+  guid: 45084fc3-2dc7-4262-95eb-b656b1efe272
+  behavior: power
+- __typeName: CharacterModifier
+  sourceguid: e6af2fc8-f8c3-4f56-96cb-4c3f1e82d4c8
+  source: Ongoing Effect
+  modtype: bane
+  keywords:
+    Strike: true
+  activationCondition: true
+  activationAfterRoll: false
+  rollType: ability_power_roll
+  guid: d29588b9-e8ae-450c-a7e8-086be7ff4be8
+  description: You take a bane on the Escape Grab Maneuver and strikes against the creature constricting you.
+  behavior: power
+  name: Constricted
+source: Ongoing Effect
+guid: e6af2fc8-f8c3-4f56-96cb-4c3f1e82d4c8
+id: e6af2fc8-f8c3-4f56-96cb-4c3f1e82d4c8
+ctime: 1774961481670
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Constricted
+description: You take a bane on the Escape Grab Maneuver and strikes against the creature constricting you.
+custom: true
+mtime: 1774961481670
+iconid: ui-icons/skills/1.png

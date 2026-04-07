@@ -1,0 +1,98 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:54a025f4-ea91-4c8f-ae4b-d2745603be3d: true
+  sourceguid: 54a025f4-ea91-4c8f-ae4b-d2745603be3d
+  description: ""
+  source: Ongoing Effect
+  name: The Voice - Ally
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetFilter: ""
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityApplyMomentaryEffectBehavior
+      momentaryEffect:
+        __typeName: CharacterOngoingEffect
+        guid: 9bcd414c-7340-47b9-a4f1-3f213cfaa7c9
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 9bcd414c-7340-47b9-a4f1-3f213cfaa7c9
+          behavior: resistance
+          source: Ongoing Effect
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: "3"
+            damageType: all
+            apply: Damage Reduction
+          description: ""
+          name: Damage Immunity
+          guid: 0ff9708a-d9c3-42fc-9e09-f656ae26d59c
+        source: Ongoing Effect
+        name: Damage Immunity
+        description: ""
+        id: 9bcd414c-7340-47b9-a4f1-3f213cfaa7c9
+        iconid: ui-icons/skills/1.png
+      name: Momentary Effect
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: dabe046f-aeaa-4f35-8893-e54a9c57324c
+    domains:
+      CharacterOngoingEffect:54a025f4-ea91-4c8f-ae4b-d2745603be3d: true
+    conditionFormula: Attacker.ConditionCaster("The Voice - Targets") = ConditionCaster("The Voice - Ally")
+    targetType: self
+    numTargets: "1"
+    trigger: attacked
+    name: The Voice - Ally
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: d698cc07-88a0-45aa-b0a8-4af217efa2c9
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:54a025f4-ea91-4c8f-ae4b-d2745603be3d: true
+  sourceguid: 54a025f4-ea91-4c8f-ae4b-d2745603be3d
+  behavior: triggerdisplay
+  source: Ongoing Effect
+  name: The Voice - Ally
+  description: ""
+  guid: 6411bd04-c6c8-4b87-909d-4e7efb5c940e
+  ability:
+    __typeName: TriggeredAbilityDisplay
+    type: free
+    name: The Voice
+    flavor: Receive damage immunity 3 to attacks from targets of the Neuronite's The Voice.
+    guid: 0de89509-8c40-42ed-8d68-3ebc9dfbc13a
+    keywords: []
+source: Ongoing Effect
+casterTracking: one
+guid: 54a025f4-ea91-4c8f-ae4b-d2745603be3d
+id: 54a025f4-ea91-4c8f-ae4b-d2745603be3d
+ctime: 1748698190708
+domains:
+  CharacterOngoingEffect:54a025f4-ea91-4c8f-ae4b-d2745603be3d: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: The Voice - Ally
+custom: true
+description: ""
+mtime: 1748980287525
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,20 @@
+__typeName: equipment
+id: 4c19e4dc-f01c-4cf1-b0d8-ce372b6ca5ab
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: "Invulnerable: When an ability roll made against you obtains a tier 1 outcome, you can ignore its damage and effects."
+itemPrerequisite: Repurposed metal plates from a servok war engine
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Rallarian
+imbuePrereq: none
+name: Invulnerable
+imbueTargetType: armor
+mtime: 1774275680880
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+imbueLevel: 9

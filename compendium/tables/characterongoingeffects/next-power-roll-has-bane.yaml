@@ -1,0 +1,68 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  behavior: power
+  keywords:
+    Attack: true
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: dca4e13c-3ee6-4ef3-b4bb-aca6fab5e56e
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: db4a514a-7380-47d7-a842-e5f09309d372
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  domains:
+    CharacterOngoingEffect:3d0b375f-3314-495b-89ff-59d761fc2cba: true
+    CharacterOngoingEffect:db4a514a-7380-47d7-a842-e5f09309d372: true
+  rollType: all
+  activationCondition: true
+  description: The next power roll this creature makes has a Bane
+  modtype: bane
+  name: Next Power Roll Has Bane
+source: Ongoing Effect
+display:
+  brightness: 1.6999991280692
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.977000057697296
+    s: 0.937899827957153
+    v: 1.00238645076752
+    a: 1
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+id: db4a514a-7380-47d7-a842-e5f09309d372
+ctime: 1746169988730
+domains:
+  CharacterOngoingEffect:3d0b375f-3314-495b-89ff-59d761fc2cba: true
+  CharacterOngoingEffect:db4a514a-7380-47d7-a842-e5f09309d372: true
+iconid: b86a7a42-15dc-4220-b27c-27919193e357
+categorization: common
+endTrigger: none
+name: Next Power Roll Has Bane
+description: The next power roll this creature makes has a Bane
+mtime: 1758983166297
+implementation: 3

@@ -1,0 +1,29 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 8aaaaeac-d66a-4c9b-a49d-d32683f5f3f7
+      source: Feat
+      modtype: edge
+      keywords: []
+      activationCondition: true
+      guid: 3d62fcda-d9b2-4813-9736-06e41bf2067f
+      name: Harmonizer
+      behavior: power
+      description: ""
+      rollType: test_power_roll
+      skills:
+      - d188b959-e993-4239-a350-5e7ad69d27b6
+    name: Harmonizer
+    guid: 8aaaaeac-d66a-4c9b-a49d-d32683f5f3f7
+    description: ""
+    source: Feat
+tag: Interpersonal Perk
+name: Harmonizer
+description: You can make a Presence test using the Music skill to influence creatures who don’t have emotions or can’t understand you. Additionally, once during a negotiation when an ally makes an argument, you can play music to give that ally an edge on their test.
+mtime: 1774541457985
+id: 9d2a82e5-42d3-403f-af9e-08266dbbd5ea
+ctime: 1730700663422

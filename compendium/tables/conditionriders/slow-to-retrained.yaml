@@ -1,0 +1,55 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 2dee9fce-0059-4357-b389-56441732b380
+  behavior: power
+  source: Ongoing Effect
+  replaceText: Restrained becomes Petrified
+  modtype: none
+  adjustments: []
+  keywords: []
+  hasCustomTrigger: false
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: dc0321b9-8ff4-46a2-a590-f620b36d3276
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors: []
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  rollType: enemy_ability_power_roll
+  name: Slow to Retrained
+  activationCondition: true
+  description: Any other effect that slows will instead make the target restrained
+  guid: 16620086-393e-4888-9b7b-c01812d716e9
+  replacePattern: slowed
+source: Ongoing Effect
+guid: 2dee9fce-0059-4357-b389-56441732b380
+id: 2dee9fce-0059-4357-b389-56441732b380
+ctime: 1765899732664
+condition: 68f455f5-135f-495c-822d-40d809d2b15f
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: Slow to Retrained
+description: Any other effect that slows will instead make the target restrained
+mtime: 1765901255451
+iconid: c97f2b52-07a3-43ac-8e5b-f10944132412

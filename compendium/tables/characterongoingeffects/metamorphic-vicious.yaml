@@ -1,0 +1,39 @@
+__typeName: CharacterOngoingEffect
+association: []
+description: Whenever you damage a creature using this weapon, you deal an extra 1 damage on a tier 1 outcome, an extra 2 damage on a tier 2 outcome, and an extra 3 damage on a tier 3 outcome.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 0f10e677-6e73-4bc0-a382-02185d2055ae
+  displayCondition: ability.doesdamage
+  source: Ongoing Effect
+  behavior: power
+  modtype: none
+  domains:
+    CharacterOngoingEffect:0f10e677-6e73-4bc0-a382-02185d2055ae: true
+  keywords: []
+  activationCondition: "1"
+  addText: 1 damage // 2 damage // 3 damage
+  activationAfterRoll: false
+  rollType: ability_power_roll
+  description: Whenever you damage a creature using this weapon, you deal an extra 1 damage on a tier 1 outcome, an extra 2 damage on a tier 2 outcome, and an extra 3 damage on a tier 3 outcome.
+  damageModifier: ""
+  guid: 5ee08d34-4641-4234-9215-7d868bd6ad8a
+  name: Vicious
+source: Ongoing Effect
+id: 0f10e677-6e73-4bc0-a382-02185d2055ae
+guid: 0f10e677-6e73-4bc0-a382-02185d2055ae
+hiddenOnToken: true
+ctime: 1774705953432
+domains:
+  CharacterOngoingEffect:0f10e677-6e73-4bc0-a382-02185d2055ae: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+buffType: buff
+name: Metamorphic - Vicious
+iconid: ui-icons/skills/1.png
+custom: true
+mtime: 1774706893684
+implementation: 4

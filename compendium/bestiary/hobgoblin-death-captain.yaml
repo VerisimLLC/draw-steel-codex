@@ -1,0 +1,205 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: db201132-fc55-40a6-a61e-b3b9c5c24f25
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Death Captain	Level 4 Platoon Support
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 12
+        <b>Stamina</b> 60	<b>Immunity</b> fire 4
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 5
+        Might +2	Agility 0	Reason +1	Intuition 0	Presence +2
+        <b>Blightblade</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	8 damage; 4 corruption damage
+        %E2%9C%B8	<b>17</b>	8 damage; 7 corruption damage
+        <b>Effect</b> The next strike made against the target has a double edge.
+        <b>3 Malice</b> 1 ally adjacent to the target uses their signature action.
+
+        <b>On My Mark!</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 ally
+        <b>Effect</b> The target moves up to their speed and makes a free strike.
+
+        <b>Battle Ready</b>
+        The death captain and each ally within 2 impose a bane on strikes made against them by hidden creatures.
+
+        <b>Infernal Ichor</b>
+        If the death captain's Stamina drops to 0, they spray burning blood. Each creature within 1 of the death captain takes 3 fire damage.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:43dd0b78-b42b-432e-87ff-20e43e0a7dc8: true
+      modifiers: []
+      name: Battle Ready
+      description: The death captain and each ally within 2 impose a bane on strikes made against them by hidden creatures.
+      guid: 43dd0b78-b42b-432e-87ff-20e43e0a7dc8
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:68d17670-ab8e-40cb-a521-b8778dca6e8f: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the death captain's Stamina drops to 0, they spray burning blood. Each creature within 1 of the death captain takes 3 fire damage.
+      guid: 68d17670-ab8e-40cb-a521-b8778dca6e8f
+      source: Trait
+    role: Platoon Support
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Hobgoblin Death Captain
+    monster_category: Monster
+    attributes:
+      agl:
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 60
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; 0 damage
+        - 8 damage; 4 corruption damage
+        - 8 damage; 7 corruption damage
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 822e09c9-1359-43f6-bd53-7dce8095c897
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Blightblade
+      numTargets: 1
+      description: The next strike made against the target has a double edge.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 0e7bc622-ecdf-41bb-b54f-c841c9de1e8e
+      numTargets: 1
+      targetType: target
+      name: On My Mark!
+      iconid: ui-icons/skills/1.png
+      description: The target moves up to their speed and makes a free strike.
+      abilityType: none
+      implementation: 0
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds: []
+    ev: 12
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: af5dbaa5-e692-43bc-98b1-d001c4855014
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin Death Captain
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590295473
+mtime: 1775201137032
+hidden: false

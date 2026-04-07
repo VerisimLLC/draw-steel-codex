@@ -1,0 +1,346 @@
+__typeName: Race
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: "Signature Trait: Runic Carving"
+    numChoices: 1
+    guid: d3d44019-2554-4749-8e47-5303045e5e88
+    description: 'You can carve a rune onto your skin and the magic within your body activates it. The rune you carve determines the benefit you receive. You can change or remove this rune with 10 minutes of work while not engaged in combat. '
+    options:
+    - __typeName: CharacterFeature
+      description: Pick a specific type of creature, such as “goblins” or “humans” or an object, such as “magic swords” or “potions.” Your rune glows softly when you are within 20 squares of a chosen creature or object, regardless of line of effect. You can change the type of creature as a maneuver.
+      modifiers: []
+      source: Dwarf Race Feature
+      canHavePrerequisites: true
+      guid: 1c6ea6fa-70e3-43d9-903b-a5fef03aa586
+      name: Detection
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 337864d8-b0aa-41ef-a736-8eabbb597bb4
+        source: Dwarf Race Feature
+        behavior: activated
+        filterCondition: not (Ongoing Effects has "Light")
+        name: Light
+        description: Your skin sheds light for 10 squares. You can turn this on and off as a maneuver.
+        guid: 058a286f-5f3b-45ea-a76c-5dc8ed5eac6d
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 40aef9b1-6774-4cd6-9058-d4d1314197d0
+            ongoingEffectCustom: 40aef9b1-6774-4cd6-9058-d4d1314197d0
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: e0687b1e-6854-4a77-b888-c0a7cde54a28
+          targetType: self
+          domains: []
+          numTargets: "1"
+          castImmediately: true
+          name: Light
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          description: ""
+          abilityType: none
+          iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d
+      - __typeName: CharacterModifier
+        sourceguid: 337864d8-b0aa-41ef-a736-8eabbb597bb4
+        source: Dwarf Race Feature
+        behavior: activated
+        filterCondition: (Ongoing Effects has "Light")
+        name: Light
+        description: Your skin sheds light for 10 squares. You can turn this on and off as a maneuver.
+        guid: fcd11329-b87e-4ca9-abb9-bc6300bcf4a1
+        activatedAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          modifiers: []
+          domains: []
+          abilityType: none
+          guid: 0f479efe-4d9a-4a4b-aa45-194256573558
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 40aef9b1-6774-4cd6-9058-d4d1314197d0
+            mode: effect
+            conditions: []
+          castImmediately: true
+          targetType: self
+          categorization: Ability
+          name: Light
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d
+      - __typeName: CharacterModifier
+        sourceguid: 6f293ec5-687c-4a9a-8674-52e1c23064e9
+        guid: 700d5094-1b1a-4ffd-b29a-e39eec2e9b2c
+        source: Dwarf Race Feature
+        behavior: light
+        description: Your skin sheds light for 10 squares. You can turn this on and off as a maneuver.
+        itemid: bb699811-7a13-44e1-960f-c1deed366684
+        name: Light
+      name: Light
+      description: Your skin sheds light for 10 squares. You can turn this on and off as a maneuver.
+      guid: 6f293ec5-687c-4a9a-8674-52e1c23064e9
+      source: Dwarf Race Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: As a maneuver, you can communicate telepathically with another willing creature you have met before whose name you name, who can speak and understand a language you know, and is within 1 mile of you. You and the creature can respond to one another as if having a normal conversation. You can change the person you communicate with by changing the rune.
+      modifiers: []
+      source: Dwarf Race Feature
+      canHavePrerequisites: true
+      guid: 94114c5a-8be4-40e6-8a6d-818b14917c0f
+      name: Voice
+      implementation: 4
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    costsPoints: true
+    options:
+    - __typeName: CharacterFeature
+      domains:
+        race:a9f3759d-be9f-4c40-b610-e7a656425303: true
+      guid: a552ca4f-5df4-4681-8d49-ddefadd2b8a4
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 9b9f384b-56cc-475c-999b-1173f200068f
+        source: Dwarf Race Feature
+        value: 1
+        domains:
+          race:a9f3759d-be9f-4c40-b610-e7a656425303: true
+        name: Grounded
+        guid: b334433b-c8eb-40f6-97a8-deb4d874b2cd
+        description: Your heavy stone body and connection to the earth makes it difficult for others to move you. Your stability increases by 1.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      source: Dwarf Race Feature
+      name: Grounded
+      description: Your heavy stone body and connection to the earth makes it difficult for others to move you. Your stability increases by 1.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: fc751172-55f6-42fd-98a6-28de77d0ac1e
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: fc751172-55f6-42fd-98a6-28de77d0ac1e
+        guid: c08cbe1c-9500-4ae4-a4bf-1ed31e650035
+        source: Dwarf Race Feature
+        conditions:
+        - 567a3454-ead6-4416-b338-ed73d64b7805
+        description: Your hearty constitution prevents you from losing strength. You can’t be weakened.
+        behavior: conditionimmunity
+        name: Great Fortitude
+      source: Dwarf Race Feature
+      name: Great Fortitude
+      description: Your hearty constitution prevents you from losing strength. You can’t be weakened.
+      pointsCost: 2
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Your stone skin affords you potent protection. You have a +6 bonus to Stamina, and that bonus increases by 6 at 4th, 7th, and 10th levels.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: aa3dd2ae-2e77-4449-97d3-3bad9c2a2705
+        source: Dwarf Race Feature
+        guid: 52706397-6203-4e27-8cca-c63879e451da
+        name: Spark Off Your Skin
+        value:
+          __typeName: GoblinScriptTable
+          entries:
+          - script: "6"
+            threshold: 1
+          - script: "12"
+            threshold: 4
+          - script: "18"
+            threshold: 7
+          - script: "24"
+            threshold: 10
+          editableField: true
+          id: table
+          field: Level
+        description: Your stone skin affords you potent protection. You have a +6 bonus to Stamina, and that bonus increases by 6 at 4th, 7th, and 10th levels.
+        behavior: attribute
+        attribute: hitpoints
+      source: Dwarf Race Feature
+      name: Spark Off Your Skin
+      guid: ddbd121c-fec7-4d6b-aba6-407a3a7df6cf
+      pointsCost: 2
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 36a27c9b-d09a-4b76-b64d-21170c0728a0
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 36a27c9b-d09a-4b76-b64d-21170c0728a0
+        source: Dwarf Race Feature
+        value: 1
+        description: Your body is made to withstand the blows of your enemies. Your Might score is treated as 1 higher for the purpose of resisting potencies, and you gain an edge on Might tests when called for to resist environmental effects or a creature’s traits or abilities.
+        name: Stand Tough
+        guid: 4d33489c-75c3-45e4-a157-213a9c7edd28
+        displayIcon: false
+        behavior: attribute
+        attribute: 39e08262-baa3-4947-98cd-fb8045ff991e
+      - __typeName: CharacterModifier
+        sourceguid: 36a27c9b-d09a-4b76-b64d-21170c0728a0
+        source: Dwarf Race Feature
+        modtype: edge
+        keywords: []
+        activationCondition: true
+        guid: 787cd69a-7f22-4fe4-87ad-2dfb50bdd1a1
+        name: Stand Tough
+        rollType: test_power_roll
+        description: Your body is made to withstand the blows of your enemies. Your Might score is treated as 1 higher for the purpose of resisting potencies, and you gain an edge on Might tests when called for to resist environmental effects or a creature’s traits or abilities.
+        behavior: power
+        attribute: mgt
+      source: Dwarf Race Feature
+      name: Stand Tough
+      description: Your body is made to withstand the blows of your enemies. Your Might score is treated as 1 higher for the purpose of resisting potencies, and you gain an edge on Might tests when called for to resist environmental effects or a creature’s traits or abilities.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: d64a58af-4d76-49fd-95b8-6e0242c3f7c2
+      canHavePrerequisites: true
+      modifiers: []
+      source: Dwarf Race Feature
+      name: Stone Singer
+      description: 'You have a magic connection to the earth. You can spend 1 uninterrupted hour singing and reshape any unworked, mundane stone within 3 squares of you. You can’t destroy this stone, but you can move each square of it anywhere within 3 squares of you, piling it off to one side to dig a hole or building it all up to create a wall. '
+      pointsCost: 1
+      implementation: 4
+    numChoices: "3	"
+    guid: 2075e796-d225-41b2-8e39-b9de598bc292
+    description: You have 3 ancestry points to spend on the following traits.
+    name: Purchased Dwarf Traits
+  domains:
+    race:a9f3759d-be9f-4c40-b610-e7a656425303: true
+moveSpeeds:
+  walk: 5
+lifeSpan: 700–1,500
+darkvision:
+  range: 1000
+id: a9f3759d-be9f-4c40-b610-e7a656425303
+ctime: 1700242841867
+nameGenerator: 3ae916a5-9b7a-42be-90ae-38cfd6a0551c
+lore: |-
+  “They can be stubborn,” Embers said.
+
+  John smiled and gave her a look as they walked around the barn. “Yeah not like elves and humans, right?”
+
+  Embers grinned.
+
+  “They’re good in a fight,” John said, and his tone implied this was all that mattered. “They’re natural commanders.”
+
+  “Yes I can imagine why,” Embers said. “Each sentence sounds like an order.”
+
+  They found the dwarf at the edge of the old quarry outside of town cutting blocks of stone with a long copper saw. It normally took two people a quarter hour, but the dwarf sawed an entire block in two with a single stroke. The stones smoked as they fell, and the copper saw glowed with heat. 
+
+  John and Embers watched silently as the dwarf hefted another massive stone onto the cutting block.
+
+  The dwarf spit into his hands and noticed the two out of the corner of his eye. He paused, walked over to grab his battle staff with the hourglass symbol of Zarok, Law-Giver at the tip. He walked back to the stone and leaned his staff against a tree stump within easy reach should he need to use it.
+
+  He went back to work.
+
+  “Good morning,” John said.
+
+  The dwarf ignored them.
+
+  “I’m a friend of Morag the Wise Woman,” John said. “She said there was a high theochron of Zarok, Law-Giver around here working to earn his keep.”
+
+  The dwarf paused. “High theochron?” he said. “A lofty title. Far too lofty for a job such as this,” he went back to work and a moment later there were two more smoking blocks. He cleared them away.
+
+  “There’s a job for nine …” John hesitated. Ratcatchers didn’t seem appropriate. He went with his gut. “Heroes. In Bedegar. A village looking for someone to stand against Lord Saxton.”
+
+  “Mm. I have heard of this one,” the dwarf said, seemingly uninterested. He hurled the smaller blocks into a pile and went to heft a new stone to cut. “A foul tyrant. Well-suited to these times. Perhaps the people deserve him.”
+
+  “No people deserve tyranny,” Embers said, an edge in her voice. The dwarf appeared to notice her for the first time, peered at her, took in her raiment, and went back to work. “Nine against Saxton.” The dwarf carried the massive block over his head to the cutting stone. He shook his head in disbelief at what was being asked. “How great the opposition?”
+
+  John told him.
+
+  The dwarf dropped the stone in astonishment and stared at the human and elf. Then he smiled. “Hah. You know our traditions well, sir knight. You seek to grant me a glorious death leading desperate soldiers against impossible odds.”
+
+  “Not that desperate,” John said modestly. 
+
+  “Yes.” The dwarf looked at Embers again. “By garb and reputation, I make you A Mist Curls Around Dying Embers, mistress of the Tower of Translation. You are no stranger to power. But your tower is fallen lady,” he said. “Seek you revenge? Or justice?”
+
+  “I see no reason to choose,” Embers said smoothly. “In my case, as well as the case of these villagers, justice would be revenge.”
+
+  The dwarf’s head snapped to look at Sir John. “She speaks my language as well it seems. You are of a kind, you two.”
+
+  “Three,” John dared.
+
+  The dwarf failed to stifle a smile. “And what is your stake in this?”
+
+  John shrugged. “I’ve already been paid,” he said. He fished around in a pouch on his belt. “Here, I’ll split it with you, fair and square.”
+
+  John flicked a coin off his finger with his thumb. It spun and glinted as it arced across the space between them. The dwarf snatched it from the air, opened his palm and stared at it. Something in his face changed. Softened. He looked at the nearby town that had adopted him. Peasants doing labor in the fields.
+
+  He clenched his fist around the coin. “A princely sum,” he said, mostly to himself.
+
+  “You are Dazar,” Embers dared. “High theochron in exile. Yours is the greatest dwarven church in all Omund’s Land. Thousands look to you for spiritual guidance.”
+
+  The dwarf said nothing. He looked at the coin in his hand.
+
+  “You left your people,” Embers said quietly.
+
+  “My people left me!” Dazar barked. “When they embraced Ajax!”
+
+  Embers just watched the dwarf. His rage subsided as quickly as it came.
+
+  “I thought … I thought leaving might inspire my people to …”
+
+  He looked at the nearby village. “Eh, it matters not. I could not have stayed in any event. I lack the stomach for tyranny.”
+
+  “Kal Kalavar’s new thane is not an easy problem to solve,” John said with sympathy. “Saxton is.”
+
+  The dwarf looked up at Embers, “Her I know by reputation.” He turned to look at John.
+
+  John bowed slightly. “John,” he said.
+
+  Dazar looked at his armor, the age and weather of it, and made an intuitive leap. “You served under the Good King.”
+
+  John pursed his lips. “That was a long time ago.”
+
+  Dazar shook his head once. “Not to me.” He picked up his battlestaff and stepped forward. “I knew him, you see. Omund was a fine king. The best we’ll see even in a life as long as mine.”
+
+  No one spoke for a moment. “These people,” Dazar said. “These villagers. Do they know what they ask?”
+
+  John didn’t answer. 
+
+  “Do they know that asking us for help, asking you,” Dazar looked Sir John up and down “… means starting something they must see through to the end? It means hardship, privation, death buying a future for their children? You told them this?”
+
+  John shook his head. 
+
+  “Well why not?!” Dazar demanded. “You of all people must understand …”
+
+  “Dazar,” John said, and his measured voice was a quick counter to Dazar’s protest. “These people are already at their wits’ end. Just … just surviving, putting food on the table, keeping their children warm. Giving them hope. It’s already more than should be asked of anyone. And then coming to us, swallowing their pride. Asking us for aid.
+
+  “It’s our job to understand the job for them.” Then, quieter, John added, “And forgive them, ahead of time, for when they weaken, and give in to fear.”
+
+  Dazar stared at the man, this knight of Tor, and looked at Embers quietly radiating pride in her friend.
+
+  “Hmm,” Dazar grunted. He opened a pouch on his chest armor and inserted the coin. “We must find a troubadour, to tell the tale of Saxton’s fall. I cannot wait to hear how it ends!” He walked between them, carrying his staff over his shoulder.
+
+  “Come!” he barked. “There’s a world needs mending! Why stand we here idle?”
+
+  John was grinning madly at Embers. She held up three fingers.
+details: "Possessed of a strength that belies their size, dwarves have flesh infused with stone—a silico-organic hybrid making them physically denser than other humanoids. They enjoy a reputation in Orden as savvy engineers and technologists thanks to the lore they inherited from their elder siblings, the long-extinct steel dwarves. \n\nDwarves are the children of the elder god Ord, and a common phrase among dwarves is “Ord made the world”—their way of saying, “What will be, will be.” They take great pride in knowing that along with Aan, Eth, and Kul, their god created the mundane world, and many dwarves leave their homes to see the world and seek glory in Ord’s name. "
+name: Dwarf
+portraitid: 26af3473-5f10-4fb1-96b6-0519b9071fd7
+height: 4’0’’–4’6’’
+weight: 500-1,000
+mtime: 1768993129026

@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 67086911-a056-4c62-85a4-46c6994d85ad
+  sourceguid: 9047943c-e969-4c26-baef-d22cd8779909
+  value: Intuition
+  source: Ongoing Effect
+  name: Iron Body
+  behavior: attribute
+  description: Your stability gains a bonus equal to yourt Intutition score.
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+guid: 9047943c-e969-4c26-baef-d22cd8779909
+id: 9047943c-e969-4c26-baef-d22cd8779909
+ctime: 1767461019944
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Iron Body
+description: Your stability gains a bonus equal to yourt Intutition score.
+custom: true
+mtime: 1767461019944
+iconid: ui-icons/skills/1.png

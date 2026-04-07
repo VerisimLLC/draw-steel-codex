@@ -1,0 +1,64 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+prerequisite: You gain the friendship or alliance of a creature you once battled.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Battleaxe Diplomat Benefits
+    numChoices: 1
+    guid: 4bffe7cd-bb15-4958-b6b2-3ca7be32e573
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Iron Hand in Velvet Glove
+      description: The first time during a negotiation that you make a test using the Intimidate skill and don’t make an argument that appeals to an NPC’s motivation, you don’t lower the NPC’s patience or interest no matter the outcome of the roll.
+      guid: 2e1ff847-0122-4a10-a57c-92abdfbc96f7
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      description: You have a double edge on tests made to stop combat and start a negotiation.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 27442eb7-cd72-46c8-803b-c3a4b8e7b6af
+        source: Feat
+        behavior: power
+        keywords: []
+        activationCondition: false
+        name: Truce!
+        guid: 144809a8-1013-4b13-9611-b79aa37cd8d9
+        description: You have a double edge on tests made to stop combat and start a negotiation.
+        modtype: double_edge
+        rollType: test_power_roll
+      source: Feat
+      canHavePrerequisites: true
+      guid: 27442eb7-cd72-46c8-803b-c3a4b8e7b6af
+      name: Truce!
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You gain an edge on Presence tests made to interact with creatures you have fought against in combat encounters
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0e399c06-4f71-4cb5-8fa5-c2f3c51ba221
+        source: Feat
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: 8e69778f-e968-413b-866e-829b623ca8ea
+        name: Warriors’ Understanding
+        rollType: test_power_roll
+        description: You gain an edge on Presence tests made to interact with creatures you have fought against in combat encounters
+        behavior: power
+        attribute: prs
+      source: Feat
+      canHavePrerequisites: true
+      guid: 0e399c06-4f71-4cb5-8fa5-c2f3c51ba221
+      name: Warriors’ Understanding
+      implementation: 3
+name: Battleaxe Diplomat
+mtime: 1773772016824
+description: We seem to be equals in might and combat prowess. Perhaps we should bandy words awhile instead.
+id: f25eeff9-f948-488c-86d0-fb256bae7f67
+ctime: 1762349391830

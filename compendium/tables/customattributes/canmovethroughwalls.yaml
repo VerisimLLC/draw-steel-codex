@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "0"
+category: Movement
+name: CanMoveThroughWalls
+documentation: If this is greater than 0, the creature can move freely through walls. Used for incorporeal creatures such as ghosts.
+mtime: 1765079401530
+id: 8e55aa4a-aae4-4df7-85b7-07ce1b93a6c9
+ctime: 1765079401530

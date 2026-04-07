@@ -1,0 +1,255 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5726a5da-e975-41eb-95aa-37d9325dc4e9
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: ""
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.5470595
+    portraitOffset:
+      x: -0.1145284
+      y: 0.1835941
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.43
+    characterName: Demon Pitling
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 21e7cb8e-ce3c-4055-a590-700bc17ea446
+  properties:
+    __typeName: monster
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 3
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: -2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: -2
+        id: mgt
+      rea:
+        baseValue: -2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 496c90f2-d900-4955-911e-e4a52c82c0f5
+      implementation: 4
+      numTargets: 1
+      name: Spit
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 poison damage
+        - 4 poison damage
+        - 5 poison damage
+        roll: 2d10 + 2
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Demon Pitling	Level 1 Minion Artillery
+        Abyssal, Demon	EV 3 for four minions
+        <b>Stamina</b> 3	<b>Weakness</b> Holy 3
+        <b>Speed</b> 5 (fly)	<b>Size</b> 1T/<b> Stability</b> 0
+        <b>With Captain</b> Speed +2	<b>Free Strike</b> 2
+        Might -2	Agility +2	Reason -2	Intuition -2	Presence -2
+        <b>Spit</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 poison damage
+        %E2%98%85	12%E2%80%9316	4 poison damage
+        %E2%9C%B8	17+	5 poison damage
+
+        <b>Horrid Stench</b>
+        Any enemy who has three or more pitlings within 2 squares of them can't regain Stamina.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the pitling can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:032a4bf4-6eaf-4eb9-80a6-d96c9a895b4f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 032a4bf4-6eaf-4eb9-80a6-d96c9a895b4f
+        source: Trait
+        seq: 7251a06b-1632-46ff-b5a7-a0b49541c19e
+        guid: 94e2d4c9-50e9-4b5e-96de-654f8cc80548
+        domains:
+          CharacterFeature:032a4bf4-6eaf-4eb9-80a6-d96c9a895b4f: true
+        radius: "2"
+        behavior: aura
+        description: Any enemy who has three or more pitlings within 2 squares of them can't regain Stamina.
+        aura:
+          __typeName: Aura
+          modifiers:
+          - __typeName: CharacterModifier
+            operation: set
+            sourceguid: 7729fa2d-5eee-4c68-9c6a-0fdf3847722c
+            source: Horrid Stench
+            iconColor:
+              __usertype: LuaColor
+              h: 0.186500087380409
+              s: 0.5015629529953
+              v: 0.678821742534637
+              a: 1
+            guid: 02696d07-5447-4ce3-8a82-1c49fc9ca501
+            filterCondition: CountNearbyEnemies(2, "Demon Pitling") >= 3
+            statusIcon: a3e35db5-3c79-491b-93f5-fe7678665e9d
+            value: 1
+            name: Horrid Stench
+            displayIcon: true
+            description: ""
+            behavior: attribute
+            attribute: 96b930c8-846a-4221-991a-5ded3c9e9b39
+          source: Horrid Stench
+          guid: 7729fa2d-5eee-4c68-9c6a-0fdf3847722c
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+          applyto: enemies
+          name: Horrid Stench
+          triggers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.194131463766098
+              s: 0.994676351547241
+              v: 0.341445505619049
+              a: 1
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        name: Horrid Stench
+      source: Trait
+      description: Any enemy who has three or more pitlings within 2 squares of them can't regain Stamina.
+      guid: 032a4bf4-6eaf-4eb9-80a6-d96c9a895b4f
+      name: Horrid Stench
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:53fbe06e-7ef4-496a-b73a-1050ff043363: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the pitling can't be hidden from them.
+      guid: 53fbe06e-7ef4-496a-b73a-1050ff043363
+      source: Trait
+    role: Minion Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - text: Pitlings resemble rodents or insects with gleaming green eyes and terrible body odor, and disgorge a viscous, toxic phlegm.
+      title: Monster Notes
+    opportunityAttack: 2
+    keywords:
+      Demon: true
+      Abyssal: true
+    initiativeGrouping: e62a3cbd-8249-4bf3-8feb-49bea8fe4c96
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -3
+      damageType: holy
+      apply: Damage Reduction
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 5
+    resources: []
+    minionSquad: Demon Pitling Squad 1
+    traitNames: []
+    withCaptain: Speed +2
+    movementSpeeds:
+      fly: 5
+    monster_type: Demon Pitling
+    creatureSize: 1T
+    equipmentMeta:
+      offhand0: []
+    notesRevision: 57df14fc-8374-4a20-a677-906755a4f9cf
+  tokenType: null
+  bestiaryId: 8029a56c-c6e5-4728-8b8f-3b95b1c1a22d
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 0
+  createdTimestamp: 1726301040866
+description: Demon Pitling
+parentFolder: 003daf5c-52f0-4ea2-9283-a547f7b2422e
+artist: null
+ord: 3
+ctime: 1741590272314
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,240 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 127b42bf-7593-4bf6-bef1-cc0b22424834
+    offtokenPortraitId: d68e8ea3-dd9e-4aea-9c60-e0e1a8406317
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3503382
+    portraitOffset:
+      x: -0.1534841
+      y: 0.2324965
+    frameHueShift: 0.5107012
+    frameSaturation: 0.5325649
+    frameBrightness: 0.2483381
+    popoutScale: 0.49
+    characterName: Armored Soulwight
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 151fa0ba-45fc-4f92-978f-fb856290f3a7
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 13
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Armored Soulwight
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage
+        - 4 corruption damage; M<1 slowed (save ends)
+        - 5 corruption damage; M<2 slowed and weakened (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 3eba2e86-9891-471f-b3a7-e486621a5d44
+      targetType: target
+      numTargets: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Soulstealer Longsword
+      iconid: 64c8fbe4-c9d7-49e7-b223-bcb6cc3688ad
+      description: The target appears to rapidly age each time they take damage from this ability. The target regains their former appearance when the soulwight is destroyed.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      implementationDetails: The ability is not locked until lifestealer longsword is used again.
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: c2c166e0-5103-46db-bf78-0c3c92db5b49
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityHealBehavior
+        roll: "10"
+      numTargets: 1
+      implementation: 2
+      name: Stolen Vitality
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: The target regains 10 Stamina. The soulwight can't use this maneuver again until they attack a creature with their lifestealer longsword.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    minion: false
+    stability: 0
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e7a58832-63f4-43ea-9bb9-f4070fd610cc: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5dfcd239-8451-4760-b966-de47ace83f71
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+        name: Arise
+        resourceRefreshType: encounter
+        description: The first time the armored soulwight is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they instead have 1 Stamina and fall prone.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b3ebebbe-7f14-4100-a2b9-636f20cb525d
+          conditionFormula: Damage Type != "Fire" And Damage Type != "Holy"
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: (-Stamina) + 1
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            applyto: caster
+            text: Arise!
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            applyto: caster
+            rule: prone
+          name: Arise
+          trigger: zerohitpoints
+          numTargets: "1"
+          description: The first time the armored soulwight is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they instead have 1 Stamina and fall prone.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 16447b95-7999-4882-9b00-a03cd4444fd4
+      source: Trait
+      description: The first time the armored soulwight is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they instead have 1 Stamina and fall prone.
+      guid: e7a58832-63f4-43ea-9bb9-f4070fd610cc
+      name: Arise
+      implementation: 3
+    role: Horde Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    opportunityAttack: 1
+    resources: []
+    creatureSize: 1M
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds: []
+    initiativeGrouping: bdcf2594-7a29-4c9d-a729-ff2fc606d4bb
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+    keywords:
+      Undead: true
+      Soulless: true
+  tokenType: null
+  bestiaryId: 7a951e74-69c7-49a5-a44c-225ca2582c18
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: null
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 15
+ctime: 1761689051417
+mtime: 1775167418550
+hidden: false

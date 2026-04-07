@@ -1,0 +1,37 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: add
+  sourceguid: fac08697-9740-424b-9ad3-d1500d88ddd3
+  source: Ongoing Effect
+  value: 2
+  domains:
+    CharacterOngoingEffect:fac08697-9740-424b-9ad3-d1500d88ddd3: true
+  name: Choreography
+  guid: 5d8cc6d2-e613-4f6c-b9c3-8caeecd19ff7
+  description: You have +2 speed until the end of your turn.
+  behavior: attribute
+  attribute: speed
+source: Ongoing Effect
+guid: fac08697-9740-424b-9ad3-d1500d88ddd3
+id: fac08697-9740-424b-9ad3-d1500d88ddd3
+ctime: 1746136195121
+domains:
+  CharacterOngoingEffect:fac08697-9740-424b-9ad3-d1500d88ddd3: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.814499914646149
+    s: 0.978515625
+    v: 1.00191080570221
+    a: 1
+custom: true
+name: Choreography
+statusEffect: true
+description: You have +2 speed until the end of your turn.
+mtime: 1756411948292
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd

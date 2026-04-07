@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 557ffde8-a95a-4e8c-b25b-cef8d25dc274
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Rolls Against Have Double Bane
+  guid: e2bcf1ef-a34a-47fd-a70c-08097203ddbe
+  description: Rolls against this creature have a double bane.
+  modtype: double_bane
+  rollType: enemy_ability_power_roll
+source: Ongoing Effect
+guid: 557ffde8-a95a-4e8c-b25b-cef8d25dc274
+id: 557ffde8-a95a-4e8c-b25b-cef8d25dc274
+ctime: 1753683424853
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Rolls Against Have Double Bane
+description: Rolls against this creature have a double bane.
+mtime: 1765322923328
+iconid: 20c26bc2-3c3b-498c-af59-f29874538b13
+implementation: 3

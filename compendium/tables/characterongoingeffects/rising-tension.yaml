@@ -1,0 +1,77 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 74655f6f-79e8-466b-92e9-f831467e6a4d
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:74655f6f-79e8-466b-92e9-f831467e6a4d: true
+  modtype: double_edge
+  rollType: all
+  resourceRefreshType: never
+  description: "You have a double edge on a power roll of your choice made during your next turn. You can immediately take your turn after the caster's if you have not taken your turn already this round. "
+  guid: 33de2269-22c9-41ee-9779-aad03fecaf80
+  name: Rising Tension
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:74655f6f-79e8-466b-92e9-f831467e6a4d: true
+  sourceguid: 74655f6f-79e8-466b-92e9-f831467e6a4d
+  description: "You have a double edge on a power roll of your choice made during your next turn. You can immediately take your turn after the caster's if you have not taken your turn already this round. "
+  source: Ongoing Effect
+  name: Rising Tension
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: Take your turn immediately
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 6be1a3ad-39cf-4181-a2ef-a7dcae0aaf6b
+    trigger: endturn
+    conditionFormula: (Subject = ConditionCaster("Rising Tension")) and (not Taken Turn)
+    castImmediately: true
+    numTargets: "1"
+    domains:
+      CharacterOngoingEffect:74655f6f-79e8-466b-92e9-f831467e6a4d: true
+    name: Rising Tension
+    behaviors:
+    - __typeName: ActivatedAbilityInitiativeBehavior
+    description: You can immediately take your turn after the caster of Rising Tension if you have not taken your turn already this round.
+    subject: other
+    iconid: ui-icons/skills/1.png
+  guid: 4abd44db-43fd-4aaf-9163-bb8d2413bb02
+source: Ongoing Effect
+guid: 74655f6f-79e8-466b-92e9-f831467e6a4d
+id: 74655f6f-79e8-466b-92e9-f831467e6a4d
+ctime: 1773128268924
+domains:
+  CharacterOngoingEffect:74655f6f-79e8-466b-92e9-f831467e6a4d: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.841999888420105
+    s: 0.957031071186066
+    v: 0.939892113208771
+    a: 1
+custom: true
+name: Rising Tension
+iconid: 5ab4af83-d9d2-4642-ba34-dc72b8c3ae34
+description: "You have a double edge on a power roll of your choice made during your next turn. You can immediately take your turn after the caster's if you have not taken your turn already this round. "
+mtime: 1773129577462
+implementation: 4

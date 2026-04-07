@@ -1,0 +1,325 @@
+__typeName: MarkdownDocument
+annotations:
+  Encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,-3,1"
+        - __usertype: LuaLoc
+          loc: 5,-3,1
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          9584f1f7-037a-42eb-aeed-e68c51a30ebd: 2
+      - appearances:
+        - false
+        - false
+        monsters:
+          9584f1f7-037a-42eb-aeed-e68c51a30ebd: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "5,2,1"
+        - __usertype: LuaLoc
+          loc: "-4,2,1"
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 4
+      - appearances: []
+        monsters:
+          9584f1f7-037a-42eb-aeed-e68c51a30ebd: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 5,-1,1
+        - __usertype: LuaLoc
+          loc: "-4,-1,1"
+        invisibleToPlayers: []
+        minHeroes: 5
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,3,1"
+        - __usertype: LuaLoc
+          loc: "5,3,1"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          602ac1db-482d-47f1-998a-59e6da0c0128: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,0,1"
+        - __usertype: LuaLoc
+          loc: "5,0,1"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          602ac1db-482d-47f1-998a-59e6da0c0128: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,-2,1"
+        - __usertype: LuaLoc
+          loc: 5,-2,1
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 2
+      - appearances: []
+        monsters:
+          602ac1db-482d-47f1-998a-59e6da0c0128: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,1,1"
+        - __usertype: LuaLoc
+          loc: "5,1,1"
+        invisibleToPlayers: []
+        minHeroes: 6
+      name: DS Encounter
+id: 081843b6-e74d-4c81-a576-90f276dcc985
+ctime: 1758260133442
+textStorage:
+  __typeName: TextStorage
+  sections:
+    y: "[[/objectcommand d3_secret Start; objectcommand d3_secret playsound; broadcast screenshake 4 0.2 8 5 | Reveal Secret Passage]]  [[/objectcommand d3_secret Reset | Hide Secret Passage]]\n\n \n\n\n\n\n\n\n"
+    w: |+
+      The secret door also reveals itself if the heroes speak aloud the answer to the riddle carved beneath the statue while in this chamber. The answer is “bravery”, “courage”, or a similar synonym. Anything along those lines works. Solving the riddle allows the heroes to approach [D4. Stair Down] silently. If they do, they catch the goblins surprised.
+
+    x: |+
+      They can’t approach silently and catch the goblins surprised if they open the door during combat.
+
+
+    u: |+
+      This secret door leads to [D4. Stair Down].
+
+    v: |+
+      ### Riddle of Delius
+
+    t: |+
+      D4. Stair Down surprised.}
+
+    q: |
+      |{#The hero finds a secret door behind the statue.}
+    r: "|{#The hero finds a secret door behind the statue and does so with such skill and grace that they can catch the goblins in "
+    o: |
+      |Find the Secret Door: Reason Test
+    p: |
+      |{#The hero finds a secret door behind the statue}{; however, they make so much noise while searching that the goblins in D4. Stair Down are ready for the heroes when they arrive. The goblins get to act first in combat.}
+    lQ: |
+      ???
+    n: |+
+      The statue is a magic object connected to a secret door behind it. A hero who examines the area behind the statue can make a Reason test.
+
+    k: |+
+      The undead fight until destroyed. If the heroes destroy the undead or the skull sigil, they earn 1 Victory each.
+
+    l: |
+      ???query slowstart = 1
+    i: |+
+      See [Skull Sigil].
+
+
+    j: |
+      ## Ending the Encounter
+    g: |+
+      The undead don't leave this room.
+
+
+    h: |+
+      ## Skull Sigil
+
+    e: 'These undead are mindless and lack tactical thinking. Each undead creature targets the enemy nearest to them. The ghouls run into the fray, leaping at targets to knock them down. Skeletons remain at range to shoot targets with their bows. At the start of their turn, the zombies use their Zombie Dust action as Malice allows, so they can stand after using it. These undead have the Arise or Endless Knight trait, which '
+    f: |+
+      allows them to get up and keep fighting the first time they are reduced to 0 Stamina!
+
+    c: |+
+      Then [Draw Steel!]
+
+
+    d: |+
+      ## Tactics
+
+    a: |
+      > * “Take a look at your hero’s sheet and note any features or abilities you gain for this, the third encounter.”
+    b: |+
+      > * “All of you have a new heroic ability that costs 5 resources! Now you’ve got lots of stuff to spend your resources on.”
+
+    yZ: |2
+
+    m: |+
+      ## Secret Door
+
+    lr: |+
+      ???
+
+    li: |
+      [[//awardvp 1|Give Heroes 1 Victory]]
+    lZ: |
+      ???query slowstart = 0
+    Y: |+
+      ## New Rules: 5-Cost Heroic Abilities
+
+    Z: |+
+      When combat begins, share the following information with the players:
+
+    W: |
+      * For four heroes, remove two **ghouls**. The **sigil** has 40 Stamina (see [Skull Sigil]).
+    X: |+
+      * For three heroes, remove four **ghouls**. The **sigil** has 20 Stamina (see [Skull Sigil]).
+
+
+    U: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    V: |
+      * For six heroes, add two **skeletons**.
+    S: |+
+      |6|Two [zombie]s|
+
+    T: |
+      **Encounter Adjustments**
+    Q: |
+      |4|Two [skeleton]s|
+    R: |
+      |5|Two [skeleton]s|
+    O: |
+      |2|Two [ghoul]s|
+    P: |
+      |3|Two [ghoul]s|
+    M: |
+      |**Group**|**Creatures**|
+    N: |
+      |1|Two [ghoul]s|
+    K: |+
+      [[Encounter]]
+
+    L: |
+      **D3 Groups**
+    I: |+
+      [[/activateobjects d3zone.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects d3zone.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    J: |+
+      [[setting:Number of Heroes]]
+
+    G: |+
+      **Secret:** The goblins have used necromancy magic to raise the dead in this chamber as guardians against intruders. Six ghouls, four skeletons, and two zombies emerge from the coffins and attack when a creature who isn’t a goblin interacts with one of the coffins, damages the sigil, or moves halfway or farther into the room.}
+
+    H: |+
+      [[/ActivateObjects coffinlid activate|Open Coffins]] [[/ActivateObjects coffinlid deactivate|Close Coffins]]
+
+    E: |+
+      > * “To the north, a statue of a proud human warrior holding a spear is built against the wall. To the side of it, an inscription reads, ‘Once this fails, the battle is lost.’ A sinister, muffled chanting comes from the wall behind the statue.”
+
+    F: |-
+      {**Secret:** The north wall holds a secret door that leads to area D4.}
+      {
+    C: |
+      > * “A painted red skull glows on the ground, throbbing with an angry light.”
+    D: |
+      > * “A dozen stone coffins lie tucked against the east and west walls of this room.”
+    lH: |
+      [[//slowstartlevel 4; awardvp 1|Give Heroes 1 Victory and Level to Encounter 4]]
+    B: |+
+      # D3. Hall of the Brave
+
+parentFolder: 8e307759-fe9b-408a-bb88-34f90e1fe01b
+updateid: 625e93e9-14fd-40ea-82f5-8a31ec5dd1da
+mtime: 1775281140643
+content: |+
+  # D3. Hall of the Brave
+
+  > * “A painted red skull glows on the ground, throbbing with an angry light.”
+  > * “A dozen stone coffins lie tucked against the east and west walls of this room.”
+  > * “To the north, a statue of a proud human warrior holding a spear is built against the wall. To the side of it, an inscription reads, ‘Once this fails, the battle is lost.’ A sinister, muffled chanting comes from the wall behind the statue.”
+
+  {**Secret:** The north wall holds a secret door that leads to area D4.
+  **Secret:** The goblins have used necromancy magic to raise the dead in this chamber as guardians against intruders. Six ghouls, four skeletons, and two zombies emerge from the coffins and attack when a creature who isn’t a goblin interacts with one of the coffins, damages the sigil, or moves halfway or farther into the room.}
+
+  [[/ActivateObjects coffinlid activate|Open Coffins]] [[/ActivateObjects coffinlid deactivate|Close Coffins]]
+
+  [[/activateobjects d3zone.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects d3zone.AreaTemplate deactivate|Hide Hero Start Area]]
+
+  [[setting:Number of Heroes]]
+
+  [[Encounter]]
+
+  **D3 Groups**
+  |**Group**|**Creatures**|
+  |1|Two [ghoul]s|
+  |2|Two [ghoul]s|
+  |3|Two [ghoul]s|
+  |4|Two [skeleton]s|
+  |5|Two [skeleton]s|
+  |6|Two [zombie]s|
+
+  **Encounter Adjustments**
+  If this encounter has more or fewer than five heroes, make the following adjustments:
+  * For six heroes, add two **skeletons**.
+  * For four heroes, remove two **ghouls**. The **sigil** has 40 Stamina (see [Skull Sigil]).
+  * For three heroes, remove four **ghouls**. The **sigil** has 20 Stamina (see [Skull Sigil]).
+
+
+  ## New Rules: 5-Cost Heroic Abilities
+
+  When combat begins, share the following information with the players:
+
+  > * “Take a look at your hero’s sheet and note any features or abilities you gain for this, the third encounter.”
+  > * “All of you have a new heroic ability that costs 5 resources! Now you’ve got lots of stuff to spend your resources on.”
+
+  Then [Draw Steel!]
+
+
+  ## Tactics
+
+  These undead are mindless and lack tactical thinking. Each undead creature targets the enemy nearest to them. The ghouls run into the fray, leaping at targets to knock them down. Skeletons remain at range to shoot targets with their bows. At the start of their turn, the zombies use their Zombie Dust action as Malice allows, so they can stand after using it. These undead have the Arise or Endless Knight trait, which
+  allows them to get up and keep fighting the first time they are reduced to 0 Stamina!
+
+  The undead don't leave this room.
+
+
+  ## Skull Sigil
+
+  See [Skull Sigil].
+
+
+  ## Ending the Encounter
+  The undead fight until destroyed. If the heroes destroy the undead or the skull sigil, they earn 1 Victory each.
+
+  [[/awardvp 1 |Award Heroes 1 Victory]]
+
+  ## Secret Door
+
+  The statue is a magic object connected to a secret door behind it. A hero who examines the area behind the statue can make a Reason test.
+
+  |Find the Secret Door: Reason Test
+  |{#The hero finds a secret door behind the statue}{; however, they make so much noise while searching that the goblins in D4. Stair Down are ready for the heroes when they arrive. The goblins get to act first in combat.}
+  |{#The hero finds a secret door behind the statue.}
+  |{#The hero finds a secret door behind the statue and does so
+  with such skill and grace that they can catch the goblins in
+  D4. Stair Down surprised.}
+
+  This secret door leads to [D4. Stair Down].
+
+  ### Riddle of Delius
+
+  The secret door also reveals itself if the heroes speak aloud the answer to the riddle carved beneath the statue while in this chamber. The answer is “bravery”, “courage”, or a similar synonym. Anything along those lines works. Solving the riddle allows the heroes to approach [D4. Stair Down] silently. If they do, they catch the goblins surprised.
+
+  They can’t approach silently and catch the goblins surprised if they open the door during combat.
+
+
+description: D3. Hall of the Brave

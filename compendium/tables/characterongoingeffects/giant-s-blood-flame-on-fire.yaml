@@ -1,0 +1,91 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Giant’s-Blood Flame
+      roll: "5"
+      damageType: fire
+      chatMessage: Giant’s-Blood Flame
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    subjectRange: "100"
+    strain: []
+    guid: bb3c6f3d-3004-4742-b214-099e4353114f
+    persistence: []
+    conditionFormula: Subject = ConditionCaster("Giant’s-Blood Flame"
+    targetType: self
+    name: On Fire
+    trigger: endturn
+    subject: other
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 24f7e7a4-e56e-4108-b86e-c97fe28795c5
+  name: "Giant’s-Blood Flame: On Fire"
+  sourceguid: 2a449438-b5a4-44c5-812d-21d8a5b93fdb
+- __typeName: CharacterModifier
+  sourceguid: 2a449438-b5a4-44c5-812d-21d8a5b93fdb
+  guid: fffbc266-fe1b-4c1d-9705-362a17711851
+  source: Ongoing Effect
+  behavior: activated
+  description: ""
+  name: "Giant’s-Blood Flame: On Fire"
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 2a449438-b5a4-44c5-812d-21d8a5b93fdb
+      mode: effect
+      conditions: []
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: b8b10e56-4be5-48ef-99d6-d933e99ecc61
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 867e7a65-57e6-453e-881b-6096beaf9aea
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    domains: []
+    castImmediately: true
+    targetType: self
+    name: End On Fire
+    numTargets: "1"
+    description: 'A creature covered in the oil or who can reach it can use a main action to extinguish the flames and end the effect. Any fire caused by the oil is extinguished after burning for 1 hour. '
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 2a449438-b5a4-44c5-812d-21d8a5b93fdb
+id: 2a449438-b5a4-44c5-812d-21d8a5b93fdb
+ctime: 1761691750676
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: "Giant’s-Blood Flame: On Fire"
+description: ""
+custom: true
+mtime: 1761692039347
+iconid: ui-icons/skills/1.png

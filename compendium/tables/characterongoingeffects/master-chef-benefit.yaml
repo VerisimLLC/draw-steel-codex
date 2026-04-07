@@ -1,0 +1,51 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e97fa8c5-b9a8-4e3e-b1e8-c3d5a76cc9c1
+  source: Ongoing Effect
+  behavior: modifytrigger
+  triggerCondition: Trigger.name = "Spend Recovery"
+  attributes:
+  - text: Master Chef benefit
+    condition: ""
+    costDelta: -1
+    id: modifycost
+    rules: Once you can spend a recovery, without spending a recovery
+  name: Master Chef benefit
+  description: Once you can spend a recovery, without spending a recovery
+  guid: 0ea4fc53-f80d-4757-a052-15bf7638fb3b
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: ad7daca2-1ec6-49a5-973e-fd1bca9c3e1e
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: e97fa8c5-b9a8-4e3e-b1e8-c3d5a76cc9c1
+id: e97fa8c5-b9a8-4e3e-b1e8-c3d5a76cc9c1
+ctime: 1774964308222
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Master Chef benefit
+description: Once you can spend a recovery, without spending a recovery
+custom: true
+mtime: 1774964404753
+iconid: ui-icons/skills/1.png

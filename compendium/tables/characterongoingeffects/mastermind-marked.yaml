@@ -1,0 +1,70 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 95dc7e20-bd8d-42da-8e89-a47a36923f2f
+  multitarget: one
+  source: Ongoing Effect
+  powerRollModifier:
+    __typeName: CharacterModifier
+    hasTriggerBefore: true
+    name: Battle Plan Mark Benefit
+    source: Trigger
+    keywords: []
+    behavior: power
+    triggerBefore:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 797cdbbc-7be6-43d6-a63f-dd623c80f9e7
+      repeatTargets: false
+      abilityType: none
+      trigger: d20roll
+      targetType: self
+      numTargets: "1"
+      name: New Ability
+      behaviors:
+      - __typeName: ActivatedAbilityModifyCastBehavior
+        paramid: ability_ignore_immunity
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    resourceCostAmount: "2"
+    activationCondition: true
+    guid: 51687f85-3bdd-4f01-b1e5-84fe3ba40dd3
+    resourceCostType: cost
+    rollType: ability_power_roll
+    rules: ""
+    damageModifier: Triggerer.Reason*3
+    modtype: none
+    description: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to make the strike ignore damage immunity and deal extra damage equal to three times your Reason score.
+  guid: f04b61f5-407e-49b0-80b6-765cd846e555
+  targetFilter: Target.ConditionCaster("mark") = self
+  type: passive
+  targetType: enemy
+  trigger: strike
+  name: Mastermind Marked
+  rules: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to make the strike ignore damage immunity and deal extra damage equal to three times your Reason score.
+  description: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to make the strike ignore damage immunity and deal extra damage equal to three times your Reason score.
+  range: 10
+  behavior: powertabletrigger
+source: Ongoing Effect
+guid: 95dc7e20-bd8d-42da-8e89-a47a36923f2f
+id: 95dc7e20-bd8d-42da-8e89-a47a36923f2f
+ctime: 1765849514791
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Mastermind Marked
+description: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to make the strike ignore damage immunity and deal extra damage equal to three times your Reason score.
+custom: true
+mtime: 1770634820684
+iconid: ui-icons/skills/1.png

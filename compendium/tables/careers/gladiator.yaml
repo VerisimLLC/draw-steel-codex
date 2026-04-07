@@ -1,0 +1,57 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: ee81b38d-b730-4138-b33d-a2efce9834bf
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      exploration: true
+    name: Gladiator Exploration Skills
+    numChoices: 2
+    guid: 66f57513-a328-47a3-96ec-de331d1adb94
+    description: "Choose two skills from the exploration skill group (Quick Build: Gymnastics, Jump)"
+    source: Gladiator Career Feature
+  - __typeName: CharacterLanguageChoice
+    name: Gladiator Language
+    numChoices: 1
+    description: Choose one Languages
+    source: Gladiator Career Feature
+    guid: 47264844-32c4-4bc5-b6de-4bece5fe6d23
+  - __typeName: CharacterFeatChoice
+    guid: cc690a60-7141-4c8d-bcbb-7f96f126f7a5
+    description: "Choose one exploration perk. (Quick Build: Friend Catapult)"
+    tag: exploration perks
+    name: Gladiator Exploration Perk
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: 30b57377-c2ea-4038-a778-6fd5c3ed0371
+      sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+      value: 2
+      source: Gladiator Career Feature
+      name: Gladiator Renown
+      behavior: attribute
+      description: 2 is added to your Renown.
+      attribute: d97c2794-cb70-420f-b078-e260b43e154b
+    name: Gladiator Renown
+    description: 2 is added to your Renown.
+    guid: 9686f59d-2395-4414-a620-be110e5bb7a6
+    source: Gladiator Career Feature
+    implementation: 3
+name: Gladiator
+mtime: 1768796325164
+description: |-
+  In the past, you entertained the masses with flashy displays of violence in the arena. In defining your career, think about the following questions: 
+
+  What led you to this life of violent entertainment? 
+
+  What was your gladiator name and persona? 
+
+  Who was your biggest rival? 
+
+  What happened during your most famous match?
+id: 8c7ec183-e690-494c-b9c2-ac61a871c595
+ctime: 1730560180694

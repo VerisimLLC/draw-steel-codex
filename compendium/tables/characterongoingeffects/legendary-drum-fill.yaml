@@ -1,0 +1,47 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: a9a58533-8867-46a3-86fb-d31d1fb67313
+    repeatTargets: false
+    abilityType: none
+    trigger: beginround
+    targetType: self
+    numTargets: "1"
+    name: Legendary Drum Fill
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You gain 1 surge at the start of each combat round
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 785cb50f-1ad9-4f38-a8d9-b3871cc6ad86
+  name: Legendary Drum Fill
+  sourceguid: d1090bc5-502c-4863-9313-3e4ee1bff62a
+source: Ongoing Effect
+guid: d1090bc5-502c-4863-9313-3e4ee1bff62a
+id: d1090bc5-502c-4863-9313-3e4ee1bff62a
+ctime: 1767392325517
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Legendary Drum Fill
+description: You gain 1 surge at the start of each combat round
+custom: true
+mtime: 1767392325517
+iconid: ui-icons/skills/1.png

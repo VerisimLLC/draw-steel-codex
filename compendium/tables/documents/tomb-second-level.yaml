@@ -1,0 +1,65 @@
+__typeName: MarkdownDocument
+annotations: []
+id: c0091771-4180-4e98-93fd-237eccea389e
+ctime: 1761687232128
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |+
+      [[setting:DirectorDarkvision]]
+
+    w: |
+      **Wallmasters** are stone walls with a single massive eye. They are intent on trapping intruders within their endlessly shifting forms.
+    V: |
+      *Tip: Adjust your Director Darkvision to see the map with & without the darkness.* 
+    S: |+
+      **Map:** The areas here are keyed to the [Delian Tomb - Level 2] map.
+
+    t: |+
+      **Tomb horrors** are masses of flesh, fur, and vines. The longer a victim looks at a tomb horror, the harder it becomes to ever shake the monster’s visage from their mind.
+
+    q: |+
+      **Spindlegoths** resemble spiders with sharp legs and a long, syringe-like mouth. Their thread is said to be thinner than hair but tougher than leather.
+
+    O: |+
+      **Stairs:** For every two squares a stairway covers horizontally, it rises one square vertically.
+
+    M: |+
+      **Illumination:** The second level of the tomb is illuminated by glowing magic crystals embedded in the ceiling.
+
+    n: |+
+      **Memorial ivies** grow from the remains of corporeal undead who have decomposed beyond function. They carry the undead’s will into whatever host they can grab.
+
+    K: |+
+      **Ceilings:** The ceilings are three squares high.
+
+    I: |+
+      The second level of the tomb has the following features:
+
+    G: |+
+      ## Second Level Features
+
+    h: "*The description of ruinborn creatures in the second and third levels of the Delian Tomb includes body horror, spiders, and starvation, which can be themes that make some players so uncomfortable they won’t have a good time at the table. You can and should feel free to change the appearance or story of these creatures as you see fit to help all players, including you, have a good time.*\n \n"
+    e: |
+      **Content Warning: Body Horror, Spiders, Starvation** 
+    E: |+
+      With the [item:Amulet of the Delian Order], the heroes can return to and reach the second level of the tomb. When the tomb was sealed, Caelian necromancers reanimated some of the corpses within and transformed other creatures and objects into ruinborn horrors who defend the [item:Cup of Iulius].
+
+
+    C: |+
+      # Tomb Second Level
+
+    k: |+
+      Ruinborn infest the lower levels of the Delian Tomb. These assorted horrors were once normal creatures, plants, or objects who have been tainted by foul magic seeping into their home. They are always ravenous for their next meal.
+
+    Q: |+
+      **Pillars:** Pillars in the dungeon are made of stone, have immunity to poison and psychic damage, and have 6 Stamina. A pillar can be destroyed by reducing it to 0 Stamina or by a creature being force moved through it. If one of these pillars is destroyed, all creatures within 2 burst of the pillar take 1d10 damage from falling rubble.
+
+    b: |+
+      ## Ruinborn
+
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: 674ebb83-cd24-45d6-8c59-13c7a7116032
+mtime: 1764098706758
+content: "# Tomb Second Level\n\nWith the [Amulet of the Delian Order], the heroes can return to and reach the second level of the tomb. When the tomb was sealed, Caelian necromancers reanimated some of the corpses within and transformed other creatures and objects into ruinborn horrors who defend the [Cup of Iulius].\n\n\n## Second Level Features\n\nThe second level of the tomb has the following features:\n\n**Ceilings:** The ceilings are three squares high.\n\n**Illumination:** The second level of the tomb is illuminated by glowing magic crystals embedded in the ceiling.\n\n**Stairs:** For every two squares a stairway covers horizontally, it rises one square vertically.\n\n**Pillars:** Pillars in the dungeon are made of stone, have immunity to poison and psychic damage, and have 6 Stamina. A pillar can be destroyed by reducing it to 0 Stamina or by a creature being force moved through it. If one of these pillars is destroyed, all creatures within 2 burst of the pillar take 1d10 damage from falling rubble.\n\n**Map:** The areas here are keyed to the [Delian Tomb - Level 2] map.\n\n*Tip: Adjust your Director Darkvision to see the map with & without the darkness.* \n[[setting:DirectorDarkvision]]\n\n## Ruinborn\n\n**Content Warning: Body Horror, Spiders, Starvation** \n*The description of ruinborn creatures in the second and third levels of the Delian Tomb includes body horror, spiders, and starvation, which can be themes that make some players so uncomfortable they won’t have a good time at the table. You can and should feel free to change the appearance or story of these creatures as you see fit to help all players, including you, have a good time.*\n \nRuinborn infest the lower levels of the Delian Tomb. These assorted horrors were once normal creatures, plants, or objects who have been tainted by foul magic seeping into their home. They are always ravenous for their next meal.\n\n**Memorial ivies** grow from the remains of corporeal undead who have decomposed beyond function. They carry the undead’s will into whatever host they can grab.\n\n**Spindlegoths** resemble spiders with sharp legs and a long, syringe-like mouth. Their thread is said to be thinner than hair but tougher than leather.\n\n**Tomb horrors** are masses of flesh, fur, and vines. The longer a victim looks at a tomb horror, the harder it becomes to ever shake the monster’s visage from their mind.\n\n**Wallmasters** are stone walls with a single massive eye. They are intent on trapping intruders within their endlessly shifting forms.\n"
+description: Tomb Second Level

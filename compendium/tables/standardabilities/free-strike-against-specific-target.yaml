@@ -1,0 +1,56 @@
+__typeName: ActivatedAbility
+id: 952ff59e-8467-4141-aae6-d9ce35094c25
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  filterAbilityTargets: target.id = <<targetid>>
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: ability.Free Strike
+    behavior: modifyability
+    guid: e62929ba-ea86-4b33-95d2-1b72eda6f8a6
+    name: Modify Attack
+    attributes: []
+    description: ""
+    cannotModifyAction: true
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 39bc8e2c-8609-4bfe-9522-28daa9bd4dd3
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+ctime: 1745700018429
+targetType: self
+numTargets: "1"
+mtime: 1772113231154
+name: Free Strike Against Specific Target
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

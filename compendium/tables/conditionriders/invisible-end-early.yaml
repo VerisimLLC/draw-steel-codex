@@ -1,0 +1,89 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: f55768d9-214f-4c67-bea5-adb3890e3900
+    repeatTargets: false
+    abilityType: none
+    trigger: losehitpoints
+    targetType: self
+    numTargets: "1"
+    name: Invisible Ends if Damage Taken
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      mode: conditions
+      targetDuration: all
+      conditions:
+      - 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+      purgeType: all
+      chatMessage: Take Damage; Invisible Ends
+    description: This Invisibility Ends early if damage is taken or they use an ability
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: This Invisibility Ends early if damage is taken or they use an ability
+  source: Ongoing Effect
+  behavior: trigger
+  guid: c3fd76c5-aecf-4139-9cb7-e5775ec2334e
+  name: Invisible End Early
+  sourceguid: d6c7146d-bf12-4ea8-8dc6-edc5060c328e
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 44d529e3-cbc9-486e-a851-ae354442c223
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions:
+      - 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+      targetDuration: all
+      purgeType: all
+      chatMessage: Ability Used; Invisible Ends
+    conditionFormula: UsedAbility.name != "Chroma Cloak" {add any abilities here that might themselves trigger invisibility so they don't immediately remove it}
+    whenActive: combat
+    numTargets: "1"
+    trigger: useability
+    name: Invisible End Early if Use an Ability
+    description: This Invisibility Ends early if damage is taken or they use an ability
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: This Invisibility Ends early if damage is taken or they use an ability
+  source: Ongoing Effect
+  behavior: trigger
+  guid: a62163b2-ecc7-46f1-b664-21c078575988
+  name: Invisible End Early
+  sourceguid: d6c7146d-bf12-4ea8-8dc6-edc5060c328e
+source: Ongoing Effect
+guid: d6c7146d-bf12-4ea8-8dc6-edc5060c328e
+id: d6c7146d-bf12-4ea8-8dc6-edc5060c328e
+ctime: 1766137944632
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+removeThisInsteadOfCondition: false
+condition: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+name: Invisible End Early
+description: This Invisibility Ends early if damage is taken or they use an ability
+mtime: 1768209142302
+iconid: 6cda6156-84cb-4c95-9973-de54b30a6815
+implementation: 3

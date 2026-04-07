@@ -1,0 +1,99 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 813ef473-cb30-4885-85c2-5c1e4fed1683
+  description: As a maneuver, you target one enemy within 10 squares. You and each ally within 2 squares of the target each gain 1 surge.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 813ef473-cb30-4885-85c2-5c1e4fed1683
+    guid: c6ee1790-09ef-4da9-a024-d2cdfb3baa53
+    source: Item
+    behavior: activated
+    description: As a maneuver, you target one enemy within 10 squares. You and each ally within 2 squares of the target each gain 1 surge.
+    name: Evilest Eye
+    activatedAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 324
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: eb283dfc-4a64-44b9-b5d2-d613ecf71e1d
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: enemy
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 762bf975-73bf-4dee-b701-43a91fe4898c
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: Evilest Eye
+          name: Invoked Ability
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      categorization: Ability
+      domains: []
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Evilest Eye
+      numTargets: "1"
+      description: As a maneuver, you target one enemy within 10 squares. You and each ally within 2 squares of the target each gain 1 surge.
+      abilityType: none
+      implementation: 4
+  source: Item
+  name: Evilest Eye
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: c691215c-60ef-4d82-95cc-6623bd7d75fe
+keywords:
+  Neck: true
+  Psionic: true
+projectSource: Texts or lore in Caelian
+flavor: A perfectly preserved eyeball hangs unnervingly from a gold chain.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+projectGoal: "300"
+itemPrerequisite: An eyeball from a pirate captain who drowned at sea
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+domains:
+  item:c691215c-60ef-4d82-95cc-6623bd7d75fe: true
+echelon: 2
+ctime: 1774846899138
+name: Evilest Eye
+description: As a maneuver, you target one enemy within 10 squares. You and each ally within 2 squares of the target each gain 1 surge.
+mtime: 1774847866143
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 4

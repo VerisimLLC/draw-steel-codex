@@ -1,0 +1,91 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: "-MSvwQsmt24H1QDdGNXy"
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.02918005
+      y: -0.0351561
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d4114c4a-adfc-4375-94d0-cc2c51c9df31
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 5
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Monster
+    damage_taken: 0
+    walkingSpeed: 30
+    titles: []
+    levelChoices: []
+    resources: []
+    skillRatings: []
+    monster_type: Vuken
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1727316309736
+description: Vuken
+parentFolder: efced4b0-e906-40b3-ac6a-704c432d83f9
+artist: null
+ord: 1
+ctime: 1741590289329
+mtime: 1775201137032
+hidden: false

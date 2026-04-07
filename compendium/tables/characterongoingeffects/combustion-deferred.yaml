@@ -1,0 +1,115 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 52621af3-dc5d-47ff-81fd-c3c041969730
+  source: Ongoing Effect
+  resourceCostId: Deferred
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: ally
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Combustion Deferred
+      roll: ConditionCaster("Combustion Deferred").Reason*2
+      damageType: fire
+      chatMessage: Combustion Deferred Damage
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 52621af3-dc5d-47ff-81fd-c3c041969730
+      duration: eoe
+      ongoingEffectCustom: false
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 52621af3-dc5d-47ff-81fd-c3c041969730
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    usageLimitOptions:
+      resourceRefreshType: turn
+      charges: "1"
+      resourceid: 6757c1f6-f55a-4ca1-987b-1f54b9ea6518
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 19c27ad4-2238-4d75-bca3-15f31c8c8316
+    numTargets: "1"
+    name: Combustion Deferred
+    trigger: endturn
+    targetType: all
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  name: Combustion Deferred
+  resourceRefreshType: turn
+  description: ""
+  behavior: trigger
+  guid: 6757c1f6-f55a-4ca1-987b-1f54b9ea6518
+- __typeName: CharacterModifier
+  sourceguid: 52621af3-dc5d-47ff-81fd-c3c041969730
+  source: Ongoing Effect
+  resourceCostId: Deferred
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: ally
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Combustion Deferred
+      roll: ConditionCaster("Combustion Deferred").Reason*2
+      damageType: fire
+      chatMessage: Combustion Deferred Damage
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 52621af3-dc5d-47ff-81fd-c3c041969730
+      duration: eoe
+      ongoingEffectCustom: false
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 52621af3-dc5d-47ff-81fd-c3c041969730
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    usageLimitOptions:
+      resourceRefreshType: turn
+      charges: "1"
+      resourceid: 7a84de70-311f-428a-bb12-a594127ec8ba
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: c09229ef-001b-405a-9f06-03ee12e71573
+    numTargets: "1"
+    name: Combustion Deferred
+    trigger: zerohitpoints
+    targetType: all
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  name: Combustion Deferred
+  resourceRefreshType: turn
+  description: ""
+  behavior: trigger
+  guid: 7a84de70-311f-428a-bb12-a594127ec8ba
+source: Ongoing Effect
+guid: 52621af3-dc5d-47ff-81fd-c3c041969730
+id: 52621af3-dc5d-47ff-81fd-c3c041969730
+ctime: 1766468152150
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Combustion Deferred
+description: ""
+custom: true
+mtime: 1766468198310
+iconid: ui-icons/skills/1.png

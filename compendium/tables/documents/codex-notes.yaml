@@ -1,0 +1,51 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 79a4992a-dc94-4d44-ae0a-c4ca335e2862
+ctime: 1760338270247
+textStorage:
+  __typeName: TextStorage
+  sections:
+    o: |
+      ## Call for a Break After Combat
+    P: |
+      Make sure you gave your players a victory and leveled them up to Encounter 2, and before proceeding. This is done with a button in the Rewards section of the [Goblin Guards Combat] journal.
+    K: |+
+      The ! on the map is clickable by your players and they can use it to see the scene before proceeding.
+
+    j: |+
+      Remind your players they can press "L" to turn their lights on!
+
+
+    e: |+
+      The stairs are set up as a teleporter, meaning your players just have to move onto them to teleport down into the tomb. You can double click (or middle click) on the stairs to go there too.
+
+    F: |+
+      # Codex Notes
+
+    t: If this is your first time running a game of Draw Steel and you haven’t read the rest of part 1, you can call for a break after this combat encounter. While your players grab snacks, chat, use the bathroom, and look over their heroes, go ahead and read the map notes on [Delian Tomb - Level 1] to prepare for what’s coming next.
+    Z: |+
+      Your players can click on the door after approaching it to open or close it.
+
+    U: |+
+      Victories are shown both in the character sheet and underneath the portrait in the character panel. They should all have 1 Victory at this time. 
+
+parentFolder: 05ac910d-c832-46cc-8ca6-449bde0d4969
+updateid: 235b8364-b684-4791-90d4-569973ac3803
+mtime: 1763480914824
+content: |-
+  # Codex Notes
+
+  The ! on the map is clickable by your players and they can use it to see the scene before proceeding.
+
+  Ensure your players are ready for encounter 2 before proceeding: [[/slowstartlevel 2 | Level Heroes to Encounter 2]]
+
+  Your players can click on the door after approaching it to open or close it.
+
+  The stairs are set up as a teleporter, meaning your players just have to move onto them to teleport down into the tomb. You can double click (or middle click) on the stairs to go there too.
+
+  Remind your players they can press "L" to turn their lights on!
+
+
+  ## Call for a Break After Combat
+  If this is your first time running a game of Draw Steel and you haven’t read the rest of part 1, you can call for a break after this combat encounter. While your players grab snacks, chat, use the bathroom, and look over their heroes, go ahead and read the map notes on [Delian Tomb - Level 1] to prepare for what’s coming next.
+description: Codex Notes

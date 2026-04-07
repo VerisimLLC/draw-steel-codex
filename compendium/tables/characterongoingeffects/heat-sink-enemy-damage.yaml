@@ -1,0 +1,59 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: enemy
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Heat Sink
+      roll: Intuition
+      damageType: cold
+      chatMessage: Heat Sink
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: e9227f65-5867-48b8-b3c5-4e573eced6f5
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: Nullifying Aura Radius
+    persistence: []
+    modifiers: []
+    hasManualVersion: false
+    strain: []
+    whenActive: combat
+    guid: b2d46226-2ac6-43c4-a763-bd51ee66f0e5
+    numTargets: "1"
+    name: Heat Sink Enemy Damage
+    trigger: endturn
+    targetType: all
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 9c941300-7f58-4058-b172-8895213401c5
+  name: Heat Sink Enemy Damage
+  sourceguid: e9227f65-5867-48b8-b3c5-4e573eced6f5
+source: Ongoing Effect
+guid: e9227f65-5867-48b8-b3c5-4e573eced6f5
+id: e9227f65-5867-48b8-b3c5-4e573eced6f5
+ctime: 1757983048639
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Heat Sink Enemy Damage
+statusEffect: false
+mtime: 1757983048639
+description: ""
+iconid: ui-icons/skills/1.png

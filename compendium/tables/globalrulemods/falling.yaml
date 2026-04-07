@@ -1,0 +1,97 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        targetFilter: ""
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityDamageBehavior
+          filterTarget: (speed - Fall Reduction) >= 2 and Target.InWater = 0
+          roll: Min(50, (speed - Fall Reduction)*2)
+          chatMessage: Falling Damage
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          filterTarget: (speed - (Fall Reduction + 4 when Target.InWater)) >= 2
+          rule: prone
+        - __typeName: ActivatedAbilityDamageBehavior
+          filterTarget: ((speed-4) - Fall Reduction) >= 2 and Target.InWater = 1
+          roll: Min(50, ((speed-4) - Fall Reduction)*2)
+          chatMessage: Falling Damage - Landed in Water
+        - __typeName: ActivatedAbilityCustomTriggerBehavior
+          value: Cast.Damage Dealt Against(target)
+          triggerName: landfromfall
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 5
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: e827ed5e-7d68-4809-b760-50c85fd45bc7
+        conditionFormula: Stop Fall Damage < 1
+        targetType: self
+        name: Fall Damage
+        trigger: fall
+        numTargets: "1"
+        description: When a creature falls 2 or more squares and lands on the ground, they take 2 damage for each square they fall (to a maximum of 50 damage) and land prone. A creature who falls can reduce the effective height of the fall by a number of squares equal to their Agility score (to a minimum of 0).
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Falling Global Rule Mod Feature
+      behavior: trigger
+      guid: e25f5256-13b1-4535-b620-192085929c89
+      name: Fall Damage
+      sourceguid: 1f18ce16-b3c1-4e67-9352-a2585841b07f
+    name: Fall Damage
+    description: ""
+    guid: 1f18ce16-b3c1-4e67-9352-a2585841b07f
+    source: Falling Global Rule Mod Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: c7c64039-0c94-4569-8bee-169a5d36fe06
+        repeatTargets: false
+        trigger: inflictcondition
+        conditionFormula: Condition is prone and Altitude >= 1
+        targetType: self
+        persistence: []
+        name: Fall when Prone
+        behaviors:
+        - __typeName: ActivatedAbilityFallBehavior
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Falling Global Rule Mod Feature
+      behavior: trigger
+      guid: 861b3fb5-053d-4bb2-9afd-1a4527d5547f
+      name: Fall when Prone
+      sourceguid: 25cda69d-8b7e-4cc3-9789-cf812fc2f144
+    source: Falling Global Rule Mod Feature
+    canHavePrerequisites: true
+    guid: 25cda69d-8b7e-4cc3-9789-cf812fc2f144
+    name: Fall when Prone
+    implementation: 3
+name: Falling
+mtime: 1770887603306
+id: 4dd01554-5471-4eb6-aeba-ff42c50343f4
+ctime: 1720919870223

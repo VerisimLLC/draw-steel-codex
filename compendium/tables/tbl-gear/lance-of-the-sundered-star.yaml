@@ -1,0 +1,61 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    damageTypeMappings: []
+    description: 1/2/3
+    name: Lance of the Sundered Star Extra Damage
+    behavior: power
+    damageModifierType: holy
+    modtype: none
+    rollType: ability_power_roll
+  source: Item
+  name: BLance of the Sundered Star Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 4c1a3adb-f5e9-4588-947e-54a00122bc06
+itemPrerequisite: Night-blooming flower petals, a starmetal meteorite
+keywords:
+  Magic: true
+  Polearm: true
+projectSource: Texts or lore in Hyrallic
+flavor: This needlelike lance is cast of shimmering metal and induces a yearning for the skies in those who handle it.
+level9: The weapon’s extra holy damage increases to 3. Additionally, whenever the weapon is used with a weapon ability that allows you to push or slide a target, that forced movement can be vertical.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The weapon’s extra holy damage increases to 2. Additionally, whenever you use the Charge main action and use an ability with the Charge keyword, or whenever you use an ability that allows you to shift, you can fly as part of the charge movement or the shift. If you don’t end your flying movement on the ground, you fall.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 84a5d6e8-40c2-4c3e-b90a-d8997ca37cf1
+ctime: 1759283841614
+name: Lance of the Sundered Star
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 holy damage. Additionally, when the weapon is used with a weapon ability that allows you to push a target, you can shift to any square adjacent to the target after the push.
+mtime: 1759400836901
+projectRollCharacteristic:
+  agl: true
+  prs: true
+iconid: c6bdba73-39cb-41d3-9887-681abe15ee44

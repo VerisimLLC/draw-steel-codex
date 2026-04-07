@@ -1,0 +1,93 @@
+__typeName: ActivatedAbility
+id: 1c423f02-73e6-4c44-8341-17d854f15fc5
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  namedAbility: Move Speed
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 9305ede6-0f2d-4988-9db6-4face06dbfa1
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: named
+  promptText: Move Speed and Make Free Strike
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0b5c7779-d0b0-464b-ae32-8eb15380f683
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 092c32ff-758a-466f-9940-6542567409ba
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  namedAbility: move speed
+  abilityType: standard
+  standardAbilityParams:
+    distance: moved this turn - walking speed
+  standardAbility: 4a993863-896f-47d0-8449-74c1fe2279b0
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: Movement Speed
+targetType: self
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: Creature can move up to their speed and make a free strike
+description: ""
+ctime: 1748565668265
+numTargets: "1"
+targeting: straightpath
+guid: abe7e351-4175-4200-aeb6-aace3619d47d
+name: Move Speed and Make Free Strike
+repeatTargets: false
+mtime: 1774539212610
+abilityType: none
+iconid: ui-icons/skills/1.png

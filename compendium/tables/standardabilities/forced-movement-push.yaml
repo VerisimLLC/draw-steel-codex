@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+targetFilter: "1"
+id: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+repeatTargets: false
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+targetType: anyspace
+ctime: 1742972345030
+persistence: []
+targeting: straightline
+description: ""
+name: "Forced Movement: Push"
+forcedMovement: push
+mtime: 1772113243968
+abilityType: none
+iconid: ui-icons/skills/1.png

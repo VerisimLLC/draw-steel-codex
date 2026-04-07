@@ -1,0 +1,41 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: "Awakened Benefit: "
+    numChoices: 1
+    guid: 6bb99773-e56c-4cff-a733-3f384a7520e8
+    description: Choose one of the following benefits
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Foresight
+      description: You don’t take a bane when using abilities against creatures with concealment.
+      guid: 3bc87a71-9c97-47ec-a356-3a07cad8f8d0
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Rogue Talent
+      description: Choose one triggered action that the talent class has access to at 1st level. You gain that ability regardless of whether your class and subclass allow you to take it. If this ability allows you to gain or spend clarity, you can’t do so unless you have the Clarity class feature.
+      guid: c8a29731-4ffb-4340-bd5d-2cf4d2f169f1
+      canHavePrerequisites: true
+      source: Title
+    - __typeName: CharacterFeature
+      description: As a maneuver, you communicate telepathically with a creature within 10 squares who understands a language you know. The creature can respond telepathically as part of the same maneuver.
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: dfa2ac17-aa7c-44da-b239-ad926642ba6a
+      name: Telepathy
+      implementation: 0
+id: 98ce8a4d-ead0-4b9b-88ea-02353a4210d6
+ctime: 1762351370146
+name: Awakened
+description: I was grappling with them, and when they died … I felt something happen. To me.
+mtime: 1775050078214
+echelon: "2"
+prerequisite: You defeat a leader or solo creature who has at least one ability with the Psionic keyword, such as a voiceless talker evolutionist.

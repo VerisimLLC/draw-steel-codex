@@ -1,0 +1,70 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d429a47c-76ea-4658-9185-7eca1be7f2b8
+  source: Ongoing Effect
+  seq: 0629597f-632e-4e11-83b4-8d105988d7ca
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        persistence: []
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        strain: []
+        guid: ce82cc61-8caa-4986-a8bb-d88edd8aff72
+        repeatTargets: false
+        abilityType: none
+        trigger: beginturn
+        targetType: self
+        numTargets: "1"
+        name: Inertial Anchor
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 1db37f82-2159-4a79-8b7a-975ba23b5c0d
+          duration: 0
+          ongoingEffectCustom: false
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: 099d54fd-21fe-4f29-94dc-1e3bc01e4a6d
+      name: Inertial Anchor
+      sourceguid: e494e91c-5c28-4470-a8f3-deb48fdd4169
+    name: Inertial Anchor
+    triggers: []
+    guid: e494e91c-5c28-4470-a8f3-deb48fdd4169
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+  radius: Nullifying Aura Radius
+  guid: b46efa33-c4dd-48af-bb56-3f945229f0bb
+  description: ""
+  behavior: aura
+  name: Inertial Anchor
+source: Ongoing Effect
+guid: d429a47c-76ea-4658-9185-7eca1be7f2b8
+id: d429a47c-76ea-4658-9185-7eca1be7f2b8
+ctime: 1749492130747
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Inertial Anchor
+description: ""
+custom: true
+mtime: 1749492130747
+iconid: ui-icons/skills/1.png

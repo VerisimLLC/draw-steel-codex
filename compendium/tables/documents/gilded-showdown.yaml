@@ -1,0 +1,73 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 661e881c-588f-4e82-840a-63460a43fe74
+ctime: 1762859214185
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |+
+      * The heroes try to negotiate for the [item:Delian Knight Commander's Ring] and Illwyth’s interest reaches 0 or 5 (see Negotiating for the Ring).
+
+
+    M: |
+      * The heroes get caught stealing the [item:Delian Knight Commander's Ring] from Illwyth or successfully steal it and then finish a respite (see [Grabbing the Ring]).
+    n: |+
+      ## Aftermath
+
+    V: |
+      When the event begins, the heroes are passing through the village square at a time no one else is there.
+    Y: |
+      > * “The village square is unusually quiet as you pass through.”
+    j: |+
+      See [Gilded Showdown Encounter].
+
+
+    G: |+
+      If the heroes get on the wrong side of the [Gilded Hand] (see [Gilded Hand] in [B1. Feather Bed Inn]), then they might fight some of their members in the streets of Broadhurst. This event can occur for any of the following reasons:
+
+    f: |
+      This encounter uses the [Gilded Showdown Map]. [Boddorff] Buckfeather, [Gorek], and [Mara] confront the heroes.
+    b: |+
+      > * “Three members of the Gilded Hand emerge from the shadows, weapons drawn. They’re not here to talk.”
+
+    v: "If [Targon] doesn’t join the battle, he flees Broadhurst when the heroes beat his fellow mercenaries, vowing to return when he has a new group of rivals to help. [Illwyth] finds the heroes and offers them the [item:Delian Knight Commander's Ring] (see Treasure in Handouts) as a peace offering and in exchange for letting her leave Broadhurst without any trouble. She also tells the heroes that the Jagged Edge are staying in the ruins of [Castle Andreas] (see [Part 3: The Jagged Edge])."
+    S: |+
+      ## Setting the Scene
+
+    D: |+
+      # Gilded Showdown
+
+    J: |
+      * The heroes get caught eavesdropping on the Gilded Hand by Targon (see Learning the Hand’s Plot).
+    r: |+
+      Captured members of the [Gilded Hand] share everything they know about the [Gilded Hand]’s plot (see [Gilded Hand] in [B1. Feather Bed Inn]), hoping that the heroes will show them mercy.
+
+parentFolder: 5cef1ec9-f44c-4944-8d56-2671f46e304a
+updateid: 9a8303ba-4c34-4d04-8f87-443f2341b4d6
+mtime: 1774906568345
+content: |-
+  # Gilded Showdown
+
+  If the heroes get on the wrong side of the [Gilded Hand] (see [Gilded Hand] in [B1. Feather Bed Inn]), then they might fight some of their members in the streets of Broadhurst. This event can occur for any of the following reasons:
+
+  * The heroes get caught eavesdropping on the Gilded Hand by Targon (see Learning the Hand’s Plot).
+  * The heroes get caught stealing the Delian Knight Commander’s Ring from Illwyth or successfully steal it and then finish a respite (see Grabbing the Ring).
+  * The heroes try to negotiate for the Delian Knight Commander’s Ring and Illwyth’s interest reaches 0 or 5 (see Negotiating for the Ring).
+
+
+  ## Setting the Scene
+
+  When the event begins, the heroes are passing through the village square at a time no one else is there.
+  > * “The village square is unusually quiet as you pass through.”
+  > * “Three members of the Gilded Hand emerge from the shadows, weapons drawn. They’re not here to talk.”
+
+  This encounter uses the [Gilded Showdown Map]. [Boddorff] Buckfeather, [Gorek], and [Mara] confront the heroes.
+  See [Gilded Showdown Encounter].
+
+
+  ## Aftermath
+
+  Captured members of the [Gilded Hand] share everything they know about the [Gilded Hand]’s plot (see [Gilded Hand] in [B1. Feather Bed Inn]), hoping that the heroes will show them mercy.
+
+  If [Targon] doesn’t join the battle, he flees Broadhurst when the heroes beat his fellow mercenaries, vowing to return when he has a new group of rivals to help. [Illwyth] finds the heroes and offers them the [Delian Knight Commander's Ring] (see Treasure in Handouts) as a peace offering and in exchange for letting her leave Broadhurst without any trouble. She also tells the heroes that the Jagged Edge are staying in the ruins of [Castle Andreas] (see [Part 3: The Jagged Edge]).
+description: Gilded Showdown

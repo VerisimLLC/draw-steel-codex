@@ -1,0 +1,56 @@
+__typeName: ActivatedAbility
+objectTarget: false
+targetFilter: ""
+id: 71c06fc7-7255-47ee-81c8-5b5b066c5d9e
+targetAllegiance: enemy
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: targets
+  targeting: prompt
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  filterTarget: ""
+  namedAbility: Melee Free Strike
+  abilityType: named
+  standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+testCases:
+- text: One ally adjacent to the target can make a free strike against them.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: Used for Dwarf Axethrower Minion's Whistling Axes ability.
+importMatch: ally adjacent to the target can make a free strike against them
+ctime: 1772033658652
+description: ""
+numTargets: "1"
+guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+name: Adjacent Ally Free Strike Against Target
+repeatTargets: false
+mtime: 1772113099616
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+modifiers: []
+source: Ongoing Effect
+guid: 5af542c1-a764-45e0-b496-0eb8a5501fe2
+id: 5af542c1-a764-45e0-b496-0eb8a5501fe2
+ctime: 1710060644590
+name: Inspiring Strike+
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.355749607086182
+    s: 0.720214486122131
+    v: 0.481535017490387
+    a: 1
+mtime: 1710060644590
+custom: true
+description: ""
+iconid: 4c851e1e-debd-40c8-88f6-72f5f02f766e

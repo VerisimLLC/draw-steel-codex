@@ -1,0 +1,70 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:bdc35bae-54f1-495e-971b-6c99f925ebb4: true
+  sourceguid: bdc35bae-54f1-495e-971b-6c99f925ebb4
+  description: The target gains three surges at the start of each of their turns until the end of the encounter or they start dying.
+  source: Ongoing Effect
+  name: Arise!
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Arise!
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 0.963867127895355
+        v: 0.97353208065033
+        a: 1
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+      chatMessage: Arise! 3 Surges at start of turn.
+      quantity: "3"
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: b8711591-e416-47cc-9c41-7607f72bab29
+    persistence: []
+    domains:
+      CharacterOngoingEffect:bdc35bae-54f1-495e-971b-6c99f925ebb4: true
+    targetType: self
+    castImmediately: true
+    trigger: beginturn
+    name: Arise!
+    description: The target gains three surges at the start of each of their turns until the end of the encounter or they start dying.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 50bcf52e-0378-4ad3-8a1d-d283f8b1db2f
+source: Ongoing Effect
+guid: bdc35bae-54f1-495e-971b-6c99f925ebb4
+id: bdc35bae-54f1-495e-971b-6c99f925ebb4
+ctime: 1769752654591
+domains:
+  CharacterOngoingEffect:bdc35bae-54f1-495e-971b-6c99f925ebb4: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.154008433222771
+    s: 0.929411768913269
+    v: 1
+    a: 1
+custom: true
+name: Arise!
+iconid: a337f5b1-3990-4565-8be2-c7861fb28d10
+description: The target gains three surges at the start of each of their turns until the end of the encounter or they start dying.
+mtime: 1769754580491
+implementation: 3

@@ -1,0 +1,72 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: Whenever an enemy scores a critical hit against you, they take 10 sonic damage.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityFloatTextBehavior
+        text: Shattering
+        color:
+          __usertype: LuaColor
+          h: 0
+          s: 0.995116829872131
+          v: 0.991893768310547
+          a: 1
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "10"
+        damageType: sonic
+        chatMessage: Shattering
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      subjectRange: "100"
+      strain: []
+      guid: ded37b30-b15d-411f-9c4c-23e0ec11665b
+      persistence: []
+      conditionFormula: cast.Primary Target = self and cast.Natural Roll >= Subject.Critical Threshold
+      targetType: subject
+      name: Shattering
+      trigger: useability
+      subject: other
+      description: Whenever an enemy scores a critical hit against you, they take 10 sonic damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever an enemy scores a critical hit against you, they take 10 sonic damage.
+    source: Shattering Imbuement
+    behavior: trigger
+    guid: d34e2904-f37f-4ba0-8646-df2fff585449
+    name: Shattering
+    sourceguid: e865f556-9895-481e-b8aa-2f40c9b94dd9
+  source: Shattering Imbuement
+  name: Shattering
+  addText: Add Magical Property
+  itemAttached: true
+  guid: e865f556-9895-481e-b8aa-2f40c9b94dd9
+id: e6dada53-9210-46cb-a028-ce51d8661ba2
+imbuePrereq: none
+projectSource: Zaliac
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: A pound of volcanic obsidian, formed naturally as a single piece
+mtime: 1774698665713
+name: Shattering
+imbueTargetType: armor
+description: Whenever an enemy scores a critical hit against you, they take 10 sonic damage.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 2

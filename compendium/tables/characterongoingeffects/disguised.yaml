@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d527a8a1-e9c8-4dc9-93e6-74d50ccbe12f
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:d527a8a1-e9c8-4dc9-93e6-74d50ccbe12f: true
+  name: Disguised
+  guid: 67d827b0-eb2b-4091-9588-b525135cc28c
+  description: ""
+  behavior: attribute
+  attribute: disguised
+source: Ongoing Effect
+guid: d527a8a1-e9c8-4dc9-93e6-74d50ccbe12f
+id: d527a8a1-e9c8-4dc9-93e6-74d50ccbe12f
+ctime: 1751531169859
+domains:
+  CharacterOngoingEffect:d527a8a1-e9c8-4dc9-93e6-74d50ccbe12f: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Disguised
+statusEffect: true
+description: ""
+mtime: 1758820189491
+iconid: ui-icons/skills/1.png

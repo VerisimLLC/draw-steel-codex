@@ -1,0 +1,205 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f67b1222-a2dc-450e-976c-a219515a0c6b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Waxen	Level 7 Horde Artillery
+        Undead	EV 9
+        <b>Stamina</b> 40	<b>Immunity</b> corruption 7, poison 7
+        <b>Speed</b> 4	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 4
+        Might +4	Agility -2	Reason -4	Intuition +1	Presence -2
+        <b>Wax Fling</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 15<b>	Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	8 damage
+        %E2%98%85	12%E2%80%9316	11 damage
+        %E2%9C%B8	17	12 damage; A<4 slowed (save ends)
+        <b>Effect</b> The target is restrained (save ends) if they were already slowed by this ability.
+
+        <b>Erupt</b> (Action) %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        <b>Effect</b> Each target makes an <b>Agility test.</b>
+        %E2%9C%B8	%E2%89%A411	10 damage
+        %E2%98%85	12%E2%80%9316	8 damage
+        %E2%9C%A6	17	5 damage
+        <b>Effect</b> The waxen shifts up to their speed before erupting if they are ignited (see Burn Bright). The waxen dies and the affected area becomes difficult terrain for enemies.
+
+        <b>Burn Bright</b>
+        If the waxen takes any amount of fire damage, they ignite. While ignited, the waxen takes 4 fire damage at the start of each of their turns and their strikes deal an extra 4 fire damage.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cab845d7-a9a9-4856-9aac-d2fe2d81478e: true
+      modifiers: []
+      name: Burn Bright
+      description: If the waxen takes any amount of fire damage, they ignite. While ignited, the waxen takes 4 fire damage at the start of each of their turns and their strikes deal an extra 4 fire damage.
+      guid: cab845d7-a9a9-4856-9aac-d2fe2d81478e
+      source: Trait
+    role: Horde Artillery
+    inflictedConditions: []
+    keywords:
+      Undead: true
+      Soulless: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 7
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 7
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 4
+    monster_type: Waxen
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: -4
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 4
+    resources: []
+    max_hitpoints: 40
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage
+        - 11 damage
+        - 12 damage; A<4 slowed (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 3758bb1f-261b-4497-943b-3358b76af157
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Wax Fling
+      numTargets: 1
+      description: The target is restrained (save ends) if they were already slowed by this ability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8c81b299-2cd3-4401-9ec3-7cb984d18e20
+      abilityType: none
+      numTargets: 1
+      implementation: 0
+      name: Erupt
+      behaviors: []
+      description: The waxen shifts up to their speed before erupting if they are ignited (see Burn Bright). The waxen dies and the affected area becomes difficult terrain for enemies.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    movementSpeeds: []
+    ev: 9
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 99d87439-df25-4c12-8a98-378863f351f0
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969981
+description: Waxen
+parentFolder: fc9b27fb-58bf-4b65-9400-d025e2de9480
+artist: null
+ord: 8
+ctime: 1741590286201
+mtime: 1775201137032
+hidden: false

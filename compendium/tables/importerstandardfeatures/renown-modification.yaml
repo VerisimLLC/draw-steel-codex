@@ -1,0 +1,19 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+  sourceguid: 2359108d-cb7d-4a79-8a98-38f577168092
+  value: 1
+  source: Character
+  name: Stamina Modification
+  behavior: attribute
+  description: ""
+  attribute: d97c2794-cb70-420f-b078-e260b43e154b
+source: Character
+guid: 2359108d-cb7d-4a79-8a98-38f577168092
+id: 96f9189e-bc3b-46f4-8684-2763b72d99fc
+ctime: 1756160336495
+name: Renown Modification
+description: ""
+mtime: 1756160336495
+implementation: 3

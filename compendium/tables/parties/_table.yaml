@@ -1,0 +1,108 @@
+b72876c4-e9d7-42dc-a8a1-cd4c3744056c:
+  __typeName: Party
+  noncombatant: true
+  ord: 9
+  name: Non-Combatants
+  id: b72876c4-e9d7-42dc-a8a1-cd4c3744056c
+  mtime: 1773663831468
+  allyParties:
+    336f53d5-438e-4450-ac09-9e7a49412d53: true
+    0339ff3e-f288-4a85-a02c-a458c091684f: true
+  ctime: 1773663831468
+0339ff3e-f288-4a85-a02c-a458c091684f:
+  __typeName: Party
+  ctime: 1759641615904
+  id: 0339ff3e-f288-4a85-a02c-a458c091684f
+  _fork: H4sIAAAAAAAACnWPzQrCQAyEX0X2bKDdJPvThxAP3ktss1BYRdp6KOK7u6vizWMmk8k3D9P363bTg1zUdOYo87qZ/c5cv3OWTeelKpLzVteTLqZ7GESXGEcGwqBAxA3I0ESI6oUitXZkNN0637XejmJjSgzOpwCk1kEUFXADnbXFYk/0M/f5Lic5Z/0ozyJd1qnitM67gOzJW7ZFnsaC2CCWaFRINpRsCQzS2AGEOBSg1gVKlf/2rvIp+O/VC/vVHTkOAQAA
+  name: Players
+  mtime: 1773430971909
+  allyParties:
+    7870ffcb-c942-4db9-a831-bf0210aa11ea: true
+    b72876c4-e9d7-42dc-a8a1-cd4c3744056c: true
+    45d9d32b-252d-4116-85d7-f7dc72d8304e: true
+    8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676: true
+    336f53d5-438e-4450-ac09-9e7a49412d53: true
+    99875cc1-a5a6-491f-8af6-51b29f0da555: true
+    ada29ff5-67f8-4e26-9aea-6c4be13941f4: true
+  playerParty: true
+99875cc1-a5a6-491f-8af6-51b29f0da555:
+  __typeName: Party
+  noncombatant: true
+  ord: 9
+  name: Non-Combatant
+  allyParties:
+    8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676: true
+    0339ff3e-f288-4a85-a02c-a458c091684f: true
+    336f53d5-438e-4450-ac09-9e7a49412d53: true
+    7870ffcb-c942-4db9-a831-bf0210aa11ea: true
+  mtime: 1773662343026
+  id: 99875cc1-a5a6-491f-8af6-51b29f0da555
+  ctime: 1773430999104
+8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676:
+  __typeName: Party
+  noncombatant: false
+  name: Broadhurst Citizens
+  allyParties:
+    7870ffcb-c942-4db9-a831-bf0210aa11ea: true
+    MONSTER: true
+    e6110441-d9a2-4520-90ba-c9fa46f8a608: true
+    99875cc1-a5a6-491f-8af6-51b29f0da555: true
+    79a193bd-d32c-4932-9f12-93c1b20323d2: true
+    336f53d5-438e-4450-ac09-9e7a49412d53: true
+    0339ff3e-f288-4a85-a02c-a458c091684f: true
+  mtime: 1773668639143
+  id: 8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676
+  ctime: 1763558968742
+e6110441-d9a2-4520-90ba-c9fa46f8a608:
+  __typeName: Party
+  name: The Gilded Hand
+  allyParties:
+    8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676: true
+    79a193bd-d32c-4932-9f12-93c1b20323d2: true
+  mtime: 1764094374684
+  id: e6110441-d9a2-4520-90ba-c9fa46f8a608
+  ctime: 1760780313454
+061b4cd9-1abb-45c6-9855-67e1d358320c:
+  __typeName: Party
+  mtime: 1773432654777
+  id: 061b4cd9-1abb-45c6-9855-67e1d358320c
+  ctime: 1773432654777
+79a193bd-d32c-4932-9f12-93c1b20323d2:
+  __typeName: Party
+  name: Antagonist NPCs
+  allyParties:
+    8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676: true
+    MONSTER: true
+    e6110441-d9a2-4520-90ba-c9fa46f8a608: true
+  mtime: 1765810906122
+  id: 79a193bd-d32c-4932-9f12-93c1b20323d2
+  ctime: 1763559032051
+336f53d5-438e-4450-ac09-9e7a49412d53:
+  __typeName: Party
+  _fork: H4sIAAAAAAAACm2OPQuDQBBE/4pckyYHert73tkGUopFetnoHggXCX4UIvnvObEKpH3Mm5ldte2yvaXml6hKNTwtm7pmqluGAxSWjKOSwHryCY9n7D4NMvZxy+rmdpmPPMe4HfIgs6p2lQP4EEB0MM5pZEeac9NpRnJd7gvrMKhqmVZJbhtXfvAzykk+CQ19WgGwgaAnjeBEI1KuOcnaS8nosTA9wbH9+v1qCbH4U/sFQxG1GusAAAA=
+  name: Friendly NPC's
+  id: 336f53d5-438e-4450-ac09-9e7a49412d53
+  mtime: 1773430972909
+  allyParties:
+    8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676: true
+    45d9d32b-252d-4116-85d7-f7dc72d8304e: true
+    0339ff3e-f288-4a85-a02c-a458c091684f: true
+    99875cc1-a5a6-491f-8af6-51b29f0da555: true
+    b72876c4-e9d7-42dc-a8a1-cd4c3744056c: true
+  ctime: 1759641614593
+7870ffcb-c942-4db9-a831-bf0210aa11ea:
+  __typeName: Party
+  allyParties:
+    8ac6fbe4-2dbb-49b9-beb0-56f9d56fa676: true
+    99875cc1-a5a6-491f-8af6-51b29f0da555: true
+    0339ff3e-f288-4a85-a02c-a458c091684f: true
+  name: Delian Tomb Pregens
+  color:
+    __usertype: LuaColor
+    h: 0.663249969482422
+    s: 0.89599597454071
+    v: 0.966197848320007
+    a: 1
+  mtime: 1773430975546
+  id: 7870ffcb-c942-4db9-a831-bf0210aa11ea
+  ctime: 1760434873622

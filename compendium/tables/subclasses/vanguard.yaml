@@ -1,0 +1,1715 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1728053556683
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        sourceguid: d0b08696-c78e-4812-a81a-158533c1930d
+        description: ""
+        source: Vanguard Class Feature
+        name: See Your Enemies Driven Before You
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 2
+          repeatTargets: false
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            standardAbilityParams:
+              distance: "{Triggerer.Reason}"
+              targetid: "{subject.id}"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 9be31899-6f69-49e3-b645-bc0f63c8cd02
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 75946ad2-cfe5-4d05-9e2a-5a70ed5173a6
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: eb76f466-71e5-4bc8-91df-5a987b19311c
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbilityParams:
+              targetid: "{subject.id}"
+            guid: ccc5c353-e3df-4316-be1f-5d87303b8e5b
+            standardAbility: 7891188c-3bba-4649-b533-4c73127d0add
+            filterTarget: ""
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            promptText: You must end this shift adjacent to the target.
+            standardAbilityParams:
+              distance: "{Triggerer.Reason}"
+            customAbility:
+              __typeName: ActivatedAbility
+              targetFilter: ""
+              repeatTargets: false
+              targetType: emptyspace
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: "<<distance>>"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 9230e908-3f02-4ded-8216-51adaeaaea70
+              behaviors:
+              - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                movementType: shift
+              targeting: pathfind
+              name: Invoked Ability
+              selfTarget: true
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: custom
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+          characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          trigger: losehitpoints
+          range: 1
+          triggerPrompt: Spend 2 focus to have the character making the strike push the target up to a number of squares equal to your Reason score. That character can then shift up to a number of squares equal to your Reason score, ending this shift adjacent to the target.
+          castImmediately: true
+          persistence: []
+          modifiers: []
+          subjectRange: "100"
+          strain: []
+          guid: b46db809-fbb7-4f52-a5cc-4c35c5220acc
+          numTargets: "1"
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          conditionFormula: (ability.Keywords has "strike") and (ability.keywords has "melee")
+          targetType: attacker
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          name: "Mark: See Your Enemies Driven Before You"
+          mandatory: false
+          description: Spend 2 focus to have the character making the strike push the target up to a number of squares equal to your Reason score. That character can then shift up to a number of squares equal to your Reason score, ending this shift adjacent to the target.
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 0b99d8b1-2334-4283-8f60-9eccce00dbd3
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        sourceguid: d0b08696-c78e-4812-a81a-158533c1930d
+        behavior: triggerdisplay
+        source: Vanguard Class Feature
+        name: See Your Enemies Driven Before You
+        description: ""
+        guid: 01b2a44a-1fc6-48e0-bf79-f0374da4438f
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: ""
+          effect: When you or any ally makes a melee strike against a creature marked by you, you can spend 2 focus to have the character making the strike push the target up to a number of squares equal to your Reason score. That character can then shift up to a number of squares equal to your Reason score, ending this shift adjacent to the target.
+          type: trigger
+          name: See Your Enemies Driven Before Y
+          cost: 2 Focus
+          guid: c3adee14-69a0-4a52-863d-142980f4b2be
+          distance: ""
+          keywords: []
+      source: Vanguard Class Feature
+      guid: d0b08696-c78e-4812-a81a-158533c1930d
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+      canHavePrerequisites: true
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      description: ""
+      name: See Your Enemies Driven Before You
+      implementation: 4
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        interpersonal: true
+      description: You gain a skill from the interpersonal skill group.
+      source: Vanguard Class Feature
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      guid: 7f90441d-d07e-47ba-a304-b9c800342235
+      name: Vanguard Interpersonal Skill
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+      guid: cf679586-b871-4456-a748-d010db6ded87
+      modifiers: []
+      name: Imposing Attitude
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      description: You command any room you walk into. While you are present, each hero with you is treated as having a Renown 2 higher than usual for the purpose of negotiations and influencing tests. Additionally, each hero with you has a double edge on tests made to stop combat and start a negotiation with the other side.
+      source: Vanguard Class Feature
+      implementation: 4
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        sourceguid: 7d3a6b9c-b906-45e3-8a5c-a7ea731b6393
+        description: As a free maneuver, you can spend 1d6 Stamina to ignore a consequence from a test, or to end one effect on you that is ended by a saving throw or that ends at the end of your turn. Any ally adjacent to you can also spend Stamina as a free maneuver to gain this benefit.
+        source: Vanguard Class Feature
+        name: Shake It Off
+        behavior: activated
+        guid: 77594f02-f0fe-4277-9db5-de62e89dff3f
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 181
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          categorization: Ability
+          strain: []
+          guid: a744f9c2-3b27-431b-aeda-79f9c9e02b4c
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save|eot
+            damageToSelf: 1d6
+            purgeType: one
+          iconid: ui-icons/skills/1.png
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+          persistence: []
+          name: Shake It Off
+          selfTarget: true
+          description: As a free maneuver, you can spend 1d6 Stamina to ignore a consequence from a test, or to end one effect on you that is ended by a saving throw or that ends at the end of your turn. Any ally adjacent to you can also spend Stamina as a free maneuver to gain this benefit.
+          abilityType: none
+          implementation: 2
+      source: Vanguard Class Feature
+      guid: 7d3a6b9c-b906-45e3-8a5c-a7ea731b6393
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+      canHavePrerequisites: true
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      description: As a free maneuver, you can spend 1d6 Stamina to ignore a consequence from a test, or to end one effect on you that is ended by a saving throw or that ends at the end of your turn. Any ally adjacent to you can also spend Stamina as a free maneuver to gain this benefit.
+      name: Shake It Off
+      implementation: 2
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: de3438e4-94c6-4858-8c3f-ce7957290921
+        source: Vanguard Class Feature
+        value: 1
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        name: Tactical Offensive
+        guid: 95caea89-1060-4426-a674-bedb6e6a278e
+        description: When you use the Charge main action to attack a creature marked by you, you can use a signature or heroic ability with the Melee and Strike keywords instead of a melee free strike.
+        behavior: attribute
+        attribute: 03bcf2ae-075c-40f8-8dac-b2c73aa20402
+      - __typeName: CharacterModifier
+        sourceguid: de3438e4-94c6-4858-8c3f-ce7957290921
+        source: Vanguard Class Feature
+        value: 1
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        name: Tactical Offensive
+        guid: a3ab648d-0905-4bbb-a6c4-0788aad0acb2
+        description: When you use the Charge main action to attack a creature marked by you, you can use a signature or heroic ability with the Melee and Strike keywords instead of a melee free strike.
+        behavior: attribute
+        attribute: 03bcf2ae-075c-40f8-8dac-b2c73aa20402
+      source: Vanguard Class Feature
+      guid: de3438e4-94c6-4858-8c3f-ce7957290921
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+      canHavePrerequisites: true
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      description: When you use the Charge main action to attack a creature marked by you, you can use a signature or heroic ability with the Melee and Strike keywords instead of a melee free strike.
+      name: Tactical Offensive
+      implementation: 3
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: db5fa782-5bb9-4812-b814-62251fe8758e
+        source: Vanguard Class Feature
+        guid: 0cb764e5-c55e-4b10-964c-d051ea2c9e71
+        keywords: []
+        activationCondition: false
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        behavior: power
+        rollType: test_power_roll
+        name: Shock and Awe
+        description: 'During a montage test or negotiation, you can obtain one automatic success on a test made using a skill from the interpersonal skill group. '
+        modtype: tier3
+        skills:
+        - d533510d-0f1f-4ce3-a48c-cc21acadb6c6
+        - 47a38ee9-41ad-4173-a010-adf9e185e221
+        - 9f41a684-4b8c-4026-8175-df136fc5134f
+        - 81442e8b-10cb-41f5-8aa9-110a2256b663
+        - ff54a691-e0a0-4246-8ceb-7975b8826e92
+        - 4290580d-9e08-4bd2-859c-7ac147f108aa
+        - 27995005-8a25-435d-9f50-351c9d08a7b4
+        - 4f4b7168-8702-469d-b001-65d250fd4082
+        - d188b959-e993-4239-a350-5e7ad69d27b6
+        - bd66a379-6ea9-4ecc-ad82-c9a2b82750d4
+        - 28573ee3-e9df-47fe-98f1-2ac0bfee797a
+        - 30a30090-3699-48f1-b252-ce7d0445abee
+      source: Vanguard Class Feature
+      guid: db5fa782-5bb9-4812-b814-62251fe8758e
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+      canHavePrerequisites: true
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      description: You have expanded your leadership skills, strengthening your followers’ morale and providing logistical support. During a montage test or negotiation, you can obtain one automatic success on a test made using a skill from the interpersonal skill group. Additionally, you can convince a group of people to help you with a crafting project during a respite. If these people are available when you take a respite, you can make a project roll for a crafting project in addition to undertaking another respite activity.
+      name: Shock and Awe
+      implementation: 3
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          sourceguid: 7970b320-32ba-41f9-9ea3-0e33eda53160
+          description: ""
+          source: Vanguard Class Feature
+          name: To Me Squad!
+          behavior: activated
+          guid: 2ae86bf1-dc3c-4dfa-88d5-11dc50b02144
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9	"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Charge: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            sourceReference:
+              __typeName: SourceReference
+              page: 182
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+              class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+            strain: []
+            guid: f198ca36-123f-4ed6-b614-494489695857
+            implementation: 3
+            numTargets: "1"
+            castImmediately: false
+            categorization: Heroic Ability
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: a148e3e2-c042-4351-bb45-13238bed2cb8
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    persistence: []
+                    modifiers: []
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    strain: []
+                    guid: 80544ff5-a322-4f57-8c86-c56d03f98bae
+                    repeatTargets: false
+                    abilityType: none
+                    trigger: losehitpoints
+                    targetType: self
+                    numTargets: "1"
+                    name: Track attacks against
+                    behaviors:
+                    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                      ongoingEffect: 27df0ea3-47ff-4a8a-8091-2995f0a307da
+                      duration: 0
+                      ongoingEffectCustom: 27df0ea3-47ff-4a8a-8091-2995f0a307da
+                    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                      filterTarget: Stacks("To Me Squad!") >= 2
+                      rule: R < Strong, dazed (save ends)
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                  description: ""
+                  source: Ongoing Effect
+                  behavior: trigger
+                  guid: 14cbee3c-14fd-4790-b214-9cff96824538
+                  name: Track attacks against
+                  sourceguid: a148e3e2-c042-4351-bb45-13238bed2cb8
+                source: Ongoing Effect
+                name: Track attacks against
+                description: ""
+                id: a148e3e2-c042-4351-bb45-13238bed2cb8
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + M damage; One ally within 10 squares can use the Charge main action as a free triggered action, and can use a melee strike signature ability instead of a fr
+              - 9 + M damage; One ally within 10 squares can use the Charge main action as a free triggered action, and can use a melee strike signature ability instead of a fr
+              - 13 + M damage; Two ally within 10 squares can use the Charge main action as a free triggered action, and can use a melee strike signature ability instead of a f
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                objectTarget: false
+                abilityType: none
+                strain: []
+                guid: 22723b71-23d0-463b-8c27-7908a784c162
+                repeatTargets: false
+                modifiers: []
+                numTargets: "1"
+                targetType: target
+                categorization: Hidden
+                name: Invoked Ability
+                behaviors:
+                - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+                  momentaryEffect:
+                    __typeName: CharacterOngoingEffect
+                    guid: 3b81718c-c105-49bd-b662-a7e4ba63edb8
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    modifiers:
+                    - __typeName: CharacterModifier
+                      guid: 59151a15-2a66-49f8-891e-575f22ae68a5
+                      sourceguid: 3b81718c-c105-49bd-b662-a7e4ba63edb8
+                      value: 1
+                      source: Ongoing Effect
+                      name: Charge strike signature ability
+                      behavior: attribute
+                      description: ""
+                      attribute: e6d8c298-116b-4c95-992f-89233f48a8c5
+                    source: Ongoing Effect
+                    name: Charge strike signature ability
+                    description: ""
+                    id: 3b81718c-c105-49bd-b662-a7e4ba63edb8
+                    iconid: ui-icons/skills/1.png
+                  name: Ability Duration Effect
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  runOnController: true
+                  promptText: Charge
+                  namedAbility: Charge
+                  abilityType: named
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 27593d7a-2a6d-4cff-883a-361f20b7fc45
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                description: ""
+                range: "10"
+                iconid: ui-icons/skills/1.png
+              promptText: Select ally to charge
+              namedAbility: ""
+              abilityType: custom
+              tiersSelected:
+              - 1
+              - 2
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              namedAbility: ""
+              promptText: Select allies to charge
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                objectTarget: false
+                abilityType: none
+                strain: []
+                guid: 22723b71-23d0-463b-8c27-7908a784c162
+                repeatTargets: false
+                modifiers: []
+                numTargets: "2"
+                targetType: target
+                categorization: Hidden
+                name: Invoked Ability
+                behaviors:
+                - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+                  momentaryEffect:
+                    __typeName: CharacterOngoingEffect
+                    guid: 3b81718c-c105-49bd-b662-a7e4ba63edb8
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    modifiers:
+                    - __typeName: CharacterModifier
+                      guid: 59151a15-2a66-49f8-891e-575f22ae68a5
+                      sourceguid: 3b81718c-c105-49bd-b662-a7e4ba63edb8
+                      value: 1
+                      source: Ongoing Effect
+                      name: Charge strike signature ability
+                      behavior: attribute
+                      description: ""
+                      attribute: e6d8c298-116b-4c95-992f-89233f48a8c5
+                    source: Ongoing Effect
+                    name: Charge strike signature ability
+                    description: ""
+                    id: 3b81718c-c105-49bd-b662-a7e4ba63edb8
+                    iconid: ui-icons/skills/1.png
+                  name: Ability Duration Effect
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  runOnController: true
+                  promptText: Charge
+                  namedAbility: Charge
+                  abilityType: named
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: d42e95c5-bbc7-4ddf-88d8-da171fd6e325
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                description: ""
+                range: "10"
+                iconid: ui-icons/skills/1.png
+              guid: acdb8437-cc78-4f97-9d56-109750712d69
+              abilityType: custom
+              tiersSelected:
+              - 3
+            name: To Me Squad!
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: If the target is hit with two or more strikes as part of this ability and they have r<strong, they are dazed (save ends). If the target is reduced to 0 Stamina before one or both allies has made their strike, the ally or allies can pick a different target.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Vanguard Class Feature
+        guid: 7970b320-32ba-41f9-9ea3-0e33eda53160
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        canHavePrerequisites: true
+        classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+        description: ""
+        name: To Me Squad!
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          sourceguid: db12d064-fe50-4a9e-b7bb-e863741897c9
+          behavior: triggerdisplay
+          source: Vanguard Class Feature
+          name: Instant Retaliation
+          description: ""
+          guid: 00e5aa57-8475-424f-8266-2278a48b2563
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: The target takes half the damage. You then make a power roll against the triggering creature.
+            guid: de67de1c-a23f-43b6-8904-fbedaa012260
+            distance: Melee 1
+            keywords:
+              Melee: true
+              Weapon: true
+            target: One ally
+            trigger: A creature deals damage to the target.
+            cost: "9"
+            flavor: You parry with almost supernatural speed.
+            type: free
+            name: Instant Retaliation
+        - __typeName: CharacterModifier
+          sourceguid: db12d064-fe50-4a9e-b7bb-e863741897c9
+          source: Vanguard Class Feature
+          powerRollModifier:
+            __typeName: CharacterModifier
+            source: Trigger
+            activationCondition: true
+            guid: 9aece9e8-d2fd-47e3-affd-50bfc886131b
+            modtype: none
+            keywords: []
+            hasCustomTrigger: true
+            customTrigger:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 5928d491-5b2c-41ec-9e3b-3e3556b86082
+              repeatTargets: false
+              abilityType: none
+              trigger: d20roll
+              targetType: self
+              numTargets: "1"
+              name: New Ability
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                inheritRange: true
+                customAbility:
+                  __typeName: ActivatedAbility
+                  objectTarget: false
+                  repeatTargets: false
+                  keywords: []
+                  behaviors:
+                  - __typeName: ActivatedAbilityPowerRollBehavior
+                    tiers:
+                    - A < Weak, dazed (save ends)
+                    - A < Average, dazed (save ends)
+                    - A < Strong, dazed (save ends)
+                    roll: 2d10 + Might
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  categorization: Hidden
+                  range: 1
+                  persistence: []
+                  modifiers: []
+                  strain: []
+                  guid: 016bbd80-3f47-4f1e-a40a-8213e87e4f0c
+                  numTargets: "1"
+                  name: Instant Retaliation
+                  targetType: target
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                inheritKeywords: true
+                promptText: Make a power roll against the triggering creature
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            damageMultiplier: half
+            rollType: ability_power_roll
+            rules: ""
+            description: The target takes half the damage. You then make a power roll against the triggering creature.
+            behavior: power
+            name: Instant Retaliation
+          guid: 0322aedf-c974-4975-9b1b-1905f0ced9aa
+          type: free
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          targetType: ally
+          behavior: powertabletrigger
+          name: Instant Retaliation
+          rules: The target takes half the damage. You then make a power roll against the triggering creature.
+          description: ""
+          range: 10
+          trigger: dealdamage
+        source: Vanguard Class Feature
+        guid: db12d064-fe50-4a9e-b7bb-e863741897c9
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        canHavePrerequisites: true
+        classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+        description: ""
+        name: Instant Retaliation
+        implementation: 3
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      guid: 00e434de-694c-4236-9cd9-4ee4bf90b8dd
+      description: Choose one of the following abilities.	
+      name: 6th-Level Vanguard Ability
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+      guid: cf9d0d12-c52e-4e82-b682-09102baaaaa9
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        sourceguid: cf9d0d12-c52e-4e82-b682-09102baaaaa9
+        description: |-
+          After constant drills, you can more accurately anticipate an enemy’s plan and thwart their attempts to move across the battlefield. Whenever you make an opportunity attack, the target’s speed is reduced to 0 until the end of the current turn.
+
+          **Mark Benefit:** When a creature marked by you attempts to move or shift within distance of your melee free strike, you can use a free triggered action and spend 2 focus to make a melee free strike against that creature.
+        source: Vanguard Class Feature
+        name: Melee Superiority
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: target.id = Trigger Value
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 4cb14d4b-95fe-4a3c-862f-161a97af39b5
+            duration: 0
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "20"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: db481d77-ef0a-4f76-8cad-1d772fc8b4ba
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          conditionFormula: Trigger Name = "Make Opportunity Attack"
+          targetType: all
+          numTargets: "1"
+          trigger: custom
+          name: Melee Superiority
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: a6e257d0-6391-4363-800a-25b8ed65d5ce
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        sourceguid: cf9d0d12-c52e-4e82-b682-09102baaaaa9
+        description: |-
+          After constant drills, you can more accurately anticipate an enemy’s plan and thwart their attempts to move across the battlefield. Whenever you make an opportunity attack, the target’s speed is reduced to 0 until the end of the current turn.
+
+          **Mark Benefit:** When a creature marked by you attempts to move or shift within distance of your melee free strike, you can use a free triggered action and spend 2 focus to make a melee free strike against that creature.
+        source: Vanguard Class Feature
+        name: Melee Superiority
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 2
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: Melee Free Strike
+            promptText: Choose Free Strike Against Target
+            guid: c9427362-7af4-4db7-a8d1-89a8f4915c0f
+            targetingFormula: ""
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: b882eecb-0926-4fc8-8d8f-7c0dc34dda91
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            filterTarget: ""
+            autoTarget: true
+            standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+            standardAbilityParams:
+              targetid: "<<cast.Primary Target.id>>"
+            targeting: self
+          triggerPrompt: Make a free strike against marked creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          abilityType: none
+          range: 1
+          trigger: move
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          persistence: []
+          modifiers: []
+          subjectRange: "30"
+          strain: []
+          guid: 940c8864-ca7b-48f9-8a7b-8fb699b579ae
+          mandatory: false
+          numTargets: "1"
+          conditionFormula: (not path.forced) and (path.Distance to Creature(self) <= Reach)
+          targetType: subject
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          name: Melee Superiority
+          characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+          description: ""
+          subject: other
+          iconid: ui-icons/skills/1.png
+        guid: 43740a5a-3a3b-46ae-8325-576610f30c7a
+      name: Melee Superiority
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      description: |-
+        After constant drills, you can more accurately anticipate an enemy’s plan and thwart their attempts to move across the battlefield. Whenever you make an opportunity attack, the target’s speed is reduced to 0 until the end of the current turn.
+
+        **Mark Benefit:** When a creature marked by you attempts to move or shift within distance of your melee free strike, you can use a free triggered action and spend 2 focus to make a melee free strike against that creature.
+      source: Vanguard Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          sourceguid: ae6cf706-a647-4679-875c-2835ce10a117
+          behavior: triggerdisplay
+          source: Vanguard Class Feature
+          name: No Dying on My Watch
+          description: ""
+          guid: f8c98917-5c4f-4392-a24c-e39601d68f87
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: You move up to your speed toward the triggering ally, ending this movement adjacent to them or in the nearest square if you can’t reach an adjacent square. The triggering ally can spend a Recovery and gains 5 temporary Stamina for each enemy you came adjacent to during the move. You then make a power roll against the target.
+            guid: 810c22f1-a6bc-46ab-a74e-9d49b2f47768
+            distance: Ranged 5
+            keywords:
+              Ranged: true
+              Strike: true
+              Weapon: true
+            target: One enemy
+            trigger: The target deals damage to an ally.
+            cost: 5 Focus
+            flavor: You prioritize saving an ally over your own safety.
+            name: No Dying on My Watch
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          sourceguid: ae6cf706-a647-4679-875c-2835ce10a117
+          description: ""
+          source: Vanguard Class Feature
+          name: No Dying on My Watch
+          behavior: trigger
+          triggeredAbility:
+            __typeName: TriggeredAbility
+            resourceNumber: 5
+            targetFilter: ""
+            repeatTargets: false
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: b7e12b55-83d6-48c0-8578-a9ddabc0a400
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: ""
+              standardAbilityParams:
+                targetid: "{subject.id}"
+              standardAbility: 2ed70c5e-6494-47e3-bf84-3dd30e9e8b9c
+              abilityType: standard
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                actionResourceId: none
+                strain: []
+                guid: eb853c3a-e5c5-4ac8-8625-15f338c5c6aa
+                repeatTargets: false
+                abilityType: none
+                behaviors:
+                - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                  targetMoveVicinity: true
+                  vicinity: 1
+                  movementType: move
+                  vicinityFilter: enemy
+                - __typeName: ActivatedAbilityRememberBehavior
+                  calculation: "1"
+                  memoryName: NoDyingOnMyWatch
+                targetType: emptyspace
+                numTargets: "1"
+                name: Invoked Ability
+                targeting: straightpath
+                description: ""
+                range: Walking Speed
+                iconid: ui-icons/skills/1.png
+              promptText: Move as close to your ally as possible.
+              autoTarget: true
+              standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+              abilityType: custom
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              applyto: original_targets
+              filterTarget: ""
+              roll: 2d10 + Might
+              tiers:
+              - R < weak, the target is frightened of the triggering ally (save ends)
+              - R < average, the target is frightened of the triggering ally (save ends)
+              - R < strong, the target is frightened of the triggering ally (save ends)
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 1
+              rule: Frightened (save ends)
+              filterTarget: not target.Passes Potency("R", caster.Weak)
+              applyto: original_targets
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 2
+              rule: Frightened (save ends)
+              filterTarget: not target.Passes Potency("R", caster.Average)
+              applyto: original_targets
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              applyto: original_targets
+              filterTarget: not target.Passes Potency("R", caster.Strong)
+              guid: f7907d49-c104-4ff8-a6ae-fa30c300bcd7
+              rule: Frightened (save ends)
+              tiersSelected:
+              - 1
+              - 3
+            - __typeName: ActivatedAbilityConditionSourceBehavior
+              applyto: subject
+              condid: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+            - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+              applyto: subject
+              stamina: (Cast.Memory("NoDyingOnMyWatch")) * 5
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: subject
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 965eaa74-722c-4a52-918b-496d52a66172
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+              abilityType: standard
+              standardAbilityParams:
+                numrecoveries: "{Cast.Memory(\"NoDyingOnMyWatch\")}"
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            abilityType: none
+            range: 1
+            trigger: losehitpoints
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+              class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+            persistence: []
+            modifiers: []
+            subjectRange: "5"
+            strain: []
+            guid: cc630a76-53d4-4ae5-81a4-7d12c048513e
+            hasManualVersion: false
+            numTargets: "1"
+            conditionFormula: HasAttacker
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+            name: No Dying on My Watch
+            targetType: attacker
+            description: ""
+            subject: allies
+            iconid: ui-icons/skills/1.png
+          guid: add5e219-d4fe-422b-a41e-6c8685cb97a2
+        source: Vanguard Class Feature
+        guid: ae6cf706-a647-4679-875c-2835ce10a117
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        canHavePrerequisites: true
+        classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+        description: ""
+        name: No Dying on My Watch
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          sourceguid: 9dd54611-63fa-477d-832c-fc8713951868
+          description: ""
+          source: Vanguard Class Feature
+          name: Squad! On Me!
+          behavior: activated
+          guid: f5690826-f08a-40f1-94aa-f044d04c0360
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            objectTarget: false
+            targetFilter: ""
+            repeatTargets: false
+            keywords:
+              Area: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              durationUntilEndOfTurn: false
+              duration: 1
+              ongoingEffectCustom: 07ac66e4-2b88-4753-b51d-7fef1c784f0d
+              ongoingEffect: 07ac66e4-2b88-4753-b51d-7fef1c784f0d
+              stacks: Might
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              chatMessage: "Vanguard: Squad! On Me!"
+              quantity: "2"
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.678217828273773
+                s: 0.808000028133392
+                v: 0.980392158031464
+                a: 1
+            flavor: Together we are invincible!
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            strain: []
+            guid: 081779ee-ddad-4115-a66a-0429af4ec899
+            numTargets: "1"
+            selfTarget: true
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+              class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 181
+              docid: cf5452e1-bebd-4e70-b02f-217b3364cb69
+            targetType: all
+            radius: 1
+            name: Squad! On Me!
+            description: 'Until the start of your next turn, each target gains a bonus to their Stability equal to your Might score. Additionally, each target gains two surges. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: b86a7a42-15dc-4220-b27c-27919193e357
+        source: Vanguard Class Feature
+        guid: 9dd54611-63fa-477d-832c-fc8713951868
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        canHavePrerequisites: true
+        classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+        description: ""
+        name: Squad! On Me!
+        implementation: 3
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      guid: 37d6a925-70e6-412c-bacf-602cb56a5ff0
+      description: Choose one of the following abilities.
+      name: '2nd-Level Vanguard Ability '
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+      guid: 8b645df7-e5d8-4060-860b-f223ced5ed37
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 80aa32c8-5ec9-49fa-a0d5-1f9b8a23d74a
+        source: Vanguard Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          behavior: power
+          source: Trigger
+          triggerBeforeCondition: triggerer.distance(target) <= 1
+          guid: fa5e3395-3e4a-4dd7-bebe-a9eadf465060
+          triggerBefore:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: b8d851f5-a06d-4a36-95c0-b006b06caf81
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 1cac766d-6eb7-4974-9e2e-82e70b98bad9
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Shift next to the target to Parry
+              autoTarget: false
+              standardAbilityParams:
+                distance: "1"
+              abilityType: standard
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          keywords:
+            Melee: true
+            Weapon: true
+          activationCondition: false
+          hasTriggerBefore: true
+          damageMultiplier: half
+          rollType: ability_power_roll
+          rules: ""
+          potencymod: "-1"
+          modtype: none
+          name: Parry
+        guid: 7d07d73d-e055-4651-8359-8e55adff188c
+        type: trigger
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        targetType: selforally
+        behavior: powertabletrigger
+        name: Parry
+        rules: You can shift 1 square. If you move adjacent to the target, the damage is halved and potency is decreased by 1.
+        description: Your quick reflexes cost an enemy the precision they seek.
+        range: 2
+        trigger: takedamage
+      - __typeName: CharacterModifier
+        sourceguid: 80aa32c8-5ec9-49fa-a0d5-1f9b8a23d74a
+        source: Vanguard Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          hasTriggerBefore: true
+          triggerBeforeCondition: triggerer.distance(target) <= 1
+          source: Trigger
+          modtype: none
+          behavior: power
+          triggerBefore:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: b8d851f5-a06d-4a36-95c0-b006b06caf81
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 1cac766d-6eb7-4974-9e2e-82e70b98bad9
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Shift next to the target to Parry
+              autoTarget: false
+              standardAbilityParams:
+                distance: "<<Reason>>"
+              abilityType: standard
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          keywords:
+            Melee: true
+            Weapon: true
+          activationCondition: false
+          guid: fa5e3395-3e4a-4dd7-bebe-a9eadf465060
+          damageMultiplier: half
+          rollType: ability_power_roll
+          rules: ""
+          potencymod: "-1"
+          resourceCostType: cost
+          name: Parry
+        guid: afe97f93-e0b7-4f54-9e86-68b529f750b7
+        type: trigger
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        targetType: selforally
+        behavior: powertabletrigger
+        name: Parry
+        rules: "**Spend 1 Focus:** You can shift {Reason} squares. If you move adjacent to the target, the damage is halved and potency is decreased by 1."
+        description: Your quick reflexes cost an enemy the precision they seek.
+        range: 1 + Reason
+        trigger: takedamage
+      - __typeName: CharacterModifier
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        sourceguid: 80aa32c8-5ec9-49fa-a0d5-1f9b8a23d74a
+        behavior: triggerdisplay
+        source: Vanguard Class Feature
+        name: Parry
+        description: Your quick reflexes cost an enemy the precision they seek.
+        guid: 5c926eb6-ae34-45dc-8595-f973a0c3b933
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: |
+            You can shift 1 square. If you end this movement adjacent to the target, the damage is halved. If any effect of the damage has a potency effect, you decrease the potency by 1.
+            **Spend 1 Focus:** The distance of this ability becomes Melee {1 + Reason|1 + your Reason score} and you can shift {Reason|a number of squares equal to your Reason score} instead of 1.
+          name: Parry
+          trigger: A creature deals damage to the target.
+          flavor: Your quick reflexes cost an enemy the precision they seek.
+          guid: af460526-fbaf-41ff-b1e5-a9cff8c24943
+          distance: Melee 2
+          keywords:
+            Melee: true
+            Weapon: true
+      name: Parry
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      description: Your quick reflexes cost an enemy the precision they seek.
+      source: Vanguard Class Feature
+      implementation: 3
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th-Level Vanguard Ability
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          sourceguid: d3df9a75-ca12-4100-a9b0-c7ef823b9cf1
+          description: ""
+          source: Vanguard Class Feature
+          name: No Escape
+          behavior: activated
+          guid: c5a06900-c9c9-4b02-a6fe-495c9a9fb979
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            numTargets: "1"
+            abilityType: none
+            targetTextOverride: One creature
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Charge: true
+              Melee: true
+              Weapon: true
+            implementationDetails: This cannot be used with the **Charge** Main Action and has been implemented with an Ability Variation. Select the Charge version of the ability to charge before the power roll.
+            targetType: target
+            multipleModes: variations
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Nothing will stop you from reaching your foe.
+            categorization: Heroic Ability
+            preDescription: You mark the target.
+            modificationLog:
+            - Includes +2/+2/+2 damage from Mountain/Shining Armor kit
+            - Includes +2/+2/+2 damage from Mountain/Shining Armor kit
+            - Includes +2/+2/+2 damage from Mountain/Shining Armor kit
+            - Includes +2/+2/+2 damage from Mountain/Shining Armor kit
+            implementation: 3
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Melee 1
+            strain: []
+            guid: cfb817f6-5fe7-45c8-bb0f-65c73d6a396d
+            range: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 185
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+              class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+            persistence: []
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+              ongoingEffectCustom: false
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - '11 + M damage '
+              - '16 + M damage '
+              - '21 + M damage '
+              roll: 2d10 + Might
+            name: No Escape
+            modeList:
+            - rules: Use this ability without Charging
+              text: Don't Charge
+            - variation:
+                __typeName: ActivatedAbility
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+                  applyto: caster
+                  momentaryEffect:
+                    __typeName: CharacterOngoingEffect
+                    guid: 945ad2b7-1a95-4ec7-83dd-2007861e8fbf
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    modifiers:
+                    - __typeName: CharacterModifier
+                      guid: 5bd5f91e-2c42-4c9e-aeda-e214e7a2e072
+                      sourceguid: 945ad2b7-1a95-4ec7-83dd-2007861e8fbf
+                      value: 1
+                      source: Ongoing Effect
+                      name: No Escape
+                      behavior: attribute
+                      description: " If you use this ability as part of the Charge main action, enemies’ spaces don’t count as difficult terrain for your movement."
+                      attribute: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+                    source: Ongoing Effect
+                    name: No Escape
+                    description: " If you use this ability as part of the Charge main action, enemies’ spaces don’t count as difficult terrain for your movement."
+                    id: 945ad2b7-1a95-4ec7-83dd-2007861e8fbf
+                    iconid: ui-icons/skills/1.png
+                  name: Ability Duration Effect
+                - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                  targetMoveVicinity: true
+                  movementType: move
+                  vicinityFilter: Enemy
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 86dba86a-a7d0-4d32-bc79-a07fedd42276
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  abilityType: standard
+                  standardAbility: 3e18f2b2-893d-4945-9564-cf75a5e16849
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  applyto: caster
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    objectTarget: false
+                    repeatTargets: false
+                    keywords:
+                      Strike: true
+                      Charge: true
+                      Melee: true
+                      Weapon: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                      ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+                      ongoingEffectCustom: false
+                    - __typeName: ActivatedAbilityPowerRollBehavior
+                      tiers:
+                      - '11 + M damage '
+                      - '16 + M damage '
+                      - '21 + M damage '
+                      guid: 4d5a185e-dff0-4d6c-bb62-02709fc74d59
+                      roll: 2d10 + Might
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    categorization: Hidden
+                    range: 1
+                    persistence: []
+                    modifiers: []
+                    strain: []
+                    guid: 9cef1ee6-5c9a-4ebe-84f8-c01f64346fe2
+                    numTargets: "1"
+                    name: No Escape
+                    targetType: target
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Heroic Ability
+                range: Movement Speed
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: ab10ec3c-3062-49e2-9d3a-7dd639531af9
+                targetType: anyspace
+                domains:
+                  class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+                  class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+                targeting: pathfind
+                castImmediately: false
+                name: No Escape
+                numTargets: "1"
+                description: The Charge version of this ability.
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              text: Charge
+              hasAbility: true
+              rules: The Charge version of this ability.
+            description: If you use this ability as part of the Charge main action, enemies’ spaces don’t count as difficult terrain for your movement. Additionally, if you move through any creature’s space, you can slide that creature 1 square out of the path of your charge.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Vanguard Class Feature
+        guid: d3df9a75-ca12-4100-a9b0-c7ef823b9cf1
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        canHavePrerequisites: true
+        classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+        description: ""
+        name: No Escape
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+          sourceguid: d5766a56-3e11-4591-942c-b46f252c768c
+          description: ""
+          source: Vanguard Class Feature
+          name: 'That One Is Mine! '
+          behavior: activated
+          guid: fc09e525-0d98-4a96-9919-45eb41132252
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            implementationDetails: The Codex does not limit free strike options based upon the target
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+              ongoingEffectCustom: false
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 + M damage
+              - 13 + M damage
+              - 17 + M damage
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: 50f63cba-d303-4111-84c2-456eb84fdb49
+              duration: eoe_or_dying
+              ongoingEffectCustom: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You focus on making an enemy irrelevant.
+            categorization: Heroic Ability
+            range: "5"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 31f18794-dc87-45aa-bec5-f8affb17277a
+            numTargets: "1"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+              class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+            targetType: target
+            sourceReference:
+              __typeName: SourceReference
+              page: 185
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: 'That One Is Mine! '
+            implementation: 2
+            description: Until the end of the encounter or until you are dying, you can use a signature or heroic ability instead of a free strike against any target marked by you.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 903ef403-92f5-4480-a958-b53c0f30c17f
+        source: Vanguard Class Feature
+        guid: d5766a56-3e11-4591-942c-b46f252c768c
+        domains:
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+        canHavePrerequisites: true
+        classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+        description: ""
+        name: 'That One Is Mine! '
+        implementation: 2
+      classid: b3170b46-50b6-419f-8fe4-99089df0d74d
+      guid: ef0b11e4-e8e9-4d36-9d24-d5557204662d
+      source: Vanguard Class Feature
+      description: Choose one of the following abilities.	
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      class:b3170b46-50b6-419f-8fe4-99089df0d74d: true
+details: |
+  <B>Vanguard (Shock and Awe):</B> You have learned the tactics and stratagems of the heroes of ancient history, letting you lead from the front lines of battle and seek victory through sheer force of will and personality. You gain a skill from the interpersonal skill group.
+name: Vanguard
+mtime: 1772206068356
+id: b3170b46-50b6-419f-8fe4-99089df0d74d
+primaryClassId: 506d41b6-816b-45c5-8f28-765f29d6f8ae

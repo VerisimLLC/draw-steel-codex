@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: Size
+category: Forced Movement
+name: Knockback Caster Size
+documentation: "This is the size of the creature specifically when considering the Knockback maneuver and if the creature can can knock back -- specifically you cannot knockback creatures larger than you.\v\vIt does NOT affect other forced movement."
+mtime: 1757992763797
+id: 4888254a-c40b-4e13-ac30-b505622d5e91
+ctime: 1754868619610

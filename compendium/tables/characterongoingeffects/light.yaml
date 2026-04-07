@@ -1,0 +1,41 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 40aef9b1-6774-4cd6-9058-d4d1314197d0
+  source: Ongoing Effect
+  seq: 35a793bb-99ec-4598-8602-c4844464b971
+  aura:
+    __typeName: Aura
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 51262652-e0ac-49d6-9460-df8d7927ebf8
+    modifiers: []
+    objectid: 090e0303-b65f-4ebc-85ad-dc9b9af1ec39
+  domains:
+    CharacterOngoingEffect:40aef9b1-6774-4cd6-9058-d4d1314197d0: true
+  radius: "10"
+  guid: cf9e2837-074b-4191-a146-a828ef56a245
+  description: ""
+  behavior: aura
+  name: Light
+source: Ongoing Effect
+guid: 40aef9b1-6774-4cd6-9058-d4d1314197d0
+id: 40aef9b1-6774-4cd6-9058-d4d1314197d0
+ctime: 1746521420678
+domains:
+  CharacterOngoingEffect:40aef9b1-6774-4cd6-9058-d4d1314197d0: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Light
+statusEffect: false
+description: ""
+mtime: 1768993142656
+iconid: 6be37af0-e113-46ca-aec3-e72d57abb185

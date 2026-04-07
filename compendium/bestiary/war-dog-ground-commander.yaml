@@ -1,0 +1,1197 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 79b56e67-61cf-41ba-8344-8dc80c3241af
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f535278d-5583-4158-8011-0380cc9c77b5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 3
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries:
+        4c2648e4-ccc3-47ba-80d9-f1abfa47acb1:
+          refreshid: ""
+          note: Manually Set
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0
+        f1faf95b-f03c-48ba-a02c-b7aa19c43234:
+          refreshid: ""
+          note: Manually Set
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 20
+    max_hitpoints_roll: "120"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        388be3d3-417d-4e55-93f8-2559be67ea2b:
+          set: 1/1
+          note: Combined Arms
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          abilityid: 0cb647f8-58cf-4032-ad61-66ae6a89d5b6
+        83122a48-6e66-4435-a046-0642a284b24f:
+          set: 1/1
+          note: Claim Them for the Body Banks
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          abilityid: fd9314c5-1bdd-47f8-9ad2-fb617ad0ae02
+        114706e0-bfb8-4f02-b651-b767ae4c430e:
+          set: 1/1
+          note: Claim Them for the Body Banks
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          abilityid: fd9314c5-1bdd-47f8-9ad2-fb617ad0ae02
+        f4bedad3-3bb6-4f08-a2c6-21ba6687dcd3:
+          set: 1/1
+          note: Combined Arms
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          abilityid: 0cb647f8-58cf-4032-ad61-66ae6a89d5b6
+        1510839c-a503-499c-a371-67b8713381fc:
+          note: Claim Them for the Body Banks
+          abilityid: fd9314c5-1bdd-47f8-9ad2-fb617ad0ae02
+          refreshid: d82b47c2-1909-4819-bdb5-9447ad8cc417-1
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        d9d17b9f-a083-4158-baaa-3c54f28a9623:
+          set: 1/1
+          note: Claim Them for the Body Banks
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          abilityid: fd9314c5-1bdd-47f8-9ad2-fb617ad0ae02
+        afb4be0e-7fdd-42b8-a79f-4a2135186762:
+          set: 1/1
+          note: Combined Arms
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          abilityid: 0cb647f8-58cf-4032-ad61-66ae6a89d5b6
+        1efa5398-97e2-4357-b528-05a6a6d500d0:
+          set: 1/1
+          note: Claim Them for the Body Banks
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          abilityid: fd9314c5-1bdd-47f8-9ad2-fb617ad0ae02
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 3
+        id: mgt
+      rea:
+        baseValue: 3
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    8e1f007c-a515-4da5-9b18-2dab473e0d73_history:
+      __typeName: StatHistory
+      entries:
+        28ddb198-f9c7-4afa-95f2-1d08955ff2e2:
+          refreshid: f271c0c4-9c48-42b4-a07c-7c21d7d87c1e
+          note: Claim Them for the Body Banks
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        6efc82e3-9f13-4345-9838-0165cd6b5689:
+          note: Claim Them for the Body Banks
+          abilityid: fd9314c5-1bdd-47f8-9ad2-fb617ad0ae02
+          refreshid: 36555b41-fe29-44e3-8240-e19ec70b883f
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        0a254973-2fae-4244-9902-c050a91a37a9:
+          note: Claim Them for the Body Banks
+          abilityid: fd9314c5-1bdd-47f8-9ad2-fb617ad0ae02
+          refreshid: d82b47c2-1909-4819-bdb5-9447ad8cc417
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        8f0ffd44-7dde-4db9-b77e-8eff6f6c5ef8:
+          refreshid: c366fab8-f1b1-429c-8983-5ae290b34f3e
+          note: Claim Them for the Body Banks
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        a0540536-b13c-4fd9-a79d-c97117dd5ee4:
+          refreshid: 19735483-d760-485a-b862-c8c8fbb0f426
+          note: Claim Them for the Body Banks
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+    monster_category: Monster
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        ebe18a42-d5f9-4bf2-bfee-2877400bccbf:
+          refreshid: 7a1cd845-f9dd-4ff5-aef4-a44d757dd7ef-1
+          note: Manually Set
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        e3957078-d5fc-404e-9f63-7deb4b25d9bf:
+          note: Final Orders
+          abilityid: 099c88e1-cf46-44ee-8ebd-babfa8fd0e32
+          refreshid: 7a1cd845-f9dd-4ff5-aef4-a44d757dd7ef-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        751af24c-2cd1-4f55-b48a-6c5332c9f294:
+          note: Final Orders
+          abilityid: 099c88e1-cf46-44ee-8ebd-babfa8fd0e32
+          refreshid: 7a1cd845-f9dd-4ff5-aef4-a44d757dd7ef-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        3a8fc50a-8b54-4d89-8a04-1a81875d4874:
+          note: Final Orders
+          abilityid: 099c88e1-cf46-44ee-8ebd-babfa8fd0e32
+          refreshid: 7a1cd845-f9dd-4ff5-aef4-a44d757dd7ef-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        3bcc05da-4927-4659-babf-06eda19cbc90:
+          refreshid: 7a1cd845-f9dd-4ff5-aef4-a44d757dd7ef-1
+          note: Manually Set
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+    levelChoices: []
+    f252ff64-9130-4014-bc41-a50026d2a439_history:
+      __typeName: StatHistory
+      entries:
+        94bccfbf-7747-4012-b86b-7b612acab394:
+          refreshid: 7a48933e-c0c7-41c3-b724-bc8bd60c83b1
+          note: Make an Example of Them
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        147a7e14-5924-421a-bbd2-10d8d0f865c5:
+          refreshid: 19735483-d760-485a-b862-c8c8fbb0f426
+          note: Make an Example of Them
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+    traitNames: []
+    damageEntries:
+      1734712b-e56d-4d7e-81cf-62cd66aa91ce:
+        id: 1734712b-e56d-4d7e-81cf-62cd66aa91ce
+        heal: 40
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        a2551095-9c71-4e4b-adcb-7ff1f823bf2e:
+          disposition: good
+          note: 10 Healing
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 120
+        16c3e841-70c4-4184-ab18-364819634c5e:
+          disposition: good
+          note: 40 Healing
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 120
+        dc1988be-2881-46f6-b978-188e0b66d779:
+          disposition: bad
+          note: Purged condition
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 115
+        e760f06c-e847-4982-aac3-7f32a13d7cbb:
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 120
+        55366cef-33ce-461e-a131-5268a1951307:
+          disposition: good
+          note: 40 Healing
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 120
+        4bf72af5-a4bd-4c63-8fd2-08fae7730e6f:
+          disposition: good
+          note: 30 Healing
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 120
+    minion: false
+    stability: 2
+    opportunityAttack: 5
+    import:
+      override: true
+      data: |+
+        War Dog Ground Commander	Level 3 Leader
+        Humanoid, War Dog	EV 20
+        <b>Stamina</b> 120
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 2
+        	<b>Free Strike</b> 5
+        Might +3	Agility +2	Reason +3	Intuition +2	Presence +2
+        <b>Conditioning Spear</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	8 damage; pull 1
+        %E2%98%85	12%E2%80%9316	12 damage; pull 2
+        %E2%9C%B8	17+	15 damage; pull 3
+        <b>Effect </b>One ally within 10 squares of the commander can make a free strike.
+        <b>1 Malice </b>A target who is adjacent to the ground commander after this ability is resolved is <b>I<2</b> grabbed (save ends). This grab can't be escaped using the Escape Grab maneuver. The ground commander can grab up to two creatures at a time.
+
+        <b>Highest Posthumous Promotion</b> (Maneuver)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 10 burst	<b>Target</b> Each war dog with a loyalty collar
+        <b>Effect </b>The ground commander selects any number of targets' loyalty collars and detonates them, killing the target instantly.
+
+        <b>Final Orders</b> (Triggered Action)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One ally
+        <b>Trigger </b>The target has a condition imposed on them, is force moved, or is killed.
+        <b>Effect </b>The target can move up to their speed and make a free strike before the triggering effect happens.
+
+        <b>End Effect </b>
+        At the end of their turn, the ground commander can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Loyalty Collar</b>
+        When the ground commander dies, they explode, dealing 2d6 damage to each adjacent enemy.
+
+        <b>Combined Arms</b> (Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst	<b>Target</b> Each ally
+        <b>Effect </b>Each target can make a ranged free strike, then immediately use the Charge action.
+
+        <b>Make an Example of Them</b> (Villain Action 2)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One enemy
+        <b>Effect </b>Each ally within 5 squares of the target can move up to their speed and make a free strike against the target. The target is then <b>I<2</b> frightened of the ground commander (save ends).
+
+        <b>Claim Them for the Body Banks</b> (Villain Action 3)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 10 burst	<b>Target</b> Each ally
+        <b>Effect </b>Each target can shift 2 and use the Grab maneuver. For the rest of the encounter, each enemy has a bane on escaping grabs.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1225fb0d-923e-4b7f-baf4-402bc32b2736: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1225fb0d-923e-4b7f-baf4-402bc32b2736: true
+        sourceguid: 1225fb0d-923e-4b7f-baf4-402bc32b2736
+        behavior: trigger
+        source: Trait
+        name: 'End Effect '
+        description: At the end of their turn, the ground commander can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: Self
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: End Effect for 5 dmg
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 092a2ced-6872-4ca8-b864-e4cafe384f90
+          numTargets: "1"
+          castImmediately: true
+          trigger: endturn
+          whenActive: combat
+          name: 'End Effect '
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "5"
+            conditions: []
+            targetDuration: save
+            purgeType: one
+            ongoingEffect: none
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 256ff82e-7472-4732-8433-e19f8ef2ffe6
+      source: Trait
+      description: At the end of their turn, the ground commander can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: 1225fb0d-923e-4b7f-baf4-402bc32b2736
+      name: 'End Effect '
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:75ccac6c-6963-4025-9e3a-06520e36aa75: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:75ccac6c-6963-4025-9e3a-06520e36aa75: true
+        sourceguid: 75ccac6c-6963-4025-9e3a-06520e36aa75
+        behavior: trigger
+        source: Trait
+        name: Loyalty Collar
+        description: When the ground commander dies, they explode, dealing 2d6 damage to each adjacent enemy.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: 026780fa-b93e-442f-9223-2c425b806995
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 2d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 5c377995-40bb-438f-8002-ac2ed5386032
+      source: Trait
+      description: When the ground commander dies, they explode, dealing 2d6 damage to each adjacent enemy.
+      guid: 75ccac6c-6963-4025-9e3a-06520e36aa75
+      name: Loyalty Collar
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e179b16c-6f7a-47dd-9516-f007eb54d072: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: e179b16c-6f7a-47dd-9516-f007eb54d072
+        source: Character Feature
+        guid: 71fbc86f-3332-41c3-9409-eb764fd3a3c7
+        domains:
+          CharacterFeature:e179b16c-6f7a-47dd-9516-f007eb54d072: true
+        name: Grab Limit
+        value: 2
+        description: The ground commander can grab up to two creatures at a time
+        behavior: attribute
+        attribute: 0156e286-c4fb-465a-abce-b1fbd233dd2a
+      source: Character Feature
+      description: The ground commander can grab up to two creatures at a time
+      guid: e179b16c-6f7a-47dd-9516-f007eb54d072
+      name: Grab Limit
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cb970289-23b9-4628-87ca-7d253691dc65: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:cb970289-23b9-4628-87ca-7d253691dc65: true
+        sourceguid: cb970289-23b9-4628-87ca-7d253691dc65
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Final Orders
+        description: The target can move up to their speed and make a free strike before the triggering effect happens.
+        guid: 4d37cb71-2453-40ff-baa5-68518de79ec1
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One ally
+          effect: The target can move up to their speed and make a free strike before the triggering effect happens.
+          trigger: The target has a condition imposed on them, is force moved, or is killed.
+          type: trigger
+          guid: 7a06dc64-bc1f-4782-b27a-e901c9139fee
+          name: Final Orders
+          keywords:
+            Ranged: true
+            Magic: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:cb970289-23b9-4628-87ca-7d253691dc65: true
+        sourceguid: cb970289-23b9-4628-87ca-7d253691dc65
+        behavior: trigger
+        source: Character Feature
+        name: Final Orders
+        description: The target can move up to their speed and make a free strike before the triggering effect happens.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            runOnController: true
+            promptText: Final Orders
+            standardAbility: 1c423f02-73e6-4c44-8341-17d854f15fc5
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2752802d-2bea-478a-8d4a-a9d992688b46
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          triggerPrompt: The creature moves their speed and makes a Free Strike.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: always
+          trigger: inflictcondition
+          targetType: subject
+          hasManualVersion: true
+          persistence: []
+          guid: 099c88e1-cf46-44ee-8ebd-babfa8fd0e32
+          name: Final Orders
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 0a7ae252-7fa6-4235-a6e9-d1797c472002
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:cb970289-23b9-4628-87ca-7d253691dc65: true
+        sourceguid: cb970289-23b9-4628-87ca-7d253691dc65
+        behavior: trigger
+        source: Character Feature
+        name: Final Orders
+        description: The target can move up to their speed and make a free strike before the triggering effect happens.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          despawnBehavior: corpse
+          behaviors:
+          - __typeName: ActivatedAbilityRaiseCorpseBehavior
+            restoreStamina: false
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            text: Final Orders!
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            runOnController: true
+            promptText: "Final Orders: Move Speed and Strike"
+            standardAbility: 1c423f02-73e6-4c44-8341-17d854f15fc5
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2752802d-2bea-478a-8d4a-a9d992688b46
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityRemoveCreatureBehavior
+            leavesCorpse: true
+          triggerPrompt: The creature moves their speed and make a Free Strike.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          targetType: subject
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          guid: 099c88e1-cf46-44ee-8ebd-babfa8fd0e32
+          abilityType: none
+          trigger: creaturedeath
+          whenActive: always
+          persistence: []
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          name: Final Orders
+          repeatTargets: false
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 3407a9bd-65bc-465e-8ec3-721890318047
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:cb970289-23b9-4628-87ca-7d253691dc65: true
+        sourceguid: cb970289-23b9-4628-87ca-7d253691dc65
+        behavior: trigger
+        source: Character Feature
+        name: Final Orders
+        description: The target can move up to their speed and make a free strike before the triggering effect happens.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: The pushed creature may move their speed and make a Free Strike.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: always
+          persistence: []
+          abilityType: none
+          trigger: forcemove
+          guid: 099c88e1-cf46-44ee-8ebd-babfa8fd0e32
+          name: Final Orders
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            runOnController: true
+            promptText: Final Orders
+            autoTarget: true
+            abilityType: standard
+            standardAbility: 1c423f02-73e6-4c44-8341-17d854f15fc5
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2752802d-2bea-478a-8d4a-a9d992688b46
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 95322b22-c50a-40f2-b707-c05d6eafe7db
+      source: Character Feature
+      description: The target can move up to their speed and make a free strike before the triggering effect happens.
+      guid: cb970289-23b9-4628-87ca-7d253691dc65
+      name: Final Orders
+      implementation: 3
+    role: Leader
+    notes:
+    - text: ""
+      title: Monster Notes
+    equipment: []
+    titles: []
+    max_hitpoints: 120
+    moveDistanceRoundId: c366fab8-f1b1-429c-8983-5ae290b34f3e-1
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: 1bc13a18-f52a-4a14-b3a5-632b8b3de232
+    ongoingEffects: []
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+          8e1f007c-a515-4da5-9b18-2dab473e0d73: 1
+        animType: consumeResource
+      guid: 6cae96ec-d7e8-4725-951f-8f24ece193c8-60
+    creatureSize: 1M
+    availableTriggers: []
+    equipmentMeta:
+      offhand0: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    damage_taken: 0
+    moveDistance: 15
+    walkingSpeed: 5
+    monster_type: War Dog Ground Commander
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Melee: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; pull 1
+        - 12 damage; pull 2
+        - 15 damage; pull 3
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        targeting: prompt
+        promptText: Select Ally with 10 squares to make a free strike
+        autoTarget: false
+        filterTarget: ""
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          targetFilter: not Enemy
+          strain: []
+          guid: 738180b0-b6e3-4ca8-a28a-3673c19272ec
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            filterTarget: ""
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: e32d11b4-9b14-47cb-a12a-59230551db2a
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+          targetType: target
+          name: Conditioning Spear Effect
+          categorization: Hidden
+          description: |-
+            One ally within 10 squares of the commander can make a
+            free strike.
+          range: "10"
+          iconid: ui-icons/skills/1.png
+        applyto: caster
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        filterTarget: Distance(target, caster) <= 1
+        modesSelected:
+        - 2
+        rule: I < 2 grabbed (save ends)
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+        mode: expend
+        modesSelected:
+        - 2
+        applyto: caster
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: a6f22fbf-5955-4e7f-901f-ccc9b4c7cc50
+      modeList:
+      - text: Normal
+      - rules: A target who is adjacent to the ground commander after this ability is resolved is I<2 grabbed (save ends). This grab can't be escaped using the Escape Grab maneuver. The ground commander can grab up to two creatures at a time
+        text: 1 Malice
+      numTargets: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      implementation: 4
+      name: Conditioning Spear
+      meleeRange: 1
+      description: |-
+        One ally within 10 squares of the commander can make a free strike.
+        **1 Malice**: A target who is adjacent to the ground commander after this ability is resolved is I<2 grabbed (save ends). This grab can't be escaped using the Escape Grab maneuver. The ground commander can grab up to two creatures at a time.
+      resourceCost: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Target has "Loyalty Collar"
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: 7a2ccbbb-04ba-4b9e-8475-fd5ee12ddec2
+      numTargets: Count Nearby Friends(10)
+      targetType: target
+      implementation: 2
+      name: Highest Posthumous Promotion
+      persistence: []
+      description: The ground commander selects any number of targets' loyalty collars and detonates them, killing the target instantly.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 32a01244-3ef2-48e4-ae0d-1f859917dbc0
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          targetType: self
+          categorization: Hidden
+          name: Ranged Free Strike
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 43fac42f-b078-498e-923b-3b4c56d86259
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Make a Ranged Free Attack
+            abilityType: named
+            namedAbility: Ranged Free Strike
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: e678a339-552d-45dd-b8f7-cdd5c619ecf3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Charge
+            namedAbility: Charge
+            standardAbility: 923bf32c-4233-4fec-8895-7ce18da28744
+            abilityType: standard
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        targeting: inherit
+        abilityType: custom
+        promptText: Ranged Free Strike
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'fe123d75-e321-4146-b0a"
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 0cb647f8-58cf-4032-ad61-66ae6a89d5b6
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: all
+      name: Combined Arms
+      effectImplemented: false
+      description: Each target can make a ranged free strike, then immediately use the Charge action.
+      resourceCost: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'f252ff64-9130-4014-bc4"
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 719c32d7-55c0-44de-b76e-eefaf161d5a9
+      abilityType: none
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      effectImplemented: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        target_proximity_range: "5"
+        promptText: Ally moves up to their speed and make a free strike against the target
+        applyto: proximity_only
+        targeting: prompt
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 0861ee45-8bda-40b9-b7a8-b981faa5a160
+          repeatTargets: false
+          persistence: []
+          categorization: Hidden
+          targetType: emptyspace
+          targeting: straightpath
+          name: Move
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: move
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            targeting: prompt
+            standardAbilityParams:
+              targetid: "<<targetid>>"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: f8f9c821-e61a-4e85-b5e8-ce0e482c4b7d
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+          description: ""
+          range: Movement Speed
+          iconid: ui-icons/skills/1.png
+        standardAbility: e19f1d97-6e44-4366-8f35-418bd5c5ab8e
+        standardAbilityParams:
+          targetid: "<<Cast.PrimaryTarget.id>>"
+        abilityType: custom
+        filterTarget: Friends(Self, Caster) and not (Self = Caster)
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        applyto: targets
+        rule: I<2 frightened (save ends)
+      name: Make an Example of Them
+      iconid: ui-icons/skills/1.png
+      description: Each ally within 5 squares of the target can move up to their speed and make a free strike against the target. The target is then I<2 frightened of the ground commander (save ends).
+      resourceCost: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetAllegiance: ally
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '8e1f007c-a515-4da5-9b1"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: fd9314c5-1bdd-47f8-9ad2-fb617ad0ae02
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 317dbfaf-98f4-4d0b-a69d-e74614bd5090
+          repeatTargets: false
+          persistence: []
+          categorization: Hidden
+          targetType: emptyspace
+          targeting: pathfind
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+            movementType: shift
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: ca6d4cfa-0dd5-4843-89ad-c9f42346c8f7
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Grab
+            abilityType: named
+            namedAbility: grab
+          description: ""
+          range: "2"
+          iconid: ui-icons/skills/1.png
+        promptText: Shift 2 and Grab
+        abilityType: custom
+        standardAbilityParams:
+          distance: "2"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: all_creatures
+        filterTarget: not Friends(target, caster)
+        duration: eoe
+        ongoingEffectCustom: 5f7b76c5-efde-4312-9e62-e35c2e286279
+        ongoingEffect: 5f7b76c5-efde-4312-9e62-e35c2e286279
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      effectImplemented: false
+      name: Claim Them for the Body Banks
+      iconid: ui-icons/skills/1.png
+      description: Each target can shift 2 and use the Grab maneuver. For the rest of the encounter, each enemy has a bane on escaping grabs.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 10
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: e4a4fffc-092f-419d-80a8-630f0377e747
+      sourceReference:
+        __typeName: SourceReference
+        page: 303
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Final Orders
+      numTargets: 1
+      description: Even if reduced to 0 Stamina, the target moves up to their speed and can make a free strike after the triggering effect is resolved The target then immediately dies.
+      abilityType: none
+      implementation: 0
+    innateAttacks: []
+    deathSavingThrowFailures: 0
+    movementSpeeds: []
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: d82b47c2-1909-4819-bdb5-9447ad8cc417-1
+        used: 1
+      8e1f007c-a515-4da5-9b18-2dab473e0d73:
+        __typeName: CharacterResource
+        refreshid: d82b47c2-1909-4819-bdb5-9447ad8cc417
+        used: 1
+      f252ff64-9130-4014-bc41-a50026d2a439:
+        __typeName: CharacterResource
+        refreshid: 19735483-d760-485a-b862-c8c8fbb0f426
+        used: 1
+      fe123d75-e321-4146-b0ad-19c1ecdb1147:
+        __typeName: CharacterResource
+        refreshid: 36555b41-fe29-44e3-8240-e19ec70b883f
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: 7a1cd845-f9dd-4ff5-aef4-a44d757dd7ef-1
+        used: 1
+    fe123d75-e321-4146-b0ad-19c1ecdb1147_history:
+      __typeName: StatHistory
+      entries:
+        9bc74a2b-60f7-44b1-8d45-f3e26f5d5e4e:
+          note: Combined Arms
+          abilityid: 0cb647f8-58cf-4032-ad61-66ae6a89d5b6
+          refreshid: 36555b41-fe29-44e3-8240-e19ec70b883f
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        d631b82f-4214-430e-8ab1-2ccd39f9b60c:
+          refreshid: 231c2439-dafd-4fe9-bba8-8124defbfd75
+          note: Combined Arms
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+    preferRanged: true
+  tokenType: null
+  bestiaryId: fc9a345e-6605-4055-ae13-5422875965b1
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: War Dog Ground Commander
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 10
+ctime: 1749972316188
+mtime: 1775201137032
+hidden: false

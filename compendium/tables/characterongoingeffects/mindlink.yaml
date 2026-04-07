@@ -1,0 +1,75 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: aabd2b28-466f-47b2-b8a4-d47a503cc80b
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      filterTarget: ""
+      abilityType: standard
+      standardAbilityParams:
+        numrecoveries: Recoveries Available to Spend
+      standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: true
+    range: 1
+    persistence: []
+    modifiers: []
+    subjectRange: "100"
+    strain: []
+    guid: ff110118-4b19-4585-be80-90c34d84f157
+    abilityType: none
+    trigger: useresource
+    conditionFormula: Resource = "Recovery" and Subject.BoundCreatures(Caster, "Mindlink")
+    hasManualVersion: true
+    numTargets: "1"
+    name: Mindlink
+    targetType: self
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  description: You have a telepathic link with your allies and can spend a recovery whenever a linked creature can spend a recovery.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: c6c69bea-f425-46b0-aa31-44367061bbdf
+  name: Mindlink
+  sourceguid: 29be7283-3bd2-4d16-91a5-637967d59825
+source: Ongoing Effect
+casterTracking: bond
+guid: 29be7283-3bd2-4d16-91a5-637967d59825
+id: 29be7283-3bd2-4d16-91a5-637967d59825
+ctime: 1771986310367
+display:
+  brightness: 1
+  saturation: 0
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Mindlink
+description: You have a telepathic link with your allies and can spend a recovery whenever a linked creature can spend a recovery.
+custom: true
+mtime: 1771986310367
+iconid: 0ce251d7-143f-4530-9f63-57c8a88aa359

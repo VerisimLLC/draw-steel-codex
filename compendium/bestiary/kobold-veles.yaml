@@ -1,0 +1,312 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dbe549c7-b2a8-4c6f-9beb-a178785b6536
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.008333683
+      y: 0.09765613
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: Kobold Veles
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ea6682b4-91e4-40c9-84fd-b2b6ce60d6ae
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    inventory: []
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      inu:
+        baseValue: 0
+        id: inu
+      pre:
+        __typeName: CharacterAttribute
+        id: pre
+      mgt:
+        baseValue: 0
+        id: mgt
+      agl:
+        baseValue: 2
+        id: agl
+      rsn:
+        baseValue: 0
+        id: rsn
+      rea:
+        baseValue: 0
+        id: rea
+      prs:
+        baseValue: 0
+        id: prs
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      agi:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agi
+      end:
+        __typeName: CharacterAttribute
+        id: end
+    weight: 3
+    monster_type: Kobold Veles
+    levelChoices: []
+    deathSavingThrowFailures: 0
+    minion: true
+    opportunityAttack: 1
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    stability: 0
+    max_hitpoints: 4
+    import:
+      override: true
+      data: |+
+        Kobold Veles	Level 1 Minion Harrier
+        Humanoid, Kobold	EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed </b>6	<b>Size</b> 1S /<b> Stability</b> 0
+        <b>With Captain</b> Speed +1	<b>Free Strike</b> 1
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence 0
+        <b>Pilum</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5<b>Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	1 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	2 damage
+        %E2%9C%B8	<b>17</b>	3 damage
+        <b>Effect</b> All kobolds ignore opportunity attacks from the target until the start of the veles' next turn.
+
+        <b>Shield? Shield!</b>
+        The veles has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a0ad3ef4-b1c1-49e0-9621-8796ab89ce1a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        iconColor: "#ffffffff"
+        behavior: icon
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+        name: Shield? Shield!
+        description: The veles has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        value: "1"
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+        description: The veles has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The veles has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The veles has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+      source: Trait
+      description: The veles has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+      guid: a0ad3ef4-b1c1-49e0-9621-8796ab89ce1a
+      name: Shield? Shield!
+      implementation: 3
+    role: Minion Harrier
+    withCaptain: +1 bonus to speed
+    equipment: []
+    titles: []
+    keywords:
+      Humanoid: true
+      Kobold: true
+    deathSavingThrowSuccesses: 0
+    damage_entry:
+      id: bab157c1-129b-4d5c-bd19-7ea25a114c97
+      heal: 10
+    resistances: []
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    traitNames: []
+    creatureSize: 1S
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        9ec72d1c-3a51-4693-addb-a1e8751ba541:
+          note: Pilum
+          abilityid: 565fb1d7-a636-4a2f-ba2a-8ec6acd58341
+          refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    expectedDamage: []
+    equipmentMeta:
+      mainhand2: []
+      armor: []
+      attune3: []
+      belt4: []
+      attune4: []
+      belt3: []
+      offhand1: []
+      mainhand1: []
+      belt1: []
+      mainhand3: []
+      attune1: []
+      offhand2: []
+      offhand3: []
+      belt2: []
+      attune2: []
+    skillRatings: []
+    damage_taken: 0
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 341250c0-f461-489e-a1ae-3fa8aaac1785
+        durationUntilEndOfTurn: false
+        duration: 1
+        ongoingEffectCustom: 341250c0-f461-489e-a1ae-3fa8aaac1785
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 565fb1d7-a636-4a2f-ba2a-8ec6acd58341
+      meleeRange: 1
+      numTargets: 1
+      implementation: 4
+      targetType: target
+      name: Pilum
+      persistence: []
+      description: All kobolds ignore opportunity attacks from the target until the start of the veles' next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    walkingSpeed: 6
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: fb6d0b30-e243-4c3a-92f4-f7555cf0f1c0
+        used: 1
+    minionSquad: Kobold Veles Squad 1
+    selectedLoadout: 1
+    hitpoints_history:
+      __typeName: StatHistory
+      entries:
+        d4a37b7b-b892-4e42-b48f-39ea5982eb11:
+          disposition: good
+          note: 10 Healing
+          userid: SqYjPoYf0Mchqb4p2fWdGjySOm73
+          set: 10
+        426bb73f-1dd5-497c-9cb4-9abecbde30a5:
+          disposition: bad
+          note: 8 damage from Kobold Adeptus's Firecracker
+          userid: SqYjPoYf0Mchqb4p2fWdGjySOm73
+          set: 2
+        1998da36-ceb1-4796-b2f8-30f036a45761:
+          disposition: bad
+          note: 3 damage from Kobold Adeptus's Firecracker
+          userid: SqYjPoYf0Mchqb4p2fWdGjySOm73
+          set: 0
+    movementSpeeds: []
+    fmr: 0
+    monster_category: Monster
+    max_hitpoints_history:
+      __typeName: StatHistory
+      entries:
+        b2413cc8-f712-41c6-9d0b-6af2c92e48b0:
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 40
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: bd13c1dd-642d-47dc-bf8c-ff431df40fbd-1205
+  tokenType: null
+  bestiaryId: 3b3ca3d5-e87e-4cf3-82d3-a2e8cc94d99f
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1699753061174
+description: Kobold Veles
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590240388
+mtime: 1775201137032
+hidden: false

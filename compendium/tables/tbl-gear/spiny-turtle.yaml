@@ -1,0 +1,55 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 84a0c628-2702-4805-bd96-d0fd09c759ed
+  description: 6/12/21
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 951d0828-36d9-4967-b442-d3e2125061ab
+    sourceguid: e1ca3cd3-5ab7-47f7-82a3-1f34f0beb348
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "6"
+        threshold: 1
+      - script: "12"
+        threshold: 5
+      - script: "21"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    source: Item
+    name: Spiny Turtle
+    behavior: attribute
+    description: 6/12/21
+    attribute: hitpoints
+  source: Item
+  name: Spiny Turtle
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: Ten steel gears from an ancient construct
+keywords:
+  Heavy Armor: true
+  Magic: true
+projectSource: Texts or lore in Variac
+flavor: This heavy mechanized plate armor of gnomish make is designed to create its own cover on the battlefield.
+level9: The armor’s bonus to Stamina increases to +21. Additionally, spikes cover the armor, and any adjacent creature who deals damage to you takes 6 damage.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The armor’s bonus to Stamina increases to +12, and the damage the wall can take before retracting increases to 25. Additionally, while the wall is expanded, spikes extrude from it, and any creature who deals damage to the wall while adjacent to it takes 3 damage.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 46ec26f0-16fe-40ef-b83a-dce47e44196f
+ctime: 1759210190437
+name: Spiny Turtle
+description: While you wear this armor, you gain a +6 bonus to Stamina. Additionally, you can use a main action to expand the armor on your back to create a 4 wall of metal behind you. The wall is an object that retracts if you move, or if it takes 15 damage. It then requires a main action to recalibrate before it can be deployed again.
+mtime: 1775044925883
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 30431abb-e57c-4b7d-aab1-9159c8b78fba

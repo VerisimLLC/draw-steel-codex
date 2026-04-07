@@ -1,0 +1,88 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 28603de3-9aef-4b89-92cc-a7eab936220c
+  guid: 204e03ac-a6c9-48bc-a235-0869c6dfb804
+  source: Ongoing Effect
+  behavior: activated
+  description: Ignore difficult terrain and take no damage from forced movement
+  name: Inertia Soak
+  activatedAbility:
+    __typeName: ActivatedAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    targetType: target
+    strain: []
+    guid: 88388180-ab64-4aff-9601-58e0a01f19e0
+    repeatTargets: false
+    abilityType: none
+    domains: []
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      standardAbilityParams:
+        range: "2"
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 1cf4b1ca-33b1-42b9-8336-7f1a90180055
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+      abilityType: standard
+    persistence: []
+    name: Inertia Soak
+    categorization: Ability
+    description: Whenever you enter a square you can push one adjacent creature up to 2 squares.
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  guid: 4eb1bb68-7547-41cf-9008-1b032c3e6dcf
+  sourceguid: 28603de3-9aef-4b89-92cc-a7eab936220c
+  value: 1
+  source: Ongoing Effect
+  name: Inertia Soak
+  behavior: attribute
+  description: Ignore difficult terrain and take no damage from forced movement
+  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+- __typeName: CharacterModifier
+  guid: 60f80660-e2dd-42c0-9873-b0c41cc7f5a4
+  sourceguid: 28603de3-9aef-4b89-92cc-a7eab936220c
+  value: 1
+  source: Ongoing Effect
+  name: Inertia Soak
+  behavior: attribute
+  description: Ignore difficult terrain and take no damage from forced movement
+  attribute: f97461b9-3424-4479-8c46-e48c835c5d68
+source: Ongoing Effect
+guid: 28603de3-9aef-4b89-92cc-a7eab936220c
+id: 28603de3-9aef-4b89-92cc-a7eab936220c
+ctime: 1749179364936
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Inertia Soak
+iconid: ui-icons/skills/1.png
+description: Ignore difficult terrain and take no damage from forced movement
+mtime: 1758987160613
+implementation: 2

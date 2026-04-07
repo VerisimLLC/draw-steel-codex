@@ -1,0 +1,62 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 38db32c1-155b-4fc3-9092-eb822d42d8a0
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Magic Ritual of Blessing
+  guid: cd42f952-6b48-452f-aa01-6596791eaa68
+  description: 'You have adouble edge on the next test you make within the next minute. You can’t use this benefit on an activity that takes longer than 1 minute.  '
+  modtype: double_edge
+  rollType: test_power_roll
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: d3c8ecb6-8b9d-4edf-b5cc-56ea2e8bfe59
+    repeatTargets: false
+    abilityType: none
+    trigger: rollpower
+    targetType: self
+    numTargets: "1"
+    name: Magic Ritual of Blessing
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 38db32c1-155b-4fc3-9092-eb822d42d8a0
+      mode: effect
+      purgeType: chosen
+      conditions: []
+    description: Power Roll removes the Ritual of Blessing effect.
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: 'You have adouble edge on the next test you make within the next minute. You can’t use this benefit on an activity that takes longer than 1 minute.  '
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 690bf938-7ff1-4cc1-a3df-11292a84f259
+  name: Magic Ritual of Blessing
+  sourceguid: 38db32c1-155b-4fc3-9092-eb822d42d8a0
+source: Ongoing Effect
+guid: 38db32c1-155b-4fc3-9092-eb822d42d8a0
+id: 38db32c1-155b-4fc3-9092-eb822d42d8a0
+ctime: 1754890317487
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Magic Ritual of Blessing
+iconid: ui-icons/skills/1.png
+description: 'You have adouble edge on the next test you make within the next minute. You can’t use this benefit on an activity that takes longer than 1 minute.  '
+mtime: 1754890507805
+implementation: 3

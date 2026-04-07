@@ -1,0 +1,19 @@
+__typeName: CharacterCondition
+maxInstancesFormula: Level
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 1fb5596c-c0f4-41eb-ac6a-121b553f44e1
+id: a0d68486-a5ee-44e6-9c43-e89b72f14614
+ctime: 1750042498117
+domains:
+  CharacterCondition:a0d68486-a5ee-44e6-9c43-e89b72f14614: true
+powertable: false
+showInMenus: false
+name: Vengeance Sigil
+iconid: ui-icons/skills/1.png
+mtime: 1768208557267
+trackCaster: true
+implementation: 3

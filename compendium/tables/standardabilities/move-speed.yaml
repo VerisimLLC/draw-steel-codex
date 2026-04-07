@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+id: de95d093-f3d4-4d74-99fe-ab49aae8b167
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: Movement Speed
+targetType: emptyspace
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: This allows a creature to move their speed.
+description: ""
+ctime: 1753243846720
+numTargets: "1"
+targeting: pathfind
+guid: 4934ea16-25d4-41d2-aec0-081a0903a8ea
+name: Move Speed
+repeatTargets: false
+mtime: 1774539229793
+abilityType: none
+iconid: ui-icons/skills/1.png

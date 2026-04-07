@@ -1,0 +1,59 @@
+__typeName: ActivatedAbility
+objectTarget: false
+targetFilter: ""
+id: 335645eb-46a4-4e93-948c-3f345b7300a3
+targetAllegiance: enemy
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: targets
+  targeting: prompt
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  filterTarget: ""
+  namedAbility: ""
+  abilityType: named
+  standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+- __typeName: ActivatedAbilityDamageBehavior
+  roll: "3"
+  chatMessage: Split Shot
+testCases:
+- text: One ally adjacent to the target can make a free strike against them.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: Used for Dwarf Gunner's Split Shot feature.
+importMatch: creature or object adjacent to the target takes damage.
+ctime: 1772113322969
+description: ""
+numTargets: "1"
+guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+name: Adjacent Enemy Takes Damage
+repeatTargets: false
+mtime: 1772113322969
+abilityType: none
+iconid: ui-icons/skills/1.png

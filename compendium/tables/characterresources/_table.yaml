@@ -1,0 +1,409 @@
+d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+  __typeName: CharacterResource
+  iconid: 9d289048-9cae-4725-8039-97319521dac1
+  ctime: 1699694668690
+  usageLimit: turn
+  name: Main Action
+  mtime: 1771942000304
+  id: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  grouping: Actions
+5e551b7d-17fb-4099-a303-bafb3c146f98:
+  __typeName: CharacterResource
+  usageLimit: none
+  id: 5e551b7d-17fb-4099-a303-bafb3c146f98
+  ctime: 1755928531227
+  grouping: Actions
+  display:
+    expended:
+      brightness: 0.5
+      saturation: 0.5
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.517999887466431
+        s: 0.87890613079071
+        v: 1.00306558609009
+        a: 1
+    highlight:
+      brightness: 1.5
+      saturation: 1
+      hueshift: 1
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.517999887466431
+        s: 0.87890613079071
+        v: 1.00306558609009
+        a: 1
+    normal:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.517999887466431
+        s: 0.87890613079071
+        v: 1.00306558609009
+        a: 1
+  isreaction: true
+  mtime: 1755928570538
+  name: Free Triggered Action
+  iconid: 9d289048-9cae-4725-8039-97319521dac1
+8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d:
+  __typeName: CharacterResource
+  textColor: dark
+  clearOutsideOfCombat: true
+  usageLimit: unbounded
+  id: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+  ctime: 1737441439867
+  name: Surges
+  largeQuantity: true
+  useQuantity: true
+  mtime: 1753034664045
+  iconid: a068e145-df2a-4664-9993-98e4bd189a3f
+e7b04a7e-61fc-4e17-b999-d95d7e751abb:
+  __typeName: CharacterResource
+  largeQuantity: false
+  usageLimit: unbounded
+  id: e7b04a7e-61fc-4e17-b999-d95d7e751abb
+  ctime: 1773196871177
+  name: Epic Resource
+  levelsFrom: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+  useQuantity: true
+  mtime: 1773198616263
+  iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+2d3d5511-4b80-46d1-a8c6-4705b9aa45ca:
+  __typeName: CharacterResource
+  largeQuantity: true
+  mayBeNegative: true
+  clearOutsideOfCombat: true
+  usageLimit: unbounded
+  id: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+  grouping: Class Specific
+  ctime: 1740125666094
+  name: Heroic Resource
+  display:
+    expended:
+      brightness: 0.5
+      saturation: 0.5
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.685186326503754
+        s: -0.00169110298156738
+        v: 1.0019394159317
+        a: 1
+    highlight:
+      brightness: 1.5
+      saturation: 1
+      hueshift: 1
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.685186326503754
+        s: -0.00169110298156738
+        v: 1.0019394159317
+        a: 1
+    normal:
+      brightness: 1
+      saturation: 1
+      hueshift: 0.957142421177455
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.685186326503754
+        s: -0.00169110298156738
+        v: 1.0019394159317
+        a: 1
+  mtime: 1741331190417
+  useQuantity: true
+  iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+5758da29-8660-47d3-805b-7c6038f476a1:
+  __typeName: CharacterResource
+  iconid: 375ec336-93ce-4f88-bcde-46cdd46337b8
+  name: Respite Activity
+  ctime: 1760066945665
+  mtime: 1760066945665
+  id: 5758da29-8660-47d3-805b-7c6038f476a1
+  grouping: Actions
+b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+  __typeName: CharacterResource
+  usageLimit: round
+  id: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+  ctime: 1699694727937
+  display:
+    expended:
+      brightness: 0.5
+      saturation: 0.5
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.849499762058258
+        s: 0.810546875
+        v: 1.00136590003967
+        a: 1
+    highlight:
+      brightness: 1.5
+      saturation: 1
+      hueshift: 1
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.849499762058258
+        s: 0.810546875
+        v: 1.00136590003967
+        a: 1
+    normal:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.849499762058258
+        s: 0.810546875
+        v: 1.00136590003967
+        a: 1
+  grouping: Actions
+  mtime: 1699694790889
+  name: Trigger
+  iconid: dafaacac-bebe-4693-88f1-c0429c8b0f53
+101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8:
+  __typeName: CharacterResource
+  textColor: light
+  mayBeNegative: true
+  clearOutsideOfCombat: false
+  usageLimit: global
+  id: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  grouping: Class Specific
+  ctime: 1728879939556
+  display:
+    expended:
+      brightness: 0.5
+      saturation: 0.5
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00323760509491
+        v: 0.566293478012085
+        a: 1
+    highlight:
+      brightness: 1.5
+      saturation: 1
+      hueshift: 1
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00323760509491
+        v: 0.566293478012085
+        a: 1
+    normal:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00323760509491
+        v: 0.566293478012085
+        a: 1
+  hasLargeDisplay: false
+  name: Malice
+  largeQuantity: true
+  useQuantity: true
+  mtime: 1772894243095
+  iconid: 8501c1d4-442d-4499-beb3-52dbfd76a644
+093190b1-d6f8-4ad8-8a13-cfa3c4407a32:
+  __typeName: CharacterResource
+  textColor: dark
+  usageLimit: unbounded
+  id: 093190b1-d6f8-4ad8-8a13-cfa3c4407a32
+  ctime: 1730449659793
+  largeQuantity: true
+  hasLargeDisplay: false
+  name: Project Points
+  useQuantity: true
+  mtime: 1730449659793
+  iconid: 5d69e025-aa73-478e-b601-1e3178dedf58
+9f418676-96be-402b-92da-0f50294146b3:
+  __typeName: CharacterResource
+  largeQuantity: true
+  usageLimit: unbounded
+  id: 9f418676-96be-402b-92da-0f50294146b3
+  ctime: 1752564333621
+  display:
+    expended:
+      brightness: 0.5
+      saturation: 0.5
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: -0.00208079814910889
+        v: 1.00238585472107
+        a: 1
+    highlight:
+      brightness: 1.5
+      saturation: 1
+      hueshift: 1
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: -0.00208079814910889
+        v: 1.00238585472107
+        a: 1
+    normal:
+      brightness: 1
+      saturation: 1
+      hueshift: 0.428572736467634
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: -0.00208079814910889
+        v: 1.00238585472107
+        a: 1
+  mtime: 1752564333621
+  name: Rampage
+  iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5
+67f15a17-523c-4a30-8f1a-a27e4f122605:
+  __typeName: CharacterResource
+  textColor: light
+  clearOutsideOfCombat: true
+  usageLimit: global
+  id: 67f15a17-523c-4a30-8f1a-a27e4f122605
+  grouping: Actions
+  ctime: 1754874058478
+  useQuantity: false
+  hasLargeDisplay: false
+  display:
+    expended:
+      brightness: 0.5
+      saturation: 0.5
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00323760509491
+        v: 0.566293478012085
+        a: 1
+    highlight:
+      brightness: 1.5
+      saturation: 1
+      hueshift: 1
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00323760509491
+        v: 0.566293478012085
+        a: 1
+    normal:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00323760509491
+        v: 0.566293478012085
+        a: 1
+  largeQuantity: false
+  mtime: 1754874158326
+  name: Villain Action
+  iconid: 8501c1d4-442d-4499-beb3-52dbfd76a644
+a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+  __typeName: CharacterResource
+  iconid: 37c52abe-3f23-48ca-90e1-4b46b2e4efeb
+  ctime: 1699694687338
+  usageLimit: turn
+  name: Maneuver
+  mtime: 1771942011990
+  id: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  grouping: Actions
+5bd90f9b-46be-4cf2-8ca6-a96430d62949:
+  __typeName: CharacterResource
+  textColor: light
+  id: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+  ctime: 1699766706563
+  display:
+    expended:
+      brightness: 0.5
+      saturation: 0.5
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.524499714374542
+        s: 1.00169110298157
+        v: 1.0019394159317
+        a: 1
+    highlight:
+      brightness: 1.5
+      saturation: 1
+      hueshift: 1
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.524499714374542
+        s: 1.00169110298157
+        v: 1.0019394159317
+        a: 1
+    normal:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.524499714374542
+        s: 1.00169110298157
+        v: 1.0019394159317
+        a: 1
+  name: Recovery
+  grouping: ""
+  mtime: 1711321630828
+  largeQuantity: true
+  iconid: 12cdef25-2e5b-47e0-bccf-758198de8442
+d81ce1e9-96a3-4705-9180-1c80f72a86cf:
+  __typeName: CharacterResource
+  iconid: 37c52abe-3f23-48ca-90e1-4b46b2e4efeb
+  ctime: 1758843820773
+  usageLimit: none
+  name: Free Maneuver
+  mtime: 1758843836044
+  id: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+  grouping: Actions
+2166c5fe-260e-4691-9743-06cf097a59f3:
+  __typeName: CharacterResource
+  textColor: dark
+  usageLimit: global
+  id: 2166c5fe-260e-4691-9743-06cf097a59f3
+  grouping: Hidden
+  display:
+    expended:
+      brightness: 0.5
+      saturation: 0.5
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.184500217437744
+        s: 0.251953482627869
+        v: 1.00238597393036
+        a: 1
+    highlight:
+      brightness: 1.5
+      saturation: 1
+      hueshift: 1
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.184500217437744
+        s: 0.251953482627869
+        v: 1.00238597393036
+        a: 1
+    normal:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.184500217437744
+        s: 0.251953482627869
+        v: 1.00238597393036
+        a: 1
+  name: Hero Tokens
+  ctime: 1748308226282
+  mtime: 1748308226282
+  largeQuantity: true
+  iconid: 7ba3b2dc-5641-487c-9e1b-4ef3794787e7

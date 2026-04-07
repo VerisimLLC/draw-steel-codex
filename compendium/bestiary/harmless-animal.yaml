@@ -1,0 +1,132 @@
+info:
+  locInfo: null
+  appearanceVariations:
+  - portraitId: d89210e3-e2ab-4cca-8eaa-d6f53dd73548
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.282354
+    portraitOffset:
+      x: 0.01953053
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  - portraitId: 079066f8-ffc2-4983-81c7-5ccad5a20c3a
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.282354
+    portraitOffset:
+      x: 0.01953053
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  appearance:
+    portraitId: d89210e3-e2ab-4cca-8eaa-d6f53dd73548
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.282354
+    portraitOffset:
+      x: 0.01953053
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f20e0a43-b16c-47bc-a384-1abb9b469c6b
+  properties:
+    __typeName: monster
+    groupid: a68c91b6-55f3-4c16-82d9-e0da68078b49
+    cr: 1
+    max_hitpoints: 10
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Animal
+    damage_taken: 0
+    walkingSpeed: 30
+    titles: []
+    levelChoices: []
+    resources: []
+    skillRatings: []
+    savingThrowRatings: []
+    keywords:
+      Animal: true
+    monster_type: Harmless Animal
+  tokenType: null
+  bestiaryId: f0d9f3c0-a36e-4cd9-be0f-a2048fc8e227
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1751533676974
+description: Harmless Animal
+parentFolder: 4b3931af-633a-4d06-a87c-a4139290d258
+artist: null
+ord: 1
+ctime: 1751533676974
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,111 @@
+__typeName: MarkdownDocument
+annotations: []
+id: f93421a7-3af0-4a0a-bfb9-9992e01b5e1b
+ctime: 1761387729131
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: Remember to make a note in [Respite Tracker].
+    u: |
+      If the Jagged Edge or the heroes recover the [item:Cup of Iulius], the heroes finish three respites, and don’t go to [Castle Andreas], [Queen Bargnot]’s forces descend on Broadhurst in an assault. See [Attack on Broadhurst] in [Part 3 The Jagged Edge].
+    s: |+
+      This part of the adventure doesn’t have a formal conclusion. The heroes can claim the [item:Cup of Iulius] and still have quests to explore in [Part 2]. When the heroes are ready to explore [Castle Andreas], proceed to [Castle Andreas] in [Part 3 The Jagged Edge]. If they have more quests from [Part 2] they wish to complete even after battling [Queen Bargnot], they can do that!
+
+    q: |+
+      # [Moving Onwards]
+
+    o: |+
+      Alternatively, if the heroes don’t investigate this quest, the [Full Moon] event (see [Events]) can point them toward the wolf’s den.
+
+    m: |+
+      If the heroes talk to [Tansy] (see [B11. Furrier]), they can investigate the destruction of her traps in the wood and find their way to a werewolf’s cave (see [Wolf Den]). The heroes can also find the den by talking to [Mikael] (see [B10. Carpenter]) and tracking the creature who attacked him.
+
+    k: |
+      ## [Wolf Den]
+    i: |+
+      Alternatively, if the heroes speak with [Dunquat] (see [B13. Mason]), they might eventually find themselves talking to the dwarf merchants staying at the inn (see [B1. Feather Bed Inn]), which can lead them to the tower. If all else fails, the [Tavern Brawl] event (see [Events]) can also lead the heroes to the tower.
+
+
+    g: |+
+      The heroes can seek out [Harim] (see [B12. Cobbler]) who is worried about a shipment of leather that never arrived. Should the heroes investigate the road, they find a ruined mage’s tower now occupied by an orc elementalist and pair of ogres shaking down passersby for their treasures (see [Mage Tower]).
+
+    e: |+
+      ## [Mage Tower]
+
+    c: "Regardless of how they get on the Forsaken Wraiths’ trail, the heroes must find their forest camp and deal with them, either through a full- scale assault or by working with some bandits looking for a pardon to drive out the rest (see [Fort Forsaken]).\n \n\n"
+    IZ: |+
+      [[/setadventuredocument 10 "Respite Tracker"|Track Respite Tracker]][[/setadventuredocument off "Respite Tracker"|Untrack Respite Tracker]]
+
+    b: |
+      Alternatively, if the heroes fail to find the bandits, eventually the Forsaken Wraiths assault the town (see [Wraith Raid] in [Events]). The reeve then seeks out the heroes to take out the criminals.
+    Z: |+
+      The heroes learn about a group of bandits who call themselves the Forsaken Wraiths at the request of [Vaughn] (see [B10. Carpenter]) or by investigating the disappearance of missing food at the request of [Reeve Rosamund] (see [B4. Reeve’s House]). The investigation might take the heroes around town to the woodcutter, the mill and granary ([B5. Mill and Granary]), the smokehouse ([B6. Smokehouse]), and the butcher ([B8. Butcher]) before it finally leads them to the Forsaken Wraiths.
+
+    X: |+
+      ## Forsaken Wraiths ([Fort Forsaken])
+
+    U: |+
+      ## [Arixx Nest]
+
+    V: |+
+      If the heroes speak to [Orson] (see [B9. Charcoal Burner]), he tells them that while he was collecting wood in the forest, he was attacked by an arixx and barely escaped with his life, and that the giant insect got hold of his amulet. For the safety of Broadhurst, [Orson] asks the heroes to slay the arixx and retrieve his amulet. The heroes can start a search for the arixx’s tunnels at a farm where the monster just struck and traverse them to face the creature (see [Arixx Nest]).
+
+
+    S: |2
+
+    T: |+
+      Depending on how long it takes the heroes to unseal the bottom level of the tomb, they might recover the cup themselves or find that the [Gilded Hand] has already brought it to the Jagged Edge. This quest resolves in [Part 3 The Jagged Edge] with either the heroes attacking the hideout of the Jagged Edge, [Castle Andreas], or the Jagged Edge assaulting [Broadhurst].
+
+
+    Q: |+
+      The heroes have likely figured out that [Queen Bargnot] is planning to use the [item:Cup of Iulius] to grow her ragtag band into a legendary legion, but if they haven’t, [Abbott Loric] meets them and pieces it together when they return to [Broadhurst] (see Arrival).
+
+    R: |
+      The heroes can uncover information in Loric’s library (see [B3. Church of Saint Gryffyn]) that says the [item:Amulet of the Delian Order] is needed to unseal the second level of the tomb (see [Tomb Second Level]) and that the [item:Delian Knight Commander's ring] is needed to unseal the third level (see [Tomb Third Level]). If the heroes talk to [Orson] (see [B9. Charcoal Burner]), they learn the amulet was taken during an arixx attack and could be recovered in the creature’s nest (see [Arixx Nest]). The ring is held by the [Gilded Hand] (see [B1. Feather Bed Inn]).
+    O: "The heroes get at least one starting point for each quest after they come back to town and speak with [Abbott Loric] (see Arrival in [Broadhurst]).\n \n"
+    P: |+
+      ## [Queen Bargnot’s Plot]
+
+    M: |+
+      # Quest Outlines
+
+    N: |+
+      There are five quests the heroes can tackle as they go about their business in [Broadhurst] and the surrounding region. Each one has its most likely path outlined in this section. The heroes might choose to focus on one quest at a time, or they might start one, move to another, and then come back to the first later. It’s up to the players how their heroes tackle each job.
+
+    K: |+
+      Tracking the passage of days isn’t as important in this adventure as it is to track respites. However, for narrative purposes, it’s good to know what time of day it is. You can track the passage of a day by having the heroes spend some time in Broadhurst, then leave the village to complete a quest, and by the time they come back, night has fallen.
+
+    L: |+
+      Feel free to adjust this guideline about the passage of time as you see fit. For instance, if the heroes visit every single location of interest in the village one day, it might be that it’s already nighttime when they reach the last. Likewise, if the heroes spend no time dawdling in or returning Broadhurst, they might be able to visit two quest locations in the Silver Wood before night falls. Pace the time of day for whatever makes sense with the story.
+
+
+    I: |
+      See: [Respite Tracker]
+    J: |+
+      ### Tracking Time
+
+    G: |+
+      ## Tracking Respites
+
+    H: |
+      While the heroes go about their business in this part of the adventure, the villains don’t halt their plans. Track the number of respites the heroes finish to mark the passage of time and determine how far along their plans advance.
+    E: |+
+      # Running Part 2	
+
+    F: |+
+      This section of the adventure is what’s known as a sandbox. In a sandbox, the heroes have several different quests that they can undertake in any order they choose. The players decide which quests to tackle and in which order, but you’ve also got a few events in this part that you can use to move things along if the players don’t jump into heroics right away.
+
+    C: |+
+      # Index: [Part 2 Broadhurst and Environs]
+
+
+    D: |+
+      When the heroes return to [Broadhurst], they learn that several villagers have problems that only heroes can solve, and that undertaking those quests will help them access the lower levels of the [Delian Tomb] to claim the [item:Cup of Iulius].
+
+    B: |2
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: cf856e68-70d2-4db9-92e9-5988c50b7d02
+description: Part 2
+content: "\n# Index: [Part 2: Broadhurst and Environs]\n\n\nWhen the heroes return to Broadhurst, they learn that several villagers have problems that only heroes can solve, and that undertaking those quests will help them access the lower levels of the Delian Tomb to claim the Cup of Iulius.\n\n# Running Part 2	\n\nThis section of the adventure is what’s known as a sandbox. In a sandbox, the heroes have several different quests that they can undertake in any order they choose. The players decide which quests to tackle and in which order, but you’ve also got a few events in this part that you can use to move things along if the players don’t jump into heroics right away.\n\n## Tracking Respites\n\nWhile the heroes go about their business in this part of the adventure, the villains don’t halt their plans. Track the number of respites the heroes finish to mark the passage of time and determine how far along their plans advance.\nSee: [Respite Tracker]\n\n### Tracking Time\n\nTracking the passage of days isn’t as important in this adventure as it is to track respites. However, for narrative purposes, it’s good to know what time of day it is. You can track the passage of a day by having the heroes spend some time in Broadhurst, then leave the village to complete a quest, and by the time they come back, night has fallen.\n\nFeel free to adjust this guideline about the passage of time as you see fit. For instance, if the heroes visit every single location of interest in the village one day, it might be that it’s already nighttime when they reach the last. Likewise, if the heroes spend no time dawdling in or returning Broadhurst, they might be able to visit two quest locations in the Silver Wood before night falls. Pace the time of day for whatever makes sense with the story.\n\n\n# Quest Outlines\n\nThere are five quests the heroes can tackle as they go about their business in Broadhurst and the surrounding region. Each one has its most likely path outlined in this section. The heroes might choose to focus on one quest at a time, or they might start one, move to another, and then come back to the first later. It’s up to the players how their heroes tackle each job.\n\nThe heroes get at least one starting point for each quest after they come back to town and speak with [Abbott Loric] (see Arrival in [Broadhurst]).\n \n## [Queen Bargnot’s Plot]\n\nThe heroes have likely figured out that [Queen Bargnot] is planning to use the Cup of Iulius to grow her ragtag band into a legendary legion, but if they haven’t, [Abbott Loric] meets them and pieces it together when they return to [Broadhurst] (see Arrival).\n\nThe heroes can uncover information in Loric’s library (see [B3. Church of Saint Gryffyn]) that says the Amulet of the Delian Order is needed to unseal the second level of the tomb (see [Tomb Second Level]) and that the Delian Knight Commander’s ring is needed to unseal the third level (see [Tomb Third Level]). If the heroes talk to [Orson] (see [B9. Charcoal Burner]), they learn the amulet was taken during an arixx attack and could be recovered in the creature’s nest (see [Arixx Nest]). The ring is held by the [Gilded Hand] (see [B1. Feather Bed Inn]).\n\nDepending on how long it takes the heroes to unseal the bottom level of the tomb, they might recover the cup themselves or find that the [Gilded Hand] has already brought it to the Jagged Edge. This quest resolves in [Part 3: The Jagged Edge] with either the heroes attacking the hideout of the Jagged Edge or the Jagged Edge assaulting Broadhurst.\n\n\n## [Arixx Nest]\n\nIf the heroes speak to [Orson] (see [B9. Charcoal Burner]), he tells them that while he was collecting wood in the forest, he was attacked by an arixx and barely escaped with his life, and that the giant insect got hold of his amulet. For the safety of Broadhurst, [Orson] asks the heroes to slay the arixx and retrieve his amulet. The heroes can start a search for the arixx’s tunnels at a farm where the monster just struck and traverse them to face the creature (see [Arixx Nest]).\n\n\n## Forsaken Wraiths ([Fort Forsaken])\n\nThe heroes learn about a group of bandits who call themselves the Forsaken Wraiths at the request of [Vaughn] (see [B10. Carpenter]) or by investigating the disappearance of missing food at the request of [Reeve Rosamund] (see [B4. Reeve’s House]). The investigation might take the heroes around town to the woodcutter, the mill and granary ([B5. Mill and Granary]), the smokehouse ([B6. Smokehouse]), and the butcher ([B8. Butcher]) before it finally leads them to the Forsaken Wraiths.\n\nAlternatively, if the heroes fail to find the bandits, eventually the Forsaken Wraiths assault the town (see [Wraith Raid] in [Events]). The reeve then seeks out the heroes to take out the criminals.\nRegardless of how they get on the Forsaken Wraiths’ trail, the heroes must find their forest camp and deal with them, either through a full- scale assault or by working with some bandits looking for a pardon to drive out the rest (see [Fort Forsaken]).\n \n\n## [Mage Tower]\n\nThe heroes can seek out [Harim] (see [B12. Cobbler]) who is worried about a shipment of leather that never arrived. Should the heroes investigate the road, they find a ruined mage’s tower now occupied by an orc elementalist and pair of ogres shaking down passersby for their treasures (see [Mage Tower]).\n\nAlternatively, if the heroes speak with [Dunquat] (see [B13. Mason]), they might eventually find themselves talking to the dwarf merchants staying at the inn (see [B1. Feather Bed Inn]), which can lead them to the tower. If all else fails, the [Tavern Brawl] event (see [Events]) can also lead the heroes to the tower.\n\n\n## [Wolf Den]\nIf the heroes talk to [Tansy] (see [B11. Furrier]), they can investigate the destruction of her traps in the wood and find their way to a werewolf’s cave (see [Wolf Den]). The heroes can also find the den by talking to [Mikael] (see [B10. Carpenter]) and tracking the creature who attacked him.\n\nAlternatively, if the heroes don’t investigate this quest, the [Full Moon] event (see [Events]) can point them toward the wolf’s den.\n\n# [Moving Onwards]\n\nThis part of the adventure doesn’t have a formal conclusion. The heroes can claim the [Cup of Iulius] and still have quests to explore in [Part 2]. When the heroes are ready to explore [Castle Andreas], proceed to [Castle Andreas] in [Part 3: The Jagged Edge]. If they have more quests from [Part 2] they wish to complete even after battling [Queen Bargnot], they can do that!\n\nIf the Jagged Edge or the heroes recover the [Cup of Iulius], the heroes finish three respites, and don’t go to [Castle Andreas], [Queen Bargnot]’s forces descend on Broadhurst in an assault. See [Attack on Broadhurst] in [Part 3: The Jagged Edge].\nRemember to make a note in [Tracking Respites]."
+mtime: 1768906286995

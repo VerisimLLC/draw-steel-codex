@@ -1,0 +1,91 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 326a3344-a587-492e-ae93-0a6e1a1a71e1
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    description: Deal additional damage and gain temporary stamina equal to your highest characteristic score.
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    activationCondition: true
+    source: Item
+    matchAnyKeywords: true
+    damageTypeMappings: []
+    adjustments: []
+    keywords:
+      Magic: true
+      Psionic: true
+    hasCustomTrigger: true
+    customTrigger:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 724997e4-140d-4fc5-9508-ad5edac1caa4
+      repeatTargets: false
+      trigger: d20roll
+      castImmediately: true
+      behaviors:
+      - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+        stamina: Highest Characteristic
+      numTargets: "1"
+      name: Abjurer's Bastion
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    rollType: ability_power_roll
+    modtype: none
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    behavior: power
+    name: Abjurer's Bastion Bonuses
+  source: Item
+  name: Abjurer's Bastion Bonuses
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: A diamond ring
+keywords:
+  Magic: true
+  Implement: true
+projectSource: Texts or lore in Caelian
+level5: The implement’s damage bonus increases to +2. Additionally, whenever you deal rolled damage using a magic or psionic ability, you can use a maneuver to create an immobile field of protection that is a 1 cube, around yourself or around an ally within 5 squares. While in the area, you or the chosen ally has damage immunity 5. The field disappears at the start of your next turn.
+level9: The implement’s damage bonus increases to +3. Whenever you deal rolled damage to a creature using a magic or psionic ability, you and each ally within 5 squares of you gains temporary Stamina equal to your highest characteristic score. Additionally, the size of your field of protection increases to a 3 cube, and it can be placed anywhere within 10 squares of you. You and each ally in the area gain its benefits.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+projectGoal: "450"
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+implementation: 3
+ctime: 1759210947698
+domains:
+  item:aba29226-030c-4c1c-baa9-318c366b9b6d: true
+description: While you wield this implement, your magic or psionic abilities that deal rolled damage gain a +1 damage bonus. Additionally, whenever you deal rolled damage to a creature using a magic or psionic ability, you gain temporary Stamina equal to your highest characteristic score.
+flavor: An ornate ring is set with a large diamond that swirls with blue light, and whose inner surface is etched with protective runes.
+name: Abjurer’s Bastion
+id: aba29226-030c-4c1c-baa9-318c366b9b6d
+mtime: 1772884584946
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 55d8b440-204f-40b2-a558-4157113c0a7a

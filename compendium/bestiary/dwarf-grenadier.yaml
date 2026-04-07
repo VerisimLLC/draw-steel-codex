@@ -1,0 +1,203 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: df1417bc-7b16-49de-a11b-66211c726f38
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440925
+    portraitOffset:
+      x: -0.04977894
+      y: 0.09952153
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f962fce5-2f45-428a-b613-8da012efafe3
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 39
+    inflictedConditions: []
+    ev: 14
+    max_hitpoints_roll: "39"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_type: Dwarf Grenadier
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; push 1
+        - 5 damage; push 3; M<1 slowed (save ends)
+        - 7 damage; push 5; M<2 slowed (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9b8867e2-35ce-46cd-826e-4f0da1151ce7
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Concussive Grenade
+      numTargets: "1"
+      description: A target restrained by a dwarf can be pushed by this ability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b75a892d-027e-4180-a5cd-65aec7791ad1
+      abilityType: none
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 poison damage; I<0 dazed (save ends)
+        - 5 poison damage; I<1 dazed (save ends)
+        - 7 poison damage; I<2 dazed (save ends)
+        roll: 2d10 + 2
+      name: Sleep Grenade
+      implementation: 3
+      description: A creature dazed by this ability has -1 to all characteristics while resisting potent effects until the condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    opportunityAttack: 4
+    stability: 3
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Grenadier	Level 2 Hexer
+        Dwarf, Humanoid	EV 14
+        <b>Stamina</b> 39
+        <b>Speed </b>5	<b>Size</b> 1M / <b>Stability</b> 3
+        <b>	Free Strike</b> 4
+        Might +1	Agility 0	Reason 0	Intuition +2	Presence 0
+        <b>Concussive Grenade</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Area, Ranged, Weapon
+        <b>Distance</b> 3 cube within 5 <b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage; push 1
+        %E2%98%85	<b>12%E2%80%9316</b>	5 damage; push 3; M<1 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	7 damage; push 5; M<2 slowed (save ends)
+        <b>Effect</b> A target restrained by a dwarf can be pushed by this ability.
+
+        <b>Sleep Grenade</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Ranged
+        <b>Distance</b> 3 cube within 5<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 poison damage; I<0 dazed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	5 poison damage; I<1 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	7 poison damage; I<2 dazed (save ends)
+        <b>Effect</b> A creature dazed by this ability has -1 to all characteristics while resisting potent effects until the condition ends.
+
+        <b>Indirect Fire</b>
+        The grenadier ignores cover and concealment and doesn't need to establish line of effect for their abilities.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ca63cddf-1b9b-4b28-b621-016fe781d571: true
+      modifiers: []
+      name: Indirect Fire
+      description: The grenadier ignores cover and concealment and doesn't need to establish line of effect for their abilities.
+      guid: ca63cddf-1b9b-4b28-b621-016fe781d571
+      source: Trait
+    role: Hexer
+    equipment: []
+    skillRatings: []
+    resistances: []
+    availableTriggers: []
+    damage_taken: 0
+    resources: []
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    minion: false
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: 2d06a73c-71bd-492c-bc98-2600ceb94af3
+    monster_category: Monster
+    keywords:
+      Dwarf: true
+      Humanoid: true
+  tokenType: null
+  bestiaryId: 47ffefd5-8a9b-4949-84d2-6b6a2e33e1f4
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Dwarf Grenadier
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590246031
+mtime: 1775201137032
+hidden: false

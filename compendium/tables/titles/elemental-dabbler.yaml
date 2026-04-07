@@ -1,0 +1,913 @@
+__typeName: Title
+effect: "Choose a damage type to which the defeated creature had an immunity (such as fire). Then choose one of the following benefits:"
+prerequisite: You defeat a creature with the Elemental keyword, such as a crux of fire.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Elemental Dabbler Choice
+    numChoices: 1
+    guid: ade75fe3-105a-4266-9335-36e464763893
+    description: Choose a damage type to which the defeated creature had an immunity to.
+    options:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      name: Acid
+      numChoices: 1
+      guid: bf0bd979-9198-46e0-bfba-26cab0e29f5d
+      description: ""
+      options:
+      - __typeName: CharacterFeature
+        description: You have the Elementalist 1st-level Hurl Element feature, dealing acid damage.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: c285a260-1f15-4cb9-b674-912d5bab265d
+          guid: 40cec7d6-81b2-450e-bf20-bfb3cd117101
+          source: Feat
+          behavior: activated
+          description: You have the Elementalist 1st-level Hurl Element feature, dealing acid damage.
+          name: Elemental Blaster - Acid
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.8562091588974
+                s: 1
+                v: 1
+                a: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 340
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            numTargets: "1"
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 88e7b0e3-4fd7-4d80-bd38-36a3dd989251
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R acid damage
+              - 4 + R acid damage
+              - 6 + R acid damage
+              roll: 2d10 + Reason
+            persistence: []
+            domains: []
+            iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+            properties:
+              useasstrike: true
+            name: Hurl Element
+            categorization: Ability
+            description: ""
+            abilityType: none
+            implementation: 3
+        source: Feat
+        canHavePrerequisites: true
+        guid: 9a95cea1-513e-4bc8-8481-da81ddf4c47e
+        name: Elemental Blaster - Acid
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: You have immunity to acid damage equal to your highest characteristic score.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 1997dc57-5499-43c8-95ad-5df60ac52e49
+          behavior: resistance
+          source: Feat
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Highest Characteristic
+            damageType: acid
+            apply: Damage Reduction
+          description: You have immunity to acid damage equal to your highest characteristic score.
+          name: Elemental Immunity - Acid
+          guid: cb11bf50-9241-4396-9f33-d34d98150106
+        source: Feat
+        canHavePrerequisites: true
+        guid: 1997dc57-5499-43c8-95ad-5df60ac52e49
+        name: Elemental Immunity - Acid
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: Whenever you use a damage-dealing weapon ability, that ability can deal acid damage instead of its usual damage type.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 5aab6142-e1b2-4485-96b3-ee1d1fef2ca8
+          displayCondition: ability.doesdamage
+          source: Feat
+          guid: 632de273-151c-4056-b6a9-0f7c1599107c
+          keywords:
+            Weapon: true
+          activationCondition: ""
+          damageTypeMappings:
+            all: acid
+          rollType: ability_power_roll
+          modtype: none
+          description: Whenever you use a damage-dealing weapon ability, that ability can deal acid damage instead of its usual damage type.
+          behavior: power
+          name: Elemental Weapons - Acid
+        source: Feat
+        canHavePrerequisites: true
+        guid: 5aab6142-e1b2-4485-96b3-ee1d1fef2ca8
+        name: Elemental Weapons - Acid
+        implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      source: Feat
+      name: Cold
+      guid: 3f37ae24-93ae-4459-aa1a-dd67a9e1d9fa
+      options:
+      - __typeName: CharacterFeature
+        description: You have the Elementalist 1st-level Hurl Element feature, dealing cold damage.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: c285a260-1f15-4cb9-b674-912d5bab265d
+          guid: 40cec7d6-81b2-450e-bf20-bfb3cd117101
+          source: Feat
+          behavior: activated
+          description: You have the Elementalist 1st-level Hurl Element feature, dealing cold damage.
+          name: Elemental Blaster - Cold
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.8562091588974
+                s: 1
+                v: 1
+                a: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 340
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            numTargets: "1"
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 88e7b0e3-4fd7-4d80-bd38-36a3dd989251
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R cold damage
+              - 4 + R cold damage
+              - 6 + R cold damage
+              roll: 2d10 + Reason
+            persistence: []
+            domains: []
+            iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+            properties:
+              useasstrike: true
+            name: Hurl Element
+            categorization: Ability
+            description: ""
+            abilityType: none
+            implementation: 3
+        source: Feat
+        canHavePrerequisites: true
+        guid: b00f1ae5-08cc-41b2-9370-d66cbf9e328b
+        name: Elemental Blaster - Cold
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: You have immunity to cold damage equal to your highest characteristic score.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 1997dc57-5499-43c8-95ad-5df60ac52e49
+          behavior: resistance
+          source: Feat
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Highest Characteristic
+            damageType: cold
+            apply: Damage Reduction
+          description: You have immunity to cold damage equal to your highest characteristic score.
+          name: Elemental Immunity - Cold
+          guid: cb11bf50-9241-4396-9f33-d34d98150106
+        source: Feat
+        canHavePrerequisites: true
+        guid: ba18a27c-18d0-4c79-a993-d428248bd8d9
+        name: Elemental Immunity - Cold
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: Whenever you use a damage-dealing weapon ability, that ability can deal cold damage instead of its usual damage type.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 5aab6142-e1b2-4485-96b3-ee1d1fef2ca8
+          displayCondition: ability.doesdamage
+          source: Feat
+          guid: 632de273-151c-4056-b6a9-0f7c1599107c
+          keywords:
+            Weapon: true
+          activationCondition: ""
+          damageTypeMappings:
+            all: cold
+          rollType: ability_power_roll
+          modtype: none
+          description: Whenever you use a damage-dealing weapon ability, that ability can deal cold damage instead of its usual damage type.
+          behavior: power
+          name: Elemental Weapons - Cold
+        source: Feat
+        canHavePrerequisites: true
+        guid: 94de02f1-c16f-4cdc-8987-40ab269cd288
+        name: Elemental Weapons - Cold
+        implementation: 3
+      description: ""
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      source: Feat
+      name: Corruption
+      guid: 197414e2-53f4-4a29-9d3b-af71990a5daa
+      options:
+      - __typeName: CharacterFeature
+        description: You have the Elementalist 1st-level Hurl Element feature, dealing corruption damage.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: c285a260-1f15-4cb9-b674-912d5bab265d
+          guid: 40cec7d6-81b2-450e-bf20-bfb3cd117101
+          source: Feat
+          behavior: activated
+          description: You have the Elementalist 1st-level Hurl Element feature, dealing corruption damage.
+          name: Elemental Blaster - Corruption
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.8562091588974
+                s: 1
+                v: 1
+                a: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 340
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            numTargets: "1"
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 88e7b0e3-4fd7-4d80-bd38-36a3dd989251
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R corruption damage
+              - 4 + R corruption damage
+              - 6 + R corruption damage
+              roll: 2d10 + Reason
+            persistence: []
+            domains: []
+            iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+            properties:
+              useasstrike: true
+            name: Hurl Element
+            categorization: Ability
+            description: ""
+            abilityType: none
+            implementation: 3
+        source: Feat
+        canHavePrerequisites: true
+        guid: d4d09e0b-79b7-45b1-a9d4-844b91f352f4
+        name: Elemental Blaster - Corruption
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: You have immunity to corruption damage equal to your highest characteristic score.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 1997dc57-5499-43c8-95ad-5df60ac52e49
+          behavior: resistance
+          source: Feat
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Highest Characteristic
+            damageType: corruption
+            apply: Damage Reduction
+          description: You have immunity to corruption damage equal to your highest characteristic score.
+          name: Elemental Immunity - Corruption
+          guid: cb11bf50-9241-4396-9f33-d34d98150106
+        source: Feat
+        canHavePrerequisites: true
+        guid: 5e8e3c91-8e74-4471-b03c-9d9eb765965f
+        name: Elemental Immunity - Corruption
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: Whenever you use a damage-dealing weapon ability, that ability can deal corruption damage instead of its usual damage type.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 5aab6142-e1b2-4485-96b3-ee1d1fef2ca8
+          displayCondition: ability.doesdamage
+          source: Feat
+          guid: 632de273-151c-4056-b6a9-0f7c1599107c
+          keywords:
+            Weapon: true
+          activationCondition: ""
+          damageTypeMappings:
+            all: corruption
+          rollType: ability_power_roll
+          modtype: none
+          description: Whenever you use a damage-dealing weapon ability, that ability can deal corruption damage instead of its usual damage type.
+          behavior: power
+          name: Elemental Weapons - Corruption
+        source: Feat
+        canHavePrerequisites: true
+        guid: 0a72106a-02f7-44d6-8efc-b12ba5a863c8
+        name: Elemental Weapons - Corruption
+        implementation: 3
+      description: ""
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      source: Feat
+      name: Fire
+      guid: 0c03c3a8-315f-4ab4-801d-4343487039ff
+      options:
+      - __typeName: CharacterFeature
+        description: You have the Elementalist 1st-level Hurl Element feature, dealing fire damage.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: c285a260-1f15-4cb9-b674-912d5bab265d
+          guid: 40cec7d6-81b2-450e-bf20-bfb3cd117101
+          source: Feat
+          behavior: activated
+          description: You have the Elementalist 1st-level Hurl Element feature, dealing fire damage.
+          name: Elemental Blaster - Fire
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.8562091588974
+                s: 1
+                v: 1
+                a: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 340
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            numTargets: "1"
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 88e7b0e3-4fd7-4d80-bd38-36a3dd989251
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R fire damage
+              - 4 + R fire damage
+              - 6 + R fire damage
+              roll: 2d10 + Reason
+            persistence: []
+            domains: []
+            iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+            properties:
+              useasstrike: true
+            name: Hurl Element
+            categorization: Ability
+            description: ""
+            abilityType: none
+            implementation: 3
+        source: Feat
+        canHavePrerequisites: true
+        guid: d152a3ea-5f15-4f25-950a-6f7b5bc145d3
+        name: Elemental Blaster - Fire
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: You have immunity to fire damage equal to your highest characteristic score.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 1997dc57-5499-43c8-95ad-5df60ac52e49
+          behavior: resistance
+          source: Feat
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Highest Characteristic
+            damageType: fire
+            apply: Damage Reduction
+          description: You have immunity to fire damage equal to your highest characteristic score.
+          name: Elemental Immunity - Fire
+          guid: cb11bf50-9241-4396-9f33-d34d98150106
+        source: Feat
+        canHavePrerequisites: true
+        guid: f3a873f1-2d2f-4800-aba2-f942d6ce422d
+        name: Elemental Immunity - Fire
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: Whenever you use a damage-dealing weapon ability, that ability can deal fire damage instead of its usual damage type.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 5aab6142-e1b2-4485-96b3-ee1d1fef2ca8
+          displayCondition: ability.doesdamage
+          source: Feat
+          guid: 632de273-151c-4056-b6a9-0f7c1599107c
+          keywords:
+            Weapon: true
+          activationCondition: ""
+          damageTypeMappings:
+            all: fire
+          rollType: ability_power_roll
+          modtype: none
+          description: Whenever you use a damage-dealing weapon ability, that ability can deal fire damage instead of its usual damage type.
+          behavior: power
+          name: Elemental Weapons - Fire
+        source: Feat
+        canHavePrerequisites: true
+        guid: 23adc71c-efc7-4f66-9230-613095ed2961
+        name: Elemental Weapons - Fire
+        implementation: 3
+      description: ""
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      source: Feat
+      name: Lightning
+      guid: 7ad4abd0-b702-4dd1-932b-8eb535ff193f
+      options:
+      - __typeName: CharacterFeature
+        description: You have the Elementalist 1st-level Hurl Element feature, dealing lightning damage.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: c285a260-1f15-4cb9-b674-912d5bab265d
+          guid: 40cec7d6-81b2-450e-bf20-bfb3cd117101
+          source: Feat
+          behavior: activated
+          description: You have the Elementalist 1st-level Hurl Element feature, dealing lightning damage.
+          name: Elemental Blaster - Lightning
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.8562091588974
+                s: 1
+                v: 1
+                a: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 340
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            numTargets: "1"
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 88e7b0e3-4fd7-4d80-bd38-36a3dd989251
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R lightning damage
+              - 4 + R lightning damage
+              - 6 + R lightning damage
+              roll: 2d10 + Reason
+            persistence: []
+            domains: []
+            iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+            properties:
+              useasstrike: true
+            name: Hurl Element
+            categorization: Ability
+            description: ""
+            abilityType: none
+            implementation: 3
+        source: Feat
+        canHavePrerequisites: true
+        guid: 5e05e7b1-3604-4dbf-834b-abf9e89d0a66
+        name: Elemental Blaster - Lightning
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: You have immunity to cold damage equal to your highest characteristic score.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 1997dc57-5499-43c8-95ad-5df60ac52e49
+          behavior: resistance
+          source: Feat
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Highest Characteristic
+            damageType: lightning
+            apply: Damage Reduction
+          description: You have immunity to cold damage equal to your highest characteristic score.
+          name: Elemental Immunity - Lightning
+          guid: cb11bf50-9241-4396-9f33-d34d98150106
+        source: Feat
+        canHavePrerequisites: true
+        guid: f8c37f1b-5780-4b25-a5a4-caad270ca2ed
+        name: Elemental Immunity - Lightning
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: Whenever you use a damage-dealing weapon ability, that ability can deal lightning damage instead of its usual damage type.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 5aab6142-e1b2-4485-96b3-ee1d1fef2ca8
+          displayCondition: ability.doesdamage
+          source: Feat
+          guid: 632de273-151c-4056-b6a9-0f7c1599107c
+          keywords:
+            Weapon: true
+          activationCondition: ""
+          damageTypeMappings:
+            all: lightning
+          rollType: ability_power_roll
+          modtype: none
+          description: Whenever you use a damage-dealing weapon ability, that ability can deal lightning damage instead of its usual damage type.
+          behavior: power
+          name: Elemental Weapons - Lightning
+        source: Feat
+        canHavePrerequisites: true
+        guid: 8a1ddd3c-073b-47f2-ba17-fdd770e28b47
+        name: Elemental Weapons - Lightning
+        implementation: 3
+      description: ""
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      source: Feat
+      name: Poison
+      guid: 60726bf2-15d4-4dfc-be2b-85a0641b8d38
+      options:
+      - __typeName: CharacterFeature
+        description: You have the Elementalist 1st-level Hurl Element feature, dealing poison damage.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: c285a260-1f15-4cb9-b674-912d5bab265d
+          guid: 40cec7d6-81b2-450e-bf20-bfb3cd117101
+          source: Feat
+          behavior: activated
+          description: You have the Elementalist 1st-level Hurl Element feature, dealing poison damage.
+          name: Elemental Blaster - Poison
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.8562091588974
+                s: 1
+                v: 1
+                a: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 340
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            numTargets: "1"
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 88e7b0e3-4fd7-4d80-bd38-36a3dd989251
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R poison damage
+              - 4 + R poison damage
+              - 6 + R poison damage
+              roll: 2d10 + Reason
+            persistence: []
+            domains: []
+            iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+            properties:
+              useasstrike: true
+            name: Hurl Element
+            categorization: Ability
+            description: ""
+            abilityType: none
+            implementation: 3
+        source: Feat
+        canHavePrerequisites: true
+        guid: 454bb0c2-810d-4294-bce8-1b96bfd499c3
+        name: Elemental Blaster - Poison
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: You have immunity to poison damage equal to your highest characteristic score.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 1997dc57-5499-43c8-95ad-5df60ac52e49
+          behavior: resistance
+          source: Feat
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Highest Characteristic
+            damageType: poison
+            apply: Damage Reduction
+          description: You have immunity to poison damage equal to your highest characteristic score.
+          name: Elemental Immunity - Poison
+          guid: cb11bf50-9241-4396-9f33-d34d98150106
+        source: Feat
+        canHavePrerequisites: true
+        guid: dd1fdf18-e6b2-4010-970d-196ffda6f81e
+        name: Elemental Immunity - Poison
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: Whenever you use a damage-dealing weapon ability, that ability can deal poison damage instead of its usual damage type.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 5aab6142-e1b2-4485-96b3-ee1d1fef2ca8
+          displayCondition: ability.doesdamage
+          source: Feat
+          guid: 632de273-151c-4056-b6a9-0f7c1599107c
+          keywords:
+            Weapon: true
+          activationCondition: ""
+          damageTypeMappings:
+            all: poison
+          rollType: ability_power_roll
+          modtype: none
+          description: Whenever you use a damage-dealing weapon ability, that ability can deal poison damage instead of its usual damage type.
+          behavior: power
+          name: Elemental Weapons - Poison
+        source: Feat
+        canHavePrerequisites: true
+        guid: a86047cb-1003-4b31-b6e2-19e40133ddf4
+        name: Elemental Weapons - Poison
+        implementation: 3
+      description: ""
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      source: Feat
+      name: Psychic
+      guid: 808876be-561e-4800-b703-7efb1d9eadc9
+      options:
+      - __typeName: CharacterFeature
+        description: You have the Elementalist 1st-level Hurl Element feature, dealing psychic damage.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: c285a260-1f15-4cb9-b674-912d5bab265d
+          guid: 40cec7d6-81b2-450e-bf20-bfb3cd117101
+          source: Feat
+          behavior: activated
+          description: You have the Elementalist 1st-level Hurl Element feature, dealing psychic damage.
+          name: Elemental Blaster - Psychic
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.8562091588974
+                s: 1
+                v: 1
+                a: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 340
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            numTargets: "1"
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 88e7b0e3-4fd7-4d80-bd38-36a3dd989251
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R psychic damage
+              - 4 + R psychic damage
+              - 6 + R psychic damage
+              roll: 2d10 + Reason
+            persistence: []
+            domains: []
+            iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+            properties:
+              useasstrike: true
+            name: Hurl Element
+            categorization: Ability
+            description: ""
+            abilityType: none
+            implementation: 3
+        source: Feat
+        canHavePrerequisites: true
+        guid: e2365ed1-69af-4946-87a2-70538ffd17fd
+        name: Elemental Blaster - Psychic
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: You have immunity to sonic damage equal to your highest characteristic score.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 1997dc57-5499-43c8-95ad-5df60ac52e49
+          behavior: resistance
+          source: Feat
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Highest Characteristic
+            damageType: psychic
+            apply: Damage Reduction
+          description: You have immunity to sonic damage equal to your highest characteristic score.
+          name: Elemental Immunity - Psychic
+          guid: cb11bf50-9241-4396-9f33-d34d98150106
+        source: Feat
+        canHavePrerequisites: true
+        guid: ba6f2901-129f-4718-9dd7-5ba50ca1e599
+        name: Elemental Immunity - Psychic
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: Whenever you use a damage-dealing weapon ability, that ability can deal psychic damage instead of its usual damage type.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 5aab6142-e1b2-4485-96b3-ee1d1fef2ca8
+          displayCondition: ability.doesdamage
+          source: Feat
+          guid: 632de273-151c-4056-b6a9-0f7c1599107c
+          keywords:
+            Weapon: true
+          activationCondition: ""
+          damageTypeMappings:
+            all: psychic
+          rollType: ability_power_roll
+          modtype: none
+          description: Whenever you use a damage-dealing weapon ability, that ability can deal psychic damage instead of its usual damage type.
+          behavior: power
+          name: Elemental Weapons - Psychic
+        source: Feat
+        canHavePrerequisites: true
+        guid: 8e5253c0-4f86-435b-a1e1-534dd7d38133
+        name: Elemental Weapons - Psychic
+        implementation: 3
+      description: ""
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      source: Feat
+      name: Sonic
+      guid: b95ca4f0-73ee-436c-886a-c16f7a6d1819
+      options:
+      - __typeName: CharacterFeature
+        description: You have the Elementalist 1st-level Hurl Element feature, dealing sonic damage.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: c285a260-1f15-4cb9-b674-912d5bab265d
+          guid: 40cec7d6-81b2-450e-bf20-bfb3cd117101
+          source: Feat
+          behavior: activated
+          description: You have the Elementalist 1st-level Hurl Element feature, dealing sonic damage.
+          name: Elemental Blaster - Sonic
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Strike: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.8562091588974
+                s: 1
+                v: 1
+                a: 1
+            sourceReference:
+              __typeName: SourceReference
+              page: 340
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            numTargets: "1"
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain: []
+            guid: 88e7b0e3-4fd7-4d80-bd38-36a3dd989251
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 + R sonic damage
+              - 4 + R sonic damage
+              - 6 + R sonic damage
+              roll: 2d10 + Reason
+            persistence: []
+            domains: []
+            iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+            properties:
+              useasstrike: true
+            name: Hurl Element
+            categorization: Ability
+            description: ""
+            abilityType: none
+            implementation: 3
+        source: Feat
+        canHavePrerequisites: true
+        guid: aac3bf5a-2009-4244-8cc5-51a9284a77f7
+        name: Elemental Blaster - Sonic
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: You have immunity to sonic damage equal to your highest characteristic score.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 1997dc57-5499-43c8-95ad-5df60ac52e49
+          behavior: resistance
+          source: Feat
+          resistances:
+          - __typeName: ResistanceEntry
+            dr: Highest Characteristic
+            damageType: sonic
+            apply: Damage Reduction
+          description: You have immunity to sonic damage equal to your highest characteristic score.
+          name: Elemental Immunity - Sonic
+          guid: cb11bf50-9241-4396-9f33-d34d98150106
+        source: Feat
+        canHavePrerequisites: true
+        guid: 688eb9fc-4604-4f85-969f-d0180dde9ebb
+        name: Elemental Immunity - Sonic
+        implementation: 3
+      - __typeName: CharacterFeature
+        description: Whenever you use a damage-dealing weapon ability, that ability can deal psysonicchic damage instead of its usual damage type.
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 5aab6142-e1b2-4485-96b3-ee1d1fef2ca8
+          displayCondition: ability.doesdamage
+          source: Feat
+          guid: 632de273-151c-4056-b6a9-0f7c1599107c
+          keywords:
+            Weapon: true
+          activationCondition: ""
+          damageTypeMappings:
+            all: sonic
+          rollType: ability_power_roll
+          modtype: none
+          description: Whenever you use a damage-dealing weapon ability, that ability can deal psysonicchic damage instead of its usual damage type.
+          behavior: power
+          name: Elemental Weapons - Sonic
+        source: Feat
+        canHavePrerequisites: true
+        guid: fcc6756b-c886-487f-b2ca-ebe40f6a9d10
+        name: Elemental Weapons - Sonic
+        implementation: 3
+      description: ""
+name: Elemental Dabbler
+mtime: 1773772067718
+description: Spirit of fire, I command you!
+id: d05895b0-0069-4486-af76-38190ac3a90d
+ctime: 1762349578423

@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  subtype: language
+  source: Character
+  behavior: proficiency
+  description: ""
+  equate: false
+  name: Language
+  sourceguid: 0d5cbb69-c811-4ed8-8f88-885b37101bf0
+  proficiency: proficient
+  guid: 8b5a3c5f-1343-41ce-bcaf-9a0bd3e01a88
+  skills:
+    5287d30a-3dff-404b-8e84-0087508a801b: true
+source: Character
+guid: 0d5cbb69-c811-4ed8-8f88-885b37101bf0
+id: c059a86f-6d09-432a-a258-e6118bcfd4ee
+ctime: 1730440160627
+name: Language
+description: ""
+mtime: 1730440180259
+implementation: 3

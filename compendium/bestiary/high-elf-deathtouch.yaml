@@ -1,0 +1,317 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: c7931044-6bab-4c1e-921d-05cd4ae3050e
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: f40a29ea-0020-49a5-8f75-1092a3710dad
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.9370126
+    frameSaturation: 0.7157731
+    frameBrightness: 0.4346699
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 30269688-cac8-4ddf-a79d-dde7f12c5aa3
+  properties:
+    __typeName: monster
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      High Elf: true
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        High Elf Deathtouch	Level 2 Platoon Artillery
+        Fey, High Elf, Humanoid	EV 8
+        <b>Stamina</b> 30
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +2	Agility 0	Reason +1	Intuition 0	Presence +1
+        <b>Heartpiercer</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 15<b>	Target</b> 1 creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage
+        %E2%9C%B8	<b>17</b>	13 damage; R<1 bleeding (save ends) ; I<1 frightened (save ends) ; P<1 restrained (save ends)
+        <b>5 Malice</b> The ability replaces Strike with the Area keyword, the distance becomes 3 cube within 10, and it targets all creatures in the cube.
+
+        <b>Kiss of Death</b> (Maneuver)
+        <b>Keywords</b> Magic
+        <b>Distance</b> Melee 1<b>	Target</b> 1 ally
+        <b>Effect</b> The target's speed increases by 5 and they cannot get results lower than tier 3 on their power rolls. The target immediately dies at the end of their next turn.
+
+        <b>Otherworldly Grace</b>
+        At the start of their turn, the deathtouch can turn the duration of one save ends effect they suffer from into EoT.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        CharacterFeature:93d1d5c9-c31c-4306-b8e1-91c4ed1ee2d1: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+          CharacterFeature:93d1d5c9-c31c-4306-b8e1-91c4ed1ee2d1: true
+        sourceguid: 93d1d5c9-c31c-4306-b8e1-91c4ed1ee2d1
+        behavior: trigger
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the deathtouch can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            purgeType: one
+            targetDuration: save
+            chatMessage: Otherworldly Grace - Change One Save Ends to EoT
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          targetType: self
+          conditionFormula: Conditions has "Bleeding" or Conditions has "Dazed" or Conditions has "Frightened" or Conditions has "Prone" or Conditions has "Restrained" or Conditions has "Slowed" or Conditions has "Taunted" or Conditions has "Weakened"
+          domains:
+            CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+            CharacterFeature:93d1d5c9-c31c-4306-b8e1-91c4ed1ee2d1: true
+          guid: ac284197-774a-4356-b5c6-d686af3abf2d
+          numTargets: "1"
+          trigger: endturn
+          name: Otherworldly Grace
+          description: At the start of each of their turns, the deathtouch can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 248bbd46-c8ff-4162-b03c-70fb7d368bfb
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+          CharacterFeature:93d1d5c9-c31c-4306-b8e1-91c4ed1ee2d1: true
+        sourceguid: 93d1d5c9-c31c-4306-b8e1-91c4ed1ee2d1
+        behavior: triggerdisplay
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the deathtouch can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        guid: 6a08e8fa-2c49-458c-b223-c801b1191e88
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: Choose one Save Ends Effect which you can end at the end of your turn.
+          guid: f394a51b-6387-4624-b470-de7f2afd98ec
+          keywords: []
+      source: Trait
+      description: At the start of each of their turns, the deathtouch can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+      guid: 93d1d5c9-c31c-4306-b8e1-91c4ed1ee2d1
+      name: Otherworldly Grace
+      implementation: 2
+    role: Platoon Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: 932eacc0-435c-4bcc-bea5-f28b5f5cc42f
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 5
+    ev: 8
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 9fa4e5cb-fbe8-4f55-8e34-6d0b7af51447
+        duration: eoe_or_dying
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 122
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 55b81445-8b4b-463c-b2f4-15c8852e4611
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      numTargets: 1
+      implementation: 3
+      name: Kiss of Death
+      categorization: Signature Ability
+      description: The target's speed increases by 5 and they cannot get results lower than tier 3 on their power rolls. The target immediately dies at the end of their next turn.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: "5"
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      implementationDetails: Heartpiercer Codex implementation has been split into two separate abilities for Strike and Area abilities, respectively.
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage
+        - 13 damage; R<1 bleeding (save ends) ; I<1 frightened (save ends) ; P<1 restrained (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "10"
+      abilityType: none
+      targetAllegiance: enemy
+      persistence: []
+      modifiers: []
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      strain: []
+      guid: 703b234c-bb67-4af8-80ab-74ca1cbdc16b
+      radius: "3"
+      numTargets: "1"
+      sourceReference:
+        __typeName: SourceReference
+        page: 122
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: cube
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Heartpiercer (Malice)
+      displayOrder: 12
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      implementationDetails: Heartpiercer Codex implementation has been split into two separate abilities for Strike and Area (Malice) abilities, respectively.
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage
+        - 13 damage; P<1 restrained (save ends); I<1 frightened (save ends); R<1 bleeding (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 122
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 15
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 80773f46-977e-4eae-a2b0-c216e8ab9119
+      categorization: Signature Ability
+      numTargets: 1
+      targetType: target
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      name: Heartpiercer
+      persistence: []
+      description: |2-
+
+        **5 Malice**: The ability takes the Area keyword and loses the Strike  keyword, its distance becomes a 3 cube within 10, and it targets each  enemy in the area.
+      abilityType: none
+      implementation: 4
+    movementSpeeds: []
+    walkingSpeed: 5
+    monster_type: High Elf Deathtouch
+    creatureSize: 1M
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: c4a0bbf6-fab3-464f-a127-ad93fc4ec540
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: High Elf Deathtouch
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590304553
+mtime: 1775201137032
+hidden: false

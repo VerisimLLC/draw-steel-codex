@@ -1,0 +1,358 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cbf4ce4c-941b-4d4c-98fb-ad96a8f6290f
+    offtokenPortraitId: e6b5ada1-cea5-4536-89b9-5b4774a2ef8a
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3628317
+    portraitOffset:
+      x: 0.04135698
+      y: 0.2571905
+    frameHueShift: 0
+    frameSaturation: 0.5075778
+    frameBrightness: 0.4138774
+    popoutScale: 0.99
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 783b846e-d50c-451e-bd20-938cdf2f12c4
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    inventory: []
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    creatureSize: 1M
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        instant: true
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          description: ""
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: ad08fc6b-8ac6-43ae-8083-84d71064a537
+            sourceguid: e718481c-6380-4a6a-b4f1-155547a49a22
+            behavior: attribute
+            source: Ongoing Effect
+            name: Ignore Cover and Concealment
+            value: 1
+            description: ""
+            attribute: 16228928-9f29-4510-a703-65344f2356ef
+          - __typeName: CharacterModifier
+            guid: 7d415edd-b444-4768-9998-ddc17b4ba2a1
+            sourceguid: e718481c-6380-4a6a-b4f1-155547a49a22
+            behavior: attribute
+            source: Ongoing Effect
+            name: Ignore Cover and Concealment
+            value: 1
+            description: ""
+            attribute: 33b6a265-6b89-4def-b86d-507d86061fe8
+          source: Ongoing Effect
+          name: Ignore Cover and Concealment
+          guid: e718481c-6380-4a6a-b4f1-155547a49a22
+          id: e718481c-6380-4a6a-b4f1-155547a49a22
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+        lingerTime: 1
+        applyto: caster
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage
+        - 12 damage
+        roll: 2d10 + 2
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      meleeRange: 1
+      strain: []
+      guid: 41b1481e-f33a-4c85-a1de-9632774bccea
+      modeList:
+      - text: Normal
+        condition: ""
+      - text: 3 Malice
+        condition: Heroic Resources Available to Spend >= 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      numTargets: 2 when Mode = 2 else 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 190
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      name: Trick Crossbow
+      implementation: 3
+      description: |-
+        The trickshot ignores cover and concealment.
+
+        *3 Malice:* This ability targets one additional target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    damageEntries:
+      8a8206c2-f13a-4762-9d3a-066d01973295:
+        id: 8a8206c2-f13a-4762-9d3a-066d01973295
+        heal: 5
+      bc46dda0-ea9b-4f1f-9580-896da8c861c2:
+        damage: 20
+        id: bc46dda0-ea9b-4f1f-9580-896da8c861c2
+      13db6eab-bcf1-4063-b76b-6a06523a5d12:
+        id: 13db6eab-bcf1-4063-b76b-6a06523a5d12
+        heal: 5
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        98313194-d400-42de-b4ec-92ac466df21f:
+          disposition: bad
+          note: 10 Damage
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 10
+        de1e8b24-56fd-496e-8c6a-ca7633d09b2d:
+          disposition: good
+          note: Dyfan's Invoked Ability
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 10
+        07b670fe-39b6-490b-b308-ff2d53d64e03:
+          disposition: good
+          note: Edmund's Invoked Ability
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 20
+        0e49e592-fd4b-4c8f-9b07-82235dbbc691:
+          disposition: good
+          note: Dyfan's Invoked Ability
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 15
+        788ac13d-63bd-4cc3-ae58-d213df9a3fb2:
+          disposition: good
+          note: Dyfan's Invoked Ability
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 20
+        2d1bb335-94bc-4ab4-be92-20a9bf7457c7:
+          disposition: bad
+          note: 20 Damage
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0
+        779d8e57-492e-452c-8fcf-27766a3ac373:
+          disposition: good
+          note: 5 Healing
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 5
+        039bb7a5-af2c-4694-b414-dfcf81b12899:
+          disposition: good
+          note: Dyfan's Invoked Ability
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 15
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Trickshot	Level 1 Platoon Artillery
+        Human, Humanoid	EV 6
+        <b>Stamina</b> 20	<b>Immunity</b> Corruption 1, Psychic 1
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 4
+        Might +0	Agility +2	Reason +0	Intuition +1	Presence +0
+        <b>Trick Crossbow</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 15	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	6 damage
+        %E2%98%85	12%E2%80%9316	9 damage
+        %E2%9C%B8	17+	12 damage
+        <b>Effect </b>The trickshot ignores cover and concealment.
+        <b>3 Malice </b>The trickshot targets an additional creature or object.
+
+        <b>Supernatural Insight</b>
+        The trickshot ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c39c6ece-c7d7-42f1-b9ee-06b8b7f667a0: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:c39c6ece-c7d7-42f1-b9ee-06b8b7f667a0: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The trickshot ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The trickshot ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+      guid: c39c6ece-c7d7-42f1-b9ee-06b8b7f667a0
+      name: Supernatural Insight
+      implementation: 3
+    role: Platoon Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 4
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        5765282d-118d-4029-b721-125e10022330:
+          refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a-1
+          note: Ranged Free Strike
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+    keywords:
+      Humanoid: true
+      Human: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: bc117f79-9804-41da-a620-b6aa7a5831c1
+    max_hitpoints: 20
+    damage_taken: 10
+    monster_category: Monster
+    walkingSpeed: 5
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    deathSavingThrowFailures: 0
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a-1
+        used: 1
+    traitNames: []
+    movementSpeeds: []
+    deathSavingThrowSuccesses: 0
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      trinket10: []
+      trinket6: []
+      leveled4: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      leveled3: []
+      trinket3: []
+      trinket9: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    monster_type: Human Trickshot
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: d00cd73a-a99e-4d91-aa0b-a69bf1e4ceb7-284
+  tokenType: null
+  bestiaryId: d71e374a-21bd-4cc7-89c4-98939bd810fd
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Human Trickshot
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590314812
+mtime: 1775201137032
+hidden: false

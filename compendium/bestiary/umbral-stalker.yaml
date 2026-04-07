@@ -1,0 +1,401 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cbcfd467-2ef5-4b79-a160-8341a5bb6ef6
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 46c60610-85d1-427d-b97d-133890b389b2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Magic: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 86fe5247-1e25-4f46-b522-ba1abc6362fd
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Chilling Grasp
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 cold damage
+        - 6 cold damage; the stalker can shift 1 square
+        - 7 cold damage; the stalker shifts up to 2 squares
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: 5eceb251-3248-4081-b41b-d3b25defe2ae
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 cold damage
+        - 3 cold damage
+        - 4 cold damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityAuraBehavior
+        duration: endnextturn
+        aura:
+          __typeName: Aura
+          modifiers: []
+          source: Freezing Dark
+          blocks_line_of_effect: true
+          guid: a27e48fc-1fa8-4511-8bb9-fb1a16838866
+          objectid: a27baeee-3bee-4ebe-b820-793086f34a86
+          applyto: enemies
+          name: Freezing Dark
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.584815144538879
+              s: 1.00166618824005
+              v: 0.483654022216797
+              a: 1
+          iconid: d549bb7f-11c6-4595-9d3d-2714c2106df1
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 340eb4ae-2614-4c36-9f0e-772991a953b1
+      abilityType: none
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: cube
+      numTargets: 1
+      radius: "3"
+      name: Freezing Dark
+      implementation: 4
+      description: Until the end of the umbral stalker's next turn, the area is concealed and blocks line of effect for all enemies.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 214dd692-9d96-4e64-8fb7-5eb1af1e7e18
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: The umbral stalker teleports to an unoccupied space in an area of concealment within 10 squares.
+        invokeOnCaster: true
+        standardAbilityParams:
+          range: "10"
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+        abilityType: standard
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: bace921a-00e0-455f-a317-454f30020f7b
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+      castImmediately: true
+      targetType: self
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Shadow Jump
+      numTargets: 1
+      description: The umbral stalker teleports to an unoccupied space in an area of concealment within 10 squares.
+      abilityType: none
+      implementation: 3
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Umbral Stalker	Level 1 Horde Ambusher
+        Undead	EV 3
+        <b>Stamina</b> 15	<b>Immunity</b> corruption 1, poison 1
+        <b>Speed</b> 7 (climb)	<b>Size</b> 1M/<b> Stability</b> 1
+        <b>Free Strike</b> 2
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Chilling Grasp</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	4 cold damage
+        %E2%98%85	12%E2%80%9316	6 cold damage; shift 1
+        %E2%9C%B8	17+	7 cold damage; shift 2
+
+        <b>Freezing Dark</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 cube within 1	<b>Target</b> Each enemy in the cube
+        %E2%9C%A6	%E2%89%A411	2 cold damage
+        %E2%98%85	12%E2%80%9316	3 cold damage
+        %E2%9C%B8	17+	4 cold damage
+        <b>Effect</b> Until the end of the umbral stalker's next turn, the area is concealed and blocks line of effect for all enemies.
+
+        <b>Shadow Jump</b> (Free Maneuver) %E2%97%86 1 Malice
+        The umbral stalker teleports to an unoccupied space in concealment within 10 squares.
+
+        <b>Corruptive Phasing</b>
+        The umbral stalker can move through other creatures and objects at normal speed. The first time in a round that the umbral stalker passes through a creature, that creature takes 2 corruption damage. The umbral stalker doesn't take damage from being force moved into objects.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9f5d60a2-25c8-4d37-8c2d-89b98db92b5a: true
+        CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        guid: 550fa599-1539-4f97-af0d-aa97264d0476
+        domains:
+          CharacterFeature:9f5d60a2-25c8-4d37-8c2d-89b98db92b5a: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        value: 1
+        description: The umbral stalker can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the umbral stalker moves through a creature, that creature takes 2 corruption damage. The umbral stalker doesn't take damage from being force moved into objects.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:9f5d60a2-25c8-4d37-8c2d-89b98db92b5a: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        guid: d28a3667-bad4-4c2e-88e9-6f40ed7a4ec8
+        description: The umbral stalker can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the umbral stalker moves through a creature, that creature takes 2 corruption damage. The umbral stalker doesn't take damage from being force moved into objects.
+        behavior: attribute
+        attribute: 9148519f-9fb4-4b2b-9d3e-98f88c56bab8
+      - __typeName: CharacterModifier
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:9f5d60a2-25c8-4d37-8c2d-89b98db92b5a: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        resourceRefreshType: round
+        description: The umbral stalker can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the umbral stalker moves through a creature, that creature takes 2 corruption damage. The umbral stalker doesn't take damage from being force moved into objects.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "2"
+            damageType: corruption
+            chatMessage: Phased Through
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 91a78ee3-31d5-43bc-be05-1b765bee9979
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a189f7a6-044c-43fd-a66a-29e2b5a46d1b
+          domains:
+            CharacterFeature:9f5d60a2-25c8-4d37-8c2d-89b98db92b5a: true
+            CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+          numTargets: "1"
+          name: Corruptive Phasing
+          trigger: movethrough
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 91a78ee3-31d5-43bc-be05-1b765bee9979
+      - __typeName: CharacterModifier
+        sourceguid: f492943e-a198-49cb-8715-3f704c13bea4
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+          CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+        name: Corruptive Phasing
+        guid: 9273f713-9e62-4fe3-98bd-2197fb87431f
+        description: The ghost can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the spirit moves through a creature other than their mentor, that creature takes 2 corruption damage.
+        behavior: attribute
+        attribute: 8e55aa4a-aae4-4df7-85b7-07ce1b93a6c9
+      - __typeName: CharacterModifier
+        text: This creature can move through creatures and objects. It cannot end its turn inside a creature or object.
+        sourceguid: f492943e-a198-49cb-8715-3f704c13bea4
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+          CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+        name: Corruptive Phasing
+        description: The ghost can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the spirit moves through a creature other than their mentor, that creature takes 2 corruption damage.
+        guid: 9c5d3fc2-01e7-4477-ae72-45e671132340
+        color: green
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 9f5d60a2-25c8-4d37-8c2d-89b98db92b5a
+        source: Trait
+        guid: a990d6e6-0c17-4996-9bd1-0c5b9792cbae
+        domains:
+          CharacterFeature:9f5d60a2-25c8-4d37-8c2d-89b98db92b5a: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        value: 1
+        description: The umbral stalker can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the umbral stalker moves through a creature, that creature takes 2 corruption damage. The umbral stalker doesn't take damage from being force moved into objects.
+        behavior: attribute
+        attribute: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+      source: Trait
+      description: The umbral stalker can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the umbral stalker moves through a creature, that creature takes 2 corruption damage. The umbral stalker doesn't take damage from being force moved into objects.
+      guid: 9f5d60a2-25c8-4d37-8c2d-89b98db92b5a
+      name: Corruptive Phasing
+      implementation: 3
+    role: Horde Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 2
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    walkingSpeed: 7
+    traitNames: []
+    movementSpeeds:
+      climb: 7
+    creatureSize: 1M
+    initiativeGrouping: fd3f9d20-80a4-46ed-9dac-e0533482120a
+    keywords:
+      Undead: true
+    monster_type: Umbral Stalker
+  tokenType: null
+  bestiaryId: 8782bde7-3036-4e54-98f7-43540f0a3637
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Umbral Stalker
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 10
+ctime: 1741590278122
+mtime: 1775201137032
+hidden: false

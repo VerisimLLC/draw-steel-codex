@@ -1,0 +1,76 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d7298225-176d-4b38-8705-5876b003e467
+  guid: e9e021ea-c399-49e4-b81f-e3f3c3e31930
+  source: Ongoing Effect
+  behavior: activated
+  description: ""
+  name: One Vial Makes You Faster - stored
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      filterTarget: Stacks("One Vial Makes You Faster - stored") = 1
+      duration: eoe
+      ongoingEffectCustom: fe059fa6-9128-4daa-b6fb-3f631e2ffdf6
+      ongoingEffect: fe059fa6-9128-4daa-b6fb-3f631e2ffdf6
+      guid: 16dd7903-da47-4c5f-866a-efaae3be3656
+      modesSelected:
+      - 1
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      filterTarget: Stacks("One Vial Makes You Faster - stored") = 2
+      duration: eoe
+      ongoingEffectCustom: b0a98def-f854-4ee2-9a46-2cc3d7c07aea
+      ongoingEffect: b0a98def-f854-4ee2-9a46-2cc3d7c07aea
+      guid: 00488548-7b26-49ce-882f-eb97f7528226
+      modesSelected:
+      - 1
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      durationUntilEndOfTurn: true
+      modesSelected:
+      - 1
+      ongoingEffectCustom: 87135433-7deb-4a7f-87f0-40ed39ba264b
+      ongoingEffect: 87135433-7deb-4a7f-87f0-40ed39ba264b
+      guid: 20658538-2c09-4052-8f0b-52883ede6000
+      duration: 1
+      filterTarget: Stacks("One Vial Makes You Faster - stored") = 3
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 77da8e9e-9904-43d7-87bd-a0caa3708f31
+    targetType: self
+    domains: []
+    numTargets: "1"
+    castImmediately: true
+    name: One Vial Makes You Faster - stored
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+stackable: true
+id: d7298225-176d-4b38-8705-5876b003e467
+ctime: 1767505143095
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+custom: true
+name: One Vial Makes You Faster - stored
+description: ""
+mtime: 1767505295471
+guid: d7298225-176d-4b38-8705-5876b003e467
+iconid: ui-icons/skills/1.png

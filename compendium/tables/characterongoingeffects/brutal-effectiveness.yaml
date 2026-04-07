@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: bce0ccbb-16b2-41b9-ae68-12100c2771a3
+  displayCondition: Ability.Has Potency
+  source: Ongoing Effect
+  modtype: none
+  adjustments: []
+  keywords: []
+  activationCondition: Ability.Has Potency
+  behavior: power
+  name: Brutal Effectiveness
+  description: The monster digs into the enemy’s weak spot. The next ability the monster uses with a potency has that potency increased by 1.
+  potencymod: "1"
+  rollType: ability_power_roll
+  guid: b3b275d8-b1e2-4008-b36f-dd612c693d17
+source: Ongoing Effect
+guid: bce0ccbb-16b2-41b9-ae68-12100c2771a3
+id: bce0ccbb-16b2-41b9-ae68-12100c2771a3
+ctime: 1758818874206
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1758818874206
+sustainFormula: ""
+endTrigger: useability
+description: The monster digs into the enemy’s weak spot. The next ability the monster uses with a potency has that potency increased by 1.
+name: Brutal Effectiveness
+iconid: 32077eeb-5e0b-4dd8-b538-4bab491da0ed

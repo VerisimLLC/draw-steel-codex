@@ -1,0 +1,909 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:31 0 Respites:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 31 0 Respites
+  'encounter:A3 ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'A3 '
+  encounter:A3 3 Heroes's Cup:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 3 Heroes's Cup
+  encounter:A3 Heroes's:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes's
+  encounter:A3 0 Respites Spindlegoth 5 or 6:
+    __typeName: RichEncounter
+    identifier: A3 0 Respites Spindlegoth 5 or 6
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "39,15,1"
+        - __usertype: LuaLoc
+          loc: "33,20,1"
+        - __usertype: LuaLoc
+          loc: "37,23,1"
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 3
+      name: Spindlegoth
+  encounter:A3 Heroes':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes'
+  encounter:A3 1 or 2 Respites-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 1 or 2 Respites
+  "encounter:A3 Heroes's Cup Spindlegoth 5 or ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "A3 Heroes's Cup Spindlegoth 5 or "
+  encounter:A31 1 Respite:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A31 1 Respite
+  encounter:A3 0 Respites Spindlegoth 5 or 6-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites Spindlegoth 5 or 6
+  encounter:A3 0 Respites Spindlegoth 3-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites Spindlegoth 3
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  encounter:A3 1 Respite:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 1 Respite
+  'encounter:A3 0 Respites ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'A3 0 Respites '
+  encounter:A3 Heroes's Cup Spindlegoth 4:
+    __typeName: RichEncounter
+    identifier: A3 Heroes's Cup Spindlegoth 4
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "37,23,1"
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 1
+      name: Spindlegoth
+  encounter:A3 3Heroes's Cup:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 3Heroes's Cup
+  "encounter: ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: " "
+  encounter:A3 1 or 2 Respites Spindlegoth 3:
+    __typeName: RichEncounter
+    identifier: A3 1 or 2 Respites Spindlegoth 3
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "33,20,1"
+        - __usertype: LuaLoc
+          loc: "37,23,1"
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 2
+      name: Spindlegoth
+  encounter:A:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A
+  'encounter:A3 0 Respites 3 ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'A3 0 Respites 3 '
+  encounter:A3 Heroes's Cup Spindlegoth-2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes's Cup Spindlegoth
+  encounter:A3 Heroes's Cup Spindlegoth-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes's Cup Spindlegoth
+  encounter:A1 Heroes's Cup:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A1 Heroes's Cup
+  encounter:A3 0 Respites Spindlegoth:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites Spindlegoth
+  encounter:A3 Heroes's Cup:
+    __typeName: RichEncounter
+    identifier: A3 Heroes's Cup
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "39,18,1"
+        - __usertype: LuaLoc
+          loc: "39,11,1"
+        - __usertype: LuaLoc
+          loc: "39,13,1"
+        - __usertype: LuaLoc
+          loc: "38,15,1"
+        - __usertype: LuaLoc
+          loc: "38,17,1"
+        monsters:
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+          806915da-99a4-45fb-88a9-60ec110f9d18: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "35,20,1"
+        - __usertype: LuaLoc
+          loc: "33,18,1"
+        - __usertype: LuaLoc
+          loc: "35,18,1"
+        - __usertype: LuaLoc
+          loc: "37,19,1"
+        - __usertype: LuaLoc
+          loc: "37,21,1"
+        monsters:
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+          806915da-99a4-45fb-88a9-60ec110f9d18: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "39,23,1"
+        - __usertype: LuaLoc
+          loc: "40,21,1"
+        - __usertype: LuaLoc
+          loc: "42,20,1"
+        - __usertype: LuaLoc
+          loc: "43,22,1"
+        - __usertype: LuaLoc
+          loc: "41,23,1"
+        monsters:
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+          806915da-99a4-45fb-88a9-60ec110f9d18: 1
+      - appearances:
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "35,16,1"
+        - __usertype: LuaLoc
+          loc: "36,13,1"
+        - __usertype: LuaLoc
+          loc: "37,11,1"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 3
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "41,18,1"
+        - __usertype: LuaLoc
+          loc: "42,17,1"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      name: A3 Heroes' Cup
+  encounter:A3 Heroes's Cup P2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes's Cup P2
+  "encounter:A3 Heroes's Cup Spindlegoth 5 ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "A3 Heroes's Cup Spindlegoth 5 "
+  encounter:A2 Heroes's Cup:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A2 Heroes's Cup
+  encounter:A3 Heroes's Cup Spindlegoth 5 or 6-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes's Cup Spindlegoth 5 or 6
+  'encounter:A3 0 Respites 4 ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'A3 0 Respites 4 '
+  "encounter: A":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: " A"
+  encounter:A3 1 or 2 Respites Spindlegoth 4:
+    __typeName: RichEncounter
+    identifier: A3 1 or 2 Respites Spindlegoth 4
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "37,23,1"
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 1
+      name: Spindlegoth
+  "encounter:A3 Heroes's Cup ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "A3 Heroes's Cup "
+  encounter:A3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3
+  encounter:A3 0 Respites Spindle:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites Spindle
+  "encounter:A3 Heroes's Cup Spindlegoth 4 ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "A3 Heroes's Cup Spindlegoth 4 "
+  encounter:A3 Heroes's Cup 3 He:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes's Cup 3 He
+  encounter:A3 0 Respites Spindlegoth 4:
+    __typeName: RichEncounter
+    identifier: A3 0 Respites Spindlegoth 4
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "37,23,1"
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 1
+      name: Spindlegoth
+  encounter:1 0 Respites:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 1 0 Respites
+  encounter:A3 0 Respites:
+    __typeName: RichEncounter
+    identifier: A3 0 Respites
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "39,18,1"
+        - __usertype: LuaLoc
+          loc: "39,11,1"
+        - __usertype: LuaLoc
+          loc: "39,13,1"
+        - __usertype: LuaLoc
+          loc: "38,15,1"
+        - __usertype: LuaLoc
+          loc: "38,17,1"
+        monsters:
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+          806915da-99a4-45fb-88a9-60ec110f9d18: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "35,20,1"
+        - __usertype: LuaLoc
+          loc: "33,18,1"
+        - __usertype: LuaLoc
+          loc: "35,18,1"
+        - __usertype: LuaLoc
+          loc: "37,19,1"
+        - __usertype: LuaLoc
+          loc: "37,21,1"
+        monsters:
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+          806915da-99a4-45fb-88a9-60ec110f9d18: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "39,23,1"
+        - __usertype: LuaLoc
+          loc: "43,22,1"
+        - __usertype: LuaLoc
+          loc: "40,21,1"
+        - __usertype: LuaLoc
+          loc: "41,23,1"
+        - __usertype: LuaLoc
+          loc: "42,20,1"
+        monsters:
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+          806915da-99a4-45fb-88a9-60ec110f9d18: 1
+      - appearances:
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "37,10,1"
+        - __usertype: LuaLoc
+          loc: "36,13,1"
+        - __usertype: LuaLoc
+          loc: "35,16,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 3
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "41,18,1"
+        - __usertype: LuaLoc
+          loc: "42,17,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      name: A3 0 Respites
+  encounter:A3 1 or 2 Respites-2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 1 or 2 Respites
+  encounter:A3 Heroes's Cup-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes's Cup
+  encounter:A3 Heroes's Cup Spindle:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes's Cup Spindle
+  encounter:A3 Heroes's Cup Spindlegoth 3:
+    __typeName: RichEncounter
+    identifier: A3 Heroes's Cup Spindlegoth 3
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "33,20,1"
+        - __usertype: LuaLoc
+          loc: "37,23,1"
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 2
+      name: Spindlegoth
+  encounter:A3 Heroes:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes
+  encounter:A3 0 Respites Spindlegoth 3:
+    __typeName: RichEncounter
+    identifier: A3 0 Respites Spindlegoth 3
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "33,20,1"
+        - __usertype: LuaLoc
+          loc: "37,23,1"
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 2
+      name: Spindlegoth
+  "encounter:A3 Heroes's Cup Spindlegoth ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "A3 Heroes's Cup Spindlegoth "
+  encounter:A3 0 Respites Spindlegoth 4-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites Spindlegoth 4
+  'encounter:A3 0 Respites 5 6 ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: 'A3 0 Respites 5 6 '
+  encounter:A3 Heroes's Cup Spindlegoth 5 or 6:
+    __typeName: RichEncounter
+    identifier: A3 Heroes's Cup Spindlegoth 5 or 6
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "33,20,1"
+        - __usertype: LuaLoc
+          loc: "39,15,1"
+        - __usertype: LuaLoc
+          loc: "37,23,1"
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 3
+      name: Spindlegoth
+  encounter:A3 0 Respites-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: ""
+  "encounter: A3":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: " A3"
+  encounter:A3 0 Respites 4 Heroes:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites 4 Heroes
+  encounter:A3 0 Respites 5:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites 5
+  encounter:A3 Heroes's Cup Spindlegoth:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 Heroes's Cup Spindlegoth
+  "encounter:A3 Heroes's Cup 3 ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "A3 Heroes's Cup 3 "
+  encounter:A1 0 Respites:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A1 0 Respites
+  encounter:A1 1 Respite:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A1 1 Respite
+  encounter:A3 1 or 2 Respites:
+    __typeName: RichEncounter
+    identifier: A3 1 or 2 Respites
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "39,18,1"
+        - __usertype: LuaLoc
+          loc: "39,11,1"
+        - __usertype: LuaLoc
+          loc: "39,13,1"
+        - __usertype: LuaLoc
+          loc: "38,15,1"
+        - __usertype: LuaLoc
+          loc: "38,17,1"
+        monsters:
+          d02daacd-edb7-44da-91f9-208ccce37171: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "35,20,1"
+        - __usertype: LuaLoc
+          loc: "33,18,1"
+        - __usertype: LuaLoc
+          loc: "35,18,1"
+        - __usertype: LuaLoc
+          loc: "37,19,1"
+        - __usertype: LuaLoc
+          loc: "37,21,1"
+        monsters:
+          d02daacd-edb7-44da-91f9-208ccce37171: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "39,23,1"
+        - __usertype: LuaLoc
+          loc: "42,20,1"
+        - __usertype: LuaLoc
+          loc: "43,22,1"
+        - __usertype: LuaLoc
+          loc: "40,21,1"
+        - __usertype: LuaLoc
+          loc: "41,23,1"
+        monsters:
+          d02daacd-edb7-44da-91f9-208ccce37171: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+      - appearances:
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "37,11,1"
+        - __usertype: LuaLoc
+          loc: "36,13,1"
+        - __usertype: LuaLoc
+          loc: "35,16,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 3
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "42,17,1"
+        - __usertype: LuaLoc
+          loc: "41,18,1"
+        monsters:
+          635b92cb-992b-4710-b2b2-c768dfd85942: 2
+      name: A3 1 or 2 Respites
+  encounter:A3 0 Respites-2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites
+  encounter:A3 1 or 2 Respites Spindlegoth 5 or 6:
+    __typeName: RichEncounter
+    identifier: A3 1 or 2 Respites Spindlegoth 5 or 6
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "33,20,1"
+        - __usertype: LuaLoc
+          loc: "37,23,1"
+        - __usertype: LuaLoc
+          loc: "39,15,1"
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 3
+      name: Spindlegoth
+  encounter:A3 1 or 2Respite:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 1 or 2Respite
+  encounter:A3 0 Respites 3 Heroes:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites 3 Heroes
+  encounter:A3 4 Heroes's Cup:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups: []
+      name: A3 4 Heroes Cup
+    identifier: A3 4 Heroes's Cup
+  encounter:A3 0 Respites 5 6 Heroes:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 0 Respites 5 6 Heroes
+  encounter:A3 1 or 2 Respite:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: A3 1 or 2 Respite
+  "encounter:A3 Heroes's ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "A3 Heroes's "
+id: eb0953fa-92f4-4f8d-9774-dae76bd56422
+ctime: 1761037108398
+textStorage:
+  __typeName: TextStorage
+  sections:
+    eZK: |
+      **0 Respites**
+    eRC: |
+      ???
+    few: |+
+      ???
+
+
+    u: |
+      |{#The hero finds two Black Ash Darts hidden in the room.}
+    s: |
+      |{#The hero stumbles upon a Black Ash Dart in the corner.}
+    gf: |+
+      ## Webbing
+
+    q: |
+      |Find the Loot: Reason or Intuition Test
+    o: |
+      One hero who actively looks through the remains of the armory for loot can make an easy Reason or Intuition test. See [item:Black Ash Dart] and [item:Black Ash].
+    m: |+
+      ## Loot
+
+    kr: |+
+      ## Ending the Encounter
+
+    eTE: |
+      [[encounter:A3 Heroes's Cup Spindlegoth 4]]
+    edW: |
+      [[encounter:A3 0 Respites Spindlegoth 3]]
+    ZM: |2
+
+    jo: |+
+      The goblins use hit-and-run tactics, falling from the ceiling, attacking, and then retreating to the ceilings. They make liberal use of the Goblin Mode Malice feature. The spindlegoths pursue any prey who touches the floor and they attempt to keep them there. The spindlegoths don't leave the room.
+
+
+    Y: |+
+      This, and all following encounters, change depending on if the Heroes or [Queen Bargnot] has the [item:Cup of Iulius]. See [Goblin Replacements] for more information.
+
+    W: |
+      * For four heroes, remove two spindlegoths.
+    X: |+
+      * For three heroes, remove one spindlegoth, one goblin underboss,and four goblin spinecleavers.
+
+
+
+    U: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    V: |
+      * For six heroes, add one group of two goblin warriors.
+    S: |+
+      |5|Three [spindlegoth]s|
+
+    edg: |
+      [[encounter:A3 1 or 2 Respites Spindlegoth 5 or 6]]
+    Q: |
+      |3|One [goblin underboss] (captain) Four [goblin spinecleaver]s (minion squad)|
+    R: |
+      |4|Three [goblin warrior]s|
+    O: |
+      |1|One [goblin underboss] (captain) Four [goblin spinecleaver]s (minion squad)|
+    P: |
+      |2|One [goblin underboss] (captain) Four [goblin spinecleaver]s (minion squad)|
+    M: |
+      **A3 Groups**
+    N: |
+      |**Group**|**Creature**|
+    K: |
+      # Encounter A3
+    L: |+
+      The heroes battle Jagged Edge soldiers in the armory of Castle Andreas.
+
+    I: |
+      ## Enemies
+    edm: |
+      [[encounter:A3 1 or 2 Respites Spindlegoth 4]]
+    YL: |+
+      [[setting:Number of Heroes]]
+
+    H: |
+      {**Secret:** A size 1S or 1T creature can climb through the grate on the ceiling and access [A5. War Room]. 
+    E: |
+      > * “The door to the east lies fallen on the floor.”
+    F: |
+      > * “Disgruntled Szetch softly emanates from a small grate on the ceiling.”
+    C: |
+      > * “Everything touching the floor is covered in dust and cobwebs.”
+    D: |
+      > * “Most of the equipment in here looks picked clean long before the goblins arrived.”
+    ecN: |
+      [[encounter:A3 0 Respites Spindlegoth 5 or 6]]
+    ede: |
+      ???query numheroes > 4
+    il: |+
+      ## Tactics
+
+    edY: |+
+      ???
+
+
+    cPA: |
+      ???query numheroes > 4
+    fes: |
+      [[encounter:A3 1 or 2 Respites Spindlegoth 3]]
+    eVG: |
+      ???query numheroes < 4
+    edQ: |
+      [[encounter:A3 0 Respites Spindlegoth 4]]
+    edi: |
+      ???
+    eXI: |+
+      ???
+
+
+    ebM: |
+      ???query numheroes > 4
+    edS: |
+      ???
+    LZ: |+
+      [[/activateobjects a3_start.AreaTemplate activate|Show Hero Start Area]][[/activateobjects a3_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+
+    lx: |+
+      [[//awardvp 1|Award Heroes 1 Victory]]
+
+
+    HZ: |+
+      [[/activateobjects a3_a5_teleporter activate|Enable Teleporter]] [[/activateobjects a3_a5_teleporter deactivate|Disable Teleporter]]
+      }
+
+
+    hi: |+
+      The floor is entirely covered in cobwebs and is considered difficult terrain. The spindlegoths have concealment while occupying a webbed square. Any creature can use their maneuver to destroy the webs within 1 square of them. 
+
+
+    dQB: |
+      [[encounter:A3 Heroes's Cup Spindlegoth 5 or 6]]
+    aN: |+
+      ### The Heroes Have The Cup of Iulius
+
+    edc: |
+      [[encounter:A3 1 or 2 Respites]]
+    edU: |
+      ???query numheroes < 4
+    eSD: |
+      ???query numheroes = 4
+    eYJ: |+
+      ### If Queen Bargnot Has the Cup of Iulius
+
+    edq: |
+      ???query numheroes < 4
+    eUF: |
+      ???
+    edO: |
+      ???
+    B: |+
+      # A3. Old Armory
+
+    T: |
+      **Encounter Adjustments**
+    G: |+
+      > * “The goblins hone their weapons as they prepare for their guests.”
+
+    J: |+
+      Twelve goblin spinecleavers, three goblin warriors, and three goblin underbosses cling to the ceiling. Three spindlegoths hide amid the cobwebs on the floor.
+
+
+    w: "|{#The hero collects two Black Ash Darts and traces of black ash throughout the room (enough for 1 vial).}"
+    YF: |+
+      For this encounter, the **goblin snipers** have been placed down already as to be invisible when combat starts. 
+
+    edo: |
+      ???
+    eda: |
+      **1 or 2 Respites**
+    bO: |
+      [[encounter:A3 Heroes's Cup]]
+    eaL: |
+      [[encounter:A3 0 Respites]]
+    eWH: |
+      [[encounter:A3 Heroes's Cup Spindlegoth 3]]
+    edk: |
+      ???query numheroes = 4
+    edP: |
+      ???query numheroes = 4
+    lu: |
+      If the goblins were surprised, they attempt to flee to [A4. Overgrown Library] after two rounds of combat. Otherwise, they fight until they are outnumbered and flee the keep altogether. The spindlegoths fight until they are destroyed, or until the heroes leave the area. If the heroes win the day, they earn 1 Victory each.
+parentFolder: 3f6f50d2-bd00-4fb5-a3ba-b6089e65ec79
+updateid: c8cb488f-fc63-446d-95f3-0b23e5f36af3
+description: A3. Old Armory
+content: "# Room 1"
+mtime: 1766077819406

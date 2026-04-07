@@ -1,0 +1,409 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d6e2e537-f0d5-4be0-9579-f0efc3162980
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |
+        Voiceless Talker Evolutionist	Level 6 Leader
+        Horror, Voiceless Talker	EV 32
+        <b>Stamina</b> 180	<b>Immunity</b> psychic 8
+        <b>Speed</b> 5 (teleport, hover)	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 7
+        Might +0	Agility +3	Reason +4	Intuition +1	Presence +2
+        <b>Psionic Intrusion</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Psionic, Ranged, Strike
+        <b>Distance</b> Melee 1 or Ranged 5<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 psychic damage; R<2 slowed (save ends)
+        %E2%98%85	<b>12-16</b>	16 psychic damage; R<3 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	19 psychic damage; R<4 slowed (save ends)
+
+        <b>Carpe Quadratum</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The evolutionist teleports, swapping places with one creature within 5.
+
+        <b>Adaptability</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> The evolutionist takes typed damage.
+        <b>Effect</b> The evolutionist gains immunity 5 to the triggering type of damage until the start of their next turn.
+
+        <b>End Effect</b>
+        At the end of their turn, the evolutionist can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Witness Evolutionary Superiority</b>
+        The evolutionist has the first listed trait of every ally minion in the encounter.
+
+        <b>Show Me Who You Are</b> (Villain Action 1)
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 5 burst<b>	Target</b> All enemies
+        <b>Effect</b> Each target makes an <b>Intuition test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	Target uses a Signature action against the nearest enemy within distance.
+        %E2%98%85	<b>12-16</b>	Target makes a Free Strike against the nearest enemy within distance.
+        %E2%9C%A6	<b>17</b>	Frightened (save ends).
+
+        <b>Release the Thralls </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 5	<b>Target</b> Special
+        <b>Effect</b> The evolutionist teleports 8 minions of level 4 or lower into unoccupied squares within distance. All eight minions can be from any monster type but must share the same name.
+
+        <b>Brainstorm</b> (Villain Action 3) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 3 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 lightning damage
+        %E2%98%85	<b>12-16</b>	12 lightning damage
+        %E2%9C%B8	<b>17</b>	15 lightning damage
+        <b>Effect</b> The evolutionist is surrounded by a psionic electrical storm until the end of the encounter. The area within 5 of them is considered difficult terrain for enemies. An enemy who enters an affected square for the first time on their turn or starts their turn in it takes 8 lightning damage.
+        Lord Syuul
+        Chief Design Architect of his nation's body banks, the synliroi Lord Syuul (see-YOU-ull) seeks more material for his experiments. His spies, informants, and allies are always on the lookout for subjects with unique hereditary traits the Interlace might extract.
+        A Lord Above
+        Lord Syuul, who belongs to an ancient and respected noble house, often leaves his estate without his typical retinue to slow him down. His house would prefer he not do this, so they always send a covert squad of bodyguards to track his movements. Confronting Lord Syuul guarantees incurring the ire of the rest of his house.
+        Syuul's recent experiments have focused on isolating the traits that allow humans to resist supernatural phenomena. Thus far, these attempts have been unsuccessful. Not to be deterred, Lord Syuul has placed his assistant in charge of the day-to-day operations of the body banks, while Syuul himself ventures forth to observe the surface world and plunder its diversity.
+        Lord Syuul's Languages
+        Lord Syuul uses Mindspeech and Variac.
+
+        Lord Syuul's Malice	Malice Features
+        At the start of Lord Syuul's turn, you can spend malice to activate one of the following features.
+        <b>Guise</b> %E2%97%86 3 Malice
+        Lord Syuul projects a psionic image over his body, making him unable to be identified as an enemy until the end of his next turn.
+
+        <b>Solo Action</b> %E2%97%86 5 Malice
+        Lord Syuul can take an additional action on his turn. Lore Syuul can use this feature even if he is dazed.
+
+        <b>Do It For Me</b> %E2%97%86 5 Malice
+        Lord Syuul psionically plunders the mind of all creatures within 2 of him. Each creature makes a <b>Reason test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	13 psychic damage; makes a signature attack against a creature Lord Syuul chooses.
+        %E2%98%85	<b>12-16</b>	10 psychic damage; makes a free strike against a creature Lord Syuul chooses.
+        %E2%9C%A6	<b>17</b>	No Effect.
+
+        <b>Overpower</b> %E2%97%86 7 Malice
+        Lord Syuul sends out a psionic burst to completely overpower his greatest threats. He makes a <b>Reason Test</b> (2d10 + 4).
+        %E2%9C%A6	<b>%E2%89%A411</b>	Lord Syuul gains damage weakness 5.
+        %E2%98%85	<b>12-16</b>	Lord Syuul gains damage immunity 2.
+        %E2%9C%B8	<b>17</b>	Lord Syuul gains damage immunity 5.
+        He can repeat this reason test once per round as a maneuver, replacing the previous Overpower effect.
+        However, any hero who has at least one psionic ability can use their maneuver to push back on this effect with a <b>Reason Test</b> of their own, replacing the previous Overpower effect.
+        %E2%9C%A6	<b>%E2%89%A411</b>	Lord Syuul gains damage immunity 5.
+        %E2%98%85	<b>12-16</b>	Lord Syuul gains damage immunity 2.
+        %E2%9C%B8	<b>17</b>	Lord Syuul gains damage weakness 5.
+        The Overpower effect lasts until the end of the encounter.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7c1b0ff6-251c-4d3c-a5a4-02ae4d2ba94f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the evolutionist can take 10 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+      guid: 7c1b0ff6-251c-4d3c-a5a4-02ae4d2ba94f
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ba80bf97-283b-488f-a8b3-f725935e8d48: true
+      modifiers: []
+      name: Witness Evolutionary Superiority
+      description: The evolutionist has the first listed trait of every ally minion in the encounter.
+      guid: ba80bf97-283b-488f-a8b3-f725935e8d48
+      source: Trait
+    role: Leader
+    inflictedConditions: []
+    keywords:
+      Horror: true
+      Voiceless Talker: true
+    max_hitpoints_roll: "180"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 8
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Voiceless Talker Evolutionist
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 4
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 180
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Melee: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 psychic damage; R<2 slowed (save ends)
+        - 16 psychic damage; R<3 slowed (save ends)
+        - 19 psychic damage; R<4 slowed (save ends)
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: f47f25b2-286b-4a5b-98cb-5997e58d4b1e
+      meleeRange: 1
+      implementation: 4
+      targetType: target
+      name: Psionic Intrusion
+      numTargets: 2
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 9f846efe-73d0-41c6-badd-03eca439678b
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Carpe Quadratum
+      numTargets: 1
+      description: The evolutionist teleports, swapping places with one creature within 5.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 00f45cf7-1704-4183-b902-096a3aaa144d
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Adaptability
+      numTargets: 1
+      description: The evolutionist gains immunity 5 to the triggering type of damage until the start of their next turn.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'e88e1119-3eac-4ba2-b00"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0bcc106c-6d21-42da-94e2-e821d30372b6
+      numTargets: 1
+      targetType: all
+      implementation: 0
+      name: Show Me Who You Are
+      effectImplemented: false
+      description: Each target makes an Intuition test.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d7ef1666-7fbc-4538-820b-591710c06011
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '336611df-e46e-499f-a71"
+      implementation: 0
+      behaviors: []
+      name: 'Release the Thralls '
+      numTargets: 1
+      description: The evolutionist teleports 8 minions of level 4 or lower into unoccupied squares within distance. All eight minions can be from any monster type but must share the same name.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 lightning damage
+        - 12 lightning damage
+        - 15 lightning damage
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '394d769a-7290-4b37-bd6"
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e782e2f7-20d9-4ea4-8509-3f4749fd20da
+      numTargets: 1
+      targetType: all
+      implementation: 3
+      name: Brainstorm
+      effectImplemented: false
+      description: The evolutionist is surrounded by a psionic electrical storm until the end of the encounter. The area within 5 of them is considered difficult terrain for enemies. An enemy who enters an affected square for the first time on their turn or starts their turn in it takes 8 lightning damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 2d9a554d-5f05-4fa2-a46b-e90b0735d7a3
+    movementSpeeds:
+      teleport: 5
+    ev: 32
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 1b89b183-7336-4695-98e6-ecbba4a4b506
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1730266376535
+description: Voiceless Talker Evolutionist
+parentFolder: bd101336-f4e1-43da-9fd2-57eb5700365b
+artist: null
+ord: 0
+ctime: 1741590225849
+mtime: 1775201137032
+hidden: false

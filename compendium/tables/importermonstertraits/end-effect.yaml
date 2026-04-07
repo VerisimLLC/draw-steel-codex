@@ -1,0 +1,51 @@
+__typeName: CharacterFeature
+testCases:
+- text: At the end of each of their turns, the ground commander can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+- text: At the end of each of his turns, Lord Syuul can take 10 damage to end one effect on him that can be ended by a saving throw. This damage can't be reduced in any way.
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions: []
+      targetDuration: save
+      damageToSelf: "<<dmg>>"
+      purgeType: one
+    triggerPrompt: End effect for <<dmg>>
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+    numTargets: "1"
+    castImmediately: true
+    whenActive: combat
+    targetType: self
+    trigger: endturn
+    name: End Effect
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Monster
+  behavior: trigger
+  guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+  name: End Effect
+  sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+source: Monster
+guid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+importMatch: At the end of each of (their|his|her) turns, <<monster>> can take <<dmg>> damage to end one effect on (them|him|her) that can be ended by a saving throw. This damage can't be reduced in any way.
+ctime: 1775013447382
+name: End Effect
+id: e2120e66-fdae-4bb4-8ed5-1eb74f5e2b8d
+description: ""
+mtime: 1775013447382
+implementation: 3

@@ -1,0 +1,113 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: eee71b53-b57f-406f-8278-38e53d62cb04
+  description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature must make an opportunity attack against their nearest ally if possible after the ability’s effects resolve. This strike deals extra damage equal to the highest of your Reason, Intuition, or Presence scores.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          objectTarget: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 8655ad6d-ba14-49aa-95d2-a68ac489bfe3
+          repeatTargets: false
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              objectTarget: false
+              abilityType: none
+              strain: []
+              guid: f2515d32-8296-4a04-85c3-fa525c4f85cc
+              repeatTargets: false
+              modifiers: []
+              castImmediately: true
+              targetType: target
+              persistence: []
+              name: Free Strike
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: Free Strike Damage + <<characteristicbonus>>
+                chatMessage: Monster Free Strike
+              description: ""
+              range: "5"
+              iconid: ui-icons/skills/1.png
+            promptText: Make free strike against nearest ally
+          targetType: target
+          modifiers: []
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          range: "100"
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          characteristicbonus: "{max(Reason, max(Intuition, Presence))}"
+        promptText: Select the creature you attacked
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 38440642-fca8-49e0-b275-529f629dba22
+      persistence: []
+      conditionFormula: ""
+      subject: self
+      targetType: self
+      trigger: rollpower
+      name: Berserking
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature must make an opportunity attack against their nearest ally if possible after the ability’s effects resolve. This strike deals extra damage equal to the highest of your Reason, Intuition, or Presence scores.
+    source: Item
+    behavior: trigger
+    guid: 89571cfd-591b-4697-8b2e-5f04436a2867
+    name: Berserking
+    sourceguid: eee71b53-b57f-406f-8278-38e53d62cb04
+  source: Item
+  name: Berserking
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: The tusk of a feral boar
+imbuePrereq: none
+projectSource: Kalliak
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 3
+ctime: 1770699205313
+projectGoal: "150"
+id: fe19f456-2d5c-4503-b8a6-27613a4ac3ba
+mtime: 1774583403954
+name: Berserking
+imbueTargetType: implement
+description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature must make an opportunity attack against their nearest ally if possible after the ability's effects resolve. This strike deals extra damage equal to the highest of your Reason, Intuition, or Presence scores.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 3aa4267b-8f95-48f5-8d92-8d9b88908c04

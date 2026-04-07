@@ -1,0 +1,266 @@
+__typeName: MonsterGroup
+id: c3b6ed9f-70ee-469d-9415-190e1a920421
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  objectTarget: false
+  targetFilter: Enemy
+  repeatTargets: true
+  reasonedFilters:
+  - formula: ""
+    reason: Target must be adjacent to wall or object
+  behaviors:
+  - __typeName: ActivatedAbilityDamageBehavior
+    modesSelected:
+    - 1
+    roll: "3"
+  - __typeName: ActivatedAbilityDamageBehavior
+    modesSelected:
+    - 2
+    roll: "6"
+  - __typeName: ActivatedAbilityDamageBehavior
+    modesSelected:
+    - 3
+    roll: "9"
+  multipleModes: variations
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.136250019073486
+      s: 0.841210782527924
+      v: 0.901743590831757
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 106
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "99"
+  abilityType: none
+  persistence: []
+  modifiers: []
+  guid: a6fde5f4-ef31-4bc0-812b-869a35d7211d
+  strain: []
+  maxChannel: ""
+  channelIncrement: 3
+  numTargets: "1"
+  implementation: 2
+  description: A dwarf can destroy one adjacent object or square of wall for each 3 Malice spent. Each enemy adjacent to the destroyed object or square takes the object’s Stamina in damage (3 for wood, 6 for stone, or 9 for metal).
+  modeList:
+  - rules: Adjacent object or wall is Wood
+    text: Wood
+  - rules: Adjacent object or wall is Stone
+    text: Stone
+  - rules: Adjacent object or wall is Metal
+    text: Metal
+  name: Breaching Charge
+  targetType: target
+  channeledResource: none
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetFilter: type = "Dwarf"
+  repeatTargets: false
+  implementationDetails: |-
+    Targets are prompted to move then strike.
+
+    Targets are not able to make a free strike at any point during the movement.
+  behaviors:
+  - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+    momentaryEffect:
+      __typeName: CharacterOngoingEffect
+      guid: 29885d30-d551-4e3e-9dd4-64f65903e6ce
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 29885d30-d551-4e3e-9dd4-64f65903e6ce
+        source: Ongoing Effect
+        value: 1
+        name: Add Climb Speed
+        guid: 97c77a9e-a2e6-4635-92dd-de63b6bc9c69
+        description: Dwarves have a climb speed
+        behavior: attribute
+        attribute: climb
+      source: Ongoing Effect
+      name: Add Climb Speed
+      description: Dwarves have a climb speed
+      id: 29885d30-d551-4e3e-9dd4-64f65903e6ce
+      iconid: ui-icons/skills/1.png
+    name: Ability Duration Effect
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    runOnController: true
+    promptText: At any point during this movement, you can make a free strike.
+    standardAbility: 1c423f02-73e6-4c44-8341-17d854f15fc5
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: db2b47f7-ae7a-4785-9761-09a0e5a9e310
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    promptWhenResolving: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.153750061988831
+      s: 0.671289026737213
+      v: 0.8592848777771
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 106
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 5abb004c-a02d-4d1a-9438-e36cc4e44bad
+  abilityType: none
+  targetType: map
+  iconid: 53777917-af89-413b-9f1d-7202a8416cce
+  numTargets: "1"
+  selfTarget: true
+  name: Rappelling Barrage
+  description: Each dwarf acting this turn can automatically climb at full speed while moving. At any point during this movement, they can make a free strike.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 2
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: false
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Area: true
+    Magic: true
+  targetAllegiance: enemy
+  targetType: line
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.148750066757202
+      s: 0.938867151737213
+      v: 0.919514179229736
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 106
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "10"
+  persistence: []
+  modifiers: []
+  abilityType: none
+  strain: []
+  guid: a2f3a97f-e825-4d74-823f-a6daba6301cf
+  radius: "1"
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  numTargets: "1"
+  iconid: 0f919f53-eaba-492b-bb7a-58e85a40c622
+  description: |-
+    The snaring line remains until the end of the encounter. Any enemy who moves into the area for the first time in a round or starts their turn there must make the test.
+
+    Special: This ability can’t be used by a minion.
+  name: Snaring Line
+  behaviors:
+  - __typeName: ActivatedAbilityAuraBehavior
+    duration: eoe
+    aura:
+      __typeName: Aura
+      applyto: enemies
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      modifiers: []
+      name: Snaring Line
+      triggers:
+      - ability:
+          __typeName: TriggeredAbility
+          targetFilter: ""
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            resistanceAttr: agl
+            filterTarget: not Ongoing Effects has "Damaged by Snaring Line"
+            tiers:
+            - 8 damage; restrained (EoT)
+            - 6 damage; slowed (EoT)
+            - No effect
+            roll: 2d10 + Might or Agility
+            resistanceRoll: true
+            isTest: false
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 3d2fc485-b87c-47e8-9cbc-429706c02122
+            duration: endround
+            ongoingEffectCustom: 3d2fc485-b87c-47e8-9cbc-429706c02122
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          silent: true
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: e77cee8d-7289-44ee-a29f-988f8e034890
+          numTargets: "1"
+          castImmediately: true
+          name: Snaring Line
+          targetType: self
+          trigger: onenter
+          radius: 0
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        trigger: onenter
+      guid: bbc9dbd0-d1e5-437e-9905-0be0eab62768
+      objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+      implementation: 3
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    resistanceAttr: agl
+    roll: 2d10 + Might or Agility
+    tiers:
+    - 8 damage; restrained (EoT)
+    - 6 damage; slowed (EoT)
+    - No effect
+    guid: 0b4c9c97-f9a2-40e5-87f7-4344669c84f9
+    resistanceRoll: true
+    isTest: false
+  abilityFilters:
+  - formula: not Minion
+    reason: Cannot be used by a minion
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+traits: []
+name: Dwarf
+attacks: []
+mtime: 1772552624124
+monsterDefault: false
+ctime: 1758373704213

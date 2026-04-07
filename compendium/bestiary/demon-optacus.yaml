@@ -1,0 +1,195 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: eeb2c096-cfbe-4a4b-8e94-b32b5ef45f75
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fc297274-5ac9-4000-99d2-cb4579925ebd
+  properties:
+    __typeName: monster
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 14
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "14"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 5
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Demon Optacus	Level 10 Minion Artillery
+        Abyssal, Demon	EV 12 for four minions
+        <b>Stamina</b> 14	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6 (climb)	<b>Size</b> 1S /<b> Stability</b> 0
+        <b>With Captain </b>Speed +4<b>Free Strike</b> 5
+        Might +1	Agility +3	Reason +1	Intuition +5	Presence +1
+        <b>Optical Flare</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 20<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 fire damage
+        %E2%98%85	<b>12-16</b>	8 fire damage
+        %E2%9C%B8	<b>17</b>	10 fire damage, ignores Immunity
+        <b>Effect</b> The optacus deals an additional 5 damage against winded targets.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the optacus can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a8e06c4e-cc7e-4747-af39-1d0e50ba0e38: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the optacus can't be hidden from them.
+      guid: a8e06c4e-cc7e-4747-af39-1d0e50ba0e38
+      source: Trait
+    role: Minion Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - text: |-
+        Optacus (OHP-tih-cus) demons are abyssal eyes atop a spindly flesh
+        stalk supported by innumerable legs. Able to affix to any surface, they
+        shoot deadly beams of fire at distant foes.
+      title: Optacus
+    opportunityAttack: 5
+    keywords:
+      Demon: true
+      Abyssal: true
+    initiativeGrouping: 263661ae-6647-405a-9650-b84ad5033718
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    damage_taken: 0
+    savingThrowRatings: []
+    resources: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Magic: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 20
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 6fee8cb9-424e-4c51-9520-2998954e1154
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 3420d443-87e2-4a41-a670-66ac7c94410d
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 3420d443-87e2-4a41-a670-66ac7c94410d
+          displayCondition: Target.Winded
+          behavior: power
+          keywords: []
+          activationCondition: Target.Winded
+          description: ""
+          domains: []
+          name: Winded Damage
+          rollType: ability_power_roll
+          damageModifier: "5"
+          modtype: none
+          guid: 084b65e5-e253-4247-a199-b766cb7b0d84
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 fire damage
+        - 8 fire damage
+        - 10 fire damage, ignores Immunity
+        roll: 2d10 + 5
+      name: Optical Flare
+      iconid: ui-icons/skills/1.png
+      description: The optacus deals an additional 5 damage against winded targets.
+      abilityType: none
+      implementation: 4
+    minionSquad: Demon Optacus Squad 1
+    availableTriggers: []
+    walkingSpeed: 6
+    movementSpeeds:
+      climb: 6
+    creatureSize: 1S
+    monster_type: Demon Optacus
+    withCaptain: Speed +4
+    notesRevision: e7ed0b27-dba7-4b85-8f71-3dd4cc31999a
+  tokenType: null
+  bestiaryId: 055f52c3-eca2-4160-b347-b1d53aa384da
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1737961965990
+description: Demon Optacus
+parentFolder: 481cfcf5-4411-44af-8316-d740deca8552
+artist: null
+ord: 1
+ctime: 1741590215376
+mtime: 1775201137032
+hidden: false

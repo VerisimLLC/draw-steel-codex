@@ -1,0 +1,57 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c: true
+  sourceguid: 58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c
+  description: For each combat round that has passed since Time Bomb was last used in the current encounter, the area increases by 1 and you gain 1 surge that must be used with this ability. After using the ability or at the end of the encounter, its area and surges are reset.
+  source: Ongoing Effect
+  name: Time Bomb Ticking
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: beginround
+    strain: []
+    guid: dbf0ffda-4b74-4478-b35b-42f682aa9d42
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c: true
+    targetType: self
+    persistence: []
+    name: Time Bomb Ticking
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c
+      ongoingEffectCustom: false
+    description: For each combat round that has passed since Time Bomb was last used in the current encounter, the area increases by 1 and you gain 1 surge that must be used with this ability. After using the ability or at the end of the encounter, its area and surges are reset.
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: 0b8d4495-12a7-4168-be23-20792eb309ef
+source: Ongoing Effect
+id: 58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c
+stackable: true
+hiddenOnToken: true
+ctime: 1771760281580
+domains:
+  CharacterOngoingEffect:58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c: true
+mtime: 1771762149304
+description: For each combat round that has passed since Time Bomb was last used in the current encounter, the area increases by 1 and you gain 1 surge that must be used with this ability. After using the ability or at the end of the encounter, its area and surges are reset.
+endTrigger: endcombat
+guid: 58d5e04a-1a32-4bd0-98c3-ad5c5b96ce6c
+custom: true
+name: Time Bomb Ticking
+iconid: 11d94f0a-d2cb-4f82-a64e-b36bc75e8670

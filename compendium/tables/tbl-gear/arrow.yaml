@@ -1,0 +1,42 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+projectileRotation: 316.286342075893
+ammoAugmentation:
+  __typeName: CharacterModifier
+  attributes: []
+  unconditional: true
+  name: Ammo Modification
+  source: Ammunition
+  guid: 1c8e63eb-2ec7-4615-82af-594bbe7ed5e1
+  description: Ammunition modifies
+  behavior: modifyability
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: a813d292-7337-4efe-b679-08cccb8c386c
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+id: ddf47720-e6b3-4fdc-87f2-43bc7648acb1
+equipmentCategory: 1e10f43f-ad2d-478c-8de2-53ca33ed1416
+type: Gear
+destroyChance: 100
+ctime: 1738460823727
+name: Arrow
+mtime: 1758075153451
+description: ""
+weight: 1
+iconid: 88a51037-430e-491e-ab42-dc17405a2d2b

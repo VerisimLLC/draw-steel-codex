@@ -1,0 +1,252 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5e4edcfc-e8a8-4855-96ea-0a6c93146a0f
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Incendiarist	Level 5 Artillery
+        Goblin, Hobgoblin, Humanoid	EV 24
+        <b>Stamina</b> 60	<b>Immunity</b> fire 5
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +1	Agility +3	Reason 0	Intuition +2	Presence +1
+        <b>Fire Crossbow</b> (Action) %E2%97%86 2d10+3 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Ranged, Weapon
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 fire damage
+        %E2%98%85	<b>12%E2%80%9316</b>	11 fire damage; burning (EoT)
+        %E2%9C%B8	<b>17</b>	14 fire damage; burning (MGT ends)
+        <b>Effect</b> A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+
+        <b>Fire Ball Volley</b> (Action) %E2%97%86 <b>AGL RR</b> %E2%97%86 3 VP
+        <b>Keywords</b> Area, Ranged, Resistance
+        <b>Distance</b> 4 Cube within 10	<b>Target</b> All enemies and objects
+        %E2%9C%B8	<b>%E2%89%A411</b>	5 fire damage; prone; burning (MGT ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	4 fire damage; burning (EoT)
+        %E2%9C%A6	<b>17</b>	3 fire damage
+        <b>Effect</b> A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+
+        <b>Infernal Ichor</b>
+        If the incendiarist's Stamina drops to 0, they spray blood in a 1 Burst, dealing 3 fire damage to each creature within distance.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a371c9a6-592a-40f3-b2e4-8504c1c0d10e: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the incendiarist's Stamina drops to 0, they spray blood in a 1 Burst, dealing 3 fire damage to each creature within distance.
+      guid: a371c9a6-592a-40f3-b2e4-8504c1c0d10e
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:275a712d-f554-4f5c-8f2c-aa7971d2b448: true
+      modifiers: []
+      name: Raining Cinders
+      description: The ranged free strike of each ally within 3 squares of the incendiarist has a distance of 10 and deals fire damage.
+      guid: 275a712d-f554-4f5c-8f2c-aa7971d2b448
+      source: Trait
+    role: Platoon Artillery
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Hobgoblin Incendiarist
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 60
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 fire damage
+        - 14 fire damage
+        - 17 fire damage; A<3 burning (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2cd51d9d-3ec4-4acd-96db-74b6da0ca597
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Fire Crossbow
+      numTargets: 1
+      description: A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Resistance: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 252c4111-dd52-422a-9fb3-499f78e34081
+      abilityType: none
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: agl
+        roll: 2d6 + Might or Agility
+        resistanceRoll: true
+        tiers:
+        - 5 fire damage; prone; burning (MGT ends)
+        - 4 fire damage; burning (EoT)
+        - 3 fire damage
+      name: Fire Ball Volley
+      implementation: 3
+      description: A burning target takes 1d6 fire damage at the start of each of their turns until the condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 4
+      numTargets: 1
+      modifiers: []
+      guid: 1ed5ee4a-c6cd-4e2f-a0e6-4fced13c15c7
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 fire damage; A<1 burning (save ends)
+        - 9 fire damage; A<2 burning (save ends)
+        - 11 fire damage; A<3 burning (save ends); prone
+        roll: 2d10 + Agility
+      name: Fireball Volley
+      sourceReference:
+        __typeName: SourceReference
+        page: 175
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: A burning creature takes 1d6 fire damage at the start of each of their turns. A burning object takes 1d6 fire damage at the end of each round.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 3
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds: []
+    ev: 14
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: dec803cd-e6ff-4f89-8a15-b7d3e56dbcc9
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin Incendiarist
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590319290
+mtime: 1775201137032
+hidden: false

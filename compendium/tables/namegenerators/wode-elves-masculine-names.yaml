@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: c58e99ce-7144-4a60-bff2-5d2d326b85e9
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Calliarwyc
+- __typeName: RollTableRow
+  id: be600418-99c5-4132-9673-d48abfbb491e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cillyv
+- __typeName: RollTableRow
+  id: e8d325ad-2939-48a1-be3e-b54fbd894108
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Eidior
+- __typeName: RollTableRow
+  id: d17ba20b-5ebb-49d5-83d0-1a684018b99d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ffyllwyc
+- __typeName: RollTableRow
+  id: aa0dfa78-da61-478d-9fdc-fff4bc5530af
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gwyllmach
+- __typeName: RollTableRow
+  id: c51a3680-29a2-41f9-bbaa-37287bcb83a1
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Llyandros
+- __typeName: RollTableRow
+  id: 3fe84a1a-f43b-44ee-bc25-53e60bddc5a4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ogllvar
+- __typeName: RollTableRow
+  id: ba0a4306-14e6-4078-a2b1-29972127d94b
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Radiarwyn
+- __typeName: RollTableRow
+  id: c78c7796-5d12-4524-9268-a6b77eb2ca3a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ryll
+- __typeName: RollTableRow
+  id: c87a72e0-a5ff-489d-b95c-cbcf84653430
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Tafirdwyn
+id: 6356241e-7be9-4a94-add7-7b882d4001a3
+name: Wode Elves Masculine Names
+subtable: true
+mtime: 1743456241356
+items: false
+ctime: 1743444234613

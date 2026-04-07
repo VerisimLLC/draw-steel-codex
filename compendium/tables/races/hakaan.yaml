@@ -1,0 +1,305 @@
+__typeName: Race
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    domains:
+      race:07766b37-33b8-41e9-8542-9302d09852b7: true
+    modifiers: []
+    source: Hakaan Race Feature
+    description: Your size is 1L.
+    guid: 2b8f53b1-3944-4134-9d8b-2dbeda593cb9
+    name: "Signature Trait: Big!"
+    implementation: 3
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    costsPoints: true
+    options:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4c21e020-9ec9-4800-b140-e48922208656
+        source: Hakaan Race Feature
+        guid: 5f5e912b-c05a-4d91-a0da-c5a82179e344
+        behavior: power
+        domains:
+          race:07766b37-33b8-41e9-8542-9302d09852b7: true
+        keywords: []
+        activationCondition: true
+        description: You are exceptionally strong and have an edge made on tests to lift and haul heavy objects.
+        skills:
+        - 6d714e12-50c3-4202-955e-0fadaeb1f9a0
+        rollType: test_power_roll
+        modtype: edge
+        addText: You are exceptionally strong and have an edge made on tests that use the <b>Lift</b> skill.
+        name: All is a Feather
+        attribute: mgt
+      source: Hakaan Race Feature
+      guid: 4c21e020-9ec9-4800-b140-e48922208656
+      pointsCost: 1
+      domains:
+        race:07766b37-33b8-41e9-8542-9302d09852b7: true
+      name: All is a Feather
+      description: You are exceptionally strong and have an edge made on tests to lift and haul heavy objects.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cffc88ed-1647-4bcd-bcbf-e38b7c5ea508
+        source: Hakaan Race Feature
+        value: 1
+        domains:
+          race:07766b37-33b8-41e9-8542-9302d09852b7: true
+        name: Forceful
+        guid: eaef8e6e-8250-4346-995c-d749c7497e11
+        description: When you force move a creature or object, you can increase the distance moved by 1.
+        behavior: attribute
+        attribute: b92d0101-f9a6-4c66-81e4-cdad46e6f1bb
+      source: Hakaan Race Feature
+      guid: cffc88ed-1647-4bcd-bcbf-e38b7c5ea508
+      pointsCost: 1
+      domains:
+        race:07766b37-33b8-41e9-8542-9302d09852b7: true
+      name: Forceful
+      description: When you force move a creature or object, you can increase the distance moved by 1.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5b8c916d-1437-4e72-8772-4af4ef0c81cc
+        source: Hakaan Race Feature
+        value: 1
+        domains:
+          race:07766b37-33b8-41e9-8542-9302d09852b7: true
+        name: Stand Tough
+        guid: c934b63f-3d3f-4ff4-97b2-c35d3d974b87
+        description: Your body is made to withstand the blows of your enemies. Your Might score is treated as 1 higher for the purpose of resisting potencies, and you gain an edge on Might tests when called for to resist environmental effects or a creature’s traits or abilities.
+        behavior: attribute
+        attribute: 39e08262-baa3-4947-98cd-fb8045ff991e
+      - __typeName: CharacterModifier
+        sourceguid: 5b8c916d-1437-4e72-8772-4af4ef0c81cc
+        source: Hakaan Race Feature
+        behavior: power
+        keywords: []
+        activationCondition: false
+        modtype: edge
+        domains:
+          race:07766b37-33b8-41e9-8542-9302d09852b7: true
+        name: Stand Tough
+        rollType: test_power_roll
+        description: Your body is made to withstand the blows of your enemies. Your Might score is treated as 1 higher for the purpose of resisting potencies, and you gain an edge on Might tests when called for to resist environmental effects or a creature’s traits or abilities.
+        guid: 67c85a21-5b3d-4808-a587-2b38d0d632f7
+        attribute: mgt
+      source: Hakaan Race Feature
+      guid: 5b8c916d-1437-4e72-8772-4af4ef0c81cc
+      pointsCost: 1
+      domains:
+        race:07766b37-33b8-41e9-8542-9302d09852b7: true
+      name: Stand Tough
+      description: Your body is made to withstand the blows of your enemies. Your Might score is treated as 1 higher for the purpose of resisting potencies, and you gain an edge on Might tests when called for to resist environmental effects or a creature’s traits or abilities.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:07766b37-33b8-41e9-8542-9302d09852b7: true
+        sourceguid: a07d3f8b-c589-4e2e-8bc5-a37be82042eb
+        behavior: conditionimmunity
+        source: Hakaan Race Feature
+        conditions:
+        - 567a3454-ead6-4416-b338-ed73d64b7805
+        guid: ad958cf4-8ec4-4975-8c86-53816fc98817
+        name: Great Fortitude
+        description: Your hearty constitution prevents you from losing strength. You can’t be weakened.
+      source: Hakaan Race Feature
+      guid: a07d3f8b-c589-4e2e-8bc5-a37be82042eb
+      pointsCost: 2
+      domains:
+        race:07766b37-33b8-41e9-8542-9302d09852b7: true
+      name: Great Fortitude
+      description: Your hearty constitution prevents you from losing strength. You can’t be weakened.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        race:07766b37-33b8-41e9-8542-9302d09852b7: true
+      guid: f3bd4d0a-62b4-4ae4-bc72-d6be0c59d00d
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:07766b37-33b8-41e9-8542-9302d09852b7: true
+        sourceguid: f3bd4d0a-62b4-4ae4-bc72-d6be0c59d00d
+        description: |-
+          Working with your Director, you can predetermine an encounter in which you will die. When that encounter begins, you become doomed. While doomed, you automatically get tier 3 results on tests and ability power rolls, and you don’t die no matter how low your Stamina falls. You then die immediately at the end of the encounter. 
+
+          If you don’t predetermine your death encounter, you can choose to become doomed while you are dying with the Director’s approval (no action required). Doing so should be reserved for encounters in which you are dying as a result of suitable heroism, such as making a last stand against a boss or saving civilians, or when the consequences of your actions have finally caught up to you—not because you’re playing a one-shot and have nothing to lose, Hacaarl. 
+
+          Additionally, when your Stamina equals the negative of your winded value and you are not doomed, you turn to rubble instead of experiencing death. You are unaware of your surroundings in this state. After 12 hours, you regain Stamina equal to your Recovery value.
+        source: Hakaan Race Feature
+        name: Doomsight
+        behavior: activated
+        guid: 9aa91bbc-7005-4560-87c0-b9c358e815e7
+        activatedAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 1.0020809173584
+              v: 1.00238561630249
+              a: 1
+          numTargets: "1"
+          modifiers: []
+          targetType: self
+          strain: []
+          guid: ca286e00-fbda-488d-982a-cf9aee937e13
+          repeatTargets: false
+          abilityType: none
+          domains:
+            race:07766b37-33b8-41e9-8542-9302d09852b7: true
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: e8cdab8b-7417-4ed8-957c-3ddf027dc425
+            ongoingEffectCustom: e8cdab8b-7417-4ed8-957c-3ddf027dc425
+          persistence: []
+          name: Doomsight
+          description: ""
+          sourceReference:
+            __typeName: SourceReference
+            page: 52
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          range: 1
+          iconid: 74db885f-d96e-4b14-af40-69292a0d6a22
+      source: Hakaan Race Feature
+      name: Doomsight
+      description: |-
+        Working with your Director, you can predetermine an encounter in which you will die. When that encounter begins, you become doomed. While doomed, you automatically get tier 3 results on tests and ability power rolls, and you don’t die no matter how low your Stamina falls. You then die immediately at the end of the encounter. 
+
+        If you don’t predetermine your death encounter, you can choose to become doomed while you are dying with the Director’s approval (no action required). Doing so should be reserved for encounters in which you are dying as a result of suitable heroism, such as making a last stand against a boss or saving civilians, or when the consequences of your actions have finally caught up to you—not because you’re playing a one-shot and have nothing to lose, Hacaarl. 
+
+        Additionally, when your Stamina equals the negative of your winded value and you are not doomed, you turn to rubble instead of experiencing death. You are unaware of your surroundings in this state. After 12 hours, you regain Stamina equal to your Recovery value.
+      pointsCost: 2
+      implementation: 3
+    numChoices: "3		"
+    guid: cd8a8847-9ea7-4ed6-9bd8-964146a0b523
+    description: You have 3 ancestry points to spend on the following traits.
+    name: Purchased Hakaan Traits
+  domains:
+    race:07766b37-33b8-41e9-8542-9302d09852b7: true
+lifeSpan: 300–500
+nameGenerator: 2ec75e99-b997-469f-a3ab-ecec85df5e48
+lore: |-
+  The gate, or door, or whatever it was started to close. With Dazar on the other side of it.
+
+  “Embers!” John called out, but the high elf was surrounded. 
+
+  At that moment, a detonation. An explosion of sound that knocked the demons back. And a giant stood before the lumbering egress.
+
+  Dust settled on the ground behind the giant, and John realized the thunderclap was the sound of the giant running to them. Air that couldn’t get out of the way fast enough, tortured by the pressure of his speed.
+
+  The rectangular, toothed egress demon was twelve feet tall at least, the giant almost matching its immense size.
+
+  In the instant before the maw of teeth and eyeballs shut, the giant grabbed each side of the mouth, and pulled. Muscles the size of hounds bulged. Tendons like ship cables stood taught, quivering with strain. “Not today!” the giant shouted. “Not TODAY!!”
+
+  As the giant forced the maw open, glowing tentacles writhed out of it, wrapping around the giant’s arms, legs, neck. “Hahah!” the figure laughed. “You’ll find … MY flesh …” the giant’s bravado hid the fact that he was at the uttermost limits of his strength. “… too RICH … for your taste!”
+
+  John knew what the giant did not—the tendrils drained life, sapped energy. The living portal would gain the strength it needed to defeat the giant by drinking his own life force.
+
+  But the arrival of the giant changed the equation. John saw a new solution. The hakaan risked his life to buy them options, and Sir John of Tor would not let the giant risk his life in vain. 
+
+  Kicking the styrich back gave John room to move, and he dashed toward Embers. A shout, and a thrust into the soulraker’s back, and the demons surrounding Embers turned to face Sir John.
+
+  He had to focus so intently on the demons who now surrounded him, he wasn’t even sure Embers knew what to do. But he needn’t have worried. When he risked a glance, she was already gone. A light fall of starstuff the only evidence she had translated into void.
+
+  Dispatching a chimeron, John saw Embers emerge from the other side of the egress demon with Dazar in her arms. John couldn’t tell if Dazar was conscious. He might even be dead. Who knew what lurked on the other side of that living portal to the Abyssal Waste?
+
+  The hakaan struggled against the living gateway to that blasted world. One leg buckled and the stone warrior fell to one knee. The door would take him just as it took their dwarf conduit.
+
+  Then, rising behind the egress demon, the high theocron, his battlestaff glowing.
+
+  “Back!” Dazar conduit of Zarok, Law-Giver shouted, smashing at the flesh of the living doorway with his battlestaff. “To hell!” He swung again.
+
+  The doorway quivered and bled, and the giant stood up. “Yes!” He called out. “YES!”
+
+  John and Embers joined the fight. The gamble, unspoken, was that the summoned demons would evaporate if their living portal were destroyed. It paid off.
+
+  They only had a moment before the demons swarmed them, but a moment was all it took before the hakaan shouted and finally ripped the bloody egress demon apart with his bare hands.
+
+  The demons in midstride all turned inside out, leaving bubbling, steaming pools of organs, eyeballs, and teeth on the ground. Leaving four heroes gasping from the fight.
+
+  “I told you …” Dazar said, hands on his knees. “Not to open! That book!”
+
+  “You didn’t say ‘Don’t open that,’” John said, leaning back and gulping air. “You just said it was dangerous. I knew it was dangerous!”
+
+  “Well met!” The giant laughed at the two friends squabbling.
+
+  “Well met indeed,” Sir John said getting his breathing under control as the group gathered before the giant. “Thank you for rescuing my friend.”
+
+  “I had the situation under control,” Dazar muttered, all evidence to the contrary.
+
+  “Of a surety!” The giant’s humor matched his size. “It was my honor to grant thee aid, nothing more.”
+
+  “You’ve been following us for a while,” Embers said. John wondered what she meant.
+
+  “From the beginning,” the giant said enigmatically.
+
+  “Don’t take this the wrong way,” John confessed, “but I was afraid we’d meet a barrow-man on this journey.”
+
+  The giant smiled “Fear? At a meeting of friends? Ah these must be treacherous times indeed if simple folk like us have cause to fear meeting strangers.”
+
+  “No offense,” John said. “It’s just that … well … we only ever see one of you when you come down from the hills. Following your doom. Which is usually a …” John tried to find a less dramatic way to say it, but nothing came to mind. “A tiding of ill-omen.”
+
+  “You are following your wyrd,” Embers said.
+
+  The giant shook his head. “Following my brother. He hurtles headlong to meet his doom, which I deem is bound up in this matter of this Sky Tyrant.”
+
+  “Ajax,” Dazar said. And the hakaan could hear the darkness in his voice.
+
+  Aye. I did not understand why his path and yours seemed coincident, but now I think it has something to do with the thing they all seek, his demons.”
+
+  John looked at Embers. “One of the Eleven Who Shall Not Be Named,” she said. “The fifth, I suspect. They were the elite deathless servants of the Lord of Swords who once ruled this land, many ages ago. Ajax is collecting the artifacts of ancient emperors. And their servants too, it seems.”
+
+  The giant nodded solemnly. “You are lorewise. My trust in you was well-placed. I am Ardashir,” he placed one palm on his forehead, the other over his heart, and bowed his head once. “It would be my pleasure to journey with you awhile. Stalwart allies are rare and precious in these times.” He grinned. “Good company even more so.”
+
+  “No armor, no sword or staff,” Dazar noticed. “Hakaan do not use weapons?”
+
+  “Many do!” Ardashir said. “I do not. I left the hills of my people long ago to pursue a different path. A path of order and discipline. It is my birthright perhaps.”
+
+  “He’s a null,” Embers explained. “They eschew all weapons and implements of war. It is part of their creed, as I understand it.”
+
+  “Strength alone might serve,” Dazar nodded, “when the strength is such as yours.”
+
+  Ardashir grinned. “Strength alone is not enough.” He assumed a fighting pose, hands clenched, arms in a guarding position before him.
+
+  “Discipline, training, focus. These are my implements.”
+
+  “Well you can’t ever be disarmed,” John said. “That could be useful.” Ardashir’s smile was brilliant. “I suffice,” he said.
+id: 07766b37-33b8-41e9-8542-9302d09852b7
+ctime: 1726554186286
+moveSpeeds:
+  walk: 5
+portraitid: df684a74-8198-48f6-9d16-ca138cd91740
+details: |-
+  In spite of their friendly, outgoing nature, the rare presence of a hakaan in human society is considered a harbinger. An omen of dark times.
+
+  Descended from a tribe of giants in upper Vanigar, the original Haka’an tribe made a bargain with Holkatya the Vanigar trickster god. They traded some of their gigantic size and strength for the ability to see the future.
+
+  But Holkatya betrayed them, and the only future a hakaan is allowed to see is the moment and nature of their own death. These visions are never of some mundane tragedy. No hakaan ever received a vision of dying from choking on a grape. This Doomsight is always momentous.
+  Always dramatic.
+
+  The Doomsight can happen at any moment. It does not come for all or even most hakaan, but when it comes, it is considered an act of overwhelming hubris to ignore it. Trying to escape the Doomsight means a painful, tragic death, and cursing your family to live with shame.
+
+  But the only hakaan the average human meets is one trying to fulfill their doom. The human superstition—that the arrival of one or more hakaan in human lands is a sign of great forces acting in the world, auspicious times—is literally true. In dark times, many hakaan experience the Doomsight and leave their communities to venture out into the mundane world, in search of their destiny.
+
+  Humans in Vanigar have their own word for this concept of a personal fate. “Wyrd.” Traditional hakaan sometimes refer to the Doomsight as “wyrdken.”
+name: Hakaan
+height: 9’0’’–10’0’’
+mtime: 1770048010950
+weight: 1,000–2,000
+size: 1L

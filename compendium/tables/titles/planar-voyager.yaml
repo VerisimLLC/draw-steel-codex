@@ -1,0 +1,40 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Planar Voyager Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 3a97b4f8-e14b-4b29-8f29-ba01e662e28f
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Prismacore Eyes
+      description: Exposure to prismacore has given your eyes a mirrorlike sheen. You have psychic immunity 10, creatures can’t use magic or psionic abilities or other effects to determine your location or read your thoughts unless you allow them to, and you gain a +3 bonus to stability against magic or psionic abilities.
+      guid: 5b428088-7a4b-4864-8c6e-e650b239d70f
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Stellar Knowledge
+      description: You gain the Mechanics skill. If you already have this skill, you instead gain an edge on tests made using the skill. Additionally, you gain the item prerequisite and project source for a psionic trinket.
+      guid: 2aa3525e-756a-4372-907b-526eb58cd3f1
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Time Raider Training
+      description: "You gain 2 ancestry points to spend on purchased time raider ancestry traits (see Chapter 3: Ancestries)."
+      guid: 84cfb91f-2359-4bf0-82b3-a431a8e11d8f
+      canHavePrerequisites: true
+      source: Feat
+id: b0a0a429-093d-4ba4-ad0c-2ee24ff585eb
+ctime: 1762352045858
+name: Planar Voyager
+description: I’ve seen skywhales floating above the seas of Primordius. I’ve seen star freighters dancing around the moons of Axiom. So I guess you’re right, I’m not from around these parts.
+mtime: 1775215919687
+echelon: "3"
+prerequisite: You voyage in strange vehicles on different worlds.

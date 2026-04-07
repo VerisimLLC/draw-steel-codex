@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Ellery
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 269e4f6f-ae15-4e6a-9a92-6b46a21d8638
+annotations:
+  image:
+    __typeName: RichImage
+id: a0a5b78e-44b1-4b7e-b0cd-3903d7433e93
+mtime: 1761487453876
+content: |-
+  # Ellery
+
+  [[image]]
+
+  *The farmer who works the fields of Ellery Farm. She is salvaging what pieces of pork she can and burning the rest. The recent attack on her property left her terrified,*
+  {
+  Secret: See [Arixx Nest]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761398228500

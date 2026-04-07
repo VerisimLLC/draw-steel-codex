@@ -1,0 +1,784 @@
+info:
+  locInfo: null
+  appearanceVariations:
+  - portraitId: 8dee3c07-c56a-478d-aba6-52ac45ce5f4d
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.003122846
+    frameSaturation: 0.7969808
+    frameBrightness: 0.8250908
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: 9546681d-e0c9-4bcb-9b8a-2353eafc1818
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.09682456
+    frameSaturation: 0.8688181
+    frameBrightness: 1
+    characterName: Meek Glass Spider
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: 2f6dda81-94cc-481f-8eb4-ad7c8dfb39f2
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.9370122
+    frameSaturation: 0.7188962
+    frameBrightness: 1
+    characterName: Hasty Glass Spider
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: 52a51719-fc0d-4d76-a1ea-c3901c6f489c
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.6965119
+    frameSaturation: 0.6501821
+    frameBrightness: 0.8250908
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: 9d737deb-6593-48ae-9137-da0815e72d4d
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.5747003
+    frameSaturation: 0.6595522
+    frameBrightness: 0.8250908
+    characterName: ""
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: 6de3c5fa-9c32-4d8d-904b-f79b928236e5
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.3123372
+    frameSaturation: 0.7969808
+    frameBrightness: 0.8250908
+    characterName: ""
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  - portraitId: 0dcc2339-0c71-49ed-9a7d-99909d4919a3
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.003122846
+    frameSaturation: 0.7969808
+    frameBrightness: 0.8250908
+    characterName: ""
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  appearanceVariationIndex: 6
+  appearance:
+    portraitId: 0dcc2339-0c71-49ed-9a7d-99909d4919a3
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.6715248
+    frameSaturation: 0.6814157
+    frameBrightness: 0.8250908
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 3b1f4b7e-d13a-4e04-8ed3-651f6954293f
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 12
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        1348477b-f3f2-4892-b3e3-ed00afed694f:
+          timestamp: 1757913858582
+          note: Bite
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        c070b0a8-2026-4a70-92b4-e09a848bc151:
+          note: Trample 2.0
+          timestamp: 1757919396016
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-7
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/1"
+        2c26b531-96ec-4e7d-9f52-441902983ccf:
+          note: Trample
+          timestamp: 1757918230495
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-6
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        9f1e1e3b-95a3-4bf0-b6c2-8ea9a6c74083:
+          note: Slashing Leg
+          timestamp: 1757919395205
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-7
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        012ddb5c-e3ac-4f42-84df-0b9388bc93ad:
+          note: Bite
+          timestamp: 1757914385865
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        5a9f309a-6e23-4477-98d3-8a41cf1331a3:
+          note: Bite
+          timestamp: 1757914466741
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        51502663-9c18-4bf4-97b1-a74b7d6a63f1:
+          note: Critical Hit!
+          timestamp: 1757914449107
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        4af29c2a-9b15-4151-9f61-8b700a6d253b:
+          note: Trample
+          timestamp: 1757918101159
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-5
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -3
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -4
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    creatureSize: "3"
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        fb64d99e-ff7d-4f87-b1bc-657df0577214:
+          note: Manually Set
+          timestamp: 1757915731658
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        20bec157-a6af-4d64-9ff5-e4787dba15ec:
+          note: "Used triggered ability: Skitter"
+          timestamp: 1757919659416
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-7
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        40edc5de-157c-426e-a43f-3d23bd660683:
+          note: "Used triggered ability: Skitter"
+          timestamp: 1757915786925
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        48170d1c-730a-4ed3-9094-09d774f6d61f:
+          note: "Used triggered ability: Skitter"
+          timestamp: 1757915703906
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        37082f1f-5b44-46ba-8647-bd2f34b61dfc:
+          note: "Used triggered ability: Skitter"
+          timestamp: 1757916144931
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-4
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    levelChoices: []
+    moveDistance: 12
+    deathSavingThrowFailures: 0
+    damageEntries:
+      368874ae-5f74-47fa-bef0-70473b7c8c76:
+        timestamp: 1757921535717
+        id: 368874ae-5f74-47fa-bef0-70473b7c8c76
+        heal: 50
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        9b9e2238-0284-4ea1-ab8b-7da05fb89bf0:
+          note: 50 Healing
+          timestamp: 1757921535717
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 60
+        e1aa0a53-045e-4750-b2f6-c19f9803d1ce:
+          timestamp: 1757917590810
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 60
+        d2eaca23-a80f-4a35-875a-81f4ece816da:
+          note: 4 damage from Testician's Melee Free Strike
+          disposition: bad
+          timestamp: 1757915787087
+          attackerid: 96049eaf-506c-452f-889b-900dea0a251f
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 44
+        5a240dc4-fc60-4b18-8dbb-da507ef011b4:
+          note: 1 damage from Obsessed Kobold Legionary's Melee Free Strike
+          disposition: bad
+          timestamp: 1757919628276
+          attackerid: d9f06c4f-0b40-4f53-a207-4790bbf85fd9
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 59
+        d71468e5-f9ad-46a5-aab0-03d3050a1367:
+          note: 5 damage from Kobold Centurion's Pilum
+          disposition: bad
+          timestamp: 1757919659536
+          attackerid: f57e71c5-6e2e-4963-8ded-5a6f0e1c043b
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 54
+        2bf87367-7ede-4c42-be5d-1fa39c655687:
+          note: 3 damage from Testician's Melee Free Strike
+          disposition: bad
+          timestamp: 1757916144536
+          attackerid: 96049eaf-506c-452f-889b-900dea0a251f
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 41
+        1783dfa5-69d4-4f08-9c07-30669737dc6b:
+          note: 50 Healing
+          timestamp: 1757920491808
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 60
+        5d1010aa-0f9b-4145-9c92-13bf0b80b62b:
+          note: 50 Healing
+          timestamp: 1757920127479
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 60
+    minion: false
+    stability: 2
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1ed24333-9f3e-4198-9adf-72a412f08427: true
+        CharacterFeature:ac0d4586-1dc7-4127-9651-be6f95e49445: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1ed24333-9f3e-4198-9adf-72a412f08427: true
+          CharacterFeature:ac0d4586-1dc7-4127-9651-be6f95e49445: true
+        sourceguid: 1ed24333-9f3e-4198-9adf-72a412f08427
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Skitter
+        description: ""
+        guid: 8a004382-577e-4439-a10e-7c4a08ebb51f
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: Halve the damage, then shift 2 squares.
+          trigger: The spider takes damage
+          name: Skitter
+          guid: 6876e598-dee2-493d-9743-91a9efcf65bb
+          distance: Self
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 1ed24333-9f3e-4198-9adf-72a412f08427
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          guid: aeb85e0b-6e6c-4534-9f3c-4a5ff035507d
+          activationCondition: true
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: faa3b7ac-cca3-48b6-966a-9d9913f14f64
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: Skitter
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: false
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 542c5431-8add-4342-b1f1-d4fa52dac97a
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                distance: "2"
+              promptText: Skitter!
+              autoTarget: false
+              abilityType: standard
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              runOnController: true
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Skitter
+          rules: ""
+          behavior: power
+          rollType: ability_power_roll
+          modtype: none
+        guid: 92a0ec5e-a881-4e33-b961-c100c293eb23
+        type: trigger
+        domains:
+          CharacterFeature:1ed24333-9f3e-4198-9adf-72a412f08427: true
+          CharacterFeature:ac0d4586-1dc7-4127-9651-be6f95e49445: true
+        targetType: self
+        behavior: powertabletrigger
+        name: Skitter
+        rules: Halve the damage, then shift 2 squares.
+        description: ""
+        range: "0"
+        trigger: takedamage
+      source: Character Feature
+      description: ""
+      guid: ac0d4586-1dc7-4127-9651-be6f95e49445
+      name: Skitter
+      implementation: 3
+    role: Elite Skirmisher
+    equipment: []
+    opportunityAttack: 4
+    moveDistanceRoundId: bb6a9505-0261-4c92-a148-98234f4e44c6-7
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Monster
+    ongoingEffects: []
+    max_hitpoints: 60
+    initiativeGrouping: f444582f-55c3-4736-8686-e1c4e65cefda
+    groupid: 85a01bf7-57e6-47dd-9888-fff079fa1b25
+    availableTriggers: []
+    cf8ab521-3765-4a6e-b875-beb34d4f42c0_history:
+      __typeName: StatHistory
+      entries:
+        de870c28-10e1-484a-846a-28d7bec3d51a:
+          note: Manually Set
+          timestamp: 1757915703906
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        6d353d6d-df7c-470a-897d-f79a7a5bd67f:
+          note: Manually Set
+          timestamp: 1757916144931
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-4
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        542767a1-a0c8-46d1-a21e-0288b625dc25:
+          note: Manually Set
+          timestamp: 1757915786925
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+    damage_taken: 0
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        dbc0b9b2-457c-47e4-a8cb-163a34419fe9:
+          note: Web
+          timestamp: 1757915142259
+          refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    walkingSpeed: 7
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 11 damage
+        - 14 damage; A<2 bleeding (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        filterTarget: Charges = 1
+        rule: A<3 weakened (save ends)
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.143749952316284
+          s: 0.698632836341858
+          v: 0.888761878013611
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 56
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      description: "2 Malice: For any tier outcome, if the target has A<3 they are weakened (save ends)."
+      targetType: target
+      persistence: []
+      modifiers: []
+      channelIncrement: 2
+      strain: []
+      maxChannel: "2"
+      guid: 2bc49031-d750-4f1e-a7db-32944ae9b00f
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "1"
+      iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd
+      channelDescription: "2 Malice: For any tier outcome, if the target has A<3 they are weakened (save ends)"
+      name: Bite
+      categorization: Signature Ability
+      channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      abilityType: none
+      implementation: 2
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage
+        - 12 damage
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.729882478713989
+          v: 0.61112254858017
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 56
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 0290af43-e5a5-4024-aa9a-7a1f05f9b32e
+      categorization: Signature Ability
+      numTargets: "2"
+      iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9
+      targetType: target
+      name: Slashing Leg
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        isTest: false
+        roll: 2d10
+        resistanceRoll: false
+        tiers:
+        - A<0 restrained (save ends)
+        - A<1 restrained (save ends)
+        - A<2 restrained (save ends)
+      - __typeName: ActivatedAbilityAuraBehavior
+        aliveafterdeath: true
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers: []
+          name: Web
+          difficult_terrain: true
+          guid: 60a28746-ada7-4349-8f0c-8991d940f713
+          objectid: db02fb5e-fb33-438b-8441-72c39ee6bd11
+          iconid: 80eefb2e-eed0-4e13-8f19-21bad620cc8d
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 56
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: ba12a81d-d767-4cdd-b167-04ebdfb112b6
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: 80eefb2e-eed0-4e13-8f19-21bad620cc8d
+      persistence: []
+      targetType: cube
+      radius: "3"
+      name: Web
+      description: The area is difficult terrain for enemies.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords: []
+      targetType: emptyspace
+      display:
+        brightness: 2
+        saturation: 1
+        hueshift: 1
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.176250606775284
+          s: 0.00332009792327881
+          v: 0.191987082362175
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 56
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: Walking Speed
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 9f2a7a7a-1df8-404c-a69a-761b9b925dc9
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: d2035312-afaa-4011-a88e-d812fc56cac3
+      targeting: pathfind
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        targetMoveVicinity: true
+        movementType: shift
+        vicinity: 1
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        targeting: inherit
+        namedAbility: Slashing Leg
+        abilityType: named
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: ab9a27ce-5083-47b6-9d19-bcb592df1d36
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      name: Trample
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: The spider shifts up to their speed and uses Slashing Leg against each creature who comes adjacent to them during the shift. The spider makes one power roll against all targets.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 2
+        refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-7
+      2d3d5511-4b80-46d1-a8c6-4705b9aa45ca:
+        __typeName: CharacterResource
+        refreshid: ""
+        unbounded: 0
+        used: 0
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-1
+      cf8ab521-3765-4a6e-b875-beb34d4f42c0:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-4
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: bb6a9505-0261-4c92-a148-98234f4e44c6-7
+    keywords:
+      Construct: true
+      Glass Spider: true
+    auras: []
+    movementSpeeds:
+      climb: 7
+    skillRatings: []
+    monster_type: Glass Spider
+    animations:
+      anim:
+      - resources:
+          b9bc06dd-80f1-4f33-bc55-25c114e3300c: 1
+        animType: consumeResource
+      guid: d4eebf81-c620-4136-a737-c7cb9124dc26-4264
+    innateAttacks: []
+  tokenType: null
+  bestiaryId: 829ec58b-d9e2-42cb-ad90-7d9800bc5538
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 5
+  createdTimestamp: 1757912745145
+description: null
+parentFolder: 96128be3-01d9-4745-bf4b-a0cc5bae0fe6
+artist: null
+ord: 1
+ctime: 1760249426796
+mtime: 1763058191628
+hidden: false

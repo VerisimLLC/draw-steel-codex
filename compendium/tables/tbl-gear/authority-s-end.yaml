@@ -1,0 +1,61 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    modtype: none
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    behavior: power
+    description: ""
+    name: Authority’s End Extra Damage
+    rollType: ability_power_roll
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    damageTypeMappings: []
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+  source: Item
+  name: Authority’s End Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 1b72b806-8a0a-42a7-b581-1a492911b76e
+itemPrerequisite: A lash used to punish a mutineer
+keywords:
+  Psionic: true
+  Whip: true
+projectSource: Project Roll Characteristic
+flavor: This long, sinuous chain is composed entirely of broken links held together by unseen power.
+level9: The weapon’s damage bonus increases to +3. Additionally, you no longer need to use a maneuver to end one effect when you damage a creature with the weapon. The weapon also refuses to vie for control of your psyche, and no longer counts against the limit of leveled treasures you can carry safely.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The weapon’s damage bonus increases to +2. Additionally, you and each ally within 2 squares of you gains a +1 bonus to saving throws.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 3b928242-fb98-414c-b6de-60ce69f73ab4
+ctime: 1759274983803
+name: Authority’s End
+description: Any weapon ability that deals rolled damage using this weapon gains a +1 damage bonus. Whenever you damage a creature with the weapon, you can immediately use a maneuver to end one effect imposed by that creature on you or another creature within 5 squares of you.
+mtime: 1768254008832
+projectRollCharacteristic:
+  prs: true
+  rea: true
+  inu: true
+iconid: 5d7dd5a6-954d-4d7a-b12f-f0fbc5eb6578

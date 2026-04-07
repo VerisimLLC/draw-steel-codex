@@ -1,0 +1,53 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: b95ca0bd-7a54-4de4-ad7b-318cf9184bcc
+    repeatTargets: false
+    trigger: finishmove
+    conditionFormula: ""
+    targetType: self
+    persistence: []
+    name: Damage for every square moved
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: path.squares
+      chatMessage: Slowed Rider Damage
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: While slowed this way you take 1 damage for every square moved
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 9063e2eb-375f-4d1d-9ec1-3bfda0986389
+  name: Damage for every square moved
+  sourceguid: 7a38f33c-231c-49b0-a7b1-714f1f8344c3
+source: Ongoing Effect
+guid: 7a38f33c-231c-49b0-a7b1-714f1f8344c3
+id: 7a38f33c-231c-49b0-a7b1-714f1f8344c3
+ctime: 1765896254868
+condition: 68f455f5-135f-495c-822d-40d809d2b15f
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: Damage for every square moved
+description: While slowed this way you take 1 damage for every square moved
+mtime: 1765896254868
+iconid: c97f2b52-07a3-43ac-8e5b-f10944132412

@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 74006f0a-7a6e-44be-98f0-c87612b282d1
+  sourceguid: 73ff8e9e-50f4-4fb5-8fda-03bcc946711c
+  value: 1
+  source: Ongoing Effect
+  name: No More Than a Breeze
+  behavior: attribute
+  description: This creature can move through solid matter, ignores difficult terrain, and their movement can’t provoke opportunity attacks. If the creature ends their turn inside solid matter, they are shunted out into the space where they entered it and this effect ends.
+  attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+- __typeName: CharacterModifier
+  text: ""
+  sourceguid: 73ff8e9e-50f4-4fb5-8fda-03bcc946711c
+  guid: a0fc229a-82a5-41b7-87ad-257436c9e06b
+  source: Ongoing Effect
+  name: Ignore Opportunity Attacks
+  description: This creature ignores opportunity attacks.
+  behavior: movementtext
+  color: white
+source: Ongoing Effect
+guid: 73ff8e9e-50f4-4fb5-8fda-03bcc946711c
+id: 0aed1ee0-9d0b-4a86-b1ac-e45f2faa7cd0
+ctime: 1769852888193
+display:
+  blend: add
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.505187511444092
+    s: 0.389013528823853
+    v: 1.00306534767151
+    a: 1
+  brightness: 1
+custom: true
+name: Heckle
+iconid: 5493b9ce-db86-4bfe-8900-b3a72c1c7cf1
+description: This creature ignores opportunity attacks.
+mtime: 1769852888193
+implementation: 3

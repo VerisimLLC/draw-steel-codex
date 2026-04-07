@@ -1,0 +1,170 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 095c2395-0554-4f8f-b9e0-7f0564da788c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 4
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Ogre Royal	Level 7 Brute Minion
+        Giant, Ogre	EV 14
+        <b>Stamina</b> 15
+        <b>Speed</b> 5	<b>Size</b> 2 /<b> Stability</b> 4
+        <b>With Captain </b>Edge on attacks<b>Free Strike</b> 5
+        Might +4	Agility +1	Reason -1	Intuition 0	Presence +2
+        <b>Crush Underfoot</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12-16</b>	8 damage; M<3 prone
+        %E2%9C%B8	<b>17</b>	11 damage; prone
+        <b>Effect</b> An already prone target takes an additional 5 damage.
+
+        <b>In My Stead</b>
+        Whenever the royal would make a free strike, an ally within 5 can make a free strike instead.
+
+        <b>Defiant Anger</b>
+        The royal has Weapon immunity 2 while they are winded.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:53021ce2-f60e-442a-bb99-30adda5d320d: true
+      modifiers: []
+      name: In My Stead
+      description: Whenever the royal would make a free strike, an ally within 5 can make a free strike instead.
+      guid: 53021ce2-f60e-442a-bb99-30adda5d320d
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b9dcdcd0-12c9-4c75-bda9-23d05be18704: true
+      modifiers: []
+      name: Defiant Anger
+      description: The royal has Weapon immunity 2 while they are winded.
+      guid: b9dcdcd0-12c9-4c75-bda9-23d05be18704
+      source: Trait
+    role: Brute Minion
+    inflictedConditions: []
+    keywords:
+      Ogre: true
+      Giant: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    monster_type: Ogre Royal
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 15
+    traitNames:
+    - With Captain Edge on attacks
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 8 damage; M<3 prone
+        - 11 damage; prone
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b8f63902-b727-4f7d-a61b-537baa6249bf
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Crush Underfoot
+      numTargets: 1
+      description: An already prone target takes an additional 5 damage.
+      abilityType: none
+      implementation: 3
+    groupid: 83a948ff-8852-4626-adfc-f05ec9e2af22
+    movementSpeeds: []
+    ev: 14
+    minion: true
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: f8684724-e3d9-495d-9ad0-fa8ce9d7b4b3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969465
+description: Ogre Royal
+parentFolder: f3ad56da-f6fa-4d7d-a056-0d090e6a130f
+artist: null
+ord: 0
+ctime: 1741590329353
+mtime: 1775201137032
+hidden: false

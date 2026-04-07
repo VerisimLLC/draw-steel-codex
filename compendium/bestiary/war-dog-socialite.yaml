@@ -1,0 +1,197 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 776b271d-3e6e-4a92-bbd3-31ec382eb43e
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        War Dog Socialite	Level 10 Minion Hexer
+        Humanoid, War Dog	EV 12 for four minions
+        <b>Stamina</b> 14	<b>Immunity </b>Psychic 10
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Edge on strikes<b>Free Strike</b> 4
+        Might +2	Agility +2	Reason +4	Intuition +3	Presence +5
+        <b>Call to Self-Sabotage</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Psionic, Ranged, Strike
+        <b>Distance</b> Ranged 5<b>	Target</b> One creature per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	Target makes a tier-1 free strike against themself
+        %E2%98%85	<b>12-16</b>	Target makes a tier-2 free strike against themself
+        %E2%9C%B8	<b>17</b>	Target makes a tier-3 free strike against themself
+        <b>Effect</b> This ability deals an additional 5 damage for each Surge the target has.
+
+        <b>Loyalty Collar</b>
+        When the socialite dies, they explode, dealing 3d6 damage to each adjacent enemy.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3991c48c-b33f-491a-801c-82ec21eb5f55: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 3d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the socialite is reduced to 0 Stamina, their loyalty collar explodes, dealing 3d6 damage to each adjacent enemy and object.
+      guid: 3991c48c-b33f-491a-801c-82ec21eb5f55
+      name: Loyalty Collar
+      implementation: 3
+    role: Minion Hexer
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "14"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 10
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 4
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    monster_type: War Dog Socialite
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 5
+        id: prs
+      rea:
+        baseValue: 4
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    withCaptain: Gain an edge on strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 14
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - The target makes a free strike (tier 1 result) against themself
+        - The target makes a free strike (tier 2 result) against themself
+        - The target makes a free strike (tier 3 result) against themself
+        roll: 2d10 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 90d5d850-c23e-4c03-a413-df1b8a7be5f9
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Call to Self-Sabotage
+      numTargets: 1
+      description: This ability deals an additional 5 damage for each Surge the target has.
+      abilityType: none
+      implementation: 3
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 1f68e90a-9df9-4e0a-9a05-5e9e70b68e9b
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Socialite
+parentFolder: e0fe4628-5728-4664-a543-30bf2efaf46e
+artist: null
+ord: 4
+ctime: 1749972308086
+mtime: 1775201137032
+hidden: false

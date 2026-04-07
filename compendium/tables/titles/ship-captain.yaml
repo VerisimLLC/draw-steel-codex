@@ -1,0 +1,83 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+prerequisite: You acquire a ship, airship, or similar vessel.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Ship Captain Benefit
+    numChoices: 1
+    guid: 2738f277-b824-4c69-83c2-f45e82255729
+    description: Choose one of the following benefits
+    options:
+    - __typeName: CharacterFeature
+      description: You can automatically swim at full speed while moving.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: dd654cfb-9f8c-4a4a-9df7-f12eb1f41f2b
+        sourceguid: d9c25911-f945-440b-92db-50412f4d2622
+        value: 1
+        source: Feat
+        name: Deep-Sea Diver
+        behavior: attribute
+        description: You can automatically swim at full speed while moving.
+        attribute: swim
+      source: Feat
+      canHavePrerequisites: true
+      guid: d9c25911-f945-440b-92db-50412f4d2622
+      name: Deep-Sea Diver
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You magically know the location of any ship controlled by your party even while you aren’t aboard. You can telepathically communicate with anyone on board one of your ships who understands a language, and they can respond, no matter your distance from the ship.
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: d3b24b25-6991-42e9-ab41-e81e302b1855
+      name: Ship Speaker
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: While aboard a ship, you can communicate with and conduct negotiations with another ship up to 5 miles away, as long as you and creatures on the other ship have line of effect to each other. You gain an edge on Presence tests made while negotiating in this way.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 26b057f5-b19b-4bfd-8687-9565cda911b9
+        source: Feat
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: 1d4e4751-a4ab-41c0-adc0-c8a212a16e39
+        name: Signal Flags
+        rollType: test_power_roll
+        description: While aboard a ship, you can communicate with and conduct negotiations with another ship up to 5 miles away, as long as you and creatures on the other ship have line of effect to each other. You gain an edge on Presence tests made while negotiating in this way.
+        behavior: power
+        attribute: prs
+      source: Feat
+      canHavePrerequisites: true
+      guid: 26b057f5-b19b-4bfd-8687-9565cda911b9
+      name: Signal Flags
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You gain an edge on tests made to handle air or sea vessels
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a8aaf44b-6b14-47ad-b577-d4b98f4cbf8d
+        source: Feat
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: 150c76f3-ddbc-4fad-baaa-07fd1282ab03
+        name: Trained Crewmember
+        behavior: power
+        description: You gain an edge on tests made to handle air or sea vessels
+        rollType: test_power_roll
+        skills: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: a8aaf44b-6b14-47ad-b577-d4b98f4cbf8d
+      name: Trained Crewmember
+      implementation: 3
+name: Ship Captain
+mtime: 1773772170655
+description: Up anchor, shipmates! ’Tisn’t gold but glory we seek!
+id: dfdc4308-dd76-450f-8126-fb65bcc9af85
+ctime: 1762350070730

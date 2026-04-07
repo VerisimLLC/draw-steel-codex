@@ -1,0 +1,81 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: df77ae6b-6d7f-47f7-9fcf-d917f24127c1
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 5
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "4"
+    name: Bury the Point
+    trigger: beginround
+    description: ""
+    abilityType: none
+    iconid: de2d492d-2ea9-4023-9738-d0125cd31734
+  description: The target takes ongoing 4 damage until they regain any Health.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 94f40fdd-4dd5-46c1-9fa0-d1d75cd46ffa
+  name: Bury the Point
+  sourceguid: 77f1e7b0-0be9-48dc-bfbc-c9e6e236976a
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: c914beae-fd19-441b-8bfb-ab6910fc902b
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 5
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 77f1e7b0-0be9-48dc-bfbc-c9e6e236976a
+      mode: effect
+      conditions: []
+    name: Bury the Point
+    trigger: regainhitpoints
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: The target takes ongoing 4 damage until they regain any Health.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 347d7cd4-1c0c-44aa-aa51-1f32b7cb4858
+  name: Bury the Point
+  sourceguid: 77f1e7b0-0be9-48dc-bfbc-c9e6e236976a
+source: Ongoing Effect
+guid: 77f1e7b0-0be9-48dc-bfbc-c9e6e236976a
+id: 77f1e7b0-0be9-48dc-bfbc-c9e6e236976a
+ctime: 1704707536152
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00169086456299
+    v: 1.00193929672241
+    a: 1
+custom: true
+name: Bury the Point
+iconid: f908f22f-4baa-4444-aaed-664f73dfdcc3
+description: The target takes ongoing 4 damage until they regain any Health.
+mtime: 1742806829383
+implementation: 3

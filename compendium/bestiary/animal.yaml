@@ -1,0 +1,194 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7d9ce80c-a43f-4217-909f-3222342881bb
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Animal	Level 1 Elite Harrier
+        Animal	EV 12
+        <b>Stamina</b> 60
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 4
+        Might +0	Agility +2	Reason -2	Intuition +1	Presence -2
+        <b>Natural Weapon</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	6 damage
+        %E2%98%85	12%E2%80%9316	9 damage
+        %E2%9C%B8	17	12 damage
+        <b>Effect</b> The animal can shift 2 between striking the first and second target.
+
+        <b>Rush</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The animal moves up to their speed.
+
+        <b>Nature Calls</b>
+        The animal ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6df35690-3ce1-4463-8064-e12f9d8918bb: true
+      modifiers: []
+      name: Nature Calls
+      description: The animal ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+      guid: 6df35690-3ce1-4463-8064-e12f9d8918bb
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:48ce40f2-8912-4eca-a19e-94b9a52d6ae1: true
+      modifiers: []
+      name: Nature's Spirit
+      description: While outdoors or in a natural environment, the animal can negate a bane on their abilities or turn a double bane into a bane.
+      guid: 48ce40f2-8912-4eca-a19e-94b9a52d6ae1
+      source: Trait
+    role: Elite Harrier
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    walkingSpeed: 6
+    monster_type: Animal
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    monster_category: Monster
+    damage_taken: 0
+    max_hitpoints: 60
+    resources: []
+    traitNames: []
+    keywords:
+      Animal: true
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage
+        - 12 damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 55c2c91a-5f0a-43d8-b72c-ef163d654a39
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Natural Weapon
+      numTargets: 2
+      description: The animal can shift 2 between striking the first and second target.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 17aaec06-35bb-4d92-9e94-8d6a3d1f9198
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Rush
+      numTargets: 1
+      description: The animal moves up to their speed.
+      abilityType: none
+      implementation: 0
+    groupid: a68c91b6-55f3-4c16-82d9-e0da68078b49
+    movementSpeeds: []
+    creatureSize: 1M
+    opportunityAttack: 4
+    levelChoices: []
+    minion: false
+  tokenType: null
+  bestiaryId: a453c71e-303b-4505-b223-7fc00448f1b3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Animal
+parentFolder: 4b3931af-633a-4d06-a87c-a4139290d258
+artist: null
+ord: 8
+ctime: 1741590290970
+mtime: 1775201137032
+hidden: false

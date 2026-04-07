@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 53c0add3-ce83-4a74-a36a-cb442eb4de55
+  source: Ongoing Effect
+  value: 0
+  name: Patient Shot
+  guid: 6eeb1f36-cce4-45be-889e-4346c4427f32
+  description: You took a patient shot, and cannot move this turn.
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  text: Since you took an edge on your Patient Shot you cannot move this turn.
+  sourceguid: 53c0add3-ce83-4a74-a36a-cb442eb4de55
+  guid: d4845e32-daef-479d-9c12-2a403614e0f8
+  source: Ongoing Effect
+  name: Patient Shot
+  description: You took a patient shot, and cannot move this turn.
+  behavior: movementtext
+  color: red
+source: Ongoing Effect
+guid: 53c0add3-ce83-4a74-a36a-cb442eb4de55
+id: 53c0add3-ce83-4a74-a36a-cb442eb4de55
+ctime: 1747289218516
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: -0.00136137008666992
+    v: 0.447244226932526
+    a: 1
+custom: true
+name: Patient Shot
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd
+description: You took a patient shot, and cannot move this turn.
+mtime: 1747373944260
+implementation: 3

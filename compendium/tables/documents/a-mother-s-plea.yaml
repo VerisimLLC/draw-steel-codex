@@ -1,0 +1,106 @@
+__typeName: MarkdownDocument
+annotations:
+  scene:
+    __typeName: RichScene
+    identifier: false
+    image: 813d5637-6cd2-47b1-b9b9-9e52375e61b0
+  image:
+    __typeName: RichImage
+    image: 73c9cf28-f343-424d-aec9-8f00b259df6f
+id: c888b1ce-959f-4d94-a043-28c92c74f19b
+ctime: 1760505351967
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |+
+      The woman who approaches the heroes is [Ashleigh], Broadhurst’s blacksmith. She asks the heroes for help rescuing her daughter [Violet]. Should the heroes need some persuading to help a mother in need, [Ashleigh] promises to craft them any weapons or armor they find the plans and materials for. When the heroes agree, [Ashleigh] begins leading them out of the village and into the Silver Wood, and provides the following information along the way:
+
+
+    w: "Click this: [Goblin Guardians]\vThen open the [Arrival] journal by clicking the info bubble on the map next to the red rectangle."
+    u: |+
+      You can show your players a scene for the transition and roleplay with [Ashleigh] segment, to hide the map transition and give them something to look at while you finish setting up the [Goblin Guardians] map. If 'Show Below UI' is checked, the players will still see their character panel, action log, and chat.Leave the scene up until you have finished moving the players and [Ashleigh] over as well.:<>[[scene]]
+
+    V: |+
+      :<>[[/emote Mara talk; delay 1; move Mara 0 -5; emote Mara talk; delay 1.5; move Targon -1 -1; move Mara 0 -2 ;delay 1; move Targon -4 1; move Mara -3 1; delay 1; move Targon -7 4; move Mara -6 4 ;delay 0.2; hidetoken Mara; hidetoken Targon; |Gilded Hand Exit]] [[/spawn Mara 1 -5; spawn Targon 2 -4; showtoken Mara; showtoken Targon;|Gilded Hand Enter]]
+
+
+
+    S: |+
+      > * “The bleeding, panicked mother turns to you, desperation on her face. ‘I’ve nowhere else to turn. You must help me get my Violet back.’”
+
+
+    t: |+
+      Once the players agree to help, and set out, you can proceed to the [Goblin Guardians] map.
+
+    q: |+
+      The heroes can take the time to ask [Ashleigh] about [Violet]. If asked, she tells them [Violet] is 18 years old and has been her apprentice and assistant from the time she was able to hold a hammer. If asked about [Violet]’s personality, [Ashleigh] says that her daughter is kind but has a short temper.
+
+    P: |
+      > * “The robed woman coldly says, ‘We don’t work for free.’ She and her armored companion leave.”
+    M: |
+      > * “The door to the inn slams open and a wild-eyed woman in her late thirties wearing a soot-stained apron with a large gash on her head rushes in. She falls to her knees before the armored and robed humans. ‘Please! My daughter was taken on the road by goblins! I know the Gilded Hand can help.’”
+    n: |+
+      > * “Those folks who turned me down—they’re part of the Gilded Hand. Those mercenaries came here from across Dalrath after stopping some cult. But no one can afford their help, so I don’t know why they’re here.”
+
+    k: |
+      > * “When the coast was clear I ran to find help. We’ve got to get my Violet back!”
+    J: |+
+      :<>[[/showtoken Ashleigh; objectcommand door.Door opendoor; delay 0.5; move Ashleigh 0 2; delay 0.5; emote Ashleigh talk; delay 1; emote Ashleigh talk; delay 0.2; emote Ashleigh panic; delay 3; emote Ashleigh panic |Ashleigh Enter]] [[/move Ashleigh -7 2; delay 1; hidetoken Ashleigh; objectcommand door.Door closedoor;  |Ashleigh Exit]]
+
+
+
+    G: |+
+      After the players introduce their heroes, **Present this Document** (use the "Present to Players" button at the top right of this dialog -- it will show them the above picture, but not the text. You can always 'Preview' a document before sharing to see how your players will experience it) and give them the following information:
+
+    h: |
+      > * “I fought tooth and nail, but I saw them drag her into the tomb. But I can’t swing swords. I just make ’em. The goblins gave me this gash on my head and left me for dead.”
+    E: |
+      :<>[[image]]
+
+      {
+    C: |+
+      :<># A Mother's Plea
+
+    e: |
+      > * “We were passing by an old tomb in the Silver Wood. Some old place from long before my mother’s mother’s time. We never go in. People say it’s haunted! As we passed by, a band of goblins came out of nowhere and grabbed my girl!”
+    b: |
+      > * “Violet and I were out looking for merchants bringing iron to Broadhurst. The delivery was late, and we thought they might’ve gotten lost. Happens.”
+parentFolder: 8e9d2508-af25-4e96-b407-46ac7ca3fc85
+updateid: ccee15a9-68d3-4cec-9bfd-1e6be4972b1c
+mtime: 1764191881066
+content: |
+  :<># A Mother's Plea
+
+  :<>[[image]]
+
+  {
+  After the players introduce their heroes, **Present this Document** (use the "Present to Players" button at the top right of this dialog -- it will show them the above picture, but not the text. You can always 'Preview' a document before sharing to see how your players will experience it) and give them the following information:
+
+  :<>[[/showtoken Ashleigh; objectcommand door.Door opendoor; delay 0.5; move Ashleigh 0 2; delay 0.5; emote Ashleigh talk; delay 1; emote Ashleigh talk; delay 0.2; emote Ashleigh panic; delay 3; emote Ashleigh panic |Ashleigh Enter]] [[/move Ashleigh -7 2; delay 1; hidetoken Ashleigh; objectcommand door.Door closedoor;  |Ashleigh Exit]]
+
+
+
+  > * “The door to the inn slams open and a wild-eyed woman in her late thirties wearing a soot-stained apron with a large gash on her head rushes in. She falls to her knees before the armored and robed humans. ‘Please! My daughter was taken on the road by goblins! I know the Gilded Hand can help.’”
+  > * “The robed woman coldly says, ‘We don’t work for free.’ She and her armored companion leave.”
+  > * “The bleeding, panicked mother turns to you, desperation on her face. ‘I’ve nowhere else to turn. You must help me get my Violet back.’”
+
+
+  :<>[[/emote Mara talk; delay 1; emote Mara talk; delay 0.2; hidetoken Mara; hidetoken Targon;|Gilded Hand Exit]] [[/spawn Mara 1 -5; spawn Targon 2 -4; showtoken Mara; showtoken Targon;|Gilded Hand Enter]]
+
+
+
+  The woman who approaches the heroes is [Ashleigh], Broadhurst’s blacksmith. She asks the heroes for help rescuing her daughter [Violet]. Should the heroes need some persuading to help a mother in need, [Ashleigh] promises to craft them any weapons or armor they find the plans and materials for. When the heroes agree, [Ashleigh] begins leading them out of the village and into the Silver Wood, and provides the following information along the way:
+
+
+  > * “Violet and I were out looking for merchants bringing iron to Broadhurst. The delivery was late, and we thought they might’ve gotten lost. Happens.”
+  > * “We were passing by an old tomb in the Silver Wood. Some old place from long before my mother’s mother’s time. We never go in. People say it’s haunted! As we passed by, a band of goblins came out of nowhere and grabbed my girl!”
+  > * “I fought tooth and nail, but I saw them drag her into the tomb. But I can’t swing swords. I just make ’em. The goblins gave me this gash on my head and left me for dead.”
+  > * “When the coast was clear I ran to find help. We’ve got to get my Violet back!”
+  > * “Those folks who turned me down—they’re part of the Gilded Hand. Those mercenaries came here from across Dalrath after stopping some cult. But no one can afford their help, so I don’t know why they’re here.”
+
+  The heroes can take the time to ask [Ashleigh] about [Violet]. If asked, she tells them [Violet] is 18 years old and has been her apprentice and assistant from the time she was able to hold a hammer. If asked about [Violet]’s personality, [Ashleigh] says that her daughter is kind but has a short temper.
+
+  Once the players agree to help, and set out, you can proceed to the [Goblin Guardians] map.
+
+  You can show your players a scene for the transition and roleplay with [Ashleigh] segment, to hide the map transition and give them something to look at while you finish setting up the [Goblin Guardians] map. If 'Show Below UI' is checked, the players will still see their character panel, action log, and chat.:<>[[scene]]
+description: A Mother's Plea

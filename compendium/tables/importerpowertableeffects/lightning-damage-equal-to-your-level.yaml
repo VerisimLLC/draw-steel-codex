@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: 09f81fe8-8aec-4493-b111-53553dfbba68
+behaviors:
+- __typeName: ActivatedAbilityDamageBehavior
+  damageType: lightning
+  roll: "<<amount>> + Level"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: Lightning damage equal to 5 + your level
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 38c53e22-9c71-4262-b406-2332eb701bc6
+importMatch: Lightning damage equal to <<amount>> + your level
+ctime: 1764019203841
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Lightning damage equal to your level
+targetType: self
+mtime: 1772545074275
+abilityType: none
+iconid: ui-icons/skills/1.png

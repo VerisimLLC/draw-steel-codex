@@ -1,0 +1,108 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Arena Fighter Benefit
+    numChoices: 1
+    guid: fbde6ad6-d34a-462c-9d93-d420a8802fd3
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Dirty Fighting
+      description: While you are standing, your melee strikes gain a +3 damage bonus against prone creatures. Additionally, being prone doesn’t impose a bane on your strikes.
+      guid: 60a26f35-5999-456b-9f01-9c10edf9e9cf
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Foes as Weapons
+      description: Whenever you have a creature of your size or smaller grabbed, you can use them as a weapon when you make a melee weapon free strike. Both the target and the grabbed enemy take the strike’s damage.
+      guid: 928c4a98-7eac-4070-8d3e-3eefbf56a596
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      description: You earn 1 Renown.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: fd5ae8e2-9a65-4118-91d9-2ff813e8fd34
+        sourceguid: 7fad28bd-6187-4fed-8396-6f4a15b7e017
+        value: 1
+        source: Title
+        name: Instant Celebrity
+        behavior: attribute
+        description: You earn 1 Renown.
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      source: Title
+      canHavePrerequisites: true
+      guid: 7fad28bd-6187-4fed-8396-6f4a15b7e017
+      name: Instant Celebrity
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: You have the following ability, which can be paid for using the Heroic Resource of your class.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d9639e34-1f38-478b-bd23-765a2e4e79cf
+        guid: d3916261-24ab-4dd2-b1e8-4e502e30742c
+        source: Title
+        behavior: activated
+        description: You have the following ability, which can be paid for using the Heroic Resource of your class.
+        name: Showstopper
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          keywords:
+            Strike: true
+            Melee: true
+            Weapon: true
+          implementationDetails: The Effect is not automated yet.
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: Show’s over, kids!
+          sourceReference:
+            __typeName: SourceReference
+            page: 343
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          categorization: Heroic Ability
+          persistence: []
+          modifiers: []
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          strain: []
+          guid: 7339034e-2edf-417a-bc29-9fa103a045c8
+          channelIncrement: 15
+          numTargets: "1"
+          domains: []
+          implementation: 2
+          description: If you kill a non-minion opponent using this ability, each enemy within 3 squares of you is frightened (save ends).
+          name: Showstopper
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 6 damage; I < weak, slowed (save ends)
+            - 10 damage; I < average, frightened (save ends)
+            - 14 damage; I < strong, dazed (save ends)
+            roll: 2d10 + Might or Agility
+          channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      source: Title
+      canHavePrerequisites: true
+      guid: d9639e34-1f38-478b-bd23-765a2e4e79cf
+      name: Showstopper
+      implementation: 2
+id: 40814f3c-9fd9-4ca5-b15d-aaf6b65ec067
+ctime: 1762351336730
+name: Arena Fighter
+description: You’ve never seen the showstopper? The move so brutal it was banned in the arena? Come closer and I’ll show it to you.
+mtime: 1775049980405
+echelon: "2"
+prerequisite: You are victorious in battle in an arena or some other public contest of combat.

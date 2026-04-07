@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "0"
+category: Forced Movement
+name: Forced Movement Damage Reduction
+documentation: Whenever you take damage from being force moved, you reduce that damage by an amount.
+mtime: 1757985304910
+id: 447ea0f8-a231-4f72-b28f-9f7827291976
+ctime: 1757985147982

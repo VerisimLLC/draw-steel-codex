@@ -1,0 +1,278 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: f18378bb-0289-47db-b003-a153a4fdd4f0
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 10
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Marble Stone Giant	Level 8 Elite Hexer
+        Giant, Stone Giant	EV 40
+        <b>Stamina</b> 207
+        <b>Speed</b> 6 (burrow)	<b>Size</b> 4 /<b> Stability</b> 10
+        <b>Free Strike</b> 8
+        Might +4	Agility +3	Reason 0	Intuition +3	Presence 0
+        <b>Marble From A Great Sling</b> (Action)%E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Area, Ranged, Weapon
+        <b>Distance</b> 3 cube within 10<b>	Target</b> All enemies and objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage; I<2 dazed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; I<3 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	14 damage; I<4 dazed (save ends)
+        <b>Effect</b> This ability knocks the target prone if they are already affected by an EoT or a Save Ends effect.
+
+        <b>Far Flung</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 3 Malice
+        <b>Keywords</b> Melee, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	Vertical push 10
+        %E2%98%85	<b>12%E2%80%9316</b>	Vertical push 12
+        %E2%9C%B8	<b>17</b>	Vertical push 15
+        <b>Effect</b> The target is catapulted sky high. This ability has a double edge against prone or grabbed targets.
+
+        <b>Polish Stone Shape</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> 10 x 2 line within 1<b>	Target</b> Special
+        <b>Effect</b> The affected area becomes slick and glossy. Non-giants that start or end their turn on the ground in the affected area are knocked prone and slide 2.
+
+        <b>Break Armor</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Trigger</b> The marble stone giant takes damage
+        <b>Effect</b> The marble stone giant halves the damage, gains damage weakness 3, and increases their speed by 3. The damage weakness increases by 3 each time the marble stone giant uses this ability in an encounter.
+
+        <b>Stone Steps</b>
+        The marble stone giant ignores difficult terrain.
+
+        <b>Stonebreaker Flesh</b>
+        Whenever an enemy gets a tier 1 result on a melee strike against the marble stone giant, they have a bane on all subsequent uses of that ability until the end of the encounter.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ecf00279-c2f6-4461-85ed-f3db6becb0f6: true
+      modifiers: []
+      name: Stone Steps
+      description: The marble stone giant ignores difficult terrain.
+      guid: ecf00279-c2f6-4461-85ed-f3db6becb0f6
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:395f1f79-f58f-4904-b583-f381c0837f35: true
+      modifiers: []
+      name: Stonebreaker Flesh
+      description: Whenever an enemy gets a tier 1 result on a melee strike against the marble stone giant, they have a bane on all subsequent uses of that ability until the end of the encounter.
+      guid: 395f1f79-f58f-4904-b583-f381c0837f35
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:77c3b3c1-24f6-4c28-b92d-531ad89593cf: true
+      modifiers: []
+      name: Stone Swim
+      description: The marble stone giant can burrow through stone, but can't drag other creatures underground when they do so.
+      guid: 77c3b3c1-24f6-4c28-b92d-531ad89593cf
+      source: Trait
+    role: Elite Hexer
+    inflictedConditions: []
+    keywords:
+      Stone Giant: true
+      Giant: true
+    max_hitpoints_roll: "207"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 8
+    monster_type: Marble Stone Giant
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 207
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; I<2 dazed (save ends)
+        - 10 damage; I<3 dazed (save ends)
+        - 14 damage; I<4 dazed (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: dd504da8-94f0-427d-9a6c-31174f7ea88a
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Marble From A Great Sling
+      numTargets: 1
+      description: This ability knocks the target prone if they are already affected by an EoT or a Save Ends effect.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: eda9ac3a-4c86-4023-935b-03bd4a0e3a6f
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - vertical push 7
+        - vertical push 10
+        - vertical push 12
+        roll: 2d10 + Might
+      name: Far Flung
+      implementation: 3
+      description: The target is catapulted sky high. This ability has a double edge against prone or grabbed targets.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 36e4a64d-587f-42bc-a381-ad4b73897bff
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Polish Stone Shape
+      numTargets: 1
+      description: The affected area becomes slick and glossy. Non-giants that start or end their turn on the ground in the affected area are knocked prone and slide 2.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: e04afe2e-25d6-486c-b018-0aeadbdae742
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Break Armor
+      implementation: 0
+      description: The marble stone giant halves the damage, gains damage weakness 3, and increases their speed by 3. The damage weakness increases by 3 each time the marble stone giant uses this ability in an encounter.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    movementSpeeds:
+      burrow: 6
+    ev: 40
+    minion: false
+    levelChoices: []
+    creatureSize: "4"
+  tokenType: null
+  bestiaryId: c26880c2-fc4f-47e7-889e-1864d9128db9
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Marble Stone Giant
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590303704
+mtime: 1775201137032
+hidden: false

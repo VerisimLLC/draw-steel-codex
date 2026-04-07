@@ -1,0 +1,29 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  conditionid: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  sourceguid: 1e874976-0a90-4d84-86c5-b8b9f71f99be
+  source: Ongoing Effect
+  guid: 1b8bebfc-1de7-4bee-9030-128a17c0425f
+  description: ""
+  behavior: bestowcondition
+  name: and Bleeding
+source: Ongoing Effect
+guid: 1e874976-0a90-4d84-86c5-b8b9f71f99be
+id: 1e874976-0a90-4d84-86c5-b8b9f71f99be
+ctime: 1772711028582
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: and Bleeding
+description: ""
+mtime: 1772711028582
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db

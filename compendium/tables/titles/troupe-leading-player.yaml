@@ -1,0 +1,238 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+prerequisite: The party has successfully performed as a troupe of actors, circus performers, or other entertainers.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Troupe Leading Player Benefit
+    numChoices: 1
+    guid: 0987c814-8d76-4037-ae5e-93896eb92fbf
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      description: When you are adjacent to a willing ally on their turn, you can use a triggered action to push them up to 2 squares if their size is the same as yours, or 4 squares if they are smaller. If this push causes the ally to fall, they can use a maneuver before they fall to reduce the height of the fall by 2.
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: When you are adjacent to a willing ally on their turn, you can use a triggered action to push them up to 2 squares if their size is the same as yours, or 4 squares if they are smaller. If this push causes the ally to fall, they can use a maneuver to reduce the height of the fall by 2.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.335750222206116
+              s: 0.981445372104645
+              v: 0.956140458583832
+              a: 1
+          mandatory: false
+          range: 1
+          castImmediately: true
+          abilityType: none
+          persistence: []
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          guid: e44a203a-01e2-42ce-8b3a-54393f3830e7
+          trigger: endturn
+          hasManualVersion: true
+          conditionFormula: Subject.Size <= Size
+          numTargets: "1"
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          name: Flying Circus
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 110acfa9-741e-42fc-acdf-af43513aa556
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            filterTarget: Target.Size = Caster.Size
+            rule: Push 2
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: Push 4
+            guid: 030e364b-27a6-443b-a6c9-cb198a0095b7
+            filterTarget: Target.Size < Caster.Size
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            promptText: If you have your maneuver available, you can spend it to reduce the effective fall of the height by 2 squares.
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 876651e2-aed0-413d-beb8-89d08a4de7e3
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: d0e195e1-8b49-47fa-9805-0580eac0505f
+          description: When you are adjacent to a willing ally on their turn, you can use a triggered action to push them up to 2 squares if their size is the same as yours, or 4 squares if they are smaller. If this push causes the ally to fall, they can use a maneuver before they fall to reduce the height of the fall by 2.
+          subject: otherheroes
+          iconid: 6ed7bff0-8d17-4f1d-9494-531883f754ab
+        description: When you are adjacent to a willing ally on their turn, you can use a triggered action to push them up to 2 squares if their size is the same as yours, or 4 squares if they are smaller. If this push causes the ally to fall, they can use a maneuver before they fall to reduce the height of the fall by 2.
+        source: Feat
+        behavior: trigger
+        guid: 9c3d2cb8-3566-445f-a9fc-575bb0ae12a5
+        name: Flying Circus
+        sourceguid: 0910290b-915f-4136-a8ea-b2f39b49a6d5
+      source: Feat
+      canHavePrerequisites: true
+      guid: 0910290b-915f-4136-a8ea-b2f39b49a6d5
+      name: Flying Circus
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You magically cause a creature within 10 squares to shed light for 5 squares. This light lasts for 1 minute, until the creature is more than 10 squares away from you, or until you dismiss the effect (no action required). While illuminated, a creature can’t sneak or hide, they take a bane on tests made to perform any action secretly, and they gain an edge on tests made using the Lead, Music, or Perform skills.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d26e562f-0da5-4792-82dd-dedc28a4e045
+        guid: 7a63c9a7-4bdb-4c05-aba1-de6b7e12614a
+        source: Feat
+        behavior: activated
+        description: You magically cause a creature within 10 squares to shed light for 5 squares. This light lasts for 1 minute, until the creature is more than 10 squares away from you, or until you dismiss the effect (no action required). While illuminated, a creature can’t sneak or hide, they take a bane on tests made to perform any action secretly, and they gain an edge on tests made using the Lead, Music, or Perform skills.
+        name: Spotlight
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          implementationDetails: This ability won't prevent someone from making a test to sneak or hide and this needs to be handled at the table. It will illuminate the player and add the relevant power roll modifiers for tests. It will also end when the target is more than 10 sq away.
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5
+            ongoingEffectCustom: 528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.178250432014465
+              s: 0.981445491313934
+              v: 0.944140374660492
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            page: 342
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5f944f7b-1ccd-4727-a41f-242e16a89da9
+          categorization: Ability
+          domains: []
+          targetType: target
+          iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+          name: Spotlight
+          numTargets: "1"
+          description: You magically cause a creature within 10 squares to shed light for 5 squares. This light lasts for 1 minute, until the creature is more than 10 squares away from you, or until you dismiss the effect (no action required). While illuminated, a creature can’t sneak or hide, they take a bane on tests made to perform any action secretly, and they gain an edge on tests made using the Lead, Music, or Perform skills.
+          abilityType: none
+          implementation: 3
+      - __typeName: CharacterModifier
+        sourceguid: d26e562f-0da5-4792-82dd-dedc28a4e045
+        guid: bf4eb162-a037-4c1c-ab08-f6d1aaf6e382
+        source: Feat
+        behavior: activated
+        description: You magically cause a creature within 10 squares to shed light for 5 squares. This light lasts for 1 minute, until the creature is more than 10 squares away from you, or until you dismiss the effect (no action required). While illuminated, a creature can’t sneak or hide, they take a bane on tests made to perform any action secretly, and they gain an edge on tests made using the Lead, Music, or Perform skills.
+        name: Spotlight
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: Ongoing Effects has "Spotlight"
+          repeatTargets: false
+          implementationDetails: Use this ability on the creature you cast Spotlight on and it will dismiss the effect.
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 0.0253908634185791
+              v: 0.420859277248383
+              a: 1
+          categorization: Ability
+          range: "99"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 90819aef-854e-473b-8d7a-fae2b8db62af
+          domains: []
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 528e6f54-4f5e-446c-bf7d-2c87a2a8a9d5
+            mode: effect
+            conditions: []
+          iconid: 0e377747-2985-47cb-87aa-52e6563a1230
+          name: Dismiss Spotlight
+          numTargets: "1"
+          description: End the Spotlight effect on a creature.
+          abilityType: none
+          implementation: 3
+      source: Feat
+      canHavePrerequisites: true
+      guid: d26e562f-0da5-4792-82dd-dedc28a4e045
+      name: Spotlight
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You gain an edge on group tests using Presence and on tests made to assist another creature with a Presence test.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: baf19dff-51d2-4e9a-b5b9-9a2e8764def5
+        source: Feat
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: 224d6818-5e01-4245-a367-e0f6b948558c
+        name: Supporting Player
+        rollType: test_power_roll
+        description: You gain an edge on group tests using Presence and on tests made to assist another creature with a Presence test.
+        behavior: power
+        attribute: prs
+      source: Feat
+      canHavePrerequisites: true
+      guid: baf19dff-51d2-4e9a-b5b9-9a2e8764def5
+      name: Supporting Player
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: While any of your allies is playing music or performing, you gain an edge on tests made to conceal objects, hide, pick pockets, or sneak.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 858bbab2-6e27-4b90-85fa-38773d558800
+        source: Feat
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: 643a4fed-36f4-469b-8be1-4f38020c3156
+        name: Work the Crowd
+        behavior: power
+        description: While any of your allies is playing music or performing, you gain an edge on tests made to conceal objects, hide, pick pockets, or sneak.
+        rollType: test_power_roll
+        skills:
+        - 54c39860-b658-4563-9ae1-66d36f26e50f
+        - fdd43bde-6062-484d-aea6-3803d396ea8e
+        - 978652ee-5553-40ee-97d8-44c607ecdf15
+        - ae13b5cf-718a-42a4-ab5e-18d46b289ac6
+      source: Feat
+      canHavePrerequisites: true
+      guid: 858bbab2-6e27-4b90-85fa-38773d558800
+      name: Work the Crowd
+      implementation: 3
+name: Troupe Leading Player
+mtime: 1773772187691
+description: We’re actors! We’re the opposite of people!
+id: 5d801266-e95f-4893-be6f-8ff2a51f0154
+ctime: 1762351067710

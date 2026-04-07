@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: aefa54d4-746e-4245-ab84-d5827106567a
+id: aefa54d4-746e-4245-ab84-d5827106567a
+ctime: 1748144745386
+domains:
+  CharacterOngoingEffect:aefa54d4-746e-4245-ab84-d5827106567a: true
+description: Visibility only -- the creature is panicking.
+iconid: ui-icons/skills/1.png
+name: Panic
+statusEffect: false
+mtime: 1748145121395
+emoji: f87c3226-ad2f-425d-98d8-44e84a734cda
+implementation: 3

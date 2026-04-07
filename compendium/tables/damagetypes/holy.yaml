@@ -1,0 +1,11 @@
+__typeName: DamageType
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Holy
+ctime: 1699861671130
+mtime: 1699861676369
+id: b3820a10-bf50-44c4-8135-2aa7eb6cfdaa
+iconid: d3b8e0dd-5379-44f4-8d3e-ec0437a2b85c

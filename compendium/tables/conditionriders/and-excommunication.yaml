@@ -1,0 +1,58 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: ally
+    targetType: all
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "2"
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 68beb97b-dbd6-4c21-86ab-f14d75de8bb9
+    persistence: []
+    abilityType: none
+    conditionFormula: ConditionCaster("Weakened") = Subject
+    trigger: endturn
+    whenActive: combat
+    name: and Excommunication
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: Subject.Presence*2
+      damageType: holy
+      chatMessage: Excommunication damage
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 1fe419a3-ea91-440a-ae67-f162e4f8f34e
+  name: and Excommunication
+  sourceguid: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+source: Ongoing Effect
+guid: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+id: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+ctime: 1768177097104
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+name: and Excommunication
+description: ""
+mtime: 1768177319584
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725

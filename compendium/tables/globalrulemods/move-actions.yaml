@@ -1,0 +1,147 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: ce96ee10-bb53-4791-93f1-2bacd96ce88d
+      guid: 40175659-9429-41a9-b9ca-82724175a137
+      source: Move Actions Global Rule Mod Feature
+      behavior: activated
+      description: When a creature takes the Disengage move action, they can shift 1 square. Certain class features, kits, and other rules allow a creature to shift more than 1 square when they disengage. A creature who does so can break up their shift with their maneuver and action however they wish.
+      name: Disengage
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        targetType: emptyspace
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.669999897480011
+            s: 0.980370044708252
+            v: 1.00191080570221
+            a: 1
+        categorization: Move
+        range: Disengage Speed
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 4f9a07b3-b53c-48b6-abba-1cb992a2b934
+        behaviors:
+        - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          movementType: shift
+        domains: []
+        targeting: pathfind
+        iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+        name: Disengage
+        numTargets: "1"
+        description: When a creature takes the Disengage move action, they can shift 1 square. Certain class features, kits, and other rules allow a creature to shift more than 1 square when they disengage. A creature who does so can break up their shift with their maneuver and action however they wish.
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      sourceguid: ce96ee10-bb53-4791-93f1-2bacd96ce88d
+      source: Move Actions Global Rule Mod Feature
+      guid: eca20596-bda0-40db-b555-8adefc716034
+      filterCondition: Moved This Turn > 0
+      name: Disengage
+      description: When a creature takes the Disengage move action, they can shift 1 square. Certain class features, kits, and other rules allow a creature to shift more than 1 square when they disengage. A creature who does so can break up their shift with their maneuver and action however they wish.
+      explanation: You have used your move action this turn.
+      behavior: suppressabilities
+    name: Disengage
+    description: When a creature takes the Disengage move action, they can shift 1 square. Certain class features, kits, and other rules allow a creature to shift more than 1 square when they disengage. A creature who does so can break up their shift with their maneuver and action however they wish.
+    guid: ce96ee10-bb53-4791-93f1-2bacd96ce88d
+    source: Move Actions Global Rule Mod Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 85051457-7567-4c5b-b64f-abd121093e3c
+      guid: dec8546d-a278-4bd4-824e-72431a92de24
+      source: Move Actions Global Rule Mod Feature
+      behavior: activated
+      description: ""
+      name: Jump
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        targetType: self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.303749918937683
+            s: 0.561913967132568
+            v: 1.00238585472107
+            a: 1
+        categorization: Move
+        range: Min(Max(1, Max(Might, Agility)) + (1 when Moved This Turn >= 2), Movement Speed - Moved This Turn)
+        persistence: []
+        modifiers: []
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          attrid: mgt
+          roll: 2d10 + Might
+          applyto: caster
+          skillid: 7edbc5b3-92f7-4c39-bd05-165bb2990924
+          isTest: true
+          resistanceRoll: false
+          tiers:
+          - Jump {Jump Distance}
+          - Jump {1 + Jump Distance}
+          - Jump {2+ Jump Distance}
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: 455f339f-d408-47ed-94da-6ff6e862cd27
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: 455f339f-d408-47ed-94da-6ff6e862cd27
+            modtype: none
+            adjustments:
+            - type: jump
+              value: 1
+            keywords: []
+            activationCondition: Moved This Turn >= 2
+            behavior: power
+            rollType: test_power_roll
+            domains: []
+            description: If you move at least 2 squares in a straight line immediately before your jump, you can long jump 1 additional square.
+            guid: 258aa0d2-f50d-49e2-9ac1-e37805040b97
+            name: Run-Up
+        strain: []
+        guid: b88b53af-e769-4e34-ab7c-5a0dfe0f2adc
+        numTargets: "1"
+        domains: []
+        castImmediately: true
+        targeting: straightpath
+        iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+        name: Jump
+        sourceReference:
+          __typeName: SourceReference
+          page: 269
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        description: ""
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      sourceguid: 574bf92b-c6c8-49c6-89b1-c24a9bf45141
+      source: Move Actions Global Rule Mod Feature
+      guid: e3c8bf83-f5c1-4c4c-b697-122fce5bf8e5
+      filterCondition: InDifficultTerrain
+      name: Jump
+      description: ""
+      explanation: You cannot jump from difficult terrain.
+      behavior: suppressabilities
+    name: Jump
+    description: ""
+    guid: 574bf92b-c6c8-49c6-89b1-c24a9bf45141
+    source: Move Actions Global Rule Mod Feature
+    implementation: 2
+name: Move Actions
+mtime: 1774411504346
+id: 193c0a8b-8e9f-4bf3-8939-9a0a766e257d
+ctime: 1746267175761

@@ -1,0 +1,54 @@
+__typeName: ActivatedAbility
+id: 6a8164e8-0492-47f2-8237-101af54e05c1
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    behavior: modifyability
+    cannotModifyAction: true
+    name: Modify Attack
+    attributes: []
+    description: ""
+    guid: 9083ad34-0006-4565-b9ba-f7508777bfe8
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 2452be0e-7b44-4c6a-a894-b5e0de6a519d
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 1ebfb0cd-68af-46f3-bea7-c2ca2cd4925c
+ctime: 1757242711716
+targetType: self
+numTargets: "1"
+mtime: 1757242711716
+name: Use a Move Action
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

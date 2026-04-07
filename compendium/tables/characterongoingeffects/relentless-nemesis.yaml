@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 570861e4-bf89-4b2f-a17f-36c7b8c168e9
+id: 570861e4-bf89-4b2f-a17f-36c7b8c168e9
+ctime: 1749336056977
+domains:
+  CharacterOngoingEffect:570861e4-bf89-4b2f-a17f-36c7b8c168e9: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Relentless Nemesis
+condition: 3210b68d-64c1-4642-a61f-71392055def6
+description: ""
+mtime: 1760745404204
+iconid: ui-icons/skills/1.png

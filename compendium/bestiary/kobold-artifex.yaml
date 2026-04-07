@@ -1,0 +1,266 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 43d15eda-2b77-48f4-9d82-f526013593cb
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4102955
+    portraitOffset:
+      x: -0.06385493
+      y: 0.1103518
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 427e0587-06f7-413e-979d-50e8f16fc08b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 10
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Kobold: true
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      inu:
+        baseValue: 0
+        id: inu
+      pre:
+        __typeName: CharacterAttribute
+        id: pre
+      mgt:
+        baseValue: 0
+        id: mgt
+      agl:
+        baseValue: 2
+        id: agl
+      rsn:
+        baseValue: 2
+        id: rsn
+      rea:
+        baseValue: 1
+        id: rea
+      prs:
+        baseValue: 0
+        id: prs
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      agi:
+        __typeName: CharacterAttribute
+        id: agi
+      end:
+        __typeName: CharacterAttribute
+        id: end
+    weight: 3
+    monster_type: Kobold Artifex
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Kobold Artifex	Level 1 Horde Controller
+        Humanoid, Kobold	EV 3
+        <b>Stamina</b> 10
+        <b>Speed </b>5	<b>Size</b> 1S /<b> Stability</b> 0
+        	<b>Free Strike</b> 1
+        Might 0	Agility +2	Reason +1	Intuition 0	Presence 0
+        <b>Chain Hook</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 5<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage; pull 1; pull 1
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage; pull 2
+        %E2%9C%B8	<b>17</b>	5 damage; pull 3
+        <b>Effect</b> If the target's forced movement triggers a trap, the trap has a double edge on its power roll.
+
+        <b>Activate Trap</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>Target</b> 1 trap or terrain object
+        <b>Effect </b>The trap or terrain object instantly triggers.
+        <b>3 Malice </b>The artifex can place a new trap in the encounter and instantly trigger it.
+        <b>Favorite Traps </b>The artifex prefers working with<b>spike traps</b>, <b>snare traps</b>,<b>flammable oil</b>, and <b>angry beehives</b>.
+
+        <b>Shield? Shield!</b>
+        The artifex has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cd823234-16db-4e28-bb80-7374caad58dc: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        iconColor: "#ffffffff"
+        behavior: icon
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+        name: Shield? Shield!
+        description: The artifex has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        value: "1"
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+        description: The artifex has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The artifex has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The artifex has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+      source: Trait
+      description: The artifex has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+      guid: cd823234-16db-4e28-bb80-7374caad58dc
+      name: Shield? Shield!
+      implementation: 3
+    role: Horde Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 1
+    damage_taken: 0
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+    resources: []
+    ev: 3
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 652da8b9-7ac3-4368-b445-5b256fe9019c
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage; pull 2
+        - 5 damage; pull 3
+        roll: 2d10 + Agility
+      name: Chain Hook
+      iconid: ui-icons/skills/1.png
+      description: If the target's forced movement triggers a trap, the trap has a double edge on its power roll.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: b2804099-6fea-4a48-a560-432c37210dbb
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      persistence: []
+      behaviors: []
+      name: Activate Trap
+      iconid: ui-icons/skills/1.png
+      description: |-
+        The trap or terrain object instantly triggers.
+        **3 Malice**: The artifex can place a new trap in the encounter and instantly trigger it.
+      abilityType: none
+      implementation: 0
+    walkingSpeed: 5
+    movementSpeeds: []
+    fmr: 1
+    creatureSize: 1S
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 040abc59-647e-4fb8-8391-75036b6c3675
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1709449591513
+description: Kobold Artifex
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590214097
+mtime: 1775201137032
+hidden: false

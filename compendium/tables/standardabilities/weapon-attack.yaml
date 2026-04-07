@@ -1,0 +1,54 @@
+__typeName: ActivatedAbility
+id: 72cc1f37-0ba0-47e6-a9f1-20f3c9ad653c
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: Ability.Keywords Has "Attack" and Ability.Keywords Has "Weapon"
+    behavior: modifyability
+    guid: 0f520f77-3e34-494a-a946-58c51791bc7e
+    name: Modify Attack
+    attributes: []
+    description: ""
+    cannotModifyAction: true
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: f2c68698-5d85-4b90-9bc2-f75cf95d8401
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 5
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 5
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: fdc40101-6ae1-4f9b-b2d1-2f2dab4f6486
+ctime: 1716705572562
+description: ""
+actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+repeatTargets: false
+name: Weapon Attack
+targetType: self
+mtime: 1745902106872
+abilityType: none
+iconid: ui-icons/skills/1.png

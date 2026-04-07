@@ -1,0 +1,53 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:af7c3078-9940-4d5b-bffb-b5e3b9cd522c: true
+  sourceguid: af7c3078-9940-4d5b-bffb-b5e3b9cd522c
+  description: 'Each time you kill an enemy, you regain Stamina equal to 5 + the Casters Intuition score. '
+  source: Ongoing Effect
+  name: Reap
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    trigger: kill
+    whenActive: combat
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:af7c3078-9940-4d5b-bffb-b5e3b9cd522c: true
+    targetType: self
+    guid: 9813edef-3247-40ac-a5fc-3097f3a4a006
+    name: Reap
+    behaviors:
+    - __typeName: ActivatedAbilityHealBehavior
+      roll: Stacks
+    description: 'Each time you kill an enemy, you regain Stamina equal to 5 + the Casters Intuition score. '
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: e8387a5d-c3e9-4cb8-9933-869279395395
+source: Ongoing Effect
+guid: af7c3078-9940-4d5b-bffb-b5e3b9cd522c
+id: af7c3078-9940-4d5b-bffb-b5e3b9cd522c
+ctime: 1746682637747
+domains:
+  CharacterOngoingEffect:af7c3078-9940-4d5b-bffb-b5e3b9cd522c: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Reap
+iconid: 239bf5f9-5c36-4308-a92d-4339b807b5d4
+description: 'Each time you kill an enemy, you regain Stamina equal to 5 + the Casters Intuition score. '
+mtime: 1746683085260
+implementation: 3

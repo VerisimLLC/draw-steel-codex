@@ -1,0 +1,51 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5b020415-457a-477c-8961-9fe5d5676f1e
+  displayCondition: Ability.doesdamage and (Target.ConditionCaster("Taunted") = Caster)
+  source: Ongoing Effect
+  guid: 4c77e77d-794c-44e8-9a04-e5b3266b5355
+  damageModifier: Might*2
+  keywords: []
+  activationCondition: "1"
+  domains:
+    CharacterOngoingEffect:5b020415-457a-477c-8961-9fe5d5676f1e: true
+  description: ""
+  name: Face the Storm!
+  rollType: ability_power_roll
+  potencymod: "1"
+  modtype: none
+  behavior: power
+- __typeName: CharacterModifier
+  sourceguid: 5b020415-457a-477c-8961-9fe5d5676f1e
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Strike: true
+    Melee: true
+  activationCondition: true
+  behavior: power
+  domains:
+    CharacterOngoingEffect:5b020415-457a-477c-8961-9fe5d5676f1e: true
+  name: Face the Storm!
+  guid: ed392014-7d39-4725-b471-b88616e020cf
+  addText: P < average, taunted (eot)
+  description: ""
+  rollType: ability_power_roll
+source: Ongoing Effect
+guid: 5b020415-457a-477c-8961-9fe5d5676f1e
+id: 5b020415-457a-477c-8961-9fe5d5676f1e
+ctime: 1758155836369
+domains:
+  CharacterOngoingEffect:5b020415-457a-477c-8961-9fe5d5676f1e: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Face the Storm!
+custom: true
+description: ""
+mtime: 1762445899015
+iconid: ui-icons/skills/1.png

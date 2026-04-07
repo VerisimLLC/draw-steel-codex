@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+testCases:
+- text: Stamina +2
+modifiers:
+- __typeName: CharacterModifier
+  guid: 50eee5f1-167c-49e3-b6e3-7554f468ad9a
+  sourceguid: 2e820cba-4965-4c9a-9c81-e52f24b9f887
+  value: "<<amount>>"
+  source: Monster
+  name: Stamina Bonus
+  behavior: attribute
+  description: ""
+  attribute: hitpoints
+source: Monster
+guid: 2e820cba-4965-4c9a-9c81-e52f24b9f887
+importMatch: Stamina \+<<amount>>
+ctime: 1738318794961
+name: Stamina Bonus
+id: 54143d97-98d6-481b-af56-fa0eb8216dff
+description: ""
+mtime: 1738318794961
+implementation: 3

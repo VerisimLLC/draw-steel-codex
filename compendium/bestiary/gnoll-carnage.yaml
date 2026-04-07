@@ -1,0 +1,1315 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: a199b2ab-9c97-47e2-83e6-9cd8a365b624
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 2
+    85865408-f112-4bdc-beff-a62e14c64a77_history:
+      __typeName: StatHistory
+      entries:
+        63fe31b8-b312-4941-bd73-c65459b45a3e:
+          note: 'Edacity '
+          abilityid: 8fb94f66-9cad-476c-aa7f-7bbfc25770ac
+          refreshid: 5a22f47a-eb64-43aa-8958-b96f0e918963
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        5a09491c-dce3-44f2-a1d1-444edad929a9:
+          note: 'Edacity '
+          abilityid: 8fb94f66-9cad-476c-aa7f-7bbfc25770ac
+          refreshid: 389adb26-c360-4079-ab8f-6eb97025ac2f
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        f8a162ba-60d2-4cc5-8e96-6ec4137dea7c:
+          note: 'Edacity '
+          abilityid: 8fb94f66-9cad-476c-aa7f-7bbfc25770ac
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 16
+    max_hitpoints_roll: "100"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        178890f3-dbc7-4974-a1dc-af7a8dcc326b:
+          note: 'Deepest Wounds '
+          abilityid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+          refreshid: a1c97fde-1d65-493d-8292-a10064bdebb8-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        f0852252-097d-485c-b3fc-b30a05bd549c:
+          set: 1/1
+          note: 'Edacity '
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 8fb94f66-9cad-476c-aa7f-7bbfc25770ac
+        4e5cfa5f-a4ed-4a6e-9dfb-d89f230da13e:
+          set: 1/1
+          note: 'Deepest Wounds '
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+        5a850e6c-b609-46dc-b895-7b3a832aa1f5:
+          set: 1/1
+          note: 'Deepest Wounds '
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+        118fc7a5-cca8-4935-803b-559b16aca083:
+          set: 1/1
+          note: 'Deepest Wounds '
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+        8f2d87d7-29a4-4752-9d8d-f5c932f2b172:
+          set: 1/1
+          note: 'Call Up from The Abyss '
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: bd42f134-ecc1-4b6f-a0e8-15c8ab954efe
+        860f716d-63fe-4091-8f9a-d74b60db44e3:
+          note: Shrapnel Whip
+          abilityid: f663f468-e18f-465f-86c6-a79335ac86cc
+          refreshid: 999e4994-bb40-428a-83a2-74de96a2b3a8-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        a255681f-542b-4378-8db1-7a5677438030:
+          note: 'Deepest Wounds '
+          abilityid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+          refreshid: 865a3d63-a032-4149-b7a8-46345c87e8b1-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 3
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Gnoll
+    levelChoices: []
+    moveDistance: 19
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; A<1 bleeding (save ends)
+        - 11 damage; A<2 bleeding (save ends)
+        - 14 damage; A<3 bleeding and dazed (save ends)
+        guid: 58794b1b-e3a0-4973-a67b-41cd2776681d
+        roll: 2d10 + 3
+        filterTarget: not Friends(target, caster)
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        filterTarget: Friends(target, caster)
+        promptText: Make a free strike
+        abilityType: standard
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 159f98ba-95ff-42aa-869f-48d2491e3a45
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 158
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      modeList: []
+      persistence: []
+      targetType: target
+      numTargets: 2
+      categorization: Signature Ability
+      implementation: 4
+      name: Shrapnel Whip
+      guid: f663f468-e18f-465f-86c6-a79335ac86cc
+      description: |-
+        An ally targeted by this ability ignores the damage and can make a free
+        strike.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 4
+      objectTarget: false
+      repeatTargets: false
+      keywords: []
+      targetAllegiance: ally
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: bc197e89-aeab-4e9e-a547-6778dcce3872
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        duration: endround
+        ongoingEffectCustom: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        ongoingEffect: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        guid: 3f1b0263-ece5-4799-be2d-8e85cd07a4f9
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: ""
+        duration: 1
+        ongoingEffectCustom: 2726a01b-6433-446b-be34-ced4aa535c60
+        ongoingEffect: 2726a01b-6433-446b-be34-ced4aa535c60
+        durationUntilEndOfTurn: false
+      - __typeName: ActivatedAbilityCustomTriggerBehavior
+        filterTarget: not Ongoing Effects has "Used Cackletongue"
+        guid: e86c5f55-bcf2-43ad-9621-de0bfb49c997
+        value: ""
+        triggerName: Cackletongue
+      numTargets: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      implementation: 3
+      name: Carnage's Cackletongue
+      selfTarget: true
+      description: Each target deals an additional 3 damage with their strikes until the start of the carnage's next turn. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilitySummonBehavior
+        numSummons: "1"
+        monsterType: 3267ab98-0772-452d-afe4-0256b7b66f35
+        guid: eaaed56b-f253-47a5-b8f7-67ca0edac366
+        casterChoosesCreatures: false
+        groupInitiativeWithCaster: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 158
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '92eca7bd-7012-4251-9e1"
+      villainAction: Villain Action 1
+      actionResourceId: none
+      modifiers: []
+      strain: []
+      guid: bd42f134-ecc1-4b6f-a0e8-15c8ab954efe
+      persistence: []
+      targetType: emptyspace
+      numTargets: 4
+      effectImplemented: true
+      categorization: Heroic Ability
+      name: 'Call Up from The Abyss '
+      iconid: ui-icons/skills/1.png
+      description: The carnage summons four abyssal hyenas into unoccupied spaces within distance.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster_and_targets
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 66ca7947-31c9-426b-a8c6-c16f9c1db058
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          targetType: self
+          categorization: Hidden
+          name: Move Speed & Make Free Strike
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: c7fd0d31-7a17-4a90-94a5-38dc8e89e101
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            promptText: Move Speed
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 44b7da8a-dee3-408b-b608-fb95e8716dea
+              repeatTargets: false
+              abilityType: none
+              persistence: []
+              targetType: self
+              categorization: Hidden
+              name: Free Strike M<2 Prone
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  source: ""
+                  filterAbility: ability.Free Strike
+                  behavior: modifyability
+                  guid: ee78ccb7-47db-4e1d-bced-098ae06de4d3
+                  replaceBehaviors: after
+                  attributes: []
+                  name: Modify Attack
+                  description: ""
+                  cannotModifyAction: true
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: 3bbf18ed-ad4d-4645-b167-e4b9d11f1903
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                      ongoingEffect: c885a4ba-bb51-4676-977d-95df9aa19d85
+                      filterTarget: Might < 2
+                      ongoingEffectCustom: c885a4ba-bb51-4676-977d-95df9aa19d85
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            abilityType: custom
+            promptText: Make Free Strike
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        promptText: ""
+        abilityType: custom
+        standardAbility: 1c423f02-73e6-4c44-8341-17d854f15fc5
+      effectImplemented: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '85865408-f112-4bdc-bef"
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      actionResourceId: none
+      strain: []
+      guid: 8fb94f66-9cad-476c-aa7f-7bbfc25770ac
+      implementation: 3
+      numTargets: 3
+      sourceReference:
+        __typeName: SourceReference
+        page: 158
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      targetType: target
+      name: 'Edacity '
+      selfTarget: true
+      displayOrder: 1
+      description: Each target moves up to their speed and can make a free strike. Any creature damaged by one of these free strikes who has M<2 is knocked prone.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        attrid: prs
+        filterTarget: winded=1 and not Friends(target, caster)
+        isTest: true
+        roll: 2d10 + Presence
+        resistanceRoll: false
+        tiers:
+        - The target can't regain Stamina until the end of the encounter.
+        - The target can't regain Stamina (save ends).
+        - No effect.
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        tiersSelected:
+        - 1
+        filterTarget: winded=1 and not Friends(target, caster)
+        duration: eoe
+        ongoingEffectCustom: ca6818c4-6a4d-4ebd-8dc9-b60b715fcafb
+        ongoingEffect: ca6818c4-6a4d-4ebd-8dc9-b60b715fcafb
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        tiersSelected:
+        - 2
+        filterTarget: winded=1 and not Friends(target, caster)
+        duration: save_ends
+        ongoingEffectCustom: ca6818c4-6a4d-4ebd-8dc9-b60b715fcafb
+        ongoingEffect: ca6818c4-6a4d-4ebd-8dc9-b60b715fcafb
+        guid: 0919df96-aefe-40e9-8d48-fc528ff79130
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: bbeabc9e-1ae3-400c-8dd3-ea3b1dd1b431
+        filterTarget: type="Gnoll" and Friends(target, caster)
+        duration: eoe
+        ongoingEffectCustom: bbeabc9e-1ae3-400c-8dd3-ea3b1dd1b431
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      implementation: 3
+      strain: []
+      guid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'd8880c8f-c5ce-4725-866"
+      actionResourceId: none
+      targetType: all
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 158
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      name: 'Deepest Wounds '
+      displayOrder: 1
+      description: |-
+        Until the end of the encounter, all gnolls have a double edge on
+        power rolls that target a winded enemy.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    damageEntries:
+      5e8f4541-7164-42b2-9462-bc6044f3d1e2:
+        id: 5e8f4541-7164-42b2-9462-bc6044f3d1e2
+        heal: 100
+      a0f3fb01-1c88-4de3-a605-7681670c8126:
+        damage: 100
+        id: a0f3fb01-1c88-4de3-a605-7681670c8126
+      c1926b97-418f-4614-8f41-c07ad6961f16:
+        id: c1926b97-418f-4614-8f41-c07ad6961f16
+        heal: 100
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        33415a90-649b-4727-8a70-fdcf603e5d47:
+          disposition: bad
+          note: 100 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        85ebcc6a-9150-415d-948c-636971ebc453:
+          disposition: good
+          note: 100 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 100
+        dc3ac473-82fd-497c-9913-bdbafeb6dcf4:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        3fe8ccfa-f93d-495f-8420-54d96d0a4b79:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1
+        8888200e-96c6-409b-9b6e-6bfbaa6bb1e5:
+          disposition: good
+          note: 100 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 100
+        690040de-8972-48b1-aae7-fc5f82717291:
+          disposition: bad
+          note: 100 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        a94fbb86-6147-48d7-8cfd-7de7346728cd:
+          disposition: bad
+          note: 1 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        d99ba745-2d49-4df4-86c1-56a8e54a5484:
+          disposition: good
+          note: 100 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 100
+    minion: false
+    opportunityAttack: 5
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+      9e4c0914-2086-4bbe-9ff2-d5baa820fa69: true
+    stability: 1
+    ongoingEffects: []
+    import:
+      type: mcdm
+      data: |
+        Gnoll Carnage	Level 2 Leader
+        Abyssal, Gnoll	EV 16
+        <b>Stamina</b> 100
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 5
+        Might +3	Agility +3	Reason 0	Intuition 0	Presence +3
+        <b>Shrapnel Whip</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; A<1 bleeding (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; A<2 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	14 damage; A<3 bleeding and dazed (save ends)
+        <b>Effect</b> An ally targeted by this ability makes a free strike instead of taking damage.
+
+        <b>Cackletongue</b> (Maneuver) %E2%97%86 4 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self and 5 burst<b>	Target</b> Self and all allies
+        <b>Effect</b> Each target deals an additional 3 damage with their strikes until the start of the carnage's next turn. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+
+        <b>Death Rampage</b>
+        Whenever a non-minion ally within 5 is reduced to 0 Stamina, the carnage moves up to their speed and either chooses to target 2 creatures with free strikes or one creature with their shrapnel whip.
+
+        <b>Endless Hunger</b>
+        If the carnage is reduced to 0 Stamina while there are still gnolls on the battle map, one gnoll on the map is transformed into the carnage, keeping the gnoll's Stamina.
+
+        <b>Call Up from The Abyss </b>(Villain Action 1)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> Special
+        <b>Effect</b> The carnage summons 4 <b>gnoll wildlings</b> and 4 <b>abyssal hyenas</b> into unoccupied spaces.
+
+        <b>Edacity </b>(Villain Action 2)
+        <b>Keywords</b> Area
+        <b>Distance</b> Self and 10 burst<b>	Target</b> Self and all allies
+        <b>Effect</b> Each target moves up to their speed and makes a free strike. A creature that takes damage from this villain action is also knocked prone.
+
+        <b>Deepest Wounds </b>(Villain Action 3)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst<b>	Target</b> Each winded enemy in the burst
+        <b>Effect</b> The carnage's eyes and all exposed blood within distance starts to glow bright red. Each target makes a <b>Presence test.</b>
+        %E2%9C%A6	<b>%E2%89%A411</b>	The target can't regain stamina until the end of the encounter
+        %E2%98%85	<b>12%E2%80%9316</b>	The target can't regain stamina (save ends)
+        %E2%9C%B8	<b>17</b>	No effect
+        <b>Effect</b> Until the end of the encounter, each gnoll has a double edge power rolls that target a winded enemy.
+        Retainer
+        Gnoll Gnasher	Level 2 Harrier Retainer
+        Fiend, Gnoll
+        <b>Stamina</b> 30
+        <b>Speed</b> 7	<b>Size</b> 1M/<b>Stability</b> 1
+        <b>Free Strike</b> 3
+        Might +1	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Gnash</b> (Action) - 2d10 + highest characteristic - Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1 	<b>Target </b>One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>		4 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage
+        %E2%9C%B8	<b>17</b>		10 damage; M (strong) bleeding (save ends)
+
+        <b>Death Frenzy</b>
+        Whenever an ally within 7 is reduced to 0 Stamina, the gnasher moves up to their speed and makes a free strike.
+
+        Level 4 Retainer Advancement Ability
+        <b>Frenzied Bite</b> (Triggered Action, Encounter)
+        <b>Keywords</b> -
+        <b>Distance</b> 5	<b>Target</b> one enemy
+        <b>Trigger</b> A target is reduced to 0 Stamina.
+        <b>Effect</b> The gnasher moves up to their speed and makes a Signature Attack.
+
+        Level 7 Retainer Advancement Ability
+        <b>Flurry of Fangs</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> 3 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>		7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage
+        %E2%9C%B8	<b>17</b>		16 damage
+
+        Level 10 Retainer Advancement Ability
+        <b>Horrific Feast</b> (Action, Encounter)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 5	<b>Target</b> Self
+        <b>Trigger</b> The gnasher reduces a creature to 0 Stamina.
+        <b>Effect</b> The gnasher consumes part of the target's body. The gnasher can spend a Recovery. Each enemy within range is I (medium) frightened (save ends).
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:21f3184e-6fe0-4857-9301-9496226448e8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:21f3184e-6fe0-4857-9301-9496226448e8: true
+        sourceguid: 21f3184e-6fe0-4857-9301-9496226448e8
+        behavior: trigger
+        source: Trait
+        name: Death Rampage
+        description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the carnage moves up to their speed and either chooses to target 2 creatures with free strikes or one creature with their shrapnel whip.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Make a melee free strike against two creatures
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList:
+          - variation:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              keywords:
+                Strike: true
+                Melee: true
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: Free Strike Damage
+                titleText: Free Strike
+                chatMessage: Free Strike
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: 1
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 2da014c9-f7b2-4c3f-bd80-06c6338c982e
+              domains: []
+              numTargets: "2"
+              name: Death Rampage
+              targetType: target
+              description: Make a melee free strike against two creatures
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            text: Death Rampage
+            hasAbility: false
+            rules: Make a melee free strike against two creatures
+          - variation:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              keywords:
+                Strike: true
+                Melee: true
+                Weapon: true
+              behaviors:
+              - __typeName: ActivatedAbilityPowerRollBehavior
+                tiers:
+                - 8 damage; A<1 bleeding (save ends)
+                - 11 damage; A<2 bleeding (save ends)
+                - 14 damage; A<3 bleeding and dazed (save ends)
+                guid: b40b4732-4908-49ca-ae2f-e331148e2d07
+                roll: 2d10 + 3
+                filterTarget: not Friends(target, caster)
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 159f98ba-95ff-42aa-869f-48d2491e3a45
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  targetType: self
+                  range: 1
+                  name: Invoked Ability
+                  behaviors: []
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                promptText: Make a free strike
+                filterTarget: Friends(target, caster)
+                guid: c057aaf5-5e91-4046-a527-4e355c160dfb
+                abilityType: standard
+                standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: "2"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 23bb8a0c-e504-4561-a035-d54f0fc5adab
+              domains: []
+              numTargets: "1"
+              name: Death Rampage
+              targetType: target
+              description: Use Shrapnel Whip against one creature
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            text: Death Rampage
+            hasAbility: false
+            rules: Use Shrapnel Whip against one creature
+          abilityType: none
+          multipleModes: variations
+          numTargets: "1"
+          guid: bcc1de67-8298-4e00-85ee-dea9b77e8c18
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 45e252ab-2f52-41dd-b4c6-88f45582505c
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            runOnController: true
+            abilityType: standard
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              keywords:
+                Strike: true
+                Melee: true
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: Free Strike Damage
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: 1
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 18f3f3dd-3831-4004-804c-e6a6b85f51ba
+              targetType: target
+              name: Free Strike
+              numTargets: "2"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 1
+            promptText: Make a melee free strike against two creatures
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              keywords:
+                Strike: true
+                Melee: true
+                Weapon: true
+              behaviors:
+              - __typeName: ActivatedAbilityPowerRollBehavior
+                tiers:
+                - 8 damage; A<1 bleeding (save ends)
+                - 11 damage; A<2 bleeding (save ends)
+                - 14 damage; A<3 bleeding and dazed (save ends)
+                guid: e800a870-8a49-43e1-a848-b901b619656d
+                roll: 2d10 + 3
+                filterTarget: not Friends(target, caster)
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 159f98ba-95ff-42aa-869f-48d2491e3a45
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  targetType: self
+                  range: 1
+                  name: Invoked Ability
+                  behaviors: []
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                promptText: Make a free strike
+                filterTarget: Friends(target, caster)
+                guid: 2f28072e-b8d0-4775-9d3c-26fe9bf03503
+                abilityType: standard
+                standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: "2"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 37455527-c2fa-4c54-a57e-bf1eb8ca056f
+              targetType: target
+              name: Shrapnel Whip
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 2
+            promptText: Use Shrapnel Whip against one creature
+          trigger: zerohitpoints
+          name: Death Rampage
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 4c64efd8-2686-43c1-9bbf-1539036f7bdc
+      name: Death Rampage
+      description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the carnage moves up to their speed and either chooses to target 2 creatures with free strikes or one creature with their shrapnel whip.
+      guid: 21f3184e-6fe0-4857-9301-9496226448e8
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c10b0b36-f73f-4156-b01a-6d75686f3d32: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:c10b0b36-f73f-4156-b01a-6d75686f3d32: true
+        sourceguid: c10b0b36-f73f-4156-b01a-6d75686f3d32
+        behavior: trigger
+        source: Trait
+        name: Endless Hunger
+        description: If the carnage is reduced to 0 Stamina while there are still gnolls on the battle map, one gnoll on the map is transformed into the carnage, keeping the gnoll's Stamina.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          despawnBehavior: remove
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: c41d4421-ea97-411e-8111-e5ac3aed42dc
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: target.Type="Gnoll"
+              repeatTargets: false
+              targetAllegiance: ally
+              behaviors:
+              - __typeName: ActivatedAbilityRememberBehavior
+                calculation: Stamina
+                memoryName: TargetCurrentStamina
+              - __typeName: ActivatedAbilityRemoveCreatureBehavior
+                waitForAbilitiesToFinish: false
+              - __typeName: ActivatedAbilityDelayBehavior
+                delay: "0.5"
+              - __typeName: ActivatedAbilitySummonBehavior
+                groupInitiativeWithCaster: false
+                bestiaryFilter: beast.name="Gnoll Carnage"
+                casterControls: false
+                casterChoosesCreatures: false
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: target.stamina - cast.memory("TargetCurrentStamina")
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: "50"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: d8628da2-0eac-460a-8588-027199a042ac
+              numTargets: "1"
+              name: Transform to Carnage
+              targetType: target
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Select a gnoll on the map to transform into a Gnoll Carnage
+          castImmediately: true
+          repeatTargets: false
+          numTargets: "1"
+          trigger: zerohitpoints
+          name: Endless Hunger
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: dc465a13-61d5-48e7-aa91-8aca4ea07f49
+      source: Trait
+      description: If the carnage is reduced to 0 Stamina while there are still gnolls on the battle map, one gnoll on the map is transformed into the carnage, keeping the gnoll's Stamina.
+      guid: c10b0b36-f73f-4156-b01a-6d75686f3d32
+      name: Endless Hunger
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+        CharacterFeature:b4d927bb-2b7e-4bc9-92d1-ace935ac2ea4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+          CharacterFeature:b4d927bb-2b7e-4bc9-92d1-ace935ac2ea4: true
+        sourceguid: 9fc703ad-c01f-41fc-a8e0-232a8a5294a8
+        behavior: trigger
+        source: Trait
+        name: End Effect
+        description: At the end of their turn, the carnage can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          trigger: endturn
+          strain: []
+          guid: 532ff28e-d824-49c4-b639-4093510df84c
+          repeatTargets: false
+          abilityType: none
+          domains:
+            CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+            CharacterFeature:b4d927bb-2b7e-4bc9-92d1-ace935ac2ea4: true
+          targetType: self
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "5"
+            purgeType: one
+          name: End Effect
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 00ef491b-b682-4150-8d5a-dfda09a69f44
+      source: Trait
+      description: At the end of their turn, the carnage can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: b4d927bb-2b7e-4bc9-92d1-ace935ac2ea4
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0669ba79-43f8-421c-bcc5-42aa41755337: true
+        CharacterFeature:453e37c5-e347-4837-8db4-5cd0f62e8ece: true
+        CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+        CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+        CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+        CharacterFeature:0fd65992-d3bb-45ed-b0df-b711539e8aef: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:0669ba79-43f8-421c-bcc5-42aa41755337: true
+          CharacterFeature:453e37c5-e347-4837-8db4-5cd0f62e8ece: true
+          CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+          CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+          CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+          CharacterFeature:0fd65992-d3bb-45ed-b0df-b711539e8aef: true
+        sourceguid: 1973bc9c-2c26-497e-be94-a73fba966ef2
+        behavior: trigger
+        source: Character Feature
+        name: Cackletongue Trigger
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 36940624-3907-4780-877e-8366bb26e624
+              repeatTargets: false
+              abilityType: none
+              persistence: []
+              targetType: self
+              categorization: Hidden
+              name: Use Cackletongue
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Name = "Carnage's Cackletongue"
+                  behavior: modifyability
+                  guid: d5f4351b-d59b-464f-8081-999dd3ba0737
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 2fd2c65b-c931-4b2b-9b19-e0740bd797d7
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            namedAbility: Archer's Cackletongue
+            abilityType: custom
+            runOnController: true
+          triggerPrompt: Use Carnage's Cackletongue at no cost
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 86ea5a17-9ca4-45e5-bbbe-b019b4b2e046
+          domains:
+            CharacterFeature:0669ba79-43f8-421c-bcc5-42aa41755337: true
+            CharacterFeature:453e37c5-e347-4837-8db4-5cd0f62e8ece: true
+            CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+            CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+            CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+            CharacterFeature:0fd65992-d3bb-45ed-b0df-b711539e8aef: true
+          targetType: self
+          numTargets: "1"
+          trigger: custom
+          name: Cackletongue
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 13a98295-b140-42e5-839e-edeafb8748bc
+      source: Character Feature
+      description: ""
+      guid: 0669ba79-43f8-421c-bcc5-42aa41755337
+      name: Cackletongue Trigger
+      implementation: 3
+    role: Leader
+    notes:
+    - text: ""
+      title: Monster Notes
+    equipment: []
+    titles: []
+    max_hitpoints: 100
+    moveDistanceRoundId: 389adb26-c360-4079-ab8f-6eb97025ac2f-3
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: 14a78ea9-71d9-4556-9bc7-b743d3d8a810
+    92eca7bd-7012-4251-9e1d-d13fdc6ce1d2_history:
+      __typeName: StatHistory
+      entries:
+        68ee28ac-196d-4dab-abd1-003b56ddcf07:
+          note: 'Call Up from The Abyss '
+          abilityid: bd42f134-ecc1-4b6f-a0e8-15c8ab954efe
+          refreshid: 7f225d1a-743b-498a-9c9c-db0efab247dc
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        12c41941-0fbb-42a3-8882-c0631e71689b:
+          note: 'Call Up from The Abyss '
+          abilityid: bd42f134-ecc1-4b6f-a0e8-15c8ab954efe
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        b2261dea-6a46-4b9a-8796-a7097c994a72:
+          refreshid: 7f225d1a-743b-498a-9c9c-db0efab247dc
+          note: Manually Set
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/0
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    creatureSize: 1M
+    availableTriggers: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        92da27a2-d2de-41ba-a925-0a79f61a98fe:
+          set: 1/1
+          note: Iron Jaws
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 74cf7dae-fbaa-4187-81c1-f54a74b7e2da
+        82b5f477-f732-4c99-8078-f13202c8c5ac:
+          note: Carnage's Cackletongue
+          abilityid: bc197e89-aeab-4e9e-a547-6778dcce3872
+          refreshid: e3d6805b-97ad-4fc5-ac89-088525daabdb-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        413672af-e0ac-4a91-b5f3-f05dbab9f06f:
+          note: Carnage's Cackletongue
+          abilityid: bc197e89-aeab-4e9e-a547-6778dcce3872
+          refreshid: 56f5b716-96f1-4828-837e-5f43c9e96b30-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        2bc3f49f-3aaa-4032-aa25-f2d2b20b8c80:
+          note: Carnage's Cackletongue
+          abilityid: bc197e89-aeab-4e9e-a547-6778dcce3872
+          refreshid: 999e4994-bb40-428a-83a2-74de96a2b3a8-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        8da14181-7bd8-49b6-a331-5ebb2dfa80a4:
+          note: Carnage's Cackletongue
+          abilityid: bc197e89-aeab-4e9e-a547-6778dcce3872
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        fe4872c0-de6c-4929-8463-850045d0a8c7:
+          note: Carnage's Cackletongue
+          abilityid: bc197e89-aeab-4e9e-a547-6778dcce3872
+          refreshid: 5a22f47a-eb64-43aa-8958-b96f0e918963-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        f597f117-0dfe-4e43-a0d5-7dcdc1ae70c0:
+          note: Carnage's Cackletongue
+          abilityid: bc197e89-aeab-4e9e-a547-6778dcce3872
+          refreshid: 389adb26-c360-4079-ab8f-6eb97025ac2f-3
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: fbb7a514-51a6-4604-8781-bd66254551bc-471
+    damage_taken: 0
+    monster_type: Gnoll Carnage
+    walkingSpeed: 5
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    deathSavingThrowFailures: 0
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: a1c97fde-1d65-493d-8292-a10064bdebb8-1
+        used: 1
+      d8880c8f-c5ce-4725-8664-03a985c6de71:
+        __typeName: CharacterResource
+        refreshid: a1c97fde-1d65-493d-8292-a10064bdebb8
+        used: 1
+      92eca7bd-7012-4251-9e1d-d13fdc6ce1d2:
+        __typeName: CharacterResource
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+      85865408-f112-4bdc-beff-a62e14c64a77:
+        __typeName: CharacterResource
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16
+        used: 1
+    traitNames: []
+    movementSpeeds: []
+    auras: []
+    innateAttacks: []
+    equipmentMeta:
+      offhand0: []
+    d8880c8f-c5ce-4725-8664-03a985c6de71_history:
+      __typeName: StatHistory
+      entries:
+        ed3f2e89-191b-441d-a0c3-5ae58805d13b:
+          note: 'Deepest Wounds '
+          abilityid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+          refreshid: 865a3d63-a032-4149-b7a8-46345c87e8b1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        e8a664bd-d166-4979-b74c-bce9ef9ac5eb:
+          note: 'Deepest Wounds '
+          abilityid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        2f8ad386-5b26-42cd-a3aa-d058d33d43cf:
+          note: 'Deepest Wounds '
+          abilityid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+          refreshid: a1c97fde-1d65-493d-8292-a10064bdebb8
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+        c6834514-a56e-4c42-bf42-d7b8a8343890:
+          note: 'Deepest Wounds '
+          abilityid: 03625631-a102-4dd1-9e6a-0553b2aa1f1e
+          refreshid: 7f225d1a-743b-498a-9c9c-db0efab247dc
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: "-1/0"
+  tokenType: null
+  bestiaryId: 378d0a85-08f3-451d-99d8-3e47ff90d9c9
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Gnoll Carnage
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1741590238601
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,1453 @@
+0c047d4e-fcdc-4091-8fec-2ce11cd2b465:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2eb7c962-81c8-4f61-842c-931876427351
+        guid: 79db3e31-ebce-4f15-9a37-bde15f883a00
+        source: Feat
+        behavior: activated
+        description: 'You cast an entertaining spell that creates a minor but impressive magical effect. '
+        name: Arcane Trick
+        activatedAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 8333b9e9-8195-4264-a1a0-2e4b4ced22e0
+          repeatTargets: false
+          abilityType: none
+          domains: []
+          behaviors: []
+          persistence: []
+          name: Arcane Trick
+          targetType: self
+          description: |
+            **Effect:** Choose one of the following effects:
+            • You teleport a size 1S or smaller object adjacent to you into an unoccupied space adjacent to you.
+
+            • Until the start of your next turn, a part of your body shoots a shower of harmless noisy sparks that light up each square adjacent to you.
+
+            • You ignite or snuff out (your choice) every mundane light source of 1L or smaller adjacent to you.
+
+            • You transform up to 1 pound of edible food you touch to make it taste delicious or disgusting.
+
+            • Until the start of your next turn, you make your body exude a particular odor you’ve smelled before. This smell can be sensed by each creature within 5 squares of you, but can’t impose any condition or other drawback on those creatures.
+
+            • You place a small magical inscription on the surface of a mundane object you touch, or you can remove an inscription that was made by you or by another creature using Arcane Trick.
+
+            • You touch a size 1T object to cover it with an illusion that makes it look like a different object. Any creature who handles the object becomes aware of the illusion. The illusion ends when you stop touching the object.
+          range: 1
+          iconid: ec6bc428-544e-4e8d-b479-a08a6845f14b
+      name: Arcane Trick
+      guid: 2eb7c962-81c8-4f61-842c-931876427351
+      description: 'You cast an entertaining spell that creates a minor but impressive magical effect. '
+      source: Feat
+  tag: Supernatural Perks
+  name: Arcane Trick
+  description: You gain the ability Arcane Trick
+  mtime: 1775035450558
+  id: 0c047d4e-fcdc-4091-8fec-2ce11cd2b465
+  ctime: 1730700891063
+5a480801-a2e6-408b-a14f-32c0194b2908:
+  __typeName: CharacterFeat
+  prerequisite: "	"
+  tag: Lore Perks
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterLanguageChoice
+      numChoices: 2
+      guid: a3052614-7561-44a6-9a89-5213325ccdf9
+      description: Choose Two New Languages
+      source: Feat
+  name: Linguist
+  description: You automatically learn two new languages, as long as you have regularly heard those languages spoken or seen them written before. Additionally, if you spend 7 days or more in a place where you regularly hear or read a language you don’t know, you can pick up enough of that language to hold a conversation or understand basic written information. Having picked up a language this way, you can subsequently learn it using the Learn New Language research project at half the usual project goal cost.
+  mtime: 1756582039450
+  id: 5a480801-a2e6-408b-a14f-32c0194b2908
+  ctime: 1730700863983
+69890029-0f6e-4783-8c76-f96cfd36b756:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      name: Specialist Lore
+      numChoices: 1
+      guid: 25be0e40-7825-4a05-b07b-39ad69753af5
+      description: Select one skill from the lore group
+      options:
+      - __typeName: CharacterFeature
+        guid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: false
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - 80526c1a-3cfd-40dc-9065-eb840df8601d
+        source: Feat
+        name: Criminal Underworld
+        description: Knowing about criminal organizations, their crimes, their relationships, and their leaders
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: 80526c1a-3cfd-40dc-9065-eb840df8601d
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: 45e4c0fc-4c5e-4d29-b5a5-a1f3c9995923
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: false
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - 61709a09-1a95-4726-b722-c40639cae405
+        source: Feat
+        name: Culture
+        description: Knowing about a culture’s customs, folktales, and taboos
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: 61709a09-1a95-4726-b722-c40639cae405
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: 241cf180-9a43-46f8-b8c8-3a7dc4a5db5b
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: false
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - 0df23459-ab2f-4659-8a2d-ae5820dc889f
+        source: Feat
+        name: History
+        description: Knowing about significant past events
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: 0df23459-ab2f-4659-8a2d-ae5820dc889f
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: 6bab84a2-b1f7-4666-b914-ab3c767c2e85
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: false
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - 57101165-410a-4734-98ee-d4e5b656d3df
+        source: Feat
+        name: Magic
+        description: Knowing about magical places, spells, rituals, items, and phenomena
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: 57101165-410a-4734-98ee-d4e5b656d3df
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: d79cece8-5590-45ae-af67-b78d6b3f3233
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: false
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+        source: Feat
+        name: Monsters
+        description: Knowing monster ecology, strengths, and weaknesses
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: 91f82c5e-c2ab-4e97-9230-528b0833d99e
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: false
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - f15f5445-666a-4ea9-bdf3-fbed284bae85
+        source: Feat
+        name: Nature
+        description: Knowing about natural flora, fauna, and weather
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: f15f5445-666a-4ea9-bdf3-fbed284bae85
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: acfcbb83-9e3a-427c-bec6-04acf61561c2
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: true
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+        source: Feat
+        name: Psionics
+        description: Knowing about psionic places, spells, rituals, items, and phenomena
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: 7380b5c4-7094-46f6-b52c-61055d67c8e4
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: true
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - afd26a9a-22e2-4341-b171-f7e3182c8744
+        source: Feat
+        name: Religion
+        description: Knowing about religious mythology, practices, and rituals
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: afd26a9a-22e2-4341-b171-f7e3182c8744
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: 13d5622a-eb81-4299-9298-b76f4a7d8aff
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: true
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - f014760c-c987-4436-81ba-5e6acfdf6905
+        source: Feat
+        name: Rumors
+        description: Knowing gossip, legends, and uncertain truths
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: f014760c-c987-4436-81ba-5e6acfdf6905
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: 1889a3e1-edd1-456f-8a98-9deb60448d92
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: true
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+        source: Feat
+        name: Society
+        description: Knowing noble etiquette and the leadership and power dynamics of noble families
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: 8112ff43-fdd0-4122-92d7-dd4c33102308
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: true
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - 1c837bdc-17cc-4c7a-9814-f2f8b92cf55a
+        source: Feat
+        name: Strategy
+        description: Knowing about battle tactics and logistics
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: 1c837bdc-17cc-4c7a-9814-f2f8b92cf55a
+        implementation: 3
+      - __typeName: CharacterFeature
+        guid: 605374a1-b955-42a2-83d7-62619522b9f7
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 820e0a1c-e938-4cef-a3cc-cb9a04a7f48e
+          source: Feat
+          modtype: double_edge
+          keywords: []
+          activationCondition: true
+          guid: 0ceb82fc-5e0f-43e8-a093-d57205aa42ba
+          name: Specialist
+          behavior: power
+          description: You always have a double edge on tests made to recall lore using this skill.
+          rollType: test_power_roll
+          skills:
+          - 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+        source: Feat
+        name: Timescape
+        description: Knowing about the many worlds of the timescape
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: f261dfef-143e-4d3a-86dc-066acfbe1a2a
+          skill: 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+        implementation: 3
+  tag: Lore Perks
+  name: Specialist
+  description: You are a leading expert on a particular subject. Choose one skill you have from the lore skill group. You always have a double edge on tests made to recall lore using this skill. Additionally, your specialist knowledge grants you notoriety in fields related to the chosen skill. You treat your Renown as 1 higher when negotiating with an NPC who knows your reputation, or 2 higher if they have the same skill you chose for this perk.
+  mtime: 1772154031588
+  id: 69890029-0f6e-4783-8c76-f96cfd36b756
+  ctime: 1754890007544
+a028d4ee-d4ef-4ba2-abe8-27235363fe70:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Exploration Perks
+  name: Put Your Back Into It!
+  description: During montage tests, whenever you make a test to assist a test and obtain a tier 1 outcome, the assisted test doesn’t take a bane. Additionally, once per montage test, you can turn an ally’s tier 1 test outcome into a tier 2 outcome.
+  mtime: 1755079455807
+  id: a028d4ee-d4ef-4ba2-abe8-27235363fe70
+  ctime: 1730700533600
+be69d346-225a-470b-b129-7d4ccdff79f2:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Lore Perks
+  name: Travelling Sage
+  description: On any day when you don’t take a respite, you can spend 1 uninterrupted hour working on a research project using a skill you have from the lore skill group. If you do so, you gain 1d10 project points toward that project.
+  mtime: 1755079540878
+  id: be69d346-225a-470b-b129-7d4ccdff79f2
+  ctime: 1754890007695
+b335e849-7c62-47a8-b20b-632ef338ef83:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      name: Crafting Skill Choice
+      numChoices: 1
+      guid: 5485f4d5-9996-4a4b-9329-9729c05252a8
+      description: |-
+        Choose one skill you already have from the crafting skill group.
+        Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead. Additionally, if you spend 1 minute inspecting an object related to the chosen skill, you can estimate its value and learn of any flaws in its construction.
+      options:
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Alchemy
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - cdae52cd-ef20-461d-ae18-253023cdb827
+        source: Feat
+        canHavePrerequisites: true
+        guid: 960ddf05-4718-4222-acbc-940c37e15a61
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: cdae52cd-ef20-461d-ae18-253023cdb827
+        name: Alchemy
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Architecture
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - cdae52cd-ef20-461d-ae18-253023cdb827
+        source: Feat
+        canHavePrerequisites: true
+        guid: df815cba-81ea-466b-998d-814db49432ea
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: 078b501f-e549-4725-993f-7ed8d57fc2ae
+        name: Architecture
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Blacksmithing
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - 50ca6145-2d22-4496-a355-c7b2df2cf0de
+        source: Feat
+        canHavePrerequisites: true
+        guid: e9290708-66f5-4644-9ee1-bf1560e633f2
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: 50ca6145-2d22-4496-a355-c7b2df2cf0de
+        name: Blacksmithing
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Carpentry
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - 436ea6c1-6386-43b2-b074-020992cc73fd
+        source: Feat
+        canHavePrerequisites: true
+        guid: 554eebe3-3641-4af4-9e81-180cd5552beb
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: 436ea6c1-6386-43b2-b074-020992cc73fd
+        name: Carpentry
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Cooking
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - becbc5ec-de63-481b-8247-e62c2a6fd8cb
+        source: Feat
+        canHavePrerequisites: true
+        guid: 40a99e3a-0c09-4774-8b49-b3db57f64ec1
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: becbc5ec-de63-481b-8247-e62c2a6fd8cb
+        name: Cooking
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Fletching
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - 5ca5c242-fe6d-43b3-86b0-b5314a9fe39a
+        source: Feat
+        canHavePrerequisites: true
+        guid: 672d8823-d5bc-4f5f-90c4-6d28f63373ed
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: 5ca5c242-fe6d-43b3-86b0-b5314a9fe39a
+        name: Fletching
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Forgery
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - 75d64fef-b075-4221-8cbc-c6b6328ee22c
+        source: Feat
+        canHavePrerequisites: true
+        guid: 2728ee8c-f30d-436c-b2f6-4dddae40029a
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: 75d64fef-b075-4221-8cbc-c6b6328ee22c
+        name: Forgery
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Jewelry
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - 192827b0-ef39-4d5f-840a-b3c654e7b158
+        source: Feat
+        canHavePrerequisites: true
+        guid: 7645bd7a-2c00-4057-9ac5-6887c1272909
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: 192827b0-ef39-4d5f-840a-b3c654e7b158
+        name: Jewelry
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Mechanics
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - ac718c6f-05e2-4301-997c-b1c54aad9250
+        source: Feat
+        canHavePrerequisites: true
+        guid: 34f8abe8-4f0b-4219-8bf6-254a52475ff1
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: ac718c6f-05e2-4301-997c-b1c54aad9250
+        name: Mechanics
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+          source: Feat
+          modtype: nottierone
+          keywords: []
+          activationCondition: false
+          guid: e69596f4-f678-4bed-a53f-bac020c562d8
+          name: Tailoring
+          behavior: power
+          description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+          rollType: test_power_roll
+          skills:
+          - 8b5a4de7-badf-4e23-8ff2-0f7a832ff754
+        source: Feat
+        canHavePrerequisites: true
+        guid: a2b27006-a87d-4b94-9895-3990e43861ed
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+          skill: 8b5a4de7-badf-4e23-8ff2-0f7a832ff754
+        name: Tailoring
+  tag: Crafting Perk
+  name: Area of Expertise
+  description: |-
+    Choose one skill you already have from the crafting skill group.
+    Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead. Additionally, if you spend 1 minute inspecting an object related to the chosen skill, you can estimate its value and learn of any flaws in its construction.
+  mtime: 1763675896328
+  id: b335e849-7c62-47a8-b20b-632ef338ef83
+  ctime: 1730449823809
+2f439646-9014-4057-968e-62c5ee3624bc:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Exploration Perks
+  name: Camouflage Hunter
+  description: Whenever you are in wilderness, once you are hidden from a creature, you don’t need cover or concealment to stay hidden from them.
+  mtime: 1755373604772
+  id: 2f439646-9014-4057-968e-62c5ee3624bc
+  ctime: 1730700487482
+14d5c6db-f555-46a2-b0f8-52d239585d8e:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Exploration Perks
+  name: Teamwork
+  description: When you take your first turn during any montage test, you can both make a test and assist another hero’s test.
+  mtime: 1755079458353
+  id: 14d5c6db-f555-46a2-b0f8-52d239585d8e
+  ctime: 1754889130241
+9fd5e8ea-f0c3-4c0f-a04e-823e9063babf:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0d2ce9be-e124-4149-8ee8-438bfda8fa8c
+        guid: 5312422c-1b0f-4710-bb0e-a935b83002eb
+        source: Feat
+        behavior: activated
+        description: You send a one-way telepathic message to a friend.
+        name: Psychic Whisper
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          keywords:
+            Psionic: true
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You send a one-way telepathic message to a friend.
+          range: "10	"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 46a7596e-e5d3-4349-9170-f31fe8e9eca3
+          domains: []
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          behaviors: []
+          name: Psychic Whisper
+          numTargets: "1"
+          description: As long as the target understands one or more languages, you send a telepathic message to them that takes 10 seconds or less to speak. The target knows who the message is from and can decide to ignore it and subsequent messages.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      name: Psychic Whisper
+      guid: 0d2ce9be-e124-4149-8ee8-438bfda8fa8c
+      description: You send a one-way telepathic message to a friend.
+      source: Feat
+  tag: Supernatural Perks
+  name: Psychic Whisper
+  description: 'You gain the following ability. '
+  mtime: 1755375770867
+  id: 9fd5e8ea-f0c3-4c0f-a04e-823e9063babf
+  ctime: 1730701464612
+7cdbe600-9e48-4612-afc6-6f2580d36601:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Exploration Perks
+  name: Wood Wise
+  description: When you make a test using a skill from the exploration skill group and at least one of the d10s rolled is a 1, you can reroll one d10. You can use this perk only once per test.
+  mtime: 1772880214789
+  id: 7cdbe600-9e48-4612-afc6-6f2580d36601
+  ctime: 1730700578415
+04a95fe4-9555-4c87-bf91-0d0309c0a688:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Lore Perks
+  name: I've Read About This Place
+  description: |
+    Each time you enter a settlement you’ve never been to before, you can ask the Director one of the following questions:
+
+    • Who is the most influential public figure in this settlement?
+    • Who in this settlement would be the friendliest to us right now?
+    • What does this settlement need most from outsiders?
+
+    If the Director doesn’t have an answer to the question you ask, or doesn’t want to answer, you can instead ask a different question.
+  mtime: 1772874087715
+  id: 04a95fe4-9555-4c87-bf91-0d0309c0a688
+  ctime: 1730700853527
+5615fd42-2ef7-4a3b-bb50-0d312fcf2e44:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Crafting Perk
+  name: Inspired Artisan
+  description: When you make a project roll using a skill from the crafting skill group, you can spend a hero token to make another project roll for the same project as part of the same respite activity. You can’t use this perk more than once per respite.
+  mtime: 1755373453938
+  id: 5615fd42-2ef7-4a3b-bb50-0d312fcf2e44
+  ctime: 1730700419018
+5af11aa9-1a78-4583-aedb-e4c92c1a2b0f:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: intrigue perk
+  name: Gum Up the Works
+  description: Whenever a mundane trap activates within 3 squares, you can use a triggered action to move up to 3 squares toward it. If this movement brings you adjacent to any of the trap’s mechanisms, you can jam the trap, preventing it from activating. As long as you stay adjacent to the mechanism, the trap can’t go off unless an attempt to disarm it fails.
+  mtime: 1755374246322
+  id: 5af11aa9-1a78-4583-aedb-e4c92c1a2b0f
+  ctime: 1755374199307
+5b93a8f4-b0ea-4faa-81c1-9d6229269542:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+      name: Eidetic Memory
+      guid: 6ea28f46-55c9-46f4-b070-da81e1d9160f
+      description: Select a Skill, which you can change with each respite
+      source: Feat
+  tag: Lore Perks
+  name: Eidetic Memory
+  description: Your mind is an encyclopedia, though not always an easy one to organize. When you finish a respite, choose one skill from the lore skill group that you don’t have. You have that skill until you finish your next respite. Additionally, if you spend 1 uninterrupted minute or more reading any page of text, you can memorize its contents, allowing you to memorize entire books with sufficient time.
+  mtime: 1763083697162
+  id: 5b93a8f4-b0ea-4faa-81c1-9d6229269542
+  ctime: 1730700812732
+1ba87ee8-d226-4590-ab42-1fe08a1431a2:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: intrigue perk
+  name: Slipped Lead
+  description: You gain an edge on tests made to escape bonds. Given 1 uninterrupted minute, you can escape any mundane bonds without making a test. Additionally, it’s not immediately obvious when you’ve escaped bonds until you do something that makes it clear you have done so (cast them off, use an ability that harms one or more creatures, and so forth).
+  mtime: 1755374325111
+  id: 1ba87ee8-d226-4590-ab42-1fe08a1431a2
+  ctime: 1730449736744
+06e9de24-0fb5-4f8d-adf3-1a886e75ecf7:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Interpersonal Perk
+  name: Spot The Tell
+  description: Whenever you make a test to read a person and obtain a tier 3 outcome, you notice several tells that give away their true feelings. Any test you make to read that person in the future gains an edge.
+  mtime: 1755078904607
+  id: 06e9de24-0fb5-4f8d-adf3-1a886e75ecf7
+  ctime: 1730700760197
+33187c06-068d-478c-a474-a699e80c0f88:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Interpersonal Perk
+  name: So, Tell Me ...
+  description: Whenever you succeed on a Presence test to influence one or more creatures, you can ask one creature you influenced a follow-up question after the test resolves, which they must answer honestly. At the Director’s discretion, the creature doesn’t have to answer the question completely—or at all—if the response would put them or a loved one in danger.
+  mtime: 1755078911525
+  id: 33187c06-068d-478c-a474-a699e80c0f88
+  ctime: 1730700736974
+7dd83084-1ea1-4e76-b1a4-833ba39d4cf5:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Interpersonal Perk
+  name: Pardon My Friend
+  description: When an ally within 5 squares fails a Presence test, you can step in and make a Presence test that takes a bane, with your roll replacing the ally’s roll. This perk can be used only once per test, even if more than one character has it.
+  mtime: 1755078899175
+  id: 7dd83084-1ea1-4e76-b1a4-833ba39d4cf5
+  ctime: 1730700689855
+a10f52dc-c30f-41dd-a6bd-fe7f8b6dc92e:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Lore Perks
+  name: But I Know Who Does
+  description: Whenever you fail a test to recall lore using a skill from the lore skill group, you instinctively recall the nearest location where the information you seek might be found. This could be the tower of a local sage, a library in a nearby city, somewhere deep in a dungeon, or any other location of the Director’s determination. The Director can decide that certain lore can’t be revealed this way.
+  mtime: 1755079519072
+  id: a10f52dc-c30f-41dd-a6bd-fe7f8b6dc92e
+  ctime: 1730700798423
+fd4f211d-25bf-45df-be9c-a2842c310035:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Exploration Perks
+  name: Danger Sense
+  description: Whenever you are in a natural environment (but not in a settlement in that environment), you gain an edge on tests made using the Alertness skill, and you can’t be surprised. Additionally, you have a connection to nature that warns you if any natural disaster is imminent within the next 72 hours, though you don’t know exactly what it will entail (an earthquake, a wildfire, and so forth).
+  mtime: 1755079467677
+  id: fd4f211d-25bf-45df-be9c-a2842c310035
+  ctime: 1754888868403
+82a7a2d7-f292-4a3a-973c-0da592818698:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Exploration Perks
+  name: Brawny
+  description: Whenever you fail a Might test, you can lose Stamina equal to 1d6 + your level to improve the outcome of the test by one tier. You can use this perk only once per test.
+  mtime: 1755373592458
+  id: 82a7a2d7-f292-4a3a-973c-0da592818698
+  ctime: 1730700475852
+077a32d2-4447-434a-b624-1d57d2592f52:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Interpersonal Perk
+  name: Power Player
+  description: Whenever you make a test that uses the Brag, Flirt, or Intimidate skills, you can use Might instead of any other characteristic the test calls for.
+  mtime: 1755374046320
+  id: 077a32d2-4447-434a-b624-1d57d2592f52
+  ctime: 1730700719903
+2ee21e30-f771-4ede-bb84-523b45ae9247:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Crafting Perk
+  name: Improvisation Creation
+  description: Without needing to make a test—and even without tools—you can quickly jury-rig or repair a mundane item or piece of equipment related to a skill you have from the crafting skill group. That item lasts for 1 hour or works for one use or activation (whichever comes first, as the Director determines), then breaks beyond repair. For example, if you have the Carpentry skill, you could repair a rickety wooden bridge long enough for a group of creatures to cross it, or build a simple shovel made of wood that can be used for 1 hour.
+  mtime: 1755373425214
+  id: 2ee21e30-f771-4ede-bb84-523b45ae9247
+  ctime: 1730700409151
+6338f7b4-e6c6-427e-9bf0-32171fc05030:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Exploration Perks
+  name: Team Leader
+  description: At the start of a group test or montage test, you can spend a hero token. If you do, all participants make tests as if they also had any skill you have from the exploration group.
+  mtime: 1755079463960
+  id: 6338f7b4-e6c6-427e-9bf0-32171fc05030
+  ctime: 1730700569910
+631febee-7a99-4319-b3a8-7df0fe2f5aa1:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Crafting Perk
+  name: Handy
+  description: Whenever you make a test to craft something and don’t have a skill that applies to the test, you gain a +1 bonus to the power roll.
+  mtime: 1755373356478
+  id: 631febee-7a99-4319-b3a8-7df0fe2f5aa1
+  ctime: 1730700388067
+303d8a16-0dee-47e1-a9c3-8c8a4856ae0c:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: intrigue perk
+  name: Lucky Dog
+  description: Whenever you fail a test using any skill from the intrigue skill group, you can lose Stamina equal to 1d6 + your level to improve the outcome of the test by one tier. You can use this perk only once per test.
+  mtime: 1755374292592
+  id: 303d8a16-0dee-47e1-a9c3-8c8a4856ae0c
+  ctime: 1730442431408
+e0c518bd-dd36-4937-bcc6-e31ae177c896:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Exploration Perks
+  name: I've Got You!
+  description: Whenever a willing ally falls and would land on you or adjacent to you, you can safely catch them as a free triggered action. Neither of you takes damage from the ally’s fall.
+  mtime: 1755079450819
+  id: e0c518bd-dd36-4937-bcc6-e31ae177c896
+  ctime: 1730700509292
+7a84f127-3e28-4759-ab28-b599fb69c857:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Supernatural Perks
+  name: Thingspeaker
+  description: |-
+    When you hold an object in your hand for 1 uninterrupted minute, you can sense whether it bears emotional resonance. Objects with emotional resonance could include treasured gifts, murder weapons, or personal keepsakes. If the Director determines that the object bears emotional resonance, you learn the most dominant emotion associated with the object, then receive a vision that answers one of the following questions:
+
+    • What was the name of the person whose emotion is imprinted on this object?
+    • Why does this emotion linger on the object?
+    • How long has it been since the object was held by the person whose emotion lingers on it?
+
+    After asking one question, you can choose to delve deeper by asking one additional question from the list, but you are then overcome with emotions that do not belong to you. You take a bane on Intuition and Presence tests until you finish a respite, and you can’t use this perk again while you suffer this bane.
+  mtime: 1755375869198
+  id: 7a84f127-3e28-4759-ab28-b599fb69c857
+  ctime: 1730702186217
+9a4e5a62-d28f-46cb-a03e-37cfc4c882ab:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: intrigue perk
+  name: Criminal Contacts
+  description: You have access to a network of criminal contacts. As a respite activity while you take a respite in a settlement, you can ask a question of your contacts by making a Presence test. On a tier 2 outcome, you learn one piece of information that would be common among criminals—the secret entrances into a building, the location of a local criminal in hiding, the name of a local thieves’ guild leader, and so forth. On a tier 3 outcome, you can instead gain knowledge that would be uncommon among criminals as long as such information exists—the location of a local treasure cache, the location of a murder weapon used in a noble’s assassination, the name of an NPC secretly bankrolling a local assassin’s guild, and so forth.
+  mtime: 1755078940093
+  id: 9a4e5a62-d28f-46cb-a03e-37cfc4c882ab
+  ctime: 1730442332715
+3dd235fe-f471-4edb-a8fa-80e216988467:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8bf830cf-c719-4895-91f0-9b65fe8e53f7
+        guid: fbcef92c-c139-453d-936f-2fdaa621a5d6
+        source: Feat
+        behavior: activated
+        description: ""
+        name: Summon Familiar
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          implementationDetails: "The familiar can hold small objects in their mouth or claws, but can’t perform activities that would typically require hands (opening a door, unrolling a scroll, and so forth). They can’t harm other creatures or objects. They can flank in combat, but only with you. \n\nIf your familiar is destroyed, you can restore them as a respite activity, or by spending a Recovery as a main action to bring them back into existence in an unoccupied space adjacent to you. "
+          behaviors:
+          - __typeName: ActivatedAbilitySummonBehavior
+            monsterType: affc11be-5ac7-407e-8e61-c9297d6aef5f
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.29325008392334
+              s: 0.317382097244263
+              v: 1.00589513778687
+              a: 1
+          flavor: 'A supernatural spirit who has taken the form of a specific small animal or animated object has chosen to be your familiar—or to adopt you as their familiar. '
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 955f711a-2c92-4faf-9f26-c538f6617d53
+          domains: []
+          castImmediately: false
+          numTargets: "1"
+          implementation: 2
+          name: Summon Familiar
+          targetType: emptyspace
+          description: ""
+          abilityType: none
+          iconid: d2035312-afaa-4011-a88e-d812fc56cac3
+      name: Summon Familiar
+      description: ""
+      guid: 8bf830cf-c719-4895-91f0-9b65fe8e53f7
+      canHavePrerequisites: true
+      source: Feat
+  tag: Supernatural Perks
+  name: Familiar
+  description: |-
+    A supernatural spirit who has taken the form of a specific small animal or animated object has chosen to be your familiar—or to adopt you as their familiar.
+
+    The spirit uses the familiar stat block.
+
+    The familiar can hold small objects in their mouth or claws, but can’t perform activities that would typically require hands (opening a door, unrolling a scroll, and so forth). They can’t harm other creatures or objects. They can flank in combat, but only with you.
+
+    If your familiar is destroyed, you can restore them as a respite activity, or by spending a Recovery as a main action to bring them back into existence in an unoccupied space adjacent to you.
+  mtime: 1772941484981
+  id: 3dd235fe-f471-4edb-a8fa-80e216988467
+  ctime: 1730701285058
+d5c2b5cf-f7d1-406d-a05a-e8c0ba9ddd3e:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: intrigue perk
+  name: Forgettable Face
+  description: If you spend 10 minutes or less interacting with a creature who hasn’t met you before, you can cause them to forget your face when you part. If asked to describe you, the creature gives only a vague, blank, and unhelpful description. Additionally, if you spend 1 hour or more assembling a disguise, you automatically obtain a tier 2 outcome on any test that could make use of the Disguise skill. If you have the Disguise skill, you automatically obtain a tier 3 outcome on the test.
+  mtime: 1755078942219
+  id: d5c2b5cf-f7d1-406d-a05a-e8c0ba9ddd3e
+  ctime: 1730442411399
+108467f5-dc57-48cc-92bf-06f8d54f0e2a:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 818b3868-ad3a-4bca-89ac-455eae31c425
+        guid: c7204944-0e63-4623-b5bc-c062a2262107
+        source: Feat
+        behavior: activated
+        description: ""
+        name: Magic Ritual of Blessing
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetTextOverride: self or one willing creature
+          repeatTargets: false
+          rangeTextOverride: ""
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 38db32c1-155b-4fc3-9092-eb822d42d8a0
+            duration: eoe
+            ongoingEffectCustom: 38db32c1-155b-4fc3-9092-eb822d42d8a0
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: ""
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          targetType: target
+          strain: []
+          guid: b028f320-8dfe-44c2-8782-3c5fbc10d6e2
+          description: 'You can spend 1 uninterrupted minute to perform a magic ritual of blessing, targeting yourself or one willing creature you touch. The target has a double edge on the next test they make within the next minute. A target can’t use this benefit on an activity that takes longer than 1 minute.  '
+          sourceReference:
+            __typeName: SourceReference
+            page: 231
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          domains: []
+          implementation: 3
+          numTargets: "1"
+          name: Magic Ritual of Blessing
+          selfTarget: true
+          abilityFilters:
+          - formula: ""
+            reason: ""
+          abilityType: none
+          iconid: 21d1859c-dd65-4d64-917e-ecd30be89107
+      source: Feat
+      canHavePrerequisites: true
+      guid: 818b3868-ad3a-4bca-89ac-455eae31c425
+      name: Magic Ritual of Blessing
+      implementation: 3
+  tag: Supernatural Perks
+  name: Ritualist
+  description: You can spend 1 uninterrupted minute to perform a magic ritual of blessing, targeting yourself or one willing creature you touch. The target has a double edge on the next test they make within the next minute. A target can’t use this benefit on an activity that takes longer than 1 minute.
+  mtime: 1770389642600
+  id: 108467f5-dc57-48cc-92bf-06f8d54f0e2a
+  ctime: 1754891225639
+3ed4339d-36c2-441b-a75f-e79e0a12470d:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: de0eea27-3f5a-40d4-9b05-1bb0a1a62915
+        displayCondition: "1"
+        source: Feat
+        behavior: power
+        adjustments: []
+        keywords: []
+        rollRequirement: unskilled
+        guid: 53714bfd-7b78-4b08-b5ea-729455044fe8
+        modtype: plusone
+        rollType: test_power_roll
+        activationCondition: title has "Recall Lore"
+        description: Whenever you make a test to recall lore and don’t have a skill that applies to the test, you gain a +1 bonus to the power roll.
+        name: Polymath
+        attribute: rea
+      name: Polymath
+      description: ""
+      guid: de0eea27-3f5a-40d4-9b05-1bb0a1a62915
+      canHavePrerequisites: true
+      source: Feat
+  tag: Lore Perks
+  name: Polymath
+  description: Whenever you make a test to recall lore and don’t have a skill that applies to the test, you gain a +1 bonus to the power roll.
+  mtime: 1757311198895
+  id: 3ed4339d-36c2-441b-a75f-e79e0a12470d
+  ctime: 1730700870782
+4dbc36a4-0505-483b-b77e-cd85edb9bb67:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Interpersonal Perk
+  name: Lie Detector
+  description: In response to another creature communicating information to you, you can spend a hero token to determine whether that information contained any knowing lies. If so, you know what the lies are, but not what the truth is.
+  mtime: 1755078907420
+  id: 4dbc36a4-0505-483b-b77e-cd85edb9bb67
+  ctime: 1730700671735
+d4f146f8-33ce-4974-882a-ddac4cd5295b:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Interpersonal Perk
+  name: Open Book
+  description: Whenever you speak one-on-one with a creature, you can ask them one question about themself that might typically offend them or raise suspicion. If they choose not to answer honestly, they simply deflect or redirect the question, with no further complications. If they choose to answer honestly, the creature can immediately ask you a question about yourself in turn, which you must answer honestly.
+  mtime: 1755078896285
+  id: d4f146f8-33ce-4974-882a-ddac4cd5295b
+  ctime: 1730700680157
+c2639bfd-81af-407a-abb7-e13cfcec7dc2:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Supernatural Perks
+  name: Creature Sense
+  description: As a maneuver, choose a creature within 10 squares. If that creature is your level or lower, you learn the keywords in their stat block (Demon, Humanoid, Undead, and so forth).
+  mtime: 1755079071675
+  id: c2639bfd-81af-407a-abb7-e13cfcec7dc2
+  ctime: 1730701271709
+bd7d9661-38d8-4521-bd99-79ff25a86221:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 28108fbd-da63-44ec-a003-85e2f9dfd6d0
+        guid: db319473-9545-47dc-a327-a1c89baa3be3
+        source: Feat
+        behavior: activated
+        description: ""
+        name: Friend Catapult
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          targetFilter: not Enemy and Size <= Caster.size
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+            stacks: might*2
+            duration: 0
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            guid: 467b34c2-8763-44f2-9da6-46e9aa54b4de
+            rule: Vertical Push {2*Might}
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.316250205039978
+              s: 0.761132717132568
+              v: 0.997776627540588
+              a: 1
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 2f7a118a-a828-41e8-b826-10944137a22a
+          domains: []
+          numTargets: "1"
+          targetType: target
+          name: Friend Catapult
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          description: As a maneuver, you grab a willing adjacent ally or object of your size or smaller, then vertical push that target up to a number of squares equal to twice your Might score. If a creature you push falls as a result of this movement, the effective distance of the fall is reduced by a number of squares equal to twice your Might score. When you use this perk, you can’t use it again until you earn 1 or more Victories.
+          abilityType: none
+          iconid: 5bf8f7fe-ad36-4375-9330-de5527e38245
+      name: Friend Catapult
+      description: ""
+      guid: 28108fbd-da63-44ec-a003-85e2f9dfd6d0
+      canHavePrerequisites: true
+      source: Feat
+  tag: exploration perks
+  name: Friend Catapult
+  description: As a maneuver, you grab a willing adjacent ally or object of your size or smaller, then vertical push that target up to a number of squares equal to twice your Might score. If a creature you push falls as a result of this movement, the effective distance of the fall is reduced by a number of squares equal to twice your Might score. When you use this perk, you can’t use it again until you earn 1 or more Victories.
+  mtime: 1755419638700
+  id: bd7d9661-38d8-4521-bd99-79ff25a86221
+  ctime: 1742279837871
+5d2e4c37-0cde-4b28-8fb2-7b0ba704bab3:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Crafting Perk
+  name: Expert Artisan
+  description: |
+    Whenever you make a test as part of a crafting or research project that uses a skill you already have from the crafting skill group, you can make the power roll twice and use either roll.
+  mtime: 1755373327830
+  id: 5d2e4c37-0cde-4b28-8fb2-7b0ba704bab3
+  ctime: 1730700379354
+a8026df7-a3f4-4e0a-b46a-36157c25d55e:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Crafting Perk
+  name: Travelling Artisan
+  description: On any day when you don’t take a respite, you can spend 1 uninterrupted hour working on a crafting project using a skill you have from the crafting skill group. If you do so, you gain 1d10 project points toward that project.
+  mtime: 1755373476662
+  id: a8026df7-a3f4-4e0a-b46a-36157c25d55e
+  ctime: 1730700428280
+a006a2fc-08c2-4e2f-988e-70cf1c54b70e:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Interpersonal Perk
+  name: Charming Liar
+  description: If you fail a test using the Lie skill, you don’t suffer any consequences associated with the failure. Additionally, during a negotiation, you can be caught in one lie without negative consequences. When you use either benefit of this perk, you can’t use this perk again until you earn 1 or more Victories.
+  mtime: 1755373870176
+  id: a006a2fc-08c2-4e2f-988e-70cf1c54b70e
+  ctime: 1754889188801
+9d2a82e5-42d3-403f-af9e-08266dbbd5ea:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8aaaaeac-d66a-4c9b-a49d-d32683f5f3f7
+        source: Feat
+        modtype: edge
+        keywords: []
+        activationCondition: true
+        guid: 3d62fcda-d9b2-4813-9736-06e41bf2067f
+        name: Harmonizer
+        behavior: power
+        description: ""
+        rollType: test_power_roll
+        skills:
+        - d188b959-e993-4239-a350-5e7ad69d27b6
+      name: Harmonizer
+      guid: 8aaaaeac-d66a-4c9b-a49d-d32683f5f3f7
+      description: ""
+      source: Feat
+  tag: Interpersonal Perk
+  name: Harmonizer
+  description: You can make a Presence test using the Music skill to influence creatures who don’t have emotions or can’t understand you. Additionally, once during a negotiation when an ally makes an argument, you can play music to give that ally an edge on their test.
+  mtime: 1774541457985
+  id: 9d2a82e5-42d3-403f-af9e-08266dbbd5ea
+  ctime: 1730700663422
+6f1f6f70-5b62-4fc7-830b-cc7a84329554:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Interpersonal Perk
+  name: Dazzler
+  description: Whenever a creature watches you sing, dance, or perform a role (as an actor, not just in disguise) for 1 uninterrupted minute or more, you gain an edge on any test made to influence that creature for 1 hour after the performance ends.
+  mtime: 1755373892376
+  id: 6f1f6f70-5b62-4fc7-830b-cc7a84329554
+  ctime: 1730700610453
+71374e96-d0fd-4203-b97c-81e30fadf936:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2ca89282-a95f-4bf7-9c5e-75dd926bc4b1
+        guid: cb1ca616-110c-4de5-bee5-2a262ec04ca8
+        source: Feat
+        behavior: activated
+        description: 'You manipulate a tiny object with your mind. '
+        name: Invisible Force
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Psionic: true
+          targetAllegiance: none
+          behaviors: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You manipulate a tiny object with your mind.
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b9f90cba-978a-4c47-ad03-9901467145ad
+          domains: []
+          numTargets: "1"
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          name: Invisible Force
+          targetType: target
+          description: You can grab or manipulate the target object with your mind, moving the object up to a number of squares equal to your Reason, Intuition, or Presence score (your choice). You can use this ability to turn doorknobs, pull levers, and so forth. You can manipulate any small movable piece of a larger object as long as the piece is unattended and size 1T. You can’t use this ability to break a smaller piece off a larger object.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      name: Invisible Force
+      guid: 2ca89282-a95f-4bf7-9c5e-75dd926bc4b1
+      description: 'You manipulate a tiny object with your mind. '
+      source: Feat
+  tag: Supernatural Perks
+  name: Invisible Force
+  description: 'You gain the following ability. '
+  mtime: 1755375708387
+  id: 71374e96-d0fd-4203-b97c-81e30fadf936
+  ctime: 1730701344580
+2398c18c-fb9c-4dc0-b95e-c2118378bc68:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Lore Perks
+  name: Expert Sage
+  description: Whenever you make a test as part of a crafting or research project using a skill from the lore skill group, you can make the power roll twice and use either roll.
+  mtime: 1755079524101
+  id: 2398c18c-fb9c-4dc0-b95e-c2118378bc68
+  ctime: 1730700825330
+e96c69ff-7e7f-4955-8685-ac08e06b3da9:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: intrigue perk
+  name: Master of Disguise
+  description: You can don or remove a disguise as part of any test you make using the Hide skill, or while using the Hide maneuver.
+  mtime: 1755374303602
+  id: e96c69ff-7e7f-4955-8685-ac08e06b3da9
+  ctime: 1730449708544
+786cac63-676f-48b9-abb8-21b0cb9ffcf9:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Exploration Perks
+  name: Monster Whisperer
+  description: You can use the Handle Animals skill to interact with nonsapient creatures who are not animals.
+  mtime: 1755079453415
+  id: 786cac63-676f-48b9-abb8-21b0cb9ffcf9
+  ctime: 1730700522404
+8b736134-8517-41ea-85eb-66840fb2e10f:
+  __typeName: CharacterFeat
+  modifierInfo:
+    __typeName: ClassLevel
+    features: []
+  tag: Interpersonal Perk
+  name: Engrossing Monologue
+  description: Whenever you are not in combat, you can shout to get the attention of hearing creatures within 10 squares of you. Each such creature who is not hostile toward you listens to what you have to say for 1 uninterrupted minute or more, or until they sense danger or any form of imminent harm. While creatures are listening to you, each of your allies gains an edge on tests made to avoid being noticed by those creatures.
+  mtime: 1755373909501
+  id: 8b736134-8517-41ea-85eb-66840fb2e10f
+  ctime: 1730700620294

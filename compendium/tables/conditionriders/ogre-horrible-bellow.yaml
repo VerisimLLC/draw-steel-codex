@@ -1,0 +1,28 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c9fc06e7-d728-484b-8536-cfbac5363a7e
+  displayCondition: caster.type = "Ogre"
+  source: Ongoing Effect
+  modtype: edge
+  keywords: []
+  activationCondition: caster.type = "Ogre"
+  rollType: enemy_ability_power_roll
+  guid: d2a96ab3-1559-4729-a6bd-510f07034eb4
+  description: All Ogres have an edge on strikes against creatures frightened by this ability
+  behavior: power
+  name: Ogre Horrible Bellow
+source: Ongoing Effect
+guid: c9fc06e7-d728-484b-8536-cfbac5363a7e
+id: c9fc06e7-d728-484b-8536-cfbac5363a7e
+ctime: 1747093990719
+condition: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Ogre Horrible Bellow
+description: All Ogres have an edge on strikes against creatures frightened by this ability
+mtime: 1758093195893
+iconid: 6cda6156-84cb-4c95-9973-de54b30a6815

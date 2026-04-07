@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 3c060c74-2a32-4013-88cf-c843a56d42f1
+id: 3c060c74-2a32-4013-88cf-c843a56d42f1
+ctime: 1750273451667
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Stormwight Has Transformed
+statusEffect: false
+mtime: 1750273451667
+description: ""
+iconid: ui-icons/skills/1.png

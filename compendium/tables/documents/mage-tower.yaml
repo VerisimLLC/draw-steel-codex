@@ -1,0 +1,25 @@
+__typeName: MarkdownDocument
+description: Mage Tower
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 1347a553-bea4-4322-8d57-dd86f5723abb
+annotations:
+  image:
+    __typeName: RichImage
+    halign: center
+    image: b1f2ec63-6201-4c4e-88cd-79b35bac5217
+id: 441a0dba-061b-4581-9787-63b6631bb814
+mtime: 1762878424933
+content: |-
+  # Mage Tower	
+
+
+  [Vurkor], an orc elementalist, came to Broadhurst looking for a rumored tower that once belonged to a powerful magician. Finding the tower empty and in ruins, [Vurkor] and his two ogre servants captured travelers along the road and forced them to rebuild the wondrous tower. Other travelers avoid this fate if they offer [Vurkor] magic treasures, which he uses to restore the tower’s defenses.
+
+  The heroes can infiltrate the tower and deal with [Vurkor], the ogres, and some of the more malignant magic that permeates the weathered stones of the tower.
+
+  The heroes can learn the tower’s location by following leads given to them by [Harim] (see [B12. Cobbler]) or through interacting with the [dwarf merchants] staying at the Feather Bed Inn (see [B1. Feather Bed Inn]).
+
+  This quest uses the [Mage Tower Map]. See [MT Start Here].
+
+  [[image]]
+ctime: 1761391469323

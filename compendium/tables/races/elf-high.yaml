@@ -1,0 +1,296 @@
+__typeName: Race
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    domains:
+      race:e3ef91f8-4781-4a95-8a70-c4bc403a1a87: true
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 96632785-910c-4370-9ae9-0a9a34318140
+      source: High Elf Race Feature
+      guid: 08e2c4d3-d379-41bf-bb29-4daf1180d2fb
+      skills:
+      - 9f41a684-4b8c-4026-8175-df136fc5134f
+      - 28573ee3-e9df-47fe-98f1-2ac0bfee797a
+      keywords: []
+      activationCondition: true
+      domains:
+        race:e3ef91f8-4781-4a95-8a70-c4bc403a1a87: true
+      behavior: power
+      rollType: test_power_roll
+      modtype: edge
+      description: A magic glamor makes others perceive you as interesting and engaging, granting you an edge on Presence tests using the Flirt or Persuade skills. This glamor makes you look and sound slightly different to each creature you meet, since what is engaging to one might be different for another. However, you never appear to be anyone other than yourself.
+      name: "Signature Trait: High Elf Glamor"
+      attribute: prs
+    source: High Elf Race Feature
+    description: A magic glamor makes others perceive you as interesting and engaging, granting you an edge on Presence tests using the Flirt or Persuade skills. This glamor makes you look and sound slightly different to each creature you meet, since what is engaging to one might be different for another. However, you never appear to be anyone other than yourself.
+    guid: 96632785-910c-4370-9ae9-0a9a34318140
+    name: "Signature Trait: High Elf Glamor"
+    implementation: 3
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    costsPoints: true
+    options:
+    - __typeName: CharacterFeature
+      guid: ef9bd176-59cc-4955-a233-a772f93fcbff
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: b2dbbe59-637c-4eea-86f8-82719627581d
+        sourceguid: ef9bd176-59cc-4955-a233-a772f93fcbff
+        value: 1
+        source: High Elf Race Feature
+        name: Graceful Retreat
+        behavior: attribute
+        description: When you take the Disengage move action, you can shift 1 additional square as part of the move action.
+        attribute: 333fca17-b1be-4725-9e39-94618bd297fa
+      source: High Elf Race Feature
+      name: Graceful Retreat
+      description: When you take the Disengage move action, you can shift 1 additional square as part of the move action.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: a266e810-6b61-40ee-bf0b-337d946aea0f
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a266e810-6b61-40ee-bf0b-337d946aea0f
+        source: High Elf Race Feature
+        guid: 06f3a77e-e35d-4c9b-a791-6646eac510b0
+        skills:
+        - db532974-aa0a-41a9-aacf-4adc1e6121d3
+        keywords: []
+        activationCondition: false
+        rollType: test_power_roll
+        behavior: power
+        name: High Senses
+        description: You have senses that are keen and perceptive. You have an edge on tests made to notice threats.
+        addText: ""
+        modtype: edge
+        attribute: inu
+      source: High Elf Race Feature
+      name: High Senses
+      description: You have senses that are keen and perceptive. You have an edge on tests made to notice threats.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 01cfcdfb-5ae1-463f-8787-dbdbf4b59628
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 01cfcdfb-5ae1-463f-8787-dbdbf4b59628
+        source: High Elf Race Feature
+        modtype: edge
+        keywords: []
+        activationCondition: false
+        guid: 612b10c4-5681-4827-b584-3224bda4037a
+        behavior: power
+        name: Revisit Memory
+        description: Accessing memories is as easy as living in the present for you. You have an edge on all tests made to recall lore.
+        addText: Accessing memories is as easy as living in the present for you. You have an edge on all tests made to recall lore.
+        rollType: test_power_roll
+        skills:
+        - 61709a09-1a95-4726-b722-c40639cae405
+        - 80526c1a-3cfd-40dc-9065-eb840df8601d
+        - 0df23459-ab2f-4659-8a2d-ae5820dc889f
+        - 57101165-410a-4734-98ee-d4e5b656d3df
+        - bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+        - f15f5445-666a-4ea9-bdf3-fbed284bae85
+        - 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+        - afd26a9a-22e2-4341-b171-f7e3182c8744
+        - f014760c-c987-4436-81ba-5e6acfdf6905
+        - 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+        - 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+      source: High Elf Race Feature
+      name: Revisit Memory
+      description: Accessing memories is as easy as living in the present for you. You have an edge on all tests made to recall lore.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: 'Your elven body and mind can’t be contained for long. You succeed on saving throws when you get a 5 or higher. '
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: min
+        sourceguid: eb9f71ba-ffae-4065-b90c-0bbdff48d2b0
+        source: High Elf Race Feature
+        value: 5
+        name: Otherworldly Grace
+        guid: 4f094c73-aefc-4e15-bc9e-2d7181f6a65a
+        description: 'Your elven body and mind can’t be contained for long. You succeed on saving throws when you get a 5 or higher. '
+        behavior: attribute
+        attribute: 006e37a7-bd0d-4602-8a76-05e1ef6c56d3
+      source: High Elf Race Feature
+      name: Otherworldly Grace
+      guid: eb9f71ba-ffae-4065-b90c-0bbdff48d2b0
+      pointsCost: 2
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: Your mind allows you to maintain your focus in any situation. You can’t be dazed.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2e7d1a15-2a76-4328-9969-5ed1680effba
+        guid: 2184523f-09a2-4653-afa3-7b4e947134a1
+        source: High Elf Race Feature
+        conditions:
+        - c27e0b16-291a-45ad-8406-973e26576a44
+        description: Your mind allows you to maintain your focus in any situation. You can’t be dazed.
+        behavior: conditionimmunity
+        name: Unstoppable Mind
+      source: High Elf Race Feature
+      name: Unstoppable Mind
+      guid: 2e7d1a15-2a76-4328-9969-5ed1680effba
+      pointsCost: 2
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 5ebaaca0-4ed6-47db-a923-c6945f9af1d9
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5ebaaca0-4ed6-47db-a923-c6945f9af1d9
+        guid: 6cfa5996-f834-4a6d-8521-1edd72ed798b
+        source: Elf, High Race Feature
+        behavior: triggerdisplay
+        description: When a foe strikes, you reverse the magic of your glamor to instill fear into their heart. Whenever you take damage from a creature, you can use a triggered action to make that creature frightened of you until the end of their next turn.
+        name: Glamor of Terror
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: 1 creature
+          effect: The target becomes frightened (EoT)
+          name: Glamor of Terror
+          trigger: The target deals damage to you.
+          flavor: When a foe strikes, you reverse the magic of your glamor to instill fear into their heart.
+          guid: e906aac3-30ad-43ed-9444-43311072d0e1
+          distance: ""
+          keywords:
+            Magic: true
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: attacker
+          triggerPrompt: Frighten the attacker in response
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: "100"
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: b9a636b6-e39e-4597-95d1-c143bcce449e
+          numTargets: "1"
+          conditionFormula: HasAttacker
+          trigger: losehitpoints
+          persistence: []
+          name: Glamor of Terror
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: frightened (EoT)
+          description: When a foe strikes, you reverse the magic of your glamor to instill fear into their heart. Whenever you take damage from a creature, you can use a triggered action to make that creature frightened of you until the end of their next turn.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: When a foe strikes, you reverse the magic of your glamor to instill fear into their heart. Whenever you take damage from a creature, you can use a triggered action to make that creature frightened of you until the end of their next turn.
+        source: Elf, High Race Feature
+        behavior: trigger
+        guid: 0437a82f-8b07-4aee-b580-3e08ca55da87
+        name: Glamor of Terror
+        sourceguid: 5ebaaca0-4ed6-47db-a923-c6945f9af1d9
+      source: Elf, High Race Feature
+      name: Glamor of Terror
+      description: When a foe strikes, you reverse the magic of your glamor to instill fear into their heart. Whenever you take damage from a creature, you can use a triggered action to make that creature frightened of you until the end of their next turn.
+      pointsCost: 2
+      implementation: 3
+    numChoices: "3	"
+    guid: 5ad9ac2e-14cf-46f0-b642-dd43791c05e7
+    description: You have 3 ancestry points to spend on the following traits.
+    name: Purchased High Elf Traits
+  domains:
+    race:e3ef91f8-4781-4a95-8a70-c4bc403a1a87: true
+moveSpeeds:
+  walk: 5
+lifeSpan: 1,200–3,000
+darkvision:
+  range: 1000
+id: e3ef91f8-4781-4a95-8a70-c4bc403a1a87
+ctime: 1700242982723
+nameGenerator: 5c795256-54b6-4c23-9b15-9b238872ee5b
+lore: |+
+  “They’re so beautiful,” Wenna said. “It’s hard to imagine we’re in danger.”
+
+  “It’s not that hard,” Dade said darkly.
+
+  The five children stood alone in the center of a large circular courtyard open to the sky, their wode elf escort Llyander at their side. Lord Tear, King of the High Elves, sat on a marble throne, holding the scroll of the Codex Dryadalis in his lap. He had not spoken since Llyander made their speech and handed the codex over. The members of the court, nobles and courtiers and learned sages, gathered to watch. Implacable warriors in golden plate with fine filigree etched into the metal stood guard around the perimeter. 
+
+  “They seem like …” Meliora said, searching for the words.
+
+  “Like the lords of all the world,” Wenna said with awe and wonder.
+
+  “And we are their prisoners,” Jeremy said, looking at his brother Dade and Credan beside him.
+
+  “You’re not prisoners,” Llyander said quietly. “You are guests. You’re safer here than you would be even in your own homes.”
+
+  “Yes,” Jeremy said, looking at the nearest guards with their longspears and swords. “We feel very safe.”
+
+  “Who are you kidding?” Dade said. “Everyone knows how much elves hate humans.”
+
+  At this, Lord Tear exchanged a look with Llyander, consort to Queen Imyrr. It was a knowing look, full of sadness and melancholy. Then he broke his silence.
+
+  “Show me an elf who hates humans,” he said, his voice deep and sonorous, “and I will show you an elf who loved a human and watched them grow old and die.” He looked at the children for the first time and smiled a melancholy smile. “Love is like sunlight for us, you see. We love completely but rarely. The loss of it means an eternity of grief for us.”
+
+  The king tapped the scroll against his lap, seeming to have reached a decision. 
+
+  “Well done, consort. Young humans, your escort here seeks to shame me. For they know well they could have taken this prize to their queen and earned her favor. Instead, Llyander brought it to me in the hopes that by doing so, they deliver me the power necessary to throw off the yoke of Ajax’s rule. Long has Llyander resented the decision I made
+  and sought to change it …”—he looked at Llyander—“… by changing my mind.”
+
+  Llyander nodded deferentially, silently congratulating the king on his insight.
+
+  “Alas, your escort’s efforts are for naught.” Then the king’s face became softer. He held up the heavy scroll. “But this is not nothing,” he said. “We made a treaty with Ajax to deliver unto him any artifacts our search teams discover from the ruins of this city. He benefits from this bargain more than we. But this, methinks, will stay with us. It was written by my grandmother’s grandmother in the youth of the world, and there are some things which must be denied the Iron Saint, even should they violate the treaty.”
+
+  Llyander turned to the children and smiled brilliantly, eyebrows waggling in a show of glee. Wenna and Credan couldn’t help but smile. “Well, you see children?” Llyander said. “We only have more to do, not everything to do.”
+
+  The king stood up and a herald beside the throne announced, “Gather ye, and attend! The Lord of Fallen Irranys, Morning Dew on a Single Leaf Like a Tear from the Sun, speaks. And know his word is law!”
+
+  Lord Tear glided down the steps until he was standing, as tall as Llyander, before the children. His face was noble and beautiful. Wisps of silver-like strands of smoke spread across his golden skin. He seemed at once eternal and youthful.
+
+  “You have heard many things about my people, but this above all you should know. We do not value lore for lore’s sake, but beauty first and above all other things. And the truth, to us, is a kind of beauty. Thus do we find knowledge beautiful.
+
+  “You have returned something not only of enormous worldpower, but at the same time, a work of art my ancient relative labored over for many of your centuries. It is something of a miracle that it is returned to me now. I will not forget this. You have made an ally of the lord of the high elves. And though you lead brief lives, while you live, you shall have the favor of the elves.” He turned to hand the scroll over to a sage and confer with his herald.
+
+  “He seems wise,” Credan said.
+
+  “And smart,” Meliora said.
+
+  “I’m surprised how kind he is,” Jeremy said. “He seems a good king.”
+
+  Llyander chuckled. Wenna noticed. She didn’t say anything at first, but eventually she couldn’t resist. “What?”
+
+  Llyander raised an eyebrow, then walked in front of the children so that as the wode elf spoke, their back was to the king.
+
+  “Do you remember when my cousin’s soldiers hid in the wode?” they said, their voice low. “How astonished you were?”
+
+  Wenna and Meliora nodded. Llyander nodded to the guards and guests. “This is their glamor. Whatever you find pleasant and attractive in another? That is what you see in them. If you value good humor, they are jesters. If you value beauty, they are breathtaking. If you find intelligence attractive, they are sages. It is not just an effect of appearance, though it is also that. It is one of demeanor.”
+
+  “But how do they do …”
+
+  Llyander put a finger to their lips, silencing young Meliora. “It is not a thing they do. It is an effect in your mind.”
+
+  “You mean they don’t even know they’re doing it?” Meliora asked.
+
+  “Then what do they really look like?” Wenna asked.
+
+  Llyander shrugged. “What does anyone really look like?” And while the other children chalked this up to their escort’s normally abstruse mode of communication, Meliora caught a glimpse of understanding somewhere in her mind.
+
+  The king turned back to them. “Should any of you seek hidden lore or deep wisdom, please allow me to serve you first. But you, young woman, the human child who learned our language, I name thee elf friend. And my naming carries power. You will find the learning of our lore will come more quickly to you, and all those who still revere the elves will give you safe passage in their lands.”
+
+  Llyander put their hands on their hips and regarded the children. “Not bad for your second quest. What shall you do for an encore?”
+
+details: "Children of the solar celestials created to tend their libraries and attend to the true elves as heralds, the high elves remember a better age, before the coming of humans and war. A time when the celestials were still in the world, and all that mattered was art and beauty. \n\nIn the millennia since their creators retired to Arcadia, the high elves built a civilization for themselves, primarily living in and among the fallen celestial sky cities. With no creators left to please, the elves continue as they did before—collecting lore and knowledge, worshiping art, and turning more inward and distrusting of outsiders with each generation. "
+name: Elf, High
+portraitid: 25b140f8-85b4-4e34-b609-4a1a3b284844
+height: 5’6’’–6’6’’
+weight: 100–150
+mtime: 1763052860146

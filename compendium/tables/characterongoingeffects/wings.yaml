@@ -1,0 +1,93 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: cb1002b6-edc9-4f55-bac4-df5e7b5b07f0
+  source: Ongoing Effect
+  value: Walking Speed
+  domains:
+    CharacterOngoingEffect:cb1002b6-edc9-4f55-bac4-df5e7b5b07f0: true
+  name: Wings
+  guid: 7d9d8f46-2cc4-4240-84b9-de45b9c36d8d
+  description: ""
+  behavior: attribute
+  attribute: fly
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:cb1002b6-edc9-4f55-bac4-df5e7b5b07f0: true
+  sourceguid: cb1002b6-edc9-4f55-bac4-df5e7b5b07f0
+  description: ""
+  source: Ongoing Effect
+  name: Wings
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 4f2272a8-5ce3-43e5-8be3-1ffed459b047
+    repeatTargets: false
+    abilityType: none
+    trigger: endturn
+    targetType: self
+    numTargets: "1"
+    name: Fly
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions: []
+      mode: effect
+      useStacks: true
+      ongoingEffect: cb1002b6-edc9-4f55-bac4-df5e7b5b07f0
+    - __typeName: ActivatedAbilityChangeMovementTypeBehavior
+      movementType: walk
+      filterTarget: not (ongoing effects has "Wings")
+    - __typeName: ActivatedAbilityFallBehavior
+      filterTarget: not (ongoing effects has "Wings")
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: 1df2abf7-74f5-48c7-97ae-54d11b99e577
+- __typeName: CharacterModifier
+  sourceguid: cb1002b6-edc9-4f55-bac4-df5e7b5b07f0
+  source: Ongoing Effect
+  behavior: resistance
+  filterCondition: Level <= 3
+  name: Wings
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-5"
+    damageType: all
+    apply: Damage Reduction
+  description: ""
+  guid: c898b52a-592e-4dbb-a075-f13c786a5fd4
+  domains:
+    CharacterOngoingEffect:cb1002b6-edc9-4f55-bac4-df5e7b5b07f0: true
+source: Ongoing Effect
+sustainFormula: movement type = "Fly"
+stackable: true
+id: cb1002b6-edc9-4f55-bac4-df5e7b5b07f0
+ctime: 1745181261593
+domains:
+  CharacterOngoingEffect:cb1002b6-edc9-4f55-bac4-df5e7b5b07f0: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.528264403343201
+    s: 0.665839731693268
+    v: 1.00191068649292
+    a: 1
+custom: true
+name: Wings
+guid: cb1002b6-edc9-4f55-bac4-df5e7b5b07f0
+description: ""
+mtime: 1750046266566
+iconid: 8286739e-54f3-487c-8a85-2dcbe3c323e5

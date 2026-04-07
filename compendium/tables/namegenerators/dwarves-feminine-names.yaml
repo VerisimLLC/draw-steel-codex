@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 81082411-c151-4b97-a9b5-e644f8c1cd18
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dazria
+- __typeName: RollTableRow
+  id: 8181e6d8-f34b-4fdc-9297-9b4049dd6ae5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dekka
+- __typeName: RollTableRow
+  id: 137d411b-de87-449b-a249-da39128a674a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Djorva
+- __typeName: RollTableRow
+  id: f6d3b588-e528-4ab9-aca0-4d4928bf7e77
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Giria
+- __typeName: RollTableRow
+  id: 1ab77534-2f5d-4912-b40d-e9851b619d2a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kirza
+- __typeName: RollTableRow
+  id: 2a143037-f6d1-4571-9d67-5d6e89f9a66c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Kuroth
+- __typeName: RollTableRow
+  id: 5e183303-604b-4d45-8a2d-c4b121f29727
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Lurza
+- __typeName: RollTableRow
+  id: 8df143a5-a2f1-4724-b95a-f14aa616ad02
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Uur
+- __typeName: RollTableRow
+  id: dfc9cab6-32ad-4156-a0aa-6630b8999fbc
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Zareth
+- __typeName: RollTableRow
+  id: e9a760ed-ccc2-4ae0-b73f-c31e1c449cf3
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ziir
+id: fa8d0cd8-d2b5-49d8-bc59-62a7fbc1fbea
+name: Dwarves Feminine Names
+subtable: true
+mtime: 1743455096766
+items: false
+ctime: 1743444171917

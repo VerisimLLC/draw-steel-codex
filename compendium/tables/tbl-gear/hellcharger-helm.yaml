@@ -1,0 +1,22 @@
+__typeName: equipment
+itemPrerequisite: One broken contract, one ingot of steel
+keywords:
+  Magic: true
+  Head: true
+projectSource: Texts or lore in Anjali and Caelian
+flavor: A steel helm is set with two curved ebony horns, a crackling plume of fire floating between them.
+weight: 1
+category: Gear
+specialDescription: ""
+id: 5e8d1a75-ac4a-4e76-aa2a-b15bc5d14d5a
+ctime: 1759190889660
+type: Gear
+projectGoal: "150"
+mtime: 1759400280006
+name: Hellcharger Helm
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+description: Whenever you use the Charge main action while wearing this helmet, you gain a +5 bonus to speed until the end of your current turn. After charging, you can use the Knockback maneuver as a free maneuver, regardless of the target creature’s size.
+projectRollCharacteristic:
+  rea: true
+  mgt: true
+iconid: 446b9948-ff31-4a4b-ab01-d08d3c510e52

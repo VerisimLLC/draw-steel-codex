@@ -1,0 +1,44 @@
+__typeName: CharacterResource
+textColor: light
+clearOutsideOfCombat: true
+usageLimit: global
+id: 67f15a17-523c-4a30-8f1a-a27e4f122605
+grouping: Actions
+ctime: 1754874058478
+useQuantity: false
+hasLargeDisplay: false
+display:
+  expended:
+    brightness: 0.5
+    saturation: 0.5
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 1.00323760509491
+      v: 0.566293478012085
+      a: 1
+  highlight:
+    brightness: 1.5
+    saturation: 1
+    hueshift: 1
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 1.00323760509491
+      v: 0.566293478012085
+      a: 1
+  normal:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 1.00323760509491
+      v: 0.566293478012085
+      a: 1
+largeQuantity: false
+mtime: 1754874158326
+name: Villain Action
+iconid: 8501c1d4-442d-4499-beb3-52dbfd76a644

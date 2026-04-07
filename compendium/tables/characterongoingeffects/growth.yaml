@@ -1,0 +1,95 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+  source: Ongoing Effect
+  value: Maximum Stamina
+  domains:
+    CharacterOngoingEffect:13b66af9-aec7-4fe0-895f-a0eb6901550c: true
+  name: Growth
+  guid: 08d3605a-d1de-4e8b-bd03-ed0e8c89042a
+  description: You are under the effects of a Growth Potion. Your Stamina and Stability are doubled, you gain an edge on Might tests, and your weapon abilities that deal rolled damage gain a damage bonus equal to your highest characteristic score.
+  behavior: attribute
+  attribute: hitpoints
+- __typeName: CharacterModifier
+  sourceguid: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+  source: Ongoing Effect
+  value: Stability
+  domains:
+    CharacterOngoingEffect:13b66af9-aec7-4fe0-895f-a0eb6901550c: true
+  name: Growth
+  guid: 3e8b4f58-23ca-4d66-afba-a0c45fe4e371
+  description: You are under the effects of a Growth Potion. Your Stamina and Stability are doubled, you gain an edge on Might tests, and your weapon abilities that deal rolled damage gain a damage bonus equal to your highest characteristic score.
+  behavior: attribute
+  attribute: forcedmoveresistance
+- __typeName: CharacterModifier
+  operation: add
+  sourceguid: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:13b66af9-aec7-4fe0-895f-a0eb6901550c: true
+  name: Growth
+  guid: 57b271b1-8570-457c-a7da-a4ff02f2aa63
+  description: You are under the effects of a Growth Potion. Your Stamina and Stability are doubled, you gain an edge on Might tests, and your weapon abilities that deal rolled damage gain a damage bonus equal to your highest characteristic score.
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  operation: max
+  sourceguid: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+  source: Ongoing Effect
+  value: 2
+  domains:
+    CharacterOngoingEffect:13b66af9-aec7-4fe0-895f-a0eb6901550c: true
+  name: Growth
+  guid: 605457af-106c-4ad1-b4e9-e3d601b30ede
+  description: You are under the effects of a Growth Potion. Your Stamina and Stability are doubled, you gain an edge on Might tests, and your weapon abilities that deal rolled damage gain a damage bonus equal to your highest characteristic score.
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  sourceguid: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+  source: Ongoing Effect
+  guid: 67db7560-16b9-4f3f-87bd-2b59dd099d57
+  keywords:
+    Weapon: true
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:13b66af9-aec7-4fe0-895f-a0eb6901550c: true
+  rollType: ability_power_roll
+  name: Growth
+  modtype: none
+  description: You are under the effects of a Growth Potion. Your Stamina and Stability are doubled, you gain an edge on Might tests, and your weapon abilities that deal rolled damage gain a damage bonus equal to your highest characteristic score.
+  damageModifier: Highest Characteristic
+  behavior: power
+- __typeName: CharacterModifier
+  sourceguid: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  modtype: edge
+  domains:
+    CharacterOngoingEffect:13b66af9-aec7-4fe0-895f-a0eb6901550c: true
+  name: Growth
+  rollType: test_power_roll
+  description: You are under the effects of a Growth Potion. Your Stamina and Stability are doubled, you gain an edge on Might tests, and your weapon abilities that deal rolled damage gain a damage bonus equal to your highest characteristic score.
+  guid: 6c14f418-3697-4a66-90ee-6b76d9449f64
+  attribute: mgt
+source: Ongoing Effect
+guid: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+id: 13b66af9-aec7-4fe0-895f-a0eb6901550c
+ctime: 1757917938409
+domains:
+  CharacterOngoingEffect:13b66af9-aec7-4fe0-895f-a0eb6901550c: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Growth
+iconid: e4128615-32e4-4b15-8222-4e56b5a984f2
+description: You are under the effects of a Growth Potion. Your Stamina and Stability are doubled, you gain an edge on Might tests, and your weapon abilities that deal rolled damage gain a damage bonus equal to your highest characteristic score.
+mtime: 1774265828043
+implementation: 3

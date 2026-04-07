@@ -1,0 +1,343 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 12,-21,1
+        monsters:
+          ed1da082-0c78-4345-a1a6-642c5c579e58: 1
+      - appearances:
+        - false
+        - false
+        minHeroes: 4
+        monsters:
+          54e3d953-a169-4127-8479-60b1f7c0e9e2: 2
+        invisibleToPlayers:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 2,-15,1
+        - __usertype: LuaLoc
+          loc: 12,-16,1
+      - appearances:
+        - false
+        - false
+        minHeroes: 6
+        monsters:
+          54e3d953-a169-4127-8479-60b1f7c0e9e2: 2
+        invisibleToPlayers:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 11,-21,1
+        - __usertype: LuaLoc
+          loc: "-4,-19,1"
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 0,-16,1
+        - __usertype: LuaLoc
+          loc: 1,-16,1
+        - __usertype: LuaLoc
+          loc: 1,-17,1
+        - __usertype: LuaLoc
+          loc: 0,-17,1
+        - __usertype: LuaLoc
+          loc: 5,-16,1
+        - __usertype: LuaLoc
+          loc: 0,-17,1
+        - __usertype: LuaLoc
+          loc: "-6,-14,1"
+        - __usertype: LuaLoc
+          loc: "-6,-11,1"
+        monsters:
+          0d6b005a-1cd3-4692-932c-f59f20697b00: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 9,-15,1
+        - __usertype: LuaLoc
+          loc: 9,-16,1
+        - __usertype: LuaLoc
+          loc: 10,-15,1
+        - __usertype: LuaLoc
+          loc: 10,-16,1
+        monsters:
+          0d6b005a-1cd3-4692-932c-f59f20697b00: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 5
+        monsters:
+          0d6b005a-1cd3-4692-932c-f59f20697b00: 8
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,-18,1"
+        - __usertype: LuaLoc
+          loc: "-4,-17,1"
+        - __usertype: LuaLoc
+          loc: "-5,-17,1"
+        - __usertype: LuaLoc
+          loc: "-5,-16,1"
+        - __usertype: LuaLoc
+          loc: 6,-19,1
+        - __usertype: LuaLoc
+          loc: 6,-18,1
+        - __usertype: LuaLoc
+          loc: 5,-19,1
+        - __usertype: LuaLoc
+          loc: 5,-18,1
+      name: Water Wolves
+id: feda2ccf-011a-4c4d-968b-31dad5273811
+ctime: 1761630654068
+textStorage:
+  __typeName: TextStorage
+  sections:
+    x: "[[//awardvp 1|Award Victories]]"
+    v: |+
+      The heroes gain 1 VP if they win the battle.
+
+    t: |+
+      End Combat once the battle is over.
+
+    r: |+
+      ## Aftermath and Rewards
+
+    o: |+
+      The wolves do everything they can to move and keep the heroes in the water, so the heroes take banes on their power rolls for being submerged. They use Pack Formation to keep up with heroes who are pushed down the stream, and stick together to gain the benefit of their Pack Strong trait. 
+
+    p: |+
+      The wolves don't pursue heroes who leave this chamber, but they do stay on guard and attack again if the heroes re-enter.
+
+    m: |2
+
+    n: |+
+      ## Tactics
+
+    k: |+
+      [[/activateobjects W1_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects W1_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    l: |+
+      [[encounter]]
+
+    i: |+
+      Allow easy adjustment of the number of heroes to balance for:
+
+    j: |+
+      [[setting:Number of Heroes]]
+
+    g: |+
+      The wolves don't pursue heroes who leave this chamber, but they do stay on guard and attack again if the heroes re-enter.
+
+    h: |+
+      ## Combat
+
+    e: |
+      ## Tactics
+    f: |+
+      The wolves do everything they can to move and keep the heroes in the water, so the heroes take banes on their power rolls for being submerged. They use Pack Formation to keep up with heroes who are pushed down the stream, and stick together to gain the benefit of their Pack Strong trait.
+
+    c: |+
+      If a creature can't automatically swim at full speed while moving, their power rolls take a bane while they are fully submerged in the water.
+
+    d: |+
+      If there are no enemies here, the heroes can cross the river carefully without needing to make any tests.
+
+    a: |+
+      |{#No Effect.}
+
+    b: |+
+      Creatures pushed into a stone or cave wall take damage from the forced movement as normal. The river flows through an opening on the east wall that is too small for any creature to be forced through.
+
+    Y: |
+      |{#The creature is pushed 3 squares to the east and their speed becomes 0 for the rest of this turn.}
+    Z: |
+      |{#The creature is pushed 3 squares to the east.}
+    W: |+
+      The river flows west to east at a rapid pace and is only 5 squares deep. A creature without a swim speed who enters the water or starts their turn in it must make a Might test:
+
+    X: |
+      |Enter or start your turn in the Water: Might Test
+    U: |2+
+       The heroes battle water wolves in an elemental cave.
+
+    V: |
+      ## River
+    S: |+
+      The river contains one **essence of change**, two **sudden downpours**, and sixteen **flows of the river**
+
+    T: |+
+      ## Encounter W1
+
+    Q: |
+      |{#The heroes and wolves notice each other at the same time. No one is surprised.}
+    R: |+
+      |{#The heroes notice the wolves before the wolves notice them. The wolves are surprised at the start of the encounter.}
+
+    O: |
+      |Find the Water Wolves: Intuition Test
+    P: |
+      |{#The heroes don’t notice the wolves and are surprised at the start of the encounter.} 
+    M: |+
+      The water wolves pass back and forth between this plane and Quintessence through this river. They feel a kinship to [Saera], and they allow her to pass and use these caves as a lair. They are not so amicable to others.
+
+    N: |+
+      A hero observing the river can make a moderate Intuition test.
+
+    K: |2+
+       **Secret:** Several water wolves, elemental creatures made of water that look like predatory canines, hide beneath the river’s surface.
+
+    L: |+
+      ## Water Wolves
+
+    I: |+
+      > * “Small islands of wet rock dot the river: some are flat and round, some are jagged and sharp.”
+
+    J: |+
+      > * “The noise of the rapidly flowing river is deafening.”
+
+    G: |
+      > * The cave opening becomes a tunnel, which travels downward, finally opening into a cavern bisected by a raging river.
+    H: |
+      > * “A 60-foot-wide river cuts this larger cavern in two. A passage leads out of the cavern on the opposite shore.”
+    mZ: |+
+      When you are ready, [[/rollinitiative -23 -30 24 5 |Draw Steel!]]
+
+    F: |+
+      ## W1. Raging River
+
+    C: |+
+      The cave has the following features:
+
+    D: |
+      > * **Ceilings**: The ceilings in the rooms are 3 squares high.
+    E: |+
+      > * **Illumination**: The water within the cave magically glows thanks to its connection to Quintessence, illuminating each area.
+
+    B: |+
+      # Cave Features
+
+parentFolder: b233e0de-8868-4c91-baeb-72c6c58c6c0e
+updateid: d0ce9cf8-2c48-4f8d-b623-ba8dba17e3f6
+description: W1. Raging River
+content: |-
+  # Cave Features
+
+  The cave has the following features:
+
+  > * **Ceilings**: The ceilings in the rooms are 3 squares high.
+  > * **Illumination**: The water within the cave magically glows thanks to its connection to Quintessence, illuminating each area.
+
+  ## W1. Raging River
+
+  > * The cave opening becomes a tunnel, which travels downward, finally opening into a cavern bisected by a raging river.
+  > * “A 60-foot-wide river cuts this larger cavern in two. A passage leads out of the cavern on the opposite shore.”
+  > * “Small islands of wet rock dot the river: some are flat and round, some are jagged and sharp.”
+
+  > * “The noise of the rapidly flowing river is deafening.”
+
+   **Secret:** Several water wolves, elemental creatures made of water that look like predatory canines, hide beneath the river’s surface.
+
+  ## Water Wolves
+
+  The water wolves pass back and forth between this plane and Quintessence through this river. They feel a kinship to [Saera], and they allow her to pass and use these caves as a lair. They are not so amicable to others.
+
+  A hero observing the river can make a moderate Intuition test.
+
+  |Find the Water Wolves: Intuition Test
+  |{#The heroes don’t notice the wolves and are surprised at the start of the encounter.} 
+  |{#The heroes and wolves notice each other at the same time. No one is surprised.}
+  |{#The heroes notice the wolves before the wolves notice them. The wolves are surprised at the start of the encounter.}
+
+  The river contains one **essence of change**, two **sudden downpours**, and sixteen **flows of the river**
+
+  ## Encounter W1
+
+   The heroes battle water wolves in an elemental cave.
+
+  ## River
+  The river flows west to east at a rapid pace and is only 5 squares deep. A creature without a swim speed who enters the water or starts their turn in it must make a Might test:
+
+  |Enter or start your turn in the Water: Might Test
+  |{#The creature is pushed 3 squares to the east and their speed becomes 0 for the rest of this turn.}
+  |{#The creature is pushed 3 squares to the east.}
+  |{#No Effect.}
+
+  Creatures pushed into a stone or cave wall take damage from the forced movement as normal. The river flows through an opening on the east wall that is too small for any creature to be forced through.
+
+  If a creature can't automatically swim at full speed while moving, their power rolls take a bane while they are fully submerged in the water.
+
+  If there are no enemies here, the heroes can cross the river carefully without needing to make any tests.
+
+  ## Tactics
+  The wolves do everything they can to move and keep the heroes in the water, so the heroes take banes on their power rolls for being submerged. They use Pack Formation to keep up with heroes who are pushed down the stream, and stick together to gain the benefit of their Pack Strong trait.
+
+  The wolves don't pursue heroes who leave this chamber, but they do stay on guard and attack again if the heroes re-enter.
+
+  ## Combat
+
+  Allow easy adjustment of the number of heroes to balance for:
+
+  [[setting:Number of Heroes]]
+
+  [[encounter]]
+
+  When you are ready, [Draw Steel!]
+
+  ## Tactics
+
+  The wolves do everything they can to move and keep the heroes in the water, so the heroes take banes on their power rolls for being submerged. They use Pack Formation to keep up with heroes who are pushed down the stream, and stick together to gain the benefit of their Pack Strong trait. 
+
+  The wolves don't pursue heroes who leave this chamber, but they do stay on guard and attack again if the heroes re-enter.
+
+  ## Aftermath and Rewards
+
+  End Combat once the battle is over.
+
+  The heroes gain 1 VP if they win the battle.
+
+  [[/awardvp 1|Award Victories]]
+mtime: 1773668476769

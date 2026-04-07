@@ -1,0 +1,95 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:1149fc3d-0108-441c-a231-0a7e16a5d685: true
+    class:97bd30e0-b670-41c7-9136-6a832625f049: true
+  sourceguid: f09da83c-5843-497a-8316-d5fdca4349aa
+  description: You can use this ability against the same target for the next 2 combat rounds without spending drama.
+  source: Character
+  name: Star Solo
+  behavior: activated
+  guid: 9837e9b1-3c95-49b1-a6a8-4f7de783617d
+  activatedAbility:
+    __typeName: ActivatedAbility
+    resourceNumber: ""
+    objectTarget: false
+    targetFilter: Target.Ongoing Effects has "Star Solo Target"
+    repeatTargets: false
+    keywords:
+      Ranged: true
+      Magic: true
+      Weapon: true
+      Melee: true
+      Strike: true
+    targetAllegiance: enemy
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 5 + P damage
+      - 8 + P damage; push 3
+      - 11 + P damage; push 5
+      roll: 2d10 + Presence
+    - __typeName: ActivatedAbilityModifyPowerRollBehavior
+      guid: 5464db6a-2445-4654-9cff-b7575edef8f5
+      modifier:
+        __typeName: CharacterModifier
+        sourceguid: 5464db6a-2445-4654-9cff-b7575edef8f5
+        damageTypeMappings:
+          untyped: sonic
+        keywords: []
+        activationCondition: false
+        guid: 79c99e77-49bf-44ad-9c4f-e63193826786
+        domains: []
+        rollType: ability_power_roll
+        name: Star Solo - Sonic Damage
+        description: You can choose to have this ability deal sonic damage.
+        behavior: power
+        modtype: none
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: Your performance travels and doesn't stop moving until your audience is completely rocked.
+    categorization: Heroic Ability
+    range: 10
+    effectImplemented: false
+    abilityType: none
+    persistence: []
+    modifiers: []
+    targetType: target
+    strain: []
+    guid: b8c7df16-6445-48b1-ab0a-c18706c066f3
+    iconid: d8513de7-c130-4f23-a069-acd0349b994b
+    numTargets: 1
+    domains:
+      CharacterOngoingEffect:1149fc3d-0108-441c-a231-0a7e16a5d685: true
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+    sourceReference:
+      __typeName: SourceReference
+      page: 225
+      docid: a623e586-b67d-4563-a5b8-62744d648c31
+    meleeRange: 1
+    name: Star Solo
+    actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    description: You can choose to have this ability deal sonic damage. Additionally, you can use this ability on the same target for the next 2 rounds without spending drama.
+    resourceCost: none
+    implementation: 2
+source: Ongoing Effect
+guid: 1149fc3d-0108-441c-a231-0a7e16a5d685
+id: 1149fc3d-0108-441c-a231-0a7e16a5d685
+ctime: 1756238154663
+domains:
+  CharacterOngoingEffect:1149fc3d-0108-441c-a231-0a7e16a5d685: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Star Solo
+stackable: false
+description: You can use this ability against the same target for the next 2 combat rounds without spending drama.
+mtime: 1756240418787
+iconid: d8513de7-c130-4f23-a069-acd0349b994b

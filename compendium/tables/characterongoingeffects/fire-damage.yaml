@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ffcb6911-c058-42d3-9269-def6b4b614e3
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Strike: true
+  activationCondition: true
+  damageModifier: stacks
+  description: You deal additional fire damage on strikes.
+  name: Fire Damage
+  rollType: ability_power_roll
+  damageModifierType: fire
+  behavior: power
+  guid: 26abd59c-4346-4a6f-a682-892a895ca8cd
+source: Ongoing Effect
+guid: ffcb6911-c058-42d3-9269-def6b4b614e3
+id: ffcb6911-c058-42d3-9269-def6b4b614e3
+ctime: 1746595583931
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Fire Damage
+iconid: db2cbfdd-23fd-45e2-bd9f-ec116cd608d0
+description: You deal additional fire damage on strikes.
+mtime: 1746595730836
+implementation: 3

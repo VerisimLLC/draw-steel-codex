@@ -1,0 +1,56 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 6bb5b426-d10c-4f6c-8663-6fd70297bd94
+  source: Ongoing Effect
+  guid: 66e09cc8-db8f-40ad-af68-0a265985f774
+  activationCondition: true
+  keywords:
+    Strike: true
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 933aa38c-a883-463a-828f-5480ac83743f
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: Purge effect
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 6bb5b426-d10c-4f6c-8663-6fd70297bd94
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  behavior: power
+  rollType: ability_power_roll
+  surges: "2"
+  description: ""
+  modtype: none
+  name: Next strike has two surges
+source: Ongoing Effect
+guid: 6bb5b426-d10c-4f6c-8663-6fd70297bd94
+id: 6bb5b426-d10c-4f6c-8663-6fd70297bd94
+ctime: 1769274679299
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Next strike has two surges
+description: ""
+custom: true
+mtime: 1769274679299
+iconid: ui-icons/skills/1.png

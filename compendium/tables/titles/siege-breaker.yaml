@@ -1,0 +1,40 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Siege Breaker Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 6f27bf48-e8b6-489c-825a-465ceae58577
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Death From Above
+      description: When you gain an edge on an ability due to high ground, the ability gains a +8 damage bonus.
+      guid: 68522b08-5233-453e-9de8-be27172a77d6
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Hold the Line
+      description: While you’re within 5 squares of an ally, you and each ally within 5 squares of you gains a +3 bonus to stability.
+      guid: e984b219-7d73-48a2-a6b1-e416f8ba55e0
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Last Defender
+      description: Whenever an ally within 5 squares is reduced to 0 Stamina, you gain temporary Stamina equal to the ally’s level (or 1 if they have no level). If you already have temporary Stamina granted by this title, you increase your temporary Stamina by the amount you would have gained.
+      guid: a48d7548-52a3-4738-a5f3-d15316e715e2
+      canHavePrerequisites: true
+      source: Feat
+id: b4c1a032-2fd9-434d-93f2-8f1aac3f66ef
+ctime: 1762352116175
+name: Siege Breaker
+description: Best way to deal with a castle siege? Be on the outside.
+mtime: 1775216045692
+echelon: "3"
+prerequisite: You have the Battlefield Commander title, and you lead the defense of a settlement or fortification.

@@ -1,0 +1,20 @@
+__typeName: equipment
+id: e8db8442-3a71-4e5e-a704-9bef23e16bd7
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: Whenever you move out of a square, you can choose to leave an imprint behind that lasts until the end of the encounter, until your imprint takes 20 or more damage, or until you create a new imprint. The square is occupied by your imprint, and you can share that space with it. On your turn, you can teleport to the imprint's space as a free maneuver. When you are targeted by an ability, you can use a free triggered action to teleport to your imprint, and the power roll for the ability is an automatic tier 1 result.
+itemPrerequisite: An experimental temporal capacitor invented by the kuran’zoi
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Ullorvic
+imbuePrereq: none
+name: Temporal Flux
+imbueTargetType: armor
+mtime: 1770779379254
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+imbueLevel: 9

@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: eedc3f15-39dc-4fc4-af0e-e626ca6797ee
+id: eedc3f15-39dc-4fc4-af0e-e626ca6797ee
+ctime: 1746146416978
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Thunderstruck
+statusEffect: true
+mtime: 1746147870700
+description: ""
+iconid: ui-icons/skills/1.png

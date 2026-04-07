@@ -1,0 +1,206 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: db7ffce5-aeeb-49be-9fdb-640113ae0085
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 3
+    import:
+      override: true
+      data: |+
+        Time Raider Mind Punk	Level 3 Platoon Hexer
+        Humanoid, Time Raider	EV 10
+        <b>Stamina</b> 40	<b>Immunity</b> Psychic 3
+        <b>Speed</b> 5	<b>Size</b> 2 / <b>Stability</b> 2
+        <b>Free Strike</b> 5
+        Might +2	Agility +0	Reason +2	Intuition +2	Presence +1
+        <b>Repelling Psihander</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Psionic, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> Two creatures adjacent to each other
+        %E2%9C%A6	%E2%89%A411	6 damage
+        %E2%98%85	12%E2%80%9316	8 damage; M<1 dazed (save ends)
+        %E2%9C%B8	17+	11 damage; M<2 dazed (save ends)
+        <b>Effect</b> A target who ends their next turn adjacent to the other target falls prone.
+
+        <b>Mindpunk</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 2 Malice
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 3 Burst	<b>Target</b> All enemies in the burst
+        %E2%9C%A6	%E2%89%A411	4 psychic damage; R<0 prone
+        %E2%98%85	12%E2%80%9316	6 psychic damage; push 1; R<1 prone can't stand (save ends)
+        %E2%9C%B8	17+	9 psychic damage; push 2; R<2 prone can't stand (save ends)
+
+        <b>Foresight </b>
+        The mind punk doesn't have a bane on strikes against concealed creatures.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:24593fa1-e601-481c-b7de-f98107506b1c: true
+      modifiers: []
+      name: 'Foresight '
+      description: The mind punk doesn't have a bane on strikes against concealed creatures.
+      guid: 24593fa1-e601-481c-b7de-f98107506b1c
+      source: Trait
+    role: Platoon Hexer
+    keywords:
+      Humanoid: true
+      Time Raider: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Time Raider Mind Punk
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    groupid: 0fd6ab3a-e0ae-4c61-86e3-82f06865d109
+    damage_taken: 0
+    max_hitpoints: 40
+    resources: []
+    traitNames: []
+    ev: 10
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 8 damage; M<1 dazed (save ends)
+        - 11 damage; M<2 dazed (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a25a8666-eed5-47f7-a1c6-03ed9707a82b
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Repelling Psihander
+      numTargets: 2
+      description: A target who ends their next turn adjacent to the other target falls prone.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 psychic damage; R<0 prone
+        - 6 psychic damage; push 1; R<1 prone and can't stand (save ends)
+        - 9 psychic damage; push 2; R<2 prone and can't stand (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ea8c4e3d-1422-4fe3-bf03-2fbbd3221858
+      abilityType: none
+      implementation: 4
+      numTargets: 1
+      name: Mindpunk
+      targetType: all
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds: []
+    levelChoices: []
+    minion: false
+    creatureSize: "2"
+    walkingSpeed: 5
+  tokenType: null
+  bestiaryId: e65d02dd-9d8a-4061-8e49-d770df3fe877
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Time Raider Mind Punk
+parentFolder: 37d52d89-62a2-4615-ad94-8549d23e461a
+artist: null
+ord: 0
+ctime: 1741590321817
+mtime: 1775201137032
+hidden: false

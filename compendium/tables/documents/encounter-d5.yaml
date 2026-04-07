@@ -1,0 +1,185 @@
+__typeName: MarkdownDocument
+annotations:
+  "encounter: D":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: D5":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances: []
+        monsters:
+          e60df05a-71d7-466e-8521-e89b54113f8d: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 2,-17,1
+        - __usertype: LuaLoc
+          loc: 5,-17,1
+        invisibleToPlayers: []
+        minHeroes: 6
+      - appearances:
+        - false
+        - false
+        monsters:
+          7a951e74-69c7-49a5-a44c-225ca2582c18: 1
+          e60df05a-71d7-466e-8521-e89b54113f8d: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-2,-16,1"
+        - __usertype: LuaLoc
+          loc: 0,-14,1
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 5
+      - appearances:
+        - false
+        - false
+        monsters:
+          7a951e74-69c7-49a5-a44c-225ca2582c18: 1
+          e60df05a-71d7-466e-8521-e89b54113f8d: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-2,-8,1"
+        - __usertype: LuaLoc
+          loc: 0,-10,1
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 4
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 9,-16,1
+        - __usertype: LuaLoc
+          loc: 7,-14,1
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          7a951e74-69c7-49a5-a44c-225ca2582c18: 1
+          e60df05a-71d7-466e-8521-e89b54113f8d: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 4,-6,1
+        - __usertype: LuaLoc
+          loc: 4,-8,1
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          7a951e74-69c7-49a5-a44c-225ca2582c18: 1
+          e60df05a-71d7-466e-8521-e89b54113f8d: 1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 9,-8,1
+        - __usertype: LuaLoc
+          loc: 7,-10,1
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          7a951e74-69c7-49a5-a44c-225ca2582c18: 1
+          e60df05a-71d7-466e-8521-e89b54113f8d: 1
+      name: Encounter D5
+id: 151caf97-4ed6-4005-8110-349f84276f41
+ctime: 1761688496309
+textStorage:
+  __typeName: TextStorage
+  sections:
+    CH: |2
+
+    CD: 'When the combat starts you can hide the suits of armor as the Soulwights posses them and attack. '
+    Ci: "[[/activateobjects D5_start.AreaTemplate activate|Show Hero Start Area]] "
+    w: "[[/awardvp 1|Award Heroes 1 Victory]]"
+    u: |
+      The ambushing creatures fight until reduced to 0 Stamina. The heroes earn 1 Victory each
+    s: |+
+      ## Ending the Encounter
+
+    q: |+
+      If not discovered by the heroes, the ambushing creatures try to time their attacks with the sarcophagus trap triggering, or while the trap is being disarmed. The spindlegoths identify and try to grab isolated prey. Meanwhile, the soulwights surround the hero with the highest Stamina to take them down before they can rally. The monsters know about the sarcophagus trap and avoid its radius.
+
+
+    o: |+
+      ## Tactics
+
+    m: |+
+      |{#The hero notices the enemies, but the enemies don't realize they've been revealed. The heroes can catch their foes surprised.}
+
+
+    k: |
+      |{#The hero notices the enemies, and the enemies notice them at the same time, causing the enemies to attack.}
+    i: |
+      |{#The hero doesn't notice anything.} {The hero doesn't notice the enemies.}
+    g: |
+      |Lookout for Trouble: Intuition test
+    e: |
+      A hero on the lookout for trouble can make a moderate Intuition test:
+    c: |+
+      ## Noticing the Enemies
+
+    a: "* For three heroes, remove two spindlegoths and two armored soulwights.\n \n\n"
+    Cr: |+
+      [[/activateobjects D5_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    Y: |
+      * For four heroes, remove one spindlegoth and one armored soulwight.
+    W: |
+      * For six heroes, add two spindlegoths.
+    U: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    S: |
+      **Encounter Adjustments**
+    Q: "|5|One [armored soulwight], One [spindlegoth]|\n\n \n"
+    O: |
+      |4|One [armored soulwight], One [spindlegoth]|
+    M: |
+      |3|One [armored soulwight], One [spindlegoth]|
+    K: |
+      |2|One [armored soulwight], One [spindlegoth]|
+    I: |
+      |1|One [armored soulwight], One [spindlegoth]|
+    CZ: |2
+
+    H: |
+      |Group	|Creatures|
+    E: |+
+      [[encounter: D5]]
+
+    F: |
+      **D5 Groups**
+    C: |+
+      The heroes encounter undead and ruinborn monsters near the entrance of the Delian Tomb's second level.
+
+    D: |+
+      [[setting:numheroes]]
+
+    CQ: |
+      [[/activateobjects d5_armor deactivate|Hide Suits of Armor]] [[/activateobjects d5_armor activate|Show Suits of Armor]] 
+    B: |+
+      # Encounter D5	
+
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: c0711942-bee1-4014-920f-6949604bc2f1
+mtime: 1773661581382
+content: "# Encounter D5	\n\nThe heroes encounter undead and ruinborn monsters near the entrance of the Delian Tombʼs second level.\n\n[[setting:numheroes]]\n\n[[encounter: D5]]\n\n**D5 Groups**\n|Group	|Creatures|\n|1|One armoured soulwight, One spindlegoth|\n|2|One armoured soulwight, One spindlegoth|\n|3|One armoured soulwight, One spindlegoth|\n|4|One armoured soulwight, One spindlegoth|\n|5|One armoured soulwight, One spindlegoth|\n\n \n**Encounter Adjustments**\nIf this encounter has more or fewer than five heroes, make the following adjustments:\n* For six heroes, add two spindlegoths.\n* For four heroes, remove one spindlegoth and one armored soulwight.\n* For three heroes, remove two spindlegoths and two armored soulwights.\n \n\n## Noticing the Enemies\n\nA hero on the lookout for trouble can make a moderate Intuition test:\n|Lookout for Trouble: Intuition test\n|{#The hero doesn't notice anything.} {The hero doesn't notice the enemies.}\n|{#The hero notices the enemies, and the enemies notice them at the same time, causing the enemies to attack.}\n|{#The hero notices the enemies, but the enemies don't realize they've been revealed. The heroes can catch their foes surprised.}\n\n\n## Tactics\n\nIf not discovered by the heroes, the ambushing creatures try to time their attacks with the sarcophagus trap triggering, or while the trap is being disarmed. The spindlegoths identify and try to grab isolated prey. Meanwhile, the soulwights surround the hero with the highest Stamina to take them down before they can rally. The monsters know about the sarcophagus trap and avoid its radius.\n\n\n## Ending the Encounter\n\nThe ambushing creatures fight until reduced to 0 Stamina. The heroes earn 1 Victory each\n[[/awardvp 1|Award Heroes 1 Victory]]"
+description: Encounter D5

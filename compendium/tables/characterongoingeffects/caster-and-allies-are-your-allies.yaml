@@ -1,0 +1,49 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: b4246346-754c-4c43-9485-6c8fa4d7a21a
+  source: Ongoing Effect
+  filterAbility: Ability.Allegiance is enemy
+  behavior: modifyability
+  attributes:
+  - operation: targeting
+    value: ""
+    id: targettype
+    targeting: target
+  name: Caster and Allies are Your Allies
+  description: ""
+  guid: 113c45a6-9436-49f9-8533-2b9eeae411cc
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 82b5f012-4599-4532-8d9e-ba506ba93420
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: b4246346-754c-4c43-9485-6c8fa4d7a21a
+id: b4246346-754c-4c43-9485-6c8fa4d7a21a
+ctime: 1770265867320
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Caster and Allies are Your Allies
+description: ""
+custom: true
+mtime: 1770266187801
+iconid: ui-icons/skills/1.png

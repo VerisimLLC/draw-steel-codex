@@ -1,0 +1,22 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+hiddenOnToken: true
+ctime: 1771761763843
+domains:
+  CharacterOngoingEffect:47d2d85d-64e0-4ea4-9757-06aa19943d97: true
+id: 47d2d85d-64e0-4ea4-9757-06aa19943d97
+description: Tracks the damage the Source of Earth has taken this encounter.
+name: Source of Earth Damage Taken
+guid: 47d2d85d-64e0-4ea4-9757-06aa19943d97
+custom: true
+mtime: 1771899059117
+iconid: d55a0ed1-c2c8-4a7c-8f24-8db4136ae90c

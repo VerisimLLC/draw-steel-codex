@@ -1,0 +1,69 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 8d3cc8de-558b-4f4a-8776-a14be6a03d86
+  description: When you are the sole target of an ability, you can use a free triggered action to reveal that the ability was targeting an afterimage of you in the same space as you. The power roll for the ability is treated as an 11. You can't use this enhancement again until you earn 1 or more Victories.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 8d3cc8de-558b-4f4a-8776-a14be6a03d86
+    displayCondition: "1"
+    source: Item
+    displayAfterRoll: "1"
+    modtype: tier1
+    activationCondition: "1"
+    keywords: []
+    hasCustomTrigger: false
+    customTrigger:
+      __typeName: TriggeredAbility
+      targetFilter: ""
+      repeatTargets: false
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: "100"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 5232906d-a0bf-441a-aa34-c54cc091f5f9
+      castImmediately: true
+      targetType: all
+      name: Iridescent
+      trigger: d20roll
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    activationAfterRoll: false
+    name: Iridescent
+    guid: 946003c3-522f-49b8-aa14-71316396d4d1
+    description: When you are the sole target of an ability, you can use a free triggered action to reveal that the ability was targeting an afterimage of you in the same space as you. The power roll for the ability is treated as an 11. You can't use this enhancement again until you earn 1 or more Victories.
+    behavior: power
+    rollType: enemy_ability_power_roll
+  source: Item
+  name: Iridescent
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+itemPrerequisite: Fur from a lightbender
+imbuePrereq: none
+projectSource: Hyrallic
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 2
+ctime: 1770698928353
+projectGoal: "150"
+id: f89556d4-dbc6-4a1e-b243-8826e25132bb
+mtime: 1774585879085
+name: Iridescent
+imbueTargetType: armor
+description: "Iridescent: When you are the sole target of an ability, you can use a free triggered action to reveal that the ability was targeting an afterimage of you in the same space as you. The power roll for the ability is treated as an 11. You can't use this enhancement again until you earn 1 or more Victories."
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 237d846e-b7f2-4ce6-ae72-21d5cad17b88

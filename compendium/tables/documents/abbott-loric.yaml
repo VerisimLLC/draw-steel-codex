@@ -1,0 +1,29 @@
+__typeName: MarkdownDocument
+description: Abbott Loric
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: c2a96550-885d-4243-a216-614352b45e17
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.749299621582031
+    halign: center
+    image: 5b987179-4c9e-43a7-ac7d-5f9861534b0a
+id: 7cc19a10-a868-4795-9ced-c42f2c61346d
+mtime: 1761403776221
+content: |-
+  # Abbott Loric
+
+  [[image]]
+
+  *A priest who runs the village’s Church of Saint Gryffyn the Stout. A robed human in his sixties with a friendly disposition.*
+  {
+  Secret: Quests or hidden information
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761395429071

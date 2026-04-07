@@ -1,0 +1,73 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e8cdab8b-7417-4ed8-957c-3ddf027dc425
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Doomed
+  guid: 525f4f58-68d7-41e7-9ade-fae1001b9e95
+  description: "You are doomed. All your power rolls have a tier 3 result.\v\vYou do not die, no matter how low your stamina falls. At the end of the encounter you die."
+  modtype: tier3
+  rollType: all
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: faf10d04-4786-437a-b393-b0363ff4e179
+    repeatTargets: false
+    abilityType: none
+    trigger: endcombat
+    targetType: self
+    numTargets: "1"
+    name: Doomed
+    behaviors:
+    - __typeName: ActivatedAbilityDestroyBehavior
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: "You are doomed. All your power rolls have a tier 3 result.\v\vYou do not die, no matter how low your stamina falls. At the end of the encounter you die."
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 63a19b80-9b0c-4b7f-b30e-f5db2fe1ce64
+  name: Doomed
+  sourceguid: e8cdab8b-7417-4ed8-957c-3ddf027dc425
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: e8cdab8b-7417-4ed8-957c-3ddf027dc425
+  source: Ongoing Effect
+  value: "-Maximum Stamina"
+  name: Doomed
+  guid: ab192dcb-a035-4648-bc7c-c938f2c352db
+  description: "You are doomed. All your power rolls have a tier 3 result.\v\vYou do not die, no matter how low your stamina falls. At the end of the encounter you die."
+  behavior: attribute
+  attribute: 9248b479-12c2-4d1f-a1d2-7416fd63f244
+source: Ongoing Effect
+guid: e8cdab8b-7417-4ed8-957c-3ddf027dc425
+id: e8cdab8b-7417-4ed8-957c-3ddf027dc425
+ctime: 1750058573723
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00208115577698
+    v: 1.00238585472107
+    a: 1
+custom: true
+name: Doomed
+iconid: 699cf8b4-6b8e-41cf-ba1f-c41f5b799cce
+description: "You are doomed. All your power rolls have a tier 3 result.\v\vYou do not die, no matter how low your stamina falls. At the end of the encounter you die."
+mtime: 1770048008733
+implementation: 2

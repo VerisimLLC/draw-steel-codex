@@ -1,0 +1,73 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 814f6bd8-0f0c-4712-acd9-7f1fdc636c1f
+  source: Ongoing Effect
+  seq: 77274ab5-9c3a-4f81-bd4f-aa21136092c2
+  aura:
+    __typeName: Aura
+    applyto: sametype
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        persistence: []
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        strain: []
+        guid: da171c3e-f621-4434-9d16-9d2c7214b032
+        repeatTargets: false
+        abilityType: none
+        trigger: beginturn
+        targetType: self
+        numTargets: "1"
+        name: Sun Lamp
+        behaviors:
+        - __typeName: ActivatedAbilityHealBehavior
+          roll: "5"
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: a533b080-eb30-4f7a-934c-5a58a18ca143
+          duration: 0
+          ongoingEffectCustom: false
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: cdd784d8-64ab-48bc-b047-3fff00230646
+      name: Sun Lamp
+      sourceguid: b942ccbc-ae61-4d9a-b718-124b90668a3c
+    name: Sun Lamp
+    guid: b942ccbc-ae61-4d9a-b718-124b90668a3c
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    implementation: 3
+  radius: "10"
+  guid: 8eea1fb2-8bb3-481e-85cf-496e4877d1d7
+  description: Angulotls who start their turn within 10 squares of the daybringer regain 5 Stamina and gain a +3 bonus to speed until the end of their turn.
+  behavior: aura
+  name: Sun Lamp
+source: Ongoing Effect
+guid: 814f6bd8-0f0c-4712-acd9-7f1fdc636c1f
+id: 814f6bd8-0f0c-4712-acd9-7f1fdc636c1f
+ctime: 1754551719357
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Sun Lamp
+iconid: ui-icons/skills/1.png
+description: Angulotls who start their turn within 10 squares of the daybringer regain 5 Stamina and gain a +3 bonus to speed until the end of their turn.
+mtime: 1754551808066
+implementation: 3

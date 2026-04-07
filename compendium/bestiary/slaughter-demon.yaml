@@ -1,0 +1,326 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 3d3b04c7-2b59-4b03-b0ab-cf922b5a773d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Slaughter Demon	Level 4 Elite Brute
+        Abyssal, Demon, Hobgoblin	EV 24
+        <b>Stamina</b> 140	<b>Immunity</b> fire 5
+        <b>Speed</b> 7 (burrow)	<b>Size</b> 3 /<b> Stability</b> 3
+        <b>Free Strike</b> 6
+        Might +3	Agility 0	Reason -1	Intuition +1	Presence 0
+        <b>Steely Skewer</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	14 damage; A<2 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	17 damage; A<3 bleeding and restrained (save ends)
+        <b>Effect</b> A creature restrained by this attack moves along with the slaughter demon until the condition ends. The slaughter demon can have up to 6 creatures or objects restrained on their weapons.
+
+        <b>Tail Stinger</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 3 Malice
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Melee 5	<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 poison damage; M<1 weakened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	16 poison damage; M<2 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	20 poison damage; M<3 weakened (save ends)
+        <b>Effect</b> A target weakened by this ability has damage weakness 3 until the condition ends.
+
+        <b>Drag Below</b> (Maneuver)
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 3<b>	Target</b> 1 creature or object
+        <b>Effect</b> The slaughter demon makes a free strike against the target and burrows up to their speed. The target is pulled the same number of squares the slaughter demon burrows into, including vertically.
+
+        <b>Devour Soul</b> (Triggered Action)
+        <b>Keywords</b> Magic
+        <b>Trigger</b> A creature with a soul dies.
+        <b>Distance</b> 5 burst	<b>Target</b> Triggering creature
+        <b>Effect</b> The target can't be brought back to life. The slaughter demon gains an edge on all power rolls for the rest of the encounter.
+
+        <b>Tunneler</b>
+        When the slaughter demon burrows, they create a size 2 tunnel. The tunnel remains stable for one day, then collapses.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the slaughter demon can't be hidden from them.
+
+        <b>Lethe</b>
+        While winded, the slaughter demon has an edge on strikes, and strikes have an edge against them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:95733355-948e-4c99-b9b9-47f92f4df7b9: true
+      modifiers: []
+      name: Tunneler
+      description: When the slaughter demon burrows, they create a size 2 tunnel. The tunnel remains stable for one day, then collapses.
+      guid: 95733355-948e-4c99-b9b9-47f92f4df7b9
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:799fac7b-3ea1-4357-8aab-a83931cf510e: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the slaughter demon can't be hidden from them.
+      guid: 799fac7b-3ea1-4357-8aab-a83931cf510e
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1cc1240d-2003-4c95-b864-621c8a1b3075: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+        source: Trait
+        modtype: edge
+        keywords:
+          Attack: true
+        activationCondition: true
+        guid: 7d597fb7-e5d7-4b09-8970-f39bab3a58f1
+        name: Lethe
+        filterCondition: hitpoints <= Maximum Hitpoints/2
+        description: ""
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+        source: Trait
+        modtype: edge
+        keywords:
+          Attack: true
+        activationCondition: true
+        guid: 5291759e-34d8-4db9-a54b-965c5ac91163
+        name: Lethe
+        filterCondition: Hitpoints <= Maximum Hitpoints/2
+        description: ""
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: While the slaughter demon is winded, they gain an edge on strikes, and any strike made against them gains an edge.
+      guid: 1cc1240d-2003-4c95-b864-621c8a1b3075
+      name: Lethe
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b0165741-d48f-4b7f-827e-a03018848993: true
+      modifiers: []
+      name: Drag Below
+      description: The slaughter demon can make a free strike as part of using the Dig maneuver. If the target of the free strike has M<2, they are grabbed and take a bane on the Escape Grab maneuver.
+      guid: b0165741-d48f-4b7f-827e-a03018848993
+      source: Trait
+    role: Elite Brute
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Hobgoblin: true
+      Demon: true
+    max_hitpoints_roll: "140"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Slaughter Demon
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 140
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 14 damage; A<2 bleeding (save ends)
+        - 17 damage; A<3 bleeding and restrained (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 75a98a0b-7d21-44af-8d76-e5f23e287b1f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Steely Skewer
+      numTargets: 2
+      description: A creature restrained by this attack moves along with the slaughter demon until the condition ends. The slaughter demon can have up to 6 creatures or objects restrained on their weapons.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a08691d0-b5af-46b1-be04-7d44ee30e596
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 poison damage; M<1 weakened (save ends)
+        - 16 poison damage; M<2 weakened (save ends)
+        - 20 poison damage; M<3 weakened (save ends)
+        roll: 2d10 + Might
+      name: Tail Stinger
+      implementation: 3
+      description: A target weakened by this ability has damage weakness 3 until the condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: ed86052e-1dfc-49b9-ba61-19a533d40459
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Drag Below
+      numTargets: 1
+      description: The slaughter demon makes a free strike against the target and burrows up to their speed. The target is pulled the same number of squares the slaughter demon burrows into, including vertically.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 1c75a78b-b006-47a5-9800-ce707cbad82e
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Devour Soul
+      numTargets: 1
+      description: The target can't be brought back to life. The slaughter demon gains an edge on all power rolls for the rest of the encounter.
+      abilityType: none
+      implementation: 0
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds:
+      burrow: 7
+    ev: 24
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 6acc44d5-3fe8-4582-a923-ab5c33377666
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Slaughter Demon
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590261934
+mtime: 1775201137032
+hidden: false

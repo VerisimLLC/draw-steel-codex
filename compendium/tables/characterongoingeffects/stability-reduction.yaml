@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 916d1682-18a4-4a01-b2b5-0f4a39a84b65
+  source: Ongoing Effect
+  value: "-stacks"
+  domains:
+    CharacterOngoingEffect:916d1682-18a4-4a01-b2b5-0f4a39a84b65: true
+  name: Stability Reduction
+  guid: e3741c87-b7fd-4e1f-807f-a547eb2b1a94
+  description: Your stability has been reduced.
+  behavior: attribute
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+guid: 916d1682-18a4-4a01-b2b5-0f4a39a84b65
+id: 916d1682-18a4-4a01-b2b5-0f4a39a84b65
+ctime: 1731825452887
+domains:
+  CharacterOngoingEffect:916d1682-18a4-4a01-b2b5-0f4a39a84b65: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.571999907493591
+    s: 1.00136137008667
+    v: 1.00156188011169
+    a: 1
+custom: true
+name: Stability Reduction
+iconid: 32077eeb-5e0b-4dd8-b538-4bab491da0ed
+description: Your stability has been reduced.
+mtime: 1756608219467
+implementation: 3

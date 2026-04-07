@@ -1,0 +1,31 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: c2fe5348-6939-477d-a62c-4fc9cc6d11a3
+projectpoints: "240"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      crafting: true
+    source: Artisan Career Feature
+    numChoices: 2
+    description: "Choose two skills from the crafting skill group (Quick Build: Blacksmithing, Carpentry) "
+    name: Artisan Crafting Skills
+    guid: b831297c-e585-4e51-a014-aa080936444a
+  - __typeName: CharacterLanguageChoice
+    description: Choose one Language
+    guid: 8f509549-501d-48f5-a9df-8b60a1d403b7
+    name: Artisan Language
+    source: Artisan Career Feature
+  - __typeName: CharacterFeatChoice
+    guid: e00e1bda-e0ac-4b49-aabc-3961532f2364
+    description: "Choose one crafting perk. (Quick Build: Area of Expertise)"
+    tag: crafting perk
+    name: Crafting Perk
+name: Artisan
+mtime: 1765484680983
+description: "You made and sold useful wares. In defining your career, think about the following questions: \n\nWhat did you create? \n\nWho taught you your craft? \n\nWas there any particular creation you were known for? \n\nDid you have a shop, or did you travel to sell your wares? "
+id: 2a5dbd17-45fd-4a20-ade2-edf9c700c883
+ctime: 1730556230455

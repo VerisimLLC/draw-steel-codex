@@ -1,0 +1,44 @@
+__typeName: CharacterComplication
+drawback: When you are out of Recoveries, you are dying, no matter what your current Stamina is.
+mtime: 1765882835677
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: |-
+      Benefit: You have 1 additional Recovery.
+      Drawback: When you are out of Recoveries, you are dying, no matter what your current Stamina is.
+    modifiers:
+    - __typeName: CharacterModifier
+      resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+      sourceguid: 80aa8f9e-7c44-4c9b-8104-94d90c788d20
+      behavior: resource
+      source: Complication
+      name: Curse of Punishment
+      num: 1
+      description: |-
+        Benefit: You have 1 additional Recovery.
+        Drawback: When you are out of Recoveries, you are dying, no matter what your current Stamina is.
+      guid: 30f43027-81f0-4989-9111-359bf8d86c9b
+    - __typeName: CharacterModifier
+      operation: add
+      sourceguid: 80aa8f9e-7c44-4c9b-8104-94d90c788d20
+      source: Complication
+      value: 999 when resources.recovery = 0
+      name: Curse of Punishment
+      guid: 10e9f406-27a5-4f46-8cb5-a1232853e705
+      description: |-
+        Benefit: You have 1 additional Recovery.
+        Drawback: When you are out of Recoveries, you are dying, no matter what your current Stamina is.
+      behavior: attribute
+      attribute: e89c3376-c209-4b55-8f70-763a3c6bffae
+    source: Complication
+    canHavePrerequisites: true
+    guid: 80aa8f9e-7c44-4c9b-8104-94d90c788d20
+    name: Curse of Punishment
+    implementation: 3
+name: Curse of Punishment
+ctime: 1755513707671
+description: "Through ignorance, fear, spite, or selfishness, you refused to help someone in need. To teach you a lesson, a deity offered you what seemed to be a blessing—extra power to help you heal yourself in times of need, but harsh consequences should your need become excessive. You took the deal, and now benefit from the blessing but also suffer\nfrom a curse. "
+id: 238d11ea-cbc0-469c-9914-57e26ee81fdf
+benefit: You have 1 additional Recovery

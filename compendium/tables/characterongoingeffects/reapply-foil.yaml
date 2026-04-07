@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: f4049f01-3ed4-43ec-a419-fe9c8c14ee91
+id: f4049f01-3ed4-43ec-a419-fe9c8c14ee91
+ctime: 1754073434686
+domains:
+  CharacterOngoingEffect:f4049f01-3ed4-43ec-a419-fe9c8c14ee91: true
+description: ""
+custom: true
+name: Reapply Foil
+statusEffect: false
+mtime: 1756735652486
+iconid: ui-icons/skills/1.png
+implementation: 3

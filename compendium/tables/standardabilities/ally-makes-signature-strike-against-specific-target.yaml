@@ -1,0 +1,51 @@
+__typeName: ActivatedAbility
+targetFilter: not enemy
+id: e11fbdc8-5d13-49ab-9c0f-acab39ffc044
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  runOnController: true
+  promptText: "<<prompt>>"
+  standardAbilityParams:
+    hasedge: "<<hasedge>>"
+    targetid: "<<targetid>>"
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0c693b9b-a1a3-40ef-89bd-ff4dce8db9bc
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: 1d55d541-6a64-4717-9a0e-08babceab7ef
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 6e0df17b-c32e-4c0a-8732-b35584fd21da
+ctime: 1746519008241
+targetType: target
+numTargets: "<<targetcount>>"
+description: ""
+name: Ally Makes Signature Strike Against Specific Target
+repeatTargets: false
+mtime: 1770264224848
+abilityType: none
+iconid: ui-icons/skills/1.png

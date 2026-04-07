@@ -1,0 +1,164 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1faafefe-1029-4c7b-bff7-54aaa0279fad
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Stipple	Level 4 Harrier Minion
+        Fey, Humanoid, Shadow Elf	EV 7
+        <b>Stamina</b> 10
+        <b>Speed</b> 8 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Speed +2	<b>Free Strike</b> 2
+        Might +3	Agility +1	Reason +0	Intuition +0	Presence +0
+        <b>Stick and Poke</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12-16</b>	5 damage
+        %E2%9C%B8	<b>17</b>	6 damage
+        <b>Effect</b> Shift 2.
+
+        <b>Of the Umbra</b>
+        The stipple ignores concealment granted by darkness. While the stipple is in direct sunlight, they have damage weakness 3. While the stipple is concealed, they have damage immunity 3.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bc53ce4c-5003-4ad5-97c3-3eae10f756c9: true
+      modifiers: []
+      name: Of the Umbra
+      description: The stipple ignores concealment granted by darkness. While the stipple is in direct sunlight, they have damage weakness 3. While the stipple is concealed, they have damage immunity 3.
+      guid: bc53ce4c-5003-4ad5-97c3-3eae10f756c9
+      source: Trait
+    role: Harrier Minion
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Shadow: true
+      Shadow Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    monster_type: Shadow Elf Stipple
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 10
+    traitNames:
+    - With Captain Speed +2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 5 damage
+        - 6 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 766dc7d6-9516-4baa-810a-21714ec9c044
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Stick and Poke
+      numTargets: 1
+      description: Shift 2.
+      abilityType: none
+      implementation: 3
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 8
+    ev: 7
+    minion: true
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 12bf47af-9843-487f-b296-d551c81a48ad
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962488065
+description: Shadow Elf Stipple
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590220457
+mtime: 1775201137032
+hidden: false

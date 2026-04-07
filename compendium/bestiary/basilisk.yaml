@@ -1,0 +1,342 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5f44469f-9213-4256-920f-5a69d97fae44
+    offtokenPortraitId: cc14079e-909d-443d-a17f-d7cafc009ecb
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3378461
+    portraitOffset:
+      x: -0.1282758
+      y: 0.0580752
+    frameHueShift: 0.6871419
+    frameSaturation: 0.5627282
+    frameBrightness: 1
+    popoutScale: 0.9867294
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: afdce296-6db3-452e-8666-97907e84e511
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Basilisk	Level 1 Elite Brute
+        Basilisk, Beast	EV 12
+        <b>Stamina</b> 80	<b>Immunity</b> Poison 4
+        <b>Speed</b> 8	<b>Size</b> 2 / <b>Stability</b> 2
+        <b>	Free Strike</b> 5
+        Might +2	Agility 0	Reason -3	Intuition -1	Presence -1
+        <b>Noxious Bite</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 poison damage
+        %E2%98%85	<b>12%E2%80%9316</b>	10 poison damage
+        %E2%9C%B8	<b>17</b>	13 poison damage
+        <b>Effect</b> This ability has an edge against targets that the basilisk has previously dealt poison damage to.
+
+        <b>Petrifying Eye Beams </b>(Maneuver) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 5 x 2 line within 1<b>Target</b> Special
+        %E2%9C%A6	<b>%E2%89%A411</b>	M<0 Restrained (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	M<1 Restrained (save ends)
+        %E2%9C%B8	<b>17</b>	Slowed (save ends) or M<2 Restrained (save ends)
+        <b>Effect</b> The basilisk targets the first unobstructed creature in each column of the area. An already slowed target has -1 to resisting the potency. Each target magically begins to turn to stone. A creature restrained by this ability or a creature adjacent to them can use an action to cut the encroaching stone from their body, taking 8 damage which can't be reduced in any way and ending the effect.
+        A target that ends two consecutive turns restrained by this ability is petrified until they are cured (see Alchemical Ingredients).
+
+        <b>Poison Fumes</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 cube within 1<b>Target</b> All creatures in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 poison damage; M<0 weakened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	6 poison damage; M<1 weakened and slowed (save ends)
+        %E2%9C%B8	<b>17</b>	9 poison damage; M<2 weakened and slowed (save ends)
+
+        <b>Lash Out</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger</b> The basilisk takes melee damage.
+        <b>Distance</b> 1 burst<b>Target</b> All enemies in the burst
+        <b>Effect</b> Each target takes 5 damage and is <b>A<2</b> bleeding (save ends).
+
+        <b>Calcifying Presence</b>
+        The area within 3 squares of the basilisk is considered difficult terrain for enemies.
+
+
+
+    skillProficiencies: []
+    role: Elite Brute
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 5
+    walkingSpeed: 8
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -3
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Basilisk
+    equipment: []
+    initiativeGrouping: 413b6826-dabd-41a7-b2ad-9a41b402e1cf
+    levelChoices: []
+    damage_taken: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:047bb65b-4d95-4691-935c-04f13c7e0782: true
+      modifiers: []
+      name: Calcifying Presence
+      description: The area within 3 squares of the basilisk is considered difficult terrain for enemies.
+      guid: 047bb65b-4d95-4691-935c-04f13c7e0782
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f3a7c1d9-5e28-4b6a-8d04-2c9f1e7a3b56: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:f3a7c1d9-5e28-4b6a-8d04-2c9f1e7a3b56: true
+        sourceguid: f3a7c1d9-5e28-4b6a-8d04-2c9f1e7a3b56
+        behavior: trigger
+        source: Trait
+        name: Venomous
+        description: Whenever the basilisk deals poison damage, the target is marked with Basilisk Venom.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          range: 1
+          guid: b5c9e3f7-8a41-4d6c-ae12-4e7b9d2a53c8
+          trigger: dealdamage
+          whenActive: combat
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            duration: eoe
+            ongoingEffect: 7e2a4c91-3b8d-4f5e-a1d6-9c0e3f7b2a48
+          conditionFormula: Damage Type has "Poison"
+          targetType: target
+          castImmediately: true
+          name: Basilisk Venom
+          mandatory: true
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: a4b8d2e6-7f39-4c5b-9e01-3d6a8c1f42a7
+      source: Trait
+      description: Whenever the basilisk deals poison damage to a creature, that creature is marked with Basilisk Venom until the end of the encounter.
+      guid: f3a7c1d9-5e28-4b6a-8d04-2c9f1e7a3b56
+      name: Venomous
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b78b1e5b-14f3-45fd-af6d-2ca60b3f8710: true
+      modifiers: []
+      name: Restorative Salve
+      description: "After a basilisk dies, a character can make a Reason test to claim oil from the basilisk's mouth, which can be used to create a special salve. One dose of salve can be applied to a petrified creature as a main action, and 1 minute after the salve is applied, that creature is no longer petrified.!The character must complete the Find a Cure down time project in Draw Steel: Heroes to create one dose of salve.@The character creates one dose of salve and can create two more doses by completing the Find a Cure downtime#The character creates three doses of salve."
+      guid: b78b1e5b-14f3-45fd-af6d-2ca60b3f8710
+      source: Trait
+    resources: []
+    max_hitpoints: 80
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 poison damage
+        - 10 poison damage
+        - 13 poison damage
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: e2f6b4d8-9a35-4c7a-ad14-7b8f2e5a93c6
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: e2f6b4d8-9a35-4c7a-ad14-7b8f2e5a93c6
+          modtype: edge
+          keywords: []
+          activationCondition: Target.Ongoing Effects has "Basilisk Venom"
+          guid: d1e5a3c7-8f24-4b69-9c03-6a7e1d4f82b5
+          rollType: ability_power_roll
+          domains: []
+          description: This ability has an edge against targets the basilisk has previously dealt poison damage to.
+          name: Noxious Bite Edge
+          behavior: power
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: true
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c01b5c6c-2903-4359-aa48-abdeccc95999
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Noxious Bite
+      numTargets: 2
+      description: This ability has an edge against targets that the basilisk has previously dealt poison damage to.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - M<0 restrained (save ends)
+        - M<1 restrained (save ends)
+        - Slowed (save ends); or if M<2 restrained (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 93b9b007-017f-41c5-96fc-894343fa446c
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: 'Petrifying Eye Beams '
+      numTargets: 1
+      description: The basilisk targets the first unobstructed creature in each column of the area. An already slowed target has -1 to resisting the potency. Each target magically begins to turn to stone. A creature restrained by this ability or a creature adjacent to them can use an action to cut the encroaching stone from their body, taking 8 damage which can't be reduced in any way and ending the effect.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2dbdf3d6-2550-4938-bd35-9ec086afa8c1
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 poison damage; M<0 weakened (save ends)
+        - 6 poison damage; M<1 weakened and slowed (save ends)
+        - 9 poison damage; M<2 weakened and slowed (save ends)
+        roll: 2d10 + Might
+      name: Poison Fumes
+      numTargets: 1
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: a72c5b51-2966-4d94-ac29-d2ae33892201
+      numTargets: 1
+      targetType: all
+      name: Lash Out
+      iconid: ui-icons/skills/1.png
+      description: Each target takes 5 damage and is A<2 bleeding (save ends).
+      abilityType: none
+      implementation: 0
+    keywords:
+      Basilisk: true
+      Beast: true
+    movementSpeeds: []
+    groupid: c4ee9cfe-60ef-4609-9578-af3e5544c92d
+    minion: false
+    monster_category: Monster
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 3de53c28-2de5-47d9-a9a1-e1306c1d3cc7
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Basilisk
+parentFolder: a2e7e9a5-6ef8-4681-bc88-fd6aa8612059
+artist: null
+ord: 0
+ctime: 1741590241375
+mtime: 1775201137032
+hidden: false

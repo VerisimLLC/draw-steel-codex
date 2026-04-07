@@ -1,0 +1,446 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5779438c-2c03-4e67-8824-ad9bf044bfe9
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: true
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7f417f88-4cae-468a-a826-5b64aca90b83
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "10"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        79ec0198-b6ff-4b9f-8b06-ee532e0269d5:
+          note: Flamebelcher - Malice
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        a7ccc640-e463-4e96-b326-a38a6e60443d:
+          note: Flamebelcher - Malice
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        34788e00-377b-4f1d-880f-084e4c0aa5e6:
+          note: Flamebelcher
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        67e0798c-8937-4f2d-b90f-52b40acda07d:
+          refreshid: 08a320f9-a82e-46d7-99b8-164c78c506d8-1
+          note: Flamebelcher
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        b577f99b-28bd-415c-9453-c6e6e743ef57:
+          refreshid: 08a320f9-a82e-46d7-99b8-164c78c506d8-1
+          note: Flamebelcher
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        05f3e743-9cad-4dd1-b04b-b7dbff82750d:
+          note: Flamebelcher - Malice
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        0bb5e89c-33cd-4f62-94be-055fbc2c3607:
+          note: Flamebelcher
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        07a2ceda-39e9-423e-8401-412b0e72b5be:
+          refreshid: 08a320f9-a82e-46d7-99b8-164c78c506d8-1
+          note: Critical Hit!
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    moveDistance: 41
+    traitNames: []
+    damageEntries:
+      ee10917f-8e00-4be1-b28e-4611cfc210f1:
+        id: ee10917f-8e00-4be1-b28e-4611cfc210f1
+        heal: 10
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        a21c948a-460e-40d1-9cc5-7ea48f7db306:
+          note: 7 damage from Goblin Monarch 1's Handaxe; Damage Reduction reduced by 3 to 4
+          disposition: bad
+          attackerid: 84f899fc-b61a-4cc5-99b7-ced9dbbd0381
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 6
+        6e88237a-76a5-449f-bf1b-d91aca7c1ba9:
+          note: 7 damage from Goblin Monarch 1's Handaxe; Damage Reduction reduced by 3 to 4
+          disposition: bad
+          attackerid: 84f899fc-b61a-4cc5-99b7-ced9dbbd0381
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 2
+        a5cd94d6-23e7-4090-a457-4314c1909347:
+          disposition: good
+          note: 10 Healing
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 10
+        eb55787a-107b-4f78-a06e-514317f584b2:
+          disposition: good
+          note: 10 Healing
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 10
+        9dcf7c21-a0a8-45c9-908a-dad5bf05fe03:
+          note: 3 damage from Goblin Cursespitter 1's Eye of Surlach; Damage Reduction reduced by 3 to 0
+          disposition: bad
+          attackerid: cfc9e9ed-2d74-436c-a58a-4b3a4ecc040f
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 10
+        d73ed8b4-4d95-4d29-a8eb-91f9c5c401f2:
+          disposition: good
+          note: 10 Healing
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 10
+        d8a7f7d7-67f3-4167-8666-4919ecd632d8:
+          note: 7 damage from Goblin Monarch 1's Handaxe; Damage Reduction reduced by 3 to 4
+          disposition: bad
+          attackerid: 84f899fc-b61a-4cc5-99b7-ced9dbbd0381
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 6
+        aacb6f41-431e-4b2f-832d-77017812fdda:
+          note: 7 damage from Goblin Monarch 1's Handaxe
+          disposition: bad
+          attackerid: 84f899fc-b61a-4cc5-99b7-ced9dbbd0381
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 3
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        War Dog Crucibite	Level 1 Horde Artillery
+        Humanoid, War Dog	EV 3
+        <b>Stamina</b> 10	<b>Immunity</b> Fire 2
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 2
+        Might +0	Agility +2	Reason +0	Intuition +0	Presence +0
+        <b>Flamebelcher</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 5 x 1 line within 1	<b>Target</b> All creatures and objects
+        %E2%9C%A6	%E2%89%A411	2 fire damage
+        %E2%98%85	12%E2%80%9316	4 fire damage
+        %E2%9C%B8	17+	5 fire damage
+        <b>Effect </b>The area is covered in sticky fire until the start of the crucibite's next turn. Whenever a creature enters the area for the first time in a round or starts their turn there, they take 2 fire damage.
+        <b>3 Malice </b>The area increases to a 10 x 1 line, and if any ally of the crucibite is in the area when it is created, the crucibite deals an additional 2 damage to each target.
+
+        <b>Posthumous Promotion</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One war dog with a loyalty collar
+        <b>Effect </b>The target's loyalty collar detonates, killing them instantly.
+
+        <b>Loyalty Collar</b>
+        When the crucibite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fc3c0a81-9ef0-4a84-a82b-da04d3fa0662: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: When the crucibite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the crucibite dies, they explode, dealing 1d6 damage to each adjacent enemy.
+      guid: fc3c0a81-9ef0-4a84-a82b-da04d3fa0662
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Artillery
+    equipment: []
+    opportunityAttack: 2
+    ongoingEffects: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: fire
+      apply: Damage Reduction
+    notes:
+    - text: ""
+      title: Monster Notes
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: f1150238-9e5a-495d-acbd-268dc841de63-529
+    max_hitpoints: 10
+    floatEffects:
+      bd452c22-aa69-4587-b82d-a1164781c213:
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        iconid: ui-icons/skills/1.png
+    expectedDamage: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        c8c54471-821c-40f0-bdbf-30bb1b8f2dbc:
+          note: Posthumous Promotion
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 1/1
+    deathSavingThrowFailures: 0
+    damage_taken: 0
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 3 when mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetType: line
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10 when Mode = 2 else 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: df29ae20-6080-47e3-8776-98a3d1e4113e
+      behaviors:
+      - __typeName: ActivatedAbilityCreatureSetBehavior
+        listName: Flamebelcher
+        filterTarget: Friends(Self, Caster)
+        expression: Self
+        refresh: turn
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 fire damage
+        - 4 fire damage
+        - 5 fire damage
+        filterTarget: ""
+        modesSelected:
+        - 1
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 fire damage
+        - 4 fire damage
+        - 5 fire damage
+        filterTarget: Cast.Creature List Size = 0
+        modesSelected:
+        - 2
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 fire damage
+        - 4 fire damage
+        - 5 fire damage
+        filterTarget: 'Cast.Creature List Size > 0 '
+        modesSelected:
+        - 2
+        roll: 2d10 + Agility
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers: []
+          name: Flamebelcher
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                rule: 2 fire damage
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 9b892a64-2627-48ae-8634-3bb90d32078d
+              trigger: losehitpoints
+              numTargets: "1"
+              targetType: self
+              name: Flame belcher
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: eff2bcd9-ed2d-45a4-96dc-2d34f6b2fe5a
+          implementation: 3
+          objectid: 5619c849-e671-40e6-9624-ce75771f8884
+        duration: nextturn
+        aliveafterdeath: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      iconid: ui-icons/skills/1.png
+      radius: 1
+      name: Flamebelcher
+      modeList:
+      - text: Normal
+      - rules: The area increases to a 10 x 1 line, and if any ally of the crucibite is in the area when it is created, the crucibite deals an additional 2 damage to each target.
+        text: Malice
+      description: |-
+        The area is covered in sticky fire until the start of the crucibite's next turn. Whenever a creature enters the area for the first time in a round or starts their turn there, they take 2 fire damage.
+        **3 Malice**: The area increases to a 10 x 1 line, and if any ally of the crucibite is in the area when it is created, the crucibite deals an additional 2 damage to each target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: 'Target has "Loyalty Collar" '
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityDestroyBehavior
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: d657f85d-fd57-4c00-8e71-a99bb32dd947
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      implementation: 2
+      persistence: []
+      name: Posthumous Promotion
+      selfTarget: true
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 08a320f9-a82e-46d7-99b8-164c78c506d8-1
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+    innateAttacks: []
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    walkingSpeed: 5
+    auras: []
+    movementSpeeds: []
+    monster_type: War Dog Crucibite
+    moveDistanceRoundId: 08a320f9-a82e-46d7-99b8-164c78c506d8-1
+    ev: 3
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: a33fa37a-17c6-40a2-9489-857e9665b2bf
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: War Dog Crucibite
+parentFolder: 3bf58c33-b536-43ac-8288-4c5d1599a7d0
+artist: null
+ord: 4
+ctime: 1749972313014
+mtime: 1775201137032
+hidden: false

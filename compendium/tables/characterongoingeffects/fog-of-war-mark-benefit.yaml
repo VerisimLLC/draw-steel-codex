@@ -1,0 +1,103 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:d5641333-e694-448a-9956-81ae5041cdde: true
+  sourceguid: d5641333-e694-448a-9956-81ae5041cdde
+  description: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to force that target to make a free strike against a creature of your choice within 5 squares of them.
+  source: Ongoing Effect
+  name: "Fog of War: Mark Benefit"
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    resourceNumber: 2
+    repeatTargets: false
+    abilityType: none
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      abilityType: standard
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 656f73a3-e3a2-4b22-aa54-ce0f74cf5713
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+      promptText: "Fog of War: Make a free strike against a target within 5."
+    characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    characterConditionInflictedBySelf: true
+    trigger: losehitpoints
+    range: 1
+    domains:
+      CharacterOngoingEffect:d5641333-e694-448a-9956-81ae5041cdde: true
+    numTargets: "1"
+    persistence: []
+    modifiers: []
+    hasManualVersion: false
+    strain: []
+    whenActive: combat
+    targetType: subject
+    guid: cdbd84fe-6c2e-4364-b3e5-6f7b0823fe53
+    conditionFormula: HasAbility and  (Ability.keywords has "Strike")
+    resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+    triggerPrompt: The marked creature makes a free strike against a target within 5 of your choice.
+    name: "Fog of War: Mark Benefit"
+    mandatory: false
+    description: ""
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: 6625c6b1-df08-4d34-8f11-b44b465d9df4
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:d5641333-e694-448a-9956-81ae5041cdde: true
+  sourceguid: d5641333-e694-448a-9956-81ae5041cdde
+  behavior: triggerdisplay
+  source: Ongoing Effect
+  name: "Fog of War: Mark Benefit"
+  description: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to force that target to make a free strike against a creature of your choice within 5 squares of them.
+  guid: 88fc8cda-32ed-4967-b89b-209fe23b1993
+  ability:
+    __typeName: TriggeredAbilityDisplay
+    target: A creature marked by you
+    effect: Spend 2 focus to force the target to make a free strike against a creature of your choice within 5 squares of them.
+    cost: 2 Focus
+    trigger: You or any ally makes a strike against the target.
+    flavor: Your unorthodox strategy causes enemies to lash out in fear, heedless of who they might be attacking.
+    guid: d35677ca-4ed1-4782-aeb6-ce0c3e6e40ed
+    distance: Global
+    keywords: []
+source: Ongoing Effect
+guid: d5641333-e694-448a-9956-81ae5041cdde
+id: d5641333-e694-448a-9956-81ae5041cdde
+ctime: 1752212360090
+domains:
+  CharacterOngoingEffect:d5641333-e694-448a-9956-81ae5041cdde: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: "Fog of War: Mark Benefit"
+iconid: ui-icons/skills/1.png
+description: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to force that target to make a free strike against a creature of your choice within 5 squares of them.
+mtime: 1753253889960
+implementation: 3

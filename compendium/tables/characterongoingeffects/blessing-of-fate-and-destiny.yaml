@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a764b26e-d295-440a-be38-e0a62cf44728
+  source: Ongoing Effect
+  modtype: appendroll
+  keywords: []
+  replaceText: extradie keep low 2
+  guid: e7e7b6c1-fe6a-417d-b577-9f36c35eaf47
+  name: Blessing of Fate and Destiny
+  rollType: all
+  description: Roll 3 and take lowest 2
+  behavior: power
+  activationCondition: true
+source: Ongoing Effect
+casterTracking: one
+guid: a764b26e-d295-440a-be38-e0a62cf44728
+id: a764b26e-d295-440a-be38-e0a62cf44728
+ctime: 1755281269289
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: Roll 3 and take lowest 2
+sustainFormula: not ConditionCaster("Blessing of Fate and Destiny").Dying
+mtime: 1771552432879
+custom: true
+name: Blessing of Fate and Destiny
+iconid: ui-icons/skills/1.png

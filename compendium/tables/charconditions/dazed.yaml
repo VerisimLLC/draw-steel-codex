@@ -1,0 +1,167 @@
+__typeName: CharacterCondition
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+  sourceguid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+  description: |-
+    A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+    A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+  source: Condition
+  name: Dazed
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      applyto: caster
+      filterTarget: resources.MainAction > 0
+      mode: expend
+      resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      chatMessage: Dazed-you can only do 1 thing
+    - __typeName: ActivatedAbilityReplenishBehavior
+      applyto: caster
+      filterTarget: resources.Maneuver > 0
+      mode: expend
+      resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      chatMessage: Dazed-you can only do 1 thing
+    characterConditionRequired: c27e0b16-291a-45ad-8406-973e26576a44
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    name: Dazed
+    domains:
+      CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+    guid: 5b9a99fd-5132-4b9c-9369-12554342a092
+    targetType: self
+    trigger: move
+    numTargets: "1"
+    description: |-
+      A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+      A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+    abilityType: none
+    iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335
+  guid: 98c0ba63-31dc-484a-8c0c-6a811424c1fb
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+  sourceguid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+  description: |-
+    A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+    A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+  source: Condition
+  name: Dazed
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    characterConditionRequired: c27e0b16-291a-45ad-8406-973e26576a44
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 272337ad-a067-41fa-bd6c-63c92db17faa
+    conditionFormula: UsedAbility.Action or UsedAbility.Maneuver
+    domains:
+      CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      applyto: caster
+      filterTarget: Resources.Maneuver > 0
+      mode: expend
+      resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      chatMessage: Dazed-you can only do 1 thing
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      filterTarget: Resources.Main Action > 0
+      applyto: caster
+      guid: ab53ac94-747d-4c03-9f93-b8b68f9f9914
+      mode: expend
+      chatMessage: Dazed-you can only do 1 thing
+    name: Dazed
+    trigger: useability
+    numTargets: "1"
+    description: |-
+      A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+      A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+    abilityType: none
+    iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335
+  guid: df8b23c3-bb32-4e02-ac9c-776946597aaf
+- __typeName: CharacterModifier
+  sourceguid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+  source: Condition
+  value: 1
+  domains:
+    CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+  name: Dazed
+  guid: 6dbd3c67-3f72-4426-8af8-5d4867daabb5
+  description: |-
+    A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+    A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+  behavior: attribute
+  attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 98bff601-1581-451e-96db-be88e063afaf
+  source: Ongoing Effect
+  value: 0
+  filterCondition: resources.Main Action = 0
+  name: Immobilized
+  guid: 20277a8a-2f0a-4f94-a1e7-a7f4d590b058
+  description: This creature cannot use movement.
+  behavior: attribute
+  attribute: movementMultiplier
+- __typeName: CharacterModifier
+  text: You cannot take a move action if you have taken a main action or maneuver when you are dazed.
+  sourceguid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+  source: Condition
+  behavior: movementtext
+  domains:
+    CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+  name: Dazed
+  filterCondition: resources.Main Action = 0
+  description: |-
+    A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+    A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+  guid: 765402a8-992d-4651-ad8b-a0e0a28ec749
+  color: red
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 47e4e8c7-793d-4c22-b98c-29e54824fd35
+id: c27e0b16-291a-45ad-8406-973e26576a44
+ctime: 1705259269480
+domains:
+  CharacterCondition:c27e0b16-291a-45ad-8406-973e26576a44: true
+powertable: true
+implementation: 2
+name: Dazed
+stackable: false
+description: |-
+  A creature who is dazed can do only one thing on their turn: use a maneuver, use an action, or use a move action.
+
+  A dazed creature also can’t use triggered actions, free triggered actions, or free maneuvers.
+mtime: 1768208514101
+iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335

@@ -1,0 +1,168 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:7c7cee0e-ad89-4c42-8a1d-94dec05a7b60: true
+  sourceguid: 7c7cee0e-ad89-4c42-8a1d-94dec05a7b60
+  description: At the end of each round, roll a die. On an odd result, the detonator explodes
+  source: Ongoing Effect
+  name: Caustic Detonator
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityRollBehavior
+      rollDescription: Roll Detonator Die
+      roll: 1d10
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      tiers:
+      - 4 acid damage; M<0 bleeding (save ends)
+      - 6 acid damage; M<1 bleeding (save ends)
+      - 10 acid damage; M<2 bleeding (save ends)
+      filterTarget: Cast.Roll = 1 or Cast.Roll = 3 or Cast.Roll = 5 or Cast.Roll = 7 or Cast.Roll = 9
+      roll: 2d10 + 2
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      filterTarget: Cast.Roll = 1 or Cast.Roll = 3 or Cast.Roll = 5 or Cast.Roll = 7 or Cast.Roll = 9
+      ongoingEffect: 7c7cee0e-ad89-4c42-8a1d-94dec05a7b60
+      mode: effect
+      purgeType: all
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: always
+    subject: self
+    guid: 95a586c5-132e-4d5d-91d5-23f53f378a6a
+    domains:
+      CharacterOngoingEffect:7c7cee0e-ad89-4c42-8a1d-94dec05a7b60: true
+    numTargets: "1"
+    targetType: self
+    trigger: beginround
+    name: Caustic Detonator
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 5b133fce-6479-4842-b1d0-3acdad20ea76
+- __typeName: CharacterModifier
+  sourceguid: 7c7cee0e-ad89-4c42-8a1d-94dec05a7b60
+  source: Ongoing Effect
+  seq: f6e7d27b-b777-4161-9c89-0682292e50c5
+  aura:
+    __typeName: Aura
+    applyto: friends
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: c92323f9-bde8-4e6e-a0ef-63a2312393b1
+      guid: bb85dffd-ff95-4279-b7ef-259dab74cb0d
+      source: Aura
+      behavior: activated
+      description: ""
+      name: Caustic Detonator
+      activatedAbility:
+        __typeName: ActivatedAbility
+        targetFilter: Ongoing Effects has "Caustic Detonator"
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - Failure
+          - Disarm and destroy
+          - Disarm and throw
+          roll: 2d10 + Agility
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          tiersSelected:
+          - 3
+          - 2
+          mode: effect
+          ongoingEffect: 7c7cee0e-ad89-4c42-8a1d-94dec05a7b60
+          conditions: []
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          applyto: caster
+          customAbility:
+            __typeName: ActivatedAbility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 33aa63c4-a2df-4914-9192-1d9fe6726778
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            targetType: target
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 7c7cee0e-ad89-4c42-8a1d-94dec05a7b60
+              duration: eoe
+              ongoingEffectCustom: false
+            categorization: Hidden
+            name: Throw Caustic Detonator
+            numTargets: "1"
+            description: ""
+            range: "5"
+            iconid: ui-icons/skills/1.png
+          promptText: Throw Caustic Detonator
+          autoTarget: false
+          tiersSelected:
+          - 3
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Heroic Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 1f95d4eb-ee62-42c2-bf20-8e7d456f56ad
+        domains: []
+        targetType: target
+        name: Remove Caustic Detonator
+        numTargets: "1"
+        description: You can attempt an <b>easy Agility test</b> to remove the caustic detonator.
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    name: Caustic Detonator
+    guid: c92323f9-bde8-4e6e-a0ef-63a2312393b1
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+  domains:
+    CharacterOngoingEffect:7c7cee0e-ad89-4c42-8a1d-94dec05a7b60: true
+  radius: "1"
+  guid: 22655137-f1ca-4aeb-a6f3-7ef7b86f72dc
+  description: At the end of each round, roll a die. On an odd result, the detonator explodes
+  behavior: aura
+  name: Caustic Detonator
+source: Ongoing Effect
+guid: 7c7cee0e-ad89-4c42-8a1d-94dec05a7b60
+id: 7c7cee0e-ad89-4c42-8a1d-94dec05a7b60
+ctime: 1748990458450
+domains:
+  CharacterOngoingEffect:7c7cee0e-ad89-4c42-8a1d-94dec05a7b60: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Caustic Detonator
+custom: true
+description: At the end of each round, roll a die. On an odd result, the detonator explodes
+mtime: 1749041529795
+iconid: ui-icons/skills/1.png

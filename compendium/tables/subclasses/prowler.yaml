@@ -1,0 +1,93 @@
+__typeName: Class
+levels:
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:644b71de-95c8-41ee-be37-b3556b424990: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+heroicResourceChecklist: []
+id: 644b71de-95c8-41ee-be37-b3556b424990
+name: Prowler
+ctime: 1752730883243
+mtime: 1752730883243
+isSubclass: true
+primaryClassId: 0380181e-acad-4cdb-ae6d-c7cd11df6ad2

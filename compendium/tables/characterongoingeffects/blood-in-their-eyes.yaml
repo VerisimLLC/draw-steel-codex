@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: c95a5161-1665-442b-89e8-741c1eee85ce
+  sourceguid: 32e51e7e-5098-4ad6-8b95-d7571f9b3e24
+  value: 3
+  source: Ongoing Effect
+  name: Blood in their Eyes
+  behavior: attribute
+  description: +3 to speed
+  attribute: speed
+source: Ongoing Effect
+guid: 32e51e7e-5098-4ad6-8b95-d7571f9b3e24
+id: 32e51e7e-5098-4ad6-8b95-d7571f9b3e24
+ctime: 1760356994623
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.955555558204651
+    v: 0.882352948188782
+    a: 1
+custom: true
+name: Blood in their Eyes
+iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+description: +3 to speed
+mtime: 1760357392296
+implementation: 3

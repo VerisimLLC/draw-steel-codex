@@ -1,0 +1,46 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: bb8529ec-c866-475c-8909-b8b9598ab732
+  description: While wearing the crown, you gain an edge on Intuition tests made to read the emotions and discern the honesty of other creatures. If you succeed on an Intuition test to read the emotions of another creature within 5 squares, you can ask the Director one question about something the creature knows, which the Director must answer honestly. At the Director’s discretion, you might not be able to tap into the creature’s deepest secrets this way
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: bb8529ec-c866-475c-8909-b8b9598ab732
+    source: Item
+    modtype: none
+    keywords: []
+    activationCondition: false
+    guid: c69bfee5-7f0a-461a-b80a-5ae8e70d5d9f
+    name: Insightful Crown
+    rollType: test_power_roll
+    description: While wearing the crown, you gain an edge on Intuition tests made to read the emotions and discern the honesty of other creatures. If you succeed on an Intuition test to read the emotions of another creature within 5 squares, you can ask the Director one question about something the creature knows, which the Director must answer honestly. At the Director’s discretion, you might not be able to tap into the creature’s deepest secrets this way
+    behavior: power
+    attribute: inu
+  source: Item
+  name: Insightful Crown
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+id: 4c5955e2-61f5-4b6c-9f04-952579a7b866
+keywords:
+  Head: true
+  Psionic: true
+projectSource: Texts or lore in Variac
+flavor: Shaped of polished crystal, this shimmering circlet shifts through myriad colors in the presence of strong emotions.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+implementation: 2
+itemPrerequisite: One measure of pure crystal, a jarred memory of true joy
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+projectGoal: "300"
+echelon: 2
+ctime: 1774851165524
+name: Insightful Crown
+mtime: 1774851165524
+description: While wearing the crown, you gain an edge on Intuition tests made to read the emotions and discern the honesty of other creatures. If you succeed on an Intuition test to read the emotions of another creature within 5 squares, you can ask the Director one question about something the creature knows, which the Director must answer honestly. At the Director’s discretion, you might not be able to tap into the creature’s deepest secrets this way
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 8d72fc05-1c0e-4232-b2fb-af50e74f6a2d

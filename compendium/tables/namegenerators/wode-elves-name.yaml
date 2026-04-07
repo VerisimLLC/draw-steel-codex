@@ -1,0 +1,40 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 6356241e-7be9-4a94-add7-7b882d4001a3
+  choiceName: Wode Elf Masculine
+  id: e49d27f2-ec19-4e2a-a8cf-eaec769fb2b6
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 369c7643-45d1-4049-aaac-e9962c7206ca
+  choiceName: Wode Elf Gender Neutral
+  id: 3ec0f754-f366-4b2a-bc4c-968c24dbda8b
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 5fc0dfff-efb7-4a5b-a393-cfdd8e8769c9
+  choiceName: Wode Elf Feminine
+  id: 63f582a6-4d43-40b2-81cf-fa176cd7411b
+subtable: false
+ctime: 1743456217273
+rollType: namedChoice
+id: 7ed9148e-8bed-4278-9f15-a8c6be702a95
+mtime: 1743457804740
+items: false
+name: Wode Elves Name

@@ -1,0 +1,52 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f09942ea-29f3-4ae1-9764-73d0a52ee772
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:f09942ea-29f3-4ae1-9764-73d0a52ee772: true
+  name: Strained Overwhelm
+  guid: b9e5e3d6-aed1-4cbb-95f1-5a5cc20017cb
+  description: You can't use triggered actions or make free strikes
+  behavior: attribute
+  attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+- __typeName: CharacterModifier
+  sourceguid: f09942ea-29f3-4ae1-9764-73d0a52ee772
+  source: Ongoing Effect
+  guid: 8789d32e-6539-4e99-959c-36246dda66fe
+  domains:
+    CharacterOngoingEffect:f09942ea-29f3-4ae1-9764-73d0a52ee772: true
+  abilityFilter: not Ability.name is Melee Free Strike
+  name: Strained Overwhelm
+  description: You can't use triggered actions or make free strikes
+  explanation: You are crying, and you can’t use triggered actions or make free strikes until the end of the target’s next turn.
+  behavior: suppressabilities
+- __typeName: CharacterModifier
+  sourceguid: f09942ea-29f3-4ae1-9764-73d0a52ee772
+  source: Ongoing Effect
+  guid: 5a65ecf7-d9a6-4ae1-a921-edc08a595139
+  domains:
+    CharacterOngoingEffect:f09942ea-29f3-4ae1-9764-73d0a52ee772: true
+  abilityFilter: not Ability.name is Ranged Free Strike
+  name: Strained Overwhelm
+  description: You can't use triggered actions or make free strikes
+  explanation: You are crying, and you can’t use triggered actions or make free strikes until the end of the target’s next turn.
+  behavior: suppressabilities
+source: Ongoing Effect
+guid: f09942ea-29f3-4ae1-9764-73d0a52ee772
+id: f09942ea-29f3-4ae1-9764-73d0a52ee772
+ctime: 1757801685665
+domains:
+  CharacterOngoingEffect:f09942ea-29f3-4ae1-9764-73d0a52ee772: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Strained Overwhelm
+custom: true
+description: You can't use triggered actions or make free strikes
+mtime: 1758336741387
+iconid: ui-icons/skills/1.png

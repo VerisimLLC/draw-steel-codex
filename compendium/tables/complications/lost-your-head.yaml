@@ -1,0 +1,13 @@
+__typeName: CharacterComplication
+drawback: Having no head, you can’t see, hear, smell, taste, or verbalize except by using the Share Head ability. Additionally, you can’t wear gear that requires a head, such as a helmet or hat.
+mtime: 1767272977563
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Lost Your Head
+ctime: 1755515866339
+description: "A bredbeddle stole your head! Usually, being beheaded by one of those magical giants is fatal (see Draw Steel: Monsters), but your latent psionic ability allows you to survive despite your decapitation."
+id: c757758a-96bd-4bce-91a9-52d6dafabbcf
+benefit: |-
+  You have the following ability:
+  Share Head

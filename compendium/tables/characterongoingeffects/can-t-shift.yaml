@@ -1,0 +1,47 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 7d43f8e4-05e9-4795-bd63-ffe5e2fd5015
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:7d43f8e4-05e9-4795-bd63-ffe5e2fd5015: true
+  name: Can't Shift
+  guid: e2c62ed7-d67b-4435-9dc1-dd144103f7f8
+  description: You cannot shift.
+  behavior: attribute
+  attribute: 42d3d3ec-da00-4338-a97a-fa5ea9d62472
+- __typeName: CharacterModifier
+  text: You can't shift.
+  sourceguid: 7d43f8e4-05e9-4795-bd63-ffe5e2fd5015
+  source: Ongoing Effect
+  behavior: movementtext
+  domains:
+    CharacterOngoingEffect:7d43f8e4-05e9-4795-bd63-ffe5e2fd5015: true
+  name: Can't Shift
+  movementType: shift
+  description: You cannot shift.
+  guid: cb19d592-5e5f-4aac-a2ae-e7c1211d9f01
+  color: red
+source: Ongoing Effect
+guid: 7d43f8e4-05e9-4795-bd63-ffe5e2fd5015
+id: 7d43f8e4-05e9-4795-bd63-ffe5e2fd5015
+ctime: 1754986979267
+domains:
+  CharacterOngoingEffect:7d43f8e4-05e9-4795-bd63-ffe5e2fd5015: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: -0.00208115577697754
+    v: 0.623720049858093
+    a: 1
+name: Can't Shift
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd
+description: You cannot shift.
+mtime: 1754987100816
+implementation: 3

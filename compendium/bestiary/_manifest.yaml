@@ -1,0 +1,2969 @@
+exportedAt: 2026-04-04T06:00:32.1162451Z
+monsters:
+  a704249e-ef65-4805-a3e8-4537b31371be:
+    description: Werewolf
+    file: werewolf.yaml
+  0034e3f7-2336-44e9-a138-cd3e682d14f1:
+    description: War Dog Prismite
+    file: war-dog-prismite.yaml
+  003e09bd-9b1b-404f-9f5b-922bac5efc65:
+    description: Wyvern Predator
+    file: wyvern-predator.yaml
+  018aa84d-dc71-4e34-a3e9-e3ce3896d5a8:
+    description: Orc Glorifier
+    file: orc-glorifier.yaml
+  01a7e1b7-7f3a-4d1a-b2f0-049ad1b452d4:
+    description: Orc Bloodspark
+    file: orc-bloodspark.yaml
+  034882cb-2298-41b2-b753-dfcc6588ae56:
+    description: null
+    file: lord-relg.yaml
+  0375ee09-8820-4144-80e9-04c37247c018:
+    description: Basilisk Tonguesnapper
+    file: basilisk-tonguesnapper.yaml
+  040abc59-647e-4fb8-8391-75036b6c3675:
+    description: Kobold Artifex
+    file: kobold-artifex.yaml
+  043d76f5-d602-4c4e-a586-43d9f7e0ccd0:
+    description: Fire Giant Red Fist
+    file: fire-giant-red-fist.yaml
+  045bbb06-7ed4-413b-9e04-c8b7cb4450bd:
+    description: War Dog Eviscerite
+    file: war-dog-eviscerite.yaml
+  04905ac6-3f03-4a4b-85dc-c5989b6358ae:
+    description: War Dog Sharpshooter
+    file: war-dog-sharpshooter.yaml
+  049a8577-2aec-4202-8589-2ac157fcf400:
+    description: Goblin Archer
+    file: goblin-archer.yaml
+  04c70e5a-61ee-482a-bf71-26270f53b755:
+    description: null
+    file: violent.yaml
+  050f71fe-7fe5-4916-844a-dcaf046011f3:
+    description: Demon Unguloid
+    file: demon-unguloid.yaml
+  055f52c3-eca2-4160-b347-b1d53aa384da:
+    description: Demon Optacus
+    file: demon-optacus.yaml
+  05776427-5468-499a-a004-e45885734801:
+    description: Ogre Goon
+    file: ogre-goon.yaml
+  0577b0f9-d1d8-42ba-b082-fe947011b90e:
+    description: null
+    file: fire-orc-eye-of-grole.yaml
+  0609e87d-2ab2-482a-aa0a-d721d0024e46:
+    description: Time Raider Myriad
+    file: time-raider-myriad.yaml
+  0789e1df-faf8-4c01-9cf5-e2e9001c08a9:
+    description: Logostician Vesper
+    file: logostician-vesper.yaml
+  086bfda1-2a8f-427e-8dda-3bb12291213e:
+    description: null
+    file: divine-dragon.yaml
+  08f5d504-9e48-462e-acf3-e69ca27bf388:
+    description: Mummy Lord
+    file: mummy-lord.yaml
+  098ae083-0c3f-4047-85a0-bb3e8a2232ae:
+    description: War Dog Equivite
+    file: war-dog-equivite.yaml
+  0b90b225-cfa4-44c4-88d3-9aa90a9e0dcf:
+    description: null
+    file: lightning-orc-eye-of-grole.yaml
+  0ba16222-c665-41bf-a10a-fef5cc2afc37:
+    description: Fleshflayed Shambler
+    file: fleshflayed-shambler.yaml
+  0bbf919a-8ab3-4dcd-9362-6e50a70cccfb:
+    description: null
+    file: shrieker.yaml
+  0bdb26fe-a8d9-47fe-a0bf-b13364ff78a2:
+    description: null
+    file: sprite-dandeknight.yaml
+  0c16a4e7-80e0-4c51-8e01-81661689b737:
+    description: null
+    file: orc-warleader.yaml
+  0c1fd741-7fd7-443c-a96d-72e3dbdd1516:
+    description: null
+    file: stalker-shade.yaml
+  0c215cb7-84e6-4cb0-853f-d588600a5ce1:
+    description: null
+    file: creeping-sludge.yaml
+  0c566b64-d70c-4f40-b1d9-64523154e15e:
+    description: Zombie
+    file: zombie.yaml
+  0d62c614-ae8a-4e54-994a-5cc82c9f7e1e:
+    description: null
+    file: dancing-silk.yaml
+  0e28c76f-2a53-44db-8ce7-e6ba979060e5:
+    description: Bugbear Knightmare
+    file: bugbear-knightmare.yaml
+  0e35f846-2af9-4e27-abc6-927b73b74100:
+    description: null
+    file: principle-of-the-swamp.yaml
+  0e7bd3c0-638c-4b08-afb3-7ab48ac16c17:
+    description: Minotaur Lackey
+    file: minotaur-lackey.yaml
+  0fbdd48a-b3b5-45b7-b0f6-6601103ffbf7:
+    description: null
+    file: source-of-earth.yaml
+  102313b1-6e1c-4da9-9435-906868e556d0:
+    description: Servok Builder
+    file: servok-builder.yaml
+  1086c801-4e74-4b70-a227-813d2c14c85d:
+    description: Gnoll Wildling
+    file: gnoll-wildling.yaml
+  10dc5f9b-44cc-4aa2-91c0-9d535b5b215c:
+    description: null
+    file: fire-orc-eye-of-grole.yaml
+  1154a70e-62de-4654-9ecb-fa203b778e40:
+    description: Human Blackguard
+    file: human-blackguard.yaml
+  115b53a3-e8e9-4bf3-8c2c-c6902feded6b:
+    description: Lizardfolk Bloodeye
+    file: lizardfolk-bloodeye.yaml
+  1279110d-621a-4743-b41e-e9ca3ce21dea:
+    description: Demon Torlas
+    file: demon-torlas.yaml
+  12bf47af-9843-487f-b296-d551c81a48ad:
+    description: Shadow Elf Stipple
+    file: shadow-elf-stipple.yaml
+  13dfe3b7-923a-42d7-8991-c03ab96a304c:
+    description: Demon Bale Eye
+    file: demon-bale-eye.yaml
+  13f59488-3616-4b36-b5ea-928984384005:
+    description: null
+    file: memorial-ivy.yaml
+  14034b42-d3a1-414f-a556-b47620087ab7:
+    description: High Elf Palinode
+    file: high-elf-palinode.yaml
+  144887ee-cbae-4a84-a515-6821500eb940:
+    description: null
+    file: desolation-of-sand.yaml
+  14d9ec44-f4f6-41f4-8b37-049366f3a172:
+    description: Orc Razor
+    file: orc-razor.yaml
+  15000b2a-bc4a-4bcb-8195-1f758c6f7b08:
+    description: Demon Ensnarer
+    file: demon-ensnarer.yaml
+  15a7ecc0-8aac-4877-8724-bed6d093d522:
+    description: Hill Giant Flunky
+    file: hill-giant-flunky.yaml
+  15cba1ef-857b-4421-8ab9-2a6f8cdebf60:
+    description: Dwarf Driver
+    file: dwarf-driver.yaml
+  160777f0-0ca0-44d7-bab0-0ec9a581c834:
+    description: Swarm
+    file: swarm.yaml
+  1622aa8d-1cb2-44e4-a720-6f51aac2a949:
+    description: Hobgoblin War Mage
+    file: hobgoblin-war-mage.yaml
+  164a2477-79d4-4905-89c8-d81a143801c5:
+    description: Servok War Engine
+    file: servok-war-engine.yaml
+  166bf2de-bfa9-4487-9c2a-74dfd61d06a0:
+    description: Sand Stone Giant
+    file: sand-stone-giant.yaml
+  17277372-a2ca-44ff-b8c9-d0a6eedb5808:
+    description: Angulotl Needler
+    file: angulotl-needler.yaml
+  17a47d34-cfd0-4b85-98b6-135c03635356:
+    description: null
+    file: canine.yaml
+  17daa760-3b12-46ed-b18b-6c4fcbdb7bb9:
+    description: null
+    file: lord-relg.yaml
+  17dc01c1-2300-46b9-bc3b-c0b666a112b5:
+    description: Troll Limbjumble
+    file: troll-limbjumble.yaml
+  188c4b11-fbef-487c-83dd-0179b273f8b3:
+    description: Lightbender Pouncer
+    file: lightbender-pouncer.yaml
+  197348f0-060f-4bf3-a226-a5fd112059b0:
+    description: null
+    file: mind-projection-body.yaml
+  1993ecc4-56d3-4f7e-8430-f5b6fd61e2d0:
+    description: Cradle Crow
+    file: cradle-crow.yaml
+  19cc59ee-4766-4f4f-ac92-c763d6b33cdb:
+    description: Wode Elf Druid
+    file: wode-elf-druid.yaml
+  19f798a3-ef0b-4295-98f8-fd58da76b909:
+    description: Sprite
+    file: sprite.yaml
+  1b183410-09d8-4fe7-ae7e-a64c318252f3:
+    description: War Dog Cognivite
+    file: war-dog-cognivite.yaml
+  1b2d11ef-6a70-4a4d-800f-ae43d27147f8:
+    description: Lizardfolk Tonguer
+    file: lizardfolk-tonguer.yaml
+  1b390969-68bd-4624-8a3e-6ab5df4527c4:
+    description: War Dog Shriketrooper
+    file: war-dog-shriketrooper.yaml
+  1b46fe87-c6c4-4dff-8cb1-819309c5c1fd:
+    description: Rival Tactician
+    file: rival-tactician.yaml
+  1b89b183-7336-4695-98e6-ecbba4a4b506:
+    description: Voiceless Talker Evolutionist
+    file: voiceless-talker-evolutionist.yaml
+  1b986245-c393-456e-b32d-ad3ebac715cc:
+    description: Hobgoblin Burning Witch
+    file: hobgoblin-burning-witch.yaml
+  1ba139af-f969-487f-b308-0f445418765f:
+    description: War Dog Tetherite
+    file: war-dog-tetherite.yaml
+  1c82931f-0da5-48b0-a066-599f79530b0a:
+    description: null
+    file: essence-of-change.yaml
+  1d2e1061-edf4-4774-b527-4007cfcadee0:
+    description: Haunt
+    file: haunt.yaml
+  1d5e11e3-6c64-4074-85ca-89712aa93a19:
+    description: War Dog Ballistite
+    file: war-dog-ballistite.yaml
+  1da8499b-b64d-44b2-b448-b49af09571e7:
+    description: War Dog Aerocite
+    file: war-dog-aerocite.yaml
+  1e7aaeb9-bd89-460b-85bb-83f8b7879234:
+    description: Radenwight Swiftpaw
+    file: radenwight-swiftpaw.yaml
+  1f5b2392-6746-4974-bd58-b0c0e415e492:
+    description: null
+    file: husk.yaml
+  1f68e90a-9df9-4e0a-9a05-5e9e70b68e9b:
+    description: War Dog Socialite
+    file: war-dog-socialite.yaml
+  1f720515-3604-4c45-b58f-9ae58328669d:
+    description: Decrepit Skeleton
+    file: decrepit-skeleton.yaml
+  1fbc1702-f1c0-4710-aa4b-d26d325c0366:
+    description: Goblin Stinker
+    file: goblin-stinker.yaml
+  2001b04f-57cc-463e-a6fe-6397dc0430c9:
+    description: Devil Jurist
+    file: devil-jurist.yaml
+  20520bf0-989a-4f70-9b74-71cc4a278db6:
+    description: null
+    file: essence-of-change.yaml
+  205269d5-1461-4d04-a6d8-8116caf54e4a:
+    description: Kobold Centurion
+    file: kobold-centurion.yaml
+  206889cb-6122-45f0-922f-2504f86d0efe:
+    description: Shadow Elf Obscurse
+    file: shadow-elf-obscurse.yaml
+  212b4c4a-6d9e-45dd-bb80-4c8232edc586:
+    description: null
+    file: gummy-ball.yaml
+  214fc0e4-6ea9-4afa-82bd-a3634c5992d7:
+    description: Orc Godcaller
+    file: orc-godcaller.yaml
+  21518fee-4789-4964-a41d-d1448f3fa965:
+    description: null
+    file: the-iron-orb.yaml
+  21964938-c492-4405-aade-317bc6aa2413:
+    description: Demon Izyak
+    file: demon-izyak.yaml
+  21a23974-d7ba-4dd9-85c7-3db5a4d01ba5:
+    description: Lizardfolk Skyterror
+    file: lizardfolk-skyterror.yaml
+  21dae8e0-2b71-4210-bc11-e116def2caa2:
+    description: War Dog Thanatite
+    file: war-dog-thanatite.yaml
+  223828dd-0509-4b1c-aa1a-0d1501f8990a:
+    description: Time Raider Cannonfall
+    file: time-raider-cannonfall.yaml
+  22ac764e-4a56-4e14-867b-38f703761ddb:
+    description: null
+    file: undead-servitor.yaml
+  230afe36-5098-431d-98f3-b95d8a875f04:
+    description: High Elf Ordinator
+    file: high-elf-ordinator.yaml
+  24245ffe-9dc4-487a-b8df-b7732e5365de:
+    description: Demon Grulqin
+    file: demon-grulqin.yaml
+  246ffa6e-5381-4378-8ede-f03983a9fc00:
+    description: null
+    file: conduit-rolling-machine.yaml
+  247b597f-53bd-4793-b895-d8b4649be5a0:
+    description: Wraith Skulker
+    file: wraith-skulker.yaml
+  24d7aa97-f2f6-47cc-a7c3-2b882802ae05:
+    description: null
+    file: war-dog-teletalite.yaml
+  2515728c-0b6f-4627-91bf-23e148a2c276:
+    description: null
+    file: quiet-of-snow.yaml
+  2517b4de-f046-4e01-923c-84e4e55180ce:
+    description: null
+    file: armored-soulwight.yaml
+  258ea21e-a5e5-4fbe-9e38-351af87fd8d8:
+    description: Devil Adjudicator
+    file: devil-adjudicator.yaml
+  2612e091-cc1c-4d5b-9a1f-8370d5774f92:
+    description: null
+    file: fanged-musilex.yaml
+  2626a864-178f-4521-bffb-0f6d6b28da95:
+    description: Shadow Elf Crosshatchet
+    file: shadow-elf-crosshatchet.yaml
+  262ff4cd-5713-4b5d-bd28-f9c4af23dae3:
+    description: Demon Orflig
+    file: demon-orflig.yaml
+  26392c7b-c48a-415b-8f25-dfba4d8a389a:
+    description: Orc Garroter
+    file: orc-garroter.yaml
+  26bf65f9-f313-4e28-a2ac-ff6bf252ebf3:
+    description: Bugbear Channeler
+    file: bugbear-channeler.yaml
+  26eb494e-88f1-4288-a5fa-9ed3f252edd2:
+    description: Dwarf Catchpole
+    file: dwarf-catchpole.yaml
+  279d55bc-aeed-4c02-8748-3cfaa9d7c061:
+    description: Demon Ruinant
+    file: demon-ruinant.yaml
+  28534a67-58de-4df5-8097-1e96e7087b71:
+    description: Bugbear Snare
+    file: bugbear-snare.yaml
+  29cd277a-85fa-4499-b059-de804fb0b0cf:
+    description: Kobold Adeptus
+    file: kobold-adeptus.yaml
+  2b2c9519-d477-4aa2-888a-0f876a204ccf:
+    description: null
+    file: brisk-gale.yaml
+  2c51c229-344c-42c7-ab11-0deb20f7bdce:
+    description: null
+    file: archer-spittlich.yaml
+  2c97640c-a606-466f-b778-ecd57a445293:
+    description: null
+    file: phase-ghoul.yaml
+  2cc8674d-839d-427e-9780-7912493d685f:
+    description: Lumbering Egress
+    file: lumbering-egress.yaml
+  2cd1a880-9ccb-420a-a6ea-3e570fe567f0:
+    description: null
+    file: violent.yaml
+  2cdb337c-c2be-4795-88dc-d81aa38baccf:
+    description: null
+    file: wallmaster.yaml
+  2d1eac95-f765-41e5-8bea-eea559b685f6:
+    description: Time Raider Vertex
+    file: time-raider-vertex.yaml
+  2f1e8344-4751-4cf9-8e44-3ab6ebb3726c:
+    description: null
+    file: noncombatant.yaml
+  2f4977fd-f3fe-4975-8f59-1523798d71a0:
+    description: null
+    file: arixx.yaml
+  2f8240cd-85cd-4bad-8510-d286aa1ce447:
+    description: null
+    file: accursed-mummy.yaml
+  30df68a5-f5bf-45ba-bfc0-5d352fe8e1a3:
+    description: Lizardfolk Shellguard
+    file: lizardfolk-shellguard.yaml
+  318b1534-9c08-428f-bb17-63b9f94b032a:
+    description: null
+    file: familiar.yaml
+  318effd6-6529-4ad0-87bd-8cc3ca8a2873:
+    description: Wode Elf Lookout
+    file: wode-elf-lookout.yaml
+  321d1ae5-dc14-4737-887f-dd74a0343395:
+    description: Ghoul Craver
+    file: ghoul-craver.yaml
+  3257ec4a-a527-4711-b464-8123c13eb36c:
+    description: Crawling Claw
+    file: crawling-claw.yaml
+  3267ab98-0772-452d-afe4-0256b7b66f35:
+    description: Abyssal Hyena
+    file: abyssal-hyena.yaml
+  32af14f6-0d77-4509-a276-1a9af86cb3b3:
+    description: Shadow Elf Nullstroke
+    file: shadow-elf-nullstroke.yaml
+  3306b1ae-e63e-4bab-b85e-2ea884b94c75:
+    description: Essence of Tides
+    file: essence-of-tides.yaml
+  33cc10a7-ad8a-4c80-ad25-b2a20eeb9c73:
+    description: Gnoll Marauder
+    file: gnoll-marauder.yaml
+  34b42fd1-edb1-408c-864c-f049c4aa2b89:
+    description: War Dog Sparkslinger
+    file: war-dog-sparkslinger.yaml
+  34e8f5b5-05ab-47b2-a35e-b72ba7fc9e9d:
+    description: null
+    file: sprite-orchiguard.yaml
+  351386c8-3450-41c1-9cdd-b59fd13a522a:
+    description: null
+    file: bird.yaml
+  355ebaf0-6667-455d-be83-fe35cc4f7e91:
+    description: Shadow Elf Dusk Mage
+    file: shadow-elf-dusk-mage.yaml
+  359ef90d-0a7b-46da-88dd-5b6c0cfd8791:
+    description: Bredbeddle
+    file: bredbeddle.yaml
+  35a0346b-1388-480d-8451-e9d140ff45c6:
+    description: Shadow Elf Contourze
+    file: shadow-elf-contourze.yaml
+  36647633-4fa4-40bf-ac9e-fea29fe5aea0:
+    description: Lightbender
+    file: lightbender.yaml
+  36c8cf54-3330-4451-8080-41326029b3c0:
+    description: Multivok Bodyguard
+    file: multivok-bodyguard.yaml
+  36d4b1d9-55b0-4985-9b23-2941fbb43010:
+    description: null
+    file: undead-servitor.yaml
+  36f921de-9eb2-45c0-8ad1-865dd50bbcc2:
+    description: Soot Crow
+    file: soot-crow.yaml
+  378d0a85-08f3-451d-99d8-3e47ff90d9c9:
+    description: Gnoll Carnage
+    file: gnoll-carnage.yaml
+  37a0a7d7-dfb9-4f75-ad79-4f8fc9b871ef:
+    description: Demon Remasch
+    file: demon-remasch.yaml
+  37aea654-15f8-4034-a96a-22f971bcfa6c:
+    description: War Dog Breaker
+    file: war-dog-breaker.yaml
+  383f90fc-d08d-49f7-86d5-291c422995b0:
+    description: null
+    file: zombie-lumberer.yaml
+  385a59fc-cee2-4734-b94e-f7d02f8b57c9:
+    description: Human Brawler
+    file: human-brawler.yaml
+  38da0240-ca9b-4508-9fa4-d10b319e62db:
+    description: Specter
+    file: specter.yaml
+  3a609af6-130c-4914-a70e-f616eb66eea5:
+    description: High Elf Wyrd
+    file: high-elf-wyrd.yaml
+  3a7edf06-1484-4325-bf31-588ae871954d:
+    description: Xorannox the Tyract
+    file: xorannox-the-tyract.yaml
+  3b3ca3d5-e87e-4cf3-82d3-a2e8cc94d99f:
+    description: Kobold Veles
+    file: kobold-veles.yaml
+  3b682a78-a083-4b45-bedb-f8f5084e7462:
+    description: null
+    file: return-to-oblivion.yaml
+  3b7e6a15-dfe2-401c-a415-f663426edfa7:
+    description: null
+    file: desolation-of-sand.yaml
+  3c7f3c3d-4bed-496a-9ea2-7f7a41dd84ec:
+    description: null
+    file: spindlegoth.yaml
+  3d8be1be-611c-44b8-a2b5-66d832e4a880:
+    description: Shadow Elf Moondancer
+    file: shadow-elf-moondancer.yaml
+  3dbb573c-b633-4833-8e22-b09497022ceb:
+    description: Demon Fangling
+    file: demon-fangling.yaml
+  3de53c28-2de5-47d9-a9a1-e1306c1d3cc7:
+    description: Basilisk
+    file: basilisk.yaml
+  3f468790-064f-46df-9784-a9d2565026fe:
+    description: null
+    file: winded-rotting-zombie.yaml
+  3f966d4e-db8b-4a20-b83c-c37acaecb4ec:
+    description: Radenwight Ratcrobat
+    file: radenwight-ratcrobat.yaml
+  3f9bd1e8-bc39-452b-819a-4b0274de1622:
+    description: Kobold Signifier
+    file: kobold-signifier.yaml
+  3fe52476-756f-4fdf-8ec3-79bb23a3b732:
+    description: Goblin Spinecleaver
+    file: goblin-spinecleaver.yaml
+  3fed1506-40b0-453c-a992-c3bf996ce600:
+    description: Hobgoblin Recruit
+    file: hobgoblin-recruit.yaml
+  410bfdc5-822a-4f24-b293-b15df05bf35d:
+    description: null
+    file: rat.yaml
+  41c866d6-f7be-43ca-b843-b04c7c4cefa9:
+    description: Hobgoblin Bloodlord
+    file: hobgoblin-bloodlord.yaml
+  42480694-be64-47a5-bbfd-673e070d4e77:
+    description: Multivok Chief
+    file: multivok-chief.yaml
+  42637538-3b12-4b68-90ad-85536177970e:
+    description: Predator A
+    file: predator-a.yaml
+  42bdc361-3ac2-41b5-9e1b-d665f9b01390:
+    description: null
+    file: pixie-hydrain.yaml
+  4311a1bd-2877-482b-933c-c118d75c3ad0:
+    description: Wode Elf Sentry
+    file: wode-elf-sentry.yaml
+  4333a549-acf2-4f59-9672-3c15e10f43e4:
+    description: null
+    file: devil-defector.yaml
+  4373f7c5-816b-4272-b915-15f36fb6ceb3:
+    description: Voiceless Talker Artillerist
+    file: voiceless-talker-artillerist.yaml
+  43a150d2-b635-4642-896d-71683e481724:
+    description: Demon Tyburaki
+    file: demon-tyburaki.yaml
+  45729d8f-7e92-4657-bdaf-cdfbad613569:
+    description: null
+    file: ceaseless-mournling.yaml
+  46034af8-e08b-4aac-92d5-d8665e2bf472:
+    description: Shadow Elf Panther
+    file: shadow-elf-panther.yaml
+  463d7706-a244-4247-bc16-7112ef93941e:
+    description: Iron Champion Doru
+    file: iron-champion-doru.yaml
+  46d35a0f-189f-43ab-8066-fe30bcf3b678:
+    description: null
+    file: pixie-loftlilly.yaml
+  4746b7c4-9bc0-4d42-82d6-b83cf637181b:
+    description: War Dog Commando
+    file: war-dog-commando.yaml
+  47ffefd5-8a9b-4949-84d2-6b6a2e33e1f4:
+    description: Dwarf Grenadier
+    file: dwarf-grenadier.yaml
+  4870c075-8467-444b-96f3-6041bf09fa58:
+    description: Mohler
+    file: mohler.yaml
+  4a2712c0-76fe-49d4-9af2-f23f942b3faa:
+    description: Dwarf Reel Winch
+    file: dwarf-reel-winch.yaml
+  4a9d14e3-9097-401b-9969-b1580e057250:
+    description: Wode Elf Scout
+    file: wode-elf-scout.yaml
+  4cd8d006-9363-4449-8562-1ae34751b158:
+    description: Angulotl Pollywog
+    file: angulotl-pollywog.yaml
+  4ce6b6fb-16ad-41e8-81d3-50ac9038cc12:
+    description: null
+    file: pixie-hydrain.yaml
+  4d33c185-2dd1-4e13-a3a2-b32246bc9b5a:
+    description: Human Rogue
+    file: human-rogue.yaml
+  4e479454-2e3a-4e8a-929a-709421af733e:
+    description: High Elf Quiver
+    file: high-elf-quiver.yaml
+  4ec2b7e2-7dd5-4a69-900f-8c5df1697475:
+    description: null
+    file: pixie-bellringer.yaml
+  4ff1013f-1ff6-407d-a0f3-98dc4feb6eb1:
+    description: Swarm of Skitterlings
+    file: swarm-of-skitterlings.yaml
+  5018179a-cdf3-4ac8-a53e-d138756dfb80:
+    description: Hobgoblin Wickerwitch
+    file: hobgoblin-wickerwitch.yaml
+  50204b68-5f7e-4caf-a506-2d70830ad7e1:
+    description: Radenwight Redeye
+    file: radenwight-redeye.yaml
+  50cc07a1-3bff-4893-9f19-dcbe5223540f:
+    description: Angulotl Dart
+    file: angulotl-dart.yaml
+  51ff7f8e-d42c-4e51-8e3d-df23fd88be9d:
+    description: Radenwight Mischiever
+    file: radenwight-mischiever.yaml
+  5263ea94-c60d-4ab6-8e8d-034ee1aae227:
+    description: War Dog Mischievite
+    file: war-dog-mischievite.yaml
+  529d4d04-c611-4d87-892f-e48ebae29ff7:
+    description: Time Raider Helix
+    file: time-raider-helix.yaml
+  52c946c5-219c-49d0-ab5e-68c12f29d705:
+    description: Lord Syuul
+    file: lord-syuul.yaml
+  5388ff8c-9eef-4cbf-8cc7-d7dce076db4f:
+    description: Shadow Elf Streak
+    file: shadow-elf-streak.yaml
+  53bb2329-398d-4e45-872b-6924ae5d70d2:
+    description: Rotting Zombie
+    file: rotting-zombie.yaml
+  53f19334-fcae-4e03-90d2-bd92403dd866:
+    description: Time Raider Tyrannis
+    file: time-raider-tyrannis.yaml
+  543293bb-470f-4587-8ae4-9f6cb4ae14fe:
+    description: Flesh Mournling
+    file: flesh-mournling.yaml
+  5450de53-e7bd-40e0-a507-b0bc0016ae7f:
+    description: Wode Elf Yeoman
+    file: wode-elf-yeoman.yaml
+  5470d4dd-fce0-4243-8a5e-9078241c1c34:
+    description: Uraxxinoth
+    file: uraxxinoth.yaml
+  551e5274-f995-40eb-adca-681f544878eb:
+    description: Demon Muceron
+    file: demon-muceron.yaml
+  56674e67-bda6-43a5-9f6f-f9f7b68a7b13:
+    description: null
+    file: fish.yaml
+  5742915b-6720-40f6-b3d7-15d789c1751c:
+    description: Giant Zombie Shambler
+    file: giant-zombie-shambler.yaml
+  57af2342-f1f4-4ad5-9e87-f441478c357d:
+    description: Minotaur Sunderer
+    file: minotaur-sunderer.yaml
+  57f3f6c7-5880-45c9-8127-cf4613835e95:
+    description: Omen Dragon
+    file: omen-dragon.yaml
+  5818e706-bbee-47e3-a33c-7aec2e4ae626:
+    description: null
+    file: dame-cornelia.yaml
+  59090408-78bc-4687-8f35-dd13dbe39029:
+    description: Human Storm Mage
+    file: human-storm-mage.yaml
+  592f3035-d56f-4056-a3c1-36965347c9f2:
+    description: Dwarf Gunner
+    file: dwarf-gunner.yaml
+  5949474c-9dcf-47c9-ad53-9035a085f941:
+    description: Human Death Cultist
+    file: human-death-cultist.yaml
+  595ad210-21a2-478e-aec6-9ccb05ea006d:
+    description: null
+    file: brisk-gale.yaml
+  5a6c1def-9357-4064-aa6c-04923e5a375b:
+    description: Voiceless Talker Graywarper
+    file: voiceless-talker-graywarper.yaml
+  5af462b8-1b05-4c38-a9d9-2c3b98e5164e:
+    description: High Elf Orbweaver
+    file: high-elf-orbweaver.yaml
+  5b8e7a06-95fd-4802-aef6-d44d150ee11f:
+    description: null
+    file: sudden-downpour.yaml
+  5bf573a5-e400-4db0-881b-bd7b53b857d9:
+    description: Force of Earth
+    file: force-of-earth.yaml
+  5bf8638a-050e-459c-9cb8-5322baf0abda:
+    description: null
+    file: nixie-soakreed.yaml
+  5d7331fb-2d45-4a80-8eee-57036a625d1a:
+    description: Goblin Monarch
+    file: goblin-monarch.yaml
+  5dac621c-80cd-4931-b2e0-db6352fd92e5:
+    description: Soulraker Stinger
+    file: soulraker-stinger.yaml
+  5dc871df-7973-4726-bada-a065e2c280d0:
+    description: Demon Chorogaunt
+    file: demon-chorogaunt.yaml
+  5e0d10b3-7285-4d33-8c9f-62d3a7ed1b5b:
+    description: null
+    file: sprite-foxglow.yaml
+  5e40a02e-4e89-4bc0-80a2-2aa56eca1822:
+    description: null
+    file: rodent.yaml
+  5e75a32d-e3f3-4199-ad1d-0ffc400d4e7b:
+    description: Servok Miner
+    file: servok-miner.yaml
+  5f3d198b-b799-414a-91c7-406e711d3416:
+    description: Hollowbone Launcher
+    file: hollowbone-launcher.yaml
+  601e8c89-7918-4595-92ad-d0f81e586d00:
+    description: Shadow Elf Celstrike
+    file: shadow-elf-celstrike.yaml
+  602ac1db-482d-47f1-998a-59e6da0c0128:
+    description: Skeleton
+    file: skeleton.yaml
+  60d7e072-9bd6-4431-9b73-efea6e668994:
+    description: Wode Elf Tree Gweiadur
+    file: wode-elf-tree-gweiadur.yaml
+  60ece013-791c-4246-a9d4-414f4e4381fe:
+    description: Fire Giant Fireballer
+    file: fire-giant-fireballer.yaml
+  6102d7d0-d7bf-4401-81b4-69fe3cd84675:
+    description: null
+    file: imit-putty.yaml
+  6271477e-be0d-499c-9201-742901ba96f0:
+    description: null
+    file: canine.yaml
+  63aa794a-5d60-4b50-928a-d2d6f91a23c0:
+    description: War Dog Draconite
+    file: war-dog-draconite.yaml
+  65c97192-3cf9-471f-b874-6157da8f1a19:
+    description: Devil Magistrate
+    file: devil-magistrate.yaml
+  66c0e8a6-307f-4c6f-8dc0-f04fd94b403a:
+    description: Wodenelg
+    file: wodenelg.yaml
+  674ef21c-6ea0-4989-b25d-ebd3fe711604:
+    description: Dwarf Trapper
+    file: dwarf-trapper.yaml
+  67d366c4-8348-4489-8de8-bab61f8fb760:
+    description: Essence of Storms
+    file: essence-of-storms.yaml
+  67dd3d6a-1865-4d3a-904c-c4a91fb5468c:
+    description: null
+    file: spindlegoth.yaml
+  6805f4c6-04c6-483e-93f9-d74b21d5680c:
+    description: Human Death Acolyte
+    file: human-death-acolyte.yaml
+  68f7bbb5-4782-4aac-b505-cdddcbfeed67:
+    description: null
+    file: gushing-spewler.yaml
+  6902144e-54c7-4c0a-809d-e3f2eda01b8c:
+    description: Griffon
+    file: griffon.yaml
+  690eec77-36c3-44c7-94dc-eaf08bf0dde6:
+    description: Wode Elf Runner
+    file: wode-elf-runner.yaml
+  69219219-1ade-4256-9ee4-f59d98a591fc:
+    description: null
+    file: guest-star.yaml
+  693b5f0a-a0d7-49d1-9cc4-c558b1d6ff0a:
+    description: Mindkiller
+    file: mindkiller.yaml
+  695ef090-c6b0-43c8-9fc9-30caf691879e:
+    description: null
+    file: crucible-dragon.yaml
+  6a46b395-d599-4c4d-8e59-6b0a5001e215:
+    description: Giant Zombie
+    file: giant-zombie.yaml
+  6aa52a3f-6d86-4699-ad90-3d844da8b937:
+    description: Rival Fury
+    file: rival-fury.yaml
+  6acc44d5-3fe8-4582-a923-ab5c33377666:
+    description: Slaughter Demon
+    file: slaughter-demon.yaml
+  6b07f3b3-b7e6-4b25-a96d-9516e4100c9a:
+    description: Mummy Rotwrap
+    file: mummy-rotwrap.yaml
+  6b415224-530e-4c82-8d58-3cbb42f37dfd:
+    description: Meteor Dragon
+    file: meteor-dragon.yaml
+  6c5be6c8-750b-4bf9-ac3a-abd317cb5953:
+    description: null
+    file: shadow-clone.yaml
+  6c6e71be-de40-4422-9693-2528deaf2eea:
+    description: Orc Juggernaut
+    file: orc-juggernaut.yaml
+  6c8ae494-8d54-431f-864c-22bd19a2f1fe:
+    description: null
+    file: dancing-silk.yaml
+  6cbfa1bd-b3ac-4174-938a-eff3d32460e8:
+    description: Demon Chimeron
+    file: demon-chimeron.yaml
+  6d2465ee-74b2-4ed9-b890-8fa891531837:
+    description: Rival Talent
+    file: rival-talent.yaml
+  6d4ffaa0-33b7-4f9b-a16c-1a76f47ce656:
+    description: null
+    file: pixie-loftlilly.yaml
+  6d63cf9e-3397-4781-81aa-f361e3d02051:
+    description: null
+    file: rasquine.yaml
+  6d925e8a-dbe0-4925-81ad-85feddf4f0ab:
+    description: Hobgoblin Lancer
+    file: hobgoblin-lancer.yaml
+  6d96140e-9089-477c-91ef-ad1c358c740e:
+    description: Time Raider Nemesis
+    file: time-raider-nemesis.yaml
+  6d9dd8ca-5f51-4b7c-bfc8-11e4389b3568:
+    description: null
+    file: sprite-orchiguard.yaml
+  6da46e02-1bd6-4881-93b1-c5c2ea4dbbdf:
+    description: Medusa
+    file: medusa.yaml
+  6df0658b-2b39-423d-9055-4829cdee6955:
+    description: Shadow Elf Flash
+    file: shadow-elf-flash.yaml
+  6e271cd7-e701-4836-9c11-d51b1ed4ad1d:
+    description: null
+    file: gnoll-gnasher.yaml
+  6e6907ea-19a9-42b0-8ea2-248602f6144a:
+    description: Ghost
+    file: ghost.yaml
+  6e7966e0-788c-450c-ade4-6e9950a60f11:
+    description: Wode Elf Warleader
+    file: wode-elf-warleader.yaml
+  6f3460f1-f113-4fb3-86c8-d3ff940701dc:
+    description: null
+    file: walking-boulder.yaml
+  6f69e24e-fc58-4a2d-8a16-c07d076e6f9b:
+    description: Lydixavus the Deadeye
+    file: lydixavus-the-deadeye.yaml
+  6fc4b2aa-7659-49db-9cbf-ac8b7d4ae3af:
+    description: Hobgoblin Grandguard
+    file: hobgoblin-grandguard.yaml
+  70b31ae3-0023-4c94-a563-923f5f119bc0:
+    description: War Dog Pestilite
+    file: war-dog-pestilite.yaml
+  70bd9c85-0471-4289-b3c5-3421c639a8df:
+    description: null
+    file: civilian.yaml
+  70dcfa7a-bc45-48a9-9b19-aea05b612f94:
+    description: Angulotl Wave
+    file: angulotl-wave.yaml
+  70dd5b92-32d3-4a46-9fff-5dc0ea3010c8:
+    description: null
+    file: statue-of-power.yaml
+  713ff7bb-6fcf-46d0-8f36-679340efaa8b:
+    description: Radenwight Ratagast
+    file: radenwight-ratagast.yaml
+  73735fe0-9371-4631-9746-8e30c91ec724:
+    description: Hobgoblin Redglare
+    file: hobgoblin-redglare.yaml
+  73f63f7f-dd59-442f-af34-0703fad0a68c:
+    description: Soulraker Handmaiden
+    file: soulraker-handmaiden.yaml
+  74375998-733e-4758-b0fc-ed0b4b7769d4:
+    description: null
+    file: lightning-orc-eye-of-grole.yaml
+  7455cb34-1011-49d3-a04d-db3ba3811e62:
+    description: Cyclops
+    file: cyclops.yaml
+  74ade13d-d99d-41e7-ae77-e3ee33b692f7:
+    description: null
+    file: rasquine.yaml
+  7611518c-ccb1-4340-8be8-47b355eb13d7:
+    description: null
+    file: the-iron-orb.yaml
+  76512ae6-4cf1-4e52-a470-3e29192fa83c:
+    description: Olothec
+    file: olothec.yaml
+  76ccad49-cbc2-4c0e-9943-65114367ac27:
+    description: null
+    file: razor.yaml
+  76de605d-434b-4210-905f-5c47caf159cf:
+    description: Goblin Cursespitter
+    file: goblin-cursespitter.yaml
+  77a64c43-bb04-45df-a8eb-4b3019198076:
+    description: Granite Stone Giant
+    file: granite-stone-giant.yaml
+  77f0f1e0-e31e-4b2f-b9f8-c0c704c60c57:
+    description: Demon Frenzied
+    file: demon-frenzied.yaml
+  78f655c0-a60b-43c0-91dd-5db941141778:
+    description: Shadow Elf Nightstrike
+    file: shadow-elf-nightstrike.yaml
+  7971d9a9-0e4b-4fcd-a264-8d3ca81082d9:
+    description: Dirt Mournling
+    file: dirt-mournling.yaml
+  7a06e720-154c-4088-96bc-5526b68fde8d:
+    description: null
+    file: husk.yaml
+  7a58baa9-ca9e-45af-9c4d-99f25658f0e3:
+    description: Strategos Alkestis
+    file: strategos-alkestis.yaml
+  7ae21825-f2b9-498d-b7c4-a279b0363b3d:
+    description: Demon Bendrak
+    file: demon-bendrak.yaml
+  7b2d1bdd-9a22-47dc-8ab5-7341c86172af:
+    description: Human Raider
+    file: human-raider.yaml
+  7bbc9089-2563-4597-940c-a4e7f76f6df1:
+    description: Bonecage
+    file: bonecage.yaml
+  7c7730d5-f8db-490d-b2ba-b6ea91b6e55c:
+    description: Hobgoblin Firerunner
+    file: hobgoblin-firerunner.yaml
+  7d6d1668-cdc8-468c-a745-036139d905ee:
+    description: Myxovidan the Sintaker
+    file: myxovidan-the-sintaker.yaml
+  7deceb73-b81b-4944-bc50-0501ae8e59fc:
+    description: null
+    file: sprite-foxglow.yaml
+  7e050311-0da1-4eee-b3fa-7120ac771f18:
+    description: null
+    file: shadow-clone.yaml
+  7ea91d3a-863e-45f2-be74-56835fcf1867:
+    description: Goblin Spidersmith
+    file: goblin-spidersmith.yaml
+  7ed1f31f-91c7-4139-b18e-76d1b2c8bc47:
+    description: null
+    file: civilian.yaml
+  7f939d39-1ec9-4785-8fa5-73f4d43992b3:
+    description: War Dog Sweeper
+    file: war-dog-sweeper.yaml
+  8029a56c-c6e5-4728-8b8f-3b95b1c1a22d:
+    description: Demon Pitling
+    file: demon-pitling.yaml
+  806915da-99a4-45fb-88a9-60ec110f9d18:
+    description: Goblin Underboss
+    file: goblin-underboss.yaml
+  80978ade-fb8c-4d7c-812a-eaab3f2a67d2:
+    description: null
+    file: wallmaster.yaml
+  8141cc22-433f-4d33-b8a6-ec00c4239c1b:
+    description: War Dog Tetrarch
+    file: war-dog-tetrarch.yaml
+  819d25f1-5217-4acf-8f50-fac27f395b2b:
+    description: War Dog Subcommander
+    file: war-dog-subcommander.yaml
+  8294bf44-ea3b-4a2e-b3d2-eb182bd98ab3:
+    description: Basalt Stone Giant
+    file: basalt-stone-giant.yaml
+  82ecfdd4-6bd7-4f4a-a1b9-5d9bd8e87e55:
+    description: Frost Giant Sleeter
+    file: frost-giant-sleeter.yaml
+  839be397-b6c9-41cf-b84c-9f9460492fc7:
+    description: null
+    file: dame-cornelia.yaml
+  83d75a81-ddda-4240-b444-5e92ee6d1b4c:
+    description: Orc Chainlock
+    file: orc-chainlock.yaml
+  83ea73f7-cd41-4509-9c40-5e80d854b69c:
+    description: Angulotl Daybringer
+    file: angulotl-daybringer.yaml
+  842d5398-c7e7-465e-845a-53bacb822183:
+    description: Tusker Demon
+    file: tusker-demon.yaml
+  84531202-1ed6-44e5-9d93-c6482b882aee:
+    description: Wyvern Lurker
+    file: wyvern-lurker.yaml
+  849d0333-3d50-47a0-8f1e-b5d587a30591:
+    description: War Dog War Frog
+    file: war-dog-war-frog.yaml
+  85159b4c-366f-4664-8746-0fe837e01ea4:
+    description: Demon Blight Phage
+    file: demon-blight-phage.yaml
+  8526c45d-0fe0-4b8e-9d40-c68258d727a2:
+    description: Bugbear Sneak
+    file: bugbear-sneak.yaml
+  855cf34b-9bfd-405a-a5a6-e57794a90b83:
+    description: null
+    file: conduit-rolling-machine.yaml
+  85771be8-ab2d-4525-a0d9-935a9047644e:
+    description: Kingfissure Worm
+    file: kingfissure-worm.yaml
+  859f368f-582d-47c7-927f-6f0cf845c1fb:
+    description: Soulraker Praetorian
+    file: soulraker-praetorian.yaml
+  85a742cb-5bcf-424d-b361-64898fd08f75:
+    description: Wode Elf Greenskeeper
+    file: wode-elf-greenskeeper.yaml
+  8633cc93-720b-4d97-8795-7737e15b015e:
+    description: High Elf Zephyr
+    file: high-elf-zephyr.yaml
+  86755480-9140-4253-ab52-9f7ec6f26370:
+    description: null
+    file: flow-of-the-river.yaml
+  86fa5590-b74b-43c5-ac55-ebc906241611:
+    description: Ogre Juggernaut
+    file: ogre-juggernaut.yaml
+  8782bde7-3036-4e54-98f7-43540f0a3637:
+    description: Umbral Stalker
+    file: umbral-stalker.yaml
+  87ed0e17-27fd-4160-9cd7-930158502918:
+    description: War Dog War Doc
+    file: war-dog-war-doc.yaml
+  88af3312-b93b-4e09-a00b-5ee116b1482c:
+    description: null
+    file: winded-rotting-zombie.yaml
+  89537435-2b4a-4598-a565-a27ffbe32cad:
+    description: null
+    file: ceaseless-mournling.yaml
+  89fa88f0-c920-4de4-a87b-3153e8d6f72d:
+    description: null
+    file: goblin-guide.yaml
+  8a14761e-c7d6-412f-8c25-2758e8bbfc73:
+    description: Human Bandit Chief
+    file: human-bandit-chief.yaml
+  8add6fd3-161d-4b85-bf25-031e3fe1c013:
+    description: null
+    file: boren.yaml
+  8aefc850-d4d6-460a-a046-2faa166a0fa2:
+    description: null
+    file: razor.yaml
+  8b2c991b-a536-4bf4-b690-d356f5fce3d3:
+    description: null
+    file: memorial-ivy.yaml
+  8b451526-80bf-4b67-bb6c-2650e7f187cf:
+    description: null
+    file: imit-putty.yaml
+  8b5f7d45-1446-4bd1-bef0-84f73d44dd15:
+    description: Lizardfolk Deathrex
+    file: lizardfolk-deathrex.yaml
+  8b783189-3f76-4e6c-af96-7dd404bc5eb3:
+    description: Demon Orliq
+    file: demon-orliq.yaml
+  8bc194e8-3a6c-4c08-a8fe-20ee95a40e54:
+    description: null
+    file: shrieker.yaml
+  8c0a76d7-1110-4a76-a96f-a5c415d97f30:
+    description: Dwarf Shieldwall
+    file: dwarf-shieldwall.yaml
+  8cb3b6cc-dcae-4fd6-862c-28a829960b91:
+    description: Dwarf Stone Whisperer
+    file: dwarf-stone-whisperer.yaml
+  8d2063b2-2406-437d-b25a-906fec5296f9:
+    description: null
+    file: corven.yaml
+  8d5232d9-63cc-4c87-9ac9-7a98593cdf7f:
+    description: Shambling Mound
+    file: shambling-mound.yaml
+  8e9464d9-5037-4e51-bb04-eae8b04a0835:
+    description: Time Raider Hijack
+    file: time-raider-hijack.yaml
+  8ef5bb56-ed22-4309-a44a-61d21b565f73:
+    description: Goblin Honcho
+    file: goblin-honcho.yaml
+  8f404e89-45a2-46bc-9e90-4ddad7ef66f9:
+    description: Goblin Deadshot
+    file: goblin-deadshot.yaml
+  8f4510c9-e0e0-428b-a253-393cdf7d2cae:
+    description: Fire Giant Trooper
+    file: fire-giant-trooper.yaml
+  8f7ae984-25de-417f-9ef4-6e9f07b3ce53:
+    description: null
+    file: stalker-shade.yaml
+  8fcfb8c5-a19b-4496-a19a-38b1ee0374b0:
+    description: Hobgoblin Brandbearer
+    file: hobgoblin-brandbearer.yaml
+  8ff88436-c689-4a1b-a27b-c1f1b3a31ad1:
+    description: Soulraker Soldier
+    file: soulraker-soldier.yaml
+  90c21211-e548-4424-947a-2081d7298bf3:
+    description: Dwarf Axethrower
+    file: dwarf-axethrower.yaml
+  90e121f9-3e62-4c7c-9ba6-37b930b73875:
+    description: null
+    file: nixie-hemloche.yaml
+  90f36276-e7f8-42c0-af8b-2b025a61d3f8:
+    description: Gnoll Mage Mauler
+    file: gnoll-mage-mauler.yaml
+  911d6cd6-cfbb-4f27-8822-44d06b38fdcb:
+    description: null
+    file: statue-of-power.yaml
+  926a38df-ed59-41ca-9de4-8f4d39946ab1:
+    description: War Dog Hypokrite
+    file: war-dog-hypokrite.yaml
+  929c8da4-3e32-4348-8174-ef29ee1acf14:
+    description: Grilp
+    file: grilp.yaml
+  92e76607-b9aa-41fb-9369-50f18501fe29:
+    description: null
+    file: hag-hut.yaml
+  9306103a-ee63-4734-8a74-21cb7d8e787c:
+    description: null
+    file: angulotl-hopper.yaml
+  93541a47-76c4-4c3b-84ed-c54bd40d1b9c:
+    description: Brambleguard
+    file: brambleguard.yaml
+  93f44d88-5c18-41a7-a7ce-3ed3889bcd70:
+    description: Demon Tormenauk
+    file: demon-tormenauk.yaml
+  945df487-0bec-4b7c-95a0-2a8eab062095:
+    description: Troll Butcher
+    file: troll-butcher.yaml
+  949f0e12-16c3-4d8b-80c3-a131b0cf1a1c:
+    description: null
+    file: quiet-of-snow.yaml
+  94efffc0-b036-46fe-98cf-07364d5cac1d:
+    description: Lokratix The Morningstar
+    file: lokratix-the-morningstar.yaml
+  9584f1f7-037a-42eb-aeed-e68c51a30ebd:
+    description: Ghoul
+    file: ghoul.yaml
+  963da40f-28e9-4f9b-ad90-bdb75c87ff06:
+    description: null
+    file: wolf.yaml
+  974751ae-0131-44b0-ba82-e7c697ea7ae5:
+    description: War Dog Portalite
+    file: war-dog-portalite.yaml
+  97d51dce-6f2d-40be-ba8c-7c948fbe29ae:
+    description: Beast B
+    file: beast-b.yaml
+  98a5cb44-554a-4e7d-8f64-c0281d960b18:
+    description: Soulraker Hivequeen
+    file: soulraker-hivequeen.yaml
+  98eb8958-711b-4d95-a5eb-392706e409b2:
+    description: Gnoll Abyssal Archer
+    file: gnoll-abyssal-archer.yaml
+  99324149-3183-44ee-b41c-d27360de72da:
+    description: null
+    file: creeping-sludge.yaml
+  99411a5d-8950-460e-84bd-08b6cfbab5ca:
+    description: Demon Vicisitator
+    file: demon-vicisitator.yaml
+  99d87439-df25-4c12-8a98-378863f351f0:
+    description: Waxen
+    file: waxen.yaml
+  9a5dab2e-75ab-47ad-8add-e86229c19a70:
+    description: null
+    file: goblin-guide.yaml
+  9ad4d8d8-f9c0-43bf-a50c-f2ac3ff29676:
+    description: null
+    file: corven.yaml
+  9af27d8f-37a8-40b5-91cb-f28621d9444b:
+    description: Wode Elf Green Seer
+    file: wode-elf-green-seer.yaml
+  9afc3449-b8c9-4945-9baa-1cfc396c3b78:
+    description: Radenwight Piper
+    file: radenwight-piper.yaml
+  9b3bdb16-7c34-441c-875c-2204532e7ce9:
+    description: Shadow Elf Noctis Mage
+    file: shadow-elf-noctis-mage.yaml
+  9bf3b8d4-d0d8-47f6-8f84-32807349a360:
+    description: null
+    file: pixie-bellringer.yaml
+  9bf9fbc6-6c9d-4bb9-81a5-372f77d40ee7:
+    description: Time Raider Armiger
+    file: time-raider-armiger.yaml
+  9c14d013-75b3-409a-ba3f-1d44c12d6dcd:
+    description: Troll Glutton
+    file: troll-glutton.yaml
+  9c6783b7-94e4-420e-940e-81d66505faa2:
+    description: null
+    file: pixie-rosenthall.yaml
+  9cd9baa6-8399-42a7-9573-b6ebd6369a47:
+    description: Tomb Horror
+    file: tomb-horror.yaml
+  9da6b164-f9ee-4c5d-9316-c93a41c31558:
+    description: Frost Giant Wind Sprinter
+    file: frost-giant-wind-sprinter.yaml
+  9e30c643-56fb-4f47-8421-fec7e042f9a1:
+    description: null
+    file: summoned-elemental-mote.yaml
+  9e7eccd6-d102-4ba2-9c5d-74a03aa2b134:
+    description: Kobold Princeps
+    file: kobold-princeps.yaml
+  9f4d278c-5ca4-48c3-937e-7ec0f5b65955:
+    description: Gnoll Chainflail
+    file: gnoll-chainflail.yaml
+  9f8395dd-8137-43f3-ba75-14fb1e697856:
+    description: Wight
+    file: wight.yaml
+  9f8f0629-9daa-4f83-a177-2c189e5963e5:
+    description: Faded Echo
+    file: faded-echo.yaml
+  9fd8f529-4635-452a-b90c-4dc1ff74a891:
+    description: Goblin Assassin
+    file: goblin-assassin.yaml
+  a013bd1e-19ed-4a34-b6ca-c7e7479889bd:
+    description: Ogre Blue Blood
+    file: ogre-blue-blood.yaml
+  a0e93bf5-1ad3-4ff7-9c41-60a4887f5a54:
+    description: Vuken
+    file: vuken.yaml
+  a1d57e6e-1c2f-4a73-967c-be7c3c6c1373:
+    description: Manticore
+    file: manticore.yaml
+  a205c200-96f0-4031-b849-8b108b7eeca1:
+    description: null
+    file: crux-of-ash.yaml
+  a2a44737-df41-4635-8af5-3fd05a86f8b1:
+    description: Vampire Spawn
+    file: vampire-spawn.yaml
+  a333421c-c78d-49f4-a7b3-0812945741a0:
+    description: null
+    file: fish.yaml
+  a33fa37a-17c6-40a2-9489-857e9665b2bf:
+    description: War Dog Crucibite
+    file: war-dog-crucibite.yaml
+  a453c71e-303b-4505-b223-7fc00448f1b3:
+    description: Animal
+    file: animal.yaml
+  a4ac750c-ea8e-4cdd-8ad3-ab48d0af3620:
+    description: Kobold Sagittarion
+    file: kobold-sagittarion.yaml
+  a54e8399-4aae-49d3-9aff-87cc75747745:
+    description: Angulotl Slink
+    file: angulotl-slink.yaml
+  a5827899-168d-4cfa-b8bd-fcb78b9b0a35:
+    description: Ajax the Invincible
+    file: ajax-the-invincible.yaml
+  a5fba8d2-080e-4015-9b4a-347dfee49f3b:
+    description: Shadow Elf Duskcaller
+    file: shadow-elf-duskcaller.yaml
+  a759f96e-f4bb-421d-b73f-7867ac07896d:
+    description: null
+    file: orc-charger.yaml
+  a75e5d66-a2ff-4990-8e39-db43e5043300:
+    description: Lithgekh
+    file: lithgekh.yaml
+  a76b7d4f-e54b-4a4c-87d3-c17476e17bb3:
+    description: War Dog Tormentite
+    file: war-dog-tormentite.yaml
+  a83e34f1-3405-4034-85bd-48ae4d6ef4b0:
+    description: null
+    file: summoned-elemental-mote.yaml
+  a99e1246-dd5b-4e07-ac46-d60c01f9a2f7:
+    description: null
+    file: great-tree-splinter.yaml
+  aa678b2d-f011-455d-9d10-3178cd664afd:
+    description: null
+    file: font-of-wrath.yaml
+  aafb31ac-a276-4d92-a5c0-853fd81cff74:
+    description: Shadow Elf Mournblade
+    file: shadow-elf-mournblade.yaml
+  ac08627e-4c78-4a9e-a787-3826c6691c44:
+    description: Elemental Mote
+    file: elemental-mote.yaml
+  ac2a07a4-72c6-4976-8d96-02c9175061d3:
+    description: Shadow Elf Killhouette
+    file: shadow-elf-killhouette.yaml
+  acc6c48c-e553-4d2e-9485-c5d122edd8c3:
+    description: Raden
+    file: raden.yaml
+  acdeab03-2aac-42db-afe0-947935a253b5:
+    description: Shadow Elf Shadesong
+    file: shadow-elf-shadesong.yaml
+  ad1e228e-2143-4632-a621-8f717589c08f:
+    description: War Dog Blood Jumper
+    file: war-dog-blood-jumper.yaml
+  ad3e2367-de0f-410b-b9b3-a5d254d4eed0:
+    description: null
+    file: arixx.yaml
+  ae47ae84-85c1-40e1-9f80-9394dbab834d:
+    description: null
+    file: flow-of-magma.yaml
+  af5dbaa5-e692-43bc-98b1-d001c4855014:
+    description: Hobgoblin Death Captain
+    file: hobgoblin-death-captain.yaml
+  afcbfa17-27f8-4dd4-b7bd-d10a0eedd378:
+    description: Shadow Elf Sniper
+    file: shadow-elf-sniper.yaml
+  b0003f53-5dd5-4047-a57d-255e9463b490:
+    description: War Dog Phosphorite
+    file: war-dog-phosphorite.yaml
+  b004a540-fbb7-4ae2-b05c-c7acfa26ea60:
+    description: null
+    file: hulking-chimor.yaml
+  b0ab85ae-ddc6-4349-b4d1-4a4db5e1e9b9:
+    description: null
+    file: glass-spider.yaml
+  b135ebe2-daaf-449d-887c-84b2f9b187d1:
+    description: Minotaur Bully
+    file: minotaur-bully.yaml
+  b13efc76-8ae2-4417-b80f-1e54627e7de2:
+    description: Minotaur Stampede
+    file: minotaur-stampede.yaml
+  b147da83-9ad6-47b7-81e7-5a98974ccef9:
+    description: null
+    file: orc-warleader.yaml
+  b1adea14-6db6-4cc3-b746-38db990f0b30:
+    description: null
+    file: wolf.yaml
+  b1d92a2f-cf8c-46b4-bbcf-d9bcabe45a78:
+    description: Harpy
+    file: harpy.yaml
+  b3244830-1b39-4ee1-9eb8-4ecc01540031:
+    description: War Dog Arachnite
+    file: war-dog-arachnite.yaml
+  b385b1f9-a758-4d95-a18f-525a4e10ed3b:
+    description: null
+    file: twisted-bengrul.yaml
+  b4403d73-04e8-4871-b1c5-148607ed2be6:
+    description: War Dog Saboteur
+    file: war-dog-saboteur.yaml
+  b464e243-d840-4220-8525-70faa2ae5a1d:
+    description: null
+    file: rat.yaml
+  b4f1cb52-8dd6-4a33-ae78-f00b7d2d0227:
+    description: Minotaur
+    file: minotaur.yaml
+  b5196a48-3b64-46d8-bf96-b65d549d46ca:
+    description: Archdevil
+    file: archdevil.yaml
+  b560d689-659c-40a6-8af4-6c6b4e2cd12d:
+    description: null
+    file: gnoll-gnasher.yaml
+  b5b529be-5eb7-4f7f-8ac4-b08fdd406c29:
+    description: null
+    file: summoned-skeleton.yaml
+  b64eeb81-a0ea-480a-9506-37cbdfe7b5cc:
+    description: War Dog Amalgamite
+    file: war-dog-amalgamite.yaml
+  b66eea5d-e2c3-45d3-9a5e-577ae932b23a:
+    description: null
+    file: fire-plume.yaml
+  b73cb837-6856-4ce0-8af2-c55c431f7c29:
+    description: Cradle Horse
+    file: cradle-horse.yaml
+  b7536d9d-941c-4e1e-9b4a-4d2f206b4e17:
+    description: Bugbear Mob
+    file: bugbear-mob.yaml
+  b7a0e882-a431-4054-ae16-0b35ddedca03:
+    description: Shadow Elf Blot
+    file: shadow-elf-blot.yaml
+  b90b0546-088b-4a13-9fd3-a69eb64b8531:
+    description: Shadow Elf Assassin
+    file: shadow-elf-assassin.yaml
+  b9bab49b-780f-4ecf-9ae7-c5f25d8e576e:
+    description: null
+    file: divine-dragon.yaml
+  ba3311a5-5b1e-4c2b-af72-a942ab667d79:
+    description: Goblin Skullcrusher
+    file: goblin-skullcrusher.yaml
+  baf0dfd9-fd12-472b-b99d-179f4f502124:
+    description: Radenwight Bruxer
+    file: radenwight-bruxer.yaml
+  baf66366-7d32-4172-8484-99dfb52fb188:
+    description: Human Knave
+    file: human-knave.yaml
+  bb1c76a8-e88e-49bb-bc1f-eb8b5ec73c83:
+    description: Goblin Runner
+    file: goblin-runner.yaml
+  bb5dbd6a-0ab0-4fef-96d7-e38da72a6c54:
+    description: null
+    file: hag-hut.yaml
+  bcd14a10-0f24-4801-b831-2a72c20da5fd:
+    description: Wode Elf Tree Chirugeon
+    file: wode-elf-tree-chirugeon.yaml
+  bd465129-6092-48dc-8aee-d5b19f1557e6:
+    description: Hill Giant Mosstooth
+    file: hill-giant-mosstooth.yaml
+  bde6e5c5-715e-4174-b7f4-e062768e4a01:
+    description: Gloom Dragon
+    file: gloom-dragon.yaml
+  be058b6c-d205-4e98-88a3-e7987ab23a2b:
+    description: null
+    file: boren.yaml
+  be260d64-672b-47ae-9689-082307b1a0ce:
+    description: Kobold Legionary
+    file: kobold-legionary.yaml
+  beff2e36-7fe8-4ab2-b717-d2e7deabe147:
+    description: Siege Hawk
+    file: siege-hawk.yaml
+  bf11b12b-d28d-46f2-9a8e-4faa2196b9c3:
+    description: null
+    file: rodent.yaml
+  c03a6ef4-5a45-4d3f-a713-7bd148ca6c7d:
+    description: Devil Legate
+    file: devil-legate.yaml
+  c059b1e1-df8b-4323-95b1-c59433bc0966:
+    description: null
+    file: hulking-chimor.yaml
+  c0e00c40-7421-41e7-b822-2317ed10aede:
+    description: null
+    file: fanged-musilex.yaml
+  c1766613-2d24-4539-983f-6a5a486baf16:
+    description: null
+    file: crux-of-ash.yaml
+  c1c5212d-cb71-4c03-ba59-4063418cd950:
+    description: High Elf Bloodletter
+    file: high-elf-bloodletter.yaml
+  c26880c2-fc4f-47e7-889e-1864d9128db9:
+    description: Marble Stone Giant
+    file: marble-stone-giant.yaml
+  c2c7d98f-18fa-4bc6-84b0-67f33366a92f:
+    description: Wode Elf Chirugeon
+    file: wode-elf-chirugeon.yaml
+  c4377956-c412-4f17-a861-aea8f55a407a:
+    description: null
+    file: accursed-mummy.yaml
+  c4a0bbf6-fab3-464f-a127-ad93fc4ec540:
+    description: High Elf Deathtouch
+    file: high-elf-deathtouch.yaml
+  c4b8ea4d-d34c-4f1f-918e-48a05b5c4926:
+    description: Wode Elf Penteulu
+    file: wode-elf-penteulu.yaml
+  c5c8667e-322f-46e2-b50c-4603960c20f7:
+    description: Shade
+    file: shade.yaml
+  c6071569-4b9b-42a1-a509-9f70ce05a35a:
+    description: Ogre Tantrum
+    file: ogre-tantrum.yaml
+  c6c054ed-b968-47f6-9206-24a2d07baaa3:
+    description: Human Apprentice Mage
+    file: human-apprentice-mage.yaml
+  c6e2624c-c272-4e14-8a51-1d3f6d0f790b:
+    description: null
+    file: cold-orc-eye-of-grole.yaml
+  c7c0e2cc-8777-4544-bfde-ce7bad4579a6:
+    description: null
+    file: summoned-ensnarer.yaml
+  c825bd97-d7f2-4403-bbaf-9cf786df224a:
+    description: Voiceless Talker Invader
+    file: voiceless-talker-invader.yaml
+  c86c6bb1-1886-48b0-91c5-80500629c009:
+    description: Shadow Elf Eclipse
+    file: shadow-elf-eclipse.yaml
+  ca7ba8d6-835d-480a-b120-786bd53023e6:
+    description: High Elf Scribe
+    file: high-elf-scribe.yaml
+  cb321e41-79e0-4680-9f9a-262d084a4fe6:
+    description: null
+    file: war-dog-teletalite.yaml
+  cbb8b896-d125-4a82-9b8f-9d32e81f2e0a:
+    description: Blood-Starved Vampire
+    file: blood-starved-vampire.yaml
+  cbd0de5b-d2df-42b7-a92f-74a173820b5c:
+    description: null
+    file: gummy-ball.yaml
+  cbd8626c-3337-4254-802a-994e21ab848b:
+    description: null
+    file: sudden-downpour.yaml
+  cc4c57da-db0c-484d-9922-5c45591db9ce:
+    description: null
+    file: armored-soulwight.yaml
+  ccca69a6-1c74-4358-9f0e-932ad36a7a24:
+    description: null
+    file: glass-spider.yaml
+  ccdb4e2c-db7e-447e-b733-f846ae55ad91:
+    description: Lizardfolk Terrorsoar
+    file: lizardfolk-terrorsoar.yaml
+  cd20d58c-affd-4e7e-903a-c6d60256ef2c:
+    description: null
+    file: fire-plume.yaml
+  cd5f724b-4707-46d5-821e-a8d172c986f6:
+    description: Goblin Sniper
+    file: goblin-sniper.yaml
+  cdd7f6f5-8bd2-4ad6-9278-74985c7fe8d2:
+    description: null
+    file: gushing-spewler.yaml
+  cfc085f3-efce-4e0d-a8ad-b8f99da99b24:
+    description: Big Animal B
+    file: big-animal-b.yaml
+  d018bbd5-4571-4ea5-bf17-46c653c33774:
+    description: Giant Hawk
+    file: giant-hawk.yaml
+  d0217a22-f8cf-4541-b25b-a456bbaf5fc1:
+    description: Fire Giant Lightbearer
+    file: fire-giant-lightbearer.yaml
+  d0426418-f23d-4fb4-8c60-e894c6b13e73:
+    description: Dwarf Hunter
+    file: dwarf-hunter.yaml
+  d099aa93-be41-4fb0-aaa4-61d3db763756:
+    description: Dwarf Securer
+    file: dwarf-securer.yaml
+  d0cdc138-bf87-4ad1-bf95-35d0dd97b32c:
+    description: Skitterling
+    file: skitterling.yaml
+  d1bed14e-94cc-476c-b239-f2182267b189:
+    description: Gnoll Cackler
+    file: gnoll-cackler.yaml
+  d1c7c29a-c008-4bf7-86cc-db363aefd1ce:
+    description: War Spider
+    file: war-spider.yaml
+  d1f2f12e-8e36-413a-a76a-f897944a577f:
+    description: Rival Shadow
+    file: rival-shadow.yaml
+  d200c22c-fc28-49b6-9177-43514091524e:
+    description: Lizardfolk Grunt
+    file: lizardfolk-grunt.yaml
+  d21c0b4a-cfd3-4c83-a249-02eeeb45979f:
+    description: Goblin Bodyguard
+    file: goblin-bodyguard.yaml
+  d230895c-1f06-4892-accf-c1b41ed5ca79:
+    description: Demon Wobalas
+    file: demon-wobalas.yaml
+  d24c9b11-7d6f-4b99-a50d-2d4dcf5e3381:
+    description: null
+    file: walking-boulder.yaml
+  d24e75af-3074-445a-ab5d-a2ff90d79821:
+    description: Devil Scrivener
+    file: devil-scrivener.yaml
+  d3270af4-7c4a-4c5d-81c8-8064ea7b0e6a:
+    description: Worg
+    file: worg.yaml
+  d3ad9345-9ea2-4779-a953-980dd78e33c1:
+    description: null
+    file: abyssal-rift.yaml
+  d3b60735-18a9-4a9f-b6cb-7c37f91290f0:
+    description: High Elf Dawn Mage
+    file: high-elf-dawn-mage.yaml
+  d3e733b5-2069-439c-a399-90949afb105f:
+    description: Vampire
+    file: vampire.yaml
+  d4d61f19-c5c0-4635-b6c6-0502bc2ba4d8:
+    description: null
+    file: bird.yaml
+  d5dee439-a041-4dba-ae19-a137e6ae9965:
+    description: Big Animal A
+    file: big-animal-a.yaml
+  d6528511-200c-4e18-ac5b-31dc72adbf4f:
+    description: null
+    file: crucible-dragon.yaml
+  d6531516-0714-4e6b-9bab-13a017ff1701:
+    description: Cradle Credenza
+    file: cradle-credenza.yaml
+  d6911a07-14e9-4c63-b8a9-274717fe4e23:
+    description: Count Rhodar Von Glauer
+    file: count-rhodar-von-glauer.yaml
+  d7063118-5562-4f03-9e76-bf6f03aab573:
+    description: Aeolyxria the Uncanny
+    file: aeolyxria-the-uncanny.yaml
+  d71d4deb-cafe-4859-ba16-988148d791ca:
+    description: Rival Null
+    file: rival-null.yaml
+  d71e374a-21bd-4cc7-89c4-98939bd810fd:
+    description: Human Trickshot
+    file: human-trickshot.yaml
+  d74bb536-ac7d-41f7-afab-16a9e19d7269:
+    description: War Dog Conscript
+    file: war-dog-conscript.yaml
+  d77a64fd-01ae-43b8-8ec1-079817394c7c:
+    description: Hobgoblin Trooper
+    file: hobgoblin-trooper.yaml
+  d83b253b-11cd-41b5-bcd3-9567a6c213a8:
+    description: Phrrygalax The Subduer
+    file: phrrygalax-the-subduer.yaml
+  d8ac2095-54e9-410b-9c84-0419ebbcd875:
+    description: null
+    file: summoned-skeleton.yaml
+  d8e7fd22-0cac-42f7-a67e-cc39411255b8:
+    description: null
+    file: great-cat.yaml
+  d8f32e13-9142-4da2-a0c8-1a2ec33634aa:
+    description: Hill Giant Clobberer
+    file: hill-giant-clobberer.yaml
+  d9255add-5423-4f42-97ea-9b29ce23987a:
+    description: Human Archer
+    file: human-archer.yaml
+  d9bf87a6-7ce4-4f99-80bd-08767fbee483:
+    description: Shadow Elf Cloak
+    file: shadow-elf-cloak.yaml
+  da227820-8a0a-4680-9b0e-d15f0e3b7580:
+    description: Rival Elementalist
+    file: rival-elementalist.yaml
+  da5dda13-a53e-4722-9543-4ecbcd94bb57:
+    description: War Dog Doomthief
+    file: war-dog-doomthief.yaml
+  dba98be2-f430-458e-abd7-54876b2dedfb:
+    description: Rival Conduit
+    file: rival-conduit.yaml
+  dc87dec4-4999-453f-a739-74b4df24d771:
+    description: Skeleton Knight
+    file: skeleton-knight.yaml
+  dcd48f62-4773-49a8-a2bb-faf2943fd0fb:
+    description: null
+    file: black-ichor.yaml
+  dd4095f2-e8d3-4689-a0a9-b2599162ffaa:
+    description: Fossil Cryptic
+    file: fossil-cryptic.yaml
+  dd4c51b7-7ef3-48fb-9bd2-e8c6514a484c:
+    description: Crux of Fire
+    file: crux-of-fire.yaml
+  dd4fd348-ba5e-41fd-88b5-a6be7c289f28:
+    description: null
+    file: source-of-earth.yaml
+  ddad6eca-0088-4b82-a198-aecb585a770f:
+    description: Orc Bloodrunner
+    file: orc-bloodrunner.yaml
+  ddd85afa-18d3-4a9c-90c9-8d7f4c418987:
+    description: Hulking Brain
+    file: hulking-brain.yaml
+  dec803cd-e6ff-4f89-8a15-b7d3e56dbcc9:
+    description: Hobgoblin Incendiarist
+    file: hobgoblin-incendiarist.yaml
+  df05049b-147c-45e0-a6c6-6ea84adadfe4:
+    description: War Dog Neuronite
+    file: war-dog-neuronite.yaml
+  dfd088d1-eeea-4d7a-b478-733278bccba1:
+    description: null
+    file: return-to-oblivion.yaml
+  e0444706-f43e-40cc-8c62-1b008bbf48f1:
+    description: null
+    file: familiar.yaml
+  e1990359-7a57-42d4-9004-2668d275f4e1:
+    description: Shieldscale Drangolin
+    file: shieldscale-drangolin.yaml
+  e30f400b-ab12-45b0-9337-4f4e41886f52:
+    description: null
+    file: mind-projection-body.yaml
+  e3607679-322e-46a5-9531-1e253e692572:
+    description: Devil Clerk
+    file: devil-clerk.yaml
+  e368b29a-eb6a-4fe4-b2b2-53032809c293:
+    description: Lizardfolk Scaletooth
+    file: lizardfolk-scaletooth.yaml
+  e3b5cb4a-74ea-4f7d-bdd6-12b7142acc5d:
+    description: Chimera
+    file: chimera.yaml
+  e3d02fd9-f0da-4c83-86aa-1d026c57b0d1:
+    description: null
+    file: sprite-dandeknight.yaml
+  e4425c49-7bd7-4d4a-9b63-c7f9674b8d99:
+    description: null
+    file: angulotl-hopper.yaml
+  e47d59ac-b486-4ded-93b3-d9e36821c38f:
+    description: Frost Giant Storm Hurler
+    file: frost-giant-storm-hurler.yaml
+  e5da5495-e3df-46ab-8915-f40e4b471d24:
+    description: Wode Elf Tree Guerilla
+    file: wode-elf-tree-guerilla.yaml
+  e65d02dd-9d8a-4061-8e49-d770df3fe877:
+    description: Time Raider Mind Punk
+    file: time-raider-mind-punk.yaml
+  e6d88fc6-3144-4646-bda6-4d1222f2d5df:
+    description: Orc Terranova
+    file: orc-terranova.yaml
+  e733baad-5a2e-43eb-bc4c-91217ae9d92b:
+    description: Lydixavus the Eyeful
+    file: lydixavus-the-eyeful.yaml
+  e797e4f9-2c7d-41ed-a89a-c0a48b5aee60:
+    description: null
+    file: font-of-wrath.yaml
+  e7c528ee-35b5-4fa4-a37e-01d73570d5e7:
+    description: Goblin Lackey
+    file: goblin-lackey.yaml
+  e865e919-1249-4a47-b8de-75e7866710c7:
+    description: null
+    file: pixie-rosenthall.yaml
+  e90ee0e1-d80b-4cdd-9496-64bf0b9e2d5e:
+    description: Time Raider Archon
+    file: time-raider-archon.yaml
+  e9b4683c-f54d-4081-b764-8e61feff11e0:
+    description: Frost Giant Snowblaster
+    file: frost-giant-snowblaster.yaml
+  ea647d95-c678-4789-b11c-126dd40bc561:
+    description: Mindkiller Whelp
+    file: mindkiller-whelp.yaml
+  ea78b953-49fa-4f17-8bd9-7b49628c6e9e:
+    description: Kobold Tiro
+    file: kobold-tiro.yaml
+  eab830e0-d54b-4801-a81c-e243d7e0a69e:
+    description: null
+    file: noncombatant.yaml
+  ead25791-d9d2-4dbb-a7a4-12477b570d31:
+    description: Human Scoundrel
+    file: human-scoundrel.yaml
+  eb1dd295-16cf-4e44-9e1b-622c0c029297:
+    description: Soulwight
+    file: soulwight.yaml
+  eb35dd23-f3dc-4ce6-99a5-b78ac80ccc1c:
+    description: Scyza
+    file: scyza.yaml
+  eb95b7ec-b4c2-4c74-8d03-943d4debdbb1:
+    description: Shadow Elf Knightfell
+    file: shadow-elf-knightfell.yaml
+  ebc9a38a-be55-4a05-855b-1f0b1112efef:
+    description: null
+    file: principle-of-the-swamp.yaml
+  ec0c6700-5aca-45f5-8812-10a7360454e5:
+    description: null
+    file: guest-star.yaml
+  ed282b87-231f-47e1-a9cc-60a2bf5256e8:
+    description: null
+    file: archer-spittlich.yaml
+  ed58c31a-920d-4049-8295-418af117ea83:
+    description: Soulraker Scout
+    file: soulraker-scout.yaml
+  edee82da-f6e5-4baa-bdb2-34e7add731e5:
+    description: Hobgoblin Smokebinder
+    file: hobgoblin-smokebinder.yaml
+  ee06a587-3058-43bd-b1b4-cb47f93048aa:
+    description: Fire Giant Chief
+    file: fire-giant-chief.yaml
+  ee1982a4-767a-4092-8fbb-2d539a998d77:
+    description: War Dog Hunter-Killer
+    file: war-dog-hunter-killer.yaml
+  eee9bbe6-0d9d-446d-8d18-60298fe5531a:
+    description: null
+    file: nixie-hemloche.yaml
+  ef5c55f2-31c7-427b-ba43-958fede031ef:
+    description: Soulbinder Psyche
+    file: soulbinder-psyche.yaml
+  f03747e2-0f39-4824-a13e-1ceb784880e9:
+    description: null
+    file: phase-ghoul.yaml
+  f0d9f3c0-a36e-4cd9-be0f-a2048fc8e227:
+    description: Harmless Animal
+    file: harmless-animal.yaml
+  f0f55060-3831-4373-8dab-cf3fd0c55f9e:
+    description: Dwarf Engineer
+    file: dwarf-engineer.yaml
+  f1983ea0-d466-4169-bb80-1de914e13f38:
+    description: null
+    file: flow-of-the-river.yaml
+  f3b6d3bd-7018-4f41-a298-2238ba79412c:
+    description: Devil Notary
+    file: devil-notary.yaml
+  f41ade4e-f474-483c-9826-e04d2c6670e7:
+    description: Shadow Elf Luminator
+    file: shadow-elf-luminator.yaml
+  f561760d-599a-482f-aa39-c442ed921c22:
+    description: Radenwight Maestro
+    file: radenwight-maestro.yaml
+  f63e7484-8787-4158-aa1d-87351ce9cb26:
+    description: null
+    file: zombie-lumberer.yaml
+  f70dceed-ec25-4332-b057-ff00bfe85587:
+    description: War Dog Geomancer
+    file: war-dog-geomancer.yaml
+  f737e24f-c29d-4b6d-ac09-f59af5e1fafd:
+    description: Gnoll Abyssal Summoner
+    file: gnoll-abyssal-summoner.yaml
+  f76868fa-ad43-4dc4-a902-b0b51b3e2622:
+    description: null
+    file: nixie-soakreed.yaml
+  f8026983-349b-40c0-87f2-4b55ddbeca85:
+    description: null
+    file: great-tree-splinter.yaml
+  f85435f3-4c9f-4804-b556-11c438a79f20:
+    description: null
+    file: black-ichor.yaml
+  f8684724-e3d9-495d-9ad0-fa8ce9d7b4b3:
+    description: Ogre Royal
+    file: ogre-royal.yaml
+  f8ee4a4f-92ca-420e-ad04-887262622a87:
+    description: Dwarf Lurer
+    file: dwarf-lurer.yaml
+  f8f8d10a-433c-4c50-8129-a5b6b38ef738:
+    description: Striped Condor Griffon
+    file: striped-condor-griffon.yaml
+  f950dbed-f0a5-4d78-8448-dd1a98cd1e22:
+    description: Shadow Elf High Light
+    file: shadow-elf-high-light.yaml
+  f99c8ecd-63f8-40ce-be35-b56feb5dc72e:
+    description: null
+    file: abyssal-rift.yaml
+  f9a140da-87f5-47e6-957b-f4fffa6811a8:
+    description: Human Guard
+    file: human-guard.yaml
+  f9b459aa-fe0a-43a5-b009-4d426f11f3a3:
+    description: Clawfish
+    file: clawfish.yaml
+  f9d78af7-f7b6-48a8-bf50-e17ab81fcb25:
+    description: Orc Blitzer
+    file: orc-blitzer.yaml
+  fa54c255-96cc-4c57-bbee-7d4aaee8227f:
+    description: Kobold Venator
+    file: kobold-venator.yaml
+  fb039a8a-8021-40c4-8d7a-aa53f118def6:
+    description: Vampire Lord
+    file: vampire-lord.yaml
+  fb0ecb9a-eb6b-40f3-ac4a-335538ef36c3:
+    description: Wraith
+    file: wraith.yaml
+  fb28b46a-18da-4a88-b4df-be08c7aead8d:
+    description: Demon Niktin
+    file: demon-niktin.yaml
+  fb64ffe8-672c-4963-91f9-281d3f9baea7:
+    description: null
+    file: cold-orc-eye-of-grole.yaml
+  fb687c40-64ee-4926-9c2f-05f2ac072de2:
+    description: Dwarf Warden
+    file: dwarf-warden.yaml
+  fb77f39b-da47-4020-a3a6-e75147a50c45:
+    description: Dwarf Launcher
+    file: dwarf-launcher.yaml
+  fc0ec3f4-bef0-4c2a-8ab9-4cc57378b746:
+    description: null
+    file: orc-charger.yaml
+  fc9a345e-6605-4055-ae13-5422875965b1:
+    description: War Dog Ground Commander
+    file: war-dog-ground-commander.yaml
+  fcb67d7d-df99-4cf6-acdf-3e831d0c1e91:
+    description: null
+    file: flow-of-magma.yaml
+  fd86814e-334a-4608-829f-0ab01d900f08:
+    description: null
+    file: twisted-bengrul.yaml
+  fe583917-93e8-4afb-a461-17df4d88adc4:
+    description: Shadow Elf Ditherite
+    file: shadow-elf-ditherite.yaml
+  fe5b8df2-a77c-4dac-b4c4-7a68d8631bcf:
+    description: null
+    file: devil-defector.yaml
+  fe811b22-e757-4343-bb9c-4bc853ce9511:
+    description: Field of Growth
+    file: field-of-growth.yaml
+  fea3f38a-e49c-4dfc-9f5d-1004e9871a76:
+    description: Goblin Warrior
+    file: goblin-warrior.yaml
+  feff4f70-3cc7-4f08-bc25-61ce3d666ded:
+    description: null
+    file: summoned-ensnarer.yaml
+  ff16fce2-ef09-4e2a-bb07-388bbaf6ecf6:
+    description: null
+    file: great-cat.yaml
+  ffda303b-66df-494a-b0ab-c44591e735fb:
+    description: Dorzinuuth the Base
+    file: dorzinuuth-the-base.yaml
+  0038b9e3-35c3-4530-b5cd-9873165e3bcb:
+    description: null
+    file: gushing-spewler.yaml
+  02e0d9f0-604a-4bdc-868a-b22a03bff758:
+    description: null
+    file: angulotl-hopper.yaml
+  03f6dcc7-5c47-46f7-a0f2-260fa2579276:
+    description: null
+    file: devil-defector.yaml
+  04d89ae0-f93d-404a-a325-1148ddefd6ac:
+    description: null
+    file: walking-boulder.yaml
+  04f3923a-da04-485f-8f70-f363e68f4a9b:
+    description: null
+    file: dame-cornelia.yaml
+  05ebd976-6f41-4ff2-8fd8-872a6a429c61:
+    description: Gnoll Bonesplitter
+    file: gnoll-bonesplitter.yaml
+  067b660d-e76e-4ea8-8950-cdc4747aac36:
+    description: null
+    file: the-iron-orb.yaml
+  0684e416-cb80-483a-a400-44b202c4078f:
+    description: null
+    file: ceaseless-mournling.yaml
+  08f609b2-4fc7-4a5a-946a-ddc08491a6e3:
+    description: null
+    file: brisk-gale.yaml
+  09f5ff78-3f15-4309-829b-d488a24a85e1:
+    description: null
+    file: pixie-loftlilly.yaml
+  0a6263a0-f1ef-4e3e-b029-c83caebe6bed:
+    description: null
+    file: angulotl-hopper.yaml
+  0a92b625-327b-43b6-93f4-6b17198a40ba:
+    description: null
+    file: gummy-ball.yaml
+  0acb986e-df9b-4e02-9add-fc4b296107b9:
+    description: null
+    file: the-iron-orb.yaml
+  0c274708-656b-4315-b8e3-3f059bac0229:
+    description: null
+    file: shadow-clone.yaml
+  0ea080b1-5795-45a3-81de-784b905c887a:
+    description: null
+    file: boren.yaml
+  107a28a9-8b14-412b-892c-4d9ce0df8acd:
+    description: null
+    file: pixie-bellringer.yaml
+  11041492-6a53-4831-a0a1-b5c4c2399dba:
+    description: null
+    file: civilian.yaml
+  1183b8a6-6309-4edc-b432-cc1f20390b24:
+    description: null
+    file: summoned-elemental-mote.yaml
+  130e67ce-35a3-4987-aa01-4986ffff5cac:
+    description: null
+    file: conduit-rolling-machine.yaml
+  13a3474d-39cd-4624-a720-1d51b1a2877e:
+    description: null
+    file: angulotl-hopper.yaml
+  13b47c53-ce91-4c45-a33b-9fcdad9300bb:
+    description: null
+    file: abyssal-rift.yaml
+  143b1a88-3947-405a-8d65-bf8d25153198:
+    description: null
+    file: statue-of-power.yaml
+  150b5579-24e0-4c19-b309-4917994c4995:
+    description: null
+    file: summoned-elemental-mote.yaml
+  1534f73b-aab3-4175-8c16-a3c2dcbdf6bc:
+    description: null
+    file: pixie-bellringer.yaml
+  157de17c-3ed5-422f-9708-657b75219ee5:
+    description: null
+    file: creeping-sludge.yaml
+  16024752-eabb-4ec7-b5ff-2859f33abb6f:
+    description: null
+    file: glass-spider.yaml
+  1630dc44-e002-432b-90b4-a52d603d54eb:
+    description: null
+    file: corven.yaml
+  176ef81d-01ad-4263-a259-8f76c3a49224:
+    description: null
+    file: shadow-clone.yaml
+  17d8ad8e-e81c-4a9d-ac89-b7a02e0de4c2:
+    description: null
+    file: corven.yaml
+  183f3d17-6586-4633-a165-925fea0f33bd:
+    description: null
+    file: brisk-gale.yaml
+  18f1cb63-58bf-41e6-89a9-d47957edf720:
+    description: null
+    file: cold-orc-eye-of-grole.yaml
+  1a00f0de-5a9e-44cc-bc0f-902848a7bb49:
+    description: null
+    file: flow-of-the-river.yaml
+  1a8943a8-c436-4c04-842a-dc203082993b:
+    description: null
+    file: zombie-lumberer.yaml
+  1d1043f8-4ce4-4eae-a4c3-95cfb8971d18:
+    description: null
+    file: quiet-of-snow.yaml
+  1f776c09-0ef3-4370-ba7d-48b93ea64e41:
+    description: null
+    file: sprite-foxglow.yaml
+  1fd6b504-1b66-426f-a68b-e5d6ab9ad8ac:
+    description: null
+    file: lightning-orc-eye-of-grole.yaml
+  2116f2e1-7283-439c-b5ed-a85dc1234d46:
+    description: null
+    file: familiar.yaml
+  212a22cb-e20a-49c1-a376-fe26bed8c385:
+    description: null
+    file: fire-orc-eye-of-grole.yaml
+  235d9790-756a-45d9-a8d8-422b47a066fa:
+    description: null
+    file: rodent.yaml
+  238831cc-f137-49fd-9dcd-1543c6382c04:
+    description: null
+    file: dancing-silk.yaml
+  2421fb7e-9299-4c44-91ec-88d637f51eaf:
+    description: null
+    file: crux-of-ash.yaml
+  246932d5-c285-47ce-9c8f-bfd0b25318fd:
+    description: null
+    file: canine.yaml
+  25a87075-0a9e-4ddb-a158-77a36a3d752c:
+    description: null
+    file: hag-hut.yaml
+  26c806ae-c064-4d43-a378-98fa53031363:
+    description: null
+    file: orc-warleader.yaml
+  26cf9857-98f8-46df-8bd0-62ba49d5776e:
+    description: null
+    file: rodent.yaml
+  2815f7c1-5ca9-405f-8460-40e25ae17a54:
+    description: null
+    file: imit-putty.yaml
+  2849c951-83f6-4300-ac85-a5127f21e31d:
+    description: null
+    file: pixie-loftlilly.yaml
+  286916fb-567d-4508-ab8e-2e9e0faa507b:
+    description: null
+    file: shadow-clone.yaml
+  287cede5-d146-4676-b6b7-b3b47abf7eb4:
+    description: null
+    file: shrieker.yaml
+  28b7e336-1e64-4ee2-b2f7-b7a9126196f7:
+    description: null
+    file: ceaseless-mournling.yaml
+  297cd8b0-ddb0-45d7-a4d4-25010fd6bc4e:
+    description: null
+    file: phase-ghoul.yaml
+  2b7e5bb9-e5a8-46da-a25b-7336513133c7:
+    description: null
+    file: goblin-guide.yaml
+  2be9a31f-f332-426f-aaac-2061a1d2ebc7:
+    description: null
+    file: essence-of-change.yaml
+  2d15b113-6d86-4b65-9524-3e1ab727663b:
+    description: null
+    file: wolf.yaml
+  2f5aaea5-82f3-4dfb-acd6-532a441d19e1:
+    description: null
+    file: sprite-foxglow.yaml
+  2f5ec6c1-9985-467b-a358-3e396182ba0f:
+    description: null
+    file: sprite-orchiguard.yaml
+  2fffe2f8-799a-4890-8d48-96dc02ab5cb3:
+    description: Orc Rampart
+    file: orc-rampart.yaml
+  30342cfd-fc21-4e4e-98d5-407361e24022:
+    description: null
+    file: arixx.yaml
+  3163c0c9-96f7-49f6-afbb-38259275f425:
+    description: null
+    file: cold-orc-eye-of-grole.yaml
+  31cb8986-edbe-4e2b-ad32-09ccd201b955:
+    description: null
+    file: statue-of-power.yaml
+  334990e7-4510-4b8f-a8b0-939db9cdda91:
+    description: null
+    file: rodent.yaml
+  33afd9b8-b5e9-42e9-ade6-2c62ab444719:
+    description: null
+    file: stalker-shade.yaml
+  34ac26cb-3a8e-4761-ad76-f2b613c6dd5a:
+    description: null
+    file: great-cat.yaml
+  356da167-ffca-4318-aa15-9c80123233f6:
+    description: null
+    file: source-of-earth.yaml
+  36d5acaf-6d77-4cfb-82e7-5e9d1c602530:
+    description: null
+    file: fish.yaml
+  38ec4a14-bc83-45a1-8eaf-76972f1f4688:
+    description: null
+    file: rasquine.yaml
+  38f2f6ad-8131-4c31-88c0-835334806758:
+    description: null
+    file: pixie-rosenthall.yaml
+  398c39f7-6998-4b68-afd7-9314c4f40646:
+    description: null
+    file: dame-cornelia.yaml
+  39e234f7-17a6-46c0-89b3-a285fec415ef:
+    description: null
+    file: fire-plume.yaml
+  3a701290-e59b-48f7-941b-4ffba85f84c4:
+    description: null
+    file: pixie-loftlilly.yaml
+  3ac0a6c9-3e95-4662-912c-663f725326d1:
+    description: null
+    file: principle-of-the-swamp.yaml
+  3adf6dcf-aa45-4bc1-9c68-97531054f2b4:
+    description: null
+    file: violent.yaml
+  3e5495c8-9204-4da5-a158-8c6171899082:
+    description: Dwarf Marauder Lord
+    file: dwarf-marauder-lord.yaml
+  3e83ec97-2722-4a75-a281-d6fd635cd489:
+    description: null
+    file: bird.yaml
+  3eef018a-59b5-48ca-9edf-50f727641b56:
+    description: null
+    file: essence-of-change.yaml
+  3ff98f80-3a3d-455e-afaf-2ea8c5db07ca:
+    description: null
+    file: crux-of-ash.yaml
+  429f22ae-e0e4-4b74-b1ae-8ac90e1a9376:
+    description: null
+    file: arixx.yaml
+  42a65120-67f1-4ae0-81cf-5936e16829d2:
+    description: null
+    file: zombie-lumberer.yaml
+  47512c38-4424-451b-8a1b-70b360a5652f:
+    description: null
+    file: razor.yaml
+  49731568-1a65-4f56-900b-11e7353f7320:
+    description: null
+    file: accursed-mummy.yaml
+  49c6d42f-82b8-47f9-9cca-4a7c60545e70:
+    description: null
+    file: wolf.yaml
+  49c700f2-66b1-457b-ad70-3a1db1285c70:
+    description: null
+    file: crucible-dragon.yaml
+  4a495861-2646-48e3-9185-a51182f14d83:
+    description: null
+    file: quiet-of-snow.yaml
+  4ad92d85-199f-422e-ae6a-d9d0b09d2ab5:
+    description: null
+    file: summoned-skeleton.yaml
+  4c184b31-1f84-41c4-b9c7-4286fe894179:
+    description: null
+    file: summoned-elemental-mote.yaml
+  4cdea594-1c1d-4eac-994e-e28e1863d65e:
+    description: null
+    file: sprite-foxglow.yaml
+  4d966283-3245-4b42-a78f-df5989a5c76e:
+    description: null
+    file: stalker-shade.yaml
+  4de063bb-ca11-48ba-b078-ec883c874ac5:
+    description: null
+    file: summoned-skeleton.yaml
+  4f31e6bf-0416-4325-aad7-ae1750de6aa4:
+    description: null
+    file: boren.yaml
+  4ff5e723-42eb-4e93-bfa8-2d98707c87cc:
+    description: null
+    file: gummy-ball.yaml
+  50885100-9724-4000-9d57-3c6c335c24b9:
+    description: null
+    file: glass-spider.yaml
+  517af81e-d53d-4743-aff0-d159b4d08ba0:
+    description: null
+    file: summoned-skeleton.yaml
+  52aae002-f539-4522-8bb0-5550a1a0f92d:
+    description: null
+    file: summoned-ensnarer.yaml
+  536c6978-f6e0-43da-a1a6-d60fc4b530e4:
+    description: null
+    file: quiet-of-snow.yaml
+  558591c6-41c0-492a-95bb-c8904b4b9c52:
+    description: null
+    file: hulking-chimor.yaml
+  5642b628-030a-4cd9-b203-514f56b0a5db:
+    description: null
+    file: pixie-hydrain.yaml
+  574f7aeb-67db-45e7-bbf1-84634c13fefe:
+    description: null
+    file: fire-orc-eye-of-grole.yaml
+  57705a8b-34d3-4701-b3d4-f2a07efd1a2c:
+    description: null
+    file: gnoll-gnasher.yaml
+  57d4e726-5dde-42f4-803b-e3d46262a724:
+    description: null
+    file: memorial-ivy.yaml
+  57dd8e04-d6c6-468b-84ef-ddde5fa8fe79:
+    description: null
+    file: canine.yaml
+  57fc34aa-bb3c-4451-8d06-a5c1ceb30135:
+    description: null
+    file: rasquine.yaml
+  59073612-3c69-4275-888a-294fa0d52d10:
+    description: Wode Hag
+    file: wode-hag.yaml
+  59565332-ff69-48bd-b396-9015fc4ec84e:
+    description: null
+    file: gummy-ball.yaml
+  59f500d2-3ba3-4c52-953a-804ecf9b23c7:
+    description: null
+    file: fire-orc-eye-of-grole.yaml
+  5a620fe5-2b07-43da-86a1-7bff2708bb00:
+    description: null
+    file: grave-knight.yaml
+  5c342350-95fe-4623-8c09-a7e26f6d18e8:
+    description: null
+    file: font-of-wrath.yaml
+  5cb40dee-6abe-468e-b544-8164b3085d60:
+    description: null
+    file: crucible-dragon.yaml
+  5d631897-ee0c-41cf-8125-1d1bb7923869:
+    description: null
+    file: principle-of-the-swamp.yaml
+  5e24b500-babc-428b-907f-cd590872a5db:
+    description: Angulotl Cleaver
+    file: angulotl-cleaver.yaml
+  5e9d1794-a318-484e-ab0a-2bb8d934f528:
+    description: null
+    file: boren.yaml
+  5f2d59f4-5d42-4e92-9b76-aae9f48ac124:
+    description: null
+    file: flow-of-the-river.yaml
+  5f8f87f8-34cc-4171-8531-8c55997873ca:
+    description: null
+    file: fanged-musilex.yaml
+  60a8368c-8d3c-456e-989b-e391dea85f78:
+    description: null
+    file: fish.yaml
+  62f24e33-f002-4754-b6cf-77ef7e8dc66e:
+    description: null
+    file: accursed-mummy.yaml
+  63d20b4b-0a8b-4ed7-972b-e37b889682ae:
+    description: null
+    file: orc-charger.yaml
+  64db4790-a1ef-4323-9610-92f6f0594a87:
+    description: null
+    file: goblin-guide.yaml
+  6520914c-542f-4463-9a71-390c18df9e36:
+    description: null
+    file: great-tree-splinter.yaml
+  65a90eb5-7e4a-4a7c-a9b8-f51e2e670d5e:
+    description: null
+    file: devil-defector.yaml
+  6612ba35-3ce1-44e6-aead-83892d0842f5:
+    description: null
+    file: desolation-of-sand.yaml
+  67ed538c-90dd-4527-86b1-d7ecb293a1c1:
+    description: null
+    file: flow-of-magma.yaml
+  6a0f3500-9a6d-4cff-b499-cb6e3fd152de:
+    description: null
+    file: violent.yaml
+  6a123c34-28c9-4711-bbc5-75f92070ca1c:
+    description: null
+    file: violent.yaml
+  6a587209-de18-449e-a690-cc2c10b5492f:
+    description: null
+    file: divine-dragon.yaml
+  6a917cbe-7894-47b7-9708-83105fa4645d:
+    description: null
+    file: nixie-soakreed.yaml
+  6c1d8299-eca5-40db-9a4d-f3baeeefdd3d:
+    description: null
+    file: mind-projection-body.yaml
+  6e5acb46-87fe-40e5-8931-b11c0d595052:
+    description: null
+    file: husk.yaml
+  70fcc587-dd3b-48cf-a8da-8981195609ed:
+    description: null
+    file: source-of-earth.yaml
+  71083144-4e00-4e1b-a648-06ee84360a1a:
+    description: null
+    file: statue-of-power.yaml
+  7123d63e-0164-4e97-b34f-9c3dc1e37359:
+    description: null
+    file: imit-putty.yaml
+  724bbb5a-f7be-4140-a9d7-2f2331606b01:
+    description: null
+    file: brisk-gale.yaml
+  7405cbaa-bb0e-42d1-a2f3-6c41212578d5:
+    description: null
+    file: desolation-of-sand.yaml
+  74777ab3-1e96-4753-8f93-c3bfa8234327:
+    description: null
+    file: archer-spittlich.yaml
+  74c0351b-8205-44da-806f-685703b29284:
+    description: null
+    file: black-ichor.yaml
+  74d73ffd-f790-4081-a0d5-ee5ddf9afc8c:
+    description: null
+    file: lord-relg.yaml
+  7503e4f7-739a-444a-ade6-4468817f3047:
+    description: null
+    file: nixie-hemloche.yaml
+  7610cf6f-57e7-4645-90a1-96db9696fccb:
+    description: null
+    file: imit-putty.yaml
+  7761e801-4ac7-44a5-9010-badeb873f76d:
+    description: null
+    file: orc-warleader.yaml
+  776d9049-0b8c-4f5c-bb28-15f9d4a4e3b2:
+    description: null
+    file: civilian.yaml
+  7ae59e81-22dc-4c78-89f4-3d7c84fb8bfd:
+    description: null
+    file: ceaseless-mournling.yaml
+  7b8c0ff9-f4a6-4069-9eaa-8661c9ca29ed:
+    description: null
+    file: fire-plume.yaml
+  7badc7cf-15c6-4d5f-ab7b-6ff5b24527b3:
+    description: null
+    file: shrieker.yaml
+  7c8c06ce-4c12-422c-bc8f-325d007696bc:
+    description: null
+    file: great-tree-splinter.yaml
+  801d3352-9fdf-461e-91f7-e27aeb6a5383:
+    description: Servitor War Walker
+    file: servitor-war-walker.yaml
+  811a96f7-3b64-4a74-8035-24ac6d88b6bd:
+    description: null
+    file: mind-projection-body.yaml
+  827809c9-bcfb-455a-84fd-4cc5796152e0:
+    description: null
+    file: dame-cornelia.yaml
+  834322a2-3b8f-434a-a679-9a5d73aed4a2:
+    description: null
+    file: razor.yaml
+  83774ea0-a9d3-4b5c-b646-81405da9f8d4:
+    description: null
+    file: essence-of-change.yaml
+  84211ece-8833-4b62-a4ea-7e050f395d66:
+    description: null
+    file: phase-ghoul.yaml
+  842af5bd-3e77-406a-9eb0-6cdebc1fad49:
+    description: null
+    file: archer-spittlich.yaml
+  858d2023-3f95-4e4d-8fde-8026f8e6eff7:
+    description: null
+    file: spindlegoth.yaml
+  87bda97a-d0c0-4d2d-9d62-137ffbd0350e:
+    description: null
+    file: canine.yaml
+  87d0d2bf-dc68-487b-9ef7-4ce78d9d97b5:
+    description: null
+    file: hag-hut.yaml
+  8907e8c5-9338-404d-9cf5-6cf51ed12bcf:
+    description: null
+    file: great-cat.yaml
+  8b57a20f-93b7-4806-b530-c253f94073c0:
+    description: null
+    file: undead-servitor.yaml
+  8b625dcf-67f3-4a9d-9b93-3eed4cd24abc:
+    description: null
+    file: hulking-chimor.yaml
+  8c09a66c-dba1-4e7b-84f9-3ab6f6b65a05:
+    description: null
+    file: pixie-rosenthall.yaml
+  8caccb26-dcf0-4334-9cd9-d0bcf0e9f834:
+    description: null
+    file: undead-servitor.yaml
+  8cc57489-cbe6-4f6c-b2f0-f6125e4fc9f9:
+    description: null
+    file: war-dog-teletalite.yaml
+  8ecf5100-b780-4ee7-90de-df82e071000d:
+    description: null
+    file: armored-soulwight.yaml
+  8f11adf1-b6da-4e23-a41f-40aa3e67049e:
+    description: null
+    file: walking-boulder.yaml
+  8f5eb909-3667-49f9-8b4c-61fbac6ae867:
+    description: null
+    file: gnoll-gnasher.yaml
+  8fdb1ba8-7282-4144-b10f-e5a771f2f42c:
+    description: null
+    file: phase-ghoul.yaml
+  930302d5-82b9-4d60-b85d-f507d0d83f43:
+    description: null
+    file: sprite-dandeknight.yaml
+  93204411-77a1-4a2d-9df3-fec21dbde1c6:
+    description: null
+    file: black-ichor.yaml
+  9321259e-9510-49a1-8377-3011e41f1dfc:
+    description: null
+    file: sprite-orchiguard.yaml
+  972e6d2b-01f4-42b3-984a-10dbee4a34a3:
+    description: null
+    file: divine-dragon.yaml
+  9753fc4b-eab4-4b15-9aee-81ad18f2c0fe:
+    description: null
+    file: glass-spider.yaml
+  97e4723d-1200-43ee-9a3d-62d66091dd0f:
+    description: null
+    file: civilian.yaml
+  97f13373-952d-4b77-8e1f-6502dc52772a:
+    description: null
+    file: familiar.yaml
+  982869d5-99d1-4cc1-9a74-d3895465151d:
+    description: null
+    file: conduit-rolling-machine.yaml
+  98a0cf6a-ed08-449a-8ceb-96bf595be89f:
+    description: null
+    file: the-iron-orb.yaml
+  994d2017-66e8-4380-bd17-680b951971dc:
+    description: null
+    file: corven.yaml
+  99916cad-4dfe-4feb-8e10-73dd1bf86a9e:
+    description: null
+    file: shrieker.yaml
+  99b01409-6bd3-4935-a41a-2fe06ccff8b7:
+    description: null
+    file: armored-soulwight.yaml
+  9a72c44a-90ea-4a95-ad60-5f35fcf9c538:
+    description: null
+    file: war-dog-teletalite.yaml
+  9d24e074-c67a-4b0f-b16c-d457af0199e0:
+    description: null
+    file: divine-dragon.yaml
+  9d5d43fc-f4fc-4b62-a028-145e853912d7:
+    description: null
+    file: lightning-orc-eye-of-grole.yaml
+  9e390cd9-b08b-4cf2-8286-4369803604e0:
+    description: null
+    file: twisted-bengrul.yaml
+  9f77f43c-e166-4862-8eab-b1650c24753b:
+    description: null
+    file: hulking-chimor.yaml
+  a026dab4-65b2-4c91-b90a-b64afb0a32a2:
+    description: null
+    file: walking-boulder.yaml
+  a0b14450-15f2-4025-99e9-3d0459eea7b2:
+    description: null
+    file: spindlegoth.yaml
+  a1ffbd5c-aa1a-4f30-a1b1-2c81ef44dff2:
+    description: null
+    file: pixie-hydrain.yaml
+  a2253e9d-87f0-4032-b258-17d29894d35d:
+    description: null
+    file: noncombatant.yaml
+  a272a908-de68-4f48-95ab-bb4cafb2bc05:
+    description: null
+    file: winded-rotting-zombie.yaml
+  a2d85e30-3fb2-4ae7-9f1b-097cac88cae7:
+    description: null
+    file: twisted-bengrul.yaml
+  a495660c-9fd4-4676-9e3a-a90b6bb0eb34:
+    description: null
+    file: undead-servitor.yaml
+  a4dd99c2-9325-48f2-97b3-bf9824240c22:
+    description: null
+    file: lord-relg.yaml
+  a598bf76-959d-48f5-a3aa-35c53f618922:
+    description: null
+    file: orc-warleader.yaml
+  a7dd9433-18aa-41dd-9604-40c1391b95bf:
+    description: null
+    file: return-to-oblivion.yaml
+  a7e3ce7f-081e-4262-9c0c-e18e2f31390d:
+    description: null
+    file: armored-soulwight.yaml
+  a8db593c-ce3a-4914-aa74-91e054e40759:
+    description: null
+    file: rat.yaml
+  a97dec09-0707-4cd3-acf6-0f0fb23209c2:
+    description: Bugbear Shadow Sneak
+    file: bugbear-shadow-sneak.yaml
+  a98c6ba2-3091-45f7-9563-a4a8954f87cc:
+    description: null
+    file: abyssal-rift.yaml
+  a9c913c4-c106-45df-804f-7b54860dbcad:
+    description: null
+    file: flow-of-the-river.yaml
+  ab28c5c5-19e9-4b68-afd4-c38aadf16bab:
+    description: null
+    file: bird.yaml
+  ac91d2fc-ffe8-4b43-b7aa-8f955be0f661:
+    description: null
+    file: black-ichor.yaml
+  af5b3c2a-b397-4ea5-90ab-3dc25750cac8:
+    description: null
+    file: winded-rotting-zombie.yaml
+  b1285742-3338-4ff3-9e93-c3da0f20d787:
+    description: null
+    file: font-of-wrath.yaml
+  b25a9388-2f54-47d6-bfb7-24292cbf7d8e:
+    description: null
+    file: nixie-hemloche.yaml
+  b5a014dd-9281-40a6-842d-d6c59b3fbd57:
+    description: null
+    file: wolf.yaml
+  b5a070dd-eb2a-43e4-adf6-87a76f89f716:
+    description: null
+    file: guest-star.yaml
+  b5f34928-e78e-4dee-b44d-ad1b8d7fe664:
+    description: null
+    file: noncombatant.yaml
+  b6ac0eab-d0ec-4d44-8d1f-d294f95ff56b:
+    description: null
+    file: hag-hut.yaml
+  b76647ce-e551-46de-9d74-ee8f4c40ee3c:
+    description: null
+    file: crucible-dragon.yaml
+  b8062fc5-dbba-449c-a81d-40a2d2696ddc:
+    description: null
+    file: abyssal-rift.yaml
+  b8b894b7-28d3-482e-9bdb-19c8a365639f:
+    description: null
+    file: rat.yaml
+  b9566c65-0f0d-455a-bd60-572dd64a382d:
+    description: null
+    file: guest-star.yaml
+  bae766e9-919d-4423-a852-e265c76375ca:
+    description: null
+    file: devil-defector.yaml
+  bbc6c992-5839-45a6-be1d-a85ee3240140:
+    description: null
+    file: return-to-oblivion.yaml
+  bcab11bd-8f61-4d91-b040-38563cac2278:
+    description: null
+    file: orc-charger.yaml
+  bdc555d0-a28c-489e-97aa-1f57c0a0fe38:
+    description: null
+    file: war-dog-teletalite.yaml
+  bf78374f-159d-4c5b-a93e-f5e6e66bcc9c:
+    description: null
+    file: grave-knight.yaml
+  bfb8b4f2-abea-4625-9c77-40235752d6f5:
+    description: null
+    file: stalker-shade.yaml
+  c11013f9-c4a3-454e-ad8a-34e14e568366:
+    description: null
+    file: memorial-ivy.yaml
+  c38eebe5-ff4f-4f7d-bb4c-3b84e9920bb1:
+    description: null
+    file: conduit-rolling-machine.yaml
+  c3c666fa-f28d-4206-b043-fcdf7335947c:
+    description: null
+    file: familiar.yaml
+  c47c7c17-47f6-4a1c-b8bd-40f4547816cb:
+    description: null
+    file: accursed-mummy.yaml
+  c47cb854-07a4-471a-a95e-c5cf66bf9fae:
+    description: null
+    file: orc-charger.yaml
+  c603ebcc-600c-463e-b69d-0d7cfc775a87:
+    description: null
+    file: fish.yaml
+  c64241a7-a7a7-46db-b08e-ddf55e249042:
+    description: null
+    file: rat.yaml
+  c84b80cd-6b00-47a7-96ac-129badd6441e:
+    description: null
+    file: nixie-soakreed.yaml
+  c89896af-176c-4a9a-ba9b-fe6f3c330c7c:
+    description: null
+    file: return-to-oblivion.yaml
+  c89b4191-d57b-4fcd-ae27-e8b7e9088fed:
+    description: null
+    file: source-of-earth.yaml
+  ca6e297d-1423-48b1-a20d-a50a91883c52:
+    description: null
+    file: lord-relg.yaml
+  cada25d0-dad9-4977-99c1-28bbcc2d01e6:
+    description: null
+    file: lightning-orc-eye-of-grole.yaml
+  cc1682eb-f646-4497-880f-2cfb7e8b6415:
+    description: null
+    file: husk.yaml
+  cc2d03ae-1326-4093-b197-b45db7ae913f:
+    description: null
+    file: creeping-sludge.yaml
+  ccb659e3-b29e-4447-8af3-4be8b2e89968:
+    description: null
+    file: wallmaster.yaml
+  cdcfc079-a74f-422c-9e04-d55a75b6cbc9:
+    description: null
+    file: pixie-bellringer.yaml
+  cf8c4158-f8c4-4243-b4a1-864d25fe94ae:
+    description: null
+    file: sudden-downpour.yaml
+  d0267a46-4ef1-4e4c-8f7e-2a330fa06e2b:
+    description: null
+    file: summoned-ensnarer.yaml
+  d17dd166-730d-490e-8041-40fc0ee14bbf:
+    description: null
+    file: sprite-dandeknight.yaml
+  d1a0e7d7-2367-45f6-8187-075625073d3a:
+    description: Bugbear Roughneck
+    file: bugbear-roughneck.yaml
+  d37825b4-fc60-4b12-9268-7457c8d3d804:
+    description: null
+    file: gushing-spewler.yaml
+  d3c6a20f-962c-44aa-9953-d12653bd7864:
+    description: null
+    file: fire-plume.yaml
+  d446d8b9-eae9-46d0-a3ea-8fc1e26c8063:
+    description: null
+    file: summoned-ensnarer.yaml
+  d6428e97-fe32-4cab-b1a2-fa3e448e77b9:
+    description: null
+    file: memorial-ivy.yaml
+  d72f6757-38a7-4b4b-9f79-f4b2f5d00a98:
+    description: null
+    file: wallmaster.yaml
+  d74aefc0-e093-46ab-96ed-210d0ad82523:
+    description: null
+    file: flow-of-magma.yaml
+  d9750356-6d78-48fb-89df-696c04b3a797:
+    description: null
+    file: wallmaster.yaml
+  d9a1bf69-e47e-450c-a1d8-d15bf60b0abd:
+    description: Trained Gummy Brick
+    file: trained-gummy-brick.yaml
+  de17114b-2cc3-4bc5-bbeb-f8f19caae5ba:
+    description: null
+    file: pixie-hydrain.yaml
+  de53534b-a82f-45f3-92be-6daa55637377:
+    description: null
+    file: sudden-downpour.yaml
+  deb193b1-c6ab-4024-bfce-3fc8e336cf18:
+    description: null
+    file: gushing-spewler.yaml
+  e1202bbe-2ec7-4b74-97ee-ed974915f6a6:
+    description: null
+    file: husk.yaml
+  e127719a-4862-4902-b1a0-d376196bacce:
+    description: null
+    file: guest-star.yaml
+  e1285636-8547-49ec-8bf7-127198ccaedb:
+    description: null
+    file: winded-rotting-zombie.yaml
+  e12c4ec0-7be0-4ff5-9647-5e1a779a98b3:
+    description: null
+    file: desolation-of-sand.yaml
+  e194251d-23c8-4f34-ab59-d82e7504ff95:
+    description: null
+    file: flow-of-magma.yaml
+  e2e21039-09b7-4178-af15-0018c19dbb28:
+    description: Bugbear Commander
+    file: bugbear-commander.yaml
+  e2fa260b-111e-465d-bd24-b9a0c3960c57:
+    description: null
+    file: great-cat.yaml
+  e32eb5fc-6a3a-4f91-b2fb-dd2be25300f5:
+    description: null
+    file: noncombatant.yaml
+  e647cd9b-0588-4ab4-8b8d-01f85adf3c27:
+    description: null
+    file: rasquine.yaml
+  eac39b3c-02e1-4860-8cee-13cd176312a4:
+    description: null
+    file: dancing-silk.yaml
+  eb5d2b6e-24bb-4d04-b247-9fcb1f912acd:
+    description: null
+    file: arixx.yaml
+  ec5f9995-fe31-4911-89e4-0a3561950fd2:
+    description: null
+    file: sudden-downpour.yaml
+  ee0eef4c-dbb2-4080-9b2a-0afe53659119:
+    description: null
+    file: goblin-guide.yaml
+  ef3b13d5-9ace-4a62-8862-41093a077c9e:
+    description: null
+    file: fanged-musilex.yaml
+  efc19e37-64c6-4ef9-9770-f30669c219c5:
+    description: null
+    file: gnoll-gnasher.yaml
+  eff771e7-2108-4844-99d9-aabeac39a511:
+    description: null
+    file: fanged-musilex.yaml
+  f06c748e-68ed-4069-aed8-2151e8cb5adf:
+    description: null
+    file: sprite-dandeknight.yaml
+  f0ebc5ed-e94f-4b6b-ac07-c80d594c23bf:
+    description: null
+    file: creeping-sludge.yaml
+  f1755110-0c32-4bfa-997a-1a05e75486f4:
+    description: Thorn Dragon
+    file: thorn-dragon.yaml
+  f26a78a5-6519-444d-919f-2a5c9f2cfadd:
+    description: null
+    file: great-tree-splinter.yaml
+  f3ffa1f4-9e4d-417d-9096-5c7b49953d0a:
+    description: null
+    file: cold-orc-eye-of-grole.yaml
+  f4ccee28-698f-4ab1-9dca-32cb327a00fe:
+    description: null
+    file: crux-of-ash.yaml
+  f50e5664-f71f-4aaa-b52b-5e3813e7834a:
+    description: null
+    file: zombie-lumberer.yaml
+  f5efd234-24e8-459d-9ee1-31e053508611:
+    description: null
+    file: razor.yaml
+  f6b262e9-a12f-473e-9e86-8cc71da79c22:
+    description: null
+    file: nixie-soakreed.yaml
+  f8866eb4-4b1e-43c7-bf42-313804e7f65f:
+    description: null
+    file: pixie-rosenthall.yaml
+  f9e4febb-1a03-4b0d-bec0-1a19e5aaace7:
+    description: null
+    file: principle-of-the-swamp.yaml
+  fa0c5c45-92ae-4f44-a3fd-ed9b31b5646f:
+    description: null
+    file: bird.yaml
+  fb191762-c2ff-4642-afd5-b85710629cdb:
+    description: null
+    file: twisted-bengrul.yaml
+  fb8f863d-0850-401c-b15c-a87280675912:
+    description: null
+    file: font-of-wrath.yaml
+  fbbf7549-2959-4d02-a8c6-d9b69ead63fa:
+    description: null
+    file: archer-spittlich.yaml
+  fc6a00e9-390d-4667-81a2-2cdf8f91027b:
+    description: null
+    file: nixie-hemloche.yaml
+  fd253321-74c2-4251-a7ab-9dbf059a0cd5:
+    description: null
+    file: dancing-silk.yaml
+  fe001239-933b-48d7-b75e-032b1c99b92d:
+    description: null
+    file: mind-projection-body.yaml
+  ffe0cb60-7261-46fd-8a4d-124621a70af3:
+    description: null
+    file: sprite-orchiguard.yaml
+  fff38bed-38a1-4dd1-9d7f-d711bbdc558d:
+    description: null
+    file: spindlegoth.yaml
+  02eeea00-8dee-4452-882e-fdd53369564f:
+    description: null
+    file: corven.yaml
+  0317859b-b54c-43e2-bd3c-45c3fd24d941:
+    description: Dwarf Mortar
+    file: dwarf-mortar.yaml
+  03235ef7-320a-40bd-91aa-82e3b179d3b3:
+    description: null
+    file: crucible-dragon.yaml
+  0414ebd8-307e-4c24-bf85-d97be7a755c9:
+    description: null
+    file: desolation-of-sand.yaml
+  0544e196-72af-45a7-845d-0aabbe177bdb:
+    description: null
+    file: summoned-elemental-mote.yaml
+  055130d5-f64b-43ae-a573-96bcbb89835f:
+    description: null
+    file: twisted-bengrul.yaml
+  06673a24-d1b0-4bc3-a52d-c308ac4c920b:
+    description: null
+    file: statue-of-power.yaml
+  08ca0a3e-5b26-4ed9-9dd6-8d76daf5dd6f:
+    description: 'Radenwight Sidekick '
+    file: radenwight-sidekick.yaml
+  0943118a-3699-42f7-98a8-3dfacf99fe09:
+    description: High Elf Weatherwise
+    file: high-elf-weatherwise.yaml
+  0c1c3e78-fbd0-4f1e-9f62-fc8450f0e200:
+    description: null
+    file: accursed-mummy.yaml
+  0d6b005a-1cd3-4692-932c-f59f20697b00:
+    description: null
+    file: flow-of-the-river.yaml
+  0f010d76-74ae-442a-b62a-2b03f33f8a66:
+    description: null
+    file: unquiet-spirit.yaml
+  10590611-0df9-4f71-8670-53337cd036a3:
+    description: null
+    file: dwarf-mortar.yaml
+  107e621d-b02c-45fe-9284-ae6826907e0d:
+    description: null
+    file: violent.yaml
+  1154b798-34ac-4b31-aea5-2cc6edae810b:
+    description: Wode Elf Arrowswift
+    file: wode-elf-arrowswift.yaml
+  11d12858-e729-47d3-8a3a-74a0b989bf5d:
+    description: null
+    file: source-of-earth.yaml
+  14e15a9f-d564-42a0-b91f-e9a100f10262:
+    description: null
+    file: human-warrior.yaml
+  14ed480d-df36-4fee-b059-5476ea0e25ae:
+    description: null
+    file: fire-orc-eye-of-grole.yaml
+  1ab1962f-5b18-4f79-aa54-1742d8b093e8:
+    description: null
+    file: hulking-chimor.yaml
+  1c272b6d-aae4-42b1-9c3e-0fee7218fb1f:
+    description: null
+    file: winded-rotting-zombie.yaml
+  1e44570a-3fa6-4e99-90b0-68ae1203e422:
+    description: null
+    file: return-to-oblivion.yaml
+  22f45493-ced6-4eb4-bfe8-05c1c83b5e31:
+    description: null
+    file: arixx.yaml
+  3050ad16-7a49-4fdb-931d-cb7589fb9634:
+    description: null
+    file: shrieker.yaml
+  34310466-a1c3-41b9-a53f-e2c024a2ab02:
+    description: null
+    file: great-tree-splinter.yaml
+  35ac631c-8ba3-4103-9e86-65cf41c2f2e1:
+    description: null
+    file: radenwight-sidekick.yaml
+  36a1e2c2-e087-4823-8f2b-f9fc335d86cb:
+    description: null
+    file: pixie-loftlilly.yaml
+  36d5f6ba-7712-4818-a44b-281783bebd4f:
+    description: null
+    file: minotaur-gorer.yaml
+  3908ed4b-1c53-45bf-9576-84f211e70270:
+    description: Angulotl Cleaver duplicate
+    file: angulotl-cleaver-duplicate.yaml
+  3960ca98-4a8b-40ca-bc76-d97382a00692:
+    description: null
+    file: great-cat.yaml
+  3b8a8146-c14e-441b-b54f-197d1207e603:
+    description: null
+    file: time-raider-mind-healer.yaml
+  40a8a3b7-e052-4a8e-bff4-778609945dd9:
+    description: null
+    file: fish.yaml
+  434e227a-5964-40d1-a3b8-8d077004a7b2:
+    description: null
+    file: quiet-of-snow.yaml
+  439e0df8-b801-4fde-834c-5d29dad62700:
+    description: null
+    file: pixie-bellringer.yaml
+  4427f474-b4e8-4b22-acd7-316f55ceb2e3:
+    description: null
+    file: imit-putty.yaml
+  4570c1b4-d1fa-49de-8541-d783c3e0a9e0:
+    description: null
+    file: black-ichor.yaml
+  4595aa1b-d941-4597-8d8d-561f77f0b01f:
+    description: null
+    file: sprite-orchiguard.yaml
+  45bc13b2-8863-4120-8cb3-0202f828c525:
+    description: null
+    file: summoned-skeleton.yaml
+  464c75a3-49cc-4720-b4bf-cf6a47552b27:
+    description: null
+    file: orc-charger.yaml
+  4907e5c1-6319-4cf3-be91-e86a2ac394b0:
+    description: null
+    file: lightning-orc-eye-of-grole.yaml
+  49b92c47-5878-4ece-b5ee-704da077be3f:
+    description: null
+    file: rodent.yaml
+  4a1425d8-cc6b-4498-b5a3-3b5ee86f0d38:
+    description: null
+    file: phase-ghoul.yaml
+  4a6ca3e2-4eb6-46c8-8a22-729b0c99282e:
+    description: null
+    file: mind-projection-body.yaml
+  4e4e1bec-ba65-4fc7-81db-56dd0aaf2a94:
+    description: null
+    file: gnoll-gnasher.yaml
+  4e5fb8b4-f4e4-4b86-9e5b-524601299baf:
+    description: Shadow Elf Shade
+    file: shadow-elf-shade.yaml
+  50f884a7-8b66-4cf9-b7aa-f35cb3065cd8:
+    description: null
+    file: civilian.yaml
+  539c9b6f-9a2d-494b-ac5d-d9a9636435a2:
+    description: Voiceless Talker Exile
+    file: voiceless-talker-exile.yaml
+  54e3d953-a169-4127-8479-60b1f7c0e9e2:
+    description: null
+    file: sudden-downpour.yaml
+  554eb72a-553a-4055-b86c-29fb11a56e43:
+    description: null
+    file: shadow-clone.yaml
+  56ef138b-f59e-4fb8-9c39-99141f0ffcc9:
+    description: null
+    file: war-dog-teletalite.yaml
+  580a5d54-f1ee-4606-b041-c85cfa348d46:
+    description: null
+    file: guest-star.yaml
+  5b9fecb3-b986-4c89-b8af-5cd8a9a5a43c:
+    description: null
+    file: the-iron-orb.yaml
+  5f5bc936-06ac-42a6-8990-eb06cee1161f:
+    description: null
+    file: nixie-hemloche.yaml
+  5f69e9f7-8376-46e4-912b-1388e2ea1d1f:
+    description: null
+    file: rasquine.yaml
+  6617b9db-7b48-4946-9076-8cd4c238e9b5:
+    description: null
+    file: summoned-ensnarer.yaml
+  6907953a-efb6-4a9d-9b2a-c22b2262c946:
+    description: null
+    file: memorial-ivy.yaml
+  6c709471-dc1d-4481-bcb0-534ae2839e15:
+    description: Human Warrior
+    file: human-warrior.yaml
+  6f72c258-e077-42e5-87f4-92c0b5a053fd:
+    description: null
+    file: kobold-shieldbearer.yaml
+  7126a1d6-c5a5-484b-9a69-93127fc1eecc:
+    description: null
+    file: razor.yaml
+  71bfbee4-2cf1-4692-ab88-c7a0f1c53116:
+    description: null
+    file: conduit-rolling-machine.yaml
+  72b5221b-067b-410c-9aea-b808e12e8736:
+    description: null
+    file: archer-spittlich.yaml
+  72d1c04d-73ae-408b-bd36-aa44a7b6a8f2:
+    description: null
+    file: nixie-soakreed.yaml
+  75ef9592-a100-49a9-8831-a27709fe9f15:
+    description: null
+    file: sprite-foxglow.yaml
+  78bb4439-1e0c-41a6-a26e-757eeb3ca09f:
+    description: Bugbear Commando
+    file: bugbear-commando.yaml
+  7a951e74-69c7-49a5-a44c-225ca2582c18:
+    description: null
+    file: armored-soulwight.yaml
+  7bb0d11c-d3ac-49cf-b7c8-fca737dbe9c8:
+    description: null
+    file: fanged-musilex.yaml
+  7d97ccd7-b062-4b3b-b1fb-4cf65f9adc82:
+    description: Kobold Shieldbearer
+    file: kobold-shieldbearer.yaml
+  8036b572-ae90-4b20-9602-341728a9132a:
+    description: null
+    file: gummy-ball.yaml
+  8075b9f5-2bec-41a3-9c69-ae53c9107f70:
+    description: null
+    file: angulotl-hopper.yaml
+  8184dec3-6996-40fa-ac2e-963fcc88112e:
+    description: null
+    file: wallmaster.yaml
+  829ec58b-d9e2-42cb-ad90-7d9800bc5538:
+    description: null
+    file: glass-spider.yaml
+  84f581b9-38bc-4626-ae12-962b58d8aa07:
+    description: Vampire Rebel
+    file: vampire-rebel.yaml
+  87120f00-0cc4-458b-9fb9-e8b9290dccc6:
+    description: Unquiet Spirit
+    file: unquiet-spirit.yaml
+  87dc0c69-0462-4be6-8853-c3e2db994a5f:
+    description: null
+    file: crux-of-ash.yaml
+  8906eb64-ba29-4e79-92ad-f9489dec9962:
+    description: null
+    file: dame-cornelia.yaml
+  8c8b91b0-09b5-49a9-aa47-d3505cc49dce:
+    description: null
+    file: cold-orc-eye-of-grole.yaml
+  8de1d171-555a-4d1c-9b53-b4974ca86e8c:
+    description: null
+    file: principle-of-the-swamp.yaml
+  9001b61c-c149-4403-9e75-5de3dba3b3fa:
+    description: null
+    file: pixie-hydrain.yaml
+  921f9090-81ab-4e95-a910-43c92f2cab60:
+    description: null
+    file: sprite-dandeknight.yaml
+  985a13f9-ab9c-40c1-8081-534892139f9e:
+    description: null
+    file: wolf.yaml
+  99a6844d-0380-4eb2-8448-7e43667e10ab:
+    description: Time Raider Mind Healer
+    file: time-raider-mind-healer.yaml
+  9b75ff0c-0bfb-4633-b471-e0cabd377c4b:
+    description: null
+    file: pixie-rosenthall.yaml
+  9f16ae78-f8e3-463b-bf42-45f41d502d1f:
+    description: null
+    file: divine-dragon.yaml
+  a76a7d7a-d8ae-4fee-a51d-75522c733a8f:
+    description: null
+    file: high-elf-weatherwise.yaml
+  aa8905ab-19c6-4524-8b9a-55a6f51bf6c6:
+    description: null
+    file: husk.yaml
+  ab71c250-6695-4c52-b295-3d908faaebcf:
+    description: null
+    file: gushing-spewler.yaml
+  afd6ccc7-bcec-4465-a066-c7e9e73dbf87:
+    description: null
+    file: noncombatant.yaml
+  affc11be-5ac7-407e-8e61-c9297d6aef5f:
+    description: null
+    file: familiar.yaml
+  b1e61b0c-d699-4ffe-ae0e-a034b6baff94:
+    description: null
+    file: wode-elf-arrowswift.yaml
+  b8017535-3345-47b9-b472-e51af4cc5d34:
+    description: null
+    file: bird.yaml
+  bc8c69ce-a758-4065-b928-0e9c331519f6:
+    description: null
+    file: fire-plume.yaml
+  c0956041-1c43-40ed-b6f6-848f9073d272:
+    description: null
+    file: abyssal-rift.yaml
+  c765c19d-4cca-4078-93b5-fd98ed10e713:
+    description: null
+    file: wolf.yaml
+  c9afc2fb-c4c2-4493-8d01-4cc8d49807c4:
+    description: null
+    file: undead-servitor.yaml
+  cab2d5e7-2f12-48bc-aa2f-a9278edf18e2:
+    description: null
+    file: brisk-gale.yaml
+  cb94d804-feb7-4ea7-808f-f31707d27982:
+    description: null
+    file: walking-boulder.yaml
+  ce94e8f5-028f-44d8-99f2-13d74c92cf52:
+    description: null
+    file: ceaseless-mournling.yaml
+  d058a50c-0724-4844-895c-f32aedbcffc8:
+    description: null
+    file: lord-relg.yaml
+  d3436cc3-b6d4-4639-9c98-af70ebe32461:
+    description: null
+    file: devil-defector.yaml
+  d483b13c-edd6-4975-93fe-dee334456ae7:
+    description: null
+    file: font-of-wrath.yaml
+  d6bb146c-0b10-46c0-a936-ec02aed4aca1:
+    description: null
+    file: bugbear-commando.yaml
+  dc6a13fd-ec77-4a06-8514-95d127287c71:
+    description: null
+    file: stalker-shade.yaml
+  dc8c2b6b-7279-4766-bf91-4906a0b562af:
+    description: Minotaur Gorer
+    file: minotaur-gorer.yaml
+  de5149cf-3e0d-4b06-b8bb-143522a904a9:
+    description: null
+    file: orc-warleader.yaml
+  e56e871b-81de-4232-82c2-1f83a556d863:
+    description: null
+    file: goblin-guide.yaml
+  e60df05a-71d7-466e-8521-e89b54113f8d:
+    description: null
+    file: spindlegoth.yaml
+  e6d16a5e-4abb-40cf-8e9e-e1f730b919b3:
+    description: null
+    file: creeping-sludge.yaml
+  e7e2efd5-cd58-4a2d-8aec-5bce6dd11158:
+    description: null
+    file: canine.yaml
+  e8f0edd4-d3ec-478c-a924-7d6953af9b41:
+    description: null
+    file: rodent.yaml
+  eb385463-50f8-4c71-a477-cecb58287225:
+    description: null
+    file: grave-knight.yaml
+  ed1da082-0c78-4345-a1a6-642c5c579e58:
+    description: null
+    file: essence-of-change.yaml
+  edf6be40-04f5-4b65-8120-d936df9370c2:
+    description: null
+    file: zombie-lumberer.yaml
+  f482c9d6-8157-4b73-bdda-eba0624ecc23:
+    description: null
+    file: rat.yaml
+  f5272042-0333-4560-b67d-1c8582dbb6f2:
+    description: null
+    file: boren.yaml
+  f7f9ac84-798f-4d78-9238-4475411957bf:
+    description: null
+    file: dancing-silk.yaml
+  fb2d7868-55d9-40a9-9776-651cc29552ff:
+    description: null
+    file: hag-hut.yaml
+  fc2bdbe9-323c-4779-8163-a56b4f600f74:
+    description: null
+    file: flow-of-magma.yaml
+  85809da7-eae3-4365-b388-f1f678e91ab3:
+    description: null
+    file: mystic-queen-bargnot.yaml
+  b8162089-7559-41a5-a82c-85438d3282dd:
+    description: null
+    file: werewolf-4.yaml
+  10927d4a-3bd0-43e3-b994-9a11ed2fad53:
+    description: null
+    file: goblin-deathtongue.yaml
+  8075c6d4-1fa1-4085-a83d-2a1e61447c2d:
+    description: null
+    file: werewolf-3.yaml
+  1e16b64f-44bc-450a-b2bd-2dfb8958f9c1:
+    description: null
+    file: goblin-toxinaut.yaml
+  895f79ff-ba20-4f35-83d2-0784b3adf9ec:
+    description: null
+    file: brune.yaml
+  635b92cb-992b-4710-b2b2-c768dfd85942:
+    description: null
+    file: goblin-battleborn.yaml
+  d02daacd-edb7-44da-91f9-208ccce37171:
+    description: null
+    file: goblin-mastermind.yaml
+  2505b4b1-fbe1-4966-81a5-3b75b75dcec0:
+    description: null
+    file: goblin-shadowknife.yaml

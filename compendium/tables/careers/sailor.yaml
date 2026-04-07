@@ -1,0 +1,51 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 6549663f-c804-4fce-a565-fa6581b4f897
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Sailor Career Feature
+      behavior: proficiency
+      description: ""
+      equate: false
+      name: Swim Skill
+      sourceguid: e89aa41a-8f86-455b-88b9-3b7584c0a440
+      proficiency: proficient
+      guid: 946cbb3e-e93b-4a15-b714-1c1098536ac1
+      skills:
+        91ee7ea9-f331-42df-8f4b-e4a475d37a98: true
+    name: Swim Skill
+    description: ""
+    guid: e89aa41a-8f86-455b-88b9-3b7584c0a440
+    source: Sailor Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      exploration: true
+    name: Sailor Exploration Skills
+    numChoices: 2
+    guid: f654a24d-e3ba-4491-8ae0-1f53458b8802
+    description: "Choose two more skills from the exploration group (Quick Build: Climb, Gymnastics)"
+    source: Sailor Career Feature
+  - __typeName: CharacterLanguageChoice
+    name: Sailor Language
+    numChoices: 2
+    description: Choose two Languages
+    source: Sailor Career Feature
+    guid: 4dcb406e-50f7-43d9-b56e-fd4372d66595
+  - __typeName: CharacterFeatChoice
+    guid: cd98f60a-f598-44bb-b65d-1ee99025bf08
+    description: "One exploration perk (Quick Build: Put Your Back Into It)"
+    tag: exploration perks
+    name: Sailor Exploration Perk
+name: Sailor
+mtime: 1768796392480
+description: "You worked on a ship, whether a merchant cog, a mercenary or military craft, or a pirate vessel. You might have been a deckhand, a mate, or even the captain. In defining your career, think about the following questions: \n\nWhat is the name of the vessel you sailed on, and what type of business was the crew engaged in? \n\nWhat was your job aboard the ship? \n\nWhat’s the longest amount of time you’ve spent at sea? \n\nWho or what did you lose on your maritime journeys? "
+id: a1609f19-e593-4631-9c79-1266122e54d3
+ctime: 1730564218336

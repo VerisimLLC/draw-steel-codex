@@ -1,0 +1,112 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: dee66046-6bf6-46cf-9a45-2392463d4370
+  source: Ongoing Effect
+  seq: 3829bd9f-98b0-475a-9873-d9a2edc6f92b
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 22021e33-c767-4308-b1f4-5f76b2318a18
+      source: Aura
+      behavior: power
+      keywords: []
+      activationCondition: true
+      name: Afterimage
+      guid: c44a238a-38f1-4b52-a25c-1874b2bf7812
+      description: Any enemy adjacent to the afterimage takes a bane on ability rolls
+      modtype: bane
+      rollType: ability_power_roll
+    name: Afterimage
+    guid: 22021e33-c767-4308-b1f4-5f76b2318a18
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  domains:
+    CharacterOngoingEffect:dee66046-6bf6-46cf-9a45-2392463d4370: true
+  radius: "1"
+  guid: 8fcc1ad5-de36-4e52-988b-9cf55a9c695b
+  description: Any enemy adjacent to your afterimage takes a bane on ability rolls
+  behavior: aura
+  name: Afterimage
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:dee66046-6bf6-46cf-9a45-2392463d4370: true
+  sourceguid: dee66046-6bf6-46cf-9a45-2392463d4370
+  description: Any enemy adjacent to your afterimage takes a bane on ability rolls
+  source: Ongoing Effect
+  name: Afterimage
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: Select when Afterimage should be removed
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 721be42d-f600-4f1d-a72e-a9a082318eec
+    abilityType: none
+    conditionFormula: Subject = Self.Summoner
+    persistence: []
+    behaviors:
+    - __typeName: ActivatedAbilityRemoveCreatureBehavior
+      waitForAbilitiesToFinish: false
+    trigger: endturn
+    name: Afterimage
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  guid: 47169db5-4149-4d34-a4c7-065f94ee3c12
+- __typeName: CharacterModifier
+  sourceguid: dee66046-6bf6-46cf-9a45-2392463d4370
+  source: Ongoing Effect
+  guid: 6df17681-82fb-44c2-89fe-09ee3b9e5474
+  keywordFilter: []
+  domains:
+    CharacterOngoingEffect:dee66046-6bf6-46cf-9a45-2392463d4370: true
+  name: Afterimage
+  description: Any enemy adjacent to your afterimage takes a bane on ability rolls
+  behavior: castingorigin
+  filterCondition: Ongoing Effect.Caster.Id = Caster.id
+- __typeName: CharacterModifier
+  sourceguid: dee66046-6bf6-46cf-9a45-2392463d4370
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:dee66046-6bf6-46cf-9a45-2392463d4370: true
+  name: Afterimage
+  guid: 6f54755d-9c8a-41da-898c-ff5addb24a8d
+  description: Any enemy adjacent to your afterimage takes a bane on ability rolls
+  behavior: attribute
+  attribute: e8a97ea6-d2e2-4d59-a1d3-11124a104147
+source: Ongoing Effect
+guid: dee66046-6bf6-46cf-9a45-2392463d4370
+id: dee66046-6bf6-46cf-9a45-2392463d4370
+ctime: 1773602618363
+domains:
+  CharacterOngoingEffect:dee66046-6bf6-46cf-9a45-2392463d4370: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Afterimage
+description: Any enemy adjacent to your afterimage takes a bane on ability rolls
+mtime: 1773611531603
+emoji: d3ad73f3-e63b-464c-99d9-f0bc7b2a2775
+iconid: ui-icons/skills/1.png

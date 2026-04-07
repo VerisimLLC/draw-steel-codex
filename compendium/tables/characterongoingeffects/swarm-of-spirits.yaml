@@ -1,0 +1,97 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 245b6256-8503-484c-a9af-316b273a48e8
+  source: Ongoing Effect
+  seq: 09e2609f-5ccd-44d6-9337-0c919ebad810
+  aura:
+    __typeName: Aura
+    applyto: friends
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: 872a8597-2755-40bb-8abf-c700ae316662
+      sourceguid: 72439dee-64d0-45ec-ba34-2b0f05034adc
+      value: -1
+      source: Aura
+      name: Swarm of Spirits
+      behavior: attribute
+      description: Until the end of your next turn, each ally in the area has each of their characteristic scores treated as 1 higher for the purpose of resisting potencies, and has a +1 bonus to saving throws.
+      attribute: 006e37a7-bd0d-4602-8a76-05e1ef6c56d3
+    - __typeName: CharacterModifier
+      guid: b9aee5c2-9129-476d-af51-c1cc73faab4e
+      sourceguid: 72439dee-64d0-45ec-ba34-2b0f05034adc
+      value: 1
+      source: Aura
+      name: Swarm of Spirits
+      behavior: attribute
+      description: Until the end of your next turn, each ally in the area has each of their characteristic scores treated as 1 higher for the purpose of resisting potencies, and has a +1 bonus to saving throws.
+      attribute: f09c8c3c-a863-456f-868f-1bbbace18380
+    - __typeName: CharacterModifier
+      guid: c8b39d23-b24c-42b9-be6f-dc978ff0f968
+      sourceguid: 72439dee-64d0-45ec-ba34-2b0f05034adc
+      value: 1
+      source: Aura
+      name: Swarm of Spirits
+      behavior: attribute
+      description: Until the end of your next turn, each ally in the area has each of their characteristic scores treated as 1 higher for the purpose of resisting potencies, and has a +1 bonus to saving throws.
+      attribute: 1422a518-b444-4ac5-b200-2f0b33aca87b
+    - __typeName: CharacterModifier
+      guid: 66201ac9-c263-4cb4-ba62-67bace55ec5f
+      sourceguid: 72439dee-64d0-45ec-ba34-2b0f05034adc
+      value: 1
+      source: Aura
+      name: Swarm of Spirits
+      behavior: attribute
+      description: Until the end of your next turn, each ally in the area has each of their characteristic scores treated as 1 higher for the purpose of resisting potencies, and has a +1 bonus to saving throws.
+      attribute: 39e08262-baa3-4947-98cd-fb8045ff991e
+    - __typeName: CharacterModifier
+      guid: 4f13ac2b-ff3a-4750-88a8-61a5e66d2283
+      sourceguid: 72439dee-64d0-45ec-ba34-2b0f05034adc
+      value: 1
+      source: Aura
+      name: Swarm of Spirits
+      behavior: attribute
+      description: Until the end of your next turn, each ally in the area has each of their characteristic scores treated as 1 higher for the purpose of resisting potencies, and has a +1 bonus to saving throws.
+      attribute: e4c0b067-bfc8-4a41-8b6d-4f167da13591
+    - __typeName: CharacterModifier
+      guid: b71ebdd7-3699-4463-b782-e2e6a31553a4
+      sourceguid: 72439dee-64d0-45ec-ba34-2b0f05034adc
+      value: 1
+      source: Aura
+      name: Swarm of Spirits
+      behavior: attribute
+      description: Until the end of your next turn, each ally in the area has each of their characteristic scores treated as 1 higher for the purpose of resisting potencies, and has a +1 bonus to saving throws.
+      attribute: 23e48f75-9484-47a6-a068-fbdb31a2e77c
+    name: Swarm of Spirits
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 72439dee-64d0-45ec-ba34-2b0f05034adc
+    description: Until the end of your next turn, each ally in the area has each of their characteristic scores treated as 1 higher for the purpose of resisting potencies, and has a +1 bonus to saving throws.
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  domains:
+    CharacterOngoingEffect:245b6256-8503-484c-a9af-316b273a48e8: true
+  radius: "3"
+  guid: 1bce6be8-a1d1-45e9-9ffe-a0013db6d630
+  description: ""
+  behavior: aura
+  name: Swarm of Spirits
+source: Ongoing Effect
+guid: 245b6256-8503-484c-a9af-316b273a48e8
+id: 245b6256-8503-484c-a9af-316b273a48e8
+ctime: 1761665116905
+domains:
+  CharacterOngoingEffect:245b6256-8503-484c-a9af-316b273a48e8: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Swarm of Spirits
+custom: true
+description: ""
+mtime: 1761665311112
+iconid: ui-icons/skills/1.png

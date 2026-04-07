@@ -1,0 +1,69 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 3420970b-7773-43d8-ac4d-dfc5552c0f3a
+  description: |
+    The next creature you damage with an ability that uses that weapon takes extra poison damage equal to twice your Presence score or the target is weakened (EoT). You choose the effect when you apply the poison. The poison loses its potency after you damage the creature or at the end of the encounter.
+  source: Ongoing Effect
+  domains:
+    CharacterOngoingEffect:3420970b-7773-43d8-ac4d-dfc5552c0f3a: true
+  modtype: none
+  behavior: power
+  keywords:
+    Weapon: true
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 79d83fa8-791d-4294-98fd-a6c66a8508d1
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 3420970b-7773-43d8-ac4d-dfc5552c0f3a
+      mode: effect
+      conditions: []
+      applyto: caster
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  activationCondition: true
+  rollType: ability_power_roll
+  addText: ""
+  damageModifier: Presence*2 + (Stacks - 1)
+  guid: 1645be47-579b-4ab3-812a-e398f42dcbed
+  name: Coat the Blade - Damage
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.365124940872192
+    s: 0.894531488418579
+    v: 0.493374168872833
+    a: 1
+stackable: true
+id: 3420970b-7773-43d8-ac4d-dfc5552c0f3a
+ctime: 1728909092120
+domains:
+  CharacterOngoingEffect:3420970b-7773-43d8-ac4d-dfc5552c0f3a: true
+name: Coat the Blade - Damage
+custom: true
+endTrigger: endcombat
+guid: 3420970b-7773-43d8-ac4d-dfc5552c0f3a
+description: |
+  The next creature you damage with an ability that uses that weapon takes extra poison damage equal to twice your Presence score or the target is weakened (EoT). You choose the effect when you apply the poison. The poison loses its potency after you damage the creature or at the end of the encounter.
+mtime: 1741648917858
+iconid: 013d7c5e-381c-4675-a849-13debafd9f21

@@ -1,0 +1,382 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: bbe1ed8f-2cba-463f-b6d5-03b90413c46e
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 63a94ae4-eff6-4fc4-8e9a-a1ffc13ecd35
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 20
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 219
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      preDescription: This ability deals cold, fire, or lightning damage.
+      persistence: []
+      modifiers: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 Cold damage; push 2
+        - 9 Cold damage; slide 4
+        - 12 Cold damage; slide 6
+        roll: 2d10 + 2
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - |-
+          6 Cold damage; shift 2 squares away from 
+          the target
+        - 9 Cold damage; shift 4 squares away from the target
+        - 12 Cold Damage; Slide 6 squares away from the target
+        roll: 2d10 + Might or Agility
+        modesSelected:
+        - 2
+      strain: []
+      guid: 85a0b4b3-2876-4da0-906c-125000052657
+      modeList:
+      - rules: Deal Cold Damage and Force Move
+        text: Cold Damage and Force Move
+      - rules: Deal Cold Damage and Shift Move Away from the target
+        text: Cold Damage and Shift
+      range: 10
+      categorization: Signature Ability
+      numTargets: 1
+      implementation: 3
+      name: Elemental Discharge
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 cold damage; push 2
+        - 5 cold damage; push 3
+        - 8 cold damage; push 4
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 0a4cd4c7-c4d3-4ca0-80d2-dd32addeaab3
+        stacks: "3"
+        duration: save_ends
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 219
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "5"
+      abilityType: none
+      numTargets: "1"
+      persistence: []
+      modifiers: []
+      categorization: Malice
+      strain: []
+      guid: c5cbe1bc-7914-4546-9a45-6232e02c73c9
+      rangeTextOverride: 5 x 2 line within 1
+      targetType: line
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      preDescription: 'This ability deals cold damage and any enemy targeted by the ability has cold damage weakness 3 (save ends). '
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Power Burst
+      radius: "2"
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Orc Eye of Grole	Level 1 Platoon Artillery
+        Humanoid, Orc	EV 6
+        <b>Stamina</b> 20	<b>Immunity</b> affinity 5
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 4
+        Might +1	Agility +1	Reason 0	Intuition 0	Presence +2
+        <b>Affinity</b>
+        The eye has an affinity for one of the following damage types: cold, fire, or lightning. This type determines the eye's affinity immunity and the damage type of their attacks.
+
+        <b>Elemental Discharge</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 affinity damage; push 2 or shift 2 away from target
+        %E2%98%85	<b>12%E2%80%9316</b>	9 affinity damage; slide 4 or shift 4 away from target
+        %E2%9C%B8	<b>17</b>	12 affinity damage; slide 6 or shift 6 away from target
+
+        <b>Power Burst</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 x 2 line within 1<b>	Target</b> All enemies in the line
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 affinity damage; push 2
+        %E2%98%85	<b>12%E2%80%9316</b>	5 affinity damage; push 3
+        %E2%9C%B8	<b>17</b>	8 affinity damage; push 4; prone
+        <b>Effect</b> An enemy has affinity weakness 3 in the affected area.
+
+        <b>Relentless</b>
+        If the eye's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the eye lives and their Stamina is reduced to 1 instead.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7ec33503-4a04-4d64-8baa-76cf13970bfa: true
+        CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:7ec33503-4a04-4d64-8baa-76cf13970bfa: true
+          CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+        sourceguid: 7ec33503-4a04-4d64-8baa-76cf13970bfa
+        description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+        source: Trait
+        name: Relentless
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 93f3eec0-c8a1-4e52-921c-7dfb833dc53a
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              persistence: []
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: 32285406-57e6-463b-b72e-4b0c34b973e5
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  source: ""
+                  filterAbility: Ability.Free Strike
+                  behavior: modifyability
+                  guid: b7b4042d-49ec-4a1c-9c66-b533016186cc
+                  name: Modify Attack
+                  attributes: []
+                  description: ""
+                  cannotModifyAction: true
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: 91e34da5-2823-475e-a503-d48c210ee35c
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      invokeOnCaster: true
+                      filterTarget: target.stamina <= 0
+                      abilityType: custom
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        persistence: []
+                        modifiers: []
+                        abilityType: none
+                        strain: []
+                        guid: b46a9f62-559b-4da7-9feb-a7a6d55a19ff
+                        repeatTargets: false
+                        numTargets: "1"
+                        targetType: self
+                        behaviors:
+                        - __typeName: ActivatedAbilityHealBehavior
+                          applyto: caster
+                          roll: "1"
+                        implementation: 3
+                        name: Relentless - Heal if target of free strike dies
+                        preDescription: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc lives and drops to 1 stamina instead.
+                        description: ""
+                        range: 1
+                        iconid: ui-icons/skills/1.png
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              numTargets: "1"
+              targetType: self
+              description: ""
+              name: Relentless Free Strike
+              iconid: ui-icons/skills/1.png
+              sourceReference:
+                __typeName: SourceReference
+                page: 218
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: 1
+              implementation: 3
+            invokeOnCaster: true
+            promptText: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc  lives and drops to 1 stamina instead.
+          domains:
+            CharacterFeature:7ec33503-4a04-4d64-8baa-76cf13970bfa: true
+            CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+          whenActive: combat
+          numTargets: "1"
+          trigger: zerohitpoints
+          name: Relentless
+          description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 678748e8-caf4-4309-ad7d-8939a8ce9075
+      source: Trait
+      description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+      guid: 7ec33503-4a04-4d64-8baa-76cf13970bfa
+      name: Relentless
+      implementation: 3
+    role: Platoon Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      keywords:
+        affinity: true
+      dr: 5
+      damageType: cold
+      apply: Damage Reduction
+    initiativeGrouping: b964db88-90ac-4b4f-96ac-f93469b7c48c
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 4
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    walkingSpeed: 6
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_type: Cold Orc Eye of Grole
+    keywords:
+      Humanoid: true
+      Orc: true
+  tokenType: null
+  bestiaryId: 8c8b91b0-09b5-49a9-aa47-d3505cc49dce
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: null
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 1
+ctime: 1766128580921
+mtime: 1775167452935
+hidden: false

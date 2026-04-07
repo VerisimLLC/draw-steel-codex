@@ -1,0 +1,183 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 91d16c7f-48f7-4778-be49-a8ee1c1ba4c3
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Voiceless Talker Exile	Level 6 Artillery Retainer
+        Psionic, Voiceless Talker	EV 27
+        <b>Stamina</b> 70	<b>Immunity</b> psionic 3
+        <b>Speed</b> 5 (flying, teleport)	<b>Size</b> 1M/<b>Stability</b> 2
+        <b>Free Strike</b> 6
+        Might 0	Agility +3	Reason +1	Intuition +2	Presence +1
+        <b>Psychic Erasure</b> (Action) - 2d10 + highest characteristic - Signature
+        <b>Keywords</b> Ranged, Psionic, Strike
+        <b>Distance</b> Ranged 10	<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>		7 psychic damage
+        %E2%98%85	<b>12-16</b>		12 psychic damage
+        %E2%9C%B8	<b>17</b>		15 psychic damage
+        <b>Effect</b> The exile is invisible to the target until the end of the target's next turn.
+
+        <b>Mindspace Jaunt </b>(Maneuver, Encounter)
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 5 burst	<b>Target</b> Self and mentor
+        <b>Effect</b> The exile and their mentor turn invisible until the start of their next turn. While this invisibility lasts, the exile and their mentor take half damage from all attacks and their attacks do half damage to enemies.
+
+        <b>Psionic Pspread</b>
+        When an ally within 5 of the exile uses an ability with the Psionic keyword, they can do so as if they were in the exile's space.
+
+        Level 7 Retainer Advancement Ability
+        <b>Psychic Toss</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Ranged, Psionic, Strike
+        <b>Distance</b> Ranged 5	<b>Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>		6 damage; vertical slide 2
+        %E2%98%85	<b>12-16</b>		10 damage; vertical slide 3
+        %E2%9C%B8	<b>17</b>		14 damage; vertical slide 5
+        <b>Effect</b> The exile can forego dealing damage. If they do so, the slide distance is doubled.
+
+        Level 10 Retainer Advancement Ability
+        <b>Cower Before Me</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 2 burst	<b>Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>		8 damage; R (weak) frightened (save ends) and prone
+        %E2%98%85	<b>12-16</b>		10 damage; R (average) frightened (save ends) and prone
+        %E2%9C%B8	<b>17</b>		14 damage; R (strong) frightened (save ends) and prone
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:66f6cb42-5aa3-4c12-a102-12c036739c97: true
+      modifiers: []
+      name: Psionic Pspread
+      guid: 66f6cb42-5aa3-4c12-a102-12c036739c97
+      description: When an ally within 5 of the exile uses an ability with the Psionic keyword, they can do so as if they were in the exile's space.
+      source: Trait
+    role: Artillery Retainer
+    inflictedConditions: []
+    keywords:
+      Voiceless Talker: true
+      Psionic: true
+      Talker: true
+      Voiceless: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      keywords:
+        psionic: true
+      dr: 3
+      damageType: all
+      apply: Damage Reduction
+    opportunityAttack: 6
+    monster_type: Voiceless Talker Exile
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 41cebdca-95a6-4fbc-929f-3cda43545963
+      numTargets: 1
+      name: Psychic Erasure
+      behaviors: []
+      description: The exile is invisible to the target until the end of the target's next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 2d9a554d-5f05-4fa2-a46b-e90b0735d7a3
+    movementSpeeds:
+      teleport: 5
+      fly: 5
+    ev: 27
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 539c9b6f-9a2d-494b-ac5d-d9a9636435a2
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: Voiceless Talker Exile
+parentFolder: bd101336-f4e1-43da-9fd2-57eb5700365b
+artist: null
+ord: 0
+ctime: 1741590250405
+mtime: 1775167494323
+hidden: false

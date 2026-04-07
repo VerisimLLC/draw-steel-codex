@@ -1,0 +1,183 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: df97364b-3146-4df6-a51c-9b0462b6a9f5
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.853981
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ca62c48a-c025-4c5f-bac5-1e58e5d1b875
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Wickerwitch	Level 4 Artillery Minion
+        Goblin, Hobgoblin, Humanoid	EV 11
+        <b>Stamina</b> 15	<b>Immunity</b> fire 2, magic 2
+        <b>Speed</b> 5 (teleport)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 4
+        Might 0	Agility 0	Reason +1	Intuition +2	Presence +2
+        <b>Unraveling Bolt</b> (Action) %E2%97%86 2d10+1 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Magic, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 corruption damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 corruption damage
+        %E2%9C%B8	<b>17</b>	10 corruption damage; weakened (EoT)
+
+        <b>Spellback</b>
+        Enemies that use a magic attack receive 1 radical damage for each adjacent wickerwitch.
+
+        <b>Infernal Ichor</b>
+        If the wickerwitch's Stamina drops to 0, they spray blood in a 1 Burst, dealing 2 fire damage to each creature within distance.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7b35ea79-502d-47ac-8727-dec89a9e131b: true
+      modifiers: []
+      name: Spellback
+      description: Enemies that use a magic attack receive 1 radical damage for each adjacent wickerwitch.
+      guid: 7b35ea79-502d-47ac-8727-dec89a9e131b
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:739309ec-ac5c-4208-afea-16abddecea25: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the wickerwitch's Stamina drops to 0, they spray blood in a 1 Burst, dealing 2 fire damage to each creature within distance.
+      guid: 739309ec-ac5c-4208-afea-16abddecea25
+      source: Trait
+    role: Artillery Minion
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: fire
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      keywords:
+        magic: true
+      dr: 2
+      damageType: all
+      apply: Damage Reduction
+    opportunityAttack: 4
+    monster_type: Hobgoblin Wickerwitch
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 15
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5b66bbf0-a4b5-4f15-aa8f-53f0d3a63d9f
+      implementation: 4
+      numTargets: 1
+      name: Unraveling Bolt
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 corruption damage
+        - 7 corruption damage
+        - 10 corruption damage; weakened (EoT)
+        roll: 2d10+1
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    movementSpeeds:
+      teleport: 5
+    ev: 11
+    minion: true
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 5018179a-cdf3-4ac8-a53e-d138756dfb80
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Hobgoblin Wickerwitch
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590248352
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,281 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: 72f0634e-8d6a-4afc-884b-b9c824746cc8
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 08c2e369-6b15-4225-9311-75613c655d58
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 9
+    import:
+      type: mcdm
+      data: |+
+        Multivok Bodyguard	Level 9 Elite Defender
+        Construct, Multivok, Valok	EV 44
+        <b>Stamina</b> 240
+        <b>Speed</b> 5	<b>Size</b> 2 /<b> Stability</b> 5
+        <b>Free Strike</b> 9
+        Might +4	Agility 0	Reason -2	Intuition +1	Presence -4
+        <b>Gatling Bolt Gun</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	13 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	18 damage
+        %E2%9C%B8	<b>17</b>	22 damage; A<4 bleeding (save ends)
+
+        <b>Valiar Axe</b> (Action)%E2%97%86 2d10 + 4%E2%97%86 3 Malice
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	15 damage; M<2 weakened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	21 damage; M<3 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	26 damage; prone; M<4 weakened (save ends)
+        <b>Effect</b> The bodyguard has a double edge on this ability if it was previously used against the same target.
+
+        <b>Magnetic Pull</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> 10 burst<b>	Target</b> All metal clad enemies and metal objects
+        <b>Effect</b> Pull 8 or <b>M<3</b> Pull 15.The bodyguard can make a free strike against each target that ends up in an adjacent square.
+
+        <b>Valiar Cloak</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 2<b>	Target</b> Self
+        <b>Trigger</b> An ally within distance is targeted by an enemy. The bodyguard can use this after seeing the result of the power roll.
+        <b>Effect</b> The bodyguard becomes the new target.
+
+        <b>Multivok Maintenance</b>
+        At the start of the bodyguard's turn, all servoks within 2 of the bodyguard regains 15 Stamina.
+
+        <b>Crafted to Perfection</b>
+        The bodyguard's shape can't change via any external effects.
+
+        <b>Valiar Might</b>
+        Each power roll made against the bodyguard can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:be20ea05-8d67-4999-9a7b-e142347ba3dd: true
+      modifiers: []
+      name: Multivok Maintenance
+      description: At the start of the bodyguard's turn, all servoks within 2 of the bodyguard regains 15 Stamina.
+      guid: be20ea05-8d67-4999-9a7b-e142347ba3dd
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7d5b59b4-263e-42c9-86ba-ca48806800ef: true
+      modifiers: []
+      name: Crafted to Perfection
+      description: The bodyguard's shape can't change via any external effects.
+      guid: 7d5b59b4-263e-42c9-86ba-ca48806800ef
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fcdba7e8-f5b7-4067-a57c-eb31c728773c: true
+      modifiers: []
+      name: Valiar Might
+      description: Each power roll made against the bodyguard can't get higher than a tier-1 result while they aren't winded, weakened, or bleeding.
+      guid: fcdba7e8-f5b7-4067-a57c-eb31c728773c
+      source: Trait
+    role: Elite Defender
+    inflictedConditions: []
+    keywords:
+      Soulless: true
+      Valok: true
+      Construct: true
+      Multivok: true
+    max_hitpoints_roll: "240"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 9
+    monster_type: Multivok Bodyguard
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: -4
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 240
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: fa660088-c412-4139-9e9e-45ca65815314
+      implementation: 4
+      numTargets: 2
+      name: Gatling Bolt Gun
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 13 damage
+        - 18 damage
+        - 22 damage; A<4 bleeding (save ends)
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d64e8475-1677-4a03-a4c6-262efa8ae3b9
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; M<2 weakened (save ends)
+        - 21 damage; M<3 weakened (save ends)
+        - 26 damage; prone; M<4 weakened (save ends)
+        roll: 2d10 + Might
+      name: Valiar Axe
+      implementation: 3
+      description: The bodyguard has a double edge on this ability if it was previously used against the same target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: bfe4c28d-1497-4aa2-93b6-c7d24efdc292
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Magnetic Pull
+      numTargets: 1
+      description: Pull 8 or M<3 Pull 15.The bodyguard can make a free strike against each target that ends up in an adjacent square.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 012e028d-0e18-4975-a29d-399105469ee9
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Valiar Cloak
+      numTargets: 1
+      description: The bodyguard becomes the new target.
+      abilityType: none
+      implementation: 0
+    groupid: 4be02076-a110-4dc3-85d3-144d9391430e
+    movementSpeeds: []
+    ev: 44
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 36c8cf54-3330-4451-8080-41326029b3c0
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Multivok Bodyguard
+parentFolder: 5d7591f8-2289-4a26-8fd5-14dcd72e6285
+artist: null
+ord: 0
+ctime: 1741590238042
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,39 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.499298706054688
+    halign: center
+    image: 9c702b3e-5577-4053-9b47-70f81826a770
+id: eba70f63-3f86-420c-ac4f-39832e3217b0
+ctime: 1765835822515
+textStorage:
+  __typeName: TextStorage
+  sections:
+    G: |+
+      # Laesi
+
+    M: |+
+      [[image]]
+
+    e: |+
+      Director Notes: 
+
+    S: |
+      *Aldiva's Friend, member of the Forsaken Wraiths*
+      {
+    l: |
+      *Use this area to make notes for yourself about the NPC. Suggested information would be:
+    Y: |
+      Secret: see [Aldiva's Quarters]
+      }
+
+      {
+    s: |-
+      Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+      }
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 06143a1d-8685-4749-80ba-68a7a213d0ee
+mtime: 1766080270122
+content: ""
+description: Laesi

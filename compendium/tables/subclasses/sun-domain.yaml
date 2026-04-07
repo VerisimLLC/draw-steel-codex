@@ -1,0 +1,229 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: "2"
+  guid: ae4f76d8-db17-4f9e-a07f-4b037eb16009
+  details: 'You gain 2 piety the first time in an encounter that an enemy within 10 squares of you takes fire or holy damage. '
+  name: Enemy Takes Fire or Holy Damage
+isSubclass: true
+ctime: 1728003836791
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: cce8c78c-e80b-49c9-8550-9d6be1032c49
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4121af24-36c8-4eff-91cd-f7fede83d58f
+        source: Sun Domain Class Feature
+        behavior: trigger
+        domains:
+          class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        name: Sun Domain Piety
+        resourceRefreshType: encounter
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Enemy Takes Fire or Holy Damage: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 9e4e2ea5-3a7e-4e81-9cc2-eaf11fd3cdae
+          guid: 0d4227b5-69a7-426e-856b-16c0d2f71cd5
+          persistence: []
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: losehitpoints
+          domains:
+            class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          conditionFormula: Damage Type is fire or Damage Type is holy
+          numTargets: "1"
+          name: Sun Domain Piety
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 2 + 1 when level >= 4
+            checklistid: ae4f76d8-db17-4f9e-a07f-4b037eb16009
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Enemy took damage
+          description: |-
+            You gain 2 piety the first time in an encounter that an enemy within 10 squares of you takes fire or holy damage.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 9e4e2ea5-3a7e-4e81-9cc2-eaf11fd3cdae
+      name: Sun Domain Piety
+      classid: 55af9ff8-31c9-4481-95a7-3778a48eaa53
+      description: ""
+      source: Sun Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 62a54e9c-4f4f-4b8e-a4cd-9a82a4d8051b
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: One enemy of your choice within 10 squares of you takes fire damage equal to three times your Intuition score.
+        source: Sun Domain Class Feature
+        name: Sun Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: enemy
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: fire
+            roll: Intuition*3
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.075624942779541
+              s: 0.871972799301147
+              v: 1.00238561630249
+              a: 1
+          categorization: Trigger
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          domains:
+            class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          targetType: target
+          name: Sun Domain Effect
+          numTargets: "1"
+          description: One enemy of your choice within 10 squares of you takes fire damage equal to three times your Intuition score.
+          abilityType: none
+          iconid: 174384e2-ce22-49f3-b6ef-59269c491e1f
+      name: Sun Domain Effect
+      classid: 55af9ff8-31c9-4481-95a7-3778a48eaa53
+      description: One enemy of your choice within 10 squares of you takes fire damage equal to three times your Intuition score.
+      source: Sun Domain Class Feature
+      implementation: 3
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:55af9ff8-31c9-4481-95a7-3778a48eaa53: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+name: Sun Domain
+prerequisite: Deity.Domains has "Sun"
+mtime: 1768291535374
+id: 55af9ff8-31c9-4481-95a7-3778a48eaa53
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

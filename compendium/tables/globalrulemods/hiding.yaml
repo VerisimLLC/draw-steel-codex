@@ -1,0 +1,28 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: While you are hidden from another creature, you gain an edge on ability rolls made against that creature. This benefit lasts until the end of the turn in which you are no longer hidden.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: ed6ffea6-2e08-4b02-baa7-5f7324d24c75
+      displayCondition: caster.HiddenThisTurn or (caster has "Hidden")
+      source: Hiding Global Rule Mod Feature
+      modtype: edge
+      keywords: []
+      activationCondition: not Friends(caster, target)
+      rollType: ability_power_roll
+      guid: fe9c004e-f68d-4bfd-8480-42387a050f06
+      description: While you are hidden from another creature, you gain an edge on ability rolls made against that creature. This benefit lasts until the end of the turn in which you are no longer hidden.
+      behavior: power
+      name: Hidden
+    source: Hiding Global Rule Mod Feature
+    canHavePrerequisites: true
+    guid: ed6ffea6-2e08-4b02-baa7-5f7324d24c75
+    name: Hidden This Turn
+    implementation: 3
+name: Hiding
+mtime: 1756494790126
+id: 3b312257-2e16-4fc9-a870-ca049fa31a47
+ctime: 1754867139672

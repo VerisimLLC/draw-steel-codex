@@ -1,0 +1,102 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: a62c817e-a6ca-4dcb-a85e-015171490cb2
+  description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 9 or higher, you gain 1 Heroic Resource.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityRollBehavior
+        rollDescription: Rejuvenating I
+        roll: 1d10
+      - __typeName: ActivatedAbilityCustomTriggerBehavior
+        value: cast.Roll
+        triggerName: RejuvenatingRoll
+      triggerPrompt: You used an ability that cost 1 or more of your Heroic Resource. Roll a d10, on a 9 or higher, you gain 1 Heroic Resource.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: f769e937-6894-4374-ad18-d197ea207f38
+      castImmediately: true
+      conditionFormula: Used Ability.HeroicResourceCost > 0
+      numTargets: "1"
+      targetType: self
+      trigger: useability
+      name: Rejuvenating I
+      description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 9 or higher, you gain 1 Heroic Resource.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 9 or higher, you gain 1 Heroic Resource.
+    source: Item
+    behavior: trigger
+    guid: 004d182d-d6c0-4724-baac-93f473af7526
+    name: Rejuvenating I
+    sourceguid: a62c817e-a6ca-4dcb-a85e-015171490cb2
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+        chatMessage: Rejuvenating I Heroic Resource Gain
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 2cdaba96-b61d-49ef-b14c-28c4bb3c1375
+      persistence: []
+      conditionFormula: Trigger Name = "RejuvenatingRoll" and Trigger Value >= 9
+      targetType: self
+      castImmediately: true
+      trigger: custom
+      name: Rejuvenating I
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 9 or higher, you gain 1 Heroic Resource.
+    source: Item
+    behavior: trigger
+    guid: b45a94ef-1155-46fa-ae6b-0334a398e464
+    name: Rejuvenating I
+    sourceguid: a62c817e-a6ca-4dcb-a85e-015171490cb2
+  source: Item
+  name: Rejuvenating I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A singing quartz crystal
+imbuePrereq: none
+projectSource: The First Language
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: 92becbc6-e823-4fb9-b298-1ac1a7712df8
+mtime: 1774451208994
+name: Rejuvenating I
+imbueTargetType: implement
+description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On a 9 or higher, you gain 1 Heroic Resource.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 5704692e-e04b-420a-b841-6012e2b9b2d0

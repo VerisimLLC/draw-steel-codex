@@ -1,0 +1,544 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9b6b57c2-97b6-4c08-9df9-f91a8ce00be9
+    offtokenPortraitId: null
+    portraitFrameId: ee19571e-cde1-421e-83c3-1fa3228b2d5e
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.305879
+    portraitOffset:
+      x: 0.003905773
+      y: -0.01288416
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2a9dee04-2345-4e15-a227-b72fd2a702d3
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries:
+        28b0be89-ddd1-45e9-89d6-3afb9a092a39:
+          note: Signum
+          abilityid: 6fbeb446-4d3d-4223-8928-09638c9c6816
+          refreshid: ""
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 7
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      iconid: ui-icons/skills/1.png
+      strain: []
+      guid: 6fbeb446-4d3d-4223-8928-09638c9c6816
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      channelIncrement: 2
+      description: |-
+        An ally within 10 can shift their speed, so long as they end their movement adjacent to an ally.
+        **2+ Malice**: 1 additional ally can shift for every 2 malice spent.
+      numTargets: 1
+      channelDescription: An additional ally can shift for each 2 Malice spent.
+      name: Signum
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 7cab21e5-6272-41ec-9b90-98a28194ab9b
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Choose ally to shift
+        autoTarget: false
+        abilityType: standard
+        standardAbility: 090c096b-0841-45db-bb48-175f51a3bf75
+        standardAbilityParams:
+          range: "10"
+          distance: Walking Speed
+          count: "<<1 + Charges>>"
+      channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 65c11824-f856-4198-adfe-64b7e21b9115
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityHealBehavior
+        roll: "5"
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1
+      implementation: 2
+      name: Glory to the Legion
+      sourceReference:
+        __typeName: SourceReference
+        page: 144
+        docid: a6af1208-0560-4a2c-b1c9-09e4bb01bdd5
+      description: Each target regains 5 Stamina.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 59057dc1-7abf-4304-8375-46e5905a875a
+    damageEntries:
+      c52d05ad-0366-45b4-b0a7-3d08313434f1:
+        id: c52d05ad-0366-45b4-b0a7-3d08313434f1
+        heal: 15
+      2c5714a6-b37e-425d-bcc2-b9359d528dc9:
+        damage: 15
+        id: 2c5714a6-b37e-425d-bcc2-b9359d528dc9
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        4d586672-f435-4b0a-90c8-9d7dde5f59c2:
+          disposition: bad
+          note: 15 Damage
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0
+        6a03c40d-172c-4585-8edd-c7d7d3896828:
+          disposition: good
+          note: 15 Healing
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 15
+        23be9d0c-444a-4a1a-926d-d845772a69ab:
+          disposition: good
+          note: 15 Healing
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 15
+        09fd9878-c689-422e-8a44-f61d0bcd37e9:
+          disposition: good
+          note: 15 Healing
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 15
+        4cf63cd5-be0e-4f68-b734-57b282ca3e50:
+          disposition: bad
+          note: 15 Damage
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0
+        fd414562-8555-4788-9ba2-098b2fc17c18:
+          disposition: bad
+          note: 15 Damage
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0
+        30156d04-2c5a-406a-b488-22248612d53c:
+          disposition: good
+          note: 15 Healing
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 15
+        27fc9a8b-074d-42e5-b409-c3695d70dcd6:
+          disposition: bad
+          note: 15 Damage
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0
+    minion: false
+    stability: 0
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:55def3ad-3aef-46e2-b82b-ce344fcf6be1: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 55def3ad-3aef-46e2-b82b-ce344fcf6be1
+        source: Trait
+        seq: beb93a25-76e3-4b5a-9b46-dfa988444bbb
+        guid: f6cf35e8-dc07-4b7b-9958-cc70f34b48c9
+        domains:
+          CharacterFeature:55def3ad-3aef-46e2-b82b-ce344fcf6be1: true
+        radius: "5"
+        behavior: aura
+        description: Each ally that starts their turn within 5 of the signifier has their speed increased by 2 and deals an additional 2 damage on their strikes until the end of their turn. If the signifier is killed, a minion can enter their square to retrieve the signum as a free action and replace their stat block with the signifier stat block.
+        aura:
+          __typeName: Aura
+          applyto: friends
+          modifiers:
+          - __typeName: CharacterModifier
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor:
+                  __usertype: LuaColor
+                  h: 0.828749418258667
+                  s: 1.00267457962036
+                  v: 1.0030654668808
+                  a: 1
+              strain: []
+              guid: 479af026-a1a2-462c-b81e-678be1ad59c4
+              repeatTargets: false
+              abilityType: none
+              trigger: beginturn
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: bcb7323a-32ed-4402-8110-50bf66f0420d
+                duration: 0
+                ongoingEffectCustom: bcb7323a-32ed-4402-8110-50bf66f0420d
+              targetType: self
+              name: Upholding High Standards
+              numTargets: "1"
+              description: ""
+              range: 1
+              iconid: ef6773dc-31d2-4b8a-9771-dd9ce19f9c86
+            description: ""
+            source: Aura
+            behavior: trigger
+            guid: 15598465-9063-4ba7-a959-054d8eb19235
+            name: Aura
+            sourceguid: 7341ac60-5dae-46a1-8135-a25ec76cd00f
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.826499760150909
+              s: 1.00267481803894
+              v: 1.0030654668808
+              a: 1
+          guid: 7341ac60-5dae-46a1-8135-a25ec76cd00f
+          iconid: ef6773dc-31d2-4b8a-9771-dd9ce19f9c86
+        name: Upholding High Standards
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:55def3ad-3aef-46e2-b82b-ce344fcf6be1: true
+        sourceguid: 55def3ad-3aef-46e2-b82b-ce344fcf6be1
+        behavior: trigger
+        source: Trait
+        name: Upholding High Standards
+        description: Each ally that starts their turn within 5 of the signifier has their speed increased by 2 and deals an additional 2 damage on their strikes until the end of their turn. If the signifier is killed, a minion can enter their square to retrieve the signum as a free action and replace their stat block with the signifier stat block.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 3fc4e0f2-28b5-4600-9c23-3887f469b2ea
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aliveafterdeath: true
+            aura:
+              __typeName: Aura
+              modifiers: []
+              guid: 51ecaeeb-82ad-403e-82e8-22d7dc1a018c
+              objectid: 758c1148-3030-41df-aa8b-d24b942b395b
+              applyto: sametype
+              creatureFilter: minion
+              name: Signifier Standard
+              triggers:
+              - destroyaura: true
+                ability:
+                  __typeName: TriggeredAbility
+                  repeatTargets: false
+                  behaviors:
+                  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                    customAbility:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      strain: []
+                      guid: a64a7742-6d8a-4083-9688-e4352d2a2499
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityType: none
+                      behaviors:
+                      - __typeName: ActivatedAbilityDelayBehavior
+                        delay: "0.4"
+                      - __typeName: ActivatedAbilitySummonBehavior
+                        monsterType: 3f9bd1e8-bc39-452b-819a-4b0274de1622
+                        replaceCaster: true
+                        guid: 324f8bfe-d6a4-47d1-9abe-e643cc85c05d
+                      - __typeName: ActivatedAbilityRemoveCreatureBehavior
+                        applyto: caster
+                      targetType: self
+                      name: Invoked Ability
+                      persistence: []
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  silent: true
+                  range: 5
+                  persistence: []
+                  modifiers: []
+                  strain: []
+                  guid: 152c29e2-d36f-4d81-a795-bdc6cde169c6
+                  trigger: losehitpoints
+                  numTargets: "1"
+                  targetType: self
+                  name: Aura Trigger
+                  radius: 0
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                trigger: onenter
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor:
+                  __usertype: LuaColor
+                  h: 0.83899986743927
+                  s: 1.00358700752258
+                  v: 1.00410771369934
+                  a: 1
+              implementation: 3
+              iconid: ef6773dc-31d2-4b8a-9771-dd9ce19f9c86
+          targetType: all
+          name: Upholding High Standards
+          numTargets: "1"
+          description: ""
+          range: "0"
+          iconid: ui-icons/skills/1.png
+        guid: 9ce9ddb2-5e46-4588-b34a-de9da457ec1c
+      source: Trait
+      description: Each ally that starts their turn within 5 of the signifier has their speed increased by 2 and deals an additional 2 damage on their strikes until the end of their turn. If the signifier is killed, a minion can enter their square to retrieve the signum as a free action and replace their stat block with the signifier stat block.
+      guid: 55def3ad-3aef-46e2-b82b-ce344fcf6be1
+      name: Upholding High Standards
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a663d480-9cc6-4540-bcc9-244daedb4389: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        iconColor: "#ffffffff"
+        behavior: icon
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+        name: Shield? Shield!
+        description: The signifier has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        value: "1"
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+        description: The signifier has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The signifier has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The signifier has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+      source: Trait
+      description: The signifier has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+      guid: a663d480-9cc6-4540-bcc9-244daedb4389
+      name: Shield? Shield!
+      implementation: 3
+    role: Horde Support
+    equipment: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 1
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    - text: Summoned by Grumpy Kobold Signifier
+      title: Summoned
+    - text: Summoned by Kobold Signifier
+      title: Summoned
+    - text: Summoned by Kobold Tiro
+      title: Summoned
+    animations:
+      anim:
+      - animType: floatlabel
+        text: ENTER!
+        color: "#ffffffff"
+      guid: 8adc61fd-4563-443e-b14a-1d0768201bb4-580
+    max_hitpoints: 15
+    initiativeGrouping: 751dfe1c-c91f-4d21-9851-59ebdb9d9cc6
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    auras: []
+    deathSavingThrowFailures: 0
+    walkingSpeed: 5
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        c9262cd6-480e-4045-8a93-592d6d9961cd:
+          note: Glory to the Legion
+          abilityid: 65c11824-f856-4198-adfe-64b7e21b9115
+          refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    traitNames: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+        used: 1
+    damage_taken: 0
+    movementSpeeds: []
+    monster_type: Kobold Signifier
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        ebd5fd27-6552-4344-9f88-24142c0c76db:
+          note: Signum
+          abilityid: 6fbeb446-4d3d-4223-8928-09638c9c6816
+          refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    creatureSize: 1S
+    keywords:
+      Humanoid: true
+      Kobold: true
+  tokenType: null
+  bestiaryId: 3f9bd1e8-bc39-452b-819a-4b0274de1622
+  summonerid: bd7fab44-bdf7-4877-97b3-db09793d3477
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Kobold Signifier
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590242348
+mtime: 1775201137032
+hidden: false

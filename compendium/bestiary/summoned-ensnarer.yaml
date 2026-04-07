@@ -1,0 +1,267 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Summoned Ensnarer
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 66adfb92-bf35-4b9b-b64f-176d69c2452a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    role: Minion Brute
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: d883a72b-45a2-40af-a761-b5cde2d73d1a-435
+    keywords:
+      Abyssal: true
+      Signature: true
+      Demon: true
+      Summoner: true
+    innateAttacks: []
+    opportunityAttack: 2
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -1
+      damageType: holy
+      apply: Damage Reduction
+    inflictedConditions: []
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    monster_type: Summoned Ensnarer
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    initiativeGrouping: eafba438-3a3d-4dd3-9ff1-92efdb3c4721
+    notes:
+    - text: A vaguely humanoid form, ripped apart and distorted by a demon nestled inside. They can extend long tongues from their extensive number of orifices and drag victims in close.
+      title: Monster Notes
+    levelChoices: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:87ed9845-e7df-462c-b1a9-071c417b1b0d: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 87ed9845-e7df-462c-b1a9-071c417b1b0d
+        source: Character Feature
+        value: 2
+        domains:
+          CharacterFeature:87ed9845-e7df-462c-b1a9-071c417b1b0d: true
+        name: Extended Barbed Strike
+        guid: c330a3e4-2e3b-4b11-b079-e5e3907d7e5f
+        description: ""
+        behavior: attribute
+        attribute: 90d8d88a-97ae-41a5-925f-e8e474f13c48
+      name: Extended Barbed Strike
+      guid: 87ed9845-e7df-462c-b1a9-071c417b1b0d
+      description: ""
+      source: Character Feature
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 1734ab28-f63d-4bd6-8fee-b39fe3abf52a-5
+    max_hitpoints: 2
+    minionSquad: Summoned Ensnarer Squad 2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      disableSplitIntoMeleeAndRanged: true
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 2 damage
+        - 2 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            modesSelected:
+            - 1
+            rule: pull 1
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: pull 2
+            modesSelected:
+            - 2
+            guid: 76c6f88e-a06c-4fe5-a767-ba2168c175e2
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: pull 3
+            modesSelected:
+            - 3
+            guid: 5d0ced92-9184-4d42-a062-e93ab1728d7a
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "3"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: e2d99161-51ce-4e68-9187-a52f1aec8ee3
+          numTargets: "1"
+          modeList:
+          - text: 1 minion attacked
+            condition: ""
+          - text: 2 minions attacked
+          - text: 3 minions attacked
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        applyto: caster
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "3"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      persistence: []
+      targetType: target
+      numTargets: "1"
+      name: Melee Free Strike
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      description: ""
+      abilityType: none
+      iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 2 damage
+        - 2 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Ranged Free Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+    monster_category: Monster
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        3e6a252f-e5ce-4c99-8c36-99b404394584:
+          note: Melee Free Strike
+          timestamp: 1760721255536
+          refreshid: 1734ab28-f63d-4bd6-8fee-b39fe3abf52a-5
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    minion: true
+    walkingSpeed: 5
+    notesRevision: 6661902c-f79a-44cd-852f-ec2115662b8d
+  tokenType: null
+  bestiaryId: 6617b9db-7b48-4946-9076-8cd4c238e9b5
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1759616214816
+description: null
+parentFolder: 685eef72-4459-4dd3-9b2a-5c2821caec96
+artist: null
+ord: 3
+ctime: 1759616214816
+mtime: 1775167534682
+hidden: false

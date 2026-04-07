@@ -1,0 +1,358 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 737103b4-50c2-48c5-a32d-4ca2e1701b9f
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 40
+    inflictedConditions: []
+    ev: 10
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 lightning damage
+        - 10 lightning damage
+        - 13 lightning damage
+        roll: 2d10 + Reason
+        modesSelected:
+        - 1
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 190
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 15
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Normal
+      - variation:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          keywords:
+            Magic: true
+            Area: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 7 lightning damage
+            - 10 lightning damage
+            - 13 lightning damage
+            guid: 7ad4036f-1d0f-4180-a9bb-9a9f75ac7d66
+            modesSelected:
+            - 1
+            roll: 2d10 + 2
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Signature Ability
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 6e0366f3-12c9-4b10-bb2f-4b5e4f31d61b
+          domains: []
+          numTargets: "1"
+          radius: "1"
+          name: Lightning Bolt
+          targetType: line
+          description: The ability loses the Ranged and Strike keywords, takes the Area keyword, and is a 10 x 1 line within 15 that targets each enemy and object in the area.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        text: 5 Malice
+        hasAbility: true
+        rules: The ability loses the Ranged and Strike keywords, takes the Area keyword, and is a 10 x 1 line within 15 that targets each enemy and object in the area.
+      categorization: Signature Ability
+      persistence: []
+      targetType: target
+      numTargets: 1
+      implementation: 2
+      name: Lightning Bolt
+      guid: bdf1b44f-903d-451f-8c0d-f36d0ecd5b22
+      description: "*5 Malice:* The ability loses the Ranged and Strike keywords, takes the Area keyword, and is a 10 x 1 line within 15 that targets each enemy and object in the area."
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: true
+      targetFilter: Enemy
+      targetTextOverride: Each enemy and object in the area
+      repeatTargets: false
+      keywords:
+        Resistance: true
+        Area: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: mgt
+        roll: 2d10 + Reason
+        tiers:
+        - slide 2; M<0 slowed (save ends)
+        - slide 4; M<1 slowed (save ends)
+        - slide 6; M<2 slowed (save ends)
+        resistanceRoll: false
+        isTest: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: b097df2a-66c1-47b4-bc87-628aaebe3cb4
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 190
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      targetType: cube
+      radius: "5"
+      name: Gust of Wind
+      description: The gust of wind disperses gas or vapor and extinguishes any flames, including persistent effects.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    opportunityAttack: 5
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Storm Mage	Level 3 Controller
+        Human, Humanoid	EV 17
+        <b>Stamina</b> 40	<b>Immunity</b> Magic 2, Psionic 2
+        <b>Speed</b> 5	<b>Size</b> 1M/ <b>Stability</b> 0
+        	<b>Free Strike</b> 5
+        Might +0	Agility +0	Reason +2	Intuition +0	Presence +0
+        <b>Lightning Bolt</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	5 lightning damage
+        %E2%98%85	12%E2%80%9316	8 lightning damage
+        %E2%9C%B8	17+	11 lightning damage
+        <b>5 VP </b>The ability takes the Area keyword and becomes a 10 x 1 line that targets each creature in the area.
+
+        <b>Gust of Wind</b> (Maneuver) %E2%97%86 <b>MGT RR</b> %E2%97%86 3 VP
+        <b>Keywords</b> Area, Magic, Resistance
+        <b>Distance</b> 5 cube within 1	<b>Target</b> Each creature and object
+        %E2%9C%B8	%E2%89%A411	Slide 5; slowed (MGT ends)
+        %E2%98%85	12%E2%80%9316	Slide 3; slowed (EoT)
+        %E2%9C%A6	17+	Slide 1
+        <b>Effect </b>The gust of wind disperses gas or vapor and extinguishes any flames, including persistent effects.
+
+        <b>Arcane Shield</b>
+        Whenever the mage takes damage from an enemy adjacent to them, the damage is reduced by 3 (minimum 0), and the enemy takes 3 thunder damage and is pushed 2 squares.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b4fe74db-5ccf-460f-8f86-a23c558d1022: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b4fe74db-5ccf-460f-8f86-a23c558d1022
+        source: Trait
+        modtype: bane
+        keywords:
+          Melee: true
+        activationCondition: true
+        guid: e7de1a81-c08d-4a21-93f1-fd6088cd7565
+        name: Arcane Shield
+        domains:
+          CharacterFeature:b4fe74db-5ccf-460f-8f86-a23c558d1022: true
+        description: Any melee ability targeting the storm mage takes a bane. Additionally, whenever the mage takes damage from an adjacent enemy, the enemy takes 2 lightning damage, and if they have R < 1 they are pushed up to 2 squares.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b4fe74db-5ccf-460f-8f86-a23c558d1022: true
+        sourceguid: b4fe74db-5ccf-460f-8f86-a23c558d1022
+        behavior: trigger
+        source: Trait
+        name: Arcane Shield
+        description: Any melee ability targeting the storm mage takes a bane. Additionally, whenever the mage takes damage from an adjacent enemy, the enemy takes 2 lightning damage, and if they have R < 1 they are pushed up to 2 squares.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 75996e39-38a0-40c7-b81a-9e4e9d7a8e01
+          repeatTargets: false
+          trigger: losehitpoints
+          conditionFormula: Distance(Attacker) < 2
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Arcane Shield
+            roll: "2"
+            damageType: lightning
+            chatMessage: Arcane Shield
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: R < 1, pushed 2
+          targetType: attacker
+          name: Arcane Shield
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 02729a20-5e83-4955-aca1-24edb1469c3e
+      source: Trait
+      description: Any melee ability targeting the storm mage takes a bane. Additionally, whenever the mage takes damage from an adjacent enemy, the enemy takes 2 lightning damage, and if they have R < 1 they are pushed up to 2 squares.
+      guid: b4fe74db-5ccf-460f-8f86-a23c558d1022
+      name: Arcane Shield
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:97f200f2-518f-45f5-b3c2-fed8b21e1a8f: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:97f200f2-518f-45f5-b3c2-fed8b21e1a8f: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The storm mage ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The storm mage ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+      guid: 97f200f2-518f-45f5-b3c2-fed8b21e1a8f
+      name: Supernatural Insight
+      implementation: 3
+    role: Platoon Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      keywords:
+        magic: true
+      dr: 3
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      keywords:
+        psionic: true
+      dr: 3
+      damageType: psychic
+      apply: Damage Reduction
+    initiativeGrouping: b4aed6a7-1fa4-44f4-a3d2-b193bcc43be4
+    damage_taken: 0
+    resources: []
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    minion: false
+    walkingSpeed: 5
+    movementSpeeds: []
+    traitNames: []
+    creatureSize: 1M
+    keywords:
+      Humanoid: true
+      Human: true
+    monster_type: Human Storm Mage
+  tokenType: null
+  bestiaryId: 59090408-78bc-4687-8f35-dd13dbe39029
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Human Storm Mage
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590253693
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,43 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: c45948ab-330e-4b7a-91a6-525c6e8f6300
+  description: 'While you wear the Mediator’s Charm, the patience of any NPC you negotiate with increases by 1 (to a maximum of 5). Additionally, at the start of a negotiation, you learn one of an NPC’s motivations or pitfalls of the Director’s choice '
+  modifiers:
+  - __typeName: CharacterModifier
+    text: 'While you wear the Mediator’s Charm, the patience of any NPC you negotiate with increases by 1 (to a maximum of 5). Additionally, at the start of a negotiation, you learn one of an NPC’s motivations or pitfalls of the Director’s choice '
+    sourceguid: c45948ab-330e-4b7a-91a6-525c6e8f6300
+    source: Item
+    behavior: movementtext
+    name: Mediator's Charm
+    texttype: negotiation
+    description: 'While you wear the Mediator’s Charm, the patience of any NPC you negotiate with increases by 1 (to a maximum of 5). Additionally, at the start of a negotiation, you learn one of an NPC’s motivations or pitfalls of the Director’s choice '
+    guid: efb3c907-fbd5-4143-9b0d-b955257ac8b1
+    color: white
+  source: Item
+  name: Mediator's Charm
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+id: e52b630a-4fcc-4d0b-bfc6-40e045d88c4d
+keywords:
+  Head: true
+  Psionic: true
+projectSource: Texts or lore in Hyrallic
+flavor: A fancy gold earring is set with a small ruby
+weight: 1
+echelon: 2
+specialDescription: ""
+type: Gear
+category: Gear
+ctime: 1774858693480
+projectGoal: "300"
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+description: 'While you wear the Mediator’s Charm, the patience of any NPC you negotiate with increases by 1 (to a maximum of 5). Additionally, at the start of a negotiation, you learn one of an NPC’s motivations or pitfalls of the Director’s choice '
+name: Mediator's Charm
+itemPrerequisite: 'The gold nib of a fountain pen used to sign a major treaty or compact, a ruby once worn by a devil '
+mtime: 1774858693480
+projectRollCharacteristic:
+  rea: true
+  prs: true
+implementation: 2

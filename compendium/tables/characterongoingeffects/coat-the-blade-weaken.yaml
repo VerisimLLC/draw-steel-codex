@@ -1,0 +1,67 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.396999835968018
+    s: 0.845702886581421
+    v: 1.00168478488922
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 809597c1-f53e-46c3-bb93-d2a036c0a396
+  description: The next creature you damage with an ability that uses that weapon takes extra poison damage equal to twice your Presence score or the target is weakened (EoT). You choose the effect when you apply the poison. The poison loses its potency after you damage the creature or at the end of the encounter.
+  source: Ongoing Effect
+  domains:
+    CharacterOngoingEffect:809597c1-f53e-46c3-bb93-d2a036c0a396: true
+  modtype: none
+  behavior: power
+  keywords:
+    Weapon: true
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: e0da940b-a774-4604-b506-b660df77bc9f
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 809597c1-f53e-46c3-bb93-d2a036c0a396
+      mode: effect
+      conditions: []
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  activationCondition: true
+  rollType: ability_power_roll
+  addText: weakened (EoT)
+  damageModifier: Stacks - 1
+  guid: 6dd233cf-2527-4476-922b-7efd790712c9
+  name: Coat the Blade - Weaken
+source: Ongoing Effect
+guid: 809597c1-f53e-46c3-bb93-d2a036c0a396
+stackable: true
+id: 809597c1-f53e-46c3-bb93-d2a036c0a396
+ctime: 1728961220863
+domains:
+  CharacterOngoingEffect:809597c1-f53e-46c3-bb93-d2a036c0a396: true
+implementation: 3
+description: The next creature you damage with an ability that uses that weapon takes extra poison damage equal to twice your Presence score or the target is weakened (EoT). You choose the effect when you apply the poison. The poison loses its potency after you damage the creature or at the end of the encounter.
+endTrigger: endcombat
+mtime: 1741649093853
+custom: true
+name: Coat the Blade - Weaken
+iconid: 013d7c5e-381c-4675-a849-13debafd9f21

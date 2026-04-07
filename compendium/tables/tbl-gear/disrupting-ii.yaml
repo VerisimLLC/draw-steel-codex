@@ -1,0 +1,74 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: b65e0b92-954f-4d41-9622-e56b4f3edab1
+  description: Whenever you damage an undead using this weapon and leave that undead with 30 Stamina or less, they drop to 0 Stamina. This replaces the benefit of Disrupting I.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      targetType: subject
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: ""
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 2bad38a4-03b7-4edb-a2b5-364b2bbaf1ca
+      abilityType: none
+      trigger: losehitpoints
+      conditionFormula: Attacker = Self and subject.type = "undead" and (subject.Stamina <= 30)
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityFloatTextBehavior
+        text: Disrupting II
+        color:
+          __usertype: LuaColor
+          h: 0
+          s: 0.99316418170929
+          v: 0.989623188972473
+          a: 1
+      - __typeName: ActivatedAbilitySetStaminaBehavior
+        roll: "0"
+      name: Disrupting 1
+      selfTarget: false
+      description: Whenever you damage an undead using this weapon and leave that undead with 30 Stamina or less, they drop to 0 Stamina. This replaces the benefit of Disrupting I.
+      subject: other
+      iconid: ui-icons/skills/1.png
+    description: Whenever you damage an undead using this weapon and leave that undead with 30 Stamina or less, they drop to 0 Stamina. This replaces the benefit of Disrupting I.
+    source: Item
+    behavior: trigger
+    guid: 4e3d4820-3c0c-4ef3-805c-baeb6e291a6e
+    name: Disrupting II
+    sourceguid: b65e0b92-954f-4d41-9622-e56b4f3edab1
+  source: Item
+  name: Disrupting II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 7b1acd7b-c5a2-48a4-9868-b09d0515acf6
+imbuePrereq: 6df3f816-553f-4e94-96cc-eb15fcf97dd5
+projectSource: Anjali
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1774497656675
+type: Gear
+ctime: 1770699205313
+projectGoal: "150"
+itemPrerequisite: A cutting from a century-old living tree in a graveyard
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Disrupting II
+imbueTargetType: weapon
+description: Whenever you damage an undead using this weapon and leave that undead with 30 Stamina or less, they drop to 0 Stamina. This replaces the benefit of Disrupting I.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

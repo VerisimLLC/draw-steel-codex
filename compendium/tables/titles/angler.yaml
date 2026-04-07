@@ -1,0 +1,11 @@
+__typeName: Title
+effect: You gain an edge on Fishing project rolls.
+prerequisite: 120 Cost Reward for fishing.
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Angler
+mtime: 1771782057139
+description: Better tackle
+id: 396b55b9-efc0-4a6d-85c2-0bbab68213ce
+ctime: 1771782057139

@@ -1,0 +1,407 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: eef0ec1f-f11a-442d-8bb7-9e5183fd91db
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.04977894
+      y: 0.09952153
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5c0608d2-d06f-4be9-ac13-872805674c66
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    inventory: []
+    inflictedConditions: []
+    ev: 10
+    max_hitpoints_roll: "52"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 1
+        id: mgt
+      rea:
+        baseValue: 2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 2
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Stonewhisperer	Level 3 Platoon Controller
+        Dwarf, Humanoid	EV 10
+        <b>Stamina</b> 52
+        <b>Speed </b>5	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>	Free Strike</b> 5
+        Might +1	Agility 0	Reason +2	Intuition +2	Presence 0
+        <b>Tile Slide</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 2 cube within 1 <b>	Target</b> All creatures and objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; slide 1; M<0 slowed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	8 damage; slide 3; M<1 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	11 damage; slide 5; M<2 restrained (save ends)
+        <b>Effect</b> A target restrained by a dwarf can be slid by this ability.
+
+        <b>Stone Wave</b> (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 10<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage; push 2; R<1 slowed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	6 damage; push 3; R<2 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	9 damage; push 3; R<3 slowed (save ends)
+        <b>Effect</b> A target restrained by a dwarf can be pushed by this ability. The affected area is considered difficult terrain for enemies.
+
+        <b>Stonewalker</b>
+        The stonewhisperer can phase through 2 squares of stone as part of any movement they take. If they end their movement inside stone, they are shunted out into the square where they entered it.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:badee023-39ef-4f46-a1cc-cf04a56dfbc1: true
+      modifiers: []
+      source: Trait
+      description: Whenever the stone whisperer willingly moves, they can phase through up to 2 squares of stone as part of that movement. If they end their movement inside stone, they are shunted out into the space from which they entered it.
+      guid: badee023-39ef-4f46-a1cc-cf04a56dfbc1
+      name: Stone Walker
+      implementation: 0
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0305dfb1-7274-4932-9d8a-f47ad2f1992c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0305dfb1-7274-4932-9d8a-f47ad2f1992c
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:0305dfb1-7274-4932-9d8a-f47ad2f1992c: true
+        name: Burrow
+        guid: 652f2506-2704-45ba-8f8c-ffdc8fe0a154
+        description: ""
+        behavior: attribute
+        attribute: burrow
+      source: Character Feature
+      description: ""
+      guid: 0305dfb1-7274-4932-9d8a-f47ad2f1992c
+      name: Burrow
+      implementation: 3
+    role: Platoon Controller
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    opportunityAttack: 5
+    skillRatings: []
+    resistances: []
+    keywords:
+      Dwarf: true
+      Humanoid: true
+    selectedLoadout: 0
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 6dcccfe7-444c-44e5-9371-fa661ccec88d-78
+    max_hitpoints: 52
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 695d0fde-723b-42b1-aed0-4efba040982f
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    auras: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 5766045b-fb4e-4a10-b3c1-bdc1d7981c25-2
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 4a2a80af-546c-4e3b-8440-0ca3a6444362-1
+        used: 1
+    walkingSpeed: 5
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        a75ca74c-196b-4673-b257-f35d133bf143:
+          refreshid: 5766045b-fb4e-4a10-b3c1-bdc1d7981c25-1
+          note: Snaring Line
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        da84393e-8974-42da-acfb-e5743d319eed:
+          refreshid: 5766045b-fb4e-4a10-b3c1-bdc1d7981c25-2
+          note: Snaring Line
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        f7db1dc5-d2f7-46bb-ad96-5d1adef48631:
+          note: Snaring Line
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        49ff6dc1-fa5b-4651-91fb-d113b3aa533c:
+          note: Tile Slide
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: ConditionCaster("Restrained").type = "Dwarf"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          modifiers:
+          - __typeName: CharacterModifier
+            operation: add
+            sourceguid: cb000c2e-0009-4f83-997e-76c1fe31bfc9
+            source: Ongoing Effect
+            value: -1
+            name: Can Be Force Moved While Restrained
+            guid: 947932cc-3517-469f-a066-c44f64e84f7f
+            description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          guid: 6b29ae7d-603d-4fbf-8932-d07d128e1e67
+          id: 6b29ae7d-603d-4fbf-8932-d07d128e1e67
+          name: Can Be Force Moved While Restrained
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+          implementation: 3
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; slide 1; M<0 slowed (save ends)
+        - 8 damage; slide 3; M<1 slowed (save ends)
+        - 11 damage; slide 5; M<2 restrained (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.141250610351563
+          s: 0.821679651737213
+          v: 0.819727540016174
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 109
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: d97a22e9-dfec-41c0-9032-6a142d545ae8
+      targetType: cube
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "1"
+      implementation: 4
+      radius: 2
+      name: Tile Slide
+      description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+      abilityType: none
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            operation: add
+            sourceguid: cb000c2e-0009-4f83-997e-76c1fe31bfc9
+            source: Ongoing Effect
+            guid: f9d19671-2af7-436d-9459-997b988faa11
+            filterCondition: ConditionCaster("Restrained").type = "Dwarf"
+            name: Can Be Force Moved While Restrained
+            value: -1
+            description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          name: Can Be Force Moved While Restrained
+          guid: 5b15020d-d39a-42db-bae7-af0a8fbc554f
+          id: 5b15020d-d39a-42db-bae7-af0a8fbc554f
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityAuraBehavior
+        aliveafterdeath: true
+        aura:
+          __typeName: Aura
+          modifiers: []
+          name: Stone Wave
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          guid: 2adc49a6-f3b1-4b17-a82c-b1b42ac44fee
+          difficult_terrain: true
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage; push 2; R<1 slowed (save ends)
+        - 6 damage; push 3; R<2 slowed (save ends)
+        - 9 damage; push 3; R<3 slowed (save ends)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.0546875
+          v: 0.556777954101563
+          a: 1
+      flavor: ""
+      categorization: Heroic Ability
+      range: "10"
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 5fd384d3-f2c8-49c8-b26f-775cff58d356
+      radius: "3"
+      numTargets: "1"
+      sourceReference:
+        __typeName: SourceReference
+        page: 109
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: cube
+      implementation: 4
+      name: Stone Wave
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: A target restrained by a dwarf can be pushed by this ability. The affected area is considered difficult terrain for enemies.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ba85a1be-c327-442a-8d0c-314b0dcbaaa1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        d380495d-24ae-4a0f-9bf2-accac7fdb3c1:
+          refreshid: 4a2a80af-546c-4e3b-8440-0ca3a6444362-1
+          note: Stone Wave
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    movementSpeeds:
+      burrow: 5
+    availableTriggers: []
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket6: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      trinket9: []
+      trinket3: []
+      leveled4: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    creatureSize: 1M
+    monster_type: Dwarf Stone Whisperer
+  tokenType: null
+  bestiaryId: 8cb3b6cc-dcae-4fd6-862c-28a829960b91
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Dwarf Stone Whisperer
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590280137
+mtime: 1775201137032
+hidden: false

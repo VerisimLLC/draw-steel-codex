@@ -1,0 +1,96 @@
+exportedAt: 2026-04-04T06:00:26.0900364Z
+tables:
+  parties:
+    itemCount: 9
+  classes:
+    itemCount: 9
+  complications:
+    itemCount: 100
+  globalRuleMods:
+    itemCount: 32
+  tbl_Gear:
+    itemCount: 361
+  titles:
+    itemCount: 67
+  characterOngoingEffects:
+    itemCount: 684
+  Deities:
+    itemCount: 38
+  DeityDomains:
+    itemCount: 12
+  MonsterGroup:
+    itemCount: 99
+  Skills:
+    itemCount: 57
+  VisionType:
+    itemCount: 1
+  adventureTables:
+    itemCount: 7
+  backgrounds:
+    itemCount: 1
+  careers:
+    itemCount: 18
+  charConditions:
+    itemCount: 22
+  characterResources:
+    itemCount: 15
+  characterTypes:
+    itemCount: 1
+  characteristicsTable:
+    itemCount: 23
+  compendiumPermissions:
+    itemCount: 6
+  conditionRiders:
+    itemCount: 55
+  creatureTemplates:
+    itemCount: 1
+  cultureAspects:
+    itemCount: 13
+  cultures:
+    itemCount: 26
+  currency:
+    itemCount: 1
+  customAttributes:
+    itemCount: 102
+  damageTypes:
+    itemCount: 10
+  documents:
+    itemCount: 182
+  encounters:
+    itemCount: 3
+  equipmentCategories:
+    itemCount: 8
+  feats:
+    itemCount: 47
+  featurePrefabs:
+    itemCount: 5
+  importerAbilityEffects:
+    itemCount: 16
+  importerMonsterTraits:
+    itemCount: 43
+  importerPowerTableEffects:
+    itemCount: 44
+  importerStandardFeatures:
+    itemCount: 20
+  kits:
+    itemCount: 26
+  languageRelations:
+    itemCount: 18
+  languages:
+    itemCount: 42
+  minionWithCaptain:
+    itemCount: 10
+  nameGenerators:
+    itemCount: 44
+  pdfReferences:
+    itemCount: 39
+  powerRolls:
+    itemCount: 1
+  races:
+    itemCount: 12
+  standardAbilities:
+    itemCount: 115
+  subclasses:
+    itemCount: 45
+  weaponProperties:
+    itemCount: 9

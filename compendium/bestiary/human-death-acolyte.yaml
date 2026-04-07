@@ -1,0 +1,225 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: "-MDiy-DfOFNvwX3e1X03"
+    offtokenPortraitId: null
+    portraitFrameId: 9242a1db-25ff-403c-908c-010ef15dc821
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.007812381
+      y: 0.01953119
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 297c3f78-41e8-4613-a75a-0b9801added8
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    max_hitpoints: 3
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 corruption damage
+        - 2 corruption damage
+        - 3 corruption damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          objectTarget: false
+          targetFilter: not Minion
+          strain: []
+          guid: 7d7e590e-64c8-4f35-a728-94f9ea31b320
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            roll: "1"
+          modifiers: []
+          name: Regain Stamina
+          targetType: target
+          description: One creature within 5 squares regains 1 Stamina
+          range: "5"
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        promptText: One creature within 5 squares regains 1 Stamina
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4f559077-37df-45d1-aa00-a6486e49c18f
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 182
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Necrotic Bolt
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      description: A creature within 5 squares of the death acolyte regains 1 Stamina.
+      abilityType: none
+      implementation: 4
+    opportunityAttack: 1
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Death Acolyte	Level 1 Minion Hexer
+        Human, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 3	<b>Immunity</b> Corruption 1, Psychic 1
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Ranged distance +5	<b>Free Strike</b> 1
+        Might +0	Agility +1	Reason +0	Intuition +0	Presence +2
+        <b>Necrotic Bolt</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Strike, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	1 corruption damage
+        %E2%98%85	12%E2%80%9316	2 corruption damage
+        %E2%9C%B8	17+	3 corruption damage
+        <b>	Effect</b> A creature within 5 squares of the death acolyte regains 1 Stamina.
+
+        <b>Supernatural Insight</b>
+        The death acolyte ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5e7c3efb-8d64-4a6a-ae87-f79e8a16ea6b: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:5e7c3efb-8d64-4a6a-ae87-f79e8a16ea6b: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The death acolyte ignores concealment if it's granted by a supernatural effect.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The death acolyte ignores concealment if it's granted by a supernatural effect.
+      guid: 5e7c3efb-8d64-4a6a-ae87-f79e8a16ea6b
+      name: Supernatural Insight
+      implementation: 3
+    role: Minion Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: psychic
+      apply: Damage Reduction
+    withCaptain: +5 bonus to ranged distance
+    damage_taken: 0
+    resources: []
+    walkingSpeed: 5
+    minion: true
+    traitNames: []
+    keywords:
+      Humanoid: true
+      Human: true
+    movementSpeeds: []
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    creatureSize: 1M
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_type: Human Death Acolyte
+  tokenType: null
+  bestiaryId: 6805f4c6-04c6-483e-93f9-d74b21d5680c
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Human Death Acolyte
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590260185
+mtime: 1775201137032
+hidden: false

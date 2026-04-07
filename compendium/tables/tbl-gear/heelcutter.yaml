@@ -1,0 +1,110 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 04d12949-7681-4617-a4f0-921036511a52
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    modtype: none
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    behavior: power
+    name: Heelcutter Extra Damage
+    rollType: ability_power_roll
+    damageTypeMappings: []
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    description: "1"
+  name: Heelcutter Extra Damage
+  description: "1"
+  addText: Add Magical Property
+  itemAttached: true
+  source: Item
+- __typeName: CharacterFeature
+  guid: a6d8d47a-0c7e-4094-b1a4-e56b503b215a
+  name: Heelcutter Giants
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: a6d8d47a-0c7e-4094-b1a4-e56b503b215a
+    displayCondition: Target.Keywords has "Giant"
+    source: Item
+    modtype: none
+    adjustments: []
+    keywords: []
+    activationCondition: Target.Keywords has "Giant"
+    behavior: power
+    rollType: ability_power_roll
+    name: Heelcutter Giants
+    addText: // // A<2 prone
+    description: If the target is a giant, they are A<2 prone on a tier 3 result.
+    guid: 75b2760b-1784-47cd-a688-5a6133fa1d76
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      abilityType: none
+      persistence: []
+      modifiers: []
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - 70504ebe-3899-41d3-9f60-74b52ce35e39
+      strain: []
+      guid: 396196b8-9f9a-40e0-9250-e22f96f07ba2
+      repeatTargets: false
+      trigger: beginturn
+      conditionFormula: ConditionCaster("grabbed").Type is giant
+      targetType: self
+      name: Heelcutter Giants
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      numTargets: "1"
+      description: When you are grabbed by a giant, you automatically escape at the start of your turn (no action).
+      range: 1
+      iconid: ui-icons/skills/1.png
+    behavior: trigger
+    source: Item
+    name: Heelcutter Giants
+    description: If the target is a giant, they are A<2 prone on a tier 3 result. When you are grabbed by a giant, you automatically escape at the start of your turn (no action).
+    sourceguid: a6d8d47a-0c7e-4094-b1a4-e56b503b215a
+    guid: 25817c00-7d40-4b2e-b242-9bcb29420c81
+  source: Item
+  addText: Add Magical Property
+  description: If the target is a giant, they are A<2 prone on a tier 3 result. When you are grabbed by a giant, you automatically escape at the start of your turn (no action).
+  itemAttached: true
+  implementation: 1
+itemPrerequisite: Heartwood from a tree over 100 feet tall.
+keywords:
+  Heavy Weapon: true
+  Magic: true
+projectSource: Texts in Caelian
+flavor: This oversized double-sided axe is chipped, yet seems ever-sharp, no matter the abuses it faces.
+weight: 1
+category: Gear
+specialDescription: ""
+iconid: 6620de8e-83c7-4602-a0b7-744f432dc79b
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+ctime: 1760183612141
+type: Gear
+id: 46da081b-893d-4d82-8c2d-9a71f1a00a8d
+projectGoal: "450"
+name: Heelcutter
+mtime: 1761781788894
+description: Any damage-dealing weapon ability using this weapon gains a +1 rolled damage bonus, and if the target is a giant, they are A<2 prone on a tier 3 result. When you are grabbed by a giant, you automatically escape at the start of your turn (no action).
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 3

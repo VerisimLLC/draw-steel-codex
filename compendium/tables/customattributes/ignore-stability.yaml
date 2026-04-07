@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "0"
+category: Forced Movement
+name: Ignore Stability
+documentation: If greater than zero, than this creature ignores stability of targets it force moves. Often you will want to use this in an ability duration effect so it happens for a single ability.
+mtime: 1770948890570
+id: ce01b08c-82b7-4fa5-8fc5-8e110cf019d7
+ctime: 1770948890570

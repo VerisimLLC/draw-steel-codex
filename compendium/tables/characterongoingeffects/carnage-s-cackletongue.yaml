@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 0.999998256138393
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.95507800579071
+    v: 0.810918688774109
+    a: 1
+guid: 07269e65-cd0e-4c2b-9ffc-1b03e46f5622
+id: 07269e65-cd0e-4c2b-9ffc-1b03e46f5622
+ctime: 1755522942566
+domains:
+  CharacterOngoingEffect:07269e65-cd0e-4c2b-9ffc-1b03e46f5622: true
+description: Each target deals an extra 3 damage with their next strike until the start of the carnage’s next turn.
+name: Carnage's Cackletongue
+endTrigger: none
+statusEffect: true
+mtime: 1755609267338
+custom: true
+iconid: 22204eb3-0b36-425c-bf71-b151723eb3fa

@@ -1,0 +1,61 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    characterConditionInflictedBySelf: false
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    persistence: []
+    strain: []
+    guid: 8e9ead28-2d69-4af6-ae7a-0a29f3d1b370
+    abilityType: none
+    trigger: beginturn
+    castImmediately: true
+    whenActive: combat
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Realitas!
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 0.98925769329071
+        v: 0.9786496758461
+        a: 1
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: 2*ConditionCaster("Dazed").Intuition
+      damageType: psychic
+      chatMessage: Realitas
+    name: Realitas
+    conditionFormula: Subject = ConditionCaster("Dazed")
+    description: While dazed this way, the target takes psychic damage equal to twice your Intuition score at the start of each of your turns.
+    subject: other
+    iconid: ui-icons/skills/1.png
+  description: While dazed this way, the target takes psychic damage equal to twice your Intuition score at the start of each of your turns.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 19b0542a-d9f0-4983-984b-8e77a09cf23a
+  name: Realitas
+  sourceguid: 0cbf7ff1-8e66-469d-b051-f6021cfa36dd
+source: Ongoing Effect
+guid: 0cbf7ff1-8e66-469d-b051-f6021cfa36dd
+id: 0cbf7ff1-8e66-469d-b051-f6021cfa36dd
+ctime: 1772675453309
+condition: c27e0b16-291a-45ad-8406-973e26576a44
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: with Realitas
+description: While dazed this way, the target takes psychic damage equal to twice your Intuition score at the start of each of your turns.
+mtime: 1772677484542
+iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335

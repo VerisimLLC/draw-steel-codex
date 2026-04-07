@@ -1,0 +1,265 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 3777345d-739f-4996-aad0-3846de314616
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Minotaur Gorer	Level 3 Brute Retainer
+        Minotaur, Monster	EV 22
+        <b>Stamina</b> 60
+        <b>Speed</b> 6	<b>Size</b> 2/<b>Stability</b> 2
+        <b>Free Strike</b> 6
+        Might +2	Agility +1	Reason 0	Intuition +1	Presence 0
+        <b>Gore</b> (Action) - 2d10 + highest characteristic - Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1 	<b>Target </b>One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>		5 damage
+        %E2%98%85	<b>12-16</b>	9 damage
+        %E2%9C%B8	<b>17</b>		12 damage; M (strong) prone
+
+        <b>Retaliatory Gore</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger </b>The gorer takes damage from a creature within 6.
+        <b>Effect </b>The gorer charges the target using Gore.
+
+        <b>Minotaur Sense</b>
+        The gorer cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+
+        Level 4 Retainer Advancement Ability
+        <b>Horn Toss</b> (Free Triggered Action)
+        <b>Keywords</b> %E2%80%93
+        <b>Distance</b> Melee 1	<b>Target</b> Attack target
+        <b>Trigger</b> The gorer damages a creature with their horn attack.
+        <b>Effect</b> The target is pushed 3. If the target's Stability is 0, they are also knocked prone.
+
+        Level 7 Retainer Advancement Ability
+        <b>Triumphant Bay</b> (Maneuver, Encounter)
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b>	Gain 3 surges and the attacks against the gorer and their mentor suffer a bane until the beginning of the gorer's next turn.
+
+        Level 10 Retainer Advancement Ability
+        <b>Horn Rake</b> (Action) - 2d10 + highest characteristic
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 burst 	<b>Target </b>All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>		11 damage; M (weak) bleeding (save ends)
+        %E2%98%85	<b>12-16</b>	16 damage; M (average) bleeding (save ends)
+        %E2%9C%B8	<b>17</b>		21 damage; M (strong) prone (save ends)
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f47f9fdd-2100-4ed6-b30c-a7737365cda7: true
+        CharacterFeature:0c007c70-9f61-4985-b665-0842d59b4d82: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f47f9fdd-2100-4ed6-b30c-a7737365cda7
+        source: Trait
+        guid: fa482f98-8685-4df3-afea-b4b1968b968f
+        keywords: []
+        activationCondition: true
+        domains:
+          CharacterFeature:f47f9fdd-2100-4ed6-b30c-a7737365cda7: true
+          CharacterFeature:0c007c70-9f61-4985-b665-0842d59b4d82: true
+        behavior: power
+        rollType: test_power_roll
+        name: Minotaur Sense
+        description: The minotaur cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+        modtype: nottierone
+        skills:
+        - 0c7d0c53-2056-4579-8c83-1bec3098cc56
+        - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+      source: Trait
+      description: The minotaur cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+      guid: f47f9fdd-2100-4ed6-b30c-a7737365cda7
+      name: Minotaur Sense
+      implementation: 3
+    role: Brute Retainer
+    inflictedConditions: []
+    keywords:
+      Monster: true
+      Minotaur: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    creatureSize: "2"
+    monster_type: Minotaur Gorer
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    max_hitpoints: 60
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    minion: false
+    groupid: 6efceb1a-994d-411b-a006-923df38066a7
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: 1
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      abilityType: none
+      guid: 872b8cc2-be76-4074-ba62-120b9ea55f61
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      targetType: target
+      categorization: Signature Ability
+      name: Gore
+      flavor: ""
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 496a2a44-3dcb-4c15-a167-6d816e62ec4c
+      numTargets: 1
+      name: Retaliatory Gore
+      behaviors: []
+      description: The gorer charges the target using Gore.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      range: 1
+      targetType: self
+      guid: e1f9de93-7de8-4cb5-b99b-7925d9fbe66b
+      repeatTargets: false
+      keywords:
+        "%E2%80%93": true
+      effectImplemented: false
+      behaviors: []
+      categorization: Signature Ability
+      name: Horn Toss
+      flavor: ""
+      description: The target is pushed 3. If the target's Stability is 0, they are also knocked prone.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5d26bfef-20f8-4ccb-9f43-c7b5743d997e
+      numTargets: 1
+      name: Horn Rake
+      targetType: all
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds: []
+    ev: 22
+    opportunityAttack: 6
+    levelChoices: []
+    walkingSpeed: 6
+  tokenType: null
+  bestiaryId: dc8c2b6b-7279-4766-bf91-4906a0b562af
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969465
+description: Minotaur Gorer
+parentFolder: 4e90b2cf-3242-46d6-9c01-ce1d199e1205
+artist: null
+ord: 0
+ctime: 1741590317990
+mtime: 1775167462275
+hidden: false

@@ -1,0 +1,72 @@
+__typeName: CharacterOngoingEffect
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:d12917d2-a495-4f04-afdc-37f254a1fbdc: true
+  sourceguid: d12917d2-a495-4f04-afdc-37f254a1fbdc
+  description: You may add 1d6 to the attack's damage
+  source: Ongoing Effect
+  name: Seize the Opening
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: a2090b44-0d93-4ca2-9ab2-08e0f614964c
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 5
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      applyto: caster
+      mode: effect
+      ongoingEffect: d12917d2-a495-4f04-afdc-37f254a1fbdc
+      purgeType: chosen
+      conditions: []
+    name: Seize the Opening
+    trigger: attack
+    description: The target can add 1d6 to the attack's damage
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: e4f54cc8-b0ef-47c7-96ca-cb49e8e323c3
+- __typeName: CharacterModifier
+  sourceguid: d12917d2-a495-4f04-afdc-37f254a1fbdc
+  source: Ongoing Effect
+  guid: 4775fb6e-ab79-4833-bbf6-fae609ec615e
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:d12917d2-a495-4f04-afdc-37f254a1fbdc: true
+  filterCondition: Stacks
+  rollType: ability_power_roll
+  modtype: edge
+  description: You may add 1d6 to the attack's damage
+  behavior: power
+  name: Seize the Opening
+source: Ongoing Effect
+stackable: true
+id: d12917d2-a495-4f04-afdc-37f254a1fbdc
+ctime: 1709975486149
+domains:
+  CharacterOngoingEffect:d12917d2-a495-4f04-afdc-37f254a1fbdc: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.359832644462585
+    s: 0.537951111793518
+    v: 0.491238057613373
+    a: 1
+guid: d12917d2-a495-4f04-afdc-37f254a1fbdc
+name: Seize the Opening
+custom: true
+description: You may add 1d6 to the attack's damage
+mtime: 1710060307020
+iconid: 4c851e1e-debd-40c8-88f6-72f5f02f766e

@@ -1,0 +1,337 @@
+__typeName: Class
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+        class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      guid: c337e736-de33-4cb4-8720-13093b4ce75a
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+          class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+        sourceguid: c337e736-de33-4cb4-8720-13093b4ce75a
+        description: ""
+        source: Guardian Class Feature
+        name: Feral Strike
+        behavior: activated
+        guid: fbf079f0-dfd0-42d1-aa07-586ecdc26f82
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          repeatTargets: false
+          keywords:
+            Strike: true
+            Melee: true
+            Companion: true
+            Weapon: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 3 + M damage; Taunted (EoT)
+            - 5 + M damage; Taunted (EoT)
+            - 9 + M damage; Taunted (EoT)
+            roll: 2d10 + Might
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            targeting: prompt
+            applyto: caster
+            standardAbilityParams:
+              exclude: "<<cast.primary Target.id>>"
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: d559ee27-d524-407c-8722-828410cd2fa4
+              repeatTargets: false
+              targetFilter: target.id != <<exclude>>
+              abilityType: none
+              targetType: all
+              numTargets: "1"
+              name: Invoked Ability
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: Might
+              - __typeName: ActivatedAbilityReplenishBehavior
+                applyto: caster
+                resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+                quantity: Count Nearby Friends(1)
+                chatMessage: Feral Strike
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Ability
+          range: 1
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          modifiers: []
+          strain: []
+          guid: 9e2d475a-3579-434a-a247-fa3ec6fecc74
+          domains:
+            class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+            class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+          numTargets: "1"
+          persistence: []
+          name: Feral Strike
+          targetType: target
+          description: Each adjacent creature except for the target takes damage equal to your companion’s Might score. You gain a surge for each ally damaged in this way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      name: Feral Strike
+      classid: 6ebd1424-e99c-4656-a58f-f0e3e2850dee
+      description: ""
+      source: Guardian Class Feature
+      implementation: 1
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+        class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      guid: a0d23ad4-87bb-45c7-980e-50ed5746a82f
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+          class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+        sourceguid: 6efbb883-7783-48f4-92ec-8d9b8a6f527a
+        behavior: triggerdisplay
+        source: Guardian Class Feature
+        name: Don't Worry, I'm Here
+        description: You siphon away the pain and endure it yourself.
+        guid: 7d371fb0-e95b-4717-a13e-87f4145c3218
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One ally
+          effect: |-
+            The triggering damage is halved for the ally.
+
+            **Spend 1 Ferocity:** You spend one of your Recoveries; the ally regains the Stamina instead of you.
+          name: Don't Worry, I'm Here
+          trigger: An adjacent ally takes damage.
+          flavor: You siphon away the pain and endure it yourself.
+          guid: 94e46652-3055-499f-8db5-fb4ec87edea5
+          distance: Melee 1
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: f1dd6a48-72c2-431d-8aa3-18b7ab2389f1
+        source: Guardian Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          guid: 48ed96be-98d9-4b24-8034-f2d4eb0f379d
+          activationCondition: false
+          keywords: []
+          hasCustomTrigger: false
+          customTrigger:
+            __typeName: TriggeredAbility
+            repeatTargets: false
+            targetType: self
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            range: 1
+            persistence: []
+            modifiers: []
+            strain: []
+            modeList: []
+            trigger: d20roll
+            numTargets: "1"
+            guid: b26b781d-cb80-47c4-a3d7-527b32ddd45e
+            behaviors: []
+            name: Don't Worry, I'm Here
+            triggerPrompt: Spend a Recovery
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Don't Worry, I'm Here
+          rules: ""
+          behavior: power
+          rollType: ability_power_roll
+          modtype: none
+        guid: 5910760b-ed67-4054-9796-69ffcf253ef8
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+          class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+        targetType: self
+        trigger: takedamage
+        name: Don't Worry, I'm Here
+        rules: The triggering damage is halved
+        description: ""
+        range: 10
+        additionalCostModifiers: []
+      - __typeName: CharacterModifier
+        domains:
+          class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+          class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+        sourceguid: a0d23ad4-87bb-45c7-980e-50ed5746a82f
+        description: You siphon away the pain and endure it yourself.
+        source: Guardian Class Feature
+        name: Don't Worry, I'm Here
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetTextOverride: Ally
+          repeatTargets: false
+          rangeTextOverride: "1"
+          targetType: subject
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          abilityType: none
+          guid: 2757d366-28d1-4792-9a36-7b0c40ee5cdd
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          modeList:
+          - text: 1 Ferocity
+            rules: 'You spend one of your Recoveries; the ally regains the Stamina instead of you. '
+            condition: Resources.Heroic Resource > 0
+          numTargets: "1"
+          description: ""
+          domains:
+            class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+            class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            modesSelected:
+            - 1
+            roll: caster.Recovery Value
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            modesSelected:
+            - 1
+            resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+            chatMessage: Don't Worry, I'm Here
+          name: Don't Worry, I'm Here
+          trigger: losehitpoints
+          persistence: []
+          abilityFilters:
+          - formula: Resources.Recovery > 0
+            reason: You have no Recoveries left to spend.
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: 9f8c5a23-e88e-406d-93aa-f33fd9a9722c
+      name: Don't Worry, I'm Here
+      classid: 6ebd1424-e99c-4656-a58f-f0e3e2850dee
+      description: You siphon away the pain and endure it yourself.
+      source: Guardian Class Feature
+      implementation: 3
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:6ebd1424-e99c-4656-a58f-f0e3e2850dee: true
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+heroicResourceChecklist: []
+id: 6ebd1424-e99c-4656-a58f-f0e3e2850dee
+name: Guardian
+ctime: 1752730865927
+mtime: 1770389341904
+isSubclass: true
+primaryClassId: 0380181e-acad-4cdb-ae6d-c7cd11df6ad2

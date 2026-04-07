@@ -1,0 +1,49 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 1886e364-2374-400e-ae34-d78104799bcd
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Bellamy
+- __typeName: RollTableRow
+  id: ed52b702-7e0e-498e-a17d-5b2275d45a35
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Bethell
+- __typeName: RollTableRow
+  id: 96872639-3565-476e-8020-50f075f9e9cc
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Carrington
+- __typeName: RollTableRow
+  id: 7803aa31-6043-4038-a80b-ea1864ad1ff4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Madison
+- __typeName: RollTableRow
+  id: ad7e786a-1261-4643-867e-82cdf9e18fb8
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Mallory
+id: c37e7baa-6391-4911-8f87-614f3cd156eb
+name: Polder Gender Neutral Names
+subtable: true
+mtime: 1743455562555
+items: false
+ctime: 1743445935886

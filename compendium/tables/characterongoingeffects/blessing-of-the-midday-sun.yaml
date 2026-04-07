@@ -1,0 +1,84 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 09723e66-d43d-4e6f-a268-fae7c792d47b
+  source: Ongoing Effect
+  seq: 281296af-64b0-4518-ba7c-3d4b1da13423
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 03be8835-8734-4d0a-86dd-dfa35c236041
+      source: Aura
+      behavior: power
+      keywords: []
+      activationCondition: true
+      name: Blessing of the Midday Sun
+      guid: b384e31f-9a65-4623-99a1-191a635ab276
+      description: each enemy in the area takes a bane on power rolls
+      modtype: bane
+      rollType: all
+    name: Blessing of the Midday Sun
+    guid: 03be8835-8734-4d0a-86dd-dfa35c236041
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  radius: "4"
+  guid: c209eec0-0ad7-4e22-ad8d-33789df71443
+  description: ""
+  behavior: aura
+  name: Blessing of the Midday Sun
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: ally
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+      chatMessage: Blessing of the Midday Sun
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "4"
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    whenActive: combat
+    trigger: endturn
+    guid: c7539228-9ba4-422e-b34d-19dfda780196
+    persistence: []
+    targetType: all
+    selfTarget: true
+    name: Blessing of the Midday Sun
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 1f7eea53-1201-4e30-90b9-89044c2a4655
+  name: Blessing of the Midday Sun
+  sourceguid: 09723e66-d43d-4e6f-a268-fae7c792d47b
+source: Ongoing Effect
+guid: 09723e66-d43d-4e6f-a268-fae7c792d47b
+id: 09723e66-d43d-4e6f-a268-fae7c792d47b
+ctime: 1765426409668
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Blessing of the Midday Sun
+description: ""
+custom: true
+mtime: 1765426409668
+iconid: ui-icons/skills/1.png

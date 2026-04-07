@@ -1,0 +1,1585 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1741185409291
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      description: While you have 5 or more Victories, you can undertake an additional respite activity during a respite.
+      modifiers: []
+      name: Doubling the Hours
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      guid: 3e7fd797-f405-4ec6-819a-22aaffb9cb4a
+      source: Chronopathy Class Feature
+      canHavePrerequisites: true
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: 95cdfdb6-f65e-415a-9086-a73a6d8f5e85
+        behavior: triggerdisplay
+        source: Chronopathy Class Feature
+        name: Stasis Shield
+        description: You have the following ability.
+        guid: 3d6e2c8c-7496-4dd7-8eb7-625fce5a8c8c
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or one creature or object
+          effect: |-
+            The target is teleported to an unoccupied space adjacent to you, taking no damage and suffering no additional effects if this movement would get them out of harm’s way. 
+            **Strained:** You can’t target yourself, and you take the damage and any additional effects instead of the target.
+          cost: 3 Clarity
+          trigger: The target takes damage.
+          flavor: You freeze time just long enough to bring the victim to safety!
+          guid: 7a9d2874-9c07-47cf-b61c-fa819529d490
+          name: Stasis Shield
+          keywords:
+            Ranged: true
+            Psionic: true
+      - __typeName: CharacterModifier
+        sourceguid: 95cdfdb6-f65e-415a-9086-a73a6d8f5e85
+        source: Chronopathy Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          changeTargetRange: none
+          modtype: none
+          triggerBefore:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 7e25a151-0d0f-4144-a9d0-f78ff9007787
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 7139b493-57ad-457f-9cb5-aa3afbe53d5f
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          changeTarget: true
+          changeTargetEffect: none
+          source: Trigger
+          hasTriggerBefore: false
+          changeTargetFilter: Target = Triggerer
+          hasCustomTrigger: false
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: e037e1ba-2780-448c-bc7c-c096f398bee7
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 7139b493-57ad-457f-9cb5-aa3afbe53d5f
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Select Creature being targeted by attack
+              standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+              guid: 4cb08d98-ac49-4316-99bc-4c439a81b909
+              abilityType: standard
+              standardAbilityParams:
+                range: "1"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: none
+          name: Stasis Shield
+          rules: ""
+          description: 'The target is teleported to an unoccupied space adjacent to you, taking no damage and suffering no additional effects if this movement would get them out of harm’s way. '
+          guid: bfd07a94-5136-4c69-8470-8cd99d4a641a
+          behavior: power
+        guid: 8e03f9be-6dcb-4610-b5f8-12472074704d
+        type: trigger
+        targetFilter: not Triggerer.Strained
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        targetType: selforally
+        trigger: takedamage
+        name: Stasis Shield
+        rules: 'The target is teleported to an unoccupied space adjacent to you, taking no damage and suffering no additional effects if this movement would get them out of harm’s way. '
+        description: You have the following ability.
+        range: 10
+        behavior: powertabletrigger
+      - __typeName: CharacterModifier
+        sourceguid: 95cdfdb6-f65e-415a-9086-a73a6d8f5e85
+        source: Chronopathy Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          changeTargetRange: none
+          modtype: none
+          triggerBefore:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: c900a98e-0c1e-4188-883a-869c75a97e71
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 7139b493-57ad-457f-9cb5-aa3afbe53d5f
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Select Creature being targeted by attack
+              standardAbility: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+              guid: aef6d5cf-1365-4218-a6e4-8ca3ec3873b8
+              abilityType: standard
+              standardAbilityParams:
+                range: "1"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          changeTarget: true
+          changeTargetEffect: all
+          source: Trigger
+          hasTriggerBefore: false
+          changeTargetFilter: Target = Triggerer
+          damageMultiplier: full
+          name: Stasis Shield
+          rules: ""
+          description: 'The target is teleported to an unoccupied space adjacent to you, taking no damage and suffering no additional effects if this movement would get them out of harm’s way. '
+          guid: f79218ab-8804-4ede-8359-6346d04222b3
+          behavior: power
+        guid: eb50d24c-810e-4580-b451-337c8f618fd3
+        type: trigger
+        targetFilter: Triggerer.Strained
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        targetType: selforally
+        trigger: takedamage
+        name: Stasis Shield
+        rules: 'The target is teleported to an unoccupied space adjacent to you, taking no damage and suffering no additional effects if this movement would get them out of harm’s way. '
+        description: You have the following ability.
+        range: 10
+        behavior: powertabletrigger
+      source: Chronopathy Class Feature
+      guid: 4fa4b723-b5c5-40ca-a95b-31fe9075f4ae
+      domains:
+        class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      description: You have the following ability.
+      name: Stasis Shield
+      implementation: 2
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 27074aef-ae2d-4dd3-88c8-fb691bdd8adc
+        source: Chronopathy Class Feature
+        seq: be5dd28e-ae7b-4ad8-9561-5bd34edb3df4
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          modifiers: []
+          name: Distortion Temporal
+          guid: f0733b23-4bd7-4196-bbd0-e6d4c1d64c70
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          difficult_terrain: true
+        conditionFormula: not Dying
+        guid: dd9ae885-0712-4def-bf91-b7c5f5b2e388
+        radius: "3"
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        description: While you are not dying, time behaves irregularly around you in a 3 aura. That area is difficult terrain for enemies. Additionally, when an ally enters the area for the first time in a combat round or starts their turn there, they gain a +2 bonus to speed until the end of the turn.
+        behavior: aura
+        name: Distortion Temporal
+      - __typeName: CharacterModifier
+        sourceguid: 27074aef-ae2d-4dd3-88c8-fb691bdd8adc
+        source: Chronopathy Class Feature
+        seq: 098a226d-f8f2-4746-982d-13624a66d8c1
+        aura:
+          __typeName: Aura
+          applyto: friends
+          modifiers: []
+          name: Distortion Temporal
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: 44869e47-8fe6-47ff-904e-0017206b1bad
+                duration: 0
+                ongoingEffectCustom: 44869e47-8fe6-47ff-904e-0017206b1bad
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: a61b4b6d-bf85-43b6-a45b-d46c5fc1c529
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Distortion Temporal
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: 2c0d1a39-f08d-4518-9bbd-6f193f6ca52a
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+        conditionFormula: not Dying
+        guid: 62922ad0-b38d-4840-a186-9301d7d3dc9e
+        radius: "3"
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        description: While you are not dying, time behaves irregularly around you in a 3 aura. That area is difficult terrain for enemies. Additionally, when an ally enters the area for the first time in a combat round or starts their turn there, they gain a +2 bonus to speed until the end of the turn.
+        behavior: aura
+        name: Distortion Temporal
+      source: Chronopathy Class Feature
+      guid: 27074aef-ae2d-4dd3-88c8-fb691bdd8adc
+      domains:
+        class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      description: While you are not dying, time behaves irregularly around you in a 3 aura. That area is difficult terrain for enemies. Additionally, when an ally enters the area for the first time in a combat round or starts their turn there, they gain a +2 bonus to speed until the end of the turn.
+      name: Distortion Temporal
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0eef72ea-c942-4d03-a622-efaef173ff77
+        source: Chronopathy Class Feature
+        behavior: modifytrigger
+        triggerCondition: Not Trigger.Free
+        guid: a32f1d58-e61b-49ae-84f8-e07a3fedd940
+        attributes:
+        - text: Speed of Thought
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          condition: ""
+          rules: Once per combat round while you are not dying, you can spend 2 clarity when you use a triggered action to turn it into a free triggered action.
+          id: modifyaction
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        description: Once per combat round while you are not dying, you can spend 2 clarity when you use a triggered action to turn it into a free triggered action.
+        name: Speed of Thought
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: e7889c6c-3ff1-4443-b626-8e3461d093a6
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            mode: expend
+            quantity: "2"
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Chronopathy Class Feature
+      guid: 0eef72ea-c942-4d03-a622-efaef173ff77
+      domains:
+        class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      canHavePrerequisites: true
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      description: Once per combat round while you are not dying, you can spend 2 clarity when you use a triggered action to turn it into a free triggered action.
+      name: Speed of Thought
+      implementation: 3
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 6th-Level Chronopathy Ability
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 6adf01d9-84a7-4aab-b6a6-3a6642d1cb9c
+          description: ""
+          source: Chronopathy Class Feature
+          name: Fate
+          behavior: activated
+          guid: a3d7e72b-1371-42f5-b9a2-4712886bea78
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: One Enemy
+            repeatTargets: false
+            keywords:
+              Psionic: true
+              Melee: true
+              Chronopathy: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 + P psychic damage
+              - 13 + P psychic damage
+              - 17 + P psychic damage
+              filterTarget: 0 {Informational for Tooltip}
+              roll: 2d10 + Presence
+              strainSelection: strained
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 53ec5925-b298-4d97-924a-2ab876c3df29
+              durationUntilEndOfTurn: true
+              duration: 1
+              ongoingEffectCustom: 53ec5925-b298-4d97-924a-2ab876c3df29
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              targeting: inherit
+              promptText: Power Roll
+              inheritRange: false
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                modifiers: []
+                abilityType: none
+                strain: []
+                guid: 85016874-3ab0-4189-8c11-a2af99bc77e0
+                repeatTargets: false
+                keywords:
+                  Strike: true
+                  Psionic: true
+                  Melee: true
+                  Chronopathy: true
+                targetType: self
+                behaviors:
+                - __typeName: ActivatedAbilityPowerRollBehavior
+                  filterTarget: ""
+                  strainSelection: strained
+                  tiers:
+                  - 8 + P psychic damage
+                  - 13 + P psychic damage
+                  - 17 + P psychic damage
+                  guid: 965dcf59-50a5-4e9e-a8af-4c7531296e8a
+                  roll: 2d10 + Presence
+                categorization: Hidden
+                name: Fate
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your foe gets a glimpse of how it will end for them.
+            categorization: Heroic Ability
+            range: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            modifiers: []
+            rangeTextOverride: Melee 2
+            strain:
+              enabled: true
+            guid: 9883e3e3-b147-4a61-bc92-11c433564a0a
+            targetType: target
+            sourceReference:
+              __typeName: SourceReference
+              page: 197
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            persistence: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Fate
+            preDescription: |-
+              The target has damage weakness 5 until the end of your next turn. Whenever the target takes damage while they have this weakness, they are knocked prone. 
+              **Strained:** This ability gains the Strike keyword as the vision hurts the target’s psyche. You make a power roll, then are weakened (save ends).
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Chronopathy Class Feature
+        guid: 6adf01d9-84a7-4aab-b6a6-3a6642d1cb9c
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+        description: ""
+        name: Fate
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: f75dc201-a31e-4202-9348-3ffba270a128
+          description: ""
+          source: Chronopathy Class Feature
+          name: Stasis Field
+          behavior: activated
+          guid: 4b7e606d-66cf-48d8-8352-aba59589b40e
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            targetTextOverride: Each creature and object in the area
+            repeatTargets: false
+            rangeTextOverride: 4 cube within 10
+            behaviors:
+            - __typeName: ActivatedAbilityAuraBehavior
+              aura:
+                __typeName: Aura
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  guid: 196ba72b-9326-46f2-9e34-c31b39b72b94
+                  sourceguid: e95bb143-6932-4b09-b0b7-bfe8db3fa107
+                  value: 1
+                  source: Aura
+                  name: Stasis Field
+                  behavior: attribute
+                  description: |
+                    The area is frozen in time. Each object in the area is restrained and can’t fall until the effect ends. Until the effect ends, creatures in the area who are reduced to 0 Stamina or would die stay alive, and objects in the area that are reduced to 0 Stamina remain undestroyed.
+                  attribute: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+                name: Stasis Field
+                guid: e95bb143-6932-4b09-b0b7-bfe8db3fa107
+                description: |
+                  The area is frozen in time. Each object in the area is restrained and can’t fall until the effect ends. Until the effect ends, creatures in the area who are reduced to 0 Stamina or would die stay alive, and objects in the area that are reduced to 0 Stamina remain undestroyed.
+                implementation: 2
+                objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+              duration: nextturn
+              strainSelection: unstrained
+            - __typeName: ActivatedAbilityAuraBehavior
+              aura:
+                __typeName: Aura
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  guid: 196ba72b-9326-46f2-9e34-c31b39b72b94
+                  sourceguid: e95bb143-6932-4b09-b0b7-bfe8db3fa107
+                  value: 1
+                  source: Aura
+                  name: Stasis Field
+                  behavior: attribute
+                  description: |-
+                    The area is frozen in time. Each object in the area is restrained and can’t fall until the effect ends. Until the effect ends, creatures in the area who are reduced to 0 Stamina or would die stay alive, and objects in the area that are reduced to 0 Stamina remain undestroyed.
+
+                    Any creature or object force moved in the area takes 2 corruption damage for each square of the area they enter. Creatures and objects restrained in the area can be force moved. You are restrained until the effect ends.
+                  attribute: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    persistence: []
+                    modifiers: []
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    strain: []
+                    guid: dd38e079-d3d6-4215-a490-bbff880cd405
+                    repeatTargets: false
+                    abilityType: none
+                    trigger: forcemove
+                    targetType: self
+                    numTargets: "1"
+                    name: Stasis Field
+                    behaviors:
+                    - __typeName: ActivatedAbilityDamageBehavior
+                      roll: "2"
+                      damageType: corruption
+                      chatMessage: Stasis Field - Forced Movement damage
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                  description: |-
+                    The area is frozen in time. Each object in the area is restrained and can’t fall until the effect ends. Until the effect ends, creatures in the area who are reduced to 0 Stamina or would die stay alive, and objects in the area that are reduced to 0 Stamina remain undestroyed.
+
+                    Any creature or object force moved in the area takes 2 corruption damage for each square of the area they enter. Creatures and objects restrained in the area can be force moved. You are restrained until the effect ends.
+                  source: Aura
+                  behavior: trigger
+                  guid: 891bc1bd-0a5d-488e-9535-77d2fcbcad99
+                  name: Stasis Field
+                  sourceguid: e95bb143-6932-4b09-b0b7-bfe8db3fa107
+                name: Stasis Field
+                guid: e95bb143-6932-4b09-b0b7-bfe8db3fa107
+                description: |-
+                  The area is frozen in time. Each object in the area is restrained and can’t fall until the effect ends. Until the effect ends, creatures in the area who are reduced to 0 Stamina or would die stay alive, and objects in the area that are reduced to 0 Stamina remain undestroyed.
+
+                  Any creature or object force moved in the area takes 2 corruption damage for each square of the area they enter. Creatures and objects restrained in the area can be force moved. You are restrained until the effect ends.
+                implementation: 2
+                objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+              guid: 4ac3b328-61dd-45de-9163-6703e0e5603b
+              duration: nextturn
+              strainSelection: strained
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "p < weak , #the target is slowed until the effect ends"
+              - "p < average, #the target’s speed is 0 until the effect ends"
+              - "p < strong, #the target is restrained until the effect ends"
+              roll: 2d10 + Presence
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 1
+              filterTarget: not Cast.PassesPotency(target, "P", "weak")	
+              duration: 1
+              ongoingEffectCustom: false
+              ongoingEffect: 12bc7f58-0ae8-4b9e-9018-74d28b083992
+              durationUntilEndOfTurn: false
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 2
+              filterTarget: not Cast.PassesPotency(target, "P", "average")	
+              duration: 1
+              ongoingEffectCustom: false
+              ongoingEffect: a41ad86c-64ff-4421-bc55-7e5325dce78a
+              guid: d99b01a6-dc84-4b3c-b599-9e3ebdfbe0a3
+              durationUntilEndOfTurn: false
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 3
+              filterTarget: not Cast.PassesPotency(target, "P", "strong")	
+              duration: 1
+              ongoingEffectCustom: false
+              ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+              guid: 933bc792-5bc0-4fbe-b097-7bae94e9031c
+              durationUntilEndOfTurn: false
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              durationUntilEndOfTurn: false
+              duration: 1
+              strainSelection: strained
+              ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+              ongoingEffectCustom: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Keep everything as it was.
+            categorization: Heroic Ability
+            preDescription: |-
+              The area is frozen in time until the start of your next turn. Each object in the area is restrained and can’t fall until the effect ends. Until the effect ends, creatures in the area who are reduced to 0 Stamina or would die stay alive, and objects in the area that are reduced to 0 Stamina remain undestroyed.
+
+              Make a power roll that targets each enemy in the area
+            abilityType: none
+            range: 1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 196
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain:
+              enabled: true
+            guid: abe62baf-cdfe-4443-82ca-f08f9aaa2f26
+            numTargets: "1"
+            keywords:
+              Ranged: true
+              Area: true
+              Chronopathy: true
+              Psionic: true
+            domains:
+              class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            implementation: 3
+            persistence: []
+            name: Stasis Field
+            targetType: self
+            description: "**Strained:** Any creature or object force moved in the area takes 2 corruption damage for each square of the area they enter. Creatures and objects restrained in the area can be force moved. You are restrained until the effect ends."
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Chronopathy Class Feature
+        guid: f75dc201-a31e-4202-9348-3ffba270a128
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+        description: ""
+        name: Stasis Field
+        implementation: 3
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      guid: 746e9bee-3324-4a94-ae9f-d5bda3b87402
+      source: Chronopathy Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      guid: c6038902-aba7-4b23-bc2b-5fd89e59e9d3
+      modifiers: []
+      name: Ease the Hours
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      description: 'You can increase the number of rounds in a montage test by 1 if the test would end before the heroes hit the success limit. '
+      source: Chronopathy Class Feature
+      implementation: 4
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 78c412ca-208a-42a6-8133-39605453de27
+          description: ""
+          source: Chronopathy Class Feature
+          name: Applied Chronometrics
+          behavior: activated
+          guid: 5b8cc4e6-6a41-4082-89a1-0b81fc580e0d
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            targetTextOverride: Special
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Chronopathy: true
+              Psionic: true
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Time slows down around you. Your heartbeat is the only gauge of the extra moments you’ve gained.
+            sourceReference:
+              __typeName: SourceReference
+              page: 207
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modifiers: []
+            abilityType: none
+            strain:
+              enabled: true
+            guid: fb4bb1cd-caed-4d79-9aa4-3e2f0aa6f212
+            iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            domains:
+              class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            persistence: []
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - You target two creatures, one of which can be you.
+              - You target three creatures, one of which can be you.
+              - You target four creatures, one of which can be you.
+              roll: 2d10 + Presence
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "10"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 4f2ca614-f7b1-4736-928e-4390fb2649e4
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 3e9e7310-8af6-4dc7-ba57-009c07031fae
+                  durationUntilEndOfTurn: false
+                  duration: 1
+                  ongoingEffectCustom: false
+                - __typeName: ActivatedAbilityPurgeEffectsBehavior
+                  conditions:
+                  - c27e0b16-291a-45ad-8406-973e26576a44
+                  mode: conditions
+                numTargets: "<<targetcount>>	"
+                name: Invoked Ability
+                selfTarget: true
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                targetcount: "<<cast.tier>> +1"
+              promptText: 'Select Targets for Applied Chronometric '
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 0f7c3b13-b6ce-40fe-9964-6235e7862a89
+              strainSelection: strained
+              duration: eoe
+              ongoingEffectCustom: 0f7c3b13-b6ce-40fe-9964-6235e7862a89
+            name: Applied Chronometrics
+            categorization: Heroic Ability
+            description: |-
+              Until the start of your next turn, each target gains a +5 bonus to speed, they can’t be made dazed, and they can use an additional maneuver on their turn. If a target is already dazed, that condition ends for them.
+
+              *Strained:* Your speed is halved until the end of the encounter.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Chronopathy Class Feature
+        guid: 78c412ca-208a-42a6-8133-39605453de27
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+        description: ""
+        name: Applied Chronometrics
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 248a4a1f-914c-4420-9841-50955bf8e0f4
+          description: ""
+          source: Chronopathy Class Feature
+          name: Slow
+          behavior: activated
+          guid: dedd461e-1d45-4680-bbb0-2b13b6ae7d7a
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Chronopathy: true
+              Psionic: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - The target’s speed is halved (save ends); or if P < weak the target is slowed (save ends)
+              - The target is slowed (save ends); or if P < average the target's speed is 0 (saved ends)
+              - The target is slowed (save ends); or if P < strong the target's speed is 0 (saved ends)
+              roll: 2d10 + Presence
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 1
+              filterTarget: not Cast.PassesPotency(target, "P", "Weak")
+              duration: save_ends
+              ongoingEffectCustom: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+              ongoingEffect: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 1
+              filterTarget: not Cast.PassesPotency(target, "P", "Weak")
+              rule: slowed (save ends)
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 2
+              filterTarget: not Cast.PassesPotency(target, "P", "Average")
+              guid: 62016725-67ce-450e-bf1e-99deb4c1ba3f
+              rule: slowed (save ends)
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 2
+              filterTarget: not Cast.PassesPotency(target, "P", "Average")
+              duration: save_ends
+              ongoingEffectCustom: a41ad86c-64ff-4421-bc55-7e5325dce78a
+              ongoingEffect: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              tiersSelected:
+              - 3
+              filterTarget: not Cast.PassesPotency(target, "P", "Strong")
+              guid: ddaabafe-427d-4410-804a-75fc58876dce
+              rule: slowed (save ends)
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 2
+              filterTarget: not Cast.PassesPotency(target, "P", "Strong")
+              duration: save_ends
+              ongoingEffectCustom: a41ad86c-64ff-4421-bc55-7e5325dce78a
+              ongoingEffect: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+              guid: f5087b2f-53c8-4118-b9d2-49e955830c46
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: d07662b1-4bd0-4485-a1f3-543c71dd464c
+              strainSelection: strained
+              modifier:
+                __typeName: CharacterModifier
+                sourceguid: d07662b1-4bd0-4485-a1f3-543c71dd464c
+                description: The potency of this ability increases by 1 and you take 1d6 damage. At the start of each combat round while any target is affected by this ability, you take 1d6 damage. You can end the effect on all affected targets at any time (no action required).
+                domains: []
+                guid: 7246951e-cf06-49ed-b424-6c1c301b1a3f
+                adjustments: []
+                keywords: []
+                hasCustomTrigger: false
+                customTrigger:
+                  __typeName: TriggeredAbility
+                  persistence: []
+                  modifiers: []
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  strain: []
+                  guid: b9a77bae-241c-4a1f-9f4a-d5216f7c2d5d
+                  repeatTargets: false
+                  abilityType: none
+                  trigger: d20roll
+                  targetType: self
+                  numTargets: "1"
+                  name: New Ability
+                  behaviors:
+                  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                    applyto: caster
+                    ongoingEffect: e33bca30-c928-4634-9a08-46206bdf60af
+                    duration: eoe
+                    ongoingEffectCustom: e33bca30-c928-4634-9a08-46206bdf60af
+                  description: ""
+                  range: 1
+                  iconid: ui-icons/skills/1.png
+                activationCondition: true
+                name: Strained Slow
+                rollType: ability_power_roll
+                potencymod: "1"
+                behavior: power
+                modtype: none
+            - __typeName: ActivatedAbilityDamageBehavior
+              applyto: caster
+              roll: 1d6
+              strainSelection: strained
+              titleText: Strained Slow
+              chatMessage: Strained Slow
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              duration: eoe
+              strainSelection: strained
+              ongoingEffect: e33bca30-c928-4634-9a08-46206bdf60af
+              ongoingEffectCustom: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Perhaps they wonder why everyone else is moving so quickly?
+            sourceReference:
+              __typeName: SourceReference
+              page: 207
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "10"
+            persistence: []
+            modifiers: []
+            strain:
+              enabled: true
+            guid: 1e24ecf4-b1df-4027-9199-992add7cc7ec
+            abilityType: none
+            categorization: Heroic Ability
+            domains:
+              class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            targetType: target
+            numTargets: "3"
+            name: Slow
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: |-
+              A target can’t use triggered actions while their speed is reduced this way.
+
+              *Strained:* The potency of this ability increases by 1 and you take 1d6 damage. At the start of each combat round while any target is affected by this ability, you take 1d6 damage. You can end the effect on all affected targets at any time (no action required).
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Chronopathy Class Feature
+        guid: 248a4a1f-914c-4420-9841-50955bf8e0f4
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+        description: ""
+        name: Slow
+        implementation: 3
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      guid: 116b90be-1601-4627-b25a-94c41cd03e61
+      description: Choose one of the following abilities.
+      name: 2nd-Level Chronopathy Ability
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      guid: e3fcbff4-e43c-43b7-bd32-8200a178f358
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a29e9b00-e5ff-498b-9578-aaab2c448480
+        forceReroll: true
+        source: Chronopathy Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          keywords: []
+          activationCondition: false
+          name: Again
+          rules: ""
+          rollType: ability_power_roll
+          guid: 484c60a0-82f3-4f04-bc41-513089fa92a9
+          modtype: none
+        behavior: powertabletrigger
+        name: Again
+        type: trigger
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        targetType: anycreature
+        multitarget: all
+        trigger: powerroll
+        rules: Force the target to reroll the power roll and use the new result.
+        description: ""
+        range: 10
+        guid: 0b69cb27-e7f0-42f7-8739-2a6a4cb4707c
+      - __typeName: CharacterModifier
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: a29e9b00-e5ff-498b-9578-aaab2c448480
+        behavior: triggerdisplay
+        source: Chronopathy Class Feature
+        name: Again
+        description: ""
+        guid: acda6004-2e77-4b9b-96bd-46e738d7c0d5
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or one creature
+          effect: You can use this ability after seeing the power roll for the triggering roll. You force the target to reroll the power roll and use the new result.
+          trigger: The target makes an ability power roll.
+          flavor: You step back a split second to see if things play out a little differently.
+          guid: d1627a91-e94f-4ac6-8d87-2915b7ef97d2
+          name: Again
+          keywords:
+            Ranged: true
+            Psionic: true
+      name: Again
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      description: ""
+      source: Chronopathy Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+        class:58b82a67-8b93-468b-99c5-2ac452033071: true
+      guid: 261954bf-a5a3-4074-b8f2-b6f1f8a095e0
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        sourceguid: fdc176a1-2958-4794-aa2d-bdacbd559868
+        description: You gain the following ability.
+        source: Chronopathy Class Feature
+        name: Accelerate
+        behavior: activated
+        guid: 55b5bc5c-983c-435f-b3b1-1f1ae6e9bb82
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: not Enemy
+          repeatTargets: false
+          keywords:
+            Psionic: true
+          targetType: target
+          multipleModes: true
+          display:
+            brightness: 1.34892403738839
+            saturation: 1.12136404854911
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.614944458007813
+              s: 0.548345565795898
+              v: 1.00018072128296
+              a: 1
+          flavor: |
+            To your ally, it seems as though the world has slowed down
+          range: "10"
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          modeList:
+          - text: No Clarity
+            rules: The target shifts {Reason}
+            condition: ""
+          - text: 2 Clarity
+            rules: The target shifts {Reason} and can also use a maneuver.
+            condition: Heroic Resources Available to Spend
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          persistence: []
+          domains:
+            class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: a743fab8-83eb-4462-8b23-e42351260e53
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            promptText: "Accelerate: Choose where to shift"
+            autoTarget: false
+            standardAbilityParams:
+              distance: "<<reason>>"
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            runOnController: true
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: expend
+            modesSelected:
+            - 2
+            quantity: "2"
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Accelerate
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            runOnController: true
+            modesSelected:
+            - 2
+            autoTarget: false
+            abilityType: standard
+            standardAbility: 41a98a35-1ee2-461a-a4b4-3db87bb0699b
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 60881d46-f37f-4fc0-a25a-2f8341e658f7
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          selfTarget: true
+          name: Accelerate
+          guid: 62c954ad-f054-4418-8beb-2c2d91908591
+          description: "Effect: The target immediately shifts up to a number of squares equal to your Reason score. \n\nSpend 2 Clarity: The target can also use a maneuver. "
+          abilityType: none
+          iconid: 0c70dfdf-4b29-436e-9ebb-86b861361382
+      name: Accelerate
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      description: You gain the following ability.
+      source: Chronopathy Class Feature
+      implementation: 3
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th-Level Chronopathy Ability
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: d6fa30ba-7dac-4409-b1d8-7e0d95e8dd31
+          description: You forcibly stuff more moments into a critical point in time, knowing full well you might need to steal some of your own.
+          source: Chronopathy Class Feature
+          name: Acceleration Field
+          behavior: activated
+          guid: 4b300d60-aa6b-4d47-942d-04b17c8eb555
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: Three allies
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Chronopathy: true
+              Psionic: true
+            implementationDetails: ""
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              applyto: caster_and_targets
+              filterTarget: 0 {Tooltip Information}
+              strainSelection: strained
+              tiers:
+              - 4 corruption damage; slowed (save ends)
+              - 6 corruption damage; slowed (save ends)
+              - 10 corruption damage; slowed (save ends)
+              roll: 2d10 + Presence
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 11eb5efb-a849-4ceb-a378-477d809f9405
+                repeatTargets: false
+                abilityType: none
+                categorization: Hidden
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    cannotModifyAction: true
+                    filterAbility: Ability.main action
+                    behavior: modifyability
+                    guid: 6af93fe0-91e5-47de-87a4-468650ef8d26
+                    attributes: []
+                    source: ""
+                    description: ""
+                    name: Modify Attack
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      strain: []
+                      guid: fcb47bac-d5dc-450d-9eaa-c7f216eb9344
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors:
+                      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                        applyto: caster
+                        ongoingEffect: de2a4877-a0e6-432b-93ef-a80e018e702d
+                        duration: end_of_next_turn
+                        ongoingEffectCustom: de2a4877-a0e6-432b-93ef-a80e018e702d
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                numTargets: "1"
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              filterTarget: ""
+              targetingFormula: Friends(Caster, Target)
+              targeting: inherit
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: true
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: enemy
+                targetType: all
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "5"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 1f61bda3-1de7-4459-9cfa-e00754e7064e
+                behaviors:
+                - __typeName: ActivatedAbilityPowerRollBehavior
+                  applyto: caster_and_targets
+                  filterTarget: ""
+                  strainSelection: strained
+                  tiers:
+                  - 4 corruption damage; slowed (save ends)
+                  - 6 corruption damage; slowed (save ends)
+                  - 10 corruption damage; slowed (save ends)
+                  guid: 126a7636-4adb-44cd-ad2b-551137399bb5
+                  roll: 2d10 + Presence
+                iconid: ui-icons/skills/1.png
+                selfTarget: false
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                implementation: 4
+              applyto: caster
+              strainSelection: strained
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You forcibly stuff more moments into a critical point in time, knowing full well you might need to steal some of your own.
+            categorization: Heroic Ability
+            preDescription: |-
+              Each target can use any main action available to them as a free triggered action, but they lose their main action on their next turn. 
+              **Strained:** Make a power roll that targets you and each enemy within distance.
+            targetAllegiance: ally
+            rangeTextOverride: ""
+            persistence: []
+            modifiers: []
+            targetType: target
+            strain:
+              enabled: true
+            guid: 461d299a-c7c9-4241-853b-39c18b79acc4
+            range: "5"
+            sourceReference:
+              __typeName: SourceReference
+              page: 200
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: Acceleration Field
+            numTargets: "3"
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Chronopathy Class Feature
+        guid: d6fa30ba-7dac-4409-b1d8-7e0d95e8dd31
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+        description: You forcibly stuff more moments into a critical point in time, knowing full well you might need to steal some of your own.
+        name: Acceleration Field
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+            class:58b82a67-8b93-468b-99c5-2ac452033071: true
+          sourceguid: 30b6dcc6-40ea-4e9f-88f7-1582023d499b
+          description: You lean on future heroism to assist you in the now
+          source: Chronopathy Class Feature
+          name: Borrow From the Future
+          behavior: activated
+          guid: a3427988-5e8f-4c2a-b509-54ed50e9edfa
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: Each ally in the area
+            repeatTargets: false
+            keywords:
+              Area: true
+              Chronopathy: true
+              Psionic: true
+            implementationDetails: The Codex does not limit the number of Heroic Resource to 6 between the selected targets.
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: targets
+              customAbility:
+                __typeName: ActivatedAbility
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityReplenishBehavior
+                  resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+                  chatMessage: Borrow From the Future
+                  quantity: Mode
+                multipleModes: true
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                modeList:
+                - text: "1"
+                - text: "2"
+                - text: "3"
+                abilityType: none
+                guid: 5da47dd7-22bb-4754-8eab-27d43538c4c9
+                numTargets: "1"
+                channeledResource: none
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                resourceCost: none
+                iconid: ui-icons/skills/1.png
+              promptText: Select number of HR the target should gain
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 0
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You lean on future heroism to assist you in the now
+            categorization: Heroic Ability
+            preDescription: The targets share 6 of their Heroic Resource among themselves, as you determine. A target can’t gain more than 3 of their Heroic Resource this way. After using this ability, you can’t gain any clarity until the end of the next combat round.
+            targetAllegiance: ally
+            rangeTextOverride: ""
+            persistence: []
+            modifiers: []
+            targetType: all
+            strain: []
+            guid: 7f82b694-a6c8-4698-9da3-590176177131
+            range: "2"
+            sourceReference:
+              __typeName: SourceReference
+              page: 200
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+              class:58b82a67-8b93-468b-99c5-2ac452033071: true
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            implementation: 2
+            name: Borrow From the Future
+            numTargets: "1"
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: bc856b32-c3e9-48e2-ade4-0a23eb524891
+        source: Chronopathy Class Feature
+        guid: 30b6dcc6-40ea-4e9f-88f7-1582023d499b
+        domains:
+          class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+          class:58b82a67-8b93-468b-99c5-2ac452033071: true
+        canHavePrerequisites: true
+        classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+        description: You lean on future heroism to assist you in the now
+        name: Borrow From the Future
+        implementation: 2
+      classid: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+      guid: a22e0542-833f-4132-b624-05abff82fc29
+      source: Chronopathy Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:8e407d6b-5351-4e5f-b944-85e69bb64fde: true
+      class:58b82a67-8b93-468b-99c5-2ac452033071: true
+details: "**Chronopathy** abilities allow you to view future and past events, and to manipulate time to aid allies and hinder foes."
+name: Chronopathy
+mtime: 1773534351801
+id: 8e407d6b-5351-4e5f-b944-85e69bb64fde
+primaryClassId: 58b82a67-8b93-468b-99c5-2ac452033071

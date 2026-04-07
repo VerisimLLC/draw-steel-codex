@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "8"
+category: Class Specific
+name: MaximumMinions
+documentation: The maximum number of minions a summoner can summon.
+mtime: 1760385042978
+id: 3a73d8ab-7e92-4e11-83e2-2e6d33056eb7
+ctime: 1760343136885

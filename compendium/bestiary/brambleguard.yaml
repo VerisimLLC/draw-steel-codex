@@ -1,0 +1,367 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: 72f0634e-8d6a-4afc-884b-b9c824746cc8
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 47344274-6499-48c5-a94b-6e0e3cf08c69
+  properties:
+    __typeName: monster
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 59
+    inflictedConditions: []
+    ev: 8
+    max_hitpoints_roll: "59"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 3
+    import:
+      type: mcdm
+      data: |+
+        Brambleguard	Level 2 Platoon Defender
+        Elemental, High Elf	EV 8
+        <b>Stamina</b> 59
+        <b>Speed</b> 4	<b>Size</b> 2 /<b> Stability</b> 3
+        <b>Free Strike</b> 4
+        Might +2	Agility 0	Reason 0	Intuition 0	Presence +2
+        <b>Wall of Roses</b> (Action) %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The brambleguard's speed becomes 0 and they extend themself into a 5 wall until the start of their next turn. Each ally adjacent to the brambleguard at the start of their turn regains 5 Stamina and can apply the Magic keyword to their weapon abilities until the end of their turn.
+
+        <b>Whip Frenzy</b> (Action)%E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 2 burst<b>	Target</b> Each enemy in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage; push 3
+        %E2%9C%B8	<b>17</b>	10 damage; push 3; A<2 bleeding (save ends)
+
+        <b>Thicket and Thorns</b>
+        The brambleguard blocks line of effect for enemies. An enemy that starts their turn adjacent to a brambleguard takes 4 damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8a31eeea-cc9a-4583-9323-c42587ed0797: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8a31eeea-cc9a-4583-9323-c42587ed0797
+        source: Trait
+        seq: 1ec1b01a-2184-49dc-948a-4d7d90ac8573
+        guid: 22e40168-5148-4e19-aad8-ecc37ddc2cc5
+        domains:
+          CharacterFeature:8a31eeea-cc9a-4583-9323-c42587ed0797: true
+        radius: "0.5"
+        behavior: aura
+        description: The brambleguard blocks line of effect for enemies. An enemy that starts their turn adjacent to a brambleguard takes 4 damage.
+        aura:
+          __typeName: Aura
+          blocks_line_of_effect: true
+          guid: fa5e87fd-80e7-4d52-a378-bf4fb8ef5909
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+        name: Thicket and Thorns
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:8a31eeea-cc9a-4583-9323-c42587ed0797: true
+        sourceguid: 8a31eeea-cc9a-4583-9323-c42587ed0797
+        behavior: trigger
+        source: Trait
+        name: Thicket and Thorns
+        description: The brambleguard blocks line of effect for enemies. An enemy that starts their turn adjacent to a brambleguard takes 4 damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: Each enemy who starts their turn adjacent to a brambleguard takes 4 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          whenActive: combat
+          persistence: []
+          abilityType: none
+          trigger: beginturn
+          guid: a98a6411-ded2-4954-b278-dcd7c2863e75
+          name: Thicket and Thorns
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "4"
+            chatMessage: ""
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: c26f792f-2703-42c0-a8e8-3cdad27cf980
+      source: Trait
+      description: The brambleguard blocks line of effect for enemies. An enemy that starts their turn adjacent to a brambleguard takes 4 damage.
+      guid: 8a31eeea-cc9a-4583-9323-c42587ed0797
+      name: Thicket and Thorns
+      implementation: 4
+    role: Platoon Defender
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    opportunityAttack: 4
+    availableTriggers: []
+    keywords:
+      Elemental: true
+      High Elf: true
+    damage_taken: 0
+    savingThrowRatings: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-1-96c5aa09-e05b-40d0-a862-0f4ca7f233a2
+        used: 2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityCreateObjectBehavior
+        randomize: false
+        objectid: 6ff00cb4-0f4c-4052-8920-71a2f96807e3
+      - __typeName: ActivatedAbilityTransformBehavior
+      - __typeName: ActivatedAbilityCreateObjectBehavior
+        applyto: caster
+        objectid: 76477f9b-2d93-4b91-90bc-b05114f6a6f5
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: ea39c563-c263-4b97-a66b-55da4bf11690
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityCreateObjectBehavior
+            objectid: 76477f9b-2d93-4b91-90bc-b05114f6a6f5
+          targetType: emptyspace
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        promptText: The brambleguard extends themselves into a 5 wall. Choose the first square for the wall to extend to.
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: af28842f-3c2b-4ec4-8f66-d1ecddb31b5a
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityCreateObjectBehavior
+            objectid: 76477f9b-2d93-4b91-90bc-b05114f6a6f5
+          targetType: emptyspace
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          range: "2"
+          iconid: ui-icons/skills/1.png
+        promptText: The brambleguard extends themselves into a 5 wall. Choose the next square for the wall to extend to.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: fa388094-505b-446e-ad0c-47e119698e49
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 122
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: emptyspace
+      implementation: 3
+      name: Wall of Roses
+      persistence: []
+      description: The brambleguard's speed becomes 0 and they extend themself into a 5 wall until the start of their next turn. Each ally adjacent to the brambleguard at the start of their turn regains 5 Stamina and can apply the Magic keyword to their weapon abilities until the end of their turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage; push 3
+        - 10 damage; A<2 bleeding (save ends); push 3
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 122
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: cd414b38-1da0-4667-a671-13c898beebe1
+      targetType: all
+      numTargets: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      implementation: 4
+      name: Whip Frenzy
+      displayOrder: 122
+      description: ""
+      abilityType: none
+      iconid: d38cfd57-01a7-4bae-bc92-74689ddc4e92
+    creatureSize: "2"
+    walkingSpeed: 4
+    monster_type: Brambleguard
+    movementSpeeds: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        128ce100-3b30-41cf-a3fd-e17d76c4ade4:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-1-96c5aa09-e05b-40d0-a862-0f4ca7f233a2
+          note: Wall of Roses
+          userid: steam-76561198767161997
+          set: 0/1
+        d4f7a35b-da6d-446a-81f1-2c9813b32725:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-1-96c5aa09-e05b-40d0-a862-0f4ca7f233a2
+          note: Wall of Roses
+          userid: steam-76561198767161997
+          set: "-1/1"
+    initiativeGrouping: b5938675-ae15-437e-a1eb-699580d77ca9
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 19ba5a81-f531-4ab7-8aef-1875d48c2ef1-2053
+    resistances: []
+  tokenType: null
+  bestiaryId: 93541a47-76c4-4c3b-84ed-c54bd40d1b9c
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1738222235594
+description: Brambleguard
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590283331
+mtime: 1775201137032
+hidden: false

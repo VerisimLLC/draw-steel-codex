@@ -1,0 +1,409 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: b3566ac6-9554-4f9c-bed8-cbf443883302
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Abyssal Rift
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9cc348a6-101b-4968-9fd3-7129bfe29688
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        name: Abyssal Rift
+        guid: b1840ad4-ebcf-41f9-af3a-4e226e6404e7
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+        behavior: attribute
+        attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "2"
+          damageType: all
+          apply: Damage Reduction
+        guid: cfb2eac1-0d2c-4752-8095-0dbf89222bd6
+        name: Abyssal Rift
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "-5"
+          damageType: holy
+          apply: Damage Reduction
+        guid: f73f2d09-3c04-4d4f-b31d-9ec367edfca6
+        name: Abyssal Rift
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+      - __typeName: CharacterModifier
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        source: Character Feature
+        value: 0
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        name: Abyssal Rift
+        guid: b10635d9-1fdf-4d1f-9246-82375709bf19
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+        behavior: attribute
+        attribute: movementDifficulty
+      - __typeName: CharacterModifier
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        source: Character Feature
+        value: 0
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        name: Abyssal Rift
+        guid: 8f4a0790-4869-4bb4-a0b8-ab6421acdef6
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+        behavior: attribute
+        attribute: 2ada332c-ff63-45c6-8a33-a8bfcfc74081
+      - __typeName: CharacterModifier
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        source: Character Feature
+        value: 0
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        name: Abyssal Rift
+        guid: ac9c28eb-2220-46dc-9d2a-cca250ff46e9
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+        behavior: attribute
+        attribute: movementMultiplier
+      - __typeName: CharacterModifier
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        source: Character Feature
+        seq: 64bd704b-c61f-460e-ba47-2ea3b565367f
+        aura:
+          __typeName: Aura
+          modifiers: []
+          source: Abyssal Rift Damage
+          movedamage: corruption
+          guid: 6f113c04-c513-43f5-bc5d-7e24da75a51d
+          objectid: 9d1f3ad3-e3e2-4938-bd3f-29fdbd329537
+          applyto: enemies
+          name: Abyssal Rift Damage
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          damage: 1
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        radius: "0"
+        guid: 51463288-41a8-468f-830a-e226fc7e4039
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+        behavior: aura
+        name: Abyssal Rift
+      - __typeName: CharacterModifier
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        source: Character Feature
+        seq: 4990c86f-bf01-4a8e-ae93-8841431409ae
+        aura:
+          __typeName: Aura
+          modifiers: []
+          source: Abyssal Rift Teleport
+          guid: 93d03749-2f99-4601-a616-71ee8fd1cbfb
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+          applyto: friends
+          creatureFilter: ""
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                runOnController: true
+                promptText: Teleport to any unoccupied space in another abyssal rift.
+                standardAbilityParams:
+                  range: "20"
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: d26ef85e-4bf6-4265-9376-5686c8c63058
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: ea8109af-c375-4717-a819-589d861ff1ac
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Demon Portal
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          name: Abyssal Rift Teleport
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        radius: "0"
+        guid: e77c5890-ccb4-492d-ac9a-a5f01b59ab51
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+        behavior: aura
+        name: Abyssal Rift
+      - __typeName: CharacterModifier
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        source: Character Feature
+        seq: 9c89eddf-fe0e-42d3-b1f4-4d6261428db8
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          modifiers:
+          - __typeName: CharacterModifier
+            filterCondition: target.Proficient(Magic) or target.Proficient(Psionics)
+            sourceguid: b737d11b-44d5-470a-a59f-5d00c178a041
+            description: ""
+            source: Destabilize Test
+            name: Destabilize Test
+            behavior: activated
+            guid: 5e7acdfa-516c-46b7-9462-0d5e2dd1a770
+            activatedAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetFilter: Target.name = "Abyssal Rift"
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityPowerRollBehavior
+                roll: 2d10 + Reason or Intuition
+                skillid: 57101165-410a-4734-98ee-d4e5b656d3df
+                isTest: true
+                resistanceRoll: false
+                tiers:
+                - The rift remains open and regains 5 Stamina
+                - The rift remains open.
+                - The rift closes.
+              - __typeName: ActivatedAbilityHealBehavior
+                tiersSelected:
+                - 1
+                roll: "5"
+              - __typeName: ActivatedAbilityDestroyBehavior
+                tiersSelected:
+                - 3
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Ability
+              range: 1
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: ad727b52-6a79-4014-b8fc-26f82496fdab
+              targetType: target
+              domains: []
+              actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+              iconid: b3566ac6-9554-4f9c-bed8-cbf443883302
+              name: Destabilize Test
+              numTargets: "1"
+              description: A creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+              abilityType: none
+              implementation: 3
+          source: Destabilize Test
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          guid: b737d11b-44d5-470a-a59f-5d00c178a041
+          name: Destabilize Test
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        radius: "1"
+        guid: 1d3c551b-c0bf-4f0e-a313-4c51eb47b2ac
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+        behavior: aura
+        name: Abyssal Rift
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+        source: Character Feature
+        value: 5
+        domains:
+          CharacterFeature:fbbe9cc8-b062-4912-bcff-14b0b8775eb8: true
+        name: Abyssal Rift
+        guid: 8c31b386-4ef8-460a-991f-3309b6eff230
+        description: |-
+          Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+          An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+          Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+        behavior: attribute
+        attribute: creatureSize
+      name: Abyssal Rift
+      guid: fbbe9cc8-b062-4912-bcff-14b0b8775eb8
+      description: |-
+        Any demon can use an abyssal rift as a portal to another abyssal rift in the encounter, moving into any space in one rift and appearing immediately in any unoccupied space in the other rift. A non-demon who enters a rift for the first time in a round or starts their turn there takes corruption damage equal to the level of the highest-level demon on the encounter map. 
+
+        An abyssal rift is an immovable object that has 25 Stamina, damage immunity 2, and holy weakness 5. The rift closes when there are no demons remaining on the encounter map. 
+
+        Additionally, a creature who has the Magic or Psionics skill can make a Reason test or Intuition test as a maneuver while adjacent to a rift to destabilize and close it.
+      source: Character Feature
+    max_hitpoints: 25
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_type: Abyssal Rift
+    damage_taken: 0
+    walkingSpeed: 5
+    levelChoices: []
+    resources: []
+    skillRatings: []
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: c0956041-1c43-40ed-b6f6-848f9073d272
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1760519385558
+description: null
+parentFolder: 082f6b74-a48e-4d83-bcdb-725c4c2f097e
+artist: null
+ord: 6
+ctime: 1760519385558
+mtime: 1775167538113
+hidden: false

@@ -1,0 +1,27 @@
+__typeName: ActivatedAbility
+id: 6fa3f578-a149-4bd1-b06e-80c4b24239f4
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 4 + Charges
+targetType: emptyspace
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 4f1f5a49-578b-4beb-84af-ea1c525f3177
+repeatTargets: false
+ctime: 1754018120705
+numTargets: "1"
+mtime: 1754024400821
+channelDescription: Spend insight to teleport further
+name: In All This Confusion
+description: ""
+channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+abilityType: none
+iconid: ui-icons/skills/1.png

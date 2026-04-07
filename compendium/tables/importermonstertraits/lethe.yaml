@@ -1,0 +1,39 @@
+__typeName: CharacterFeature
+testCases:
+- text: While the bendrak is winded, they gain an edge on strikes, and any strike made against them gains an edge.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+  source: Monster
+  modtype: edge
+  keywords:
+    Attack: true
+  activationCondition: true
+  guid: 7d597fb7-e5d7-4b09-8970-f39bab3a58f1
+  rollType: ability_power_roll
+  filterCondition: hitpoints <= Maximum Hitpoints/2
+  description: ""
+  behavior: power
+  name: Lethe
+- __typeName: CharacterModifier
+  sourceguid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+  source: Monster
+  modtype: edge
+  keywords:
+    Attack: true
+  activationCondition: true
+  guid: 5291759e-34d8-4db9-a54b-965c5ac91163
+  rollType: enemy_ability_power_roll
+  filterCondition: Hitpoints <= Maximum Hitpoints/2
+  description: ""
+  behavior: power
+  name: Lethe
+source: Monster
+guid: 022981b5-2542-4265-84ad-7884e6d4b2fc
+importMatch: While <<monster>> is winded, they gain an edge on strikes, and any strike made against them gains an edge.
+ctime: 1728880087734
+name: Lethe
+id: 983d91d0-9d70-4a7c-9cc3-2f0148f0e8ab
+description: ""
+mtime: 1773969943229
+implementation: 3

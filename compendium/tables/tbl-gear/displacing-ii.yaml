@@ -1,0 +1,73 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: "Displacing II: When you use the implement's Displacing I enhancement, you can teleport the creature up to 4 squares. Additionally, the creature takes a bane on their next power roll made before the end of their next turn."
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: faf8597a-ef22-4f5a-9c0e-de070dd3668e
+    displayCondition: ability.doesdamage
+    source: Item
+    addText: // // the target takes a bane on their next power roll; You teleport the target up to 4 squares
+    modtype: none
+    behavior: power
+    keywords:
+      Magic: true
+      Psionic: true
+    hasCustomTrigger: false
+    customTrigger:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: efbae179-50c0-498f-815c-5caf0b45faf4
+      repeatTargets: false
+      trigger: d20roll
+      castImmediately: true
+      behaviors:
+      - __typeName: ActivatedAbilityCustomTriggerBehavior
+        value: Cast.Tier = 3
+        triggerName: DisplacingII
+      numTargets: "1"
+      name: DisplacingII
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    matchAnyKeywords: true
+    rollType: ability_power_roll
+    activationCondition: ability.doesdamage
+    description: "Displacing II: When you use the implement's Displacing I enhancement, you can teleport the creature up to 4 squares. Additionally, the creature takes a bane on their next power roll made before the end of their next turn."
+    guid: 7aec6e55-05d3-4255-9ca0-6bec40d7e4bb
+    name: Displacing II
+  source: Item
+  name: Displacing II
+  addText: Add Magical Property
+  itemAttached: true
+  guid: faf8597a-ef22-4f5a-9c0e-de070dd3668e
+itemPrerequisite: The wing of a pixie
+imbuePrereq: 75ac6a82-df8a-4129-92bf-3b30c4577a5f
+projectSource: Khelt
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+description: "Displacing II: When you use the implement's Displacing I enhancement, you can teleport the creature up to 4 squares. Additionally, the creature takes a bane on their next power roll made before the end of their next turn."
+type: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+ctime: 1770699205313
+projectGoal: "150"
+implementation: 4
+id: 280c394a-8350-40fa-9fc3-d1496ea6a666
+name: Displacing II
+imbueTargetType: implement
+mtime: 1773927561564
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 7d1246e9-df75-44d6-b7cf-55021351e2ba

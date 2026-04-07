@@ -1,0 +1,103 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: 5b9a626b-ed93-4779-9b9d-e60d27eebc00
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Slip
+  range: 1
+  description: |-
+    During this turn, Rhodar can move through creatures and objects at his usual speed, but can’t end his turn inside a creature or object.
+    Additionally, he doesn’t take damage from being force moved.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: d910ac5f-2270-4414-bdac-31a78d45ce3d
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 49769053-fc8d-45d8-833c-fe4e8f8d9386
+  castImmediately: true
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: Rhodar takes an additional main action on his turn. He can use this feature even if he is dazed.
+  abilityType: none
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: d2d43730-6bed-4792-ae36-eaf74030bc51
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Suffocating Dark
+  range: 1
+  description: Rhodar throws one of his spears into an unoccupied space within 10 squares, or chooses one of his spears that he has already thrown. Until that spear returns to him or he uses this feature again, the spear emanates magical darkness in a 5 aura. Rhodar can see through this darkness, and any enemy is suffocating while in the darkness.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: true
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: I < 5 dazed (EoT)
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "20"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: bedcd1ce-3590-4cf4-907c-4e2bc8005a95
+  numTargets: "2"
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: The Mirror Lies
+  targetType: target
+  description: Rhodar chooses two creatures or objects within 20 squares of him. The targets immediately teleport to swap places. Any enemy teleported by this feature who has I<5 is dazed until the end of their next turn.
+  abilityType: none
+  iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+mtime: 1762961111148
+name: Count Rodar von Glauer
+traits: []
+attacks: []
+id: 1601b1b9-52b5-41d6-932e-32c789d838ca
+ctime: 1758524972981

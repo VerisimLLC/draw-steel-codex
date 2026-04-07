@@ -1,0 +1,86 @@
+__typeName: CharacterComplication
+drawback: You have holy weakness 1. Each time you use Corrupt Spirit, your holy weakness increases by 1, to a maximum equal to your recovery value. Whenever you take holy damage, this weakness resets to 1.
+mtime: 1764598538946
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 0db8a6c8-a6ae-4607-9641-2cc5cf8e47b8
+      behavior: resistance
+      source: Complication
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-1"
+        stacks: true
+        damageType: holy
+        apply: Damage Reduction
+      description: ""
+      name: Corrupted Mentor
+      guid: 93679831-d86e-4bf3-b79e-c410414fbb34
+    source: Complication
+    canHavePrerequisites: true
+    guid: 0db8a6c8-a6ae-4607-9641-2cc5cf8e47b8
+    name: Corrupted Mentor
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: b85d8217-5cc2-4be3-81c4-fc2a8719f85e
+      guid: 13f7d49d-afab-4521-94bd-e5008e2b2e00
+      source: Feat
+      behavior: activated
+      description: ""
+      name: Corrupted Spirit
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        keywords:
+          Magic: true
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: bdca6af3-ffe3-41e9-b9f5-8cfaf924b6f7
+          duration: 0
+          ongoingEffectCustom: bdca6af3-ffe3-41e9-b9f5-8cfaf924b6f7
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 2f382efa-d9d1-48eb-89a6-a60f74b0079d
+          ongoingEffectCustom: 2f382efa-d9d1-48eb-89a6-a60f74b0079d
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.234597146511078
+            s: 0.894067823886871
+            v: 0.925490200519562
+            a: 1
+        categorization: Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 321f169b-5f10-421c-b165-7d8ede9867da
+        domains: []
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        castImmediately: true
+        iconid: 006e8403-6056-46d1-bd48-db8804433d39
+        numTargets: "1"
+        name: Corrupted Spirit
+        targetType: self
+        description: Until the end of your turn, whenever you use a damage-dealing heroic ability against a single target, you can weaken that target’s life force. The ability deals extra corruption damage equal to your highest characteristic score.
+        abilityType: none
+        implementation: 1
+    source: Feat
+    canHavePrerequisites: true
+    guid: b85d8217-5cc2-4be3-81c4-fc2a8719f85e
+    name: Corrupted Spirit
+    implementation: 3
+name: Corrupted Mentor
+ctime: 1755513215737
+description: Your mentor taught you everything and you trusted them completely— until they went rogue, betraying you or the organization you both belonged to. Their current whereabouts and activities are unknown, though disturbing rumors are heard from time to time. Even worse, as their former pupil, you’re now under suspicion as well.
+id: 73f0f7f2-9735-40c2-87d8-5e80d3eaa626
+benefit: You know the Corrupt Spirit maneuver, taught to you by your mentor. (In retrospect, that probably should have aroused your suspicion.)

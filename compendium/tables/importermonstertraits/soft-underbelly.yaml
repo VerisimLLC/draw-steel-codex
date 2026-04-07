@@ -1,0 +1,22 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d9c4bf41-189c-45f6-9d16-60cb336c5b46
+  source: Monster
+  modtype: double_edge
+  keywords: []
+  activationCondition: Soft Underbelly
+  guid: a5151d58-af31-44df-a186-0733b404df32
+  rollType: enemy_ability_power_roll
+  filterCondition: Ongoing Effect has "prone"
+  description: ""
+  behavior: power
+  name: Soft Underbelly
+source: Monster
+guid: d9c4bf41-189c-45f6-9d16-60cb336c5b46
+importMatch: " A prone creature makes a <<melee>>melee attack against the ankheg, the attack has <<boon>> instead of <<bane>>."
+ctime: 1711782493685
+name: Soft Underbelly
+description: ""
+id: ccd8ad08-d40e-492d-b0e5-6d90e2369d91
+mtime: 1711782493685

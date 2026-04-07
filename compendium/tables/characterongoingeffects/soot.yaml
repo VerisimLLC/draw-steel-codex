@@ -1,0 +1,57 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d79aea06-3ea6-454e-9767-e2fa80e4232d
+  guid: a5940072-bdb7-4632-94ae-9366c58c2f41
+  source: Ongoing Effect
+  behavior: activated
+  description: Each Enemy is Hidden until the start of the Crux of Ash's next turn, you use a maneuver to clear the soot, the crux takes damage, or the crux is destroyed.
+  name: Soot
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: d79aea06-3ea6-454e-9767-e2fa80e4232d
+      mode: effect
+      conditions: []
+      applyto: caster
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 22d6c949-ae4c-41fa-80f6-a7e5bc9fe8b3
+    targetType: self
+    domains: []
+    numTargets: "1"
+    castImmediately: true
+    name: Soot
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    description: 'Use a maneuver to clear the Soot Ongoing Effect. '
+    abilityType: none
+    iconid: f908f22f-4baa-4444-aaed-664f73dfdcc3
+source: Ongoing Effect
+guid: d79aea06-3ea6-454e-9767-e2fa80e4232d
+id: d79aea06-3ea6-454e-9767-e2fa80e4232d
+ctime: 1759349003812
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: -0.00136160850524902
+    v: 0.53098201751709
+    a: 1
+mtime: 1759349003812
+description: Each Enemy is Hidden until the start of the Crux of Ash's next turn, you use a maneuver to clear the soot, the crux takes damage, or the crux is destroyed.
+name: Soot
+iconid: f908f22f-4baa-4444-aaed-664f73dfdcc3

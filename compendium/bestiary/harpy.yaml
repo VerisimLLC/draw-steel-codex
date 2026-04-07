@@ -1,0 +1,169 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0c710b1f-6fb7-40b4-bc0c-9c0eac24c8cd: true
+      modifiers: []
+      name: Keywords
+      description: Humanoid, Monstrosity
+      guid: 0c710b1f-6fb7-40b4-bc0c-9c0eac24c8cd
+      source: Trait
+    role: Controller
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    reach: 5
+    skillRatings: []
+    weight: 4
+    monster_type: Harpy
+    levelChoices: []
+    walkingSpeed: 30
+    resources: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      end:
+        __typeName: CharacterAttribute
+        id: end
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      rsn:
+        baseValue: -1
+        id: rsn
+      prs:
+        baseValue: 1
+        id: prs
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      abilityType: none
+      guid: 718299bf-8306-46d8-875e-f2e73382ee4b
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      categorization: Signature Ability
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 5 damage; if the target's AGL defense is 1 or lower, they're automatically grabbed
+        - 8 damage; if the target's AGL defense is 3 or lower, they're automatically grabbed
+        roll: 2d6 + Might
+      iconid: ui-icons/skills/1.png
+      name: Talons
+      targetType: target
+      description: ""
+      range: 5
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - if target's PRS defenses is 0 or lower, suffer effect
+        - if target's PRS defenses is 1 or lower, suffer effect
+        - if target's PRS defenses is 5 or lower, suffer effect
+        roll: 2d6 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 50
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bf84287c-4713-43ee-8871-eff24015b2bd
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Alluring Song
+      numTargets: "1"
+      description: The target moves their full speed toward the harpy, ignoring any danger. Their speed then becomes 0 until the start of the harpy's next turn.
+      abilityType: none
+      implementation: 3
+    max_hitpoints: 20
+    movementSpeeds:
+      fly: 30
+    fmr: 0
+    opportunityAttack: "5"
+    damage_taken: 0
+    creatureSize: Medium
+  tokenType: null
+  bestiaryId: b1d92a2f-cf8c-46b4-bbcf-d9bcabe45a78
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: 2
+  createdTimestamp: 1711734129718
+description: Harpy
+parentFolder: 79a93387-4cb0-465f-9085-31c8eec6e3f7
+artist: null
+ord: 9
+ctime: 1741590297037
+mtime: 1775201137032
+hidden: false

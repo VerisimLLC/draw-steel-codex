@@ -1,0 +1,408 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: ab0cea30-a048-4bd4-9c9d-45774c188582
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.161762
+    portraitOffset:
+      x: -0.04515205
+      y: -0.09765514
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise:
+    portraitId: 456ef4b7-ef3d-43b3-940a-7b872a59c45e
+    offtokenPortraitId: null
+    portraitFrameId: 7eee10e2-744d-4831-9edf-734c35710f2d
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.6647044
+    portraitOffset:
+      x: 0.01562584
+      y: -0.05200437
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8838d416-f5f6-4408-ab14-a56fa8fb17cf
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries:
+        6b712acd-e8e3-4a56-b258-8a3595f08e22:
+          refreshid: ""
+          note: Net on Fire
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0
+    max_hitpoints: 15
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Kobold: true
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      inu:
+        baseValue: 0
+        id: inu
+      pre:
+        __typeName: CharacterAttribute
+        id: pre
+      mgt:
+        baseValue: 0
+        id: mgt
+      agl:
+        baseValue: 2
+        id: agl
+      rsn:
+        baseValue: 0
+        id: rsn
+      rea:
+        baseValue: 0
+        id: rea
+      prs:
+        baseValue: 1
+        id: prs
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      agi:
+        __typeName: CharacterAttribute
+        id: agi
+      end:
+        __typeName: CharacterAttribute
+        id: end
+    weight: 3
+    monster_type: Kobold Venator
+    levelChoices: []
+    traitNames: []
+    ongoingEffects: []
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Kobold Venator    Level 1 Horde Ambusher
+        Humanoid, Kobold    EV 3
+        <b>Stamina</b> 15
+        <b>Speed </b>5    <b>Size</b> 1S /<b> Stability</b> 0
+            <b>Free Strike</b> 2
+        Might 0    Agility +2    Reason 0    Intuition 0    Presence +1
+        <b>Dolobra & Net</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> 1 creature or object
+        %E2%9C%A6    <b>%E2%89%A411</b>    4 damage
+        %E2%98%85    <b>12%E2%80%9316</b>    6 damage; M<1 restrained (save ends)
+        %E2%9C%B8    <b>17</b>    7 damage; M<2 restrained (save ends)
+        <b>3 Malice Then We Light the Net on Fire!                                       </b>Eachtarget restrained by this ability takes 2 fire damage at the start of each of their turns until the condition ends.
+
+        <b>Lost in the Crowd</b>
+        If the venator is adjacent to an ally that is not hiding, they can use the hide maneuver, even if observed.
+
+        <b>Not What I Seem</b>
+        The venator begins the encounter disguised as a minion. The venator has a double edge on their first action of the encounter, when they reveal themselves.
+
+        <b>Shield? Shield!</b>
+        The venator has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3daa319b-b99d-4184-a364-e8a54ecba3e1: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3daa319b-b99d-4184-a364-e8a54ecba3e1
+        modifyDescription: "**Lost in the Crowd:** Since the Venator is adjacent to an ally who is not hidden, they may hide as though they had concealment, even if observed."
+        source: Trait
+        filterAbility: ability.name = "Hide" and CountNearbyFriends(1, "~hidden") > 0
+        behavior: modifyability
+        domains:
+          CharacterFeature:3daa319b-b99d-4184-a364-e8a54ecba3e1: true
+        attributes: []
+        guid: 56abd06e-18c4-492b-8897-08f893b46ea9
+        description: |-
+          While the venator is adjacent to any ally who is not hiding, the 
+          venator can attempt to hide as if they had concealment, even if 
+          observed.
+        name: Lost in the Crowd
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: fd6ba8dd-8f61-47c5-831d-65885617fef9
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          targetType: self
+          abilityType: none
+          name: New Ability
+          behaviors: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Trait
+      description: |-
+        While the venator is adjacent to any ally who is not hiding, the 
+        venator can attempt to hide as if they had concealment, even if 
+        observed.
+      guid: 3daa319b-b99d-4184-a364-e8a54ecba3e1
+      name: Lost in the Crowd
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2508becf-f7ee-4eb1-9ec9-7c6b1624b25e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:2508becf-f7ee-4eb1-9ec9-7c6b1624b25e: true
+        sourceguid: 2508becf-f7ee-4eb1-9ec9-7c6b1624b25e
+        behavior: activated
+        source: Trait
+        name: Not What I Seem
+        guid: cb9c9db1-c5cf-437a-8069-dcef954288ac
+        description: The venator begins the encounter disguised as a minion. The venator has a double edge on their first action of the encounter, when they reveal themselves.
+        activatedAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: target.minion
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDisguiseBehavior
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: a36cadba-7069-4982-a542-35bda34b8811
+            ongoingEffectCustom: a36cadba-7069-4982-a542-35bda34b8811
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.793749570846558
+              s: 0.497460603713989
+              v: 1.00306558609009
+              a: 1
+          range: "100"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 018c82db-fe2c-4740-aa75-26bab0b13cb3
+          domains:
+            CharacterFeature:2508becf-f7ee-4eb1-9ec9-7c6b1624b25e: true
+          iconid: a1f8b8ab-a695-4b99-af22-02986221aec6
+          targetType: target
+          name: Not What I Seem
+          numTargets: "1"
+          description: Choose a minion to disguise as. You will be disguised as that minion until your first main action of the encounter.
+          abilityType: none
+          implementation: 3
+      source: Trait
+      description: The venator begins the encounter disguised as a minion. The venator has a double edge on their first action of the encounter, when they reveal themselves.
+      guid: 2508becf-f7ee-4eb1-9ec9-7c6b1624b25e
+      name: Not What I Seem
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:dd4cc258-36a4-4028-b3b9-f004486b0ff5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        iconColor: "#ffffffff"
+        behavior: icon
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+        name: Shield? Shield!
+        description: The venator has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        value: "1"
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+        description: The venator has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The venator has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The venator has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+      source: Trait
+      description: The venator has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+      guid: dd4cc258-36a4-4028-b3b9-f004486b0ff5
+      name: Shield? Shield!
+      implementation: 3
+    role: Horde Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    damage_taken: 0
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: f8023195-5459-487c-8089-2ff0e374058b-230
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+    ev: 3
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        16166016-c8cb-46f1-b210-64e642366b33:
+          set: 1/1
+          note: Dolobra & Net
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          abilityid: 6e03c2be-f1e7-4b67-8e8a-eaad9c59f939
+        d9dcb96c-8607-4dbc-a62b-f8c41ce9d276:
+          set: 1/1
+          note: Dolobra & Net
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          abilityid: 6e03c2be-f1e7-4b67-8e8a-eaad9c59f939
+        b136e656-636d-4cfa-bba3-7ffd86452915:
+          note: Dolobra & Net
+          abilityid: 6e03c2be-f1e7-4b67-8e8a-eaad9c59f939
+          refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 6e03c2be-f1e7-4b67-8e8a-eaad9c59f939
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Dolabra & Net
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage; M<1 restrained (save ends)
+        - 7 damage; M<2 restrained (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: ed50d239-8351-4aad-9397-07b0173085b2
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: ed50d239-8351-4aad-9397-07b0173085b2
+          resourceCostType: cost
+          domains: []
+          guid: e4c3acac-11c7-42a3-b223-58dee5c4af89
+          replaceText: Restrained with net on fire
+          keywords: []
+          activationCondition: false
+          behavior: power
+          resourceCostAmount: "3"
+          rollType: ability_power_roll
+          name: Net on Fire
+          description: The net is set on fire, creatures that are restrained take 2 fire damage at the start of each of their turns.
+          modtype: none
+          replacePattern: Restrained
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    movementSpeeds: []
+    fmr: 0
+    walkingSpeed: 5
+    creatureSize: 1S
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: fa54c255-96cc-4c57-bbee-7d4aaee8227f
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1709449615180
+description: Kobold Venator
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590331130
+mtime: 1775201137032
+hidden: false

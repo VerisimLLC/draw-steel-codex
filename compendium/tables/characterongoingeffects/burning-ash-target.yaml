@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 082efe38-ad68-4570-9f4d-f643f9446345
+id: 082efe38-ad68-4570-9f4d-f643f9446345
+ctime: 1772707666546
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+custom: true
+name: Burning Ash Target
+mtime: 1772707666546
+description: This should be cleared. It is only used whilst resolving the ability. If this is still on a target it is a bug.
+endTrigger: beginturn
+iconid: ui-icons/skills/1.png

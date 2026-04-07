@@ -1,0 +1,642 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 205d6241-1f3c-4deb-aee3-789b100fba76
+    offtokenPortraitId: ac15d9d8-0943-4f09-8050-c323a1c97008
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3940681
+    portraitOffset:
+      x: -0.02006245
+      y: -0.1563273
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions:
+    - x: -0.1323547
+      y: 0.3134448
+    - x: 0.3103254
+      y: 0.1367177
+    - x: 0.0169756
+      y: -0.182604
+    - x: 0.006482152
+      y: 0.08534515
+    - x: -0.3013583
+      y: 0.1291616
+    - x: 0.2634579
+      y: -0.1109835
+    - x: 0.1238798
+      y: 0.304261
+    - x: -0.2286432
+      y: -0.1086904
+    saddles: 8
+    saddleSize: 1
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy:
+    90d74307-ae51-4f04-8a37-db4a299b7642:
+      timestamp: 1718210994443
+      saddle: 1
+    d2df54a4-747e-474c-8d6a-954fdcf98950:
+      timestamp: 1741495715200
+      saddle: 1
+    f53f1120-0849-4507-b76e-c4af77f0e2ab:
+      timestamp: 1718211002279
+      saddle: 0
+  updateid: 9283634a-fb52-473d-9edd-a8a70c8f41ca
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    keywords:
+      Animal: true
+      Goblin: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -3
+        id: prs
+      rea:
+        baseValue: -4
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    attackNames:
+    - "7"
+    creatureSize: "3"
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        c975a751-6b47-45e9-abd8-a957259beaac:
+          refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-11
+          note: "Used triggered ability: Skitter"
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        2d908e97-d7db-486f-9189-fc1b98ccdf59:
+          refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-12
+          note: "Used triggered ability: Skitter"
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    levelChoices: []
+    pr: 2
+    traitNames: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        927da082-0e54-4ddb-b6c1-4490cd01cc3c:
+          note: 2 damage from Censor's Melee Free Strike
+          disposition: bad
+          attackerid: a9490474-f132-4564-ba77-6498c8169f1e
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 58
+        32aaaf38-8aa0-4069-896f-f776977da303:
+          disposition: good
+          note: 5 Healing
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 60
+    minion: false
+    stability: 2
+    import:
+      override: true
+      data: |+
+        War Spider	Level 1 Elite Mount
+        Animal, Goblin	EV 12
+        <b>Stamina</b> 60
+        <b>Speed</b> 7 (climb)	<b>Size</b> 3 / <b>Stability</b> 2
+        <b>Free Strike</b> 4
+        Might +2	Agility +1	Reason -4	Intuition +0	Presence -3
+        <b>Bite</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	7 poison damage
+        %E2%98%85	12%E2%80%9316	11 poison damage
+        %E2%9C%B8	17+	14 poison damage; M<2 weakened (save ends)
+        <b>2 MaliceM<3</b> weakened (save ends).
+
+        <b>Leg Blade</b> (Action) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	6 damage
+        %E2%98%85	12%E2%80%9316	9 damage
+        %E2%9C%B8	17+	12 damage
+
+        <b>Trample</b> (Action) %E2%97%86 5 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The spider shifts up to their speed and makes a Leg Blade strike against each creature who comes within 1 of the spider during the move. The spider makes one power roll against all targets.
+
+        <b>Web</b> (Maneuver)
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 3 cube within 1	<b>Target</b> All creatures in the cube
+        %E2%9C%A6	%E2%89%A411	A<0 restrained (save ends)
+        %E2%98%85	12%E2%80%9316	A<1 restrained (save ends)
+        %E2%9C%B8	17+	A<2 restrained (save ends)
+        <b>Distance</b> The affected area is considered difficult terrain for enemies.
+
+        <b>Skitter</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Trigger</b> The spider or an ally riding the spider take damage.
+        <b>Effect</b> The spider halves the damage, and then shifts 2 squares after the triggering effect resolves.
+
+        <b>Ride Launcher</b>
+        An ally who leaps off the back of the spider can jump up to 6 squares without a test, and takes no damage if they fall during the jump. After the jump, the first melee strike an ally makes on the same turn gains an edge.
+
+        <b>Wide Back</b>
+        Two of the spider's size 1 allies can occupy the same space while riding the spider.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d5b476d1-467b-45d7-8e95-ef079b2bb390: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:d5b476d1-467b-45d7-8e95-ef079b2bb390: true
+        sourceguid: d5b476d1-467b-45d7-8e95-ef079b2bb390
+        behavior: modrider
+        source: Trait
+        feature:
+          __typeName: CharacterFeature
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: bf2152ab-d456-4319-a57b-2cf4f0c89ee2
+            source: Mount
+            name: Mount Riders
+            behavior: activated
+            description: Modify the riders of a mount
+            guid: 8cb20b39-6953-464e-b7b3-e35331a26738
+            activatedAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              actionResourceId: none
+              guid: 8032bc95-2320-4b86-9391-ad8e86d3d40b
+              repeatTargets: false
+              abilityType: none
+              domains: []
+              behaviors:
+              - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                movementType: teleport
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                applyto: caster
+                ongoingEffect: 8e8520b4-cf41-42b4-8197-2e4fa038c5f7
+                duration: 0
+                ongoingEffectCustom: false
+              targetType: emptyspace
+              name: Launch!
+              categorization: Signature Ability
+              description: ""
+              range: "6"
+              iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+          name: Mount Riders
+          description: Modify the riders of a mount
+          guid: bf2152ab-d456-4319-a57b-2cf4f0c89ee2
+          source: Mount
+          implementation: 3
+        guid: 103f4c19-f1f8-4441-a3dc-5c8a33e571a6
+        name: Ride Launcher
+        description: An ally who leaps off the back of the spider can jump up to 6 squares without a test, and takes no damage if they fall during the jump. After the jump, the first melee strike an ally makes on the same turn gains an edge.
+      source: Trait
+      description: An ally who leaps off the back of the spider can jump up to 6 squares without a test, and takes no damage if they fall during the jump. After the jump, the first melee strike an ally makes on the same turn gains an edge.
+      guid: d5b476d1-467b-45d7-8e95-ef079b2bb390
+      name: Ride Launcher
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0ffb1d22-9562-4812-b49f-ed0432216040: true
+      modifiers: []
+      name: Wide Back
+      description: Two of the spider's size 1 allies can occupy the same space while riding the spider.
+      guid: 0ffb1d22-9562-4812-b49f-ed0432216040
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1ed24333-9f3e-4198-9adf-72a412f08427: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1ed24333-9f3e-4198-9adf-72a412f08427: true
+        sourceguid: 1ed24333-9f3e-4198-9adf-72a412f08427
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Skitter
+        description: ""
+        guid: 8a004382-577e-4439-a10e-7c4a08ebb51f
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: The spider halves the damage, and then shifts 2 squares after the triggering effect resolves.
+          trigger: The spider or an ally riding the spider take damage.
+          name: Skitter
+          guid: 6876e598-dee2-493d-9743-91a9efcf65bb
+          distance: Self
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 1ed24333-9f3e-4198-9adf-72a412f08427
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          guid: aeb85e0b-6e6c-4534-9f3c-4a5ff035507d
+          activationCondition: true
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: faa3b7ac-cca3-48b6-966a-9d9913f14f64
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: false
+              runOnController: true
+              abilityType: standard
+              promptText: Skitter!
+              autoTarget: false
+              standardAbilityParams:
+                distance: "2"
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 542c5431-8add-4342-b1f1-d4fa52dac97a
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                targetType: self
+                range: 1
+                name: Invoked Ability
+                behaviors: []
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            targetType: self
+            name: New Ability
+            numTargets: "1"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Skitter
+          rules: ""
+          modtype: none
+          rollType: ability_power_roll
+          behavior: power
+        guid: 92a0ec5e-a881-4e33-b961-c100c293eb23
+        type: trigger
+        domains:
+          CharacterFeature:1ed24333-9f3e-4198-9adf-72a412f08427: true
+        targetType: selforally
+        trigger: takedamage
+        name: Skitter
+        rules: Halve the damage, then shift 2 squares.
+        description: ""
+        range: "0"
+        behavior: powertabletrigger
+      name: Skitter
+      description: ""
+      guid: 1ed24333-9f3e-4198-9adf-72a412f08427
+      source: Character Feature
+    role: Elite Mount
+    equipment: []
+    titles: []
+    opportunityAttack: 4
+    damage_entry:
+      id: 2d0ba728-4477-4bfe-b06b-92c6d873b194
+      heal: 5
+    resistances: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        da3ac84a-c65e-4edb-a026-1472b84f01cb:
+          refreshid: 6b664e6a-dfec-43ff-84b8-a10ef513265a-1
+          note: Web
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    deathSavingThrowFailures: 0
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 60
+    initiativeGrouping: bce2d4d4-d748-45a0-9cd9-acfabcfa6566
+    availableTriggers: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        e3012c93-5d8a-4532-8e9f-e05358bd21c6:
+          refreshid: 6b664e6a-dfec-43ff-84b8-a10ef513265a-1
+          note: Trample
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: "-1/1"
+        c16947f1-53f3-49f5-9c7d-06a6e1663c5c:
+          refreshid: 6b664e6a-dfec-43ff-84b8-a10ef513265a-1
+          note: Leg Blade
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    damage_taken: 0
+    animations:
+      anim:
+      - resources:
+          b9bc06dd-80f1-4f33-bc55-25c114e3300c: 1
+        animType: consumeResource
+      guid: cea63eb0-8159-44ce-8054-5884bd7f0646-625
+    walkingSpeed: 7
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 28caf9f4-ecc9-4261-8726-60a570d4b2c4
+      implementation: 4
+      numTargets: 1
+      name: Bite
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 poison damage
+        - 11 poison damage
+        - 14 poison damage; M<2 weakened (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 4f17ae82-8164-4121-b059-c789a6068135
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 4f17ae82-8164-4121-b059-c789a6068135
+          resourceCostType: cost
+          guid: 3239de29-2dd7-45db-ba30-b0b04c52dbd3
+          domains: []
+          resourceCostAmount: 2
+          activationCondition: false
+          rollType: ability_power_roll
+          description: M<3 weakened (save ends)
+          name: 2 Malice
+          keywords: []
+          addText: M<3 weakened (save ends)
+          modtype: none
+          behavior: power
+      description: |2-
+
+        **2 Malice**: M<3  weakened (save ends).
+      abilityType: none
+      iconid: 77abcafe-ae1d-4a55-a878-b6bed897ef9b
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8ec70760-86f3-4bf4-95e7-7cc22b9918c0
+      implementation: 4
+      numTargets: 2
+      name: Leg Blade
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage
+        - 12 damage
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: c4893538-9809-4de1-8ef9-2fa83a84fe2b
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        targetMoveVicinity: true
+        movementType: shift
+        vicinity: 1
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        targeting: inherit
+        namedAbility: Leg Blade
+        abilityType: named
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: ab9a27ce-5083-47b6-9d19-bcb592df1d36
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: Walking Speed
+      effectImplemented: true
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9f2a7a7a-1df8-404c-a69a-761b9b925dc9
+      abilityType: none
+      targetType: emptyspace
+      targeting: pathfind
+      numTargets: 1
+      name: Trample
+      iconid: d2035312-afaa-4011-a88e-d812fc56cac3
+      description: The spider shifts up to their speed and makes a Leg Blade strike against each creature who comes within 1 of the spider during the move. The spider makes one power roll against all targets.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - A<0 restrained (save ends)
+        - A<1 restrained (save ends)
+        - A<2 restrained (save ends)
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityAuraBehavior
+        aliveafterdeath: true
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers: []
+          name: Spider Web
+          difficult_terrain: true
+          guid: cfb767c0-50e4-404a-ba00-8c33cae924f7
+          objectid: db02fb5e-fb33-438b-8441-72c39ee6bd11
+          iconid: 80eefb2e-eed0-4e13-8f19-21bad620cc8d
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: bf9ccf74-033e-495c-984e-e3261646a03c
+      implementation: 4
+      numTargets: 1
+      radius: 3
+      name: Web
+      targetType: cube
+      description: The affected area is considered difficult terrain for enemies.
+      abilityType: none
+      iconid: 80eefb2e-eed0-4e13-8f19-21bad620cc8d
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 7c75e589-8a30-4004-b417-277a5217a87a
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Skitter
+      sourceReference:
+        __typeName: SourceReference
+        page: 165
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The damage is halved, and the spider shifts up to 2 squares after the triggering effect resolves.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 6b664e6a-dfec-43ff-84b8-a10ef513265a-1
+        used: 2
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 6b664e6a-dfec-43ff-84b8-a10ef513265a-1
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-12
+        used: 1
+    auras: []
+    movementSpeeds:
+      climb: 7
+    monster_type: War Spider
+    ev: 12
+    skillRatings: []
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: d1c7c29a-c008-4bf7-86cc-db363aefd1ce
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 5
+  createdTimestamp: 1715748088616
+description: War Spider
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590311655
+mtime: 1775201137032
+hidden: false

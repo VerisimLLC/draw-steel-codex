@@ -1,0 +1,205 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 16352be8-9288-41ed-a55b-614ee6a99cc9
+    offtokenPortraitId: ca71a033-256d-4115-9d6d-f6d021a5c69a
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.1879237
+    portraitOffset:
+      x: 0.09955785
+      y: 0.2251833
+    frameHueShift: 0
+    frameSaturation: 0.14
+    frameBrightness: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 55ee12a6-c543-4e53-a558-c9bdd2622915
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Vampire Rebel	Level 4 Harrier Retainer
+        Undead, Vampire	EV 18
+        <b>Stamina</b> 45
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M/<b>Stability</b> 0
+        <b>Free Strike</b> 4
+        Might +2	Agility +3	Reason 0	Intuition 0	Presence +3
+        <b>Flashing Fangs</b> (Action) - 2d10 + highest characteristic - Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1 	<b>Target </b>One creature or object
+        %E2%9C%A6 %E2%89%A411 		5 damage
+        %E2%98%85 12%E2%80%9316 	5 damage; 3 corruption damage
+        %E2%9C%B8 17+ 		5 damage; 6 corruption damage; M (strong) bleeding (save ends)
+        <b>Effect</b> The vampire rebel gains temporary Stamina equal to the corruption damage they dealt.
+
+        <b>Bat Form</b> (Move Action, Encounter)
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect </b>The vampire rebel changes their form into a bat. In bat form, their size is 1T and their movement gains the Fly keyword. They then shift up to their speed. At the end of the shift, they regain their true form. If they can't fit in their current space when they regain their true form, they take 10 damage and are pushed to the nearest space large enough to hold them.
+
+        <b>Agonizing Bloodthirst</b>
+        The vampire rebel has a speed of 10 while a creature is bleeding within 10. If the vampire rebel is able to attack a bleeding creature on their turn and does not do so, they take 5 corruption damage at the end of their turn.
+
+        Level 7 Retainer Advancement Ability
+        <b>Blood Surge</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> 1 creature
+        %E2%9C%A6 %E2%89%A411		7 damage; M (weak) bleeding (save ends)
+        %E2%98%85 12%E2%80%9316		11 damage; M (average) bleeding (save ends)
+        %E2%9C%B8 17+		16 damage; M (strong) bleeding (save ends)
+        <b>Effect</b> Before the attack, the vampire rebel can shift up to their speed. If the vampire rebel has temporary Stamina, they expend it, dealing 2 corruption damage for each point of temporary Stamina expended in this way.
+
+        Level 10 Retainer Advancement Ability
+        <b>Exsanguination</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 cube within 1	<b>Target</b> All enemies
+        %E2%9C%A6 %E2%89%A411		7 corruption damage; M (weak) bleeding (save ends)
+        %E2%98%85 12%E2%80%9316		11 corruption damage; M (average) bleeding (save ends)
+        %E2%9C%B8 17+		16 corruption damage; M (strong) bleeding (save ends)
+        <b>Effect </b>The vampire rebel gains 3 temporary Stamina for each targeted creature.
+
+        Count Rhodar Von Glauer
+        <b>Solo Monster</b>
+        I liked Von Glauer-he was old-school nobility. Invited us officers to dinner during the siege. Civilized. Not like these warlords we got today.
+        Dancer, Chronicler of the Chain of Acheron
+        Heroes 216-231
+        The last lord of Glauer, Count Rhodar was expected to be wed and have children in his twenties, ensuring that the name and legacy of the Glauer family would live on for centuries to come. Instead, he became his own successor after a vampiric curse took his life, and kindly, dignified young Rhodar rose as a blood-hungry beast.
+        Still, his family diligently kept this secret, and when he came up into his position, he proved to be a natural in it. His tiny, mountainous county of Rh%C3%B6l prospered under his rule. There were worse overlords, after all, and Count Rhodar was never lax about his promises to his people. He crushed rival lords who made attempts on his land, drove brigands from his woods with ruthless abandon, and saw each and every vassal as a precious piece of his legacy. In his own words, the people's power was his power, and his might waxed and waned with the prosperity of his homeland.
+        Each new moon, when the Red Tax came due, the count would visit a candidate of his choosing, and emerge with his vitality renewed. Though the people of Rh%C3%B6l always suspected something strange about their Dragon Count, none were so foolhardy as to openly say the "V-word", and especially not where outsiders could hear it. And thus did his reign remain stable through a century and more.
+        Ultimately, even an immortal's demesne cannot last forever, and it would be Emperor Gaius VIII who would come for Rhodar. Not on a religious crusade against a vampire-he simply desired land and vassals, and was prepared to destroy both to acquire what remained. It was only during the crusade that Gaius discovered Rhodar's secret, and it was this that tipped the scales, as Gaius sieged House Glauer in broad daylight, shattering darkened windows and inviting sunlight into the slumbering vampire's halls. The Emperor claimed the Rod of House von Glauer as his prize and symbol of victory, and quickly the story spread of how the consort of darkness was staked upon the roof of his own estate, and burned to ash in the sunlight; the bones remain impaled there to this day, as reminder of the cost of diabolic pact.
+        But bones seen from a distance atop a building look only like that: bones.
+        The people of Rh%C3%B6l lament the new rule of Empeor Gaius, recalling fondly a time before the "golden age of empire". But still, in the shaded canopies of the forested lands, witches whisper a prophecy, shared among those who will listen: "The land's darkest hour shall be the redemption of House von Glauer". For as long as Rh%C3%B6l has stood under imperial rule, the people have awaited the return of their Dragon Count, and their deliverance from tyranny.
+        Far from the county of Rh%C3%B6l, atop the mountain of Drachen's Peak, Count Rhodar plots in Shadowkeep, a fortress he received in a pact with an archdevil. Here, undead guard the keep's desecrated halls while he grows for himself an army of vampiric soldiers hellbent on reclaiming what was rightly the providence of House Von Glauer.
+        A Dignified Beast
+        The Dragon Count considers himself to be a gentleman, and keeps the principles of classical nobility. Invited guests must be treated with decency, an insult cast demands apology or satisfaction, and most importantly: debts must be rightly paid in kind. However, isolation has had a deleterious effect upon him. When he dwelled in Rh%C3%B6l, he met often with retainers, subjects, and diplomats, which grounded his humanity and kept him stable. In his sojourn to Shadowkeep, he finds neither companionship nor conversation, and as the rumors of his death benefit his plans, he cannot risk revealing himself to anyone who could leave the castle and share the truth. As such, he's been forced to feed as a beast would-he hunts travellers who stray too far off the path, and drags their bodies back to his keep to hide the evidence. Each episode of this behaviour wears at his very being, and even he is well aware of the monster he is becoming.
+        The Darkest Hour
+        The prophecy of the Rh%C3%B6lian witches holds water; Rhodar has every intention of reclaiming his territory from Emperor Gaius VIII. However, none can say what may happen next. After all, if Rhodar forms an army of vampiric soldiers, will he really just stake them all and leave them out for dawn when he is done his business? And even if he does, is he still capable of being the good and just ruler he was when he was ousted? The loss of his territory has changed him, and even he is not fool enough to believe that he can return to the way things once were. The redemption of House von Glauer could, in fact, be the land's darkest hour.
+
+        Rhodar's Malice	Malice Features
+        At the start of Rhodar's turn, you can spend malice to activate one of the following features.
+        <b>Slip</b> %E2%97%86 3 Malice
+        Until the end of his turn, Rhodar can pass through objects, creatures, and solid matter at normal speed. If Rhodar ends his turn inside solid matter, he is shunted out into the space he originally entered.
+
+        <b>Suffocating Dark</b> %E2%97%86 5 Malice
+        Rhodar throws one of his spears into an unoccupied square within 10, or chooses one of his spears that he has already thrown. Until that spear returns to him or he uses this feature again, it emanates magical darkness into each square within 5 which Glauer can see through. Each enemy occupying an affected square suffocates until they leave.
+
+        <b>The Mirror Lies</b> %E2%97%86 7 Malice
+        Rhodar chooses two creatures or objects within 20. They immediately teleport, swapping places. Each enemy teleported by this ability is <b>I<5</b> dazed (EoT).
+
+    skillProficiencies: []
+    role: Harrier Retainer
+    inflictedConditions: []
+    keywords:
+      Undead: true
+      Vampire: true
+    max_hitpoints_roll: "45"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:513f8d13-f06a-46c4-8a77-bba988e3781a: true
+      modifiers: []
+      name: Agonizing Bloodthirst
+      guid: 513f8d13-f06a-46c4-8a77-bba988e3781a
+      description: The vampire rebel has a speed of 10 while a creature is bleeding within 10. If the vampire rebel is able to attack a bleeding creature on their turn and does not do so, they take 5 corruption damage at the end of their turn.
+      source: Trait
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Vampire Rebel
+    equipment: []
+    initiativeGrouping: 665b5582-c5cb-498f-8a6a-1841180878fd
+    max_hitpoints: 45
+    levelChoices: []
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    resources: []
+    traitNames: []
+    monster_category: Monster
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: f2c50dc7-62bf-4f11-99ee-78956d24ebe7
+      numTargets: 1
+      name: Flashing Fangs
+      behaviors: []
+      description: The vampire rebel gains temporary Stamina equal to the corruption damage they dealt.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    creatureSize: 1M
+    movementSpeeds:
+      climb: 5
+    ev: 18
+    minion: false
+    walkingSpeed: 5
+    damage_taken: 0
+  tokenType: null
+  bestiaryId: 84f581b9-38bc-4626-ae12-962b58d8aa07
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961971173
+description: Vampire Rebel
+parentFolder: 68f67367-de21-43f0-8448-61d0408cd721
+artist: null
+ord: 8
+ctime: 1741590275357
+mtime: 1775167505226
+hidden: false

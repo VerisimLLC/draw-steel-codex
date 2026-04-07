@@ -1,0 +1,62 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Ranged: true
+      Weapon: true
+    activationCondition: true
+    damageTypeMappings: []
+    description: 1/2/3
+    name: Onerous Bow Extra Damage
+    behavior: power
+    damageModifierType: poison
+    modtype: none
+    rollType: ability_power_roll
+  source: Item
+  name: Onerous Bow Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: ee131a62-54f1-4956-81ef-2ded36b7e28e
+itemPrerequisite: A venom sac from a giant spider, one valok gyroscope
+keywords:
+  Magic: true
+  Bow: true
+projectSource: Texts or lore in Caelian and Variac
+flavor: This mechanized bow is set with magical reservoirs that carry the faint tang of toxins.
+level9: The weapon’s extra poison damage increases to 3. Additionally, if you use an ability using the weapon that targets one creature and you don’t have a bane or double bane on the ability, you can take a bane. Doing so lets you target another creature adjacent to the original target. Alternatively, you can have a double bane to target two creatures adjacent to the original target.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The weapon’s extra poison damage increases to 2. A signature ability made using the weapon that obtains a tier 3 outcome also makes the target weakened and slowed until the end of their next turn.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 5b591629-185c-4451-86d1-60e7c0ffc919
+ctime: 1759396850957
+name: Onerous Bow
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 poison damage. Additionally, any signature ability using the weapon that obtains a tier 3 outcome also makes the target weakened until the end of their next turn.
+mtime: 1759398439386
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 8c2d5e07-2310-4799-8830-950029535ccf

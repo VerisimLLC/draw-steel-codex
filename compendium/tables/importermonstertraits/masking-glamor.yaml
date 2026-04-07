@@ -1,0 +1,12 @@
+__typeName: CharacterFeature
+testCases:
+- text: Abilities targeting <<monster>> that would take a bane from cover or concealment have a double bane instead.
+modifiers: []
+source: Monster
+guid: e7eeda00-aa4a-41bb-9986-2fe2c0ef7952
+importMatch: Abilities targeting the arrowswift that would take a bane from cover or concealment have a double bane instead.
+ctime: 1774923413970
+name: Masking Glamor
+description: ""
+id: f8c3d97e-4c85-4c40-be39-ac0580971564
+mtime: 1774923413970

@@ -1,0 +1,84 @@
+__typeName: CharacterComplication
+drawback: You have lightning weakness 5. Additionally, the ocean or a creature it sends to seek you can assign you a quest. If you don’t do the ocean’s bidding, it might temporarily deny you this complication’s benefits—including being able to breathe underwater—at an inconvenient time.
+mtime: 1764626100630
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: "Rogue Wave: You summon a wave of water to batter your foe."
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 0e1a2c8d-215f-48bf-b876-41f896195fc4
+      guid: 1ce8f477-a5f0-4ec6-ac90-884719caa5d0
+      source: Complication
+      behavior: activated
+      description: "Rogue Wave: You summon a wave of water to batter your foe."
+      name: Waterborn Benefit
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        keywords:
+          Ranged: true
+          Magic: true
+          Strike: true
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - 2 damage; push or pull 1
+          - 5 damage; push or pull 2
+          - 7 damage; push or pull 3
+          roll: 2d10 + Highest Characteristic
+        multipleModes: true
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        flavor: You summon a wave of water to batter your foe.
+        categorization: Ability
+        range: 1
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        modifiers: []
+        strain: []
+        modeList:
+        - text: Damage
+        - text: No Damage
+        guid: e58aaf3a-6e6f-4a18-b224-f8f5aef1dac6
+        domains: []
+        targetType: self
+        numTargets: "1"
+        name: Rogue Wave
+        persistence: []
+        description: You can forgo dealing damage with this ability.
+        abilityType: none
+        iconid: 1270b7c8-b7df-4f80-b9ca-ff723ef5c61f
+    source: Complication
+    canHavePrerequisites: true
+    guid: 0e1a2c8d-215f-48bf-b876-41f896195fc4
+    name: Waterborn Benefit
+    implementation: 2
+  - __typeName: CharacterFeature
+    description: Lightning weakness 5
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: b8fa88ac-9950-4503-814e-7148e240a0b9
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: lightning
+        apply: Damage Reduction
+      description: Lightning weakness 5
+      name: Waterborn Drawback
+      guid: 1e00144a-e58a-47f5-94eb-64ec2b5cc3ab
+    source: Feat
+    canHavePrerequisites: true
+    guid: b8fa88ac-9950-4503-814e-7148e240a0b9
+    name: Waterborn Drawback
+    implementation: 3
+name: Waterborn
+ctime: 1755518439046
+description: You nearly lost your life at sea, but then you heard the voice. Someone—or something—in the water called out to you, telling you to swim. The ocean was suddenly no longer your doom but your parent, granting you a fragment of its power. But for what purpose, you can’t be sure.
+id: 8d8d7a75-6207-4b90-ae9f-f9fa9d74bb01
+benefit: You can automatically swim at full speed while moving, and you can breathe underwater. Additionally, you have the Rogue Wave ability.

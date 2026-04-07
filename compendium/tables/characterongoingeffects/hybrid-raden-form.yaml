@@ -1,0 +1,50 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 661680e2-2c73-4073-a6f8-3501e27c8cc7
+  source: Ongoing Effect
+  value: 3
+  name: Hybrid Raden Form
+  guid: c8d4ed0b-3a02-48b5-afdd-ff1004e3333c
+  description: ""
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 661680e2-2c73-4073-a6f8-3501e27c8cc7
+  source: Ongoing Effect
+  value: Walking Speed
+  filterCondition: Level >= 4
+  name: Hybrid Raden Form
+  guid: fb4d50eb-fa4c-41ec-8f60-813fdd736eca
+  description: ""
+  behavior: attribute
+  attribute: climb
+- __typeName: CharacterModifier
+  sourceguid: eefdae74-9375-4d11-ae64-7763a3901d9f
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:eefdae74-9375-4d11-ae64-7763a3901d9f: true
+  name: Hybrid Raden Form
+  guid: 0bd3ce9a-d0ff-403a-93ae-d927d28bd0a4
+  description: ""
+  behavior: attribute
+  attribute: disguised
+source: Ongoing Effect
+guid: f14140a5-af68-497c-afc3-bb6eee0b956d
+id: f14140a5-af68-497c-afc3-bb6eee0b956d
+ctime: 1770690753038
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Hybrid Raden Form
+iconid: 54d12486-b6eb-4290-b19c-ffdbab61d585
+description: ""
+mtime: 1770699104298
+implementation: 3

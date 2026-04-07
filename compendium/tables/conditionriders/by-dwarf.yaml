@@ -1,0 +1,31 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c98cfba7-2a7c-480b-83e1-dd7368e41798
+  source: Ongoing Effect
+  value: -1
+  filterCondition: ConditionCaster("Restrained").Type = Dwarf
+  name: By Dwarf
+  guid: d457ac14-19ae-409c-a531-71ae977b4e2c
+  description: This creature was restrained by a dwarf
+  behavior: attribute
+  attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+source: Ongoing Effect
+guid: c98cfba7-2a7c-480b-83e1-dd7368e41798
+id: c98cfba7-2a7c-480b-83e1-dd7368e41798
+ctime: 1772099117082
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: By Dwarf
+description: This creature was restrained by a dwarf
+mtime: 1772111231992
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db

@@ -1,0 +1,375 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 57cf9026-fd87-41d1-8d17-f65efdde8a13
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: e3344131-ceaf-4db6-8631-d9e0b06ac91b
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 0.8449028
+    frameBrightness: 0.3295461
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 11034ac6-ae05-4148-b1cf-28544e3f87a6
+  properties:
+    __typeName: monster
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        High Elf Palinode	Level 1 Platoon Support
+        Fey, High Elf, Humanoid	EV 6
+        <b>Stamina</b> 30	<b>Immunity</b> psychic 5
+        <b>Speed </b>5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 3
+        Might 0	Agility 0	Reason 0	Intuition +2	Presence +1
+        <b>Instill Regret</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 8<b>	Target</b> 1 creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 psychic damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 psychic damage; I<1 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	9 psychic damage; I<2 weakened (save ends)
+        <b>2 Malice</b> The potency of this ability increases by 1. If the target is still weakened by this ability at the end of the encounter, they cannot take a respite activity during their next respite.
+
+        <b>Recall</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5<b>	Target</b> 2 allies
+        <b>Effect</b> Each target is teleported to an unoccupied square adjacent to the palinode. Then, the palinode and each target gain 5 temporary Stamina.
+
+        <b>Otherworldly Grace</b>
+        At the start of their turn, the palinode can turn the duration of one save ends effect they suffer from into EoT.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4d74376e-4893-4a5c-9b2f-cf4f96ca3829: true
+        CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:4d74376e-4893-4a5c-9b2f-cf4f96ca3829: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: 4d74376e-4893-4a5c-9b2f-cf4f96ca3829
+        behavior: trigger
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the palinode can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            purgeType: one
+            targetDuration: save
+            chatMessage: Otherworldly Grace - Change One Save Ends to EoT
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          targetType: self
+          conditionFormula: Conditions has "Bleeding" or Conditions has "Dazed" or Conditions has "Frightened" or Conditions has "Prone" or Conditions has "Restrained" or Conditions has "Slowed" or Conditions has "Taunted" or Conditions has "Weakened"
+          domains:
+            CharacterFeature:4d74376e-4893-4a5c-9b2f-cf4f96ca3829: true
+            CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+          guid: 6d7fdc46-71c3-456f-8f1d-d7ba75859574
+          numTargets: "1"
+          trigger: endturn
+          name: Otherworldly Grace
+          description: At the start of each of their turns, the palinode can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 68380534-13df-4350-b530-e3e9542ab171
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:4d74376e-4893-4a5c-9b2f-cf4f96ca3829: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: 4d74376e-4893-4a5c-9b2f-cf4f96ca3829
+        behavior: triggerdisplay
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the palinode can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        guid: 08b2f5a5-7f41-466d-b018-115d3d07d47c
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: Choose one Save Ends Effect which you can end at the end of your turn.
+          guid: 9471afd1-95a8-41c7-a834-758acf1b52d6
+          keywords: []
+      source: Trait
+      description: At the start of each of their turns, the palinode can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+      guid: 4d74376e-4893-4a5c-9b2f-cf4f96ca3829
+      name: Otherworldly Grace
+      implementation: 2
+    role: Platoon Support
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: psychic
+      apply: Damage Reduction
+    initiativeGrouping: c01744dd-1c13-48d8-a643-dbae629c8a7d
+    opportunityAttack: 3
+    damage_taken: 0
+    keywords:
+      Fey: true
+      Humanoid: true
+      High Elf: true
+    resources:
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 psychic damage
+        - 7 psychic damage; I<1 weakened (save ends)
+        - 9 psychic damage; I<2 weakened (save ends)
+        roll: 2d10 + Intuition
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 psychic damage
+        - 7 psychic damage; I<1 weakened (save ends)
+        - 9 psychic damage; I<2 weakened (save ends)
+        roll: 2d10 + 2
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 567a3454-ead6-4416-b338-ed73d64b7805
+        filterTarget: Target.Intuition < 2
+        modesSelected:
+        - 2
+        riderid: c0a419ef-7034-4c57-ae8d-f27ea494c2c0
+        tiersSelected:
+        - 2
+        - 3
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 123
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 8
+      numTargets: 1
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Standard
+        condition: ""
+      - rules: The potency increases by 1. If the target is weakened this way at the end of the encounter, they can't take a respite activity during their next respite.
+        text: 2 Malice
+        condition: Heroic Resources Available to Spend >= 2
+      guid: 7f2f9068-27bd-4258-8388-21469264ffa1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      implementation: 3
+      persistence: []
+      name: Instill Regret
+      categorization: Signature Ability
+      description: |2-
+
+        **2 Malice**: The potency increases by 1. If the target is weakened this way at the end of the encounter, they can't take a respite activity during their next respite.
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        autoTarget: false
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 123
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: "5"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 49def104-7704-4c8d-acb5-5a768e4e2328
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Click on the Palinode and the targets you selected will teleport adjacent to the Palinode.
+      - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+        chatMessage: "Recall: Temporary Stamina Granted"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 123
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4bffca19-18cf-45af-a3e2-e3ed30ea94df
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      numTargets: 2
+      implementation: 3
+      name: Recall
+      categorization: Signature Ability
+      description: Each target is teleported to an unoccupied square adjacent to the palinode. Then, the palinode and each target gain 5 temporary Stamina.
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    monster_type: High Elf Palinode
+    walkingSpeed: 5
+    movementSpeeds: []
+    creatureSize: 1M
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        f418124f-8491-49d0-9fb0-d3d93f43b2ba:
+          note: Recall
+          userid: steam-76561198767161997
+          set: 1/1
+        5bbeaf27-afb9-4335-8f5c-2bb0d34faf4b:
+          note: Recall
+          userid: steam-76561198767161997
+          set: 1/1
+        16ac80ff-b55d-4464-bd89-6920a281acc7:
+          note: Recall
+          userid: steam-76561198767161997
+          set: 1/1
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: 2f2ac318-994d-4791-923c-c4aee4247bc4-147
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 14034b42-d3a1-414f-a556-b47620087ab7
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: High Elf Palinode
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590220980
+mtime: 1775201137032
+hidden: false

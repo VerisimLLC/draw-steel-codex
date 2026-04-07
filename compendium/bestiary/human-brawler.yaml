@@ -1,0 +1,466 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: bca5ce9a-b24d-43f1-ab56-55d6c65ed369
+    offtokenPortraitId: d80a331d-8683-49b2-ae55-b7447094faf2
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.03765476
+      y: 0.04563046
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.98
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ce2b7536-48a1-4530-b689-833b6a41923c
+  properties:
+    __typeName: monster
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 40
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityRememberBehavior
+        filterTarget: Target.Conditions has "Grabbed"
+        memoryName: grabbedAlready
+        calculation: "1"
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage
+        - 12 damage; M<2 grabbed, target has a bane on escaping the grab
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+        riderid: 6906316a-26fe-4101-9a4b-60192b77c270
+        tiersSelected:
+        - 3
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "2"
+        filterTarget: Cast.Memory("grabbedAlready") > 0
+        titleText: Haymaker
+        chatMessage: Haymaker Extra Damage to Grabbed Creatures
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 321d5d70-df30-4268-9b5e-749ce8058d5c
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 183
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      implementation: 3
+      name: Haymaker
+      persistence: []
+      description: A target who is already grabbed takes an extra 2 damage.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetTextOverride: One creature grabbed by the brawler
+      repeatTargets: false
+      reasonedFilters:
+      - reason: Target must be grabbed by the Brawler
+        formula: ConditionCaster("grabbed") = Caster
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Malice
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 3b972e45-5d12-4c64-9da7-55bd58976629
+      keywords:
+        Melee: true
+      numTargets: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      sourceReference:
+        __typeName: SourceReference
+        page: 183
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      implementation: 3
+      name: Throw
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: push 5
+      description: The brawler pushes the target up to 5 squares.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 8b017550-22fb-487f-a35d-06495d1117a1
+      abilityType: none
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 181
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Throw (1 Malice)
+      numTargets: 1
+      description: |
+        Note: One creature grabbed by the brawlerThe brawler pushes the target up to 5 squares.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: 259dd774-397c-44c3-a02a-341cc024e299
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 181
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Shoot the Hostage!
+      targetType: target
+      description: |
+        The brawler halves the damage from any strike if they have a creature or object grabbed of size 1S or larger. The grabbed creature or object takes the remaining damage.
+      abilityType: none
+      implementation: 0
+    damageEntries:
+      2498e972-4284-4cf7-ac1e-279e2cf28793:
+        damage: 1
+        attackerid: fa08860c-9233-427c-9813-a648e53988b6
+        id: 2498e972-4284-4cf7-ac1e-279e2cf28793
+        damage_type: untyped
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        a0e20def-5749-44d3-a261-6f1675623c25:
+          note: 2 damage from Talent's Ranged Free Strike
+          disposition: bad
+          attackerid: fa08860c-9233-427c-9813-a648e53988b6
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 31
+        16dfbbe2-0297-4dae-87de-43b33f7565ce:
+          note: 2 damage from Talent's Ranged Free Strike
+          disposition: bad
+          attackerid: fa08860c-9233-427c-9813-a648e53988b6
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 33
+        d6ad5d39-3f13-43a1-acc7-3830df90bcc6:
+          note: 2 damage from Talent's Ranged Free Strike
+          disposition: bad
+          attackerid: fa08860c-9233-427c-9813-a648e53988b6
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 38
+        ee6e5860-c8ac-44dc-b745-b09ff4c83f38:
+          note: 3 damage from Talent's Ranged Free Strike
+          disposition: bad
+          attackerid: fa08860c-9233-427c-9813-a648e53988b6
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 35
+        8dde5498-bdce-4652-9b4b-4ce07ee5556e:
+          note: 1 damage from Talent's Ranged Free Strike
+          disposition: bad
+          attackerid: fa08860c-9233-427c-9813-a648e53988b6
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 28
+        e7204ecd-4551-4f9d-b639-398e562da5fd:
+          note: 1 damage from Talent's Ranged Free Strike
+          disposition: bad
+          attackerid: fa08860c-9233-427c-9813-a648e53988b6
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 29
+        1db70cac-35b6-45b5-a2de-cefb27dfebe1:
+          note: 1 damage from Talent's Ranged Free Strike
+          disposition: bad
+          attackerid: fa08860c-9233-427c-9813-a648e53988b6
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 30
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Human Brawler	Level 1 Platoon Brute
+        Human, Humanoid	EV 6
+        <b>Stamina</b> 40	<b>Immunity</b> Corruption 1, Psychic 1
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 0
+        	<b>Free Strike</b> 4
+        Might +2	Agility +1	Reason +0	Intuition +0	Presence +0
+        <b>Haymaker</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	6 damage
+        %E2%98%85	12%E2%80%9316	9 damage
+        %E2%9C%B8	17+	12 damage; M<2 grabbed, target has a bane on escaping the grab
+        <b>Effect </b>brawler deals an additional 2 damage if the target is already grabbed.
+
+        <b>Throw</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1	<b>Target</b> One creature grabbed by the brawler
+        <b>Effect </b>Push 5.
+
+        <b>Shoot the Hostage</b>
+        The brawler takes half damage from strikes if they have a creature or object grabbed. The grabbed creature or object takes the other half of the damage.
+
+        <b>Supernatural Insight</b>
+        The brawler ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bafe3792-6342-4e7d-9c93-7612e4de3e3b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        type: passive
+        abilityTargets: "+1"
+        filterCondition: Number of Creatures Grabbed > 0
+        source: Trait
+        powerRollModifier:
+          __typeName: CharacterModifier
+          changeTargetRange: distance
+          modtype: none
+          keywords: []
+          activationCondition: true
+          changeTargetDistance: 1
+          rollType: ability_power_roll
+          changeTarget: false
+          source: Trigger
+          guid: 96093610-e6f8-4e2e-8baa-b7d69b64dacb
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            objectTarget: false
+            targetFilter: Target.ConditionCaster("Grabbed") = Caster
+            repeatTargets: false
+            behaviors:
+            - __typeName: ActivatedAbilityFloatTextBehavior
+              text: Half damage to grabbed creature
+              color: "#ffffffff"
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            range: Grab Range
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: ff989a8a-6d6e-4249-9344-602302ad09b1
+            targetType: all
+            name: New Ability
+            trigger: d20roll
+            numTargets: "1"
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Shoot the Hostage
+          rules: ""
+          description: The brawler takes half damage from strikes if they have a creature or object grabbed. The grabbed creature or object takes the other half of the damage.
+          activationAfterRoll: false
+          behavior: power
+        guid: 7dfacac0-50a0-4b9f-bcc1-406daaf00451
+        castingFilter: ""
+        trigger: strike
+        domains:
+          CharacterFeature:bafe3792-6342-4e7d-9c93-7612e4de3e3b: true
+        targetType: self
+        behavior: powertabletrigger
+        name: Shoot the Hostage
+        rules: The brawler takes half damage from strikes if they have a creature or object grabbed. The grabbed creature or object takes the other half of the damage.
+        description: The brawler takes half damage from strikes if they have a creature or object grabbed of size 1S or larger. The grabbed creature or object takes the other half of the damage.
+        range: 10
+        sourceguid: bafe3792-6342-4e7d-9c93-7612e4de3e3b
+      source: Trait
+      description: The brawler takes half damage from strikes if they have a creature or object grabbed of size 1S or larger. The grabbed creature or object takes the other half of the damage.
+      guid: bafe3792-6342-4e7d-9c93-7612e4de3e3b
+      name: Shoot the Hostage
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:26286be2-2db5-4484-9f63-d77fed562a06: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:26286be2-2db5-4484-9f63-d77fed562a06: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The brawler ignores concealment if it's granted by a supernatural effect.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The brawler ignores concealment if it's granted by a supernatural effect.
+      guid: 26286be2-2db5-4484-9f63-d77fed562a06
+      name: Supernatural Insight
+      implementation: 3
+    role: Platoon Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 4
+    keywords:
+      Humanoid: true
+      Human: true
+    initiativeGrouping: d3463045-6471-4a27-9d34-73616aa2dc90
+    notes:
+    - text: ""
+      title: Monster Notes
+    damage_taken: 0
+    animations:
+      anim:
+      - animType: floatlabel
+        text: Test
+        color: "#ffffffff"
+      guid: 15dac188-ca7b-4e96-b338-d8911de08111-727
+    walkingSpeed: 5
+    savingThrowRatings: []
+    monster_type: Human Brawler
+    traitNames: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a-1
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a-1
+        used: 1
+    movementSpeeds: []
+    creatureSize: 1M
+    availableTriggers: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        e7f3c6e0-1140-43f9-9f6a-d8b658819121:
+          refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a-1
+          note: Haymaker
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        430985d5-b62d-42ed-b6af-c5d39d7d5b2b:
+          refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a-1
+          note: Grab
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+  tokenType: null
+  bestiaryId: 385a59fc-cee2-4734-b94e-f7d02f8b57c9
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Human Brawler
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590239239
+mtime: 1775201137032
+hidden: false

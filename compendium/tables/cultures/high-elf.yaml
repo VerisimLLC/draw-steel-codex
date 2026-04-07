@@ -1,0 +1,11 @@
+__typeName: Culture
+id: 759af0cd-7108-4f09-95af-6d0a5ebb0480
+group: Ancestry Cultures
+name: High Elf
+languageid: f3951673-4de6-42ad-be86-d3158c40365c
+mtime: 1769349221830
+aspects:
+  upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+  environment: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796092718

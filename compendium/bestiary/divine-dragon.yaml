@@ -1,0 +1,470 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 52d87f3d-01a5-421d-a5a3-b07dcfab9976
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        529ceedb-4032-49e2-9775-8a2dc6abd81f:
+          note: Breathe Fire
+          timestamp: 1770210355508
+          refreshid: 6bcafb85-8920-436b-9ea1-bf9bda345ab0-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        e1ebf12c-3f00-40bd-9c7b-b42f3cc22c24:
+          note: Divine Dragon Melee Strike
+          timestamp: 1770211038202
+          refreshid: 6bcafb85-8920-436b-9ea1-bf9bda345ab0-3
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Divine Dragon
+    levelChoices: []
+    moveDistance: 11
+    deathSavingThrowFailures: 0
+    damageEntries:
+      831848bf-4c1b-4296-bf3a-390d4c5521b5:
+        damage: 100
+        seq: 31
+        id: 831848bf-4c1b-4296-bf3a-390d4c5521b5
+        timestamp: 1770211823224
+      6306393d-fda7-4938-b441-ef67e10c72cd:
+        damage: 100
+        seq: 32
+        id: 6306393d-fda7-4938-b441-ef67e10c72cd
+        timestamp: 1770211823224
+      dcbdf8f0-d19b-43a1-97ca-4441be6ea27b:
+        timestamp: 1770211839108
+        seq: 35
+        id: dcbdf8f0-d19b-43a1-97ca-4441be6ea27b
+        heal: 200
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        7ecb4443-758c-47fe-997d-29e173d9a914:
+          note: 10 damage from Vex Test Elementalist's Hurl Element; Damage Immunity reduced by 999 to 0
+          disposition: bad
+          timestamp: 1770211482557
+          attackerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 100
+        0da8cd0e-65dd-4c80-a8cd-360e94a703d8:
+          note: 200 Healing
+          timestamp: 1770211839108
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 100
+        028601ac-0de8-4207-8e35-f470d88ff49e:
+          note: Destroyed by Summoner is Dying
+          timestamp: 1770211823224
+          disposition: bad
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        bb771e6f-865c-4116-8678-b4e07c812652:
+          note: Destroyed by Stamina Drops to 0
+          timestamp: 1770211823224
+          disposition: bad
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: -100
+    stability: 4
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        name: Divine Dragon
+        guid: 979e2c10-4ad2-4d60-b1cf-23ddd4857af1
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+        behavior: attribute
+        attribute: fly
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "999"
+          damageType: fire
+          apply: Damage Reduction
+        guid: f46b8803-b369-44df-9b51-b2c13e431d82
+        name: Divine Dragon
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+        source: Character Feature
+        name: Divine Dragon
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 8867eb4e-6c27-4d5b-ad56-5c880c8968e5
+          repeatTargets: false
+          trigger: endcombat
+          castImmediately: true
+          behaviors:
+          - __typeName: ActivatedAbilityRemoveCreatureBehavior
+          numTargets: "1"
+          name: End of Encounter
+          targetType: self
+          description: The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 32a39169-9ab5-4da9-b622-90c59f7bbe56
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+        source: Character Feature
+        name: Divine Dragon
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 14a3c298-f72a-4e6f-be01-05ac673f4e27
+          repeatTargets: false
+          trigger: creaturedeath
+          castImmediately: true
+          behaviors:
+          - __typeName: ActivatedAbilityRemoveCreatureBehavior
+          numTargets: "1"
+          name: Stamina Drops to 0
+          targetType: self
+          description: The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 9a032480-3502-44cd-9c34-b1cec0348c9e
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+        source: Character Feature
+        name: Divine Dragon
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: c10db402-f3fb-4efb-88b1-e56e6c44213b
+          castImmediately: true
+          behaviors:
+          - __typeName: ActivatedAbilityRemoveCreatureBehavior
+          conditionFormula: Subject = Summoner
+          subject: otherheroes
+          numTargets: "1"
+          trigger: dying
+          name: Summoner is Dying
+          description: The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: e221cf9c-534a-4eb8-827a-ce06f472c816
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        source: Character Feature
+        value: Summoner.Agility
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        name: Divine Dragon
+        guid: dcf3db28-04c0-4040-8501-3e22c4891fd2
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+        behavior: attribute
+        attribute: agl
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        source: Character Feature
+        value: Summoner.Intuition
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        name: Divine Dragon
+        guid: 7d7113d4-775a-4d3a-8076-3f6139567578
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+        behavior: attribute
+        attribute: inu
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        source: Character Feature
+        value: Summoner.Might
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        name: Divine Dragon
+        guid: 62616fbc-f8ac-4e17-946f-fce3f3b85469
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+        behavior: attribute
+        attribute: mgt
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        source: Character Feature
+        value: Summoner.Presence
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        name: Divine Dragon
+        guid: 6b12cb53-1c0f-41b4-add1-dcaaa0550283
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+        behavior: attribute
+        attribute: prs
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+        source: Character Feature
+        value: Summoner.Reason
+        domains:
+          CharacterFeature:daf832be-e04d-4e89-ba5b-fb17d9df6a99: true
+        name: Divine Dragon
+        guid: 1957aadb-d03a-415b-9a40-bed2771244e1
+        description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+        behavior: attribute
+        attribute: rea
+      name: Divine Dragon
+      guid: daf832be-e04d-4e89-ba5b-fb17d9df6a99
+      description: The dragon has speed 6 and can fly, stability 4, 100 Stamina, immunity all to fire damage, and uses your characteristics. The dragon disappears at the end of the encounter, if their Stamina drops to 0, or if you are dying.
+      source: Character Feature
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    moveDistanceRoundId: 6bcafb85-8920-436b-9ea1-bf9bda345ab0-3
+    notes: []
+    initiativeGrouping: 957b8bbc-aee1-40fc-a998-a5527fee70d0
+    damage_taken: 0
+    monster_category: Monster
+    walkingSpeed: 6
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: ""
+      repeatTargets: false
+      implementationDetails: The Conduit will have a Maneuver to Command the Divine Dragon and use its abilities.
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 fire damage
+        - 9 fire damage
+        - 12 fire damage
+        roll: 2d10 + Intuition
+      iconGradient: none
+      sourceReference:
+        __typeName: SourceReference
+        page: 110
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.0357501208782196
+          s: 0.9736328125
+          v: 0.839812457561493
+          a: 1
+      persistence: []
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      strain: []
+      guid: 30885893-2874-4a90-8bc7-8cae4b616222
+      targetAllegiance: enemy
+      numTargets: "1"
+      targetType: cube
+      implementation: 3
+      categorization: Signature Ability
+      name: Breathe Fire
+      radius: "3"
+      description: You can use a main action to command the dragon to breathe magic fire in a 3 cube within 1 square of them. Make the following power roll targeting each enemy in the area.
+      abilityType: none
+      iconid: 174384e2-ce22-49f3-b6ef-59269c491e1f
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      implementationDetails: The Conduit will have a Maneuver to Command the Divine Dragon and use its abilities.
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 + I damage
+        - 5 + I damage
+        - 8 + I damage
+        roll: 2d10 + Intuition
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.952148377895355
+          v: 0.948964297771454
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 110
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 17ddbeca-e77a-4512-a40e-32976c57d6e2
+      persistence: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      iconid: a393d50b-bef4-4a90-a1bf-767971ef2117
+      properties:
+        useasstrike: true
+      name: Divine Dragon Melee Strike
+      categorization: Signature Ability
+      description: ""
+      abilityType: none
+      implementation: 3
+    innateAttacks: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 6bcafb85-8920-436b-9ea1-bf9bda345ab0-3
+    skillRatings: []
+    creatureSize: "4"
+    equipmentMeta:
+      offhand0: []
+    max_hitpoints: 100
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: acf4eb18-399a-401c-841c-2bcc37aa9363-1260
+    currentMoveType: walk
+  tokenType: null
+  bestiaryId: 9f16ae78-f8e3-463b-bf42-45f41d502d1f
+  summonerid: 2d7ccbcb-5ec0-400f-8e07-72ce2f5c2143
+  ownerId: ""
+  partyid: null
+  size: 6
+  createdTimestamp: 1770208277709
+description: null
+parentFolder: 8d262c13-fe50-4a79-afd3-08d7c62990c1
+artist: null
+ord: 2
+ctime: 1770208277709
+mtime: 1775167439121
+hidden: false

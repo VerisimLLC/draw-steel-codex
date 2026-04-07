@@ -1,0 +1,476 @@
+__typeName: MarkdownDocument
+annotations:
+  Party:Currentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Current player:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Acted players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Current layer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:actedplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Acted Players:
+    __typeName: RichParty
+    partyid: false
+    state:
+      8c404866-2853-4d84-ac26-2ed68a11a650: highlight
+    tokensRemoved: []
+    tokensAdded: []
+  scene:montageimage:
+    __typeName: RichScene
+    identifier: montageimage
+  Party:Current Player:
+    __typeName: RichParty
+    partyid: false
+    state:
+      96c5aa09-e05b-40d0-a862-0f4ca7f233a2: highlight
+    tokensRemoved: []
+    tokensAdded: []
+  reminder:test:
+    __typeName: RichReminder
+    identifier: test
+  image:imageone:
+    __typeName: RichImage
+    uiscale: 0.500000305175781
+    image: "-MDiuJMHgUipszf0nOb5"
+  Party:availableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Available Players:
+    __typeName: RichParty
+    partyid: false
+    state:
+      6234d46f-eebd-412d-8cd7-34e5578c99a3: highlight
+      7af0512f-d82b-413d-ba8d-16b8ab830450: highlight
+      96c5aa09-e05b-40d0-a862-0f4ca7f233a2: highlight
+      5783189c-027a-4c1c-8f54-11730305146e: highlight
+      8c404866-2853-4d84-ac26-2ed68a11a650: highlight
+      d990db89-9651-4f27-833c-216bad9f083a: highlight
+      b5c7a9ab-3ea9-4ab1-9874-95ea1ebe6d0a: highlight
+      2975d22b-64ac-486c-a37c-d675a22a813a: highlight
+      a9490474-f132-4564-ba77-6498c8169f1e: highlight
+    tokensRemoved: []
+    tokensAdded: []
+  scene:image:
+    __typeName: RichScene
+    identifier: image
+    image: 66798e30-bc03-4cc9-b70d-993552a0630d
+  Party:Available players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Availableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  image:montageimage:
+    __typeName: RichImage
+  Party:urrentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  "image:":
+    __typeName: RichImage
+  Party:Actedplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:currentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:vailableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+id: 1cb09143-142f-4d57-8802-dd58105b9710
+ctime: 1758093666250
+textStorage:
+  __typeName: TextStorage
+  sections:
+    vZ: |2
+
+    Wz: |
+      ???
+    WzR: |
+      ???
+    WQ: |
+      ???query (montage_difficulty = 1) and (numheroes = 5)
+    x: |+
+      to do. 
+
+
+    u: |+
+      [[//awardvp 1 |Award Heroes 1 Victory]]
+
+
+    v: |
+      #### Total Failure
+    s: |
+      If the heroes earn a partial success, they succeed at what they set out to do, but there is a complication or a cost involved. 
+    t: |
+      The heroes earn 1 Victory when they achieve partial success on a hard or moderate montage test.
+    Wr: |
+      |Failures: |[[----]]|
+    r: |+
+      #### Partial Success
+
+    Wj: |
+      |Successes: |[[-----]]|
+    p: |
+      The heroes earn 1 Victory when they achieve total success on an easy or moderate montage test, and 2 Victories on a hard montage test.
+    m: |+
+      ## Montage Outcomes
+
+
+    WA: |+
+      *Use the buttons below to adjust the montage difficulty*
+
+    k: |+
+      **Common Tests you may present to your players during a montage:**
+
+    l: |+
+      [:Tests]
+      }
+
+
+    hQ: |
+      *Suggested Skills*: Skill
+    j: |
+      |Medium
+      }
+
+      {
+    g: |
+      * **Name:** Description.
+    WI: |
+      |||
+    Wb: |
+      ???
+    f: |+
+      |Medium
+      }
+
+    WzB: |
+      |Successes: |[[-----]]|
+    d: |
+      [ ]
+      {
+    a: |
+      * **Do The First Challenge:** The Heroes have to do the first challenge.
+    Wzj: |
+      |||
+    WT: |
+      |Failures: |[[-----]]|
+    Y: |
+      {You can adjust the difficulty of the test by selecting the text to the right of it and cycling between them.}
+    Z: |+
+      {One example has been filled in for you, and one blank template to copy and edit is provided as well.}
+
+    W: |+
+      * For six or more heroes, increase the success and failure limits by 1 for every hero more than five.
+
+    X: |+
+      ## Montage Challenges
+
+    Ww: |
+      |||
+    V: |
+      * For four or fewer heroes, decrease the success limit and failure limits by 1 (to a minimum of 2) for every hero fewer than five.
+    S: |
+      |**Five**|5|5|6|4|7|3|
+    T: |+
+      |**Six**|6|6|7|5|8|4|
+
+
+    Q: |
+      |**Three**|3|3|4|2|5|2|
+    R: |
+      |**Four**|4|4|5|3|6|2|
+    O: |
+      |**Heroes**|**Easy**||**Medium**||**Hard**||
+    P: |
+      |**Limits**|**Success**|**Failure**|**Success**|**Failure**|**Success**|**Failure**|
+    M: |
+      ## Party
+
+      {
+    N: |
+      **Montage Test Difficulty**
+    K: |
+      :<>[[scene:image]]
+      }
+    L: |2+
+
+
+    I: |
+      * Really get them inspired. 
+
+      {
+    J: |
+      Add a Scene here to show to your players while the montage is happening. Make sure to select **ShowBelow UI** so that they can still access their character panel and roll dice. 
+    G: |
+      * Describe the scene to your players. This will be shown to them when you present the document. 
+    H: |
+      * You can add as much detail you you like. 
+    E: |+
+      *(see Montage Tests in [Draw Steel Heroes](pdf:Draw Steel Heroes:261))*
+
+    F: |+
+      ## Setting the Scene
+
+    C: |+
+      # Montage Test: Enter the name of the montage test here.
+
+    D: |+
+      {Describe an outline of your montage test here.}
+
+    Wg: |
+      |||
+    Wzr: |
+      :<>[[Party:Available Players]]
+    WW: |
+      ???query (montage_difficulty = 1) and (numheroes > 5)
+    Wt: |
+      ???
+    WzD: |
+      |Failures: |[[--]]|
+    WzX: |
+      |||
+    Wl: |
+      |Failures: |[[---]]|
+    WG: |
+      |||
+    WzC: |
+      |||
+    WO: |
+      |||
+    WzE: |
+      |||
+    hi: |
+      [ ]
+      {
+    WzA: |
+      ???query (montage_difficulty = 3) and (numheroes < 4)
+    WR: |
+      |Successes: |[[-----]]|
+    WZ: |
+      |Failures: |[[------]]|
+    Wzt: |
+      :<>[[Party:Current Player]]
+    Wq: |
+      |||
+    Wi: |
+      ???query (montage_difficulty = 2) and (numheroes = 4)
+    WB: |+
+      [[setting:Number of Heroes]] 
+
+    Wzx: |+
+      {Add all your players to the available players party at the start. When a player is acting move them to the current player party by dragging their image. Then to acted players once they are done. At the end of the round move all players back to available players}
+
+
+    WJ: |
+      ???
+    Wzh: |
+      |Successes: |[[--------]]|
+    Wa: |
+      |||
+    Wzd: |
+      ???
+    WU: |
+      |||
+    WzV: |
+      |Successes: |[[-------]]|
+    Wzv: |+
+      :<>[[Party:Acted Players]]
+
+    Wzf: |
+      ???query (montage_difficulty = 3) and (numheroes > 5)
+    Wv: |
+      |Successes: |[[-------]]|
+    WzG: |
+      ???
+    Wn: |
+      ???
+    Wzn: |
+      |||
+    WM: |
+      |||
+    Wf: |
+      |Failures: |[[--]]|
+    WX: |
+      |Successes: |[[------]]|
+    WzM: |
+      |||
+    Ws: |
+      |||
+    Wk: |
+      |||
+    WH: |
+      |Failures: |[[---]]|
+    WP: |
+      ???
+    WS: |
+      |||
+    Wx: |
+      |Failures: |[[-----]]|
+    WzK: |
+      |Successes: |[[------]]|
+    Wp: |
+      |Successes: |[[------]]|
+    wm: 'If the heroes suffer total failure, they don’t achieve what they set out '
+    WK: |
+      ???query (montage_difficulty = 1) and (numheroes = 4)
+    Wh: |
+      ???
+    i: |
+      |Name: Might or Agility or Reason or Intuition or Presence (Skill)
+    WV: |
+      ???
+    o: |
+      If the heroes earn a total success, they achieve what they set out to do without complication. 
+    WD: |
+      ???query (montage_difficulty = 1) and (numheroes < 4)
+    c: |
+      *Suggested Skills*: Climb or Jump
+    q: |+
+      [[//awardvp 1 |Award Heroes 1 Victory]] or [[//awardvp 2|Award Heroes 2 Victories]]
+
+
+    U: |
+      **Montage Test Adjustment**
+    Wy: |
+      |||
+    Wu: |
+      ???query (montage_difficulty = 2) and (numheroes > 5)
+    WC: |
+      :<>[[/setvar montage_difficulty 1|Easy]][[/setvar montage_difficulty 2|Medium]][[/setvar montage_difficulty 3|Hard]]
+
+      }
+
+      {!
+    WzQ: |
+      |||
+    Wzp: |+
+      ???
+      }
+
+    Wc: |
+      ???query (montage_difficulty = 2) and (numheroes < 4)
+    Wzl: |
+      |Failures: |[[----]]|
+    WzT: |
+      ???query (montage_difficulty = 3) and (numheroes = 5)
+    WL: |
+      |Successes: |[[----]]|
+    WY: |
+      |||
+    Wd: |
+      |Successes: |[[----]]|
+    Wm: |
+      |||
+    EZ: |+
+      [[reminder:test]]
+
+    WzZ: |
+      |Failures: |[[---]]|
+    WF: |
+      |Successes: |[[---]]|
+    Wzb: |
+      |||
+    WzI: |
+      ???query (montage_difficulty = 3) and (numheroes = 4)
+    e: |
+      |The First Challenge: Might or Agility (Climb or Jump)
+    h: |
+      *Suggested Characteristics*: Might or Agility or Reason or Intuition or Presence
+    b: |
+      *Suggested Characteristics*: Might or Agility
+    WN: |
+      |Failures: |[[----]]|
+    We: |
+      |||
+    Wo: |
+      ???query (montage_difficulty = 2) and (numheroes = 5)
+    n: |+
+      #### Total Success
+
+    WzO: |
+      |Failures: |[[--]]|
+parentFolder: templates
+ord: 1
+mtime: 1774580413492
+description: Montage
+content: |-
+  # Montage Test: Enter the name of the montage test here.
+
+  ## Overview
+
+  Describe an outline of your montage test here.
+
+  :<>[[image:montageimage]]
+
+  ## Tests
+
+  Available Tests:
+
+  {
+  |Climb a Tree: Might or Agility (Climb or Jump)
+  |Easy
+  }
+  {
+  |Look for Traps: Reason or Intuition (Alertness)
+  |Medium
+  }
+  {
+  |Fight the Pursuers: Might (Endurance)
+  |Hard
+  }
+
+  ## Party
+
+
+  |Successes:  |[[-----]]|
+  |Failures:|[[-----]]|
+
+  :<>[[Party:Available Players]] 
+
+  :<>[[Party:Current Player]] 
+
+  :<>[[Party:Acted Players]] 
+
+  {Add all your players to the available players party at the start. When a player is acting move them to the current player party. Then to acted players once they are done. At the end of the round move all players back to availableplayers}
+
+  {
+  **Common Tests you may present to your players during a montage:**
+
+  [:Tests]
+  }
+updateid: d8708f2d-020b-49d8-bf44-0cf8e09311fe

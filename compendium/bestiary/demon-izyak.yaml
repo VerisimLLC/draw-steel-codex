@@ -1,0 +1,217 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2e2f803f-2271-44f6-a12c-db7d6b22186a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Demon Izyak	Level 10 Horde Controller
+        Abyssal, Demon	EV 12
+        <b>Stamina</b> 55	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6 (teleport)	<b>Size</b> 2 /<b> Stability</b> 0
+        <b>Free Strike</b> 4
+        Might +0	Agility +0	Reason +5	Intuition +2	Presence +4
+        <b>Nostalgic Wanderlust</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Psionic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> One creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 psychic damage; R<3 restrained (save ends)
+        %E2%98%85	<b>12-16</b>	12 psychic damage; R<4 restrained (save ends)
+        %E2%9C%B8	<b>17</b>	14 psychic damage; R<5 restrained (save ends)
+        Effect 	A restrained target can be force moved and slides 3.
+        <b>2 Malice</b> The izyak vertically slides the target 6 squares instead. A target restrained in midair doesn't fall until the condition ends.
+
+        <b>Ruinous Temptation </b>(Action) %E2%97%86 2d10 + 5 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Psionic, Ranged
+        <b>Distance</b> 4 cube within 10<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 psychic damage; I<3 dazed (save ends)
+        %E2%98%85	<b>12-16</b>	7 psychic damage; I<4 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	9 psychic damage; I<5 dazed (save ends)
+        <b>Effect</b> A dazed target must move their speed toward the izyak on their turn.
+        <b>2 Malice</b> The area increases to a 6 cube.
+
+        <b>Lethe</b>
+        While winded, the izyak has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the izyak can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4b0ac896-45cb-4217-a567-0b41f5ece931: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the izyak has an edge on strikes, and strikes have an edge against them.
+      guid: 4b0ac896-45cb-4217-a567-0b41f5ece931
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:973e78fe-0105-46ec-861e-e6a26b7ca87d: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the izyak can't be hidden from them.
+      guid: 973e78fe-0105-46ec-861e-e6a26b7ca87d
+      source: Trait
+    role: Horde Controller
+    inflictedConditions: []
+    keywords:
+      Demon: true
+      Abyssal: true
+    max_hitpoints_roll: "55"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 4
+    monster_type: Demon Izyak
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 4
+        id: prs
+      rea:
+        baseValue: 5
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 55
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 40bb4634-0e15-4df0-bfa9-6b98b208c488
+      implementation: 4
+      numTargets: 1
+      name: Nostalgic Wanderlust
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 psychic damage; R<3 restrained (save ends)
+        - 12 psychic damage; R<4 restrained (save ends)
+        - 14 psychic damage; R<5 restrained (save ends)
+        roll: 2d10 + 5
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Psionic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d5f457ae-32ab-453e-95ca-9f3a207ef36f
+      abilityType: none
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 psychic damage; I<3 dazed (save ends)
+        - 7 psychic damage; I<4 dazed (save ends)
+        - 9 psychic damage; I<5 dazed (save ends)
+        roll: 2d10 + 5
+      name: 'Ruinous Temptation '
+      implementation: 3
+      description: A dazed target must move their speed toward the izyak on their turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds:
+      teleport: 6
+    ev: 12
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 21964938-c492-4405-aade-317bc6aa2413
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Demon Izyak
+parentFolder: 481cfcf5-4411-44af-8316-d740deca8552
+artist: null
+ord: 4
+ctime: 1741590229570
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,198 @@
+__typeName: MarkdownDocument
+annotations:
+  image:
+    __typeName: RichImage
+id: 254f152a-cc91-4e79-99b1-56e4f14a998f
+ctime: 1761474652267
+textStorage:
+  __typeName: TextStorage
+  sections:
+    x: |
+      |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+    v: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls.
+    t: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+    r: |
+      |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+    p: |+
+      If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+    n: |
+      |Interest increases by 1, Patience decreases by 1
+    l: |
+      |Patience decreases by 1
+    j: |
+      |Interest decreases by 1, Patience decreases by 1
+    g: |+
+      |Interest increases by 1, Patience does not change.
+
+    h: |
+      |No Motivation or Pitfall: Reason, Intuition, or Presence
+    e: |
+      |Patience decreases by 1
+    f: |
+      |Interest increases by 1, Patience decreases by 1
+    c: |2+
+       Both Interest and Patience decrease by 1.**
+
+    d: |
+      |Appeal to Motivation: Reason, Intuition, or Presence
+    a: |+
+      [[/awardvp 1|Award Heroes 1 Victory]]
+
+
+      }
+
+
+    b: |
+      **Pitfall Used: Automatic failure:
+    Y: |
+      |Interest 1 | No. |Details|
+    Z: |+
+      |Interest 0 | No, and… |Details|
+
+
+    W: |
+      |Interest 3 | Yes, but… |Details|
+    X: |
+      |Interest 2 | No, but… |Details|
+    U: |
+      |Interest 5 |Yes, and... |Details|
+    V: |
+      |Interest 4 | Yes.|Details|
+    S: |
+      {****}
+      {}
+
+
+      {
+    T: |+
+      **Negotiation outcomes**
+
+
+    Q: |
+      {**Pitfall Name Here**}
+    R: |+
+      {Pitfall Description Here}
+
+    O: |+
+      {****}
+      {}
+
+    P: |
+      & Pitfalls 
+    M: |
+      {**Motivation Name Here**}
+    N: |+
+      {Motivation Description Here}
+
+    K: |+
+      *Benevolence, Discovery, Freedom, Greed, Higher Authority, Justice, Legacy, Peace, Power, Protection, Revelry, Vengeance*
+
+
+    L: |
+      Motivations
+    I: |+
+      [[image]]
+
+    J: |
+      All Motivations & Pitfalls:
+    G: |
+      INTEREST:  [[-----]] 
+    H: |+
+      PATIENCE:  [[-----]]
+
+    E: |
+      Impression: 
+    F: |+
+      Native Language: 
+      }
+
+    C: |+
+      *(see Negotiation in [Draw Steel Heroes](pdf:Draw Steel Heroes:283))*
+
+    D: |
+      ##  Negotiation Stats 
+
+      {
+    B: |+
+      # Negotiation
+
+parentFolder: templates
+ord: 2
+mtime: 1774580413504
+description: Negotiation
+content: |
+  # Negotiation
+
+  *(see Negotiation on page 298 in [Draw Steel Heroes])*
+
+  ##  Negotiation Stats 
+
+  {
+  Impression: 
+  Native Language: 
+  }
+
+  INTEREST:  [[-----]] 
+  PATIENCE:  [[-----]]
+
+  [[image]]
+
+  All Motivations & Pitfalls:
+  *Benevolence, Discovery, Freedom, Greed, Higher Authority, Justice, Legacy, Peace, Power, Protection, Revelry, Vengeance*
+
+
+  Motivations
+  {**Motivation Name Here**}
+  {Motivation Description Here}
+
+  {****}
+  {}
+
+  & Pitfalls 
+  {**Pitfall Name Here**}
+  {Pitfall Description Here}
+
+  {****}
+  {}
+
+
+  {
+  **Negotiation outcomes**
+
+
+  |Interest 5 |Yes, and... |Details|
+  |Interest 4 | Yes.|Details|
+  |Interest 3 | Yes, but… |Details|
+  |Interest 2 | No, but… |Details|
+  |Interest 1 | No. |Details|
+  |Interest 0 | No, and… |Details|
+
+
+  [[/awardvp 1|Award Heroes 1 Victory]]
+
+
+  }
+
+
+  **Pitfall Used: Automatic failure:
+   Both Interest and Patience decrease by 1.**
+
+  |Appeal to Motivation: Reason, Intuition, or Presence
+  |Patience decreases by 1
+  |Interest increases by 1, Patience decreases by 1
+  |Interest increases by 1, Patience does not change.
+
+  |No Motivation or Pitfall: Reason, Intuition, or Presence
+  |Interest decreases by 1, Patience decreases by 1
+  |Patience decreases by 1
+  |Interest increases by 1, Patience decreases by 1
+  If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+  |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+  |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+  |The hero learns no information regarding the NPC’s motivations or pitfalls.
+  |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+updateid: 71f9f511-e0d9-4f3e-b375-f3b868e4dc89

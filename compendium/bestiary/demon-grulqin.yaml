@@ -1,0 +1,164 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fba9f5c1-2176-4330-bba9-6016def3080b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Demon Grulqin	Level 4 Minion Brute
+        Abyssal, Demon	EV 6 for four minions
+        <b>Stamina</b> 9	<b>Weakness</b> Holy 5
+        <b>Speed</b> 8	<b>Size</b> 1L /<b> Stability</b> 1
+        <b>With Captain </b>Strike damage +2	<b>Free Strike</b> 3
+        Might +3	Agility +2	Reason -1	Intuition -1	Presence -1
+        <b>Spinning Bone Blade</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12-16</b>	5 damage
+        %E2%9C%B8	<b>17</b>	7 damage
+        <b>Effect</b> The grulqin has an edge on this ability if they moved at least 3 squares in a line during their turn.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the grulqin can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:86577949-bc64-44b4-9490-53472d85448d: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the grulqin can't be hidden from them.
+      guid: 86577949-bc64-44b4-9490-53472d85448d
+      source: Trait
+    role: Minion Brute
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "9"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 3
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    monster_type: Demon Grulqin
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    withCaptain: Strike damage +2
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 9
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5ad0c5c3-3a7a-4525-8f82-78b587263110
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Spinning Bone Blade
+      numTargets: 1
+      description: The grulqin has an edge on this ability if they moved at least 3 squares in a line during their turn.
+      abilityType: none
+      implementation: 3
+    keywords:
+      Demon: true
+      Abyssal: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1L
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 24245ffe-9dc4-487a-b8df-b7732e5365de
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Demon Grulqin
+parentFolder: d2197625-9db6-4f37-8d6f-353a079bffdf
+artist: null
+ord: 1
+ctime: 1741590230811
+mtime: 1775201137032
+hidden: false

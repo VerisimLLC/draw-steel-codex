@@ -1,0 +1,55 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    characterConditionRequired: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    guid: 26d20ae2-3803-4d91-845b-5df41e5f7786
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      applyto: targets
+      roll: 1d6
+      titleText: ""
+      chatMessage: Minotaur Disembowling Horns
+    numTargets: "1"
+    trigger: beginturn
+    name: Minotaur Disembowling Horns
+    description: While bleeding this way, the target takes 1d6 damage at the start of each of their turns.
+    abilityType: none
+    iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+  description: |-
+    While bleeding this way, the target takes 1d6 damage at the 
+    start of each of their turns.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 6e8d74ea-445d-4d6c-ab84-e7081a540ca9
+  name: Minotaur Disembowling Horns
+  sourceguid: 2747a5d0-b396-4767-be12-a25aa28d7bc4
+source: Ongoing Effect
+guid: 2747a5d0-b396-4767-be12-a25aa28d7bc4
+id: 2747a5d0-b396-4767-be12-a25aa28d7bc4
+ctime: 1765296305476
+condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Minotaur Disembowling Horns
+description: |-
+  While bleeding this way, the target takes 1d6 damage at the 
+  start of each of their turns.
+mtime: 1765296538875
+iconid: bd44e33a-fb70-490c-acac-882da0d34642

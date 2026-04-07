@@ -1,0 +1,48 @@
+__typeName: ActivatedAbility
+targetFilter: ""
+id: 49180e7f-0337-4a80-a98f-1543c67550bb
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  namedAbility: Ranged Free Strike
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 9959a5d2-9f4d-41a7-931a-e71fd56a92fa
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: named
+  targetingFormula: Target.id = <<targetid>>
+  targeting: formula
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+ctime: 1747819619483
+targetType: self
+numTargets: "1"
+description: ""
+name: Ranged Free Strike Against Specific Target
+repeatTargets: false
+mtime: 1771184269364
+abilityType: none
+iconid: ui-icons/skills/1.png

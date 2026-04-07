@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 763079be-1ea4-4999-b3d6-6c1da5842c80
+  sourceguid: 452d2a85-5b9b-42b3-89cc-621a742ac6ac
+  value: 2
+  source: Ongoing Effect
+  name: Tempo Change
+  behavior: attribute
+  description: Speed increased by 2 until end of turn.
+  attribute: speed
+source: Ongoing Effect
+guid: 452d2a85-5b9b-42b3-89cc-621a742ac6ac
+id: 452d2a85-5b9b-42b3-89cc-621a742ac6ac
+ctime: 1747818907458
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.106999754905701
+    s: 0.57617199420929
+    v: 1.00410795211792
+    a: 1
+custom: true
+name: Tempo Change
+iconid: 54d12486-b6eb-4290-b19c-ffdbab61d585
+description: Speed increased by 2 until end of turn.
+mtime: 1754229759756
+implementation: 3

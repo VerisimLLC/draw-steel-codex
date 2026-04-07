@@ -1,0 +1,58 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 00ccd395-70d8-42d5-9388-734c27d18138
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "5"
+    damageType: all
+    apply: Damage Reduction
+  description: You gain damage immunity 5 and cannot be made slow or weakened. Whenever you force move a creature, the forced movement gains a +5 bonus.
+  name: Steel
+  guid: 42459b7c-6df6-46e6-b6c2-e1d08040458d
+- __typeName: CharacterModifier
+  sourceguid: 00ccd395-70d8-42d5-9388-734c27d18138
+  guid: f8859ee9-e954-4c0d-9f4b-8a45229ef5bc
+  source: Ongoing Effect
+  conditions:
+  - 68f455f5-135f-495c-822d-40d809d2b15f
+  - 567a3454-ead6-4416-b338-ed73d64b7805
+  description: You gain damage immunity 5 and cannot be made slow or weakened. Whenever you force move a creature, the forced movement gains a +5 bonus.
+  behavior: conditionimmunity
+  name: Steel
+- __typeName: CharacterModifier
+  sourceguid: 00ccd395-70d8-42d5-9388-734c27d18138
+  displayCondition: Ability.hasforcedmovement
+  source: Ongoing Effect
+  guid: 682724ee-69b3-41d4-b710-c4fb8fef6941
+  adjustments:
+  - type: push
+    value: "5"
+  - type: pull
+    value: "5"
+  - type: slide
+    value: "5"
+  keywords: []
+  activationCondition: "1"
+  name: Steel
+  behavior: power
+  description: Whenever you force move a creature, the forced movement gains a +5 bonus.
+  rollType: ability_power_roll
+  modtype: none
+source: Ongoing Effect
+guid: 00ccd395-70d8-42d5-9388-734c27d18138
+id: 00ccd395-70d8-42d5-9388-734c27d18138
+ctime: 1771976856447
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Steel
+description: You gain damage immunity 5 and cannot be made slow or weakened. Whenever you force move a creature, the forced movement gains a +5 bonus.
+custom: true
+mtime: 1771976856447
+iconid: 32077eeb-5e0b-4dd8-b538-4bab491da0ed

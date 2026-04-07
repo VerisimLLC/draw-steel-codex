@@ -1,0 +1,93 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 216d46d9-5d14-413d-ba43-e7f45e2bcd2b
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:216d46d9-5d14-413d-ba43-e7f45e2bcd2b: true
+  name: Corven Form
+  guid: 138c9ea2-e9b1-4c5c-9466-192f63836fd8
+  description: ""
+  behavior: attribute
+  attribute: creatureSize
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 216d46d9-5d14-413d-ba43-e7f45e2bcd2b
+  source: Ongoing Effect
+  value: Walking Speed
+  domains:
+    CharacterOngoingEffect:216d46d9-5d14-413d-ba43-e7f45e2bcd2b: true
+  name: Corven Form
+  guid: a82c4b40-c33b-4373-88e5-0f876f99a206
+  description: ""
+  behavior: attribute
+  attribute: fly
+- __typeName: CharacterModifier
+  sourceguid: 216d46d9-5d14-413d-ba43-e7f45e2bcd2b
+  modifyDescription: When in Corven Form, you can use the Hide maneuver as a free maneuver.
+  source: Ongoing Effect
+  filterAbility: ability.name = "Hide"
+  behavior: modifyability
+  domains:
+    CharacterOngoingEffect:216d46d9-5d14-413d-ba43-e7f45e2bcd2b: true
+  actionResourceId: none
+  name: Corven Form
+  attributes: []
+  description: ""
+  guid: 95084fd1-cbd1-4b9e-8ec1-2b21c58729cf
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 2a84f0b1-2e82-47b8-8d21-1e9e6c879917
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:216d46d9-5d14-413d-ba43-e7f45e2bcd2b: true
+  sourceguid: 216d46d9-5d14-413d-ba43-e7f45e2bcd2b
+  abilityFilter: ability.Categorization != "Signature Ability" and ability.Categorization != "Heroic Ability" and ability.Categorization != "Basic Attack" and Ability.name != Aspect of the Wild
+  source: Ongoing Effect
+  behavior: suppressabilities
+  guid: d22d5fff-3635-4e53-9775-b204c8a918bd
+  name: Corven Form
+  description: ""
+- __typeName: CharacterModifier
+  guid: cb4774f4-f358-4e00-853b-9cc9a6e9dc9d
+  sourceguid: 519d8db4-254d-4445-a476-733eaf6c111b
+  value: 1
+  source: Ongoing Effect
+  name: Corven Form
+  behavior: attribute
+  description: ""
+  attribute: disguised
+source: Ongoing Effect
+guid: 519d8db4-254d-4445-a476-733eaf6c111b
+id: 519d8db4-254d-4445-a476-733eaf6c111b
+ctime: 1770689385144
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Corven Form
+iconid: 54d12486-b6eb-4290-b19c-ffdbab61d585
+description: ""
+mtime: 1770690060598
+implementation: 4

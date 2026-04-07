@@ -1,0 +1,70 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: c9d0e1f2-a3b4-5679-cdef-789012346cde
+  description: As a maneuver, you create an area of sensory instability in a 2 aura centered on yourself. The area is difficult terrain for your enemies until the end of the encounter.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: c9d0e1f2-a3b4-5679-cdef-789012346cde
+    guid: 2a03ad9f-7f70-4af2-a289-df07a012a56f
+    source: Item
+    behavior: activated
+    description: As a maneuver, you create an area of sensory instability in a 2 aura centered on yourself. The area is difficult terrain for your enemies until the end of the encounter.
+    name: Hallucinatory
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      implementationDetails: ""
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 6f6f8d04-9208-4b13-a52e-41a2d4fe7bb6
+        ongoingEffectCustom: 6f6f8d04-9208-4b13-a52e-41a2d4fe7bb6
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 300
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      persistence: []
+      modifiers: []
+      domains: []
+      strain: []
+      guid: c36315c9-8d02-4518-83bf-2058f6a5b65e
+      targetType: self
+      numTargets: "1"
+      castImmediately: true
+      iconid: f3ca1e31-fa85-4a4f-aa5d-36d4a551310f
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Hallucinatory
+      categorization: Ability
+      description: As a maneuver, you create an area of sensory instability in a 2 aura centered on yourself. The area is difficult terrain for your enemies until the end of the encounter.
+      abilityType: none
+      implementation: 4
+  source: Item
+  name: Hallucinatory
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: c69f1d6b-68e0-4f3a-9f9b-48bd28f66619
+imbuePrereq: none
+projectSource: Variac
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: A night hag's hairpin
+mtime: 1774702322063
+name: Hallucinatory
+imbueTargetType: implement
+description: As a maneuver, you create an area of sensory instability in a 2 aura centered on yourself. The area is difficult terrain for your enemies until the end of the encounter.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

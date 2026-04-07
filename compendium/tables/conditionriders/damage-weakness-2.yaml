@@ -1,0 +1,34 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: cd28e555-16ea-4bc9-8a1e-46f432ffb799
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-2"
+    damageType: all
+    apply: Damage Reduction
+  description: A target restrained this way has damage weakness 2.
+  name: Damage Weakness 2
+  guid: f4f1855d-5ba5-4eae-9127-d7b765dc70ee
+source: Ongoing Effect
+guid: cd28e555-16ea-4bc9-8a1e-46f432ffb799
+id: cd28e555-16ea-4bc9-8a1e-46f432ffb799
+ctime: 1758663226785
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+name: Damage Weakness 2
+description: A target restrained this way has damage weakness 2.
+mtime: 1758663281078
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+implementation: 3

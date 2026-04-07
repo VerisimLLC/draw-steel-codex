@@ -1,0 +1,29 @@
+__typeName: MarkdownDocument
+description: Brune
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 68d6f2c9-4b4f-4d3c-b907-4820a4b7a6d1
+annotations:
+  image:
+    __typeName: RichImage
+id: b6f5335e-2825-48b8-ba14-c4e3b09e002a
+mtime: 1761417057535
+content: |-
+  # Brune
+
+  [[image]]
+
+  *The Butcher. He is gruff and rude, and gives no useful information about the town or most anything else.*
+  {
+  Secret: See [B8. Butcher]
+  Brune is in league with the Forsaken Wraiths. He gives them some of the meat he butchers and sells it to them at night whenever they come by. Lately, Brune has become even greedier and offered the bandits smoked meat from the smokehouse in exchange for more gold. To steal bits of meat from the smokehouse, Brune threatened Saberna, the woman who tends to the meat smoking. Some folks have noticed their meat comes back smaller after being smoked and complained to the reeve about it.
+
+  Brune is gruff and rude. He tells the heroes to “buy some meat or retreat.” If they start asking questions, he rolls his eyes and mocks them, giving no useful information about the town or most anything else they ask.}
+
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761398583239

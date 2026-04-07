@@ -1,0 +1,269 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Kobold Princeps
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: df1287f2-79c0-40e6-9998-11c207641e1a
+  properties:
+    __typeName: monster
+    groupid: bd6130fe-544f-43da-bb98-cd51d2ad5e85
+    cr: 1
+    max_hitpoints: 4
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Kobold: true
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |
+        Kobold Princeps	Level 1 Minion Support
+        Humanoid, Kobold	EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed </b>5	<b>Size</b> 1S /<b> Stability</b> 0
+        <b>With Captain </b>Stamina +2	<b>Free Strike</b> 1
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence 0
+        <b>Hasta</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	1 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	2 damage
+        %E2%9C%B8	<b>17</b>	3 damage
+        <b>Effect</b> The princeps lunges with their spear. An ally within 3 shifts 2 squares.
+
+        <b>Shield? Shield!</b>
+        The princeps has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bd017ecc-b404-4903-8b1e-36acea2358ee: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        iconColor: "#ffffffff"
+        behavior: icon
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        statusIcon: a0c5de05-c463-49aa-af4f-00f1c36993aa
+        name: Shield? Shield!
+        description: The princeps has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        guid: 5172cd27-69e0-4ae4-b096-f2e3cd6cecaf
+      - __typeName: CharacterModifier
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        value: "1"
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        guid: 4efb63c4-25f2-4b77-a3bc-e40763b9367d
+        description: The princeps has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56eeb741-8039-4eb0-907d-b8627506e5a7
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The princeps has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 7bec624d-8307-47dc-ba04-8487c909462a
+        source: Trait
+        guid: 56847eff-79dd-4cfa-9aa4-166372e1b53f
+        filterCondition: AdjacentAlliesWithFeature("Shield? Shield!")
+        name: Shield? Shield!
+        value: 1
+        description: The princeps has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+        behavior: attribute
+        attribute: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+      source: Trait
+      description: The princeps has cover, a Stability of 1, and can act as cover for allies when adjacent to an ally who also has this trait.
+      guid: bd017ecc-b404-4903-8b1e-36acea2358ee
+      name: Shield? Shield!
+      implementation: 3
+    role: Minion Support
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    opportunityAttack: 1
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      5ed69b39-a712-43f5-b402-8416ead9047e: true
+    ev: 3
+    withCaptain: +2 bonus to Stamina
+    savingThrowRatings: []
+    damage_taken: 0
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 4b886728-ada8-452c-96e7-5bf2906c3467
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Hasta
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 3f8530a6-47ba-47cf-b975-e640fcb5608c
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Choose an ally to shift 2
+        autoTarget: false
+        abilityType: standard
+        standardAbility: 090c096b-0841-45db-bb48-175f51a3bf75
+        standardAbilityParams:
+          range: "3"
+          distance: "2"
+          count: "1"
+      description: The princeps lunges with their spear. An ally within 3 shifts 2 squares.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+        used: 1
+    creatureSize: 1S
+    minionSquad: Kobold Princeps Squad 1
+    walkingSpeed: 5
+    availableTriggers:
+      d9307fba-9766-407c-876d-bdb24c23f438:
+        __typeName: ActiveTrigger
+        text: Opportunity Attack
+        rules: Make a Free Strike against the moving creature
+        clearOnDismiss: true
+        id: d9307fba-9766-407c-876d-bdb24c23f438
+        targets: []
+    movementSpeeds: []
+    monster_type: Kobold Princeps
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        c987229e-1597-40c1-b9b8-24d29d2e48d9:
+          note: Hasta
+          abilityid: 4b886728-ada8-452c-96e7-5bf2906c3467
+          refreshid: 8efa86b3-8058-4920-8bf9-3f7a708a1721-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: eeba1059-f0c3-4f9d-b8a9-e81ed7dde560-1701
+    resistances: []
+  tokenType: null
+  bestiaryId: 9e7eccd6-d102-4ba2-9c5d-74a03aa2b134
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Kobold Princeps
+parentFolder: a8626206-e35d-433a-b952-61ebe7374625
+artist: null
+ord: 0
+ctime: 1741590288026
+mtime: 1775201137032
+hidden: false

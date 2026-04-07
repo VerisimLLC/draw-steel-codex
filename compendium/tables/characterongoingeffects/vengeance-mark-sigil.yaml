@@ -1,0 +1,21 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: none
+guid: ab39ec05-193a-41f2-b00f-f66e067cc948
+id: ab39ec05-193a-41f2-b00f-f66e067cc948
+ctime: 1711264543591
+domains:
+  CharacterOngoingEffect:ab39ec05-193a-41f2-b00f-f66e067cc948: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+condition: a0d68486-a5ee-44e6-9c43-e89b72f14614
+name: "Vengeance Mark: Sigil"
+description: The caster always knows the direction to the exact location of a creature who bears this sigil, and is on the same plane of existence.
+custom: true
+mtime: 1765649887478
+iconid: 52b11daa-6280-40b3-bf57-7eb8b7a1828f

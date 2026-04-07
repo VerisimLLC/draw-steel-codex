@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Exploration Perks
+name: Teamwork
+description: When you take your first turn during any montage test, you can both make a test and assist another hero’s test.
+mtime: 1755079458353
+id: 14d5c6db-f555-46a2-b0f8-52d239585d8e
+ctime: 1754889130241

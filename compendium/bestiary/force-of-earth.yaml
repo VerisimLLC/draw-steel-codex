@@ -1,0 +1,250 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 185e118d-7215-44a9-96eb-5d7e81916067
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.6106496
+    frameSaturation: 0.7886816
+    frameBrightness: 0.9292336
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1e5a5652-7693-48ed-a453-f331b414bbe4
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Force of Earth	Level 3 Elite Brute
+        Elemental	EV 20
+        <b>Stamina</b> 132
+        <b>Speed</b> 5 (burrow)	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>	Free Strike</b> 6
+        Might +2	Agility -1	Reason 0	Intuition +1	Presence +2
+        <b>Slam Into Dirt</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	12 damage; M<1 restrained (save ends)
+        %E2%9C%B8	<b>17</b>	15 damage; M<2 restrained (save ends)
+        <b>Effect</b> The area beneath the target becomes difficult terrain.
+
+        <b>Convocation of Quartz</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5<b>	Target</b> Self or 1 elemental
+        <b>Effect</b> The target imposes a bane on melee strikes made against them until the start of the force's next turn if they don't already have it.
+        <b>3 Malice</b> The target grows a carapace of stone, increasing their stability by 3 and granting them 15 temporary Stamina until the end of the encounter.
+
+        <b>Break Armor</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Trigger</b> The force takes damage
+        <b>Effect</b> The force halves the damage, gains damage weakness 3, and increases their speed by 3. The damage weakness increases by 3 each time the force uses this ability in an encounter.
+
+        <b>Primordial Strength</b>
+        The force deals an additional 6 damage with strikes targeting objects.
+
+        <b>Fickle and Free</b>
+        The force can't be restrained, slowed, or knocked prone, and they ignore difficult terrain.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fb228597-f0e7-4c2e-89f8-f322f76db18a: true
+      modifiers: []
+      name: Primordial Strength
+      description: The force deals an additional 6 damage with strikes targeting objects.
+      guid: fb228597-f0e7-4c2e-89f8-f322f76db18a
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0cffc813-b826-4b8c-86ab-20b70f293346: true
+      modifiers: []
+      name: Fickle and Free
+      description: The force can't be restrained, slowed, or knocked prone, and they ignore difficult terrain.
+      guid: 0cffc813-b826-4b8c-86ab-20b70f293346
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7ad05d79-37c9-4a11-86f3-3c6cfdbdfdce: true
+      modifiers: []
+      name: Stone Swim
+      description: The force can burrow through stone, but can't drag other creatures underground when they do so.
+      guid: 7ad05d79-37c9-4a11-86f3-3c6cfdbdfdce
+      source: Trait
+    role: Elite Brute
+    keywords:
+      Elemental: true
+    max_hitpoints_roll: "132"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    walkingSpeed: 5
+    weight: 6
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      end:
+        __typeName: CharacterAttribute
+        id: end
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      prs:
+        baseValue: 2
+        id: prs
+      rsn:
+        baseValue: -1
+        id: rsn
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Force of Earth
+    equipment: []
+    max_hitpoints: 132
+    traitNames: []
+    damage_taken: 0
+    groupid: 49b3126a-b109-4534-95a4-925d621463aa
+    resources: []
+    ev: 20
+    monster_category: Monster
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage
+        - 12 damage; M<1 restrained (save ends)
+        - 15 damage; M<2 restrained (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b4533531-f93c-4881-8849-2f9b1f3b9bca
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Slam Into Dirt
+      numTargets: 2
+      description: The area beneath the target becomes difficult terrain.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: aa3c0085-7d22-4183-980e-10ef32bc5663
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Convocation of Quartz
+      numTargets: 1
+      description: The target imposes a bane on melee strikes made against them until the start of the force's next turn if they don't already have it.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: c9a6979e-937f-4d0f-851c-0db4018355e4
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Break Armor
+      implementation: 0
+      description: The force halves the damage, gains damage weakness 3, and increases their speed by 3. The damage weakness increases by 3 each time the force uses this ability in an encounter.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    creatureSize: "2"
+    movementSpeeds:
+      burrow: 5
+    fmr: 2
+    opportunityAttack: 6
+    levelChoices: []
+    minion: false
+  tokenType: null
+  bestiaryId: 5bf573a5-e400-4db0-881b-bd7b53b857d9
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1711734129718
+description: Force of Earth
+parentFolder: 56d7eb0d-966a-478f-9cdf-a336d5fa9bb1
+artist: null
+ord: 0
+ctime: 1741590255607
+mtime: 1775201137032
+hidden: false

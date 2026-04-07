@@ -1,0 +1,60 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 7db8ea0b-148b-41b9-8a87-a92cce0c6435
+  modifyDescription: ""
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Magic: true
+  domains:
+    CharacterOngoingEffect:7db8ea0b-148b-41b9-8a87-a92cce0c6435: true
+  attributes:
+  - operation: Add
+    value: "1"
+    id: numtargets
+  guid: 508ec260-5fc4-4ddc-9f80-92f632621c79
+  description: This creature's Free Strikes have the Magic Keyword and may target two creatures or objects.
+  name: New Ongoing Effect
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: fcbdd0fa-9f7f-4942-abc8-099e726e4aae
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 7db8ea0b-148b-41b9-8a87-a92cce0c6435
+id: 7db8ea0b-148b-41b9-8a87-a92cce0c6435
+ctime: 1770807218275
+domains:
+  CharacterOngoingEffect:7db8ea0b-148b-41b9-8a87-a92cce0c6435: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.327624917030334
+    s: 1.00112903118134
+    v: 1.00129616260529
+    a: 1
+name: Magic Free Strikes +1 target
+custom: true
+description: This creature's Free Strikes have the Magic Keyword and may target two creatures or objects.
+mtime: 1770808568697
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

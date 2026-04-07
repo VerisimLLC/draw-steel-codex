@@ -1,0 +1,673 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: a164d0ec-48c6-436c-b597-a0544771e6b7
+    offtokenPortraitId: e23adef0-6e6d-41ae-b5e2-5b26dd283792
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: e3344131-ceaf-4db6-8631-d9e0b06ac91b
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3814676
+    portraitOffset:
+      x: -0.2023533
+      y: 0.2115597
+    frameHueShift: 0.7902131
+    frameSaturation: 0.6856104
+    frameBrightness: 0.3232992
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions:
+    - x: 0.3981252
+      y: 0.3746872
+    - x: 0.18
+      y: -0.18
+    - x: 0.18
+      y: 0.18
+    - x: -0.18
+      y: 0.18
+    - x: -0.3
+      y: 0
+    - x: 0.3
+      y: 0
+    - x: 0
+      y: 0.3
+    - x: 0
+      y: -0.3
+    saddles: 1
+    saddleSize: 3
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e0adde60-9327-4575-94f2-69837b52b9d2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    inventory: []
+    inflictedConditions: []
+    ev: 12
+    innateAttacks: []
+    currentMoveType: walk
+    monster_type: Essence of Change
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        204f6670-696a-4ec7-b978-9291f1125057:
+          timestamp: 1760073168909
+          note: "Used triggered ability: Redirect Motion"
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        9ab210d1-6511-4fd3-9d25-c28f21edf781:
+          timestamp: 1760072940201
+          note: "Used triggered ability: Redirect Motion"
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    levelChoices: []
+    moveDistance: 34
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; slide 1
+        - 6 damage; slide 2; A<1 the slide is vertical
+        - 10 damage; slide 3; A<2 the slide is vertical
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.526249945163727
+          s: 0.909570217132568
+          v: 0.856538474559784
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 65
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 017c5230-321e-42da-ab1e-01b1afedaa07
+      categorization: Signature Ability
+      numTargets: "2"
+      iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd
+      targetType: target
+      name: Bite and Throw
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: true
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage; M<1 prone
+        - 5 damage; M<2 prone
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.566249907016754
+          s: 0.850976526737213
+          v: 0.862019658088684
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 65
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: "5"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 15599c39-94ba-4a83-a012-d7f93c4646e2
+      categorization: Signature Ability
+      targetType: line
+      numTargets: "1"
+      iconid: b6c78c6e-ac58-437c-a83d-2549d06a5412
+      radius: "2"
+      name: Wolf Stream
+      persistence: []
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.661249697208405
+          s: 0.763085722923279
+          v: 0.82263594865799
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 65
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: "5"
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: ce79451e-c685-4d41-860e-8732eeaac37b
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: fab3c9a5-f7c1-488c-98a7-79dc269a5e3b
+        durationUntilEndOfTurn: false
+        duration: 1
+        ongoingEffectCustom: c68f5f2b-e295-4fcc-82a8-6a3a28c4a16f
+      categorization: Ability
+      iconid: a337f5b1-3990-4565-8be2-c7861fb28d10
+      numTargets: "1"
+      name: Rally Howl
+      persistence: []
+      description: Each target gains an edge on their next strike until the start of the essence's next turn.
+      abilityType: none
+      implementation: 3
+    damageEntries:
+      f62778c0-f88b-4024-9416-061605ee282e:
+        timestamp: 1760067736607
+        id: f62778c0-f88b-4024-9416-061605ee282e
+        heal: 2
+      8b1c0924-17d7-46e8-88ff-261c14853126:
+        damage: 2
+        timestamp: 1760067732484
+        attackerid: c654e750-6e9b-4d38-90e4-e6165fd16669
+        id: 8b1c0924-17d7-46e8-88ff-261c14853126
+        damage_type: collide
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        960448fa-1014-4a04-b969-e8ebf5f423a7:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        e39bcf3f-f74a-4712-a24b-fc4e9b679c10:
+          note: 2 Healing
+          timestamp: 1760067736607
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        884d8e73-6d10-4289-bcb8-09eccfd8c444:
+          note: 2 damage from Essence of Change's Collision
+          disposition: bad
+          timestamp: 1760067732484
+          attackerid: 7fe42b03-8339-480e-8df9-5588bf0e511c
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 13
+    minion: false
+    stability: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+        CharacterFeature:7af04792-2e2e-4992-b5de-1303a95c17d9: true
+        CharacterFeature:2d8ca7d4-bb08-4e15-b2b1-abc89bd9ad70: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+        source: Monster Trait
+        value: 1
+        domains:
+          CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+          CharacterFeature:7af04792-2e2e-4992-b5de-1303a95c17d9: true
+          CharacterFeature:2d8ca7d4-bb08-4e15-b2b1-abc89bd9ad70: true
+        name: Aquavuken
+        guid: 23c8d184-e074-4b7d-bf8e-5678ad053e2f
+        description: The essence ignores difficult terrain and can move on top of water as if it were solid ground.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+        source: Monster Trait
+        value: 1
+        domains:
+          CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+          CharacterFeature:7af04792-2e2e-4992-b5de-1303a95c17d9: true
+          CharacterFeature:2d8ca7d4-bb08-4e15-b2b1-abc89bd9ad70: true
+        name: Aquavuken
+        guid: 02fd9bbc-2a33-4ca1-bac9-2762c96b4eab
+        description: The essence ignores difficult terrain and can move on top of water as if it were solid ground.
+        behavior: attribute
+        attribute: swim
+      - __typeName: CharacterModifier
+        sourceguid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+        source: Monster Trait
+        value: 1
+        domains:
+          CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+          CharacterFeature:7af04792-2e2e-4992-b5de-1303a95c17d9: true
+          CharacterFeature:2d8ca7d4-bb08-4e15-b2b1-abc89bd9ad70: true
+        name: Aquavuken
+        guid: 2083f030-beb3-4f59-9e6d-3024adb3f622
+        description: The essence ignores difficult terrain and can move on top of water as if it were solid ground.
+        behavior: attribute
+        attribute: 6a081cac-d26a-4e1e-a26b-2ace8c92fb58
+      source: Monster Trait
+      description: The essence ignores difficult terrain and can move on top of water as if it were solid ground.
+      guid: 7af04792-2e2e-4992-b5de-1303a95c17d9
+      name: Aquavuken
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8c067a3f-e263-4424-af14-9ffb3f8d12f8: true
+        CharacterFeature:982bef8a-ad72-4def-8578-968b0cbdef5f: true
+        CharacterFeature:8cd34fc6-0e2e-4602-b09a-8e09d1d7844b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8cd34fc6-0e2e-4602-b09a-8e09d1d7844b
+        source: Monster Trait
+        value: 1
+        filterCondition: (Count Nearby Friends(1)) > 0
+        guid: 4ebb876c-6f7c-4fdf-b404-02c31aac9623
+        name: Pack Strong
+        domains:
+          CharacterFeature:8c067a3f-e263-4424-af14-9ffb3f8d12f8: true
+          CharacterFeature:982bef8a-ad72-4def-8578-968b0cbdef5f: true
+          CharacterFeature:8cd34fc6-0e2e-4602-b09a-8e09d1d7844b: true
+        description: While adjacent to any ally, the essence can't be flanked or made frightened.
+        behavior: attribute
+        attribute: 0dede2a8-4f44-45aa-be20-342fdffd4916
+      - __typeName: CharacterModifier
+        sourceguid: 8cd34fc6-0e2e-4602-b09a-8e09d1d7844b
+        source: Monster Trait
+        behavior: conditionimmunity
+        domains:
+          CharacterFeature:8c067a3f-e263-4424-af14-9ffb3f8d12f8: true
+          CharacterFeature:982bef8a-ad72-4def-8578-968b0cbdef5f: true
+          CharacterFeature:8cd34fc6-0e2e-4602-b09a-8e09d1d7844b: true
+        name: Pack Strong
+        conditions:
+        - 1211270f-bfce-45a6-b937-d72f0e8a06a8
+        description: While adjacent to any ally, the essence can't be flanked or made frightened.
+        guid: 9db9c505-e308-4bbd-bf24-42c98a162a60
+        filterCondition: (Count Nearby Friends(1)) > 0
+      source: Monster Trait
+      description: While adjacent to any ally, the essence can't be flanked or made frightened.
+      guid: 8c067a3f-e263-4424-af14-9ffb3f8d12f8
+      name: Pack Strong
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e0f8ade6-fa4d-4019-9a31-0c107802f793: true
+        CharacterFeature:7548f29d-c7c6-4bbe-b09a-81cc79598787: true
+        CharacterFeature:bb609a6f-b0f8-43f5-80b1-17fa9f9e79fd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e0f8ade6-fa4d-4019-9a31-0c107802f793: true
+          CharacterFeature:7548f29d-c7c6-4bbe-b09a-81cc79598787: true
+          CharacterFeature:bb609a6f-b0f8-43f5-80b1-17fa9f9e79fd: true
+        sourceguid: 7548f29d-c7c6-4bbe-b09a-81cc79598787
+        description: Once on their turn as a free maneuver, the essence and their rider can enter an adjacent body of water and reappear in an unoccupied space adjacent to another body of water within 5 squares. Any other water elemental can be treated as a body of water for the purpose of using this ability.
+        source: Monster Trait
+        name: Water Weird
+        behavior: activated
+        guid: 8090ac66-c914-43ef-87ad-7a5f39ee5fd3
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: Self
+          targetTextOverride: 1 unoccupied space adjacent to water
+          repeatTargets: false
+          rangeTextOverride: 5 squares
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.573750078678131
+              s: 0.903710961341858
+              v: 0.883498311042786
+              a: 1
+          categorization: Signature Ability
+          preDescription: Once on their turn as a free maneuver, the flow can enter an adjacent body of water and reappear in an unoccupied space adjacent to another body of water within 5 squares. Any other water elemental can be treated as a body of water for the purpose of using this ability
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 31089149-4c73-4eee-bdab-0fda85fef0c7
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: The target square must be adjacent to a body of water. Another water elemental can be treated as a body of water for this ability.
+            standardAbilityParams:
+              range: "5"
+            abilityType: standard
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+            runOnController: true
+          persistence: []
+          modifiers: []
+          castImmediately: true
+          strain: []
+          guid: 7ec0660e-c126-4e25-b37e-5f652635d5b3
+          numTargets: "1"
+          range: "5"
+          domains:
+            CharacterFeature:e0f8ade6-fa4d-4019-9a31-0c107802f793: true
+            CharacterFeature:7548f29d-c7c6-4bbe-b09a-81cc79598787: true
+            CharacterFeature:bb609a6f-b0f8-43f5-80b1-17fa9f9e79fd: true
+          reasonedFilters: []
+          actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+          name: Water Weird
+          selfTarget: true
+          description: ""
+          abilityType: none
+          iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+      source: Monster Trait
+      description: Once on their turn as a free maneuver, the essence and their rider can enter an adjacent body of water and reappear in an unoccupied space adjacent to another body of water within 5 squares. Any other water elemental can be treated as a body of water for the purpose of using this ability.
+      guid: e0f8ade6-fa4d-4019-9a31-0c107802f793
+      name: Water Weird
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:82c77d50-cb77-4b5f-b0bc-3593cd4b1fb1: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f3139e98-7bea-46cd-a3f3-7c888796f5c5
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          changeTargetEffect: forcemove
+          source: Trigger
+          behavior: power
+          adjustments: []
+          keywords: []
+          activationCondition: false
+          name: Redirect Motion
+          changeTargetFilter: Current.SizeWhenForceMoved >= Target.SizeWhenForceMoved
+          rollType: ability_power_roll
+          rules: ""
+          guid: 172ea101-b840-445e-9803-6eb2f0413d65
+          modtype: none
+          changeTarget: true
+        guid: 932f83d1-e537-4140-9a11-a9ec404c33eb
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+        targetType: anycreature
+        trigger: forcemoved
+        name: Redirect Motion
+        rules: The essence selects a new target of the same size or smaller within distance to be force moved instead. Alternatively, the essence can become the source of the forced movement and turn it into a push if it isn't already, deciding the new target's destination.
+        description: ""
+        range: "1"
+        additionalCostModifiers: []
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:82c77d50-cb77-4b5f-b0bc-3593cd4b1fb1: true
+        sourceguid: 82c77d50-cb77-4b5f-b0bc-3593cd4b1fb1
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Redirect Motion
+        description: ""
+        guid: 18329226-f622-4cd9-b607-0fcb49b3ede0
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The essence selects a new target of the same size or smaller within distance to be force moved instead. Alternatively, the essence can become the source of the forced movement and turn it into a push if it isn't already, deciding the new target's destination.
+          name: Redirect Motion
+          trigger: The essence or an ally within distance would be force moved.
+          guid: de773c26-b167-43fd-9951-b4f8589ae90c
+          distance: Melee 1
+          keywords:
+            Melee: true
+      source: Character Feature
+      description: ""
+      guid: 82c77d50-cb77-4b5f-b0bc-3593cd4b1fb1
+      name: Redirect Motion
+      implementation: 3
+    role: Elite Mount
+    opportunityAttack: 4
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    ongoingEffects: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    moveDistanceRoundId: 2bfbce61-b348-44f8-9645-d10bda79f930-1
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: fire
+      apply: Damage Reduction
+    deathSavingThrowFailures: 0
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 60
+    monster_category: Monster
+    initiativeGrouping: 1e160db8-5eec-49fb-943f-71277f3140c4
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket9: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      leveled4: []
+      trinket3: []
+      trinket6: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    keywords:
+      Elemental: true
+      Water Wolf: true
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        69dffb08-fe94-4d25-b268-4a2fd1ff5381:
+          timestamp: 1760065316152
+          note: Bite and Throw
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        81fb3fb5-4f53-4401-b09b-1f195f240369:
+          timestamp: 1760065369614
+          note: Bite and Throw
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        f51a8c46-c0bc-41f3-801a-921859cc9318:
+          timestamp: 1760061077523
+          note: Bite and Throw
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        72e96f3d-3570-453f-ae1c-6d70a26596e6:
+          timestamp: 1760063273187
+          note: Wolf Stream
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 1b13d6c4-24f2-4c6f-a0f3-b62bbb4c2187-1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        used: 1
+    creatureSize: "2"
+    availableTriggers: []
+    groupid: f4e22b22-ff83-4443-a797-0dd3a7d0c496
+    auras: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        99cfccfa-6429-498d-ba23-4c832c5f626b:
+          note: Rally Howl
+          timestamp: 1760065784772
+          refreshid: 098f8701-b13b-4bbe-b3f1-8fefa8e855a6-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        f8fca238-0317-4c77-9e10-c0f99e85924d:
+          timestamp: 1760065736886
+          note: Rally Howl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        12028c88-d7a4-4176-b0ab-a2f4fcf76df0:
+          timestamp: 1761825682643
+          note: Rally Howl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        0b338bf8-4fa4-41f6-a5f7-87bf947e6789:
+          note: Rally Howl
+          timestamp: 1761825699348
+          refreshid: 1b13d6c4-24f2-4c6f-a0f3-b62bbb4c2187-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        35dcac6f-6b11-474b-8fa2-4cb39823660f:
+          timestamp: 1760065754186
+          note: Rally Howl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        d8a58787-3ad3-4a83-a5cf-35c3f6f49470:
+          note: Knockback
+          timestamp: 1760184986848
+          refreshid: 2bfbce61-b348-44f8-9645-d10bda79f930-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    walkingSpeed: 8
+    skillRatings: []
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: c04faeee-7772-436d-bc2c-b7c0d85a6295-157
+    deathSavingThrowSuccesses: 0
+  tokenType: null
+  bestiaryId: ed1da082-0c78-4345-a1a6-642c5c579e58
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1760058376594
+description: null
+parentFolder: 925dd5e3-050d-4020-912e-43234e811688
+artist: null
+ord: 3
+ctime: 1760058591441
+mtime: 1775167473435
+hidden: false

@@ -1,0 +1,38 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: bbeabc9e-1ae3-400c-8dd3-ea3b1dd1b431
+  displayCondition: target.winded=1
+  source: Ongoing Effect
+  modtype: double_edge
+  keywords: []
+  activationCondition: target.winded=1
+  domains:
+    CharacterOngoingEffect:bbeabc9e-1ae3-400c-8dd3-ea3b1dd1b431: true
+  name: Double Edge Against Winded Target
+  rollType: ability_power_roll
+  description: Double edge against winded target
+  guid: c9686a49-d8fe-44d9-8735-ebaa2de0a332
+  behavior: power
+source: Ongoing Effect
+guid: bbeabc9e-1ae3-400c-8dd3-ea3b1dd1b431
+id: bbeabc9e-1ae3-400c-8dd3-ea3b1dd1b431
+ctime: 1755612667645
+domains:
+  CharacterOngoingEffect:bbeabc9e-1ae3-400c-8dd3-ea3b1dd1b431: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.347000002861023
+    s: 0.951171875
+    v: 0.856538712978363
+    a: 1
+name: Double Edge Against Winded Target
+custom: true
+description: Double edge against winded target
+mtime: 1756710722427
+iconid: ui-icons/skills/1.png

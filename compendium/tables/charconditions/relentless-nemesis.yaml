@@ -1,0 +1,17 @@
+__typeName: CharacterCondition
+maxInstancesFormula: "1"
+guid: c3452366-0ecd-4d02-b4b0-4c18d62ea03a
+id: 3210b68d-64c1-4642-a61f-71392055def6
+ctime: 1760745344788
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+powertable: true
+description: Support for Null's Relentless Nemesis ability
+showInMenus: false
+name: Relentless Nemesis
+mtime: 1768208533367
+trackCaster: true
+iconid: ui-icons/skills/1.png

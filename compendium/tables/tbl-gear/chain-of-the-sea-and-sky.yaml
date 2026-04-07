@@ -1,0 +1,236 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: fbdfe215-2898-423d-bac5-24541b2ea36a
+  description: 6/12/21
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 951d0828-36d9-4967-b442-d3e2125061ab
+    sourceguid: e1ca3cd3-5ab7-47f7-82a3-1f34f0beb348
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "6"
+        threshold: 1
+      - script: "12"
+        threshold: 5
+      - script: "21"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    source: Item
+    name: Chain of the Sea and Sky
+    behavior: attribute
+    description: 6/12/21
+    attribute: hitpoints
+  source: Item
+  name: Chain of the Sea and Sky
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: 7f3b17d8-423e-40f8-b176-aeb11505a831
+  description: While you wear this armor, you gain a +6 bonus to Stamina, you can automatically swim at full speed while moving, and you can breathe underwater for up to 1 hour. Returning to the surface to breathe air again for any length of time reset’s the armor’s water- breathing benefit.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: fe9ef60a-976e-43df-8572-b252333aadfd
+    sourceguid: 7f3b17d8-423e-40f8-b176-aeb11505a831
+    value: 1
+    source: Item
+    name: 1st Level
+    behavior: attribute
+    description: While you wear this armor, you gain a +6 bonus to Stamina, you can automatically swim at full speed while moving, and you can breathe underwater for up to 1 hour. Returning to the surface to breathe air again for any length of time reset’s the armor’s water- breathing benefit.
+    attribute: swim
+  source: Item
+  name: 1st Level
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: 15f25717-7e07-4f78-83ce-ab02abdfcb38
+  description: The armor’s bonus to Stamina increases to +12, and you have cold immunity 5. Additionally, whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 15f25717-7e07-4f78-83ce-ab02abdfcb38
+    source: Item
+    behavior: activated
+    filterCondition: Level >= 5 and Movement Type = "fly"
+    name: 5th Level
+    resourceRefreshType: turn
+    description: The armor’s bonus to Stamina increases to +12, and you have cold immunity 5. Additionally, whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+    guid: f09a15af-2120-42fc-8437-a629ed1bef7b
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        promptText: You can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+        standardAbilityParams:
+          distance: "6"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: a81e8b3f-8404-4b15-a57f-020606d604f3
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 4a993863-896f-47d0-8449-74c1fe2279b0
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 327
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      usageLimitOptions:
+        resourceRefreshType: turn
+        charges: "1"
+        resourceid: f09a15af-2120-42fc-8437-a629ed1bef7b
+        multicharge: false
+      persistence: []
+      modifiers: []
+      numTargets: "1"
+      strain: []
+      guid: c2bac992-8107-4390-9b5a-902db45e9ad6
+      targetType: self
+      domains: []
+      castImmediately: true
+      actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+      implementation: 4
+      name: Glide
+      categorization: Ability
+      description: Whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  - __typeName: CharacterModifier
+    sourceguid: 15f25717-7e07-4f78-83ce-ab02abdfcb38
+    source: Item
+    value: 1
+    filterCondition: Level >= 5
+    name: 5th Level
+    guid: e5288773-1d42-4f7c-a561-af24bfda4f5f
+    description: The armor’s bonus to Stamina increases to +12, and you have cold immunity 5. Additionally, whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+    behavior: attribute
+    attribute: fly
+  - __typeName: CharacterModifier
+    text: 'Whenever you fall you can glide down at a speed of 1 square per round. As a free maneuver once per turn you can glide 6 squares horizontally. '
+    sourceguid: 15f25717-7e07-4f78-83ce-ab02abdfcb38
+    source: Item
+    behavior: movementtext
+    filterCondition: Level >= 5
+    name: 5th Level
+    description: The armor’s bonus to Stamina increases to +12, and you have cold immunity 5. Additionally, whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+    guid: 24769a48-95a6-4799-b838-b10561fae6f1
+    color: green
+  - __typeName: CharacterModifier
+    filterCondition: Level >= 5
+    sourceguid: 15f25717-7e07-4f78-83ce-ab02abdfcb38
+    name: 5th Level
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "5"
+      damageType: cold
+      apply: Damage Reduction
+    description: The armor’s bonus to Stamina increases to +12, and you have cold immunity 5. Additionally, whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+    behavior: resistance
+    guid: 59a1c17b-96fb-4258-a51f-d75d2e529f8c
+  source: Item
+  name: 5th Level
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: 8d416e49-656d-415b-9e41-ac18f7a10ef1
+  description: The armor’s bonus to Stamina increases to +21, and you have cold immunity 10. Additionally, whenever your feet are not touching the ground (including floating in water or being in midair), you gain an edge on ability rolls, and any ability takes a bane when targeting you.
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: Level >=9
+    sourceguid: 8d416e49-656d-415b-9e41-ac18f7a10ef1
+    name: 9th Level
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "10"
+      damageType: cold
+      apply: Damage Reduction
+    description: The armor’s bonus to Stamina increases to +21, and you have cold immunity 10. Additionally, whenever your feet are not touching the ground (including floating in water or being in midair), you gain an edge on ability rolls, and any ability takes a bane when targeting you.
+    behavior: resistance
+    guid: df282606-2afe-41f8-b087-5763ab125937
+  - __typeName: CharacterModifier
+    sourceguid: 8d416e49-656d-415b-9e41-ac18f7a10ef1
+    displayCondition: ""
+    source: Item
+    guid: 31add722-e875-4db7-b711-49a72fab26a1
+    keywords: []
+    activationCondition: true
+    filterCondition: Level >=9 and (Movement Type = "Swim" or Movement Type = "Fly")
+    activationAfterRoll: false
+    rollType: ability_power_roll
+    behavior: power
+    description: Whenever your feet are not touching the ground (including floating in water or being in midair), you gain an edge on ability rolls, and any ability takes a bane when targeting you.
+    modtype: edge
+    name: Chain of the Sea and Sky
+  - __typeName: CharacterModifier
+    sourceguid: 8d416e49-656d-415b-9e41-ac18f7a10ef1
+    displayCondition: ""
+    source: Item
+    guid: 85cc3fd8-700c-4b0a-bf85-245b1c811938
+    keywords: []
+    activationCondition: true
+    filterCondition: Level >=9 and (Movement Type = "Swim" or Movement Type = "Fly")
+    activationAfterRoll: false
+    rollType: enemy_ability_power_roll
+    behavior: power
+    description: Whenever your feet are not touching the ground (including floating in water or being in midair), you gain an edge on ability rolls, and any ability takes a bane when targeting you.
+    modtype: bane
+    name: Chain of the Sea and Sky
+  source: Item
+  name: 9th Level
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A set of wings from a flying carp, a set of chain mail rusted by seawater
+keywords:
+  Heavy Armor: true
+  Magic: true
+projectSource: Texts or lore in Zaliac
+level5: The armor’s bonus to Stamina increases to +12, and you have cold immunity 5. Additionally, whenever you fall, you can extend your arms (no action required) to unfurl a thick membrane between your arms and your body, slowing your fall and allowing you to glide. While gliding this way, you move downward at 1 square per round, and you can glide up to 6 squares horizontally as a free maneuver once during each of your turns.
+level9: The armor’s bonus to Stamina increases to +21, and you have cold immunity 10. Additionally, whenever your feet are not touching the ground (including floating in water or being in midair), you gain an edge on ability rolls, and any ability takes a bane when targeting you.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+projectGoal: "450"
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+implementation: 3
+ctime: 1759204879396
+domains:
+  item:df49e435-f1e4-4a48-bba2-5f4b22db0307: true
+description: While you wear this armor, you gain a +6 bonus to Stamina, you can automatically swim at full speed while moving, and you can breathe underwater for up to 1 hour. Returning to the surface to breathe air again for any length of time reset’s the armor’s water- breathing benefit.
+flavor: This set of heavy chain mail is created to allow free movement in extreme environments without sacrificing protection.
+name: Chain Of The Sea And Sky
+id: df49e435-f1e4-4a48-bba2-5f4b22db0307
+mtime: 1774877392117
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 02302b4b-d942-41b8-a4d5-8a39b6426824

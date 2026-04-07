@@ -1,0 +1,27 @@
+__typeName: CharacterOngoingEffect
+guid: 27436417-0548-4658-903a-d1f7e951541d
+condition: c95a5d2d-6069-4434-b5d4-29796ec90f51
+modifiers: []
+source: Ongoing Effect
+mtime: 1712231874286
+stackable: true
+id: 27436417-0548-4658-903a-d1f7e951541d
+ctime: 1712225235128
+domains:
+  CharacterOngoingEffect:27436417-0548-4658-903a-d1f7e951541d: true
+description: ""
+name: On Fire
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+statusEffect: false
+custom: true
+sustainFormula: ""
+iconid: 3617c071-3c3d-4348-bcaf-f90a35e4ff62

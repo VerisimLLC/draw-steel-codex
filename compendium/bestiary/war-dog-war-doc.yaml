@@ -1,0 +1,220 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 570cb69e-a8c1-4969-a86d-db9e5012b263
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        War Dog War Doc	Level 5 Horde Support
+        Humanoid, War Dog	EV 7
+        <b>Stamina</b> 35
+        <b>Speed</b> 5	<b>Size</b> 1L /<b>Stability</b> 1
+        <b>Free Strike</b> 3
+        Might +0	Agility +1	Reason +3	Intuition +2	Presence +0
+        <b>Syringe Crossbow</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10<b>Target</b> One creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 poison damage
+        %E2%98%85	<b>12-16</b>	8 poison damage
+        %E2%9C%B8	<b>17</b>	9 poison damage; M<3 weakened (save ends)
+        <b>Effect</b> An ally targeted by this ability gains 5 temporary Stamina and makes a free strike instead of taking damage.
+
+        <b>Sanguine Stimulants</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 15	<b>Target</b> One war dog ally
+        <b>Trigger </b>The target dies
+        <b>Effect </b>Each ally adjacent to the target deals an additional 6 damage on their next strike.
+
+        <b>Posthumous Promotion </b>(Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> One war dog with a loyalty collar
+        <b>Effect </b>The target's loyalty collar detonates, killing them instantly.
+
+        <b>Body Bank Branch Manager</b>
+        The Reconstitute Malice effect costs 1 malice fewer. Each ally may treat the war doc as a source of corpses for the purposes of using Reconstitute.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:490e80be-72a8-4eb3-854e-66eacfb197f8: true
+      modifiers: []
+      name: Body Bank Branch Manager
+      description: The Reconstitute Malice effect costs 1 malice fewer. Each ally may treat the war doc as a source of corpses for the purposes of using Reconstitute.
+      guid: 490e80be-72a8-4eb3-854e-66eacfb197f8
+      source: Trait
+    role: Horde Support
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "35"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: War Dog War Doc
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 35
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 poison damage
+        - 8 poison damage
+        - 9 poison damage; M<3 weakened (save ends)
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 282444e0-a5a2-415a-b9a1-31b1713eac61
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Syringe Crossbow
+      numTargets: 1
+      description: An ally targeted by this ability gains 5 temporary Stamina and makes a free strike instead of taking damage.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 2e469830-4848-414d-8d8d-93cbb984c173
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Sanguine Stimulants
+      implementation: 0
+      description: Each ally adjacent to the target deals an additional 6 damage on their next strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 15b3d675-c705-4c38-98c5-50d76247fdcb
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: 'Posthumous Promotion '
+      numTargets: 1
+      description: The target's loyalty collar detonates, killing them instantly.
+      abilityType: none
+      implementation: 0
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 7
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: 87ed0e17-27fd-4160-9cd7-930158502918
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog War Doc
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 11
+ctime: 1749972312301
+mtime: 1775201137032
+hidden: false

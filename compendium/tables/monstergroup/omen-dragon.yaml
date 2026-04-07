@@ -1,0 +1,96 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: e18017be-f191-40cf-ab5e-75cdb5dc7ca7
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Black Skies
+  range: 1
+  description: |-
+    The dragon expands their wings to create a shroud of shadow.
+    Until the start of the dragon’s next turn, any strike made against them takes a bane.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 9a72ac99-858c-4d8c-a037-7d1db7479ac1
+  repeatTargets: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  abilityType: none
+  behaviors: []
+  targetType: self
+  name: Rise and Fall
+  numTargets: "1"
+  description: The dragon flies up to 10 squares and carries fated souls with them. Each creature in the area of the dragon’s Stagnant Wyrmscale Aura trait makes a Presence test.
+  range: 1
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+- __typeName: MaliceAbility
+  persistence: []
+  modifiers: []
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  strain: []
+  guid: 2a03f336-7550-431a-8461-9710ac2df970
+  repeatTargets: false
+  abilityType: none
+  castImmediately: true
+  targetType: self
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: e9a2bfd2-a301-4803-8ff8-1fcc54636c34
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  name: Solo Action
+  numTargets: "1"
+  description: The dragon takes an additional main action on their turn. They can use this feature even if they are dazed.
+  range: 1
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "10"
+  strain: []
+  guid: fa21ad12-38cd-4466-b91e-1db3d1ae4b40
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Burn it Right Down
+  range: 1
+  description: Each edge of the encounter map burns with intangible purple flames until the end of the encounter. The flames expand by 1 square at the end of every turn. Any enemy takes 5 corruption damage for each square of flames they enter.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1765641938988
+name: Omen Dragon
+traits: []
+attacks: []
+id: f62ca9b1-4703-4f88-b765-1373ae3e31f1
+ctime: 1762942860351

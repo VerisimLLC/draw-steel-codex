@@ -1,0 +1,77 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 48fe105b-93c6-47c4-a127-631f8aa92bd8
+    castImmediately: true
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Heat Drain!
+      color:
+        __usertype: LuaColor
+        h: 0.650750398635864
+        s: 0.987304985523224
+        v: 0.987824261188507
+        a: 1
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: 2*ConditionCaster("Restrained").Intuition
+      damageType: cold
+      chatMessage: Heat Drain
+    conditionFormula: Subject = ConditionCaster("Restrained")
+    subject: other
+    numTargets: "1"
+    trigger: beginturn
+    name: Heat Drain
+    description: While restrained this way, the target takes cold damage equal to your Intuition score at the start of each of your turns. Additionally, whenever the target damages another creature while restrained this way, any potency associated with the damage is reduced by 2.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: While restrained this way, the target takes cold damage equal to your Intuition score at the start of each of your turns. Additionally, whenever the target damages another creature while restrained this way, any potency associated with the damage is reduced by 2.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 61274135-1edf-4eb7-addb-f5e503443a3f
+  name: Heat Drain
+  sourceguid: 771a0987-b0d6-431f-b785-72990d20f1a4
+- __typeName: CharacterModifier
+  sourceguid: 771a0987-b0d6-431f-b785-72990d20f1a4
+  displayCondition: ability.doesdamage
+  source: Ongoing Effect
+  guid: c9a8cabb-8975-4e1b-a76c-ebb4af8b5e33
+  keywords: []
+  activationCondition: ability.doesdamage
+  behavior: power
+  name: Heat Drain
+  description: While restrained this way, the target takes cold damage equal to your Intuition score at the start of each of your turns. Additionally, whenever the target damages another creature while restrained this way, any potency associated with the damage is reduced by 2.
+  potencymod: "-2"
+  rollType: ability_power_roll
+  modtype: none
+source: Ongoing Effect
+guid: 771a0987-b0d6-431f-b785-72990d20f1a4
+id: 771a0987-b0d6-431f-b785-72990d20f1a4
+ctime: 1772632037210
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: with Heat Drain
+description: While restrained this way, the target takes cold damage equal to your Intuition score at the start of each of your turns. Additionally, whenever the target damages another creature while restrained this way, any potency associated with the damage is reduced by 2.
+mtime: 1772677511924
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db

@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "0"
+category: Forced Movement
+name: Forced Movement Increase
+documentation: Increases the distance this creature is moved when it is subject to forced movement.
+mtime: 1755646489049
+id: ba15f0e1-b50c-4324-af08-ce8f2b8f2cf0
+ctime: 1747273731655

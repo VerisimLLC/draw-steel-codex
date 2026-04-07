@@ -1,0 +1,97 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 85f356e6-a07b-486c-a001-eca594fd6e8e
+  source: Ongoing Effect
+  guid: b23ce131-9fe8-408d-a29f-ac338145b13d
+  domains:
+    CharacterOngoingEffect:85f356e6-a07b-486c-a001-eca594fd6e8e: true
+  name: Moonfall
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: bf68d026-4fd0-4280-9dba-5756f2e45b51
+      stacks: "2"
+      ongoingEffectCustom: false
+    triggerPrompt: If you have line of effect to the moon and have 1 or more rage, gain 2 additional rage.
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: aaa8b4f8-0f08-4e21-8e67-a54b382c7c11
+    castImmediately: true
+    conditionFormula: Condition Stacks("Rage") >= 1
+    numTargets: "1"
+    targetType: self
+    trigger: endturn
+    name: Moonfall
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: Additional maneuver and move action while the Werewolf has line of effect to the moon.
+  behavior: trigger
+  filterCondition: not type = "Werewolf"
+- __typeName: CharacterModifier
+  sourceguid: 85f356e6-a07b-486c-a001-eca594fd6e8e
+  source: Ongoing Effect
+  guid: d3758d03-1612-4567-aab7-d6e2a17809c8
+  domains:
+    CharacterOngoingEffect:85f356e6-a07b-486c-a001-eca594fd6e8e: true
+  name: Moonfall
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: If you have line of effect to the moon, gain an additional maneuver and move action
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 38db9459-e9f0-4839-b31f-849e46467995
+    castImmediately: true
+    numTargets: "1"
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 327bde95-9b44-4781-ba79-64e80a1f0cff
+      duration: 0
+      ongoingEffectCustom: 327bde95-9b44-4781-ba79-64e80a1f0cff
+    trigger: beginturn
+    name: Moonfall
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: Additional maneuver and move action while the Werewolf has line of effect to the moon.
+  behavior: trigger
+  filterCondition: type = "Werewolf"
+source: Ongoing Effect
+guid: 85f356e6-a07b-486c-a001-eca594fd6e8e
+id: 85f356e6-a07b-486c-a001-eca594fd6e8e
+ctime: 1760361023590
+domains:
+  CharacterOngoingEffect:85f356e6-a07b-486c-a001-eca594fd6e8e: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Moonfall
+statusEffect: true
+description: Additional maneuver and move action while the Werewolf has line of effect to the moon.
+mtime: 1760364273843
+iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70

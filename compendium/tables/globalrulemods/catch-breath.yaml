@@ -1,0 +1,74 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 5df1bf0a-ba4b-4a0b-b13e-eaf034d4d47b
+      guid: f3749034-8224-4819-8172-4e4a8c550d38
+      source: Catch Breath Global Rule Mod Feature
+      behavior: activated
+      description: 'By using the Catch Breath, maneuver, you spend a Recovery and regain Stamina in an amount equal to your recovery value. '
+      name: Catch Breath
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        reasonedFilters: []
+        targetType: self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.384999752044678
+            s: 0.952539682388306
+            v: 0.935618340969086
+            a: 1
+        sourceReference:
+          __typeName: SourceReference
+          page: 273
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        persistence: []
+        modifiers: []
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        strain: []
+        guid: ca322ca9-4729-46b2-81bc-d3ac4098fc47
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          applyto: caster
+          filterTarget: ""
+          mode: expend
+          resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+          chatMessage: Recovery Spent
+        - __typeName: ActivatedAbilityHealBehavior
+          applyto: caster
+          roll: Recovery Value
+        categorization: Common Ability
+        domains: []
+        implementation: 3
+        description: You regain stamina equal to your Recovery Value.
+        name: Catch Breath
+        numTargets: "1"
+        abilityFilters:
+        - formula: resources.Recovery > 0	
+          reason: You do not have any recoveries.
+        - formula: not (Conditions has "dying")
+          reason: You cannot use Catch Breath when you are dying.
+        abilityType: none
+        iconid: 12cdef25-2e5b-47e0-bccf-758198de8442
+    name: Catch Breath
+    description: 'By using the Catch Breath, maneuver, you spend a Recovery and regain Stamina in an amount equal to your recovery value. '
+    guid: ccf96bd1-5bf2-4097-b793-bf8a1f8b7ceb
+    source: Catch Breath Global Rule Mod Feature
+    implementation: 3
+applyRetainers: false
+applyMonsters: false
+ctime: 1766651969592
+name: Catch Breath
+id: 9061da45-8fd5-49c7-99bf-c3e98bb6a2e2
+mtime: 1775024264907
+applyCharacters: true
+applyCompanions: false

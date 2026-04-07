@@ -1,0 +1,22 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: false
+canEndWithAction: false
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+id: 8e2ca005-8456-461f-b3e0-521d1d7d7e1a
+ctime: 1768401070714
+domains:
+  CharacterOngoingEffect:8e2ca005-8456-461f-b3e0-521d1d7d7e1a: true
+modifiers: []
+guid: 8e2ca005-8456-461f-b3e0-521d1d7d7e1a
+name: Knife of Nine
+description: 'Extra damage increases by 1 each time you deal rolled damage using the weapon to the same target during the same encounter (to a maximum of 3). '
+custom: true
+mtime: 1768401565039
+iconid: 4036117b-1635-4179-a870-6586270de6c7

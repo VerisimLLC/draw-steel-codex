@@ -1,0 +1,231 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 57cf51f9-910a-4e75-af9a-0fe2f234ad0b
+    offtokenPortraitId: 0b668741-00ea-4c09-97fd-5ed25c89fbec
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8875596
+    portraitOffset:
+      x: -0.02903541
+      y: 0.1269207
+    frameHueShift: 0.2904737
+    frameSaturation: 0.5700448
+    frameBrightness: 0.7793125
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0e63eef8-557a-4e1f-8d4c-21d684f5df09
+  properties:
+    __typeName: follower
+    followerType: retainer
+    cr: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ab8c2efc-4a59-4c8c-a596-ce47a07b9e38
+        source: Custom
+        value: -1
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: Custom Modification
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: ""
+        behavior: attribute
+        attribute: creatureSize
+      source: Custom
+      guid: ab8c2efc-4a59-4c8c-a596-ce47a07b9e38
+      id: 6450780b-d70f-4bf2-ae23-9620e047e693
+      ctime: 1756099470349
+      domains:
+        CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+      name: Custom Modification
+      description: ""
+      mtime: 1756099470349
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:90481892-52ae-4d0f-9317-873f9cd92ff3: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 90481892-52ae-4d0f-9317-873f9cd92ff3
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:90481892-52ae-4d0f-9317-873f9cd92ff3: true
+        name: Climb
+        guid: 7b401d85-6913-4ab7-af4e-fc67f84fa4d1
+        description: ""
+        behavior: attribute
+        attribute: climb
+      source: Character Feature
+      description: ""
+      guid: 90481892-52ae-4d0f-9317-873f9cd92ff3
+      name: Climb
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:98b4570c-fe00-4917-94e6-93cc2f7439e6: true
+        CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+        CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:98b4570c-fe00-4917-94e6-93cc2f7439e6: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        description: The guide doesn’t provoke opportunity attacks by moving
+        behavior: attribute
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Crafty: you do not provoke opportunity attacks while moving."
+        sourceguid: eae4d953-c53f-41d8-aae3-cc9de122b1f8
+        source: Trait
+        guid: ac99e4c0-619c-46cb-9da9-cfd6d5792736
+        domains:
+          CharacterFeature:98b4570c-fe00-4917-94e6-93cc2f7439e6: true
+          CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        description: The guide doesn’t provoke opportunity attacks by moving
+        behavior: movementtext
+        color: green
+      source: Trait
+      description: The guide doesn’t provoke opportunity attacks by moving
+      guid: 98b4570c-fe00-4917-94e6-93cc2f7439e6
+      name: Crafty
+      implementation: 3
+    role: Follower Harrier
+    inflictedConditions: []
+    keywords:
+      Goblin: true
+      Humanoid: true
+    titles: []
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: mgt
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    skillProficiencies: []
+    availableRolls: 0
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    monster_type: Goblin Guide
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    availableTriggers: []
+    walkingSpeed: 5
+    damage_taken: 0
+    initiativeGrouping: bed1a268-e8a2-424b-ac5e-0cb5fe43e1b7
+    resources: []
+    max_hitpoints: 10
+    monster_category: Monster
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + Highest Characteristic
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 031c436d-0d8e-4032-bf04-c69586024596
+        duration: 0
+        ongoingEffectCustom: 031c436d-0d8e-4032-bf04-c69586024596
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 365
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: d0fe57f2-0ef9-4d5b-be12-05d2bf62ded7
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Stabbity Stab
+      persistence: []
+      description: The target can’t make opportunity attacks until the end of the guide’s turn.
+      abilityType: none
+      implementation: 3
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    savingThrowRatings: []
+    levelChoices: []
+    minion: false
+    opportunityAttack: 2
+    retainer: true
+  tokenType: null
+  bestiaryId: e56e871b-81de-4232-82c2-1f83a556d863
+  summonerid: null
+  ownerId: PARTY
+  partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+  size: 2
+  createdTimestamp: 1763786791720
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 7
+ctime: 1763786791720
+mtime: 1775167451883
+hidden: false

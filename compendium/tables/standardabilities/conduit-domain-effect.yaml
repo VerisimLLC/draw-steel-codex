@@ -1,0 +1,55 @@
+__typeName: ActivatedAbility
+id: fe1648f3-9dac-4a52-9383-77648aca2f87
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 0af5b375-fd1c-488c-bef6-8395edccc9fd
+importMatch: ""
+ctime: 1728024819749
+numTargets: "1"
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: ability.name has "Domain Effect"
+    behavior: modifyability
+    guid: e5c251d7-37e5-4e94-a7ae-8bba61f94326
+    name: Modify Attack
+    attributes: []
+    description: ""
+    cannotModifyAction: true
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: e3bce988-47ed-4a7b-b966-7462653ca603
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+mtime: 1759254953642
+name: Conduit Domain Effect
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

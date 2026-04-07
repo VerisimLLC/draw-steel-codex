@@ -1,0 +1,37 @@
+__typeName: CharacterCondition
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4cabe828-306b-4918-a0d4-9cdfedad9fa3
+  source: Condition
+  modtype: bane
+  keywords: []
+  activationCondition: true
+  guid: ddddb8b1-baf8-4ba7-bb3b-eb8452d09495
+  rollType: all
+  domains:
+    CharacterCondition:567a3454-ead6-4416-b338-ed73d64b7805: true
+  description: While weakened, you make Attacks and Tests with Banes.
+  behavior: power
+  name: Weakened
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+guid: 4cabe828-306b-4918-a0d4-9cdfedad9fa3
+id: 567a3454-ead6-4416-b338-ed73d64b7805
+ctime: 1704789106799
+domains:
+  CharacterCondition:567a3454-ead6-4416-b338-ed73d64b7805: true
+powertable: true
+implementation: 3
+name: Weakened
+stackable: false
+description: A creature who is weakened takes a bane on power rolls.
+mtime: 1768208551647
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725

@@ -1,0 +1,29 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  description: Cannot search for hidden creatures while Restrained this way.
+  sourceguid: 4e8ac4a8-fb9f-4edd-a8ae-f5c73bcbf559
+  abilityFilter: not Ability.name = "Search for Hidden Creatures"
+  source: Ongoing Effect
+  behavior: suppressabilities
+  guid: 752adc51-b3c5-481f-a26a-eaead8061f33
+  explanation: You cannot search for hidden creatures while restrained this way.
+  name: Can't Search for Hidden
+source: Ongoing Effect
+guid: 4e8ac4a8-fb9f-4edd-a8ae-f5c73bcbf559
+id: cdc219ca-17eb-44ff-a3f0-c25964d330e4
+ctime: 1768805113177
+display:
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+name: Can't Search for Hidden
+description: Cannot search for hidden creatures while Restrained this way.
+mtime: 1768805113177
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+implementation: 3

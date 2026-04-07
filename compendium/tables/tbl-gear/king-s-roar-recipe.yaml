@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 945eb5df-302e-4efd-b5a4-290b5be344c9
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765469756628
+ctime: 1765469756628
+name: King's Roar Recipe
+flavor: Songs in High Rhyvian
+description: The project source necessary to craft a King's Roar
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

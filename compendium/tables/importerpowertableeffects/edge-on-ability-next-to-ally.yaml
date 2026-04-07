@@ -1,0 +1,42 @@
+__typeName: ActivatedAbility
+targetFilter: ""
+id: b818f5df-eb30-40e7-8547-469711cd705a
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Signature Ability
+range: 1
+testCases:
+- text: ""
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+guid: 08a82533-8747-4e66-92be-9b509f71f72d
+importMatch: "<<monster>> has an edge on this ability while adjacent to an ally"
+ctime: 1728911603171
+repeatTargets: false
+persistence: []
+description: ""
+name: Edge on Ability Next to Ally
+behaviors:
+- __typeName: ActivatedAbilityModifyPowerRollBehavior
+  guid: 231da77a-151d-42fe-96ed-928d1de84613
+  modifier:
+    __typeName: CharacterModifier
+    sourceguid: 231da77a-151d-42fe-96ed-928d1de84613
+    modtype: edge
+    keywords: []
+    activationCondition: Count Nearby Friends(1) > 0	
+    guid: b29488dc-72b4-474e-9f76-426fa155af6e
+    rollType: enemy_ability_power_roll
+    domains: []
+    description: ""
+    name: Power Roll Modifier
+    behavior: power
+mtime: 1769069321982
+abilityType: none
+iconid: ui-icons/skills/1.png

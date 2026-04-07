@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 228aed17-e6de-419b-a6ad-f25770d42e82
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    keywords:
+      Weapon: true
+    dr: "5"
+    damageType: all
+    apply: Damage Reduction
+  description: Weapon Immunity 5 from Are You Not Entertained?
+  name: Weapon Immunity 5
+  guid: f922a331-833e-4808-94ec-5553fb43fabe
+source: Ongoing Effect
+guid: 228aed17-e6de-419b-a6ad-f25770d42e82
+id: 228aed17-e6de-419b-a6ad-f25770d42e82
+ctime: 1731827269347
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Weapon Immunity 5
+iconid: 20c26bc2-3c3b-498c-af59-f29874538b13
+description: Weapon Immunity 5 from Are You Not Entertained?
+mtime: 1765035749363
+implementation: 3

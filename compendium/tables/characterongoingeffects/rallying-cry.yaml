@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ed092653-dec1-4efe-bd76-7bf41868e0ca
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Strike: true
+  activationCondition: true
+  description: You deal additional damage equal to the summoner's Reason on your next strike
+  name: Rallying Cry
+  behavior: power
+  damageModifier: Stacks
+  rollType: ability_power_roll
+  guid: 1ddc151d-f3af-4e08-b7fe-a4ca3a2ca24f
+source: Ongoing Effect
+guid: ed092653-dec1-4efe-bd76-7bf41868e0ca
+id: ed092653-dec1-4efe-bd76-7bf41868e0ca
+ctime: 1760393581168
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Rallying Cry
+custom: true
+endTrigger: attack
+description: You deal additional damage equal to the summoner's Reason on your next strike
+mtime: 1760393594418
+stackable: true
+iconid: 903ef403-92f5-4480-a958-b53c0f30c17f

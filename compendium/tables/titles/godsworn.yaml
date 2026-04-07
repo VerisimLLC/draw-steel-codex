@@ -1,0 +1,40 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: "Godsworn Benefit:"
+    numChoices: 1
+    guid: 97f7d910-7a58-40fd-8448-71c2cd7c329f
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Healing Gift
+      description: "You can use the 1st-level Conduit feature Healing Grace as if you had spent 1 piety (see Chapter 5: Classes). Once you use this benefit, you can’t use it again until you earn 1 or more Victories."
+      guid: c46ec6f6-a0a9-4d0e-aca0-f6cae97330aa
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Last-Ditch Prayer
+      description: As a free maneuver, you recite a prayer for help, gaining a pool of 2d10 of the Heroic Resource granted by your class. This pool disappears at the end of your turn if you haven’t used it. Once you use this benefit, you can’t use it again until you perform another service for a god or saint, or until you gain a level.
+      guid: bb4e16d1-5ff8-44b3-89a9-ed2132aa4202
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Touched by the Divine
+      description: "Choose a god or saint from the Deities and Domains table in Chapter 14: Gods and Religion. From that god or saint’s domains, choose a Conduit 1st-level domain feature (see Chapter 5: Classes)."
+      guid: f0480381-faca-4809-819c-ebf504bc98ca
+      canHavePrerequisites: true
+      source: Feat
+id: 76fa682e-1d8e-4852-9050-94c6855c9c3f
+ctime: 1762351554691
+name: Godsworn
+description: He seemed like he needed help! Now the dead speak to me. I think maybe that old man was more than he appeared.
+mtime: 1775107288545
+echelon: "2"
+prerequisite: You do a favor for an agent of a god or saint, or promise to do so.

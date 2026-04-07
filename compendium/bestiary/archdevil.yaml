@@ -1,0 +1,427 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: aff5bae3-d51e-4c25-858e-5f0ac571b814
+    offtokenPortraitId: 8baecbff-49f5-419b-8a80-e96b01b155be
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3191047
+    portraitOffset:
+      x: -0.009439364
+      y: 0.2240035
+    frameHueShift: 0.9151483
+    frameSaturation: 0.8605194
+    frameBrightness: 0.4451109
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 34e222c6-9e8d-4be8-af1d-d01b7a651859
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 6
+    skillProficiencies: []
+    max_hitpoints: 181
+    inflictedConditions: []
+    ev: 32
+    max_hitpoints_roll: "181"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 4
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 12
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bfd4dca3-1dfb-4877-b0fd-ec79c326508d
+      implementation: 4
+      numTargets: 3
+      name: Infernal Decree
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage; P<2 the target can't hide (save ends)
+        - 15 damage; P<3 the target can't hide (save ends)
+        - 19 damage; P<4 the target can't hide (save ends)
+        roll: 2d10 + 4
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - I<2 charmed (save ends)
+        - I<3 charmed (save ends)
+        - I<4 charmed (save ends)
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 12
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 142be734-3bfd-41fd-a3e5-6dcc2106636f
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Compel the Jury
+      numTargets: 2
+      description: Until the condition ends, a charmed creature considers the archdevil an ally, and the archdevil can spend 1 malice on their turn to force move a charmed creature up to 3 squares.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 6270807d-81eb-4de4-b471-059c22c7dd85
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Devilish Suggestion
+      implementation: 0
+      description: The target makes a Presence test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c9ced72f-cde1-4185-a0f1-e6485bfabbaf
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: d88ed6b2-62ea-432f-bad9-4ca76454f957
+        multicharge: false
+      implementation: 0
+      behaviors: []
+      name: Welcome, Friends
+      numTargets: "1"
+      description: Each target makes a Presence test.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 7e2adb83-ebb0-450c-9500-54b81df5dc09
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 501344b1-e406-4fca-937f-be0f42f7dd9b
+        multicharge: false
+      implementation: 0
+      behaviors: []
+      name: 'Heed My Commands! '
+      numTargets: "1"
+      description: Each target shifts up to their speed. The archdevil can force move each charmed creature up to half their speed.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ea755cf8-0e8e-4b19-9591-3fadc3975cf1
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 1501f477-0b2b-4eff-aacd-954f0f0eb828
+        multicharge: false
+      implementation: 0
+      behaviors: []
+      name: Deceptive Stratagem
+      numTargets: 1
+      description: The archdevil swaps places with the target. Then, each ally and charmed creature within 12 of the archdevil make a free strike against a target of the archdevil's choice.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: false
+    stability: 2
+    import:
+      type: mcdm
+      data: |
+        Archdevil	Level 6 Leader
+        Devil, Infernal	EV 32
+        <b>Stamina</b> 181	<b>Immunity</b> Fire 8
+        <b>Speed</b> 7 (fly)	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 6
+        Might +1	Agility +3	Reason +2	Intuition +1	Presence +4
+        <b>Infernal Decree</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 12<b>	Target</b> Three creatures or objects
+        %E2%9C%A6	%E2%89%A411	10 damage; P<2 the target can't hide (save ends)
+        %E2%98%85	12%E2%80%9316	15 damage; P<3 the target can't hide (save ends)
+        %E2%9C%B8	17	19 damage; P<4 the target can't hide (save ends)
+        <b>2 Malice</b> Each devil has an edge to strike a target that can't hide.
+
+        <b>Compel the Jury</b> (Maneuver) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 12	<b>Target</b> 2 creatures
+        %E2%9C%A6	%E2%89%A411	I<2 charmed (save ends)
+        %E2%98%85	12%E2%80%9316	I<3 charmed (save ends)
+        %E2%9C%B8	17	I<4 charmed (save ends)
+        <b>Effect</b> Until the condition ends, a charmed creature considers the archdevil an ally, and the archdevil can spend 1 malice on their turn to force move a charmed creature up to 3 squares.
+
+        <b>Devilish Suggestion</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 5<b>	Target</b> Triggering creature
+        <b>Trigger</b> A creature targets the archdevil with a strike.
+        <b>Effect</b> The target makes a <b>Presence test.</b>
+        %E2%9C%B8	%E2%89%A411	Charmed (save ends) (see Compel the Jury)
+        %E2%98%85	12%E2%80%9316	The archdevil chooses a new target for the strike
+        %E2%9C%A6	17	The archdevil halves the incoming damage
+
+        <b>End Effect</b>
+        At the end of their turn, the archdevil can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>True Name</b>
+        If a creature within 10 squares of the archdevil speaks the archdevil's true name aloud, the archdevil loses their immunities, the additional effects on their signature attack, and their Devilish Suggestion triggered action.
+
+        <b>Welcome, Friends</b> (Villain Action 1)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst<b>	Target</b> Each enemy in burst
+        <b>Effect</b> Each target makes a <b>Presence test.</b>
+        %E2%9C%A6	%E2%89%A411	15 psychic damage; charmed (save ends)
+        %E2%98%85	12%E2%80%9316	12 psychic damage; charmed (save ends)
+        %E2%9C%B8	17	7 psychic damage
+
+        <b>Heed My Commands! </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Self and 5 burst<b>	Target</b> Self and each allies in the burst
+        <b>Effect</b> Each target shifts up to their speed. The archdevil can force move each charmed creature up to half their speed.
+
+        <b>Deceptive Stratagem</b> (Villain Action 3)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 12<b>	Target</b> 1 ally or charmed creature
+        <b>Effect</b> The archdevil swaps places with the target. Then, each ally and charmed creature within 12 of the archdevil make a free strike against a target of the archdevil's choice.
+        RETAINER
+        Devil Defector	Level 5 Hexer Retainer
+        Devil, Planar
+        <b>Stamina</b> 57	<b>Immunity</b> fire 5
+        <b>Speed </b>6 (fly)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +3	Agility +2	Reason +3	Intuition +1	Presence +2
+        <b>Corrupting Flame</b> (Action) %E2%97%86 2d10 + Highest Characteristic %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 fire or corruption damage
+        %E2%98%85	<b>12%E2%80%9316</b>	10 fire or corruption damage
+        %E2%9C%B8	<b>17</b>	13 fire or corruption damage
+
+        <b>Tempting Offer</b> (Free Triggered Action, Encounter)
+        <b>Keywords</b> Attack, Melee
+        <b>Distance</b> Ranged 10<b>	Target</b> Triggering  creature
+        <b>Trigger</b> A sapient enemy is reduced to 0 Stamina.
+        <b>Effect</b> If the creature takes the defector's offer, the creature is reduced to 1 Stamina instead of 0. If they do so, on their next turn the defector controls the creature's move action, and the creature must use a Signature Action against a creature of the defector's choice or immediately die. The Director must spend 3 Malice to have the creature turn down this offer.
+
+        <b>True Name</b>
+        If a creature within 10 squares of the defector speaks the defector's true name aloud, the defector loses their immunities, the additional effects on their signature attack, and their Devilish Charm triggered action.
+
+        Level 7 Retainer Advancement Ability
+        <b>Flames of Revenge</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 cube within 10	<b>Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>		6 corruption damage
+        %E2%98%85	<b>12%E2%80%9316</b>		10 corruption damage
+        %E2%9C%B8	<b>17</b>		14 corruption damage
+        <b>Effect</b> If the defector's mentor is in the area, they burn with harmless flame until the end of the defector's next turn. While this fire burns, the mentor has fire immunity 10 and any creature that hits the mentor takes 10 fire damage.
+
+        Level 10 Retainer Advancement Ability
+        <b>Hell On Earth</b> (Action, Encounter)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 cube within 10	<b>Target</b> --
+        <b>Effect</b> The area burns with infernal fire until the end of the devil's next turn. An enemy of the defector that ends their turn in the area takes 10 fire damage and is <b>P (medium) frightened</b> (save ends).
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2c44af62-a21d-4994-ad74-d35f033b6752: true
+      modifiers: []
+      name: End Effect
+      description: At the end of their turn, the archdevil can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: 2c44af62-a21d-4994-ad74-d35f033b6752
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:418754f2-f461-4022-a752-ae4260178379: true
+      modifiers: []
+      name: True Name
+      description: If a creature within 10 squares of the archdevil speaks the archdevil's true name aloud, the archdevil loses their immunities, the additional effects on their signature attack, and their Devilish Suggestion triggered action.
+      guid: 418754f2-f461-4022-a752-ae4260178379
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bfa92248-bedc-47e7-91e2-cb2f19d27b0f: true
+      modifiers: []
+      name: True Name
+      description: If a creature within 10 squares of the defector speaks the defector's true name aloud, the defector loses their immunities, the additional effects on their signature attack, and their Devilish Charm triggered action.
+      guid: bfa92248-bedc-47e7-91e2-cb2f19d27b0f
+      source: Trait
+    role: Leader
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 8
+      damageType: fire
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    opportunityAttack: 6
+    resources: []
+    groupid: 2c4ebcaf-087b-4f0d-a94a-61e9b67fb70f
+    walkingSpeed: 7
+    creatureSize: 1M
+    traitNames: []
+    movementSpeeds:
+      fly: 7
+    initiativeGrouping: 249882c4-a7ae-487c-98c1-48d39c9ee4d2
+    monster_type: Archdevil
+    notes:
+    - text: ""
+      title: Monster Notes
+    keywords:
+      Infernal: true
+      Devil: true
+  tokenType: null
+  bestiaryId: b5196a48-3b64-46d8-bf96-b65d549d46ca
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: Archdevil
+parentFolder: f202e578-675b-4891-ad36-09c24f35518b
+artist: null
+ord: 0
+ctime: 1741590298357
+mtime: 1775201137032
+hidden: false

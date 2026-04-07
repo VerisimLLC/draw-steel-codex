@@ -1,0 +1,689 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 6cc4d1a8-6278-4ca8-942c-1738329c9e33
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 6f3ac6b5-3263-4321-a5f4-c303094997f6
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 2
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "25"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Gnoll Bonesplitter
+    levelChoices: []
+    moveDistance: 8
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 156
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      modeList:
+      - text: Creature Grabbed
+        hasAbility: true
+        condition: Number of Creatures Grabbed > 0
+        rules: While the bonesplitter has a target grabbed, they can’t use Three-Tail Flail against another target.
+        variation:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: Conditions has "Grabbed"
+          repeatTargets: false
+          reasonedFilters: []
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 5 damage; push 2
+            - 6 damage; push 2
+            - 8 damage; grabbed; M<2 the target takes a bane on the Escape Grab maneuver
+            filterTarget: ""
+            roll: 2d10 + 2
+            guid: 6b6ecd8d-07ec-4b78-9f5e-5297a055e2a1
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Signature Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: dab6a2b5-b9e3-40ad-ab59-0928bc4dd94f
+          domains: []
+          numTargets: "1"
+          name: Three-Tail Flail
+          targetType: target
+          description: |-
+            While the bonesplitter has a target grabbed, they can’t use
+            Three-Tail Flail against another target.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - text: No Creature Grabbed
+        rules: The normal use of this ability
+        condition: Number of Creatures Grabbed = 0
+      strain: []
+      guid: 9e91f31d-0209-44ee-96a4-9b909e11f0c6
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; push 2
+        - 6 damage; push 2
+        - 8 damage; push 0; grabbed; M<2 the target takes a bane on the Escape Grab maneuver.
+        filterTarget: ""
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+        filterTarget: ""
+        riderid: 6906316a-26fe-4101-9a4b-60192b77c270
+        tiersSelected:
+        - 3
+      name: Three-Tail Flail
+      reasonedFilters: []
+      description: |-
+        While the bonesplitter has a target grabbed, they can’t use
+        Three-Tail Flail against another target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 4
+      objectTarget: false
+      repeatTargets: false
+      keywords: []
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        duration: endround
+        ongoingEffectCustom: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        ongoingEffect: bca3f902-ace6-4b39-9f6c-be4a86824e7d
+        guid: b0cd0389-32f7-42ea-9991-dbd8d8d4c26d
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: targets
+        inheritRange: true
+        invokeOnCaster: false
+        promptText: Select up to 3 targets to make a free strike
+        standardAbilityParams:
+          range: ""
+          numcreatures: "3"
+        abilityType: standard
+        standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 3462c620-7751-411f-b74c-61ec903af3d3
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityCustomTriggerBehavior
+            filterTarget: not Ongoing Effects has "Used Cackletongue"
+            guid: 9afc767b-c616-4075-b8e3-079b4d855ef9
+            value: ""
+            triggerName: Cackletongue
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Hidden
+          range: "2"
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: d1d71f25-faf5-4d26-ad8f-c36cacb92c07
+          persistence: []
+          name: Use Cackletongue
+          targetType: all
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: ""
+        filterTarget: ""
+        guid: 1c26e06a-3425-4f22-bda2-d82422683797
+        abilityType: custom
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 112d7c27-0b24-4e3a-9d11-75c868a41756
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 3
+      sourceReference:
+        __typeName: SourceReference
+        page: 156
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      name: Bonesplitter's Cackletongue
+      selfTarget: true
+      description: Each target makes a melee free strike. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 2
+    ongoingEffects: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        07f8389c-a6c8-4872-9f88-a54813a984ca:
+          disposition: bad
+          note: 25 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        bfb0d9b8-20b9-4e88-a74c-25f03c3a92e3:
+          disposition: good
+          note: 25 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 25
+        93dc3cb7-197d-4939-9fc8-0ab4033c0fdc:
+          disposition: good
+          note: 25 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 25
+        19b24f2c-e554-467e-a2a4-d2dd43e97721:
+          disposition: bad
+          note: 25 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        94633207-769e-4ea7-a2a4-d0d55d70817f:
+          disposition: bad
+          note: 25 Damage
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0
+        5be3917e-61d4-4898-8d46-06cde5aa27aa:
+          disposition: good
+          note: 999 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 25
+        50964890-45bb-4e44-a3d9-8f8f556de724:
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1
+    minion: false
+    stability: 1
+    opportunityAttack: 3
+    import:
+      type: mcdm
+      data: |+
+        Gnoll Bonesplitter	Level 2 Horde Brute
+        Abyssal, Gnoll	EV 4
+        <b>Stamina</b> 25
+        <b>Speed</b> 5	<b>Size</b> 1L /<b> Stability</b> 1
+        <b>Free Strike</b> 3
+        Might +2	Agility +1	Reason 0	Intuition 0	Presence +1
+        <b>Three-Tail Flail</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; push 2
+        %E2%98%85	<b>12%E2%80%9316</b>	6 damage; push 2
+        %E2%9C%B8	<b>17</b>	8 damage; grabbed M<2 target has a bane on escaping the grab
+        <b>Effect</b> The bonesplitter can't use three-tail flail on another target while the current target is grabbed.
+
+        <b>Cackletongue</b> (Maneuver) %E2%97%86 4 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self and 2 burst<b>	Target</b> Self and all allies
+        <b>Effect</b> Each target makes a melee free strike. Targets who haven't used a cackletongue maneuver on this turn use it immediately at no cost.
+
+        <b>Death Frenzy</b>
+        Whenever a non-minion ally within 5 is reduced to 0 Stamina, the bonesplitter moves up to their speed and makes a free strike.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8df99cab-1857-4f7d-b9fb-9c47b8ca8556: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:330bb759-a4bd-43f9-9e2e-a7183caac87c: true
+        sourceguid: 330bb759-a4bd-43f9-9e2e-a7183caac87c
+        description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the bonesplitter moves up to their speed and makes a melee free strike.
+        source: Trait
+        name: Death Frenzy
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Move speed and make a melee free strike
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          subjectRange: "5"
+          strain: []
+          guid: 3a482b88-dcb4-4eef-ac79-93f6d72dcfc0
+          abilityType: none
+          castImmediately: true
+          trigger: zerohitpoints
+          numTargets: "1"
+          name: Death Frenzy
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            runOnController: true
+            standardAbility: dfb59889-b651-40a6-80be-56d38bd34198
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2071ae07-2a9a-4f45-86b0-3681fdc99a7b
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: aa8f4afb-0cd9-4397-973f-f7a7a6b9a5b4
+      source: Trait
+      description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the bonesplitter moves up to their speed and makes a melee free strike.
+      guid: 8df99cab-1857-4f7d-b9fb-9c47b8ca8556
+      name: Death Frenzy
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+        CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+        CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+          CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+          CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+        sourceguid: 1973bc9c-2c26-497e-be94-a73fba966ef2
+        description: ""
+        source: Character Feature
+        name: Cackletongue Trigger
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Use Bonesplitter's Cackletongue at no cost
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 86ea5a17-9ca4-45e5-bbbe-b019b4b2e046
+          domains:
+            CharacterFeature:1973bc9c-2c26-497e-be94-a73fba966ef2: true
+            CharacterFeature:583ce3a4-b856-421e-8928-c8f7ca85e1bb: true
+            CharacterFeature:fc4879c9-288d-46df-a331-f283c67365af: true
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: Archer's Cackletongue
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 36940624-3907-4780-877e-8366bb26e624
+              repeatTargets: false
+              abilityType: none
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Name = "Bonesplitter's Cackletongue"
+                  behavior: modifyability
+                  guid: d5f4351b-d59b-464f-8081-999dd3ba0737
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 2fd2c65b-c931-4b2b-9b19-e0740bd797d7
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              targetType: self
+              numTargets: "1"
+              name: Use Cackletongue
+              categorization: Hidden
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            abilityType: custom
+            runOnController: true
+          trigger: custom
+          name: Cackletongue
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 13a98295-b140-42e5-839e-edeafb8748bc
+      source: Character Feature
+      description: ""
+      guid: fc4879c9-288d-46df-a331-f283c67365af
+      name: Cackletongue Trigger
+      implementation: 3
+    role: Horde Brute
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+    equipment: []
+    titles: []
+    monster_category: Gnoll
+    notes:
+    - text: ""
+      title: Monster Notes
+    moveDistanceRoundId: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+    resistances: []
+    max_hitpoints: 25
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    initiativeGrouping: f2d1c730-142a-4f60-91ba-03293ec11f54
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        2e289bda-26fe-47a3-8b79-9547a8b619e0:
+          set: 1/1
+          note: Three-Tail Flail
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 9e91f31d-0209-44ee-96a4-9b909e11f0c6
+        c1b2d86e-5bc5-4a3c-a8c7-69a2e844d252:
+          set: 1/1
+          note: Three-Tail Flail
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: dab6a2b5-b9e3-40ad-ab59-0928bc4dd94f
+        bb267ee2-c576-425d-9344-a4906980a93c:
+          set: 1/1
+          note: Three-Tail Flail
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 9e91f31d-0209-44ee-96a4-9b909e11f0c6
+        545daf0f-c45c-46a0-954b-694fac6d7dbc:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        c95d5097-b680-4614-871a-b195cc2cca44:
+          set: 1/1
+          note: Three-Tail Flail
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: dab6a2b5-b9e3-40ad-ab59-0928bc4dd94f
+        1b5a45d8-fcc5-4b90-83b5-02ec49c008f4:
+          refreshid: 46e5b07d-c996-4684-80de-ad74be9ee888-1
+          note: Three-Tail Flail
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        80371054-44c6-4e5c-bc01-1157d13c774c:
+          set: 1/1
+          note: Three-Tail Flail
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 9e91f31d-0209-44ee-96a4-9b909e11f0c6
+        960efc63-08a0-49ea-bd83-26cc0547284e:
+          note: Three-Tail Flail
+          abilityid: 9e91f31d-0209-44ee-96a4-9b909e11f0c6
+          refreshid: 999e4994-bb40-428a-83a2-74de96a2b3a8-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    creatureSize: 1L
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        c5be095c-d707-4b61-89bf-4270de2355db:
+          set: 1/1
+          note: Bonesplitter's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 112d7c27-0b24-4e3a-9d11-75c868a41756
+        c5c7471b-a4b7-4a4a-b6cd-c87e100ba9d8:
+          note: Bonesplitter's Cackletongue
+          abilityid: 112d7c27-0b24-4e3a-9d11-75c868a41756
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        8f5fb33c-5a0c-45fc-ac5c-314dbe2baf44:
+          set: 1/1
+          note: Bonesplitter's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 112d7c27-0b24-4e3a-9d11-75c868a41756
+        e8f8bdbc-d97d-41e0-8368-c68b3d8e781c:
+          set: 1/1
+          note: Bonesplitter's Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 112d7c27-0b24-4e3a-9d11-75c868a41756
+        2fcd043c-2a55-4476-bddb-15ce1add6574:
+          set: 1/1
+          note: Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 112d7c27-0b24-4e3a-9d11-75c868a41756
+        096116d9-3312-445d-8a73-18aed0fcbc45:
+          set: 1/1
+          note: Cackletongue
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: 112d7c27-0b24-4e3a-9d11-75c868a41756
+        f55794df-39c0-41be-a62a-956e9a5307da:
+          set: 1/1
+          note: Grab
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          abilityid: adc7542e-9f0f-488e-b8dc-47247339044d
+        a0dc2f58-c00c-4894-bea4-463337fed8d4:
+          note: Bonesplitter's Cackletongue
+          abilityid: 112d7c27-0b24-4e3a-9d11-75c868a41756
+          refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    availableTriggers: []
+    damage_taken: 0
+    inventory: []
+    walkingSpeed: 5
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    deathSavingThrowFailures: 0
+    traitNames: []
+    damageEntries:
+      e6de7da2-0a18-49d4-9757-de445bdd990f:
+        damage: 25
+        id: e6de7da2-0a18-49d4-9757-de445bdd990f
+      e33af29b-1cef-48cb-9804-32442f5ac4ac:
+        id: e33af29b-1cef-48cb-9804-32442f5ac4ac
+        heal: 25
+      5b7e8368-29b1-45fc-aa4d-cdac07716d9d:
+        id: 5b7e8368-29b1-45fc-aa4d-cdac07716d9d
+        heal: 25
+      436b1c31-e316-4c45-a23b-98b39fb2b328:
+        damage: 25
+        id: 436b1c31-e316-4c45-a23b-98b39fb2b328
+    movementSpeeds: []
+    equipmentMeta:
+      armor: []
+      belt4: []
+      attune4: []
+      belt3: []
+      mainhand1: []
+      attune1: []
+      offhand0: []
+      belt1: []
+      belt2: []
+      attune3: []
+      attune2: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 46e5b07d-c996-4684-80de-ad74be9ee888-1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 7e3e7cef-008a-4527-8a36-d13742448c16-2
+    skillRatings: []
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 6a580d4c-b7ff-4822-8fa0-4ae2c9a802af-130
+  tokenType: null
+  bestiaryId: 05ebd976-6f41-4ff2-8fd8-872a6a429c61
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1726301040866
+description: Gnoll Bonesplitter
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1741590215888
+mtime: 1775184669617
+hidden: false

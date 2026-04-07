@@ -1,0 +1,101 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: b43f6d28-b1a2-4f76-9100-93bcc23530bf
+  source: Ongoing Effect
+  seq: 2f858d51-6f29-415b-ad6d-99060a9f75fe
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers: []
+    name: Blessing of the Blade
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.168091177940369
+        s: 0.959016382694244
+        v: 0.95686274766922
+        a: 1
+    guid: a8077ed3-447c-4c43-8a61-4f07eeb35bcd
+    iconid: 7960d94e-8d18-4fa2-984d-126de8590736
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  domains:
+    CharacterOngoingEffect:b43f6d28-b1a2-4f76-9100-93bcc23530bf: true
+  radius: "5"
+  guid: 00a187ba-e036-47be-8978-e692dd1033e1
+  description: At the end of each of your turns until the end of the encounter or until you are dying, each target gains 3 surges
+  behavior: aura
+  name: Blessing of the Blade
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:b43f6d28-b1a2-4f76-9100-93bcc23530bf: true
+  sourceguid: b43f6d28-b1a2-4f76-9100-93bcc23530bf
+  description: At the end of each of your turns until the end of the encounter or until you are dying, each target gains 3 surges
+  source: Ongoing Effect
+  name: Blessing of the Blade
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    targetFilter: Auras Affecting has "Blessing of the Blade"
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Blessing of the Blade!
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 0.97167956829071
+        v: 0.957080185413361
+        a: 1
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+      filterTarget: ""
+      chatMessage: '3 Surges gained due to Blessing of the Blade! '
+      quantity: "3"
+    triggerPrompt: Test
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: true
+    range: "5"
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: b8fceffc-fcb4-4b2e-9350-a61a80136de1
+    name: Blessing of the Blade
+    trigger: endturn
+    domains:
+      CharacterOngoingEffect:b43f6d28-b1a2-4f76-9100-93bcc23530bf: true
+    targetType: all
+    castImmediately: true
+    selfTarget: true
+    persistence: []
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: d96d2d43-f7d8-4151-b265-b0c6d04444e2
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: b43f6d28-b1a2-4f76-9100-93bcc23530bf
+id: b43f6d28-b1a2-4f76-9100-93bcc23530bf
+ctime: 1770035044115
+domains:
+  CharacterOngoingEffect:b43f6d28-b1a2-4f76-9100-93bcc23530bf: true
+sustainFormula: not Dying
+description: At the end of each of your turns until the end of the encounter or until you are dying, each target gains 3 surges
+name: Blessing of the Blade
+statusEffect: false
+mtime: 1771068351049
+custom: true
+iconid: ui-icons/skills/1.png

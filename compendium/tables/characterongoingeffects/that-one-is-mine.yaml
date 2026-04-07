@@ -1,0 +1,58 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 50f63cba-d303-4111-84c2-456eb84fdb49
+  modifyDescription: When Targeting a marked creature, you can use a heroic or signature ability.
+  source: Ongoing Effect
+  filterAbility: (Ability.heroic or Ability.Usable as Signature Ability)
+  behavior: modifyability
+  domains:
+    CharacterOngoingEffect:50f63cba-d303-4111-84c2-456eb84fdb49: true
+  replaceBehaviors: after
+  name: That One Is Mine!
+  attributes:
+  - operation: Add
+    value: ""
+    properties:
+      useasstrike: true
+    id: modproperties
+  description: You can use a signature or heroic ability instead of a free strike against any target marked by you.
+  guid: 835eaa48-948d-49e1-95b3-7eee8da0e5bb
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: b76d8081-a62a-485c-a6ba-fc7b655e613c
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 50f63cba-d303-4111-84c2-456eb84fdb49
+id: 50f63cba-d303-4111-84c2-456eb84fdb49
+ctime: 1771159418334
+domains:
+  CharacterOngoingEffect:50f63cba-d303-4111-84c2-456eb84fdb49: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: That One Is Mine!
+iconid: 903ef403-92f5-4480-a958-b53c0f30c17f
+description: You can use a signature or heroic ability instead of a free strike against any target marked by you.
+mtime: 1771255047164
+implementation: 1

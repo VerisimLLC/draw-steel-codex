@@ -1,0 +1,55 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 0f26e654-4ef1-4342-a9f9-a521cce40011
+  source: Ongoing Effect
+  modtype: tier1
+  behavior: power
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 27d78d3d-6e05-437a-a532-a22180e02d0c
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 0f26e654-4ef1-4342-a9f9-a521cce40011
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  activationAfterRoll: false
+  name: Tier 1 result on next power roll
+  rollType: all
+  description: You receive a Tier 1 result on your next power roll
+  guid: 990d5cb3-4ad3-445a-9a24-60676fdc741e
+  activationCondition: true
+source: Ongoing Effect
+guid: 0f26e654-4ef1-4342-a9f9-a521cce40011
+id: 0f26e654-4ef1-4342-a9f9-a521cce40011
+ctime: 1774058462202
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Tier 1 result on next power roll
+description: ""
+custom: true
+mtime: 1774058462202
+iconid: b86a7a42-15dc-4220-b27c-27919193e357

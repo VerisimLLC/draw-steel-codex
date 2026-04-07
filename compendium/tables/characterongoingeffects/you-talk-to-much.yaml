@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 892ae859-64df-4cc9-9bb0-675b25206e40
+id: 892ae859-64df-4cc9-9bb0-675b25206e40
+ctime: 1767502187218
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: You talk to much
+description: The creature cannot communicate with anyone.
+custom: true
+mtime: 1767502187218
+iconid: ui-icons/skills/1.png

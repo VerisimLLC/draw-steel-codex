@@ -1,0 +1,91 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "2"
+  strain: []
+  guid: 3feeb02b-275f-474a-ae02-09f4255f6378
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Passwall
+  range: 1
+  description: One non-minion ruinborn acting this turn can move through the tiniest of cracks in any wall or other object. If the ruinborn ends their turn inside an object, they are shunted out into the space from which they entered it.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetFilter: Enemy and (Movement Type not "Fly")
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    resistanceAttr: mgt
+    roll: 2d10 + Might or Agility
+    tiers:
+    - Prone and can't stand (save ends)
+    - Prone
+    - No effect
+    resistanceRoll: true
+    isTest: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: ""
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: ca1486dd-1c19-47dc-b685-e1ee0ebacdb9
+  abilityType: none
+  implementation: 3
+  numTargets: "1"
+  name: Quake
+  targetType: map
+  description: The encounter map suddenly trembles. Each enemy on the ground makes a Might test.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  targetFilter: Target.Keywords has "Ruinborn"
+  targetTextOverride: Each Ruinborn
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+    durationUntilEndOfTurn: false
+    duration: 1
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: d4068999-98d5-43a2-845f-57fad6eb501a
+  abilityType: none
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+  numTargets: "1"
+  name: Creeping Darkness
+  targetType: map
+  description: Each ruinborn in the encounter who has concealment as a result of darkness is invisible until the end of the round.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 2
+mtime: 1760057235248
+name: Ruinborn
+traits: []
+attacks: []
+id: 651b548f-11c4-46ae-b4c6-1a093cf72847
+ctime: 1758373824392

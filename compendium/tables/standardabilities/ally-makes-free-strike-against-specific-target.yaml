@@ -1,0 +1,50 @@
+__typeName: ActivatedAbility
+objectTarget: false
+id: 7cb2aa05-2a8d-42ed-acd0-e1086e87beb0
+targetAllegiance: ally
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 06cfc3f1-007d-4e79-97d2-376db6004579
+ctime: 1768728087381
+repeatTargets: false
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 7fe80241-1ee1-4cab-b837-1b2ffed334a2
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  autoTarget: true
+  abilityType: standard
+  standardAbilityParams:
+    targetid: "<<targetid>>"
+  standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+numTargets: "<<targetcount>>"
+name: Ally Makes Free Strike Against Specific Target
+description: ""
+mtime: 1772033363565
+abilityType: none
+iconid: ui-icons/skills/1.png

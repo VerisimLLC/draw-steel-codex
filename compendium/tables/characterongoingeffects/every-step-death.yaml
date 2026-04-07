@@ -1,0 +1,69 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:3199f554-2209-40e1-bc91-661cd97065a2: true
+  sourceguid: 3199f554-2209-40e1-bc91-661cd97065a2
+  description: Each time this creature willingly moves before the end of the casters next turn, they take 1 psychic damage for each square they move.
+  source: Ongoing Effect
+  name: Every Step … Death!
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      applyto: targets
+      roll: Path.squares
+      damageType: psychic
+      chatMessage: Every Step ... Death!
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: ef355a24-7ee2-4379-9d10-ac1ae649c98b
+    whenActive: combat
+    domains:
+      CharacterOngoingEffect:3199f554-2209-40e1-bc91-661cd97065a2: true
+    conditionFormula: not Path.forced
+    targetType: self
+    numTargets: "1"
+    trigger: finishmove
+    name: Every Step … Death!
+    description: Each time this creature willingly moves before the end of the casters next turn, they take 1 psychic damage for each square they move.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 46093db8-5ee1-4ada-9043-733b6819f91a
+- __typeName: CharacterModifier
+  text: Every Step... Death! You take 1 psychic damage for every square moved.
+  sourceguid: 3199f554-2209-40e1-bc91-661cd97065a2
+  source: Ongoing Effect
+  guid: fe49dea2-2f94-4bb2-af2c-80a757b0d53e
+  domains:
+    CharacterOngoingEffect:3199f554-2209-40e1-bc91-661cd97065a2: true
+  name: Every Step … Death!
+  description: Each time this creature willingly moves before the end of the casters next turn, they take 1 psychic damage for each square they move.
+  behavior: movementtext
+  color: red
+source: Ongoing Effect
+guid: 3199f554-2209-40e1-bc91-661cd97065a2
+id: 3199f554-2209-40e1-bc91-661cd97065a2
+ctime: 1745325953255
+domains:
+  CharacterOngoingEffect:3199f554-2209-40e1-bc91-661cd97065a2: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Every Step … Death!
+custom: true
+description: Each time this creature willingly moves before the end of the casters next turn, they take 1 psychic damage for each square they move.
+mtime: 1764744660156
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd

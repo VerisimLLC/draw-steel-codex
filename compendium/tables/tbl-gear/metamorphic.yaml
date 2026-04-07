@@ -1,0 +1,138 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: ae94a59a-7c4c-4d5b-8a8a-3f2fd59578a9
+  description: |-
+    You can change this weapon’s shape and form as a maneuver, granting one of the following benefits of your choice:
+    - **Concealed**: The weapon shrinks to the size of a piece of jewelry and can be worn as an earring, necklace, or similar accessory. While in this form, the weapon can’t be used for weapon abilities.
+    - **Large**: Abilities using this weapon gain a +1 melee distance bonus or a +3 ranged distance bonus.
+    - **Vicious**: Whenever you damage a creature using this weapon, you deal an extra 1 damage on a tier 1 outcome, an extra 2 damage on a tier 2 outcome, and an extra 3 damage on a tier 3 outcome.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ae94a59a-7c4c-4d5b-8a8a-3f2fd59578a9
+    guid: 297fd668-dc68-454d-9731-f8ea02c3c483
+    source: Metamorphic Imbuement
+    behavior: activated
+    description: |-
+      You can change this weapon’s shape and form as a maneuver, granting one of the following benefits of your choice:
+      - **Concealed**: The weapon shrinks to the size of a piece of jewelry and can be worn as an earring, necklace, or similar accessory. While in this form, the weapon can’t be used for weapon abilities.
+      - **Large**: Abilities using this weapon gain a +1 melee distance bonus or a +3 ranged distance bonus.
+      - **Vicious**: Whenever you damage a creature using this weapon, you deal an extra 1 damage on a tier 1 outcome, an extra 2 damage on a tier 2 outcome, and an extra 3 damage on a tier 3 outcome.
+    name: Metamorphic
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: a5e549cf-fcee-495e-8941-916871eef6d5
+        modesSelected:
+        - 1
+        ongoingEffectCustom: a5e549cf-fcee-495e-8941-916871eef6d5
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 118083d7-0cb8-4425-b5c7-d8ff6f344254
+        modesSelected:
+        - 2
+        ongoingEffectCustom: 118083d7-0cb8-4425-b5c7-d8ff6f344254
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 0f10e677-6e73-4bc0-a382-02185d2055ae
+        modesSelected:
+        - 3
+        ongoingEffectCustom: 0f10e677-6e73-4bc0-a382-02185d2055ae
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        filterTarget: Ongoing Effects has "Metamorphic - Large"
+        modesSelected:
+        - 1
+        ongoingEffect: 118083d7-0cb8-4425-b5c7-d8ff6f344254
+        mode: effect
+        conditions: []
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        filterTarget: Ongoing Effects has "Metamorphic - Vicious"
+        modesSelected:
+        - 1
+        ongoingEffect: 0f10e677-6e73-4bc0-a382-02185d2055ae
+        mode: effect
+        conditions: []
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        filterTarget: Ongoing Effects has "Metamorphic - Concealed"
+        modesSelected:
+        - 2
+        ongoingEffect: a5e549cf-fcee-495e-8941-916871eef6d5
+        mode: effect
+        conditions: []
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        filterTarget: Ongoing Effects has "Metamorphic - Vicious"
+        modesSelected:
+        - 2
+        ongoingEffect: 0f10e677-6e73-4bc0-a382-02185d2055ae
+        mode: effect
+        conditions: []
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        filterTarget: Ongoing Effects has "Metamorphic - Concealed"
+        modesSelected:
+        - 3
+        ongoingEffect: a5e549cf-fcee-495e-8941-916871eef6d5
+        mode: effect
+        conditions: []
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        filterTarget: Ongoing Effects has "Metamorphic - Large"
+        modesSelected:
+        - 3
+        ongoingEffect: 118083d7-0cb8-4425-b5c7-d8ff6f344254
+        mode: effect
+        conditions: []
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 53898050-6bd3-437c-b8f5-3d175a0f530d
+      targetType: self
+      domains: []
+      numTargets: "1"
+      modeList:
+      - rules: The weapon shrinks to the size of a piece of jewelry and can be worn as an earring, necklace, or similar accessory. While in this form, the weapon can’t be used for weapon abilities.
+        text: Concealed
+      - rules: Abilities using this weapon gain a +1 melee distance bonus or a +3 ranged distance bonus.
+        text: Large
+      - text: Vicious
+        rules: Whenever you damage a creature using this weapon, you deal an extra 1 damage on a tier 1 outcome, an extra 2 damage on a tier 2 outcome, and an extra 3 damage on a tier 3 outcome.
+        condition: ""
+      name: Metamorphic
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: |-
+        You can change this weapon’s shape and form as a maneuver, granting one of the following benefits of your choice:
+        - **Concealed**: The weapon shrinks to the size of a piece of jewelry and can be worn as an earring, necklace, or similar accessory. While in this form, the weapon can’t be used for weapon abilities.
+        - **Large**: Abilities using this weapon gain a +1 melee distance bonus or a +3 ranged distance bonus.
+        - **Vicious**: Whenever you damage a creature using this weapon, you deal an extra 1 damage on a tier 1 outcome, an extra 2 damage on a tier 2 outcome, and an extra 3 damage on a tier 3 outcome.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  source: Metamorphic Imbuement
+  name: Metamorphic
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 1af8850e-0e8e-482e-9ff4-2fef2e7b2329
+imbuePrereq: none
+projectSource: Variac
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: Oil from an olothec’s liver
+mtime: 1774706902645
+name: Metamorphic
+imbueTargetType: weapon
+description: "You can change this weapon's shape and form as a maneuver, granting one of the following benefits of your choice: Concealed (jewelry; can't be used for weapon abilities), Large (+1 melee distance or +3 ranged distance), Vicious (extra damage by tier)."
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

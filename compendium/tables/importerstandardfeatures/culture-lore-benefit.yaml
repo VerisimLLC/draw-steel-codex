@@ -1,0 +1,20 @@
+__typeName: CharacterFeature
+mtime: 1760753355781
+guid: ac73686b-2a60-45d8-9100-286fa6801abf
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ac73686b-2a60-45d8-9100-286fa6801abf
+  source: Character
+  behavior: power
+  keywords: []
+  activationCondition: false
+  name: Culture Lore Benefit
+  guid: 084a489c-9e94-4ddf-a607-e18503a3f462
+  description: You gain an edge on tests made to recall lore about your culture, and on tests made to influence and interact with people of your culture
+  modtype: edge
+  rollType: test_power_roll
+source: Character
+name: Culture Lore Benefit
+description: ""
+id: 0188d764-32cf-43e4-841f-af13240fd218
+ctime: 1760753355781

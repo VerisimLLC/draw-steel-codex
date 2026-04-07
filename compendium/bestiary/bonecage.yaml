@@ -1,0 +1,204 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: af07a874-3f53-4a4c-a50d-e03581c82b49
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Bonecage	Level 10 Horde Controller
+        Undead	EV 12
+        <b>Stamina</b> 55	<b>Immunity</b> corruption 10, poison 10
+        <b>Speed</b> 6 (climb)	<b>Size</b> 3 /<b> Stability</b> 5
+        <b>Free Strike</b> 4
+        Might +5	Agility -2	Reason -2	Intuition +3	Presence -1
+        <b>Ribcage Chomp</b> (Action) %E2%97%86 2d10 +5 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	9 damage; M<4 grabbed
+        %E2%98%85	12%E2%80%9316	12 damage; M<5 grabbed
+        %E2%9C%B8	17	14 damage; grabbed
+        <b>3 Malice </b>A target grabbed by the bonecage can't teleport or be teleported until they escape the grab.
+
+        <b>Labyrinth of Bone</b> (Action) %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> Four 10 x 1 lines within 3<b>	Target</b> All enemies in a line
+        <b>Effect</b> The bonecage may put up to two 90-degree bends in each of the lines. Each target makes an <b>Agility test.</b>
+        <b>%E2%9C%B8	%E2%89%A411	9 damage</b>
+        <b>%E2%98%85	12%E2%80%9316	7 damage</b>
+        <b>%E2%9C%A6	17	4 damage</b>
+        <b>Effect</b> The affected area is considered difficult terrain for enemies. The effect ends when the encounter ends or the bonecage uses this ability again.
+
+        <b>Entrap</b>
+        The bonecage can have up to four size-1 creatures and objects grabbed at once. A creature grabbed by the bonecage has a bane on power rolls to escape the grab, and the bonecage has damage immunity 5 against their strikes and abilities. When the bonecage is force moved, anything they are grabbing moves with them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b6d9562b-0c8d-411d-bafb-f888600af885: true
+      modifiers: []
+      name: Entrap
+      description: The bonecage can have up to four size-1 creatures and objects grabbed at once. A creature grabbed by the bonecage has a bane on power rolls to escape the grab, and the bonecage has damage immunity 5 against their strikes and abilities. When the bonecage is force moved, anything they are grabbing moves with them.
+      guid: b6d9562b-0c8d-411d-bafb-f888600af885
+      source: Trait
+    role: Horde Controller
+    inflictedConditions: []
+    keywords:
+      Undead: true
+      Soulless: true
+    max_hitpoints_roll: "55"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 10
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 10
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 4
+    monster_type: Bonecage
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 55
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ac99b733-b61b-4e10-b4ae-ce62336a453c
+      implementation: 3
+      numTargets: 2
+      name: Ribcage Chomp
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage; M<4 grabbed
+        - 12 damage; M<5 grabbed
+        - 14 damage; grabbed
+        roll: 2d10 + Might
+      description: |-
+        The bonecage can have up to four size 1 targets grabbed at once. Any creature grabbed by the bonecage takes a bane on the Escape Grab maneuver, and the bonecage has damage immunity 5 against that creature's abilities. When the bonecage is force moved, any creature or object they have grabbed moves with them.
+        **3 Malice**: While grabbed this way, a target can't teleport or be teleported.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 664f9af9-e65d-466f-82c4-416dff44ad30
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Labyrinth of Bone
+      implementation: 0
+      description: The affected area is considered difficult terrain for enemies. The effect ends when the encounter ends or the bonecage uses this ability again.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    movementSpeeds:
+      climb: 6
+    ev: 12
+    minion: false
+    levelChoices: []
+    creatureSize: "3"
+  tokenType: null
+  bestiaryId: 7bbc9089-2563-4597-940c-a4e7f76f6df1
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: Bonecage
+parentFolder: d808b7d0-f3af-4e88-8ad1-d3d26ca961e9
+artist: null
+ord: 3
+ctime: 1741590270468
+mtime: 1775201137032
+hidden: false

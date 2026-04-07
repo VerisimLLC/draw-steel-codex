@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+objectTarget: false
+id: ae1149c4-a8d0-4ed2-84c3-a1483ad5ab74
+targetAllegiance: ally
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+numTargets: "<<numtargets>>"
+modifiers: []
+source: Monster
+strain: []
+guid: 4802fd31-f7cd-4b66-8a41-d554d0dea8ec
+repeatTargets: true
+ctime: 1753679697670
+description: ""
+persistence: []
+behaviors:
+- __typeName: ActivatedAbilityReplenishBehavior
+  resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+name: Heroic Resource Gain for Self or Allies
+selfTarget: true
+mtime: 1772113224866
+abilityType: none
+iconid: ui-icons/skills/1.png

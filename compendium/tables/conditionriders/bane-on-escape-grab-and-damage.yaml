@@ -1,0 +1,66 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 6906316a-26fe-4101-9a4b-60192b77c270
+  displayCondition: Ability.name is Escape Grab
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  activationCondition: "1"
+  rollType: ability_power_roll
+  guid: 822471a2-8df7-40bb-ae94-ecdc4a0665dc
+  description: ""
+  behavior: power
+  name: Bane on Escape Grab and Damage
+- __typeName: CharacterModifier
+  sourceguid: 6906316a-26fe-4101-9a4b-60192b77c270
+  modifyDescription: ""
+  source: Ongoing Effect
+  filterAbility: 'Ability.name is Escape '
+  behavior: modifyability
+  attributes: []
+  guid: 0486ace7-08c3-4381-b3f3-cf2cc25e5ff2
+  description: ""
+  name: Bane on Escape Grab and Damage
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: a2f865c4-1401-44b3-98b8-7be2ff25f9e4
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      applyto: caster
+      roll: Invoker.Agility
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 6906316a-26fe-4101-9a4b-60192b77c270
+id: ac6ebb08-728d-493b-b62d-9758746b4369
+ctime: 1767413604848
+condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: Bane on Escape Grab and Damage
+description: ""
+mtime: 1767413712910
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65

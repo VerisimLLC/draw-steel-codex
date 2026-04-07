@@ -1,0 +1,50 @@
+__typeName: ActivatedAbility
+targetFilter: "<<targetfilter>>"
+id: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 03a946fd-5989-4f32-bc45-f149a6f2873b
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  inheritRange: true
+  promptText: Choose teleport target
+  autoTarget: false
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: cc9bf794-a8d0-4c4f-a3e2-f8a976ac98c7
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+ctime: 1746144875751
+numTargets: "1"
+mtime: 1772947001690
+repeatTargets: false
+selfTarget: true
+name: Teleport a creature within range
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

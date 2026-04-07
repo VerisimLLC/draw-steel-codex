@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 9388f306-8285-444e-998e-b3e58daf0856
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Elvyr
+- __typeName: RollTableRow
+  id: 12876620-ad86-4b6f-9c94-535e55f7ff82
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Eviarwyc
+- __typeName: RollTableRow
+  id: 4e387432-9de8-4ee1-aee6-9b16cd3d838b
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Illwyv
+- __typeName: RollTableRow
+  id: 0ddb9a69-df50-4bfb-a077-cf88a4f46ee4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Iorwyth
+- __typeName: RollTableRow
+  id: 303a0335-c2dc-44b5-a78e-fc912e372bff
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Lliarwyn
+- __typeName: RollTableRow
+  id: ff3f8a79-93b4-4449-aea0-57be6855ea15
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Meithennyn
+- __typeName: RollTableRow
+  id: 90eb7c04-695a-4a9e-ab33-4b0a891b677d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Nimuë
+- __typeName: RollTableRow
+  id: 4965bc03-5ded-4f5b-9d16-69fdb79f2796
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Rhegyth
+- __typeName: RollTableRow
+  id: a2828783-dd31-4adb-8010-c6fec8834be9
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Viarwyn
+- __typeName: RollTableRow
+  id: 4478daf9-c0b1-4174-9f79-88c5f9deeb71
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ysallwyth
+id: 5fc0dfff-efb7-4a5b-a393-cfdd8e8769c9
+name: Wode Elves Feminine Names
+subtable: true
+mtime: 1743456229998
+items: false
+ctime: 1743444245339

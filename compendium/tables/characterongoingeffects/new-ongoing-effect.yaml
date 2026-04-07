@@ -1,0 +1,16 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 5cfd5091-a4ad-40f9-83b9-e4b784286194
+id: 5cfd5091-a4ad-40f9-83b9-e4b784286194
+ctime: 1763908648122
+name: New Ongoing Effect
+description: ""
+mtime: 1763908648122
+display:
+  brightness: 1
+  bgcolor: "#ffffffff"
+  hueshift: 0
+  saturation: 1
+iconid: ui-icons/skills/1.png

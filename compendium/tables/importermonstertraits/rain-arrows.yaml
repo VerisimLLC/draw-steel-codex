@@ -1,0 +1,44 @@
+__typeName: CharacterFeature
+testCases:
+- text: When this goblin makes a ranged attack, they can target two creatures within distance.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 9c847911-b9a4-48ba-9a6d-127ac49c5b5f
+  modifyDescription: The attack may target two creatures.
+  source: Monster
+  filterAbility: (Ability.Keywords Has "Attack") and (Ability.Keywords Has "Ranged")
+  behavior: modifyability
+  attributes:
+  - operation: Set
+    value: "2"
+    id: numtargets
+  guid: d37e8ac6-6866-492f-9b55-348616cb8fdb
+  description: ""
+  name: Rain Arrows
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 8deaf81e-9cfb-4d02-8a5b-17901021835e
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 5
+    iconid: ui-icons/skills/1.png
+source: Monster
+guid: 9c847911-b9a4-48ba-9a6d-127ac49c5b5f
+importMatch: When <<monster>> makes a ranged attack, they can target two creatures within distance.
+ctime: 1715816697562
+name: Rain Arrows
+description: ""
+id: 38e9ebf6-07aa-4504-b7fd-d8d14209b3d5
+mtime: 1715817351805

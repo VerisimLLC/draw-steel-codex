@@ -1,0 +1,30 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  attributes:
+    dex: true
+    con: true
+    hitpoints: true
+    str: true
+  deletable: false
+  source: Transformation
+  name: Transformation
+  guid: 8247f846-f381-40c9-8532-c4034a26d3eb
+  behavior: transform
+  description: ""
+source: Ongoing Effect
+transformation: true
+guid: b80696d1-e582-48f6-bd06-b780d04ce9df
+id: b80696d1-e582-48f6-bd06-b780d04ce9df
+ctime: 1763465566992
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Transformation
+custom: true
+description: ""
+mtime: 1763465566992
+iconid: ui-icons/skills/1.png

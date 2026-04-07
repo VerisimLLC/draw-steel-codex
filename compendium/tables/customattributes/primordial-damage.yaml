@@ -1,0 +1,12 @@
+__typeName: CustomAttribute
+possibleValues:
+- cold
+- fire
+- corruption
+- lightning
+category: Class Specific
+attributeType: stringset
+name: Primordial Damage
+mtime: 1765907763246
+id: fe20b4b6-fa30-4b65-899e-1e2f82061aa4
+ctime: 1765907763246

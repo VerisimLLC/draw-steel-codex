@@ -1,0 +1,765 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 884d4db1-b997-4890-9dff-904aa61d89c2
+    offtokenPortraitId: ee074cf9-6940-49d9-9d25-15002f369b3d
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.5403433
+    frameSaturation: 0.6481297
+    frameBrightness: 0.3482869
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9f8de65e-9f0e-499d-8eea-1e987fad0949
+  properties:
+    __typeName: monster
+    groupid: 5163b6cd-991f-4277-b81c-8e42a53d328e
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 220
+    inflictedConditions: []
+    ev: 48
+    max_hitpoints_roll: "220"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 4
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        7aef698b-6087-477b-b161-660989b97164:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 220
+    minion: false
+    stability: 2
+    import:
+      type: mcdm
+      data: |+
+        Rival Tactician	Level 10 Elite Artillery
+        Humanoid, Rival	EV 48
+        <b>Stamina</b> 220
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 10
+        Might +5	Agility +2	Reason +4	Intuition +0	Presence +3
+        <b>Forward Assault</b> (Action) %E2%97%86 2d10 + 5 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	15 damage
+        %E2%98%85	12%E2%80%9316	21 damage; A<4 prone can't stand (EoT)
+        %E2%9C%B8	17	25 damage; prone and A<5 can't stand (EoT)
+        <b>5 Malice</b> Two allies within distance can move up to their speed and use a signature action with a double edge.
+
+        <b>Guardian from Afar</b> (Action) %E2%97%86 2d10 + 5 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Ranged, Weapon
+        <b>Distance</b> 3 cube within 10<b>	Target</b> One creature in the cube
+        %E2%9C%A6	%E2%89%A411	10 damage; M<3 weakened (save ends)
+        %E2%98%85	12%E2%80%9316	16 damage; M<4 weakened (save ends)
+        %E2%9C%B8	17	20 damage; M<5 weakened (save ends)
+        <b>Effect</b> Each ally in the cube regains 10 Stamina.
+
+        <b>Battlefield Control </b>(Triggered Action)
+        <b>Keywords</b> Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 enemy
+        <b>Trigger</b> The target moves.
+        <b>Effect</b> At any point during the movement, the tactician and one ally within distance use a signature action against the target.
+
+        <b>Rivalry</b>
+        The tactician selects one creature within line of effect at the start of an encounter. Both the tactician and the creature can add a 1d3 to all power rolls made against each other.
+        Rival Talent	Level 10 Elite Hexer
+        Humanoid, Rival	EV 48
+        <b>Stamina</b> 220
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 10
+        Might +0	Agility +0	Reason +5	Intuition +0	Presence +1
+        <b>Override</b> (Action) %E2%97%86 2d10 + 5 %E2%97%86 Signature
+        <b>Keywords</b> Psionic, Ranged, Strike, Telekinesis
+        <b>Distance</b> Ranged 10<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	15 psychic damage
+        %E2%98%85	12%E2%80%9316	20 psychic damage
+        %E2%9C%B8	17	24 psychic damage
+        <b>4 Malice</b> Each target moves up to their speed and makes a free strike against an enemy of the talent's choice. The target can't be moved in a way that puts them in harm's way except for opportunity attacks.
+
+        <b>Steal Time</b> (Maneuver) %E2%97%86 2d10 + 5 %E2%97%86 3 Malice
+        <b>Keywords</b> Chronopathy, Psionic, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object
+        %E2%9C%A6	%E2%89%A411	R<3 slowed (save ends)
+        %E2%98%85	12%E2%80%9316	R<4 restrained (save ends)
+        %E2%9C%B8	17	R<5 restrained (save ends)
+        <b>Effect</b> One ally within distance can use an additional action on their turn until the start of the talent's next turn.
+
+        <b>Psionic Retribution </b>(Triggered Action)%E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> A creature damages the talent.
+        <b>Effect</b> The talent halves the damage and shifts 2. The triggering creature takes half the damage they dealt in psychic damage and is pushed 5.
+
+        <b>Rivalry</b>
+        The talent selects one creature within line of effect at the start of an encounter. Both the talent and the creature can add a 1d3 to all power rolls made against each other.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2910a1cc-6d94-4529-b8d2-90c7d59e4165: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2910a1cc-6d94-4529-b8d2-90c7d59e4165
+        source: Character Feature
+        behavior: trigger
+        domains:
+          CharacterFeature:2910a1cc-6d94-4529-b8d2-90c7d59e4165: true
+        name: Overwatch
+        resourceRefreshType: round
+        description: |-
+          Trigger: An enemy within distance willingly moves.
+          Effect: At any point during the movement, the tactician makes a free strike against the target.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          rangeTextOverride: "10"
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 9818e374-7e70-4894-813c-56b8275b8d98
+          persistence: []
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: move
+          guid: 022bba39-15c6-484d-8579-dd989ca192ff
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 129b91cd-3071-4862-bba1-6c50da47c152
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: At any point during the movement, the Rival tactician makes a free strike against the target.
+            autoTarget: false
+            standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+            abilityType: standard
+          name: Overwatch
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          description: |2-
+             Trigger: An enemy within distance willingly moves.
+             Effect: At any point during the movement, the tactician makes a free strike against the target.
+          subject: enemy
+          iconid: e7d55d80-630d-432d-8d3d-33051478bcd9
+        guid: 9818e374-7e70-4894-813c-56b8275b8d98
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:2910a1cc-6d94-4529-b8d2-90c7d59e4165: true
+        sourceguid: 2910a1cc-6d94-4529-b8d2-90c7d59e4165
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Overwatch
+        description: |-
+          Trigger: An enemy within distance willingly moves.
+          Effect: At any point during the movement, the tactician makes a free strike against the target.
+        guid: 3a849235-9d7e-48c2-8c00-40d5ab4974f7
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: At any point during the movement, the tactician makes a free strike against the target.
+          guid: 74ee18f9-fede-43db-870a-8168d5f21b66
+          keywords: []
+          trigger: "Trigger: An enemy within distance willingly moves."
+      source: Character Feature
+      description: |-
+        Trigger: An enemy within distance willingly moves.
+        Effect: At any point during the movement, the tactician makes a free strike against the target.
+      guid: 2910a1cc-6d94-4529-b8d2-90c7d59e4165
+      name: Overwatch
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+        CharacterFeature:8addb4c9-f749-4f0d-813b-974ee5b302fb: true
+        CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+          CharacterFeature:8addb4c9-f749-4f0d-813b-974ee5b302fb: true
+          CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+        sourceguid: 3146422c-eb42-4160-ae0e-642168383dc6
+        behavior: trigger
+        source: Trait
+        name: Rivalry
+        description: The Tactician selects one creature within line of effect at the start of an encounter. Both the Tactician and the creature can add a 1d3 to all power rolls made against each other.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetTextOverride: Choose another magic-wielder as the target for your Rivalry
+              repeatTargets: false
+              targetAllegiance: enemy
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+                duration: eoe
+                ongoingEffectCustom: e349e64f-4422-4fa9-995b-130c492a473a
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 240
+                docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+              range: "50"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: c4193d77-d471-4d84-8d0b-925f72f62cac
+              targetType: target
+              iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              implementation: 3
+            promptText: Choose a player Hero as the target for your Rivalry.
+            autoTarget: false
+            abilityType: custom
+            applyto: caster
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+            duration: eoe
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          guid: c171ef5c-50db-42ed-93a9-9c72ad7ea4bc
+          numTargets: "1"
+          domains:
+            CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+            CharacterFeature:8addb4c9-f749-4f0d-813b-974ee5b302fb: true
+            CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+          description: ""
+          targetType: self
+          trigger: rollinitiative
+          name: Rivalry
+          abilityFilters: []
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 6fc99f50-afce-47f7-b90f-464a3b25089f
+      source: Trait
+      description: The Tactician selects one creature within line of effect at the start of an encounter. Both the Tactician and the creature can add a 1d3 to all power rolls made against each other.
+      guid: 8addb4c9-f749-4f0d-813b-974ee5b302fb
+      name: Rivalry
+      implementation: 3
+    role: Elite Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: e8469c73-180c-460d-9749-4a9e2682b0cd
+    opportunityAttack: 10
+    damage_taken: 0
+    keywords:
+      Humanoid: true
+      Rival: true
+    walkingSpeed: 5
+    deathSavingThrowFailures: 0
+    deathSavingThrowSuccesses: 0
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: d31d036c-dc80-4929-b9c8-34d46e0a2dec
+      numTargets: 1
+      targetType: target
+      name: 'Battlefield Control '
+      iconid: ui-icons/skills/1.png
+      description: At any point during the movement, the tactician and one ally within distance use a signature action against the target.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Chronopathy: true
+        Psionic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 6c8a7e5e-af48-4758-9cc2-378814a0c569
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - R<3 slowed (save ends)
+        - R<4 restrained (save ends)
+        - R<5 restrained (save ends)
+        roll: 2d10 + 5
+      name: Steal Time
+      implementation: 3
+      description: One ally within distance can use an additional action on their turn until the start of the talent's next turn.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 8a7ca67c-ea25-40a1-a77b-6dd1435b055f
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: 'Psionic Retribution '
+      implementation: 0
+      description: The talent halves the damage and shifts 2. The triggering creature takes half the damage they dealt in psychic damage and is pushed 5.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetAllegiance: enemy
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 236
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      persistence: []
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      strain: []
+      guid: 7c6c0c1c-89ec-4de5-ae4b-75b5fcacc223
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 11 damage
+        - 14 damage
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        inheritRange: false
+        modesSelected:
+        - 2
+        autoTarget: false
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: da2a1553-d059-460d-a224-f1ea6e5cd9b5
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            runOnController: true
+            abilityType: standard
+            standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 90ccce22-55a9-4ec3-8684-c2e4ed0c7608
+          iconid: ui-icons/skills/1.png
+          targetType: target
+          name: Invoked Ability
+          numTargets: "2"
+          description: ""
+          abilityType: none
+          implementation: 3
+        standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+        abilityType: custom
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+        mode: expend
+        modesSelected:
+        - 2
+        quantity: "2"
+      categorization: Signature Ability
+      numTargets: "2"
+      rangeTextOverride: "10"
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      name: Dual Targeting Shot
+      modeList:
+      - text: No Malice
+      - text: 2 Malice
+        condition: resources.malice >=2
+      description: "2 Malice: Two allies within distance can make a free strike against one of the targets."
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetAllegiance: enemy
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Malice
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 95c12c7f-942f-4635-b9de-a15e2b43889a
+      abilityType: none
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetTextOverride: " One ally adjacent to the target regains 5 Stamina."
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            roll: "5"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "6"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5bbd30db-09eb-48a6-87e9-8952364ace8c
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+        applyto: caster
+      name: I'll Cover you!
+      numTargets: "1	"
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 236
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "5"
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: b6fbfed2-e0cc-418f-9af1-45ef0c167ee5
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      persistence: []
+      categorization: Malice
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; m<0 weakened (save ends)
+        - 13 damage; m<1 weakened (save ends)
+        - 16 damage; m<2 weakened (save ends)
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetTextOverride: One ally adjacent to the target regains 5 Stamina.
+          repeatTargets: false
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            roll: "5"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "6"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 89868e1f-0e6d-4e1f-b0bd-4e26b37bc1f8
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        applyto: caster
+      name: I'll Cover You!
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 5 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 245
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      numTargets: 2
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: Two allies within distance move up to their speed and can use a signature ability that has a double edge.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage
+        - 21 damage; A<4 prone and can't stand (EoT)
+        - 25 damage; prone; A<5 and can't stand (EoT)
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Forward Assault
+      guid: fa9e7e26-5a67-4f29-8d86-da17e2ecd45d
+      description: |2-
+
+        **5 Malice**: Two allies within distance move up to their speed and can use a signature ability that has a double edge.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      numTargets: 1
+      modifiers: []
+      guid: 86603897-3cbe-43f9-9a24-9dd5c73ecbcf
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage; M<3 weakened (save ends)
+        - 16 damage; M<4 weakened (save ends)
+        - 20 damage; M<5 weakened (save ends)
+        roll: 2d10 + Might
+      name: Guardian From Afar
+      sourceReference:
+        __typeName: SourceReference
+        page: 245
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: Each ally in the area regains 10 Stamina.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 3
+    resources:
+      2d3d5511-4b80-46d1-a8c6-4705b9aa45ca:
+        __typeName: CharacterResource
+        refreshid: ""
+        unbounded: 0
+        used: 0
+    movementSpeeds: []
+    savingThrowRatings: []
+    monster_type: Rival Tactician
+    creatureSize: 1M
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 1b46fe87-c6c4-4dff-8cb1-819309c5c1fd
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961969981
+description: Rival Tactician
+parentFolder: 62dde676-136f-4d24-9390-903417c9a726
+artist: null
+ord: 0
+ctime: 1741590225569
+mtime: 1775201137032
+hidden: false

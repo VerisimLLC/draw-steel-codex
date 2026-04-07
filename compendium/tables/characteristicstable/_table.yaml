@@ -1,0 +1,1091 @@
+1da00bec-b97e-4e37-b5a5-02bcc52a220e:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: a93eedf1-153f-4efd-8cce-c8c6b427fe81
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Diplomatic Immunity:** Your political power allowed you to be foolish without consequence. Through sheer carelessness or on a dare, you accidentally harmed or killed an innocent bystander. Due to your position as an official, you faced no consequences. But this event was the final straw for the person you loved or respected most, and they turned away from you. You left the world of political machinations behind to earn back their trust."
+  - __typeName: RollTableRow
+    id: 0e44dfe0-b3b9-4d70-859d-7bf54f88825f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Insurrectionist:** You secretly funded a rebel organization intent on overthrowing the corrupt establishment. Someone discovered your treason, and you were forced to flee or risk execution. You became a hero to live and fight another day on behalf of those who have no power."
+  - __typeName: RollTableRow
+    id: 615df076-e944-427c-8acb-c0fd304fc4f8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Respected Consul:** You were a seneschal to a leader, able to sway their opinions. But gossip convinced the leader you were plotting a coup, and you were ousted from their circle of influence. You became a hero to continue your work making meaningful change in the world. "
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Right Side of History:** You tried to work on policy change from the inside of a bureaucratic organization. There were others like you who were more vocal. You started to notice those colleagues were disappearing overnight. Not wanting to find out if you were next on the list, you left to enact change in more direct ways. "
+    id: e605cb0a-fce9-42f8-8a39-f35d007e1e7a
+    weight: 1
+  - __typeName: RollTableRow
+    id: 38c32bb2-cdab-4cd8-99a3-db589e51a65e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Self-Serving:** You used your skills to collect incriminating or scandalous information about your opponents to blackmail them. A rival got one step ahead of you and stole your book of dirty secrets. But instead of using it against you, they gave you an opportunity to leave the world of politics behind. Saved from public humiliation, you now use your skills for the greater good. "
+  - __typeName: RollTableRow
+    id: fd51c191-bc44-4045-a0f8-cedf7a8fb4b6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Unbound:**  The red tape required to achieve anything through your political position resulted in a crisis being mishandled and countless people harmed or killed. After that unfortunate event, you resolved to live unfettered by bureaucratic interference, seeking to do good through action, not paperwork. "
+  id: 1da00bec-b97e-4e37-b5a5-02bcc52a220e
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755590343285
+  items: false
+  ctime: 1730562737355
+ee81b38d-b730-4138-b33d-a2efce9834bf:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 448d2000-5379-4952-9f2e-6689934bac36
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Betrayed:** A local crime lord offered you money to throw your last bout, promising that you’d live through the ordeal and get a cut of all the wagers placed on the match. You upheld your end of the deal—which made the knife in your back after the bout so surprising. You woke in a shallow grave, barely alive, and ready to mete out justice."
+  - __typeName: RollTableRow
+    id: c96020a8-a03a-4b18-b67a-aa6a2091babd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Heckler:** As you stood victorious on the arena sands, a voice cried out among the cheering. “This violence is only for show. You should be ashamed. There are people who need you—who need your skills!” Why did that voice ring so clear? And why did it sound so familiar? You never saw the face of the person who uttered those words, but they weighed heavy on you. The next day, you fled the arena to begin a hero’s life. "
+  - __typeName: RollTableRow
+    id: 0262d71c-747f-4add-a75a-3be5efeec6aa
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Joined the Arena:** As a child, you loved gladiatorial matches, captivated by the fierce displays of bravery and bravado, never giving much thought to how the competitors ended up in the ring. Then your friend was wrongly accused of a crime and sentenced to compete. You went in their place. After viewing what life was like for those forced to fight, you survived your sentence and resolved to protect the unfairly condemned. "
+  - __typeName: RollTableRow
+    id: 5dfbd381-85f2-4af4-96b3-ccf6eb00ced4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**New Challenges:** You earned every title you could. You beat every opponent willing to face you in the arena. Your final battle with your rival ended with you victorious—and still you were unsatisfied. Other, greater foes are out there. And you mean to find them."
+  - __typeName: RollTableRow
+    id: 5c735340-5ec4-4ca9-a33d-9944a2f2d968
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Scion’s Compassion:** You were born a noble, but the duplicitous and power-hungry nature of your family had you seeking your own fortune in the arena. You saw that competitors brought there by circumstance and not choice suffered. You gave all you could of your family money to those less-fortunate folk, and then set out to make a real difference in this cruel world."
+  - __typeName: RollTableRow
+    id: 61aa6376-2e23-4833-b477-c1b6622af0ab
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Warriors’ Home:** The orphanage you grew up in secretly supplied gladiators to the arena. Forced to fight against many childhood friends as an adult, you vowed to dismantle the arena and free other victims. You became a liberator, dedicated to ending the oppression of others until your dying breath."
+  id: ee81b38d-b730-4138-b33d-a2efce9834bf
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755798251734
+  items: false
+  ctime: 1730560251464
+d94cf3e3-ca21-47be-9b61-546aa7191a90:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: c847a1c4-f7a1-4cd9-ba83-f9fb735db53f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Forgotten Memories:** While practicing a spell, your inexperience caused the magic to backfire and your memories were wiped away, leaving you only fragments of who you once were. Determined to recall your past, you dedicate yourself to helping others, hoping that your actions spark some remembrance or lead you to a way to reverse the magic."
+  - __typeName: RollTableRow
+    id: 4b62ac45-0b13-4675-937b-d5f74088d3b8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**The Magic of Friendship:** As a sign of your status as star pupil, your mentor gifted you a familiar, a magic pet. Another jealous apprentice captured your companion and slipped away in the night. Haunted by your pet’s absence, you adventure to find your kidnapped friend and prevent others from feeling your loss."
+  - __typeName: RollTableRow
+    id: e0b8236e-3636-483b-98ed-4abab504d92a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Missing Mage:** One day you woke up and the mage you worked for was just gone. They didn’t take any of their belongings, and there was no sign of any foul play—just the scent of sulfur in their bedchamber. You set out on your heroic journey in the aftermath and have been looking for them ever since."
+  - __typeName: RollTableRow
+    id: 6d862506-7caf-46d6-b009-c588780985b8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Nightmares Made Flesh:** Your attempts at magic have always been unpredictable. A powerful mage promised to help you gain control. During your training, a terrible nightmare caused your body to flare with magic pull the monster of your nightmare into the waking world. The horror escaped. You left, seeking to vanquish its terrible vileness.   "
+  - __typeName: RollTableRow
+    id: 231057cf-08b2-40ce-ae1d-6f68a96297a7
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: |+
+          **Otherworldly:** While studying magic, you accidentally sent yourself from your original world to this one. Now you’re stranded here, hoping to find ancient texts or powerful magic treasures that might transport you back home. A life of adventure it is!
+  - __typeName: RollTableRow
+    id: 185df9ff-a253-402b-b4f2-2778f5ea4711
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Ultimate Power:** The mage you worked for was a kindly old soul, but the basic magic they taught you always seemed like a small part of something bigger. It wasn’t until you met an adventuring elementalist that you realized hitting the road as a hero was the only way to truly improve and hone your skills. You resigned your apprenticeship and found yourself walking the path of a hero the next day."
+  id: d94cf3e3-ca21-47be-9b61-546aa7191a90
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755300169433
+  items: false
+  ctime: 1730561351514
+c2fe5348-6939-477d-a62c-4fc9cc6d11a3:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: ee175965-100f-422b-b99b-0009d892f517
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Continue the Work:** A great hero was a fan of the things you created and gave you a generous commission to create your best work for them. While working on this commission, you and the hero became close friends. The day you finished the work was the same day they disappeared. To honor their legacy, you took up the mantle of a hero with the intent of finishing your friend’s work. "
+  - __typeName: RollTableRow
+    id: 34aea2ba-a111-4666-b528-47c9a46d3490
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Inspired:** As you traveled the road selling your wares, troll bandits attacked you. One of the bandits claimed an item belonging to someone precious to you—or perhaps claimed that person’s life—but the rest were driven off or slain by a group of heroes. Seeing the quick work those heroes made of the bandits inspired you to follow in their footsteps."
+  - __typeName: RollTableRow
+    id: 329ad6c6-3a44-4bda-aadc-e660ba08751d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Stolen Passions:** Your parents discouraged your artistic talents, instead trying to focus your passions on the family business. You refused to dim your spark and continued your work in secret. Enraged at discovering your disobedience, they sold your work to a traveling merchant. You left your hometown, seeking your lost art and encouraging others to live freely. "
+  - __typeName: RollTableRow
+    id: 4506dd39-6b3a-4711-a117-9497d6540556
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Tarnished Honor:** A new patron commissioned some art, but on completion, they refused to pay you and claimed the work as their own. You were accused of plagiarism and run out of town. For you, heroics are about restoring your name and honor."
+  - __typeName: RollTableRow
+    id: 4a91259f-c9b5-4f04-895a-d5c34596b447
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Twisted Skill:** You had great success that caused an unscrupulous rival to curse you. For a time, everything you tried to create turned to ruin. You broke the curse through adventuring, and in doing so, discovered a new joy and purpose that now defines you. "
+  name: Artisan Inciting Incident
+  id: c2fe5348-6939-477d-a62c-4fc9cc6d11a3
+  mtime: 1765721543560
+  items: false
+  ctime: 1730556341912
+04fb6189-9b60-4ba1-ba52-5698fcd3eb4e:
+  __typeName: RollTable
+  text: true
+  rows: []
+  id: 04fb6189-9b60-4ba1-ba52-5698fcd3eb4e
+  mtime: 1730269448803
+  items: false
+  ctime: 1730269448803
+99b28c07-c2d6-4011-8b42-cc56bfec023b:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: cd796ead-a9d4-4c1b-b666-85e9f5b80cac
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: " **Bigger Fish:** You grew bored and disillusioned with chasing down petty thieves and imprisoning folks just trying to survive. Surely there are greater threats in the world. You will find that evil wherever it might lurk, and you’ll be the one to stop it."
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Corruption Within:** You joined the force to help the helpless and bring justice to those wronged. You weren’t prepared for the rampant corruption reaching the top of your organization. You refused to cover for your fellow officers and were told in no uncertain terms to leave town or face the consequences. Now you travel as a hero, acting as the protector you always wanted to be."
+    id: ec808f34-ae7c-44e1-811a-cd1d61f92ab2
+    weight: 1
+  - __typeName: RollTableRow
+    id: d960b096-253d-48d3-b267-a5316b45dc87
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Frame Job:** Your partner was murdered. That much is irrefutable. But you didn’t do it, despite what the evidence implies. When it became clear you’d take the fall, you fled, leaving everything behind. Not content to cower in the shadows, you decided to adventure under a new name while you work to clear your own."
+  - __typeName: RollTableRow
+    id: 64e39b98-4439-4445-9a07-e9167f8e1a2d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Missing Mentor:** You learned everything you know about the job from someone you always looked up to in a corrupt organization. One night, they sent you a cryptic message saying they had discovered “something big,” but before you could find out more, they disappeared. No longer sure who you could trust, you slipped away and sought a new life. Now you do what good you can and search to find the truth. "
+  - __typeName: RollTableRow
+    id: 6c2553ab-8490-47e8-87d3-5a6df6df9991
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**One that Got Away:** A violent or depraved criminal began targeting you—perhaps stealing something personal or hurting someone you love—after slipping through your grasp. You left your career to pursue the criminal, but the trail has gone cold … for now. Might as well help folk in the meantime."
+  - __typeName: RollTableRow
+    id: fdb02169-2191-444b-995c-1e98d7f04bad
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Powerful Enemies:** You made it your responsibility to root out and bring down the region’s foremost crime syndicate. They sent goons to burn down your home and teach you a lesson, leaving you bleeding in the street with nothing left except your life. You’ve since taken on the life of a hero to gain the power and influence you need to destroy the syndicate once and for all.."
+  id: 99b28c07-c2d6-4011-8b42-cc56bfec023b
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755714238987
+  items: false
+  ctime: 1730565246754
+7fdce810-0dce-4209-b392-ac164b80c441:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 580a721c-2a5c-4976-8480-b3637418e542
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Antiquity Procurement:** You stole, smuggled, and sold antiquities. In your haste to make a quick sale, you didn’t fully vet a client and they subsequently robbed your warehouse. When the items you stole were taken from you, you realized the harm you caused. Now you’re adventuring to find those items you lost and return them where they belong."
+  - __typeName: RollTableRow
+    id: 91e82821-4f2f-48d4-a723-9a2f01ca409b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Atonement:** The last criminal job you pulled led to the death of someone or the destruction of something you love. In order to make up for the loss you caused, you left your criminal ways behind and became a hero. "
+  - __typeName: RollTableRow
+    id: 062707bc-36e3-4711-bc48-5f2bac2fd374
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Friendly Priest:** You went to prison for your crimes and eventually escaped. An elderly priest took you in and shielded you from the law, convinced that your soul wasn’t corrupt. They never judged you for your past, speaking only of the future. Eventually, the priest died, imparting final words that inspired you to become a hero. "
+  - __typeName: RollTableRow
+    id: 8ee8f16a-0f36-4131-8ee1-f5a6545d8dec
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Shadowed Influence:** You spent years blackmailing manipulating nobles for influence and wealth until a scheme went wrong. You were publicly exposed, and after a narrow escape, you reevaluated your life. Under a new identity, you work as a hero and hope no one looks at your past too closely."
+  - __typeName: RollTableRow
+    id: 43552260-8895-4ae4-806c-6cc2d9ff6138
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Simply Survival:** Stealing was a matter of survival for you and not what defined you–at least in your mind. But when your thieving actions lead to innocent folks being harmed, you knew you could be better. You turned your back on your old life, though your old skills come in handy."
+  - __typeName: RollTableRow
+    id: 73dac7b2-d9f7-4d01-b443-8cc4a8397cbc
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Stand Against Tyranny:** When a tyrant rose to power in your homeland, they began cracking down on all criminals with deadly raids and public executions. The nature of the crime didn’t matter—pickpockets and beggars were made to kneel before the axe alongside murderers. After losing enough friends, you stood up and joined the resistance—not just against this tyrant, but against authoritarians anywhere."
+  id: 7fdce810-0dce-4209-b392-ac164b80c441
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1730557471536
+  items: false
+  ctime: 1730557380816
+4d42b6c8-8b7d-4600-94fe-43a56dff9809:
+  __typeName: RollTable
+  text: true
+  rows: []
+  id: 4d42b6c8-8b7d-4600-94fe-43a56dff9809
+  mtime: 1730565174843
+  items: false
+  ctime: 1730565174843
+b34a95db-c60c-4ef4-8e93-ec54d069f99c:
+  __typeName: RollTable
+  text: true
+  rows: []
+  id: b34a95db-c60c-4ef4-8e93-ec54d069f99c
+  mtime: 1756915792606
+  items: false
+  ctime: 1756915792606
+4d077e74-38e5-4e0b-b98a-3cd7ebe73bb1:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: f2432479-897c-4ff2-b1fe-5ce07380bf17
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Disavowed**: While on a dangerous espionage assignment, things went sideways. Although you escaped with your life, the mission was a public failure thanks to bad information your agency gave you. They denied you work for them, and you went on the run. Hero work will let you survive and clear your name."
+  - __typeName: RollTableRow
+    id: 9e7286c3-5be0-485d-b7e5-221b432115c7
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Faceless**: Your identity was always hidden. It was your way of protecting those around you because the work you did spying on powerful entities came with dangers. Then your world came crashing down when an enemy agent unmasked you, causing you to lose everything—your privacy, livelihood, loved ones, all gone in the blink of an eye. Instead of going into hiding, you became a public hero to protect the innocent in the name of those you lost."
+  - __typeName: RollTableRow
+    id: d238b658-c453-4f19-9d3c-96ebc6f6795d
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Free Agent**: There was a time in your life when you used to sell information to the highest bidder. Your acts were unsanctioned by any one organization, but you were well-connected enough to trade in secrets. Politics never mattered much to you until the information you sold wound up causing a ripple effect of harm that eventually destroyed the place you once called home. You became a hero to make up for your past."
+  - __typeName: RollTableRow
+    id: 928033bd-3b4b-49c0-8426-8a599069ad32
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Informed**: After years of cultivating a rich list of informants, one of those informants risked everything to expose the heinous plans of powerful individuals. You promised to protect your informant, but your agency left them hanging—literally. You cut ties with your employer and swore to always make good on your word as a hero."
+  - __typeName: RollTableRow
+    id: 5502809d-0d9a-4e28-909e-46293897f775
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Spies and Lovers**: While embedded in an undercover assignment, you fell for someone on the other side. They discovered you were a double agent, and though you insisted your feelings were real, the deceit cut too deep for your love interest to ignore. They exposed you, spurned you, or died because of their closeness to you. You left the espionage business to become a hero with nothing to hide."
+  - __typeName: RollTableRow
+    id: 724727af-fbd1-4124-895a-58c4bca64b3e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Turncoat**: You spent your life in service of your country or an organization that upheld your values. During your undercover operations, you discovered that everything you had been told was a lie. Whether you confronted your superiors or were exposed, you were stripped of your service medals before you left to become a true hero.."
+  name: Inciting Incident
+  id: 4d077e74-38e5-4e0b-b98a-3cd7ebe73bb1
+  mtime: 1755581910238
+  items: false
+  ctime: 1730270125507
+6fbd275b-9519-49db-946b-070126b9a888:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 5ac9d1b1-da51-450e-89c7-f71be786d3de
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Bookish Ideas:** You were always content to live a peaceful life in your library, until you found that one book—the one that told the tale of heroes who had saved the timescape. They didn’t spend their days behind a desk. They made a real difference. It was time for you to do the same. "
+  - __typeName: RollTableRow
+    id: e6397847-d06f-4949-9c3a-52b71229a870
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Cure the Curse:** You used to think knowledge could fix everything. You were wrong. When someone you loved fell under a curse, the means to cure them couldn’t be found in any of the books you owned. But that wasn’t going to stop you. The answers are out there, and you’ll find them even if you need to face down death to do so. "
+  - __typeName: RollTableRow
+    id: 459e2b78-2b94-47fe-8e70-e610170a584f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Lost Library:** An evil mage took all your books for themself, cackling at your impotence as they raided your shelves. Now you’re off to search through ancient ruins and secret libraries to rebuild your collection of rare tomes—and to find the mage who stole from you. "
+  - __typeName: RollTableRow
+    id: 39effcfa-7df8-44d0-b1be-e9053680d283
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Paper Guilt:** While transcribing ancient texts, you and another scribe discovered a shelf of long-forgotten books. At your suggestion, your companion got to work on one and vanished along with the tome. Your guilt drove you to seek out your friend and prevent others from falling into similar dangers. "
+  - __typeName: RollTableRow
+    id: 14054b5c-0105-4325-968f-cd4d847a08f8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Unforseen Futures:** In your pursuit of ancient knowledge, you discovered a prophecy that has yet to come to pass. It involves someone that might be … you. After your discovery, strange dreams plagued you, driving you to seek out your destiny. "
+  - __typeName: RollTableRow
+    id: 399caabe-0840-4e66-9399-b3fb1c41d339
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Vanishing:** At first you thought that it was your imagination, and you brushed off the disappearance of random sentences in historical books off. As the books changed to entirely blank pages, they became difficult to ignore, particularly those involving ancient or critical text. Driven by the desire to preserve knowledge, you have made it your purpose to restore and reverse these vanishing texts before they forever disappear. "
+  id: 6fbd275b-9519-49db-946b-070126b9a888
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1730564040200
+  items: false
+  ctime: 1730563921320
+ed37eda8-3394-40f4-8771-95a12106cfe6:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: bec7405e-6c7b-45ce-9492-1c5f0c6d309c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Deep Sentinel:** Spending your days cleaning and maintaining the sewers doesn’t make you many friends. But you found companionship among the rats. You fought the monsters who hunted your friends, and who others ignored. After making the sewers safe for the rats, you decided to take your talents to the surface and serve other humanoids who might appreciate your efforts in the same way. "
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Disaster:** A disaster, such as a cave-in, wildfire, or tidal wave, hit the work crew you were in charge of. You saved as many as you could, but the ones you couldn’t save weigh heavily on your mind. You took up the life of a hero to save as many people as possible, vowing that what happened to you then won’t happen again. "
+    id: ee84a22e-91ee-4c55-b80c-8b874a447f1b
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Embarrassment:** A noble you worked for admonished you publicly for work done poorly—and more than once. Finally, you’d had enough. You vowed to take up a new path and show this noble you’re far more than what they make you out to be."
+    id: 2cf0676d-2b7f-4f0f-9252-ebf4cbb714fa
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Live the Dream:** You worked with a good friend, and on the job, you would always fantasize about what it would be like to hit the road as adventuring heroes … someday. You didn’t expect that your friend would fall ill and pass away. Now it’s time to live out that dream for both of you. "
+    id: a777ddf5-d489-4f17-a534-cb639b7c3b8b
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**A Shining Light:** You kept a lighthouse along the constantly stormy cliffs of your village with your mentor. On a clear and sunny day, your mentor vanished. Finding only a cryptic notebook filled with his musings on the supernatural, you left to find out what really happened. The trail has gone cold for now, and you’re helping others find their loved ones in the meantime. "
+    id: 86c492d0-b357-4ac6-9624-9ea77dc987f9
+    weight: 1
+  - __typeName: RollTableRow
+    id: 7fa80416-85ab-4c14-900d-4f43852eab24
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Slow and Steady:** You labored silently as an uncaring boss drove those around you into the ground, pushing you to work harder to lessen the burden on your companions. But when the boss pushed too far and killed a friend of yours, you led an uprising against them. That was the start of your adventuring life."
+  id: ed37eda8-3394-40f4-8771-95a12106cfe6
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755589701502
+  items: false
+  ctime: 1730564969273
+e124598d-1aae-44f2-9814-5ca31eb53fc2:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 5c676e9e-eba8-4052-a7be-eaedce4171bf
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Blood Money:** When you entered adulthood, you heard unsavory whispers about your family’s fortune before learning that their wealth came at the cost of others’ suffering. Whether you shed light on the secret or not, you left to become a hero stripped of noble title."
+  - __typeName: RollTableRow
+    id: fda5d0ca-8ff1-4fdf-9ea5-2f9a67066162
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Charmed Life:** Whether through some supernatural power or your innate persuasiveness, you were able to defraud other aristocrats. You did it for fun. And when you were found out, you lost your status. Whether you served time or escaped punishment, you decided to rehabilitate yourself and became a hero. "
+  - __typeName: RollTableRow
+    id: 29364644-ba3f-462c-bfb2-93730849ba47
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Inheritance:** The guardians who instilled in you the virtues of doing the right thing were murdered in a senseless petty robbery. Though their wealth was bequeathed to you, it did little to assuage the guilt you felt for being unable to stop the deadly crime. You decided to use your riches to fund your life as a hero, whether publicly or using an alter ego."
+  - __typeName: RollTableRow
+    id: 146b5f8e-829d-4b9d-9501-223dbfa5a9bc
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Privileged Position:** Life outside the manor never piqued your interest. You had everything you wanted. It thus came as a surprise when the peasants came to overthrow your family. You narrowly escaped, and for the first time witnessed the world. It caused you to become a hero for the people, fighting against inequities."
+  - __typeName: RollTableRow
+    id: 0a2d5aea-98a3-4762-869a-7b5b822a88c0
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Royal Pauper:** Seeking a break from noble duties, you sought a lookalike to switch identities with. It went so well that you made a habit of switching whenever you were bored. Unfortunately, your counterpart became so good at imitating you that they convinced all those around you that you were an impostor. You lost contact with your family, but now pursue a heroic path free of the pomp of your old life."
+  - __typeName: RollTableRow
+    id: 6ce5f2b1-3982-4fc3-b840-599df0da52d4
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Wicked Secret:** One parent passed away when you were a baby and the other remarried years later. Then that parent died under suspicious circumstances. Their spouse ousted you, and you were banished (and possibly hunted). Rising from tragedy, you now seek to right the wrongs of the world."
+  id: e124598d-1aae-44f2-9814-5ca31eb53fc2
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755582187347
+  items: false
+  ctime: 1730555848674
+d578041f-6ccc-4667-b83f-8a8c5ed7703d:
+  __typeName: RollTable
+  text: true
+  rows: []
+  id: d578041f-6ccc-4667-b83f-8a8c5ed7703d
+  mtime: 1755581780842
+  items: false
+  ctime: 1755581780842
+1be6e0ad-56e6-44b3-9fbd-eaa39cdef6e9:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 597e8245-13bf-4ea2-85e3-9410ef07160b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Blight:** A horrible blight swept over your homeland, sickening the livestock and causing crops to rot. No one knows whether the blight is of natural origin or something more malevolent, but you set out in search of a way to cleanse the land of this affliction."
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Bored:** You’ve always wanted so much more than gathering eggs and milking cows. You kept a secret journal of your dreams, filled with all the things you wanted. When your parent found the journal, they burned it and told you to keep your head out of the clouds. In response, you gathered what you could in a pack and left everything else behind, seeking a life of adventure. "
+    id: d425e73a-d543-486a-bbc9-b1a8b911aa2b
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Cursed:** While tilling your fields, you found something in the dirt. Perhaps it was a chipped and dented weapon, a piece of ancient jewelry, or something altogether unique. Excited by your find, you showed it to a loved one, but when they touched it, something happened. You now know it was a curse conveyed by the item, though you don’t know why it affected them and not you. You left your old life in search of answers. "
+    id: 21d2efc4-f6f0-46d0-b29d-cbc8c5bbd744
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Hard Times:** Your farm had always been prosperous, until the last few years. Changes in the weather caused smaller yields until you could no longer pay your tithe to the local noble. Her soldiers took what items of value they found, including a precious family heirloom. You left the struggling farm behind to find a better life. "
+    id: c0d6ed26-5768-4c6d-9f0b-9902670cb131
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Razed:** Your animals were killed, your crops and home set ablaze. The culprits might have been wandering bandits, raiders from a nearby kingdom, or hired thugs sent by a rival farm. Whoever they were, they left you with nothing. You couldn’t face the thought of starting again from scratch, so you took up a life of heroism to protect others from such villainy. "
+    id: 31d63ecf-4f21-40c2-91f1-7e41e4238704
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Stolen:** Your family bred horses—beautiful creatures with few rivals on the track and in the jousting lists. When a local noble arrived with an offer to buy your prized stallion, your father refused. The noble struck him down where he stood and stole the horse. Without that stallion, the renowned bloodline would end. You intend to get them back—and get revenge. "
+    id: accb63b1-ffb2-413e-bfe5-bd4578c77b63
+    weight: 1
+  id: 1be6e0ad-56e6-44b3-9fbd-eaa39cdef6e9
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755589437967
+  items: false
+  ctime: 1730565055827
+cdb0b934-8df0-4760-839b-335fb859f282:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 4bfaca72-a1cc-426f-bfc4-1de954419299
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Angel’s Advocate:** Swayed by an evil faith, your cult was about to unleash horrors upon the world when an angel (figurative or literal) intervened. They convinced you to stop your cult’s plots. Now you follow in the footsteps of the angel who showed you the righteous path."
+  - __typeName: RollTableRow
+    id: 17fe06f8-d1bc-49c9-8b27-92b6da603d0a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Dogma:** Although you joined your religious institution under the guidance of a kind mentor, others within the house of worship became increasingly fanatical in their convictions. Your mentor sought to be a voice of reason in the rising tide of hatred and was tried as a heretic before being executed. Leaving the institution behind, you became a hero to uphold the beliefs you hold dear."
+  - __typeName: RollTableRow
+    id: dc1af7e4-2973-4dee-baf5-82ed940406bf
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Freedom to Worship:** Your temple was destroyed in a religious conflict. The institution’s leaders sought retaliation, but you saw in these actions a ceaseless cycle of destruction that would lead to more conflict. Instead, you became a hero to protect religious freedoms, so all worshipers might practice their faith without fear."
+  - __typeName: RollTableRow
+    id: 777537fa-671a-4073-80f7-f744fa53fab0
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Lost Faith:** You devoted your life to ministering to the sick and needy, alongside other charitable work. Time and time again, tragedy struck those you served without rhyme or reason. Your prayers went unanswered, and your efforts went thankless. Eventually, you lost your faith in a higher power, and you left your church or temple to do good outside of any religious affiliation. "
+  - __typeName: RollTableRow
+    id: 0fc32b66-bcd1-4e41-888d-604ec1168db2
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Near Death Experience:** While serving at a religious institution, you almost died in an accident. When you woke, you had lost all memory of ever having worked for the church or temple. Though the clergy encouraged you to stay, you left to forge a new path. Your sense of altruism—whether instilled in you by your past work or a part of who you naturally are—guides you in your life."
+  - __typeName: RollTableRow
+    id: 463acc41-4a02-43fb-96f0-e53b76f87741
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Taxing Times:** The faith-based organization you were once part of became corrupt. It used its status in the community to accumulate wealth through tithes, while its leaders sought political appointments. During a season of drought, the institution stockpiled resources and refused to give aid, resulting in the deaths of many. You became a hero to fight against such corruption and to honor those you lost. "
+  id: cdb0b934-8df0-4760-839b-335fb859f282
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755589137975
+  items: false
+  ctime: 1730558883777
+cba7d5fe-9585-4706-8188-30956b7c38fd:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 50f2325c-ce6a-44c3-bdf9-a506df7f2448
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Betrayed:** When outsiders arrived in your lands with the intent to exploit the wilds for their resources, you spoke out against them. However, several other wardens spoke in favor of these outsiders, and allowed them in to despoil nature. Refusing to watch your homeland destroyed, you left. Now you help others avoid such a fate."
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Corruption:** A disease has infected the lands you protect, causing animals to become violent and twisting plants into something sinister. You’ve tried everything, magical and mundane, to stop the scourge, but it continues to spread. As such, you’ve set out in search of a cure or an unblighted land to protect."
+    id: 211e27e4-c6d6-487e-a30e-0efef3ce821a
+    weight: 1
+  - __typeName: RollTableRow
+    id: f2272791-4cd2-4301-8715-c31a3ab73a0a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Exiled:** You made a mistake that could not be forgiven. The other wardens of the region decided your fate, exiling you from your lands with an order never to return."
+  - __typeName: RollTableRow
+    id: 3c9e6ff2-3126-4ad5-8180-ddc03fdaaf1b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Honor the Fallen:** A group of heroes arrived in your territory with trouble close on their heels. You fought alongside them to turn back the evil, but it was too much. The heroes fell, and your wilderness was forever altered. Though your lands are beyond saving, there are other lands you can help. "
+  - __typeName: RollTableRow
+    id: 219fb426-b510-4d2a-9ebd-45a93d2d7305
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Portents:** There were signs. You tried to ignore them, but when a great beast died at your feet, you had to recognize the truth. You were meant to leave your home territory, meant to fight a battle for the fate of all lands—and so you gave up the only life you’ve ever known."
+  - __typeName: RollTableRow
+    id: c2fc2490-cacc-4946-9e1f-773cab3c8c64
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Theft:** You were responsible for guarding something precious, something vital to your region’s survival. But you let someone in, and they betrayed your trust by stealing the thing you were meant to guard. You left your chosen territory to atone for your mistake."
+  id: cba7d5fe-9585-4706-8188-30956b7c38fd
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755710816569
+  items: false
+  ctime: 1730564700520
+268e9d5e-b6d9-4b42-93c2-d662d08e5e52:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: db10b06e-9135-4f68-90a3-0ebc9e6b93e6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Dishonorable Discharge:** You enlisted in the military to protect others, but your commander ordered you to beat and kill civilians. When you refused, things got violent. You barely escaped the brawl that ensued, but now you vow to help people on your own terms."
+  - __typeName: RollTableRow
+    id: 2dd14043-e103-43d6-afe4-2f6ba13fd898
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Out of Retirement:** You had a long and storied career as a soldier before deciding to retire to a simpler life. But when you returned to your old home, you found that your enemies had laid waste to it. Now the skills you earned on the battlefield are helping you as you become a different kind of warrior, seeking to save others from the fate you suffered. "
+  - __typeName: RollTableRow
+    id: e8f86581-13ed-412d-ac45-7f44a73b8ce6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Peace Through Healing:** The sight of constant bloodshed took its toll on you. You seek peace through healing and dedicated yourself to ending wars before they begin to spare those around you from the horror. "
+  - __typeName: RollTableRow
+    id: 74bf027d-8bcc-4779-9ec3-0f2a8a099178
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Sole Survivor:** You were the last surviving member of your unit after an arduous battle or monstrous assault, surviving only because of your luck. You turned away from the life of a soldier then, seeking to become a hero who could stand against such threats. "
+  - __typeName: RollTableRow
+    id: c3509226-0400-4bea-b460-0b0078743c7b
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Stolen Valor:** Tired of eking out your existence on the street, you enrolled in the military. Somehow, you were unable to escape your lower status background until another soldier in your unit fell in battle. In the chaos that ensued, you assumed their identity and returned home a hero. To avoid suspicion, you took on the life of an adventurer, always on the move. "
+  - __typeName: RollTableRow
+    id: 742158d4-caa7-474a-8ed5-29ffe5a4b887
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Vow of Sacrifice:** You promised a fellow soldier that you’d protect his family if he ever fell in battle. When he did, you found his village and people destroyed by war and fire. Driven by your vow, you have dedicated your life to finding any survivors that may have scattered and protecting others from a similar fate. "
+  name: Inciting Incidents
+  id: 268e9d5e-b6d9-4b42-93c2-d662d08e5e52
+  mtime: 1730564819381
+  items: false
+  ctime: 1730564572129
+24679de3-64f1-47e2-9c01-3005d01354b1:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 4efcd658-0a5a-4f02-a1dd-917dd87612cd
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Champion:** You were never content with your lot. Watching yet another friend fall to preventable circumstances was your last straw. You gathered up what little you had and set off to become a hero, determined to make real change for those society forgot."
+  - __typeName: RollTableRow
+    id: 4e98373a-7b3d-487e-bdd2-311fd5f271bc
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Night Terrors:** Something killed the other beggars. It came in the night. You barely saw it, but what you did see of it wasn’t natural. You survived by hiding, or perhaps it simply passed you over for reasons unknown to you. It still haunts your nightmares, and you kill monsters so no one else has to experience such horrors."
+  - __typeName: RollTableRow
+    id: 5eb7d046-39cf-48cb-bc91-d8887007e8c5
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**One Good Deed:** You ran afoul of the local watch by being in the wrong place when they were in a bad mood. A passing hero intervened on your behalf, shaming the guards into moving on, then gave you enough gold to get you back on your feet. Their kindness kindled a spark in you. You took the gold, bought some secondhand gear, and went to pay that hero’s kindness forward."
+  - __typeName: RollTableRow
+    id: 36c932d8-5b2b-480b-a123-bebf549f9034
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Precious:** No matter how far you’d fallen, there was one belonging you would never part with, no matter how much money it would bring you. When a pickpocket stole that object, you chased them until you were in a part of the city you no longer recognized. With a jolt, you realized you had no desire to return to your previous stomping grounds. You kept going, and you haven’t looked back."
+  - __typeName: RollTableRow
+    id: d877950c-0b98-47f9-9159-5e0f661ad286
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Strange Charity:** A passerby dropped something in your cup. When you counted your day’s collections, you found a magic coin among the coppers. You knew immediately that it was special. When the other beggars—your friends, you thought—showed that they were ready to murder you for it, you killed several of them in self-defense before you fled, leaving behind the only semblance of community you had."
+  - __typeName: RollTableRow
+    id: 15af583d-9308-4f98-baef-d1907c63cb65
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Witness:** You witnessed something you weren’t meant to. Others would kill you if they knew, and they might be searching for you even now. You remain on the move, terrified of remaining in one place too long lest it all catch up to you. Perhaps if you make a big enough name for yourself, you can become untouchable and finally speak of what happened without fear."
+  id: 24679de3-64f1-47e2-9c01-3005d01354b1
+  rollType: d6
+  name: Beggar Inciting Incident
+  mtime: 1755582656589
+  items: false
+  ctime: 1730556858214
+4e7d0c5f-7907-46fe-95c3-b14d1659d7c4:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 139a717d-2cac-4f3a-a22d-5c86b11bdb98
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Cursed Audience:** During a performance, you watched in horror as the audience was suddenly overcome by a curse that caused them to disintegrate before your eyes. You aren’t sure what happened, but seeking an answer quickly led you to places where only heroes dare to go. "
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**False Accolades:** After a poor performance, you found a script to a well-written play left in your dressing room. The accompanying note asked that if you performed the play, you should give the author credit. But after a commanding performance, you claimed to be star and playwright both—and the curse hidden on those pages activated. A small portion of your skin has begun to transform into undead flesh, and the only cure is to prove you have become selfless. "
+    id: 8aee5b06-f02e-443c-8d1f-9b0dc8845c2a
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Fame and Fortune:** You thought you were famous—then that hero came to your show. Suddenly, all eyes were on the dragon-slaying brute instead of on the stage where they belonged. The audience even gave them a standing ovation when they entered the room. All you got was polite applause. Fine. If people want a hero so much, then a hero you shall be. "
+    id: be99c2ac-c039-4fea-898c-1883834753ab
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Songs to the Dead:** Your performances have always been tinged with a bit of melancholy. During a particularly soulful performance, spirits disturbed the living audience and sat in their chairs. They begged you to prevent their demise, providing no other details before disappearing. You set out to determine if you could help your most dedicated fans. "
+    id: a892c443-55c0-4517-924d-00d99e9b74e4
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Speechless:** A heckler’s mocking words left you utterly speechless during a performance, stinging your pride and stirring your arrogance. The incident strained your legendary voice, and you could speak only in soft whispers. The heckler was a fey trickster who stole your voice, promising to give it back after you accomplished real good in the world. "
+    id: 5cbd320a-a98d-4d7e-97a0-f67fe8c31c8e
+    weight: 1
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Tragic Lesson:** When a producer who once shortchanged you shouted out on the street for you to stop a thief who had picked their pocket, your spite toward them inspired you to let the thief run right on by. But that decision led to tragedy when the thief later harmed someone you loved. From that moment on, you made it your responsibility to protect others."
+    id: 867130ec-c43a-4c3a-8bfc-8931439def32
+    weight: 1
+  id: 4e7d0c5f-7907-46fe-95c3-b14d1659d7c4
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755590108956
+  items: false
+  ctime: 1730561916403
+6c8e3b5f-d9d4-488b-b587-cd8f95eca2f3:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 912cd334-5c39-4045-aefc-45a83f07d938
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Awakening:** In an uncharted area, you awakened some fell horror. You subsequently turned to the life of a hero to put an end to the dread you unleashed and keep other hidden dangers at bay."
+  - __typeName: RollTableRow
+    id: 615ee7b2-df7a-424b-be4b-d69e6149ca96
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Missing Piece:** You made an important but dangerous discovery about a treasure or ancient ritual that could spell mass destruction. Then the unthinkable happened when an unscrupulous colleague, spy, or treasure hunter stole your research notes. You’re looking for the thief now, and anyone else who might use such discoveries for ill."
+  - __typeName: RollTableRow
+    id: a930203c-f044-4139-ab7b-e87bac138529
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Nothing Belongs in a Museum:** Exploring distant lands to collect valuable artifacts for cultural institutions was once your way of life. But when people died trying to reclaim one of the objects you took, you realized the truth. Your work was part of a larger problem of cultural theft, and the best place for these significant objects wasn’t in a museum but with the people who created them. Setting out to return what had been taken and to protect others from theft set you on the path to become a hero. "
+  - __typeName: RollTableRow
+    id: 95b45746-053b-4313-9c45-0fc311806f8e
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Unschooled:** You delved into dungeons and far-off places by studying them in books. You were an explorer who never felt the need to experience the dangers your peers did. Then your theory about a lost world cost you your reputation, and gave you the impetus to go on adventures and stand up for those with different ideas."
+  - __typeName: RollTableRow
+    id: 4317437e-a88e-4d1f-9bb4-39f04a6a9d15
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Wanderlust:** You saw yourself as an observer and operated within a code of conduct. You swore to never interfere with a group by exposing them to your technology, knowledge, or values. But when faced with a moral conundrum, you either broke your code or stood idly by—and suffered the consequences. During this incident, you lost your observation journal but became a hero who refuses to let evil stand unchecked."
+  - __typeName: RollTableRow
+    id: 94a5e908-8dfd-4d0e-8bf4-66db02e562b1
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Wind in Your Sails:** As a seafaring explorer, you lived to chart unknown courses. Though travel on the high seas was fraught with danger, the destination was always rewarding in riches, knowledge, or some other meaningful benefit. But your luck ran out when your ship was destroyed by pirates or other enemy forces. Now you’ve taken to protecting those who seek safe passage while also hoping to avenge your crew."
+  id: 6c8e3b5f-d9d4-488b-b587-cd8f95eca2f3
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1755589282323
+  items: false
+  ctime: 1730559459141
+6549663f-c804-4fce-a565-fa6581b4f897:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 8c2ccf6b-a3b1-40c1-b1c6-42ce9514f38c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Alone:** You joined up with your best friend, sibling, or other loved one, the culmination of a lifelong dream to sail the high seas together. When they died, you lost your taste for the seafaring life. You left at the first chance you got and haven’t looked back."
+  - __typeName: RollTableRow
+    id: 927ae80f-46d7-4b1f-9d49-9691edb14724
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Deserter:** It was in the middle of a raid when you realized you no longer believed in a life of piracy. You used the chaos of the moment to slip away unnoticed. You now work as a hero in an effort to atone for your past deeds and fear the day your old crew finds you. "
+  - __typeName: RollTableRow
+    id: 0557a58a-5cfb-4f2f-9026-19a1bfae65c7
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Forgotten:** You awoke aboard your ship with no memory of who you had been before. Though the other sailors insisted they knew you, but you didn’t know them. The next time you went ashore, you decided to stay, determined to find out who you really are. "
+  - __typeName: RollTableRow
+    id: 695b4d87-8321-401d-b6b2-a1d2c1b0bd22
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Jealousy:** You had the favor of your captain, a fact that earned you many rivals aboard your ship. One night your fellow sailors pulled you from your bunk and threw you overboard. By some miracle, you were scooped from the waters by a passing vessel. You worked off your debt to them, then set out on a new life with less pettiness. "
+  - __typeName: RollTableRow
+    id: acddcfad-3902-4013-a317-4937e63df8da
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Marooned:** There was a mutiny, and you were on the wrong side. You were marooned on an island and escaped when a merchant vessel got blown off course by a storm and found you. Your reputation is ruined among sailors, so you seek adventure elsewhere. "
+  - __typeName: RollTableRow
+    id: 3e592510-3121-4c9e-bdd1-8d28a3a38959
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: "**Water Fear:** A catastrophic storm hit while you were at sea, destroying the ship and leaving you as the only survivor. Once you recovered, you tried to sign on with another ship, but the thought of the open water turns your legs to jelly. Instead, you’ve taken on the role of traveling hero to make ends meet. "
+  id: 6549663f-c804-4fce-a565-fa6581b4f897
+  rollType: d6
+  name: Inciting Incident
+  mtime: 1730564859948
+  items: false
+  ctime: 1730564212239
+28c02814-5796-448d-8d41-26c17fcb39fb:
+  __typeName: RollTable
+  text: true
+  rows: []
+  id: 28c02814-5796-448d-8d41-26c17fcb39fb
+  mtime: 1730565067944
+  items: false
+  ctime: 1730565067944

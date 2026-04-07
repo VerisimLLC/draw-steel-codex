@@ -1,0 +1,40 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:37b2f661-e2a2-4578-9016-2a071e6db967: true
+  sourceguid: 37b2f661-e2a2-4578-9016-2a071e6db967
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    keywords:
+      Psionic: true
+      Magic: true
+      Weapon: true
+    dr: "-Stacks"
+    damageType: all
+    apply: Damage Reduction
+  guid: e6bc07c9-5aa7-4aa9-8567-1cd7d5f60f8e
+  name: New Ongoing Effect
+  description: ""
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+hiddenOnToken: true
+ctime: 1772952340574
+domains:
+  CharacterOngoingEffect:37b2f661-e2a2-4578-9016-2a071e6db967: true
+id: 37b2f661-e2a2-4578-9016-2a071e6db967
+description: ""
+name: Saved in the Edit - Weakness
+guid: 37b2f661-e2a2-4578-9016-2a071e6db967
+custom: true
+mtime: 1772953773812
+iconid: ui-icons/skills/1.png

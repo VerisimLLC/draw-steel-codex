@@ -1,0 +1,246 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c443939e-4c88-480b-b9c1-ed81adf1bf8c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        War Dog Aerocite	Level 8 Horde Harrier
+        Humanoid, War Dog	EV 10
+        <b>Stamina</b> 50
+        <b>Speed</b> 8 (fly)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +0	Agility +4	Reason +1	Intuition +3	Presence +1
+        <b>Dive Bomb</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12-16</b>	10 damage; vertical slide 3
+        %E2%9C%B8	<b>17</b>	12 damage; vertical slide 5
+        <b>1 Malice</b> If the aerocite would vertically slide an enemy, the enemy is grabbed instead.
+
+        <b>Caustic Paste Bomb</b> (Maneuver) %E2%97%86 2d10 + 4 %E2%97%86 2 Malice
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 5<b>	Target</b> all creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 acid damage; M<2 slowed (save ends)
+        %E2%98%85	<b>12-16</b>	4 acid damage; M<3 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	6 acid damage; M<4 slowed (save ends)
+        <b>Effect</b> The affected area is considered difficult terrain.
+
+        <b>Jetwing Agility</b>
+        If the aerocite moves 5 or more squares on their turn, they impose a bane on strikes until the start of their next turn.
+
+        <b>Loyalty Collar</b>
+        When the aerocite dies, they explode, dealing 3d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3fc03e9c-fcfe-48b8-8374-a66bffbbf815: true
+      modifiers: []
+      name: Jetwing Agility
+      description: If the aerocite moves 5 or more squares on their turn, they impose a bane on strikes until the start of their next turn.
+      guid: 3fc03e9c-fcfe-48b8-8374-a66bffbbf815
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8addd9f6-a9fb-4b99-8f8d-5517a0dc886a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 3d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the aerocite is reduced to 0 Stamina, their loyalty collar explodes, dealing 3d6 damage to each adjacent enemy and object.
+      guid: 8addd9f6-a9fb-4b99-8f8d-5517a0dc886a
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Harrier
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "50"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: War Dog Aerocite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 50
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9830877a-96d3-4ebc-a05d-cb30327f1978
+      implementation: 3
+      numTargets: 1
+      name: Dive Bomb
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage; vertical slide 2
+        - 12 damage; vertical slide 3
+        roll: 2d10 + Agility
+      description: |2-
+
+        **1 Malice**: An enemy force moved by this ability is grabbed instead.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 80b55532-2f72-49c7-9e5b-b7743e479508
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 acid damage; M<2 slowed (save ends)
+        - 4 acid damage; M<3 slowed (save ends)
+        - 6 acid damage; M<4 slowed (save ends)
+        roll: 2d10 + Agility
+      name: Caustic Paste Bomb
+      implementation: 3
+      description: The affected area is considered difficult terrain.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds:
+      fly: 8
+    ev: 10
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 1da8499b-b64d-44b2-b448-b49af09571e7
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Aerocite
+parentFolder: dd2974a5-afe0-42da-8fb3-f9cb518106e0
+artist: null
+ord: 4
+ctime: 1749972307998
+mtime: 1775201137032
+hidden: false

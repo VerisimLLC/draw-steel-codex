@@ -1,0 +1,80 @@
+__typeName: CharacterFeature
+testCases:
+- text: At the start of an encounter, the conduit chooses one creature within their line of effect. Both the conduit and the creature can add a d3 roll to power rolls they make against each other.
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 6a3f3d63-3c68-4474-9ace-07b7654f674e
+    repeatTargets: false
+    abilityType: none
+    trigger: rollinitiative
+    targetType: self
+    numTargets: "1"
+    name: Rivalry
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        targetTextOverride: Choose a Hero as the target for your Rivalry.
+        repeatTargets: false
+        targetAllegiance: enemy
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+          ongoingEffectSource: specific
+          duration: eoe
+          ongoingEffectCustom: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: "50"
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 0e46cae3-a11b-4cbb-b76a-3fd334c03123
+        numTargets: "1"
+        name: Invoked Ability
+        targetType: target
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      promptText: Choose a player Hero as the target for your Rivalry.
+      autoTarget: false
+      filterTarget: "	"
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      applyto: caster
+      duration: eoe
+      ongoingEffectCustom: false
+      ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+      ongoingEffectSource: specific
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Monster
+  behavior: trigger
+  guid: b4c95233-3e76-41e0-af24-86349934170f
+  name: Rivalry
+  sourceguid: 0294f0e0-f445-4324-a573-6c3bce8dc563
+source: Monster
+guid: 0294f0e0-f445-4324-a573-6c3bce8dc563
+importMatch: At the start of an encounter, <<monster>> chooses one creature within their line of effect. Both the conduit and the creature can add a d3 roll to power rolls they make against each other.
+ctime: 1775009801576
+name: Rivalry
+id: 99bade4a-dd39-45bb-8ec2-50af000a9b9b
+description: ""
+mtime: 1775009801576
+implementation: 3

@@ -1,0 +1,240 @@
+__typeName: MonsterGroup
+traits: []
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  targetFilter: target.keywords has "Rival"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 059bc702-00eb-425b-8e9b-93f6df9f6a5d
+    duration: endround
+    ongoingEffectCustom: 059bc702-00eb-425b-8e9b-93f6df9f6a5d
+  display:
+    saturation: 1
+    brightness: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+    page: 233
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: a2198cd2-2630-4fbe-a554-76c122f29823
+  targetType: self
+  implementation: 3
+  abilityType: none
+  name: Work as One
+  persistence: []
+  description: Until the end of the round, each rival can impose a bane on a strike made against an adjacent rival as a free triggered action.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  targetFilter: target.keywords has "Rival"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 2fbcadcf-e6fd-4034-912b-991952d2a560
+    duration: endround
+    ongoingEffectCustom: 2fbcadcf-e6fd-4034-912b-991952d2a560
+  display:
+    saturation: 1
+    brightness: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: b2b6b25c-5702-4a6c-b30c-47245c26ad85
+  targetType: map
+  persistence: []
+  name: We Just Do It Better
+  abilityType: none
+  description: Until the end of the round, whenever any rival makes a power roll against the target of their Rivalry trait, they roll a d3 and add it to the power roll.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  repeatTargets: false
+  targetAllegiance: enemy
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: agl
+    roll: 2d10 + Agility
+    modesSelected:
+    - 1
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 11 sonic damage; dazed (save ends)
+    - 8 sonic damage; dazed (EoT)
+    - 5 sonic damage
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 11 Poison damage; Weakened (Save ends)
+    - 8 Poison damage; Weakened (EoT)
+    - 5 Poison Damage
+    roll: 2d10 + Might or Agility
+    modesSelected:
+    - 2
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 11 Fire damage; Frightened (Save ends)
+    - 8 Fire damage; Frightened (EoT)
+    - 5 Fire Damage
+    roll: 2d10 + Might or Agility
+    modesSelected:
+    - 3
+  multipleModes: true
+  display:
+    saturation: 1
+    brightness: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "5"
+  persistence: []
+  modifiers: []
+  strain: []
+  modeList:
+  - rules: ""
+    text: Sonic Damage and Dazed
+  - text: Poison Damage and Weakened
+  - text: Fire Damage and Frightened
+  targetType: line
+  selfTarget: false
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  numTargets: "1"
+  name: Check Out Our Loot 5x1
+  radius: "1"
+  guid: 0baa3dcb-59e9-478f-97e9-5551c9d138da
+  description: "One rival pulls out a magic consumable and hurls it, targeting a 5 × 1 line within 1 square of them or a 3 cube within 10 squares of them. Each enemy in the area makes an Agility test. The rival chooses a damage type and a condition for the outcome of the test from one of the following pairs: sonic damage and dazed, poison damage and weakened, or fire damage and frightened."
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: false
+  targetFilter: ""
+  repeatTargets: false
+  implementationDetails: |
+    Does not recognize creature using an ability must be a rival in order to trigger the free strike.
+  behaviors:
+  - __typeName: ActivatedAbilityHealBehavior
+    roll: "10"
+    filterTarget: target.keywords has "Rival"
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 779d685d-cc4f-4a58-825b-03a3aea18333
+    filterTarget: target.keywords has "Rival"
+    duration: endround
+    ongoingEffectCustom: 779d685d-cc4f-4a58-825b-03a3aea18333
+  display:
+    saturation: 1
+    brightness: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: e4fee5a4-9c00-4cd8-9697-616a02770e81
+  targetType: self
+  implementation: 2
+  abilityType: none
+  name: Calling the Shots
+  persistence: []
+  description: |-
+    Each rival regains 10 Stamina. Until the end of the round, whenever a rival uses an ability against an enemy, each other rival adjacent to that enemy can make a free strike against
+    them.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  targetType: self
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "10"
+  strain: []
+  guid: 72d812e5-ae02-47af-ac83-71a4eba15ebc
+  repeatTargets: false
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  range: 1
+  behaviors: []
+  persistence: []
+  name: Coordinated Takedown
+  display:
+    saturation: 1
+    brightness: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  description: Each rival moves up to their speed and uses a main action or maneuver that doesn't cost Malice.
+  abilityType: none
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  repeatTargets: false
+  targetAllegiance: enemy
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 11 Sonic Damage; Dazed (Save Ends)
+    - 8 Sonic Damage; Dazed (EoT)
+    - 5 Sonic Damage
+    roll: 2d10 + Might or Agility
+    modesSelected:
+    - 1
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 11 Poison Damage; Weakened (Save Ends)
+    - 8 Poison Damage; Weakened (EoT)
+    - 5 Poison Damage
+    roll: 2d10 + Might or Agility
+    modesSelected:
+    - 2
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 11 Fire Damage; Frightened (Save Ends)
+    - 8 Fire Damage; Frightened (EoT)
+    - 5 Fire Damage
+    roll: 2d10 + Might or Agility
+    modesSelected:
+    - 1
+    - 3
+  multipleModes: true
+  display:
+    saturation: 1
+    brightness: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+    page: 233
+  range: "10"
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  modeList:
+  - text: Sonic Damage and Dazed
+  - text: Poison Damage and Weakened
+  - text: Fire Damage and Frightened
+  targetType: cube
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+  name: Check Out our Loot 3 Edge
+  persistence: []
+  radius: "3"
+  guid: 157e42af-97b7-4f4a-9095-44c2ad34c0ce
+  description: "One rival pulls out a magic consumable and hurls it, targeting a 3 cube within 10 squares of them. Each enemy in the area makes an Agility test. The rival chooses a damage type and a condition for the outcome of the test from one of the following pairs: sonic damage and dazed, poison damage and weakened, or fire damage and frightened."
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+name: Rival
+_fork: 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
+mtime: 1770194238030
+attacks: []
+id: 5163b6cd-991f-4277-b81c-8e42a53d328e
+ctime: 1770194238030

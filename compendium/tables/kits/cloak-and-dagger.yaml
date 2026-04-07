@@ -1,0 +1,75 @@
+__typeName: Kit
+armor: Light
+health: 3
+id: d1486716-3e02-4908-97a3-c02b84256a92
+weapons:
+  Light: true
+range: 5
+disengage: 1
+name: Cloak and Dagger
+portraitid: 85441275-a453-4402-922a-8bda9fa5a910
+kitManeuver: false
+description: Providing throwable light weapons and light armor easily concealed by a cloak to confuse your enemies, the Cloak and Dagger kit makes you more mobile while providing a boost to your effectiveness at range and to your damage. This kit is good for a hero who wants to be able to move all over the battlefield while keeping their options open for using short-range attacks.
+type: martial
+speed: 2
+imported: ac33cdd0-ede8-4f9e-8f96-14b50a556eb7
+damageBonuses:
+  ranged:
+  - 1
+  - 1
+  - 1
+  melee:
+  - 1
+  - 1
+  - 1
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Weapon: true
+    Kit: true
+    Melee: true
+    Strike: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: A stab, and a few quick, careful steps back.
+  sourceReference:
+    __typeName: SourceReference
+    page: 219
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 10
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  modifiers: []
+  strain: []
+  guid: cdb8f56c-c1ae-43df-922f-2283f0b4dcc6
+  meleeRange: 1
+  persistence: []
+  categorization: Signature Ability
+  implementation: 4
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 3 + M or A damage; you shift 1 square
+    - 6 + M or A damage; you shift up to 2 squares
+    - 8 + M or A damage; you shift up to 3 squares
+    roll: 2d10 + Might or Agility
+  name: Fade
+  numTargets: 1
+  description: ""
+  abilityType: none
+  iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+mtime: 1770562322156
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+equipmentDescription: You wear light armor and wield one or two light weapons.

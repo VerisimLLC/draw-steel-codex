@@ -1,0 +1,152 @@
+__typeName: CharacterComplication
+drawback: Whenever you start a respite activity, roll 2d10. If you roll a 1 on either die, you inadvertently absent yourself from reality, reappearing at the end of the respite. You gain the benefits of taking a respite but don’t perform the respite activity.
+mtime: 1770761735438
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      description: ""
+      sourceguid: 1fd8af3d-532d-4604-8ae9-fad670ce2cad
+      behavior: trigger
+      source: Feat
+      resourceRefreshType: encounter
+      guid: 54e246dd-b509-4ed7-8819-7228847ec1e5
+      name: Evanesceria - Benefit
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: You can attempt to absent yourself from reality by rolling a d10. On a 6 or higher, you disappear, then reappear in the space you left or the nearest unoccupied space of your choice when you take your turn.
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        usageLimitOptions:
+          resourceRefreshType: encounter
+          charges: "1"
+          resourceid: 54e246dd-b509-4ed7-8819-7228847ec1e5
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 124764d3-ce68-49d6-9d33-556ede41e333
+        conditionFormula: ""
+        name: Evanesceria Benefit
+        behaviors:
+        - __typeName: ActivatedAbilityRollBehavior
+          roll: 1d10
+        - __typeName: ActivatedAbilityCustomTriggerBehavior
+          value: cast.Roll
+          triggerName: Evanesceria Roll
+        trigger: beginround
+        numTargets: "1"
+        description: At the start of any combat round, you can attempt to absent yourself from reality by rolling a d10. On a 6 or higher, you disappear, then reappear in the space you left or the nearest unoccupied space of your choice when you take your turn. You can’t attempt to absent yourself again until you earn 1 or more Victories.
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 95f8f8fa-564a-48f3-9760-9802f4e2fa7f
+          ongoingEffectCustom: 95f8f8fa-564a-48f3-9760-9802f4e2fa7f
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 700da4c8-c160-440a-a661-7bc74b8c3004
+        persistence: []
+        conditionFormula: Trigger Value >=6
+        targetType: self
+        castImmediately: true
+        trigger: custom
+        name: Evanesceria Roll
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Feat
+      behavior: trigger
+      guid: f708c7ca-98e3-4869-84ff-12f4ed7d4687
+      name: Evanesceria - Benefit
+      sourceguid: 1fd8af3d-532d-4604-8ae9-fad670ce2cad
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          runOnController: true
+          promptText: Reappear in the space you left or the nearest unoccupied space of your choice.
+          standardAbilityParams:
+            range: "1"
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 813d2baa-677f-4477-b443-fc300feb4f6b
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: standard
+          standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 95f8f8fa-564a-48f3-9760-9802f4e2fa7f
+          mode: effect
+          conditions: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 2c9e4d77-02b2-4090-af82-c98b28896a5f
+        persistence: []
+        conditionFormula: Ongoing Effects has "Evanesceria"
+        targetType: self
+        castImmediately: true
+        trigger: beginturn
+        name: New Feature
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Feat
+      behavior: trigger
+      guid: 7e730e1b-b1c1-4ae3-a8cf-791a460b2abc
+      name: Evanesceria - Benefit
+      sourceguid: 1fd8af3d-532d-4604-8ae9-fad670ce2cad
+    source: Feat
+    canHavePrerequisites: true
+    guid: 1fd8af3d-532d-4604-8ae9-fad670ce2cad
+    name: Evanesceria - Benefit
+    implementation: 2
+name: Evanesceria
+ctime: 1755514010653
+description: You have contracted a rare magical disease called evanesceria. From time to time, you’re not quite yourself—or anyone else either. You simply… vanish, then return later with no memory of your absence.
+id: 1b873fbb-c8b3-4480-9c30-d9fbd7b9bb85
+benefit: At the start of any combat round, you can attempt to absent yourself from reality by rolling a d10. On a 6 or higher, you disappear, then reappear in the space you left or the nearest unoccupied space of your choice when you take your turn. You can’t attempt to absent yourself again until you earn 1 or more Victories.

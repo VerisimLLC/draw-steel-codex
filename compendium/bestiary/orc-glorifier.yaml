@@ -1,0 +1,348 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 33357fac-c1e9-4df7-b661-f4a6461c7efe
+  properties:
+    __typeName: monster
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 3
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 sonic damage
+        - 2 sonic damage; P<1 slowed (save ends)
+        - 3 sonic damage; P<2 slowed (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 2e036229-c53f-48e3-8e03-926f8de269c6
+        duration: eoe
+        ongoingEffectCustom: 2e036229-c53f-48e3-8e03-926f8de269c6
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 217
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 1f5a5163-1305-4afd-bf53-5a2f6920f872
+      meleeRange: 1
+      persistence: []
+      targetType: target
+      numTargets: 1
+      implementation: 4
+      name: Call to Victory
+      categorization: Signature Ability
+      description: Each ally has an edge on melee strikes against the target until the glorifier and all other glorifiers in their squad are killed.
+      abilityType: none
+      iconid: d15fe212-5892-433b-869f-4778a5a9604d
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Orc Glorifier	Level 1 Minion Controller
+        Humanoid, Orc	EV 3 for four minions
+        <b>Stamina</b> 3
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Ranged distance +5	<b>Free Strike</b> 1
+        Might 0	Agility +1	Reason 0	Intuition 0	Presence +2
+        <b>Call to Victory</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Ranged, Strike
+        <b>Distance</b> Melee 1 or Ranged 5<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	1 sonic damage
+        %E2%98%85	<b>12%E2%80%9316</b>	2 sonic damage; P<1 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	3 sonic damage; P<2 slowed (save ends)
+        <b>Effect</b> Each ally has an edge on melee strikes against the target until the glorifier and all other glorifiers in their squad are killed.
+
+        <b>Bloodfire Burn</b>
+        If the glorifier's Stamina drops to 0, they can make a free strike before dying.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+        CharacterFeature:79c780f5-4565-429c-a94f-90d6ca82d8f4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+          CharacterFeature:79c780f5-4565-429c-a94f-90d6ca82d8f4: true
+        sourceguid: 79c780f5-4565-429c-a94f-90d6ca82d8f4
+        behavior: trigger
+        source: Trait
+        name: Bloodfire Burn
+        description: If the glorifier is reduced to 0 Stamina, they can make a free strike before dying.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          trigger: creaturedeath
+          strain: []
+          guid: 41b8a13e-ecba-4935-bb0e-bbb766abaa20
+          repeatTargets: false
+          abilityType: none
+          domains:
+            CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+            CharacterFeature:79c780f5-4565-429c-a94f-90d6ca82d8f4: true
+          targetType: self
+          behaviors:
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              description: ""
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              modifiers:
+              - __typeName: CharacterModifier
+                guid: d2e9eac3-3849-4c83-938f-1d9e93dd48e3
+                sourceguid: e0786ed8-8654-4473-8598-c6d7f716694c
+                behavior: attribute
+                source: Ongoing Effect
+                name: Cannot Be Removed
+                value: 1
+                description: ""
+                attribute: 7565750e-2376-4809-abc2-47eed82153d1
+              source: Ongoing Effect
+              name: Cannot Be Removed
+              guid: e0786ed8-8654-4473-8598-c6d7f716694c
+              id: e0786ed8-8654-4473-8598-c6d7f716694c
+              iconid: ui-icons/skills/1.png
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              objectTarget: false
+              abilityType: none
+              strain: []
+              guid: 0557e592-2438-45ba-89a5-0d8a298bde88
+              repeatTargets: false
+              targetTextOverride: ""
+              modifiers: []
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Free Strike
+                  behavior: modifyability
+                  guid: 0e6be175-7cf8-4f21-aa23-14b0d72cfc0e
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 54ae066a-4cd7-4672-8e9e-f448ac32709b
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              persistence: []
+              name: Invoked Ability
+              targetType: target
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            invokeOnCaster: true
+            promptText: select creature to free strike
+          name: Bloodfire Burn
+          numTargets: "1"
+          description: If the glorifier is reduced to 0 Stamina, they can make a free strike before dying.
+          range: 1
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 64e20ab1-2bbb-45c8-9d73-4f4d982e5d27
+      - __typeName: CharacterModifier
+        sourceguid: 79c780f5-4565-429c-a94f-90d6ca82d8f4
+        source: Trait
+        value: 2
+        domains:
+          CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+          CharacterFeature:79c780f5-4565-429c-a94f-90d6ca82d8f4: true
+        name: Bloodfire Burn
+        guid: b8164b09-6a9e-41e9-85d0-4fe3e41f403f
+        description: If the glorifier is reduced to 0 Stamina, they can make a free strike before dying.
+        behavior: attribute
+        attribute: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+      source: Trait
+      description: If the glorifier is reduced to 0 Stamina, they can make a free strike before dying.
+      guid: 79c780f5-4565-429c-a94f-90d6ca82d8f4
+      name: Bloodfire Burn
+      implementation: 3
+    role: Minion Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 1
+    keywords:
+      Humanoid: true
+      Orc: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    savingThrowRatings: []
+    initiativeGrouping: 92eba5a7-129d-4c39-bc35-74ed4786d448
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 70377e57-ca8f-495f-8878-b063c1fe80b9-2
+        used: 1
+    damage_taken: 0
+    availableTriggers: []
+    walkingSpeed: 6
+    withCaptain: +5 bonus to ranged distance
+    minionSquad: Orc Glorifier Squad 1
+    traitNames: []
+    monster_type: Orc Glorifier
+    movementSpeeds: []
+    creatureSize: 1M
+    equipmentMeta:
+      offhand0: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        330a1000-4913-40c1-970d-cd812eafaa97:
+          refreshid: 70377e57-ca8f-495f-8878-b063c1fe80b9-2
+          note: Call to Victory
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: eb2ff8eb-4bdf-409b-ac20-514c223b4dc5-671
+  tokenType: null
+  bestiaryId: 018aa84d-dc71-4e34-a3e9-e3ce3896d5a8
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Orc Glorifier
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590212630
+mtime: 1775201137032
+hidden: false

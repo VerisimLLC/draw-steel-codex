@@ -1,0 +1,33 @@
+__typeName: CharacterCondition
+display:
+  hueshift: 0
+  bgcolor: "#ffffffff"
+maxInstancesFormula: Maximum Marks
+showInMenus: false
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+guid: a1186564-11c8-438b-ace0-3acbf87fd6ab
+id: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+ctime: 1727163986088
+domains:
+  CharacterCondition:5c54050a-de9c-410f-94a7-f31b8f57daf3: true
+powertable: false
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a1186564-11c8-438b-ace0-3acbf87fd6ab
+  source: Condition
+  guid: 5e55f6c9-e8c6-4e01-bc4e-326ca72616a9
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterCondition:5c54050a-de9c-410f-94a7-f31b8f57daf3: true
+  rollType: enemy_ability_power_roll
+  name: Mark
+  modtype: edge
+  description: This power roll gains an edge.
+  damageModifier: ""
+  behavior: power
+name: Mark
+mtime: 1771183947326
+description: This creature has been marked.
+trackCaster: true
+implementation: 3

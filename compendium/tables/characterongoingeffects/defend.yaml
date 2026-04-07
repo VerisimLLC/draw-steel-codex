@@ -1,0 +1,40 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5ca9517b-ddbf-4f61-bd59-68e3a62708eb
+  source: Ongoing Effect
+  guid: 2b45e916-8599-4a71-bea1-d1a4c4422422
+  keywords:
+    Attack: true
+  activationCondition: true
+  behavior: power
+  domains:
+    CharacterOngoingEffect:5ca9517b-ddbf-4f61-bd59-68e3a62708eb: true
+  rollType: enemy_ability_power_roll
+  shields: Stacks
+  description: Attacks against you suffer a double bane.
+  modtype: double_bane
+  name: Defend
+source: Ongoing Effect
+guid: 5ca9517b-ddbf-4f61-bd59-68e3a62708eb
+id: 5ca9517b-ddbf-4f61-bd59-68e3a62708eb
+ctime: 1706098091604
+domains:
+  CharacterOngoingEffect:5ca9517b-ddbf-4f61-bd59-68e3a62708eb: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.576999843120575
+    s: 0.6484375
+    v: 1.00129616260529
+    a: 1
+description: Attacks against you suffer a double bane.
+condition: none
+name: Defend
+mtime: 1749614873806
+stackable: true
+iconid: 114facd6-e696-4cda-aed7-2a1cffd2f410

@@ -1,0 +1,73 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1a5597af-5f16-461e-b03c-afd237291065
+  source: Ongoing Effect
+  numCharges: "1"
+  guid: 0c8624d6-cab0-4d6b-afe6-5fac5d79de30
+  domains:
+    CharacterOngoingEffect:1a5597af-5f16-461e-b03c-afd237291065: true
+  name: Violence will not Aid Thee
+  resourceRefreshType: turn
+  description: The first time on a turn you deal damage to another creature, you take 1d10 lightning damage (save ends).
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      applyto: targets
+      filterTarget: ""
+      damageType: lightning
+      roll: 1d10
+      titleText: Violence Will Not Aid Thee
+      chatMessage: The first time on a turn you deal damage to another creature, you take 1d10 lightning damage (save ends).
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    usageLimitOptions:
+      resourceRefreshType: turn
+      charges: "1"
+      resourceid: 0c8624d6-cab0-4d6b-afe6-5fac5d79de30
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    guid: dbc9df14-357d-4f73-b699-c8a3d56df1cc
+    domains:
+      CharacterOngoingEffect:1a5597af-5f16-461e-b03c-afd237291065: true
+    conditionFormula: ""
+    numTargets: "1"
+    targetType: self
+    trigger: dealdamage
+    name: Violence will not Aid Thee
+    description: The first time on a turn you deal damage to another creature, you take 1d10 lightning damage (save ends).
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.831999838352203
+    s: 0.94873058795929
+    v: 0.820455849170685
+    a: 1
+guid: 1a5597af-5f16-461e-b03c-afd237291065
+id: 1a5597af-5f16-461e-b03c-afd237291065
+ctime: 1745338368654
+domains:
+  CharacterOngoingEffect:1a5597af-5f16-461e-b03c-afd237291065: true
+sustainFormula: ""
+description: The first time on a turn you deal damage to another creature, you take 1d10 lightning damage (save ends).
+name: Violence will not Aid Thee
+custom: true
+mtime: 1772713530602
+iconid: 00a89db6-da4a-47fc-98aa-303a1e6b5226
+implementation: 3

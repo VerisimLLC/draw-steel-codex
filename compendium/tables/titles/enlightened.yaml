@@ -1,0 +1,104 @@
+__typeName: Title
+effect: "Your choice of your Reason or Intuition increases by 1 (to a maximum of 6). Additionally, choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Characteristic Increase
+    numChoices: 1
+    description: Your choice of your Reason or Intuition increases by 1 (to a maximum of 6).
+    guid: 1194bc07-7ef9-4392-976f-8229f76d5c17
+    options:
+    - __typeName: CharacterFeature
+      description: ""
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 9715e827-5132-430b-b166-58d89323283e
+        sourceguid: 58e368db-b62d-4402-870a-61b93eeebe15
+        behavior: attribute
+        source: Feat
+        name: Reason Increase
+        description: ""
+        value: 1
+        attribute: rea
+      source: Feat
+      name: Reason Increase
+      guid: 58e368db-b62d-4402-870a-61b93eeebe15
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 0306afdd-1207-42e2-811a-76df6354cdc7
+        filter: Reason < 6
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: 1 is added to your Intuition
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 9715e827-5132-430b-b166-58d89323283e
+        sourceguid: 58e368db-b62d-4402-870a-61b93eeebe15
+        behavior: attribute
+        source: Feat
+        name: Intuition Increase
+        description: 1 is added to your Intuition
+        value: 1
+        attribute: inu
+      source: Feat
+      name: Intuition Increase
+      guid: a318d291-8ec4-47e8-b980-20c067a0f4a3
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 0306afdd-1207-42e2-811a-76df6354cdc7
+        filter: Intuition < 6
+      implementation: 3
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Enlightened Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: bcd2a1fb-69e8-463d-8c89-c0dfdc497cb6
+    options:
+    - __typeName: CharacterFeature
+      description: When you make a test with a skill from the lore skill group and obtain a tier 1 or tier 2 outcome, you can instead obtain a tier 3 outcome. Once you use this benefit, you can’t use it again until you earn 1 or more Victories.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: bd06ac2c-6bb0-47f7-b43e-5d7880d3f179
+        source: Feat
+        guid: eebb7421-d421-43b7-8619-52ec91023a33
+        keywords: []
+        activationCondition: false
+        modtype: tier3
+        rollType: ability_power_roll
+        resourceRefreshType: encounter
+        description: When you make a test with a skill from the lore skill group and obtain a tier 1 or tier 2 outcome, you can instead obtain a tier 3 outcome. Once you use this benefit, you can’t use it again until you earn 1 or more Victories.
+        behavior: power
+        name: Cosmic Revelation
+      source: Feat
+      canHavePrerequisites: true
+      guid: bd06ac2c-6bb0-47f7-b43e-5d7880d3f179
+      name: Cosmic Revelation
+      implementation: 2
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Mind Over Matter
+      description: Whenever you spend a Recovery, you can end one condition on yourself.
+      guid: 1b464127-e734-4088-86d0-9667e263d894
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Rearrange the Game Pieces
+      description: You can reach behind the curtain and alter reality. At the start of combat, choose yourself or any creature within 5 squares. The chosen target must move up to their speed to a space you choose, but can’t enter damaging terrain or terrain that could impose a condition on them. The target doesn’t appear to move or teleport to that space—they are simply there. No one but you has any memory of the target’s previous position.
+      guid: e7aa2adb-25d7-4691-9d9d-9a2ccd6bf19e
+      canHavePrerequisites: true
+      source: Feat
+id: 36f6b3c0-a6da-45be-b5da-926db54b8572
+ctime: 1762352245291
+name: Enlightened
+description: Don’t you see? This world that seems so real to you is nothing but a game, and all the people merely pieces!
+mtime: 1775217749183
+echelon: "4"
+prerequisite: You learn a cosmic truth that alters your understanding of reality.

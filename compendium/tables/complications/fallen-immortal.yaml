@@ -1,0 +1,64 @@
+__typeName: CharacterComplication
+drawback: You will never fully gain a mortal’s comfort with untruth. Any test you make to deceive another creature takes a bane.
+mtime: 1765883619243
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Feat
+      behavior: proficiency
+      description: ""
+      equate: false
+      name: Fallen Immortal - Benefit
+      sourceguid: 27ebbd72-95a6-4a62-a29c-480ac5b743b5
+      proficiency: proficient
+      guid: 18009959-4944-4f4f-92cd-f7fc1bc8947c
+      skills:
+        afd26a9a-22e2-4341-b171-f7e3182c8744: true
+    - __typeName: CharacterModifier
+      sourceguid: 27ebbd72-95a6-4a62-a29c-480ac5b743b5
+      displayCondition: ability.damagetypes has "untyped"
+      source: Feat
+      guid: 6ee0ff90-aec0-4d12-84e9-79c7a14e166c
+      keywords: []
+      activationCondition: ability.damagetypes has "untyped"
+      damageTypeMappings:
+        untyped: holy
+      rollType: ability_power_roll
+      modtype: none
+      description: Whenever you use an ability that deals untyped damage, that ability can deal holy damage instead.
+      behavior: power
+      name: Fallen Immortal - Benefit
+    source: Feat
+    canHavePrerequisites: true
+    guid: 27ebbd72-95a6-4a62-a29c-480ac5b743b5
+    name: Fallen Immortal - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: You will never fully gain a mortal’s comfort with untruth. Any test you make to deceive another creature takes a bane.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 74787359-a7ba-4bd3-987a-61edf53140a8
+      source: Feat
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: Fallen Immortal - Drawback
+      guid: 577d3cb5-e79c-4067-8d8e-f6d71c78e2e0
+      description: You will never fully gain a mortal’s comfort with untruth. Any test you make to deceive another creature takes a bane.
+      modtype: bane
+      rollType: test_power_roll
+    source: Feat
+    canHavePrerequisites: true
+    guid: 74787359-a7ba-4bd3-987a-61edf53140a8
+    name: Fallen Immortal - Drawback
+    implementation: 3
+name: Fallen Immortal
+ctime: 1755514091671
+description: You used to be an immortal creature, dispensing justice and doing the bidding of the gods. Now, whether as punishment or reward, you have been ordered to set your true nature aside and become a mortal. Your remaining years will be short, but living alongside your fellow mortals gives your life new meaning.
+id: 08f703de-fa25-44b3-b7b1-8bd5b92bb024
+benefit: You have the Religion skill (from the lore skill group). Additionally, whenever you use an ability that deals untyped damage, that ability can deal holy damage instead.

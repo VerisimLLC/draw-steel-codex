@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: d7edb07d-a2e6-4e84-bfe4-5fdc4a9f8a82
+id: d7edb07d-a2e6-4e84-bfe4-5fdc4a9f8a82
+ctime: 1758989966730
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Font of Wrath Despawn
+statusEffect: false
+mtime: 1758989966730
+description: ""
+iconid: ui-icons/skills/1.png

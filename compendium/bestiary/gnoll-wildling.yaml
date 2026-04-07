@@ -1,0 +1,341 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b6ba3245-579f-4d2f-80f0-f5ffea7a4964
+  properties:
+    __typeName: monster
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    cr: 2
+    max_hitpoints: 5
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "5"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 1
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Gnolll
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Gnoll Wildling	Level 2 Minion Harrier
+        Abyssal, Gnoll	EV 4 for four minions
+        <b>Stamina</b> 5
+        <b>Speed </b>7	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>With Captain</b> Edge on strikes	<b>Free Strike</b> 2
+        Might +1	Agility +2	Reason 0	Intuition 0	Presence -2
+        <b>Flail</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	3 damage
+        %E2%9C%B8	<b>17</b>	5 damage; wildling makes a free strike on a creature adjacent to the target
+
+        <b>Death Circle</b>
+        Whenever a non-minion ally within 7 is reduced to 0 Stamina, the wildling moves up to their speed.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b111171b-58d9-4dd2-9917-d61efb4ce802: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:fd198948-0d92-42f7-be90-41e4e5fc4e20: true
+        sourceguid: fd198948-0d92-42f7-be90-41e4e5fc4e20
+        behavior: trigger
+        source: Trait
+        name: Death Circle
+        description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the chainflail archer moves up to their speed.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: ""
+          repeatTargets: false
+          reasonedFilters: []
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: e16c73d8-d611-42a0-9307-4551632c2e6d
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            promptText: The Wildling can move up to their speed.
+          triggerPrompt: The Wildling can move up to their speed.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          persistence: []
+          modifiers: []
+          subjectRange: "7"
+          strain: []
+          guid: 5fe8b431-dad8-4fcb-b645-ef2bd0b771d6
+          trigger: zerohitpoints
+          targetType: self
+          conditionFormula: ""
+          name: Death Circle
+          numTargets: "1"
+          selfTarget: true
+          despawnBehavior: corpse
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: a18d91a4-c225-4927-a06b-19ef9fe539eb
+      source: Trait
+      description: Whenever a non-minion ally within 7 is reduced to 0 Stamina, the wildling moves up to their speed.
+      guid: b111171b-58d9-4dd2-9917-d61efb4ce802
+      name: Death Circle
+      implementation: 3
+    role: Minion Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 097371bd-6b3b-42a1-b612-f383888178d5-713
+    initiativeGrouping: 9531c614-75c5-4831-a61d-662952c96351
+    savingThrowRatings: []
+    damage_taken: 0
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 3 damage
+        - 5 damage; the wildling can make a free strike against a creature adjacent to the target
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: eb61449e-dd2f-44bf-b6cf-ec0c3bb47d55
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Make a free strike against a creature adjacent to the target
+        invokeOnCaster: false
+        abilityType: standard
+        standardAbility: 0ca5fc04-6068-4f47-b5c6-936d3a595f24
+        tiersSelected:
+        - 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 154
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 82cd7493-7479-44af-a9cd-f5d0e805ef0c
+      targetType: target
+      numTargets: 1
+      categorization: Signature Ability
+      implementation: 4
+      name: Flail
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    walkingSpeed: 7
+    availableTriggers: []
+    minionSquad: Gnoll Wildling Squad 2
+    monster_type: Gnoll Wildling
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 999e4994-bb40-428a-83a2-74de96a2b3a8-1
+        used: 2
+    movementSpeeds: []
+    creatureSize: 1M
+    equipmentMeta:
+      offhand0: []
+    withCaptain: Gain an edge on strikes
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        3e9c40fe-bb0c-40c7-bf4f-7cac832a23ad:
+          note: Flail
+          abilityid: 82cd7493-7479-44af-a9cd-f5d0e805ef0c
+          refreshid: 805f88ac-aba6-4f72-bf81-2bd01beaf058
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        45a32943-0a4a-4466-b865-eed86c99f801:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: 5cdf011c-927c-4331-a23e-f8a45820cccb
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        66d2d678-845b-4ad1-915e-6c259950777e:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: f8f3d81c-7e25-4fcb-a065-ad25ce027e42
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        402d2ee6-ea94-4e85-8660-23733bf7ba1c:
+          note: Flail
+          abilityid: 82cd7493-7479-44af-a9cd-f5d0e805ef0c
+          refreshid: 999e4994-bb40-428a-83a2-74de96a2b3a8-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: "-1/1"
+        56106bb9-6e3f-4432-b54d-d08ed47806e3:
+          note: Flail
+          abilityid: 82cd7493-7479-44af-a9cd-f5d0e805ef0c
+          refreshid: 6bf22670-2984-4f02-99f9-5eb0504e5d25
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        824df7ee-b374-4e19-bbab-980bc91d7823:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: a163d411-4bf9-4a1c-8e13-efced13d2e64
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        e2840379-29c8-489e-a40c-f4af33d9b310:
+          note: Flail
+          abilityid: 82cd7493-7479-44af-a9cd-f5d0e805ef0c
+          refreshid: d3e045b7-37ba-49ec-a87c-48609b6e5982
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        0f678d97-6106-4331-9b53-0f0e08036097:
+          note: Ranged Free Strike
+          abilityid: 8c0c9118-1554-4b79-9bf6-64352c89f71a
+          refreshid: 999e4994-bb40-428a-83a2-74de96a2b3a8-1
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+  tokenType: null
+  bestiaryId: 1086c801-4e74-4b70-a227-813d2c14c85d
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Gnoll Wildling
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1741590219309
+mtime: 1775201137032
+hidden: false

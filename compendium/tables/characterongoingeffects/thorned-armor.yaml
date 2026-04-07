@@ -1,0 +1,194 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:9da79f0c-cef5-4dab-b38e-69a1259d187f: true
+  sourceguid: 9da79f0c-cef5-4dab-b38e-69a1259d187f
+  description: 'The thorns upon the dragon’s scales grow longer and sharper. Until the end of the encounter, any adjacent creature who targets the dragon with a melee strike takes 3 damage. The dragon then uses their Provoking Nettles ability. '
+  source: Ongoing Effect
+  name: Thorned Armor
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "3"
+      chatMessage: Thorned Armor
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      invokeOnCaster: true
+      runOnController: false
+      promptText: The dragon uses their Provoking Nettles ability.
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 6a9a66f7-78e4-4e14-b316-6ff4811f6cd1
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      namedAbility: Provoking Nettles
+      abilityType: named
+      applyto: caster
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 4c19dc63-052e-4124-95a8-cedc32712e1f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityType: none
+        behaviors:
+        - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+          momentaryEffect:
+            __typeName: CharacterOngoingEffect
+            guid: 5a8f5783-2184-493e-8858-f75c51000800
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            modifiers:
+            - __typeName: CharacterModifier
+              guid: 8dcbe8ab-0170-4bd3-89cb-3658e827bf07
+              sourceguid: 5a8f5783-2184-493e-8858-f75c51000800
+              value: 1
+              source: Ongoing Effect
+              name: Provoking Nettles
+              behavior: attribute
+              description: Once per turn, the dragon shifts up to 5 squares and can move through enemies’ spaces at their usual speed. The first time the dragon moves through an enemy’s space during this movement, the enemy takes 3 damage.
+              attribute: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+            - __typeName: CharacterModifier
+              description: Once per turn, the dragon shifts up to 5 squares and can move through enemies’ spaces at their usual speed. The first time the dragon moves through an enemy’s space during this movement, the enemy takes 3 damage.
+              sourceguid: 5a8f5783-2184-493e-8858-f75c51000800
+              behavior: trigger
+              source: Ongoing Effect
+              resourceRefreshType: turn
+              guid: c646c3d5-620d-4569-90ae-10aa9f4df9b9
+              name: Provoking Nettles
+              triggeredAbility:
+                __typeName: TriggeredAbility
+                objectTarget: false
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityDamageBehavior
+                  roll: "1"
+                  chatMessage: Provoking Nettles
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                range: 1
+                usageLimitOptions:
+                  resourceRefreshType: turn
+                  charges: "1"
+                  resourceid: c646c3d5-620d-4569-90ae-10aa9f4df9b9
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: a94bc3cd-7d97-451b-9479-1ac59c74aaf0
+                numTargets: "1"
+                name: Provoking Nettles
+                trigger: movethrough
+                targetType: target
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            source: Ongoing Effect
+            name: Provoking Nettles
+            description: Once per turn, the dragon shifts up to 5 squares and can move through enemies’ spaces at their usual speed. The first time the dragon moves through an enemy’s space during this movement, the enemy takes 3 damage.
+            id: 5a8f5783-2184-493e-8858-f75c51000800
+            iconid: ui-icons/skills/1.png
+          name: Ability Duration Effect
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: b0d6b4b8-0d53-4ff0-ac70-509cc937c4b9
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          promptText: The dragon shifts up to 5 squares and can move through enemies’ spaces at their usual speed. The first time the dragon moves through an enemy’s space during this movement, the enemy takes 3 damage.
+          abilityType: standard
+          standardAbilityParams:
+            distance: "5"
+          standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        targetType: self
+        name: Invoked Ability
+        numTargets: "1"
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    hasManualVersion: true
+    strain: []
+    guid: 85d75197-a11c-4b9a-b724-a85c8fa216f6
+    conditionFormula: Ability.Keywords has "melee" and Ability.Keywords has "strike" and Distance(Attacker) < 2
+    domains:
+      CharacterOngoingEffect:9da79f0c-cef5-4dab-b38e-69a1259d187f: true
+    targetType: attacker
+    name: Thorned Armor
+    trigger: losehitpoints
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+  guid: f06c20d5-6338-45b7-b891-ab2ee3827c8a
+source: Ongoing Effect
+guid: 9da79f0c-cef5-4dab-b38e-69a1259d187f
+id: 9da79f0c-cef5-4dab-b38e-69a1259d187f
+ctime: 1770199558516
+domains:
+  CharacterOngoingEffect:9da79f0c-cef5-4dab-b38e-69a1259d187f: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.379499912261963
+    s: 0.998046517372131
+    v: 0.655954420566559
+    a: 1
+name: Thorned Armor
+custom: true
+description: 'The thorns upon the dragon’s scales grow longer and sharper. Until the end of the encounter, any adjacent creature who targets the dragon with a melee strike takes 3 damage. The dragon then uses their Provoking Nettles ability. '
+mtime: 1772804947152
+iconid: 20c26bc2-3c3b-498c-af59-f29874538b13

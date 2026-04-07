@@ -1,0 +1,19 @@
+__typeName: CharacterComplication
+drawback: You have forgotten one language you know of your choice.
+mtime: 1768297928108
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      exploration: true
+    name: Shipwrecked - Benefit
+    numChoices: 2
+    guid: e13c8cba-de87-412d-b5c1-c4b8129a3b80
+    description: Choose two skills from the exploration skill group
+    source: Feat
+name: Shipwrecked
+ctime: 1755517126159
+description: You are the sole survivor of a shipwreck that left you stranded on a remote and inhospitable island for years. Your struggle to survive there granted you insight into the natural world but distanced you from who you once were.
+id: 6286a1d0-7728-4d69-90e5-170dbf620f23
+benefit: You have two skills of your choice from the exploration skill group.

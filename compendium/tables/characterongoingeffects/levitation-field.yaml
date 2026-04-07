@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: a5085e58-8481-4d10-b8fd-81d8eada023f
+  sourceguid: 8692d63d-e197-4ae2-abe3-09707bdc9f21
+  value: 1
+  source: Ongoing Effect
+  name: Levitation Field
+  behavior: attribute
+  description: You can fly. Your stability is 0 and cannot be increased.
+  attribute: fly
+- __typeName: CharacterModifier
+  operation: min
+  sourceguid: 8692d63d-e197-4ae2-abe3-09707bdc9f21
+  source: Ongoing Effect
+  value: 0
+  name: Levitation Field
+  guid: af6ae70e-a008-431b-b7a6-a0f4d84a3088
+  description: You can fly. Your stability is 0 and cannot be increased.
+  behavior: attribute
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+guid: 8692d63d-e197-4ae2-abe3-09707bdc9f21
+id: 8692d63d-e197-4ae2-abe3-09707bdc9f21
+ctime: 1771985609879
+display:
+  brightness: 1
+  saturation: 0
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Levitation Field
+description: You can fly. Your stability is 0 and cannot be increased.
+custom: true
+mtime: 1771985609879
+iconid: 92b2b114-d1a9-48da-bc72-d7b561b5432f

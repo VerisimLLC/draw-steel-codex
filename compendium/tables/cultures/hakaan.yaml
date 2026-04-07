@@ -1,0 +1,11 @@
+__typeName: Culture
+id: c6465a85-e733-4eb4-a7e0-aeeae23ba469
+group: Ancestry Cultures
+name: Hakaan
+languageid: b9f2674c-953b-457b-9b42-00b892ba2488
+mtime: 1769349219745
+aspects:
+  upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+  environment: bc083000-3543-41ff-ad8d-332f73cd92aa
+  organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+ctime: 1768796118938

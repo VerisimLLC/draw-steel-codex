@@ -1,0 +1,35 @@
+__typeName: CharacterOngoingEffect
+association: []
+sustainFormula: Movement Type = "Fly"
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 6a6f4254-937b-4500-92cd-9fcfa26350ea
+  source: Ongoing Effect
+  value: 0
+  filterCondition: stacks >= Might
+  guid: d9e1c8bc-0001-4da9-9c78-d6061882e097
+  name: Flying Fatigue
+  domains:
+    CharacterOngoingEffect:6a6f4254-937b-4500-92cd-9fcfa26350ea: true
+  description: Counts up at the end of each round. When it reaches your Might score you fall.
+  behavior: attribute
+  attribute: fly
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+id: 6a6f4254-937b-4500-92cd-9fcfa26350ea
+ctime: 1751101488861
+domains:
+  CharacterOngoingEffect:6a6f4254-937b-4500-92cd-9fcfa26350ea: true
+guid: 6a6f4254-937b-4500-92cd-9fcfa26350ea
+implementation: 3
+name: Flying Fatigue
+description: Counts up at the end of each round. When it reaches your Might score you fall.
+custom: true
+mtime: 1756403554342
+iconid: 375ec336-93ce-4f88-bcde-46cdd46337b8

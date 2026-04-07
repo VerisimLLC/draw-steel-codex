@@ -1,0 +1,24 @@
+__typeName: equipment
+itemPrerequisite: A humanoid’s shadow disconnected from its source
+keywords:
+  Hands: true
+  Psionic: true
+projectSource: Texts or lore in Khelt
+flavor: These finely stitched gloves appear to flicker in and out of reality when first handled.
+weight: 1
+category: Gear
+specialDescription: ""
+id: 922e97bc-6ea5-411f-bc87-da7d7cfd018f
+ctime: 1759189182380
+type: Gear
+projectGoal: "150"
+mtime: 1759400255864
+name: Flameshade Gloves
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+description: |-
+  When you use a move action while wearing these gloves, you can place one hand upon a mundane object as part of that move action. If the object is 1 square thick or less and has open space on the other side (for example, a door or wall), you pull your body through it as though the object wasn’t there.
+
+  If the object is too thick or has no open space on the other side, your hand becomes stuck inside the object. Removing your hand takes a successful hard Might test made as a main action.
+projectRollCharacteristic:
+  rea: true
+iconid: 60ebdfc0-5176-4aa7-a07a-843658f3a398

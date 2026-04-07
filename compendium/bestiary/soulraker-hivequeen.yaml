@@ -1,0 +1,380 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7fe2d117-efae-4be5-a170-f5708ffdebd6
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 9
+    import:
+      type: mcdm
+      data: |+
+        Soulraker Hivequeen	Level 9 Leader
+        Abyssal, Demon, Soulraker	EV 44
+        <b>Stamina</b> 240	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6 (fly)	<b>Size</b> 5 /<b> Stability</b> 2
+        <b>Free Strike</b> 9
+        Might +5	Agility -1	Reason +3	Intuition +3	Presence +2
+        <b>Stinging Ovipositor</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Ranged, Strike
+        <b>Distance</b> Melee 1 or Ranged 10<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	14 poison damage; M<3 bleeding (save ends)
+        %E2%98%85	<b>12-16</b>	19 poison damage; M<4 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	23 poison damage; M<5 implanted
+        <b>Effect</b> Implanted creatures have a <b>soulraker handmaiden</b> parasite gestating in them (see the handmaiden's Implanted Parasite).
+
+        <b>Forced Gestation</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst	<b>Target</b> All soulraker handmaiden parasites
+        <b>Effect</b> The hivequeen lets loose a subsonic call to each target, forcing them to immediately emerge as a matured <b>soulraker handmaiden</b> from their host's body and make a free strike.
+
+        <b>For the Queen!</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> 5 burst<b>	Target</b> Special
+        <b>Trigger</b> The hivequeen is striked a second time during a turn.
+        <b>Effect</b> Two soulraker minions appear within distance.
+        <b>2 Malice </b>A <b>soulraker praetorian</b> also appears within distance.
+
+        <b>Cannibal Queen</b>
+        At the end of their turn, the hivequeen can consume an adjacent Soulraker demon to end one save ends effect affecting them (no action required).
+
+        <b>Lethe</b>
+        While winded, the hivequeen has an edge on strikes, and strikes have an edge against them.
+
+        <b>Hive Soulsight</b>
+        The hivequeen can see through the eyes of any Soulraker demons within 100 miles and benefits from their Soulsight.
+
+        <b>Kicking the Nest </b>(Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst<b>	Target</b> All creatures
+        <b>Effect</b> All minions within distance move their speed and take a free strike. If no minions are present, four soulraker minions are summoned into unoccupied squares within distance before the hivequeen uses this action.
+
+        <b>Buzz Off! </b>(Villain Action 2) %E2%97%86 2d10 + 5
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 5 burst<b>	Target</b> All Enemies
+        <b>Effect</b> The hivequeen buzzes her wings at an earsplitting frequency then shifts up to her speed.
+        %E2%9C%A6	<b>%E2%89%A411</b>	push 3; I<3 dazed (save ends)
+        %E2%98%85	<b>12-16</b>	push 3; I<4 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	11 sonic damage; push 3; I<5 dazed (save ends)
+
+        <b>Bomber Wasp Warfare</b> (Villain Action 3) %E2%97%86 2d10 + 5
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> Four 2 cubes within 10<b>	Target</b> All creatures
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 poison damage; M<3 bleeding (save ends)
+        %E2%98%85	<b>12-16</b>	11 poison damage; M<4 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	14 poison damage; M<5 bleeding (save ends)
+        Demons - 4th Echelon
+        The more souls a demon consumes, the more they evolve. The more they evolve the more refined their tastes become, until eventually the demon can only be satisfied by souls that exemplify particular qualities.
+        Aurumvas stands among named demons for craving not only wealth, but highly avaricious souls. His powerful ilk have their tastes honored by their titles, such as Gorgino, the Sensuous Feast, Tyx, the Obliviated Spiral, and Lorikta, the Discarded Dream.
+        Aurumvas: Hungry for Riches
+        Aurumvas lords over vast vaults of treasure in the Abyssal Wastes he has slaughtered hundreds of creatures to acquire. The demon king gazes upon his riches and wants for more. He allures lesser demons and wicked mortals to work for him with minor treasures, knowing full well that one needs to spend wealth to make it. If left unchecked, Aurumvas will see to it that his glittering hoards and hordes will one day encompass the entire timescape.
+        Category 10 Demons
+        <b>Optacus</b> is an abyssal eye atop a spindly flesh stalk supported by innumerable legs. Able to affix to any surface, it fires deadly beams at distant foes.
+        A horrifying cross between a thresher shark and a terror lizard. <b>Tyburaki</b>'s tails are lined with tiny shark maws, able to bite multiple foes at once.
+        <b>Unguloid</b>'s are similar to a centaur but with the body and head resembling a demonic rhinoceros with a devastating charge.
+        The mercurial form of a <b>Izyak</b> ripples with psionic energy, looking different to everyone viewing it. It's true form is a brain supported four bone legs.
+        <b>Vicisitator demons</b> are dangerous and horrifically unstable, with flesh and bone in a state of perpetual agonizing flux. Their very touch results in agonizing warps to flesh, bone, and soul.
+        Covetous is too soft a word to describe the avarice of <b>Aurumvas</b> (<i>or-UM-</i><i>vahs</i>). Towering, with a stack of crowns atop his ophidian head. A vision of opulence, excess, and absolute debasement.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:53e3ca06-7674-44c9-98bb-34056352a9df: true
+      modifiers: []
+      name: Cannibal Queen
+      description: At the end of their turn, the hivequeen can consume an adjacent Soulraker demon to end one save ends effect affecting them (no action required).
+      guid: 53e3ca06-7674-44c9-98bb-34056352a9df
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:72d2b7cc-eba0-4485-8a86-50d331b4057a: true
+      modifiers: []
+      name: Lethe
+      description: While winded, the hivequeen has an edge on strikes, and strikes have an edge against them.
+      guid: 72d2b7cc-eba0-4485-8a86-50d331b4057a
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:82c5264f-638d-4b54-8f06-e30777787e1f: true
+      modifiers: []
+      name: Hive Soulsight
+      description: The hivequeen can see through the eyes of any Soulraker demons within 100 miles and benefits from their Soulsight.
+      guid: 82c5264f-638d-4b54-8f06-e30777787e1f
+      source: Trait
+    role: Leader
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Soulraker: true
+      Demon: true
+    max_hitpoints_roll: "240"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 9
+    monster_type: Soulraker Hivequeen
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 240
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 14 poison damage; M<3 bleeding (save ends)
+        - 19 poison damage; M<4 bleeding (save ends)
+        - 23 poison damage; M<5 the target is implanted
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: dbea8dd4-6017-4d54-aeda-9533a92d60dd
+      meleeRange: 1
+      numTargets: 2
+      targetType: target
+      name: Stinging Ovipositor
+      iconid: ui-icons/skills/1.png
+      description: Implanted creatures have a soulraker handmaiden parasite gestating in them (see the handmaiden's Implanted Parasite).
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 2114a37b-a9a3-43f4-bf34-f2f019f5017e
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Forced Gestation
+      implementation: 0
+      description: The hivequeen lets loose a subsonic call to each target, forcing them to immediately emerge as a matured soulraker handmaiden from their host's body and make a free strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: e63256ff-988d-46b0-ae39-a598bd10250a
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: For the Queen!
+      implementation: 0
+      description: Two soulraker minions appear within distance.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9c5b4711-2ee4-4cbb-873d-67ff5461f909
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '42f0f050-83f3-4aff-a11"
+      implementation: 0
+      behaviors: []
+      name: 'Kicking the Nest '
+      numTargets: 1
+      description: All minions within distance move their speed and take a free strike. If no minions are present, four soulraker minions are summoned into unoccupied squares within distance before the hivequeen uses this action.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 1b275479-b110-4612-8eca-c411eede0eef
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '37d64cda-fbed-4e80-b47"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 0 damage; push 3; I<3 dazed (save ends)
+        - 0 damage; push 3; I<4 dazed (save ends)
+        - 11 sonic damage; push 3; I<5 dazed (save ends)
+        roll: 2d10 + Might
+      name: 'Buzz Off! '
+      numTargets: 1
+      description: The hivequeen buzzes her wings at an earsplitting frequency then shifts up to her speed.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: babf2f8f-9220-49b1-8576-8651a9471bcf
+        multicharge: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 3a17eada-a092-4f73-9756-ced567fd6b81
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 poison damage; M<3 bleeding (save ends)
+        - 11 poison damage; M<4 bleeding (save ends)
+        - 14 poison damage; M<5 bleeding (save ends)
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      name: Bomber Wasp Warfare
+      numTargets: 1
+      description: |
+        Note: the are for this action is Four cubes
+      abilityType: none
+      implementation: 3
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds:
+      fly: 6
+    ev: 44
+    minion: false
+    levelChoices: []
+    creatureSize: "5"
+  tokenType: null
+  bestiaryId: 98a5cb44-554a-4e7d-8f64-c0281d960b18
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Soulraker Hivequeen
+parentFolder: d28dbebc-b729-459f-858a-44e596d131e0
+artist: null
+ord: 7
+ctime: 1741590285210
+mtime: 1775201137032
+hidden: false

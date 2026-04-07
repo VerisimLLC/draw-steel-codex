@@ -1,0 +1,45 @@
+__typeName: CharacterResource
+textColor: light
+mayBeNegative: true
+clearOutsideOfCombat: false
+usageLimit: global
+id: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+grouping: Class Specific
+ctime: 1728879939556
+display:
+  expended:
+    brightness: 0.5
+    saturation: 0.5
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 1.00323760509491
+      v: 0.566293478012085
+      a: 1
+  highlight:
+    brightness: 1.5
+    saturation: 1
+    hueshift: 1
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 1.00323760509491
+      v: 0.566293478012085
+      a: 1
+  normal:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 1.00323760509491
+      v: 0.566293478012085
+      a: 1
+hasLargeDisplay: false
+name: Malice
+largeQuantity: true
+useQuantity: true
+mtime: 1772894243095
+iconid: 8501c1d4-442d-4499-beb3-52dbfd76a644

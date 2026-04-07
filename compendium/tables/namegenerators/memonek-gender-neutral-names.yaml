@@ -1,0 +1,48 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 462afc90-9fac-494a-b077-1342d81a95c9
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Jamiattra
+- __typeName: RollTableRow
+  id: e9683356-7e2a-4d40-96a1-fee27bdb4e01
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Lotarhixa
+- __typeName: RollTableRow
+  id: a69b7565-67b4-47af-bf58-cef498999c1b
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Mitterirtra
+- __typeName: RollTableRow
+  id: fbd10121-b9a2-4590-9988-079674070d29
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Sattayarit
+- __typeName: RollTableRow
+  id: 8c189cc0-9454-4685-a05a-efdf9e0f5415
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Talyana
+name: Memonek Gender Neutral Names
+id: ea4d41e3-4e36-49aa-8a03-c608d0177f91
+mtime: 1743445491043
+items: false
+ctime: 1743445352486

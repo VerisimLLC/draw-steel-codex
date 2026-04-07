@@ -1,0 +1,52 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: e9f0a1b2-c3d4-5678-efab-789012345efa
+  description: Whenever you use a magic or psionic ability to push or pull a creature, you can move that creature an additional 3 squares and that movement can be vertical. This replaces the benefit of Forceful II.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: b6c7d8e9-f0a1-2345-bcde-456789012bcd
+    guid: 5b8494fd-a8cc-4999-a77f-75d0cec55631
+    vertical: true
+    behavior: power
+    modtype: none
+    adjustments:
+    - type: push
+      value: "3"
+    - type: pull
+      value: "3"
+    keywords: []
+    activationCondition: true
+    replaceText: vertical push
+    activationAfterRoll: false
+    name: Forceful III
+    rollType: ability_power_roll
+    description: Whenever you use a magic or psionic ability to push or pull a creature, you can move that creature an additional 3 squares. This replaces the benefit of Forceful I.
+    source: Forceful III Imbuement
+    replacePattern: push
+  source: Forceful III Imbuement
+  name: Forceful III
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: A scale from the kraken
+imbuePrereq: 4e111c75-dd4f-4617-9868-dedb0eaae207
+projectSource: High Kuric
+imbueLevel: 9
+imbueReplacesPrereq: true
+category: Gear
+description: Whenever you use a magic or psionic ability to push or pull a creature, you can move that creature an additional 3 squares and that movement can be vertical. This replaces the benefit of Forceful II.
+type: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+ctime: 1770699205313
+projectGoal: "150"
+implementation: 4
+id: 2478102f-7f86-439d-85be-f71f84391118
+name: Forceful III
+imbueTargetType: implement
+mtime: 1774184282796
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 1dd3a970-668d-465a-a698-5a72b35cbe7e

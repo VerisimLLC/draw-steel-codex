@@ -1,0 +1,93 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e4b3a4a0-41fd-46f2-bba7-f1736ec1160f
+  source: Ongoing Effect
+  seq: eb38ae9a-785f-4946-b777-5d0f1515054a
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: b89ddb72-972a-49cf-a98b-7bc36431c6c8
+        repeatTargets: false
+        trigger: losehitpoints
+        conditionFormula: HasAttacker
+        targetType: attacker
+        persistence: []
+        name: Stay Strong and Focus!
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          standardAbilityParams:
+            numrecoveries: "1"
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 9cc651c7-a1a6-461c-87ac-ba3632a5cad9
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+          abilityType: standard
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: 46e0711e-f21b-486c-83a1-87fd99b252a7
+      name: Stay Strong and Focus!
+      sourceguid: d297629c-b48b-472c-887f-4da2af422909
+    name: Stay Strong and Focus!
+    implementation: 3
+    guid: d297629c-b48b-472c-887f-4da2af422909
+    creatureFilter: (Conditions has "Mark") and (ConditionCaster("Mark") = Caster)
+    iconid: b67b89e6-cc8a-40bd-848b-37aef0455137
+  radius: "50"
+  guid: 132973bd-63cd-4a0a-8396-19b62db85baa
+  description: Whenever you or any ally deals damage to a target marked by you, the creature who dealt the damage can spend a Recovery.
+  behavior: aura
+  name: Stay Strong and Focus!
+source: Ongoing Effect
+guid: e4b3a4a0-41fd-46f2-bba7-f1736ec1160f
+id: e4b3a4a0-41fd-46f2-bba7-f1736ec1160f
+ctime: 1753427241173
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Stay Strong and Focus!
+iconid: 903ef403-92f5-4480-a958-b53c0f30c17f
+description: Whenever you or any ally deals damage to a target marked by you, the creature who dealt the damage can spend a Recovery.
+mtime: 1753427241173
+implementation: 3

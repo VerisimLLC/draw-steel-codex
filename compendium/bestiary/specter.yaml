@@ -1,0 +1,451 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 41791a6e-291f-4775-b017-55f2c374ac2d
+    offtokenPortraitId: eb1ea710-2492-40a2-8c8a-810b5c4e0456
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3253511
+    portraitOffset:
+      x: -0.07314026
+      y: 0.1949671
+    frameHueShift: 0.468506
+    frameSaturation: 0.894878
+    frameBrightness: 0.8074224
+    popoutScale: 0.99
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5dbd37f3-0291-4aec-9d45-0ab4a70603fc
+  properties:
+    __typeName: monster
+    selectedLoadout: 1
+    cr: 1
+    skillProficiencies: []
+    inventory: []
+    inflictedConditions: []
+    keywords:
+      Undead: true
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -5
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    ongoingEffects: []
+    minion: false
+    stability: 1
+    import:
+      override: true
+      data: |+
+        Specter	Level 1 Horde Hexer
+        Undead	EV 3
+        <b>Stamina</b> 10	<b>Immunity</b> corruption 1, poison 1
+        <b>Speed</b> 5 (fly, hover)	<b>Size</b> 1M/<b> Stability</b> 1
+        <b>Free Strike</b> 1
+        Might -5	Agility +1	Reason 0	Intuition 0	Presence +2
+        <b>Decaying Touch</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike
+        <b>Distance</b> Melee 1	<b>Target</b> One creature
+        %E2%9C%A6	%E2%89%A411	3 corruption damage; P<0 weakened (save ends)
+        %E2%98%85	12%E2%80%9316	4 corruption damage; P<1 weakened (save ends)
+        %E2%9C%B8	17+	5 corruption damage; P<2 weakened (save ends)
+        <b>2 Malice</b> The potency of this ability increases by 1. A living creature killed by this ability becomes a <b>specter</b> who appears in the target's space under the Director's control.
+
+        <b>Hidden Movement</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The specter turns invisible, moves up to their speed, and becomes visible again.
+
+        <b>Corruptive Phasing</b>
+        The specter can move through other creatures and objects at normal speed. The first time in a round that the specter passes through a creature, that creature takes 2 corruption damage. The specter doesn't take damage from being force moved into objects.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a2f87047-4854-4f8f-862a-4543f29a90c2: true
+        CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        guid: 550fa599-1539-4f97-af0d-aa97264d0476
+        domains:
+          CharacterFeature:a2f87047-4854-4f8f-862a-4543f29a90c2: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        value: 1
+        description: The specter can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the specter moves through a creature, that creature takes 2 corruption damage. The specter doesn't take damage from being force moved into objects.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:a2f87047-4854-4f8f-862a-4543f29a90c2: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        guid: d28a3667-bad4-4c2e-88e9-6f40ed7a4ec8
+        description: The specter can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the specter moves through a creature, that creature takes 2 corruption damage. The specter doesn't take damage from being force moved into objects.
+        behavior: attribute
+        attribute: 9148519f-9fb4-4b2b-9d3e-98f88c56bab8
+      - __typeName: CharacterModifier
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:a2f87047-4854-4f8f-862a-4543f29a90c2: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Corruptive Phasing
+        resourceRefreshType: round
+        description: The specter can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the specter moves through a creature, that creature takes 2 corruption damage. The specter doesn't take damage from being force moved into objects.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "2"
+            damageType: corruption
+            chatMessage: Phased Through
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 91a78ee3-31d5-43bc-be05-1b765bee9979
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a189f7a6-044c-43fd-a66a-29e2b5a46d1b
+          domains:
+            CharacterFeature:a2f87047-4854-4f8f-862a-4543f29a90c2: true
+            CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+          numTargets: "1"
+          name: Corruptive Phasing
+          trigger: movethrough
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 91a78ee3-31d5-43bc-be05-1b765bee9979
+      - __typeName: CharacterModifier
+        sourceguid: f492943e-a198-49cb-8715-3f704c13bea4
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+          CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+        name: Corruptive Phasing
+        guid: 1d4d3bb6-8ed8-4ca9-ba5a-11f903b77dd9
+        description: The ghost can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the spirit moves through a creature other than their mentor, that creature takes 2 corruption damage.
+        behavior: attribute
+        attribute: 8e55aa4a-aae4-4df7-85b7-07ce1b93a6c9
+      - __typeName: CharacterModifier
+        text: This creature can move through creatures and objects. It cannot end its turn inside a creature or object.
+        sourceguid: f492943e-a198-49cb-8715-3f704c13bea4
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+          CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+        name: Corruptive Phasing
+        description: The ghost can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the spirit moves through a creature other than their mentor, that creature takes 2 corruption damage.
+        guid: 7c337815-007d-49ac-aa32-1b2e5fdcdce2
+        color: green
+      source: Trait
+      description: The specter can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the specter moves through a creature, that creature takes 2 corruption damage. The specter doesn't take damage from being force moved into objects.
+      guid: a2f87047-4854-4f8f-862a-4543f29a90c2
+      name: Corruptive Phasing
+      implementation: 3
+    role: Horde Hexer
+    equipment:
+      mainhand1: 4e62e1cb-c160-4ea1-ac60-5c4605f0483e
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 1
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 10
+    initLight: true
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: e1d59fa4-9552-4465-bfb8-89d65c84d760-1324
+    initiativeGrouping: d2d5d77d-f17b-4bb8-aa65-58a905899aba
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 5
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Magic: true
+        Melee: true
+      targetType: target
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Normal
+      guid: 3be9c14f-5240-40db-a01e-6322f28ff4ef
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      implementation: 4
+      numTargets: 1
+      name: Decaying Touch
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage; P<0 weakened (save ends)
+        - 4 corruption damage; P<1 weakened (save ends)
+        - 5 corruption damage; P<2 weakened (save ends)
+        roll: 2d10 + 2
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 4e9d7093-e1a6-4f82-a6ea-afb6bbf60346
+        modifier:
+          __typeName: CharacterModifier
+          resourceCostType: cost
+          modtype: none
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          replacePattern: ""
+          sourceguid: ed50d239-8351-4aad-9397-07b0173085b2
+          guid: e4c3acac-11c7-42a3-b223-58dee5c4af89
+          resourceCostAmount: "2"
+          domains: []
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 62aab336-54d8-4fbd-8818-1c83b328a31b
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            behaviors: []
+            targetType: self
+            name: New Ability
+            numTargets: "1"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          replaceText: ""
+          name: Decaying Touch Effect
+          potencymod: "1"
+          description: "The potency increases by 1. Any living creature who dies from this damage rises at the start of the next round as a specter under the Director's control. "
+          behavior: power
+          hasCustomTrigger: false
+      description: |2-
+
+        **2 Malice**: The potency increases by 1. Any living creature who dies  from this damage rises at the start of the next round in the target's  space as a specter under the Director's control.
+      abilityType: none
+      iconid: 76936e84-d117-4dfd-b0fd-9291eb0a736b
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 16f89997-06b5-4792-b7d0-daac09eaaac5
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      castImmediately: true
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 383cc2e0-680e-416c-a77c-2ce4546d53f1
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors: []
+          targetType: self
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+        abilityType: standard
+        standardAbilityParams:
+          distance: "<<movement speed>>"
+      - __typeName: ActivatedAbilityDelayBehavior
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        ongoingEffect: 6b9ea931-b803-4811-8086-c1590a2195e5
+        mode: effect
+        conditions: []
+      name: Hidden Movement
+      iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+      description: The specter turns invisible, moves up to their speed, and becomes visible again.
+      abilityType: none
+      implementation: 3
+    resources:
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 8121a275-3e2a-4634-96d2-67ccd89573be
+        used: 1
+    ev: 3
+    monster_type: Specter
+    movementSpeeds:
+      fly: 5
+    availableTriggers: []
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      trinket10: []
+      trinket6: []
+      leveled4: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      leveled3: []
+      trinket3: []
+      trinket9: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    creatureSize: 1M
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        a3bef40e-e90a-4047-9718-208f242e1f9d:
+          refreshid: 71c4db68-06a3-4263-bc82-8401e5265818
+          note: Hidden Movement
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        327360f9-248e-496f-81b9-df4c6293dd08:
+          refreshid: 528de274-67d4-4291-bc75-05322c6b32d7
+          note: Hidden Movement
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+  tokenType: null
+  bestiaryId: 38da0240-ca9b-4508-9fa4-d10b319e62db
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Specter
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 9
+ctime: 1741590239521
+mtime: 1775201137032
+hidden: false

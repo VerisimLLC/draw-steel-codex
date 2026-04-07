@@ -1,0 +1,54 @@
+__typeName: ActivatedAbility
+objectTarget: false
+targetFilter: ""
+id: dc7c2d16-098d-4966-bdf7-8c611da7be1f
+targetAllegiance: ally
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  runOnController: true
+  promptText: "<<prompt>>"
+  standardAbilityParams:
+    edges: "<<hasedge>>"
+    targetid: ""
+    hasedge: ""
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0c693b9b-a1a3-40ef-89bd-ff4dce8db9bc
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+numTargets: "<<targetcount>>"
+modifiers: []
+source: Monster
+strain: []
+guid: 6e0df17b-c32e-4c0a-8732-b35584fd21da
+ctime: 1774734096665
+targetType: target
+description: ""
+persistence: []
+name: Ally Makes Signature Strike
+repeatTargets: false
+mtime: 1774734096665
+abilityType: none
+iconid: ui-icons/skills/1.png

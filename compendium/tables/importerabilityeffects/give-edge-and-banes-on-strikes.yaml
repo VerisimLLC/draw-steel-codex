@@ -1,0 +1,27 @@
+__typeName: ActivatedAbility
+id: 219e9d5e-b44a-405e-9ce4-f96f12d6bdfe
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: Until the start of the underboss's next turn, each target has an edge on strikes, and strikes made against them have an edge.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 5f03b5fd-5ca8-4ecc-999c-afb637c11e68
+importMatch: Until the start of <<monster>> next turn, each target has an edge on strikes, and strikes made against them have an edge.
+ctime: 1740890781263
+targetType: self
+repeatTargets: false
+description: ""
+name: Give Edge and Banes on strikes
+numTargets: "1"
+mtime: 1772948537546
+abilityType: none
+iconid: ui-icons/skills/1.png

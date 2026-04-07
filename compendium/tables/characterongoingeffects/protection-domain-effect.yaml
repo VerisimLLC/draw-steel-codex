@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 9be53424-1864-4bdb-bbe1-dff7611d6358
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: Stacks
+    damageType: all
+    apply: Damage Reduction
+  description: An ally of your choice within 10 squares of you gains damage immunity equal to your Intuition score plus your level, which lasts until the end of your next turn.
+  name: Protection Domain Effect
+  guid: 29690c70-41eb-4027-9b99-4acf047cb4e5
+source: Ongoing Effect
+guid: 9be53424-1864-4bdb-bbe1-dff7611d6358
+id: 9be53424-1864-4bdb-bbe1-dff7611d6358
+ctime: 1728967928827
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: An ally of your choice within 10 squares of you gains damage immunity equal to your Intuition score plus your level, which lasts until the end of your next turn.
+name: Protection Domain Effect
+stackable: true
+custom: true
+mtime: 1728967970842
+iconid: 45ebc799-9bb6-4bbd-b720-f101d339ffb6

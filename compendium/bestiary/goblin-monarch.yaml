@@ -1,0 +1,737 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 73e415be-1a21-4ecf-85d5-bf9897b4b795
+    offtokenPortraitId: 808a9383-40de-4e55-8f71-1de4ef620f9e
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2788129
+    portraitOffset:
+      x: -0.08884003
+      y: 0.04444005
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: daee2271-5388-4241-bdfe-e23ffa92a430
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries:
+        16ad3857-41ce-4a03-8211-a7eb8d4b9b5e:
+          refreshid: ""
+          note: Get in Here!
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0
+    inventory: []
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "80"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        3ef9e234-796c-4e2e-9dd4-bbfb2b85536e:
+          refreshid: e63aea6b-1b2d-4fcc-a77a-888ee65bfe2b
+          note: Handaxe
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        id: mgt
+      rea:
+        baseValue: 1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    attackNames:
+    - Medium Melee
+    - Heavy Ranged
+    monster_category: Monster
+    e3273cf8-648f-49c1-8fed-e8bcd93083d5_history:
+      __typeName: StatHistory
+      entries:
+        a3a65ee4-c523-453c-ae12-0705230b634e:
+          refreshid: none
+          note: Kill!
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+    levelChoices: []
+    f04bb57a-3386-421c-b453-c050cee0b0db_history:
+      __typeName: StatHistory
+      entries:
+        a7f44f8c-2c4d-4815-b7cf-bd895cc69264:
+          refreshid: 0b9c5d7b-465f-4767-a18d-eddf4cf48033
+          note: What Are You Waiting For?
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+    traitNames: []
+    classes: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        264d1158-b234-4272-a716-20ca1128783f:
+          disposition: bad
+          note: Purged condition
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 75
+    opportunityAttack: 4
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    skillProficiencies: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    stability: 1
+    max_hitpoints: 80
+    import:
+      override: true
+      data: |+
+        Goblin Monarch	Level 1 Leader
+        Goblin, Humanoid	EV 12
+        <b>Stamina</b> 80
+        <b>Speed</b> 6 (climb)	<b>Size</b> 1S / <b>Stability</b> 1
+        	<b>Free Strike</b> 4
+        Might +3	Agility +2	Reason -4	Intuition +0	Presence -3
+        <b>Handaxe</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5	<b>Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	7 damage
+        %E2%98%85	12%E2%80%9316	10 damage
+        %E2%9C%B8	17+	13 damage
+        <b>Effect</b> An ally within 10 of the monarch can make a free strike.
+
+        <b>Get in Here!</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 20	<b>Target</b> Special
+        <b>Effect</b> Two <b>goblin runners</b> appear in unoccupied spaces.
+
+        <b>Meat Shield</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1	<b>Target</b> One ally
+        <b>Trigger</b> A creature targets the monarch with a strike.
+        <b>Effect</b> The ally becomes the target of the triggering strike instead.
+
+        <b>End Effect</b>
+        At the end of their turn, the monarch can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Crafty</b>
+        The monarch doesn't provoke opportunity attacks by moving.
+
+        <b>What Are You Waiting For?</b> (Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst	<b>Target</b> Each ally
+        <b>Effect</b> Each target can move up to their speed or make a free strike.
+
+        <b>Focus Fire</b> (Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10	<b>Target</b> One enemy or object
+        <b>Effect</b> Each ally within 10 squares of the target can move up to their speed toward the target.
+
+        <b>Kill!</b> (Villain Action 3)
+        <b>Keywords</b> -
+        <b>Distance</b> Special	<b>Target</b> Special
+        <b>Effect</b> Each enemy in the encounter takes 2 damage for each goblin adjacent to them.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+        sourceguid: 9fc703ad-c01f-41fc-a8e0-232a8a5294a8
+        behavior: trigger
+        source: Trait
+        name: End Effect
+        description: At the end of their turn, the monarch can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 532ff28e-d824-49c4-b639-4093510df84c
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "5"
+            purgeType: one
+          trigger: endturn
+          name: End Effect
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: 00ef491b-b682-4150-8d5a-dfda09a69f44
+      source: Trait
+      description: At the end of their turn, the monarch can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: 9fc703ad-c01f-41fc-a8e0-232a8a5294a8
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+        CharacterFeature:1f85f8a1-e840-4fbd-a21f-beb9858a2b77: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:1f85f8a1-e840-4fbd-a21f-beb9858a2b77: true
+        name: Crafty
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        description: The monarch doesn't provoke opportunity attacks by moving.
+        behavior: attribute
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Crafty: you do not provoke opportunity attacks while moving."
+        sourceguid: eae4d953-c53f-41d8-aae3-cc9de122b1f8
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        description: The monarch doesn't provoke opportunity attacks by moving.
+        guid: 04a742ac-8dbe-4916-a2fd-c95b2c3a255b
+        color: green
+      source: Trait
+      description: The monarch doesn't provoke opportunity attacks by moving.
+      guid: 1f85f8a1-e840-4fbd-a21f-beb9858a2b77
+      name: Crafty
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6c1c69f2-6c95-4e02-b102-e4f92f1450b2: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6c1c69f2-6c95-4e02-b102-e4f92f1450b2
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          changeTargetRange: distance
+          behavior: power
+          guid: 78d42ad6-1802-4c26-a442-8cc6f5d7856a
+          keywords: []
+          activationCondition: false
+          changeTargetFilter: Friends(triggerer, target)
+          changeTargetDistance: 1
+          name: Meat Shield
+          rules: ""
+          modtype: none
+          rollType: ability_power_roll
+          changeTarget: true
+        guid: 6a3c35c4-bdbb-40a8-a886-979efe98b587
+        type: trigger
+        domains:
+          CharacterFeature:6c1c69f2-6c95-4e02-b102-e4f92f1450b2: true
+        targetType: self
+        trigger: strike
+        name: Meat Shield
+        rules: Choose an ally to become the target.
+        description: ""
+        range: 10
+        behavior: powertabletrigger
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:6c1c69f2-6c95-4e02-b102-e4f92f1450b2: true
+        sourceguid: 6c1c69f2-6c95-4e02-b102-e4f92f1450b2
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Meat Shield
+        description: ""
+        guid: 9a2a161a-fddd-4258-ba13-17b177059808
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One ally
+          effect: The ally becomes the target of the triggering strike instead.
+          trigger: A creature targets the monarch with a strike.
+          name: Meat Shield
+          guid: 155853cd-f032-490d-9579-cfa87822c94a
+          distance: Melee 1
+          keywords: []
+      name: Meat Shield
+      description: ""
+      guid: 6c1c69f2-6c95-4e02-b102-e4f92f1450b2
+      source: Character Feature
+    role: Leader
+    initiativeGrouping: 0ef48c6b-306d-4ad2-946d-bfb8827d2898
+    equipment: []
+    titles: []
+    keywords:
+      Goblin: true
+      Humanoid: true
+    walkingSpeed: 6
+    skillRatings: []
+    resistances: []
+    animations:
+      anim:
+      - resources:
+          bf939a61-03f1-49fe-b4e5-38f41177c836: 1
+        animType: consumeResource
+      guid: e3260202-d689-4ec4-bd0c-a6d66c821351-657
+    creatureSize: 1S
+    availableTriggers: []
+    monster_type: Goblin Monarch
+    minion: false
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        9c9cffd3-2a6b-4f9c-b34c-2dbbc40e32ba:
+          refreshid: 6b664e6a-dfec-43ff-84b8-a10ef513265a-1
+          note: Get in Here!
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        882942de-fb29-4908-8acd-ed138014a06e:
+          refreshid: 276ba29e-e09d-4d8a-9724-c16047db1bbc
+          note: Get in Here!
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+    bf939a61-03f1-49fe-b4e5-38f41177c836_history:
+      __typeName: StatHistory
+      entries:
+        14640246-4102-4121-815b-ed44ff5f86d4:
+          refreshid: 0b9c5d7b-465f-4767-a18d-eddf4cf48033
+          note: Focus Fire
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+    damage_taken: 0
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage
+        - 13 damage
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 46751e62-c6ba-4fed-b00a-f9927cf154e4
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Select ally to make a free strike
+        autoTarget: false
+        abilityType: standard
+        standardAbility: 7fe11a31-aa56-4479-abe3-06c7b51da51f
+        standardAbilityParams:
+          range: "10"
+          numcreatures: "1"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: true
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: e9b8af60-9ff8-4c24-a369-3c0f6013845a
+      meleeRange: 1
+      numTargets: 2
+      implementation: 4
+      targetType: target
+      name: Handaxe
+      persistence: []
+      description: An ally within 10 of the monarch can make a free strike.
+      abilityType: none
+      iconid: d15fe212-5892-433b-869f-4778a5a9604d
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilitySummonBehavior
+        allCreaturesTheSame: true
+        bestiaryFilter: beast.Name="goblin runner"
+        casterChoosesCreatures: false
+        numSummons: "1"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 20
+      villainAction: Villain Action 2
+      numTargets: 2
+      modifiers: []
+      strain: []
+      guid: 7fc3c066-b0a7-4b82-904c-3e234302df17
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: emptyspace
+      implementation: 3
+      name: Get in Here!
+      persistence: []
+      description: Two goblin runners appear in unoccupied spaces.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 2fc2079b-46dc-46df-b6d7-ba3a50d4e3ce
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        promptText: Move Speed or Make Free Strike
+        autoTarget: false
+        runOnController: true
+        standardAbility: 362a8107-45f8-4698-92fd-194a55ae8d72
+        promptWhenResolving: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 165
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'f04bb57a-3386-421c-b45"
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 9769d545-1986-4e16-97d6-5e089a5d8789
+      categorization: Villain Action
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      targetType: all
+      numTargets: 1
+      effectImplemented: true
+      name: What Are You Waiting For?
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      description: Each target can move up to their speed or make a free strike.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'bf939a61-03f1-49fe-b4e"
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: fbfffc86-ab01-4558-ac24-df805a64b51d
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: cc159a24-10f2-410d-b96e-29e6e4b8b0cf
+          repeatTargets: false
+          targetFilter: enemy
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: d6477838-6287-42a1-bd82-f392ac865e1c
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            namedAbility: Move Speed
+            promptText: Move speed toward the target
+            autoTarget: false
+            filterTarget: Target != Invoker
+            abilityType: named
+            promptWhenResolving: true
+          persistence: []
+          name: Focus Fire
+          targetType: all
+          description: ""
+          range: "10"
+          iconid: ui-icons/skills/1.png
+        promptText: Each ally within 10 squares of the target can move up to their speed toward the target.
+        promptWhenResolving: false
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      numTargets: 1
+      effectImplemented: true
+      name: Focus Fire
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      description: Each ally within 10 squares of the target can move up to their speed toward the target.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      targetFilter: enemy
+      repeatTargets: false
+      keywords: []
+      targetType: map
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 1
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'e3273cf8-648f-49c1-8fe"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: f742e90b-fe14-4972-b2f4-40608b9c35e9
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: 2*Target.Count Nearby Creatures(1,"Goblin")
+        separateRolls: true
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      numTargets: 1
+      effectImplemented: true
+      name: Kill!
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      description: Each enemy in the encounter takes 2 damage for each goblin adjacent to them.
+      abilityType: none
+      implementation: 2
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: c9732ba9-3a74-403a-a03d-9fc113acf020
+      sourceReference:
+        __typeName: SourceReference
+        page: 164
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Meat Shield
+      numTargets: 1
+      description: |
+        The ally is the target of the triggering strike instead.
+      abilityType: none
+      implementation: 0
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 3c1ac12f-a34b-479a-af64-cf4a50e9eaad
+        used: 1
+      f04bb57a-3386-421c-b453-c050cee0b0db:
+        __typeName: CharacterResource
+        refreshid: 0b9c5d7b-465f-4767-a18d-eddf4cf48033
+        used: 1
+      e3273cf8-648f-49c1-8fed-e8bcd93083d5:
+        __typeName: CharacterResource
+        refreshid: none
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: ef4cae9a-274e-4c44-87bb-3f5ba4972327
+        used: 1
+      bf939a61-03f1-49fe-b4e5-38f41177c836:
+        __typeName: CharacterResource
+        refreshid: 0b9c5d7b-465f-4767-a18d-eddf4cf48033
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-14
+        used: 1
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        1bcdd1af-8697-4e8f-85af-7f87d83ee828:
+          refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-12
+          note: "Used triggered ability: Meat Shield"
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        14ad0010-0730-449b-b17f-5168c173a30f:
+          refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-14
+          note: "Used triggered ability: Meat Shield"
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        b981dcaf-51cb-4991-beb5-81f76e892b6c:
+          refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-13
+          note: "Used triggered ability: Meat Shield"
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    preferRanged: true
+    pr: 2
+    movementSpeeds:
+      climb: 6
+    fmr: 1
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket6: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      trinket9: []
+      trinket3: []
+      leveled4: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    innateAttacks: []
+    damage_entry:
+      damage: 5
+      id: fd22df73-d385-463a-a74d-4e6e683268b8
+  tokenType: null
+  bestiaryId: 5d7331fb-2d45-4a80-8eee-57036a625d1a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1715748088616
+description: Goblin Monarch
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590255889
+mtime: 1775201137032
+hidden: false

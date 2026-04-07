@@ -1,0 +1,56 @@
+__typeName: ActivatedAbility
+id: 7bd57fa0-1635-44e4-bf54-af1301ad8822
+behaviors:
+- __typeName: ActivatedAbilityApplyAbilityDurationEffect
+  instant: false
+  momentaryEffect:
+    __typeName: CharacterOngoingEffect
+    modifiers:
+    - __typeName: CharacterModifier
+      operation: set
+      sourceguid: e74c1f88-6430-4e93-a9cd-28c607919709
+      source: Ongoing Effect
+      value: "<<targetid>>"
+      name: Compel Attacks Between
+      guid: 412285f2-5630-4562-9899-15aeb4376480
+      description: ""
+      behavior: attribute
+      attribute: 93833611-6bb5-4a2d-8913-86c6bc9a3bbf
+    source: Ongoing Effect
+    guid: e74c1f88-6430-4e93-a9cd-28c607919709
+    id: e74c1f88-6430-4e93-a9cd-28c607919709
+    name: Compel Attacks Between
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: ""
+    implementation: 3
+    iconid: ui-icons/skills/1.png
+  name: Ability Duration Effect
+  lingerTime: 3
+  applyto: caster
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: da4e22fd-6861-4d19-95f8-395a71493df8
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: Use this to compel attacks to be between the caster and the primary target
+repeatTargets: false
+ctime: 1762306754779
+castImmediately: true
+persistence: []
+description: ""
+name: Compel Attacks Between
+targetType: self
+mtime: 1762306754779
+abilityType: none
+iconid: ui-icons/skills/1.png

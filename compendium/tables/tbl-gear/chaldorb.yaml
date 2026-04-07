@@ -1,0 +1,88 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageTypeMappings: []
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Magic: true
+      Psionic: true
+    activationCondition: true
+    description: 1/2/3
+    matchAnyKeywords: true
+    name: Chaldorb Extra Damage
+    rollType: ability_power_roll
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    behavior: power
+    modtype: none
+  source: Item
+  name: Chaldorb Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: eca88387-2260-410c-979e-3f35ad770aa0
+- __typeName: CharacterFeature
+  guid: 73f9e516-b926-4466-990e-66d36b874c2d
+  description: |
+    f you make a magic strike, the strike must deal cold damage instead of its usual damage.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 73f9e516-b926-4466-990e-66d36b874c2d
+    source: Item
+    modtype: none
+    keywords:
+      Magic: true
+      Strike: true
+    activationCondition: true
+    guid: e2c90b57-d77a-48eb-a1a4-9c256e0b594e
+    rollType: ability_power_roll
+    damageTypeMappings:
+      all: cold
+    description: |
+      f you make a magic strike, the strike must deal cold damage instead of its usual damage.
+    behavior: power
+    name: Chaldorb Cold Damage
+  source: Item
+  name: Chaldorb Cold Damage
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: An ounce of primordial ice, an ounce of mammoth-ivory shards
+keywords:
+  Magic: true
+  Implement: true
+projectSource: Texts or lore in Zaliac
+flavor: A perfectly clear sphere is embossed with fine ivory and crystal that is frigid to the touch.
+level9: The implement’s damage bonus increases to +3, and the whirlwind you create when you use a magic or psionic ability deals 6 cold damage to each enemy within 2 squares of you. Additionally, the whirlwind creates a 2 aura around you that lasts until the start of your next turn. Each enemy who enters the aura for the first time in a combat round or starts their turn there takes 6 cold damage.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The implement’s damage bonus increases to +2. Additionally, whenever you use a magic or psionic ability, a whirlwind of sleet and ice whips around you, dealing 3 cold damage to each adjacent enemy.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 1a6e945f-5301-42dc-8c16-49a7e3e11b4d
+ctime: 1759212015744
+name: Chaldorb
+description: While you wield this implement, your magic or psionic abilities that deal rolled damage gain a +1 damage bonus. Additionally, if you make a magic strike, the strike must deal cold damage instead of its usual damage.
+mtime: 1759400674002
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 914f33e7-f21b-42a2-9ff1-3f9449388782

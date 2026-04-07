@@ -1,0 +1,86 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: Whenever you would die, you can spend a Recovery to regain Stamina instead. If you have no Recoveries to spend, you die.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: subject
+        targeting: self
+        standardAbilityParams:
+          numrecoveries: "1"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 2ba880ed-7a4e-469e-bbe8-98606632f07e
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+      triggerPrompt: You may spend a recovery
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: true
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      whenActive: combat
+      guid: bae55b00-6892-465e-93b6-3f58b338ec8b
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      targetType: self
+      numTargets: "1"
+      trigger: creaturedeath
+      name: Life
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you would die, you can spend a Recovery to regain Stamina instead. If you have no Recoveries to spend, you die.
+    source: Life Imbuement
+    behavior: trigger
+    guid: 7b0424e6-3cb9-485a-baa4-2c8c0a5b8226
+    name: Life
+    sourceguid: 845b4d6b-7e01-44ed-bf79-4f50daddcb11
+  source: Life Imbuement
+  name: Life
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 845b4d6b-7e01-44ed-bf79-4f50daddcb11
+id: 3ebe222a-10fd-45e8-ab34-91e89a383a1b
+imbuePrereq: none
+projectSource: High Kuric
+imbueLevel: 9
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: The tear of a saint
+mtime: 1774275696480
+name: Life
+imbueTargetType: armor
+description: Whenever you would die, you can spend a Recovery to regain Stamina instead. If you have no Recoveries to spend, you die.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

@@ -1,0 +1,203 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: a1b4ee99-d122-49a6-885f-5df48c46c7c3
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: a1b4ee99-d122-49a6-885f-5df48c46c7c3
+    source: Item
+    modtype: none
+    guid: 33c5ac26-8c54-47bf-937b-c2d36ced5cfa
+    keywords:
+      Magic: true
+      Psionic: true
+    activationCondition: true
+    behavior: power
+    description: 1/2/3
+    rollType: ability_power_roll
+    matchAnyKeywords: true
+    addText: Foesense
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    name: Foesense Lenses Damage
+  source: Item
+  name: Foesense Lenses Damage
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  description: Whenever you deal rolled damage to a creature using a magic or psionic ability, you can use that creature's senses until the end of your next turn, allowing you to experience all they observe and to use your abilities as if you were in their space. You also benefit from your own senses at the same time.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 44119493-5afe-4b3d-abd3-6dda7670bee4
+    modifyDescription: ""
+    source: Item
+    filterAbility: Ability.Has Attack and Ability.doesdamage
+    behavior: modifyability
+    keywords:
+      Magic: true
+      Psionic: true
+    attributes: []
+    guid: 1e9e61d2-c3ab-4a16-abae-0c5267c8b47f
+    description: Whenever you deal rolled damage to a creature using a magic or psionic ability, you can use that creature's senses until the end of your next turn, allowing you to experience all they observe and to use your abilities as if you were in their space. You also benefit from your own senses at the same time.
+    name: Foesense Lenses
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 37b4e1eb-397b-4bcb-8687-105c4e712a8e
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: f31ee68a-5373-47f0-9d9d-de11347d292c
+        durationUntilEndOfTurn: true
+        duration: 1
+        ongoingEffectCustom: f31ee68a-5373-47f0-9d9d-de11347d292c
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Item
+  name: Foesense Lenses
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 44119493-5afe-4b3d-abd3-6dda7670bee4
+- __typeName: CharacterFeature
+  guid: a175299c-d386-4839-9b4e-583f61025480
+  description: Whenever you deal 20 or more rolled damage with a magic or psionic ability to a creature whose senses you are using, that creature is weakened until the end of their next turn.
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: Level >=5
+    sourceguid: a175299c-d386-4839-9b4e-583f61025480
+    description: Whenever you deal 20 or more rolled damage with a magic or psionic ability to a creature whose senses you are using, that creature is weakened until the end of their next turn.
+    source: Item
+    name: Foesense Lenses
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      objectTarget: false
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: b9b52786-292c-4dad-9ac0-247bbfa77662
+        duration: end_of_next_turn
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      hasManualVersion: true
+      strain: []
+      guid: e911ca35-6b9e-47ea-a5f9-e2815e01124d
+      conditionFormula: (Target.ConditionCaster("Foesense Lenses") = Caster) and (Damage >= 20) and (Ability.Keywords has "Magic" or Ability.Keywords has "Psionic")
+      numTargets: "1"
+      name: Foesense Lenses
+      trigger: dealdamage
+      targetType: target
+      description: Whenever you deal 20 or more rolled damage with a magic or psionic ability to a creature whose senses you are using, that creature is weakened until the end of their next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: 7ded1deb-93d3-401b-9446-b9bc68717b32
+  source: Item
+  name: Foesense Lenses
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: 6eeef999-f404-4aca-999b-3312d1391064
+  description: Whenever you deal 30 or more rolled damage with a magic or psionic ability to a creature whose senses you are using, that creature is dazed until the end of their next turn.
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: Level >=9
+    sourceguid: a175299c-d386-4839-9b4e-583f61025480
+    description: Whenever you deal 30 or more rolled damage with a magic or psionic ability to a creature whose senses you are using, that creature is dazed until the end of their next turn.
+    source: Item
+    name: Foesense Lenses
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      objectTarget: false
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 65d906ae-c83a-4b57-adaf-17dc3793b9c5
+        duration: end_of_next_turn
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      hasManualVersion: true
+      strain: []
+      guid: e911ca35-6b9e-47ea-a5f9-e2815e01124d
+      conditionFormula: (Target.ConditionCaster("Foesense Lenses") = Caster) and (Damage >= 30) and (Ability.Keywords has "Magic" or Ability.Keywords has "Psionic")
+      numTargets: "1"
+      name: Foesense Lenses
+      trigger: dealdamage
+      targetType: target
+      description: Whenever you deal 30 or more rolled damage with a magic or psionic ability to a creature whose senses you are using, that creature is dazed until the end of their next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: 7ded1deb-93d3-401b-9446-b9bc68717b32
+  source: Item
+  name: Foesense Lenses
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: Two clear lenses carved from volcanic glass
+keywords:
+  Implement: true
+  Psionic: true
+projectSource: Texts or lore in Caelian
+level5: The implement’s damage bonus increases to +2. Additionally, whenever you deal 20 or more rolled damage with a magic or psionic ability to a creature whose senses you are using, that creature is weakened until the end of their next turn.
+level9: |
+  The implement’s damage bonus increases to +3. Additionally, whenever you deal 30 or more rolled damage with a magic or psionic ability to a creature whose senses you are using, that creature is dazed until the end of their next turn.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+projectGoal: "450"
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+implementation: 2
+ctime: 1758398928355
+domains:
+  item:2144c396-60d0-474c-b96a-3d847ad74491: true
+description: |+
+  While you wield this implement, your magic or psionic abilities that deal rolled damage gain a +1 damage bonus. Additionally, whenever you deal rolled damage to a creature using a magic or psionic ability, you can use that creature’s senses until the end of your next turn, allowing you to experience all they observe and to use your abilities as if you were in their space. You also benefit from your own senses at the same time.
+
+flavor: These spectacles feature pink-tinted glass lenses held in a silver frame.
+name: Foesense Lenses
+id: 2144c396-60d0-474c-b96a-3d847ad74491
+mtime: 1763477113174
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 5f00f213-4241-461d-89a8-bc28518df1c6

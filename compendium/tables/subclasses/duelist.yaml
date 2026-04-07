@@ -1,0 +1,1516 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1738540265813
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+      description: "Choose one of your signature abilities and name it after yourself. You always have this ability available, even if it is sourced from a kit you switch out. Whenever you use this ability, you gain an edge and 1 surge that you can use only on this ability.\n\nAdditionally, when your named signature ability is the last ability you use in an encounter, you can immediately use the Hear Ye, Hear Ye! effect of your Zeitgeist feature to tell tales of your exploits after the encounter ends. "
+      modifiers: []
+      name: Masterwork
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      guid: b87bc450-dd9a-43f3-995c-a3af6f996ec0
+      source: Duelist Class Feature
+      canHavePrerequisites: true
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+      guid: 583418b0-da87-4f84-bc45-e5f85b7bce9b
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 276df8ce-f796-498a-b203-c2d3e0d8ef4e
+        source: Duelist Class Feature
+        behavior: proficiency
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        guid: b6b3d96b-4058-4a16-8f45-4f668784e82f
+        equate: false
+        name: Gymnastics Skill
+        proficiency: proficient
+        description: You gain the Gymnastics skill.
+        subtype: skill
+        skills:
+          98af721e-8904-496a-b4df-a581f09f5af7: true
+      name: Gymnastics Skill
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      description: You gain the Gymnastics skill.
+      source: Duelist Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+      guid: efde964c-a476-4331-8bf1-1efaa3134d75
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        sourceguid: d6d74d1c-dd0f-43a5-ae59-840cfd808178
+        description: ""
+        source: Duelist Class Feature
+        name: Star Power
+        behavior: activated
+        guid: 176c0ddf-3e59-4b0f-86b9-d09323fd8067
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.208749651908875
+              s: 0.811913967132568
+              v: 1.0015617609024
+              a: 1
+          flavor: You’re the one they came to see!
+          sourceReference:
+            __typeName: SourceReference
+            page: 205
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          persistence: []
+          modifiers: []
+          guid: 3179f741-346c-4886-853d-67120bb5b063
+          strain: []
+          modeList:
+          - text: Normal
+          - text: Spend 1 Drama
+            rules: You gain 4 speed instead.
+            condition: Resources.Heroic Resource >= 2
+          numTargets: "1"
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          implementation: 3
+          categorization: Heroic Ability
+          name: Star Power
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: targets
+            duration: 0
+            ongoingEffectCustom: false
+            ongoingEffect: 4c781df8-6975-4cdb-839c-7f6547b94264
+            modesSelected:
+            - 1
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 74e5faeb-661d-4138-8582-adef55c4f98b
+            modesSelected:
+            - 2
+            duration: 0
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            mode: expend
+            modesSelected:
+            - 2
+            quantity: "1"
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 22cbcd26-16eb-4ad7-ad5e-17e9d903041b
+            duration: 0
+            ongoingEffectCustom: 22cbcd26-16eb-4ad7-ad5e-17e9d903041b
+          description: |
+            You gain a +2 bonus to speed until the end of your turn. Additionally, the next power roll you make this turn can’t have a result lower than tier 2.
+            **Spend 1 Drama:** You gain a +4 bonus to speed instead.
+          abilityType: none
+          iconid: ec739c66-81be-4d4c-9c6b-b320924b3d2d
+      name: Star Power
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      description: ""
+      source: Duelist Class Feature
+      implementation: 3
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: Duelist Features
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        guid: 08dce06b-b089-4330-9bed-078338ceba75
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          sourceguid: ba87ff99-f95a-422d-a096-b7b05d81d828
+          description: Once on each of your turns while the target of your Foil feature is adjacent to you, you can use a free maneuver to exchange words with them. Make an opposed Presence test with the target. Whoever gets the higher result can make a free strike, which deals psychic damage instead of its usual damage.
+          source: Duelist Class Feature
+          name: Verbal Duel
+          behavior: activated
+          guid: 62a25043-22d3-4ca1-ab3a-8a1f09418e5b
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: false
+            targetFilter: Ongoing Effects has "Foil"
+            repeatTargets: false
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            categorization: Ability
+            range: 1
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 898451a7-47af-4937-b6f9-2e6d6c89d30f
+            sourceReference:
+              __typeName: SourceReference
+              page: 211
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+            behaviors:
+            - __typeName: ActivatedAbilityOpposedRollBehavior
+              attackAttributes:
+                "1":
+                  attribute: prs
+                attribute: mgt
+              defenseAttributes:
+                "1":
+                  attribute: prs
+                attribute: mgt
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              applyto: caster_and_targets
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 8ba8ae92-d247-4913-a783-8a0bc12350f3
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: 8ba8ae92-d247-4913-a783-8a0bc12350f3
+                  source: Ongoing Effect
+                  modtype: none
+                  keywords: []
+                  activationCondition: true
+                  guid: 97bf7714-b625-4835-a25d-1f6c60dd290b
+                  rollType: ability_power_roll
+                  damageTypeMappings:
+                    all: psychic
+                  description: ""
+                  behavior: power
+                  name: Free Strike Deals Psychic Damage
+                source: Ongoing Effect
+                name: Free Strike Deals Psychic Damage
+                description: ""
+                id: 8ba8ae92-d247-4913-a783-8a0bc12350f3
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: winner_opposed
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: b280e7d8-d2a1-4e8c-8182-4d864eeab23c
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Make a Free Strike
+              filterTarget: ""
+              standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+              abilityType: standard
+            actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+            name: Verbal Duel
+            numTargets: "1"
+            description: Once on each of your turns while the target of your Foil feature is adjacent to you, you can use a free maneuver to exchange words with them. Make an opposed Presence test with the target. Whoever gets the higher result can make a free strike, which deals psychic damage instead of its usual damage.
+            abilityType: none
+            implementation: 3
+        name: Verbal Duel
+        classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+        description: Once on each of your turns while the target of your Foil feature is adjacent to you, you can use a free maneuver to exchange words with them. Make an opposed Presence test with the target. Whoever gets the higher result can make a free strike, which deals psychic damage instead of its usual damage.
+        source: Duelist Class Feature
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        guid: dcf8e096-6d5b-4598-99d6-6150e65b0c99
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          sourceguid: dcf8e096-6d5b-4598-99d6-6150e65b0c99
+          behavior: routine
+          source: Duelist Class Feature
+          name: We Can’t Be Upstaged!
+          description: ""
+          guid: 05d17908-1a5c-43d7-be44-730172fc480e
+          ability:
+            __typeName: RoutineDisplay
+            target: Self and each ally in the area
+            effect: While this performance is active, a target who starts their turn in the area gains a bonus to the distance they can shift equal to your Presence score until the end of their turn.
+            type: No action
+            name: We Can’t Be Upstaged!
+            flavor: Swordplay so graceful it looks like you all practiced this.
+            guid: 678c8b91-7980-445a-b8c3-e2630d24de7f
+            distance: 5 aura
+            keywords: []
+        - __typeName: CharacterModifier
+          sourceguid: dcf8e096-6d5b-4598-99d6-6150e65b0c99
+          source: Duelist Class Feature
+          seq: 11c779a7-c1e7-4bd6-941e-2725e5ba185a
+          aura:
+            __typeName: Aura
+            modifiers:
+            - __typeName: CharacterModifier
+              triggeredAbility:
+                __typeName: TriggeredAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 2fc81e5b-e39f-4102-99fb-a6d06cacf36a
+                repeatTargets: false
+                abilityType: none
+                trigger: beginturn
+                targetType: self
+                numTargets: "1"
+                name: We Can’t Be Upstaged!
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 3d5206af-cc14-4848-bddd-416cc70db44c
+                  stacks: "1"
+                  duration: 0
+                  ongoingEffectCustom: 3d5206af-cc14-4848-bddd-416cc70db44c
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              description: While this performance is active, a target who starts their turn in the area gains a bonus to the distance they can shift equal to your Presence score until the end of their turn
+              source: Aura
+              behavior: trigger
+              guid: 863e560c-22fd-4291-9db4-4bfc6303d014
+              name: We Can’t Be Upstaged!
+              sourceguid: f016439b-92b2-4932-9fcb-d644b5da02f0
+            name: We Can’t Be Upstaged!
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            guid: f016439b-92b2-4932-9fcb-d644b5da02f0
+            description: While this performance is active, a target who starts their turn in the area gains a bonus to the distance they can shift equal to your Presence score until the end of their turn
+            objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          radius: "5"
+          guid: 0578b505-3abb-4472-ba0d-559b785fd317
+          description: ""
+          behavior: aura
+          name: We Can’t Be Upstaged!
+        name: We Can’t Be Upstaged!
+        classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+        description: ""
+        source: Duelist Class Feature
+        implementation: 2
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      guid: b87ba4d6-500c-4077-8317-3307bd92a724
+      source: Duelist Class Feature
+      description: Choose one of the following features.
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 6th-level Duelist Ability
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        guid: dca0b5a8-52ad-4d77-8f88-ef4734eca1db
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          sourceguid: dca0b5a8-52ad-4d77-8f88-ef4734eca1db
+          description: ""
+          source: Duelist Class Feature
+          name: Blood on the Stage
+          behavior: activated
+          guid: c8fcdd15-36ea-4744-ac80-ec3f8e03bd1a
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: true
+            targetTextOverride: ""
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 12 + A damage; M < Weak, bleeding (save ends)
+              - 18 + A damage; M < Average, bleeding (save ends)
+              - 24 + A damage; bleeding (eot), or if M < Strong, bleeding (save ends)
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+              filterTarget: not Cast.PassesPotency(target, "M", "Strong")
+              rule: bleeding (save ends)
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: It’s love and blood or drama and blood. Either way, there’s always blood.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 212
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain: []
+            guid: 36d54fe6-c043-4ecb-a5e0-a2d36144c141
+            rangeTextOverride: ""
+            numTargets: "1"
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+            targetType: target
+            implementation: 3
+            name: Blood on the Stage
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Blood on the Stage
+        classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+        description: ""
+        source: Duelist Class Feature
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        guid: df2f6971-3485-4c9e-8996-37ad492ee79a
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          sourceguid: 1220e075-50f9-45a1-9171-28f8b6c0b2fb
+          description: You and the target each make a melee free strike that targets each enemy within 3 squares of either of you, dividing the enemies between each of you. You choose which enemies your free strike targets and which enemies the target creature’s free strike targets. You then slide the target 5 squares, ignoring stability.
+          source: Duelist Class Feature
+          name: Fight Choreography
+          behavior: activated
+          guid: 902cab81-bef2-4665-a454-0d01b331be57
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            abilityType: none
+            targetTextOverride: ""
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            implementationDetails: The player must manually select the targets of their free strikes, they are not split evenly.
+            targetType: target
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You and your partner make a flashy show of derring-do, then get back to your corners.
+            categorization: Heroic Ability
+            range: 1
+            numTargets: "1"
+            rangeTextOverride: ""
+            persistence: []
+            modifiers: []
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            strain:
+              enabled: false
+            modeList: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 212
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Fight Choreography
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+            behaviors:
+            - __typeName: ActivatedAbilityAddNewTargetsBehavior
+              applyto: targets
+              targetMode: add
+              targetingAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: enemy
+                targetType: all
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "3"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 21262b14-5eac-4374-9e26-77aeb7cb5e99
+                behaviors: []
+                name: Choose Additional Targets
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Add Targets within Burst 3
+            - __typeName: ActivatedAbilityAddNewTargetsBehavior
+              applyto: caster
+              promptText: Add Targets within Burst 3
+              targetMode: add
+              guid: 526e16c8-ec3a-4552-a748-01395feefc27
+              targetingAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: enemy
+                targetType: all
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "3"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 21262b14-5eac-4374-9e26-77aeb7cb5e99
+                behaviors: []
+                name: Choose Additional Targets
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster_and_targets
+              targeting: prompt_inherit
+              promptText: Select Targets for your Free Strikes
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: enemy
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "3"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: ff2f650e-6b39-49fe-bf02-d004c2bb2b75
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  applyto: caster
+                  targeting: inherit
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 7f45b1f4-8a0f-4d68-a133-7e7f9c8ed64a
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  abilityType: standard
+                  standardAbility: 9b123334-6d7c-4848-8b17-db3255c4012c
+                name: Invoked Ability
+                numTargets: Count Nearby Enemies(3)
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: Friends(Caster, Target)
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 026bdeab-4a88-40d5-9e82-e413f0f8d6b0
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Push Ally
+              filterTarget: Friends(Caster, Target)
+              standardAbilityParams:
+                distance: "5"
+                type: push
+              abilityType: standard
+              standardAbility: 14ad6263-3dce-414d-80af-bad3efd9ba93
+            implementation: 3
+            selfTarget: false
+            guid: 5d798234-f13e-456d-acf4-3e4dedcfa9f2
+            description: You and the target each make a melee free strike that targets each enemy within 3 squares of either of you, dividing the enemies between each of you. You choose which enemies your free strike targets and which enemies the target creature’s free strike targets. You then slide the target 5 squares, ignoring stability.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Fight Choreography
+        classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+        description: You and the target each make a melee free strike that targets each enemy within 3 squares of either of you, dividing the enemies between each of you. You choose which enemies your free strike targets and which enemies the target creature’s free strike targets. You then slide the target 5 squares, ignoring stability.
+        source: Duelist Class Feature
+        implementation: 3
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      guid: 0da980f1-1769-4090-af13-134f49df0c2c
+      source: Duelist Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        guid: e0720277-382a-43e4-ab54-8bda08da69ca
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          sourceguid: cbd62372-83ec-450d-a6d0-d2711a2a72dc
+          description: ""
+          source: Duelist Class Feature
+          name: Classic Chandelier Stunt
+          behavior: activated
+          guid: c942d257-b911-46db-9732-4337be1c0eff
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: false
+            targetTextOverride: Self and one willing ally
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetAllegiance: ally
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            categorization: Heroic Ability
+            range: 1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            strain: []
+            guid: 4de0a388-66fb-475d-8443-be93e7b9a91d
+            abilityType: none
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+            numTargets: "1"
+            persistence: []
+            name: Classic Chandelier Stunt
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              applyto: caster_and_targets
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                modifiers:
+                - __typeName: CharacterModifier
+                  guid: c313be0b-bb31-496b-b41f-2b443d2fbb1a
+                  sourceguid: 5b9b28aa-843b-45a8-a079-87dc59814f7d
+                  value: 1
+                  source: Ongoing Effect
+                  name: Classic Chandelier Stunt
+                  behavior: attribute
+                  description: Each target can shift up to 5 squares, including vertically, but must end this movement adjacent to the other target and on solid ground. Each target can then make a melee free strike that deals extra damage equal to twice their highest characteristic score.
+                  attribute: 6a081cac-d26a-4e1e-a26b-2ace8c92fb58
+                - __typeName: CharacterModifier
+                  guid: 5fed7c2b-06a7-48a1-9cdf-183cd9c01168
+                  sourceguid: 5b9b28aa-843b-45a8-a079-87dc59814f7d
+                  value: 1
+                  source: Ongoing Effect
+                  name: Classic Chandelier Stunt
+                  behavior: attribute
+                  description: Each target can shift up to 5 squares, including vertically, but must end this movement adjacent to the other target and on solid ground. Each target can then make a melee free strike that deals extra damage equal to twice their highest characteristic score.
+                  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+                - __typeName: CharacterModifier
+                  operation: set
+                  sourceguid: 5b9b28aa-843b-45a8-a079-87dc59814f7d
+                  source: Ongoing Effect
+                  value: Walking Speed
+                  name: Classic Chandelier Stunt
+                  guid: 79dbbb18-acdf-4f81-bfb4-30c52ed2d370
+                  description: Each target can shift up to 5 squares, including vertically, but must end this movement adjacent to the other target and on solid ground. Each target can then make a melee free strike that deals extra damage equal to twice their highest characteristic score.
+                  behavior: attribute
+                  attribute: climb
+                - __typeName: CharacterModifier
+                  sourceguid: 5b9b28aa-843b-45a8-a079-87dc59814f7d
+                  displayCondition: ability.keywords has "Strike"
+                  source: Ongoing Effect
+                  guid: 94bcb859-e9d7-4d1f-82fe-90547378990d
+                  keywords: []
+                  activationCondition: ability.Free Strike
+                  behavior: power
+                  name: Classic Chandelier Stunt
+                  description: Each target can shift up to 5 squares, including vertically, but must end this movement adjacent to the other target and on solid ground. Each target can then make a melee free strike that deals extra damage equal to twice their highest characteristic score.
+                  damageModifier: 2*Highest Characteristic
+                  rollType: ability_power_roll
+                  modtype: none
+                source: Ongoing Effect
+                guid: 5b9b28aa-843b-45a8-a079-87dc59814f7d
+                id: 5b9b28aa-843b-45a8-a079-87dc59814f7d
+                name: Classic Chandelier Stunt
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                description: Each target can shift up to 5 squares, including vertically, but must end this movement adjacent to the other target and on solid ground. Each target can then make a melee free strike that deals extra damage equal to twice their highest characteristic score.
+                implementation: 3
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster_and_targets
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 7ad0d3f4-c9cb-4ad6-b3dd-7602875dbe09
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: "Chandelier Stunt: Move up to five spaces, including vertically. End on solid ground next to your partner."
+              standardAbilityParams:
+                distance: "5"
+              abilityType: standard
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              runOnController: true
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster_and_targets
+              runOnController: true
+              promptText: "Chandelier Stunt: Make a melee free strike"
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: f296906d-33f9-4955-867e-c588f3be8533
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              standardAbility: 9b123334-6d7c-4848-8b17-db3255c4012c
+              namedAbility: Melee Free Strike
+            description: Each target can shift up to 5 squares, including vertically, but must end this movement adjacent to the other target and on solid ground. Each target can then make a melee free strike that deals extra damage equal to twice their highest characteristic score.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Classic Chandelier Stunt
+        classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+        description: ""
+        source: Duelist Class Feature
+        implementation: 3
+      - __typeName: CharacterFeature
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        guid: 8e46bada-348a-4447-b8b7-f2da354a7d46
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          sourceguid: 0957bb0b-79d5-4515-83dd-d0a2bb85efaf
+          description: ""
+          source: Duelist Class Feature
+          name: En Garde!
+          behavior: activated
+          guid: 073ea857-f122-492a-ae18-d6597fd36977
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Wait, it’s … Guard! Turn! Parry! Dodge! Spin! Thrust! Ha!
+            sourceReference:
+              __typeName: SourceReference
+              page: 223
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 498921ec-7e53-4a5d-83e8-4895b5a423e7
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 7 + A damage
+              - 11 + A damage
+              - 16 + A damage
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: targets
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: eba2f384-6f46-4f45-83f0-d1f643b82ad2
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                targetid: "<<self.id>>"
+              promptText: |-
+                En Garde! You may make a melee free strike against the Troubadour.
+                If you do they may make a free strike against you.
+              autoTarget: false
+              abilityType: standard
+              standardAbility: 1de59429-fcf1-4404-9d8e-671cb76dadc3
+              runOnController: true
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            implementation: 3
+            name: En Garde!
+            categorization: Heroic Ability
+            description: The target can make a melee free strike against you. If they do, you can make a melee free strike against the target.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: En Garde!
+        classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+        description: ""
+        source: Duelist Class Feature
+        implementation: 3
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      guid: 24a984ea-627a-44b1-b57f-f4d2af34c303
+      description: Choose one of the following abilities.
+      name: 2nd-level Duelist Ability
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+      guid: ba87fb10-5ece-4e5e-836c-6890ca27d668
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        sourceguid: c5426fd5-93e2-405d-8e9e-883f3aa5cc92
+        behavior: triggerdisplay
+        source: Duelist Class Feature
+        name: Riposte
+        description: ""
+        guid: b39d6f64-62ad-427f-810a-68aa91139866
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self or one ally
+          effect: The target makes a free strike against the triggering striker.
+          name: Riposte
+          trigger: The target takes damage from a melee strike.
+          flavor: “I’d have brought treats had I known I’d be fighting a dog.”
+          guid: 8e01e363-193e-4b03-9343-a7778addf9fb
+          distance: Melee 1
+          keywords: []
+      - __typeName: CharacterModifier
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        sourceguid: c5426fd5-93e2-405d-8e9e-883f3aa5cc92
+        description: ""
+        source: Duelist Class Feature
+        name: Riposte
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: The target makes a free strike against the triggering striker.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          conditionFormula: HasAbility and (Ability.keywords has "melee") and (Ability.Keywords has "Strike")
+          abilityType: none
+          persistence: []
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          guid: 5544865b-ee44-4cc6-b3e4-9909cd28f114
+          trigger: losehitpoints
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          hasManualVersion: false
+          numTargets: "1"
+          name: Riposte
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbilityParams:
+              targetid: "<<Attacker.id>>"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 9fe46968-9737-442a-898a-de6b508a8ed8
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+            abilityType: standard
+          description: ""
+          subject: selfandallies
+          iconid: ui-icons/skills/1.png
+        guid: 302fc7f1-7c9f-489c-ac4e-0b2c56aedcca
+      name: Riposte
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      description: ""
+      source: Duelist Class Feature
+      implementation: 3
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+      guid: ff514279-5983-44b6-b66b-b2a13d3b07a7
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        sourceguid: 8dfbc950-bc8f-4903-954b-b38dcd9bfe46
+        behavior: routine
+        source: Duelist Class Feature
+        name: Acrobatics
+        description: ""
+        guid: 1dfb560d-0ff2-4bdb-96ef-873a637f19e4
+        ability:
+          __typeName: RoutineDisplay
+          target: Self and each ally in the area
+          effect: While this routine is active, any target who starts their turn in the aura can automatically obtain a tier 3 result on one test made to jump, tumble, or climb as part of their movement before the end of their turn
+          type: No action
+          name: Acrobatics
+          flavor: Folks love a good tumble.
+          guid: d4474c8a-5170-49a3-84d5-dc0200b711d7
+          distance: 5 aura
+          keywords:
+            Area: true
+            Magic: true
+            Performance: true
+      - __typeName: CharacterModifier
+        sourceguid: 8dfbc950-bc8f-4903-954b-b38dcd9bfe46
+        source: Duelist Class Feature
+        seq: b562af9b-d30b-4929-bf1c-c2dc53e50239
+        aura:
+          __typeName: Aura
+          modifiers:
+          - __typeName: CharacterModifier
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 8c6531cf-3de1-4ac0-b5d2-0410c83d3db1
+              repeatTargets: false
+              abilityType: none
+              trigger: beginturn
+              targetType: self
+              numTargets: "1"
+              name: Acrobatics
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: 48d96177-e213-42c4-a7b3-b8a1d5c93ab8
+                duration: 0
+                ongoingEffectCustom: 48d96177-e213-42c4-a7b3-b8a1d5c93ab8
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            description: Any target who starts their turn in the aura can automatically obtain a tier 3 result on one test made to jump, tumble, or climb as part of their movement before the end of their turn
+            source: Acrobatics
+            behavior: trigger
+            guid: 6286b45e-d034-4af4-937b-8f20c5e907a3
+            name: Acrobatics
+            sourceguid: b4749b1b-c9a7-45e6-9715-4461ae5d96bc
+          source: Acrobatics
+          guid: b4749b1b-c9a7-45e6-9715-4461ae5d96bc
+          objectid: e639d97a-a196-4ea3-a9d8-47663c4d276f
+          applyto: selfandfriends
+          name: Acrobatics
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.851500034332275
+              s: 1.00208103656769
+              v: 1.00238585472107
+              a: 1
+          description: Any target who starts their turn in the aura can automatically obtain a tier 3 result on one test made to jump, tumble, or climb as part of their movement before the end of their turn
+          implementation: 3
+          iconid: 68a50a43-9131-4592-b267-4cf53d26eb40
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        radius: "5"
+        guid: accd1f57-fc97-4e18-ae46-7a6d38f60c49
+        description: ""
+        behavior: aura
+        name: Acrobatics
+      name: Acrobatics
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      description: ""
+      source: Duelist Class Feature
+      implementation: 3
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          sourceguid: 2c4f299f-c632-4ab2-be68-7bb696b0e9f0
+          description: If you can land the strike, the crowd goes wild.
+          source: Duelist Class Feature
+          name: Expert Fencer
+          behavior: activated
+          guid: ceda02e5-45a1-4104-9fee-5d8dd4f86ac7
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: true
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Charge: true
+              Melee: true
+              Weapon: true
+            implementationDetails: ""
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 15 + A damage
+              - 21 + A damage
+              - 28 + A damage; M < Strong, bleeding (save ends)
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: 1242f620-7482-4b57-82da-931b55a30e74
+              modifier:
+                __typeName: CharacterModifier
+                sourceguid: 1242f620-7482-4b57-82da-931b55a30e74
+                displayCondition: Distance(target) < (3 + Kit.Distance)
+                modtype: nottierthree
+                keywords: []
+                activationCondition: Distance(target) < (3 + Kit.Distance)
+                guid: 3a307491-e646-4752-9a0e-126a3875a396
+                name: Expert Fencer
+                domains: []
+                description: This ability can’t obtain better than a tier 2 outcome unless the target is at maximum distance.
+                behavior: power
+                rollType: ability_power_roll
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: ba6f5ea4-50d1-4ad2-8ba5-a6b143fa3299
+              modifier:
+                __typeName: CharacterModifier
+                displayAfterRoll: Cast.Natural Roll >= 17 and Cast.Tier = 3
+                activationCondition: false
+                domains: []
+                guid: 63b1c437-5702-4269-9c3c-d8b715bcc022
+                surgesCanBeKept: true
+                keywords: []
+                surges: "3"
+                behavior: power
+                activationAfterRoll: Cast.Natural Roll >= 17 and Cast.Tier = 3
+                name: Expert Fencer - Tier 3 Outcome
+                sourceguid: ba6f5ea4-50d1-4ad2-8ba5-a6b143fa3299
+                description: If you obtain a tier 3 outcome with a natural 17 or higher, you gain 3 surges that you can use immediately.
+                modtype: none
+                rollType: ability_power_roll
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: If you can land the strike, the crowd goes wild.
+            categorization: Heroic Ability
+            range: "3"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 4df86a8d-f9b3-441e-9e21-ee852ed2d44d
+            numTargets: "1"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+            targetType: target
+            sourceReference:
+              __typeName: SourceReference
+              page: 214
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Expert Fencer
+            implementation: 4
+            description: This ability can’t obtain better than a tier 2 outcome unless the target is at maximum distance. If you obtain a tier 3 outcome with a natural 17 or higher, you gain 3 surges that you can use immediately.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 64c8fbe4-c9d7-49e7-b223-bcb6cc3688ad
+        source: Duelist Class Feature
+        guid: 2c4f299f-c632-4ab2-be68-7bb696b0e9f0
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        canHavePrerequisites: true
+        classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+        description: If you can land the strike, the crowd goes wild.
+        name: Expert Fencer
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          sourceguid: 40cfa1e7-42c0-41e4-8c65-0ba846781359
+          description: No, no. You don’t die until the sequel.
+          source: Duelist Class Feature
+          name: Renegotiated Contract
+          behavior: activated
+          guid: 98baa985-0f87-45d9-a1fc-11cb759aa700
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            implementationDetails: "On a Tier 3, all effects on the caster that are Save Ends or EoT will be selected, deselect any that you don't want to apply to the target. If you have deselected some effects, there will be another purge effects dialog to purge any remaining effects of the caster. "
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: No, no. You don’t die until the sequel.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            numTargets: "1"
+            strain: []
+            guid: 9237dbe1-1cad-4030-a136-ea570038bfc3
+            preDescription: Add your current Stamina to your target’s current Stamina, then you have half that total Stamina and the target has the remainder. If either of you would gain more Stamina this way than their Stamina maximum, the difference in Stamina between what that creature would gain and their maximum is gained by the other creature. Neither of you can gain more Stamina than your maximum this way. You then make a power roll.
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            domains:
+              class:97bd30e0-b670-41c7-9136-6a832625f049: true
+              class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - You and the target can each end one effect on yourselves that is ended by a saving throw or that ends at the end of your turns.
+              - You and the target can end any effects on yourselves that are ended by a saving throw or that end at the end of your turns.
+              - 'You can choose any of the current effects on you and the target that are ended by a saving throw or that end at the end of your turns, apply the chosen effects '
+              roll: 2d10 + Presence
+            - __typeName: ActivatedAbilityRememberBehavior
+              calculation: Stamina+Caster.Stamina
+              memoryName: totalStamina
+            - __typeName: ActivatedAbilitySetStaminaBehavior
+              applyto: caster
+              guid: 740ca8c8-a3d9-4599-8d8e-7fb63f3947f5
+              roll: Cast.Memory("totalStamina")/2 +max( ceiling(Cast.Memory("totalStamina")*0.5) - cast.PrimaryTarget.MaximumStamina, 0)
+            - __typeName: ActivatedAbilitySetStaminaBehavior
+              roll: |-
+                ceiling(Cast.Memory("totalStamina")*0.5) +
+
+                {If the caster has 'overflowed' their stamina max, we get any extra as well.}
+                max(Cast.Memory("totalStamina")/2 - caster.MaximumStamina, 0)
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              applyto: caster
+              targetDuration: save|eot
+              purgeType: chosen
+              conditions: []
+              tiersSelected:
+              - 1
+              useStacks: false
+              chatMessage: Renegotiated Contract
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              tiersSelected:
+              - 1
+              targetDuration: save|eot
+              conditions: []
+              purgeType: chosen
+              chatMessage: Renegotiated Contract
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              applyto: caster
+              targetDuration: save|eot
+              conditions: []
+              tiersSelected:
+              - 2
+              purgeType: chosen
+              chatMessage: Renegotiated Contract
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              tiersSelected:
+              - 2
+              targetDuration: save|eot
+              conditions: []
+              purgeType: chosen
+              chatMessage: Renegotiated Contract
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              mode: conditions_and_effects
+              targetDuration: save|eot
+              includeOngoingEffects: true
+              reminderText: Selected effects will end for you and be given to the target
+              applyto: caster
+              conditions: []
+              chatMessage: Renegotiated Contract
+              purgeType: chosen
+              tiersSelected:
+              - 3
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 3
+              filterTarget: ""
+              inheritDuration: true
+              ongoingEffectSource: formula
+              ongoingEffectFormula: Cast.OngoingEffectsPurgedChosen
+            - __typeName: ActivatedAbilityPurgeEffectsBehavior
+              applyto: caster
+              mode: conditions_and_effects
+              targetDuration: save|eot
+              tiersSelected:
+              - 3
+              conditions: []
+              reminderText: You can remove any remaining effects
+              purgeType: chosen
+              chatMessage: Renegotiated Contract
+            sourceReference:
+              __typeName: SourceReference
+              page: 214
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Renegotiated Contract
+            implementation: 4
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Duelist Class Feature
+        guid: 40cfa1e7-42c0-41e4-8c65-0ba846781359
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        canHavePrerequisites: true
+        classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+        description: No, no. You don’t die until the sequel.
+        name: Renegotiated Contract
+        implementation: 4
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      guid: d72ff6d8-f239-48a8-9e07-20386907335d
+      description: Choose one of the following abilities.
+      name: 9th-level Duelist Ability
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:97bd30e0-b670-41c7-9136-6a832625f049: true
+        class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+      guid: ae9317c2-33b8-4e2f-bfe4-dff05937a99e
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:97bd30e0-b670-41c7-9136-6a832625f049: true
+          class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+        sourceguid: 075f3765-2bed-40c7-94f6-b48fdbef49b6
+        description: At the start of an encounter, choose one creature within your line of effect. You have a double edge on power rolls made against or in competition with that creature. The chosen creature also has a double edge on power rolls made against or in competition with you. If the chosen creature is reduced to 0 Stamina, you can choose a new foil at the start of the next combat round.
+        source: Duelist Class Feature
+        name: Foil
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Select a Foil
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: a37efb53-1d88-490e-910c-78f5a28967a1
+          conditionFormula: CombatRound = 1 or (Self has "Reapply Foil")
+          trigger: beginround
+          castImmediately: true
+          persistence: []
+          domains:
+            class:97bd30e0-b670-41c7-9136-6a832625f049: true
+            class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+          name: Foil
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            autoTarget: false
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              persistence: []
+              objectTarget: false
+              abilityType: none
+              strain: []
+              guid: 5a313a84-b5a8-4da5-a4ae-9bbb7fccea61
+              repeatTargets: false
+              modifiers: []
+              numTargets: "1"
+              targetType: target
+              categorization: Hidden
+              name: Foil
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67
+                ongoingEffectCustom: a871bfc8-a4c1-4118-8d0e-1d5ff3b16d67
+              - __typeName: ActivatedAbilityPurgeEffectsBehavior
+                ongoingEffect: f4049f01-3ed4-43ec-a419-fe9c8c14ee91
+                mode: effect
+                conditions: []
+                applyto: caster
+              description: ""
+              range: "100"
+              iconid: ui-icons/skills/1.png
+            invokeOnCaster: true
+            promptText: "Foil: You will have a double edge against your foil and they will have a double edge against you."
+          description: At the start of an encounter, choose one creature within your line of effect. You have a double edge on power rolls made against or in competition with that creature. The chosen creature also has a double edge on power rolls made against or in competition with you. If the chosen creature is reduced to 0 Stamina, you can choose a new foil at the start of the next combat round.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: b013519c-add3-48fd-978a-8d9ba8543dd1
+      name: Foil
+      classid: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+      description: At the start of an encounter, choose one creature within your line of effect. You have a double edge on power rolls made against or in competition with that creature. The chosen creature also has a double edge on power rolls made against or in competition with you. If the chosen creature is reduced to 0 Stamina, you can choose a new foil at the start of the next combat round.
+      source: Duelist Class Feature
+      implementation: 2
+    domains:
+      class:97bd30e0-b670-41c7-9136-6a832625f049: true
+      class:fbdf6bd8-61b6-4321-8923-ea4205bf5959: true
+details: Drama embraces your every movement done in tandem with another. You perform dances of death, putting trust in your opponent to return your passion in kind. You gain the Gymnastics skill.
+name: Duelist
+mtime: 1773748391968
+id: fbdf6bd8-61b6-4321-8923-ea4205bf5959
+primaryClassId: 97bd30e0-b670-41c7-9136-6a832625f049

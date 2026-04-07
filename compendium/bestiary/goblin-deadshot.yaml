@@ -1,0 +1,152 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f2c60b8c-fcc4-4350-b56d-0b3ffbad141a
+    offtokenPortraitId: null
+    portraitFrameId: b832b240-238a-4c69-9844-f338164f8252
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.170587
+    portraitOffset:
+      x: 0.004017705
+      y: -0.01953125
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    groupid: 706bb3f2-091d-47f7-bdcb-476502bc66bd
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:80f26963-e9a3-4ec3-80ca-79e30abf9115: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 80f26963-e9a3-4ec3-80ca-79e30abf9115
+        source: Character Feature
+        guid: 367d561e-2ad2-4048-a988-e846f6063b76
+        keywords:
+          Ranged: true
+          Attack: true
+        activationCondition: false
+        domains:
+          CharacterFeature:80f26963-e9a3-4ec3-80ca-79e30abf9115: true
+        rollType: ability_power_roll
+        name: Sniper
+        modtype: none
+        description: +2 damage when no adjacent allies.
+        damageModifier: "2"
+        behavior: power
+      source: Character Feature
+      description: +2 damage when no adjacent allies.
+      guid: 80f26963-e9a3-4ec3-80ca-79e30abf9115
+      name: Sniper
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c1d85303-136d-496e-a504-340de72a68d8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c1d85303-136d-496e-a504-340de72a68d8
+        source: Character Feature
+        guid: bf6af9fd-64d9-442c-a96b-fabb09544971
+        keywords:
+          Ranged: true
+          Attack: true
+        activationCondition: false
+        domains:
+          CharacterFeature:c1d85303-136d-496e-a504-340de72a68d8: true
+        rollType: ability_power_roll
+        name: Aim
+        modtype: none
+        description: The goblin can use a maneuver to aim and any ranged attack they make this turn deals an extra 2 damage.
+        damageModifier: "2"
+        behavior: power
+      source: Character Feature
+      description: The goblin can use a maneuver to aim and any ranged attack they make this turn deals an extra 2 damage.
+      guid: c1d85303-136d-496e-a504-340de72a68d8
+      name: Aim
+      implementation: 2
+    role: Sniper
+    inflictedConditions: []
+    ev: 5
+    max_hitpoints_roll: "7"
+    innateAttacks: []
+    skillRatings: []
+    attackNames:
+    - Light Melee
+    - Heavy Ranged
+    monster_type: Goblin Deadshot
+    max_hitpoints: 7
+    levelChoices: []
+    monster_category: Monster
+    walkingSpeed: 30
+    pr: 2
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    traitNames:
+    - Sniper
+    - Aim
+    - Ranged OA
+    equipment: []
+    movementSpeeds:
+      climb: 30
+    fmr: 0
+    opportunityAttack: 3
+    damage_taken: 0
+    savingThrowRatings: []
+  tokenType: null
+  bestiaryId: 8f404e89-45a2-46bc-9e90-4ddad7ef66f9
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1715748088616
+description: Goblin Deadshot
+parentFolder: 79a93387-4cb0-465f-9085-31c8eec6e3f7
+artist: null
+ord: 4
+ctime: 1741590281149
+mtime: 1775201137032
+hidden: false

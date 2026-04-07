@@ -1,0 +1,46 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: d6e7f8a9-b0c1-2345-defa-456789012def
+  description: Whenever you deal rolled damage to a creature using this weapon, you can push that creature up to 3 squares after the other effects of the ability resolve. If you obtained a tier 3 outcome, the creature is also knocked prone after being pushed. This replaces the benefit of Thundering I.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: d6e7f8a9-b0c1-2345-defa-456789012def
+    displayCondition: ability.doesdamage
+    source: Item
+    modtype: none
+    keywords:
+      Weapon: true
+    activationCondition: ability.doesdamage
+    guid: c5d6e7f8-a9b0-1234-cdef-345678901cde
+    name: Thundering II
+    description: Whenever you deal rolled damage to a creature using this weapon, you can push that creature up to 3 squares after the other effects of the ability resolve. If you obtained a tier 3 outcome, the creature is also knocked prone after being pushed. This replaces the benefit of Thundering I.
+    addText: push 3 // push 3 // push 3; prone
+    rollType: ability_power_roll
+    behavior: power
+  source: Item
+  name: Thundering II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: An iron rod charged by the death throes of an essence of storms
+imbuePrereq: 846ff5f0-91e4-4d11-a82e-74be4bcfa55f
+projectSource: Low Kuric
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+description: Whenever you deal rolled damage to a creature using this weapon, you can push that creature up to 3 squares after the other effects of the ability resolve. If you obtained a tier 3 outcome, the creature is also knocked prone after being pushed. This replaces the benefit of Thundering I.
+type: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+ctime: 1770699205313
+projectGoal: "150"
+implementation: 4
+id: 1c0b6dd0-5712-47d7-91f1-9384de1e48a2
+name: Thundering II
+imbueTargetType: weapon
+mtime: 1773927584352
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: af566d87-81f6-4c7c-ab3b-2f44ce4de613

@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: fb3607b3-261b-4fd8-8d88-c13d1863f9e3
+id: fb3607b3-261b-4fd8-8d88-c13d1863f9e3
+ctime: 1770976500672
+domains:
+  CharacterOngoingEffect:fb3607b3-261b-4fd8-8d88-c13d1863f9e3: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Already Prone
+statusEffect: false
+description: This Creature already has the prone condition and are subject to worser conditions
+mtime: 1770976964259
+iconid: ui-icons/skills/1.png

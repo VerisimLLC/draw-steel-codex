@@ -1,0 +1,41 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:c7e6ec1c-5d74-4248-957d-e6a4eddcfaac: true
+    CharacterOngoingEffect:a5feff79-ba94-487f-be63-0db2898d05a2: true
+  sourceguid: a5feff79-ba94-487f-be63-0db2898d05a2
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-Stacks"
+    damageType: fire
+    apply: Damage Reduction
+  guid: 0ead142c-d32e-4a8d-aa11-53c9086df28f
+  name: Damage Weakness - Fire
+  description: ""
+source: Ongoing Effect
+guid: a5feff79-ba94-487f-be63-0db2898d05a2
+id: c7e6ec1c-5d74-4248-957d-e6a4eddcfaac
+ctime: 1744958326231
+domains:
+  CharacterOngoingEffect:c7e6ec1c-5d74-4248-957d-e6a4eddcfaac: true
+  CharacterOngoingEffect:a5feff79-ba94-487f-be63-0db2898d05a2: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0362903214991093
+    s: 1
+    v: 0.972549021244049
+    a: 1
+name: Damage Weakness - Fire
+description: ""
+mtime: 1758751576814
+stackable: true
+iconid: e8b60b7d-78a7-4ef0-8622-62ee5c1bb39b

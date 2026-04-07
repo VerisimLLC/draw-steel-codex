@@ -1,0 +1,72 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  source: Transformation
+  deletable: false
+  domains:
+    CharacterOngoingEffect:32130224-85e1-49b9-807f-f29888184e9a: true
+  guid: cf916601-3394-4cc5-be93-49abafb8e194
+  attributes:
+    tempHitpoints: true
+    con: true
+    dex: true
+    str: true
+  overrideMovement: true
+  description: ""
+  behavior: transform
+  name: Disciple of the Green
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:32130224-85e1-49b9-807f-f29888184e9a: true
+  sourceguid: 32130224-85e1-49b9-807f-f29888184e9a
+  description: ""
+  source: Ongoing Effect
+  name: Disciple of the Green
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: zerohitpoints
+    strain: []
+    guid: 97907505-9c4f-4e95-8a19-0b8323dda25d
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:32130224-85e1-49b9-807f-f29888184e9a: true
+    targetType: self
+    persistence: []
+    name: Disciple of the Green
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 32130224-85e1-49b9-807f-f29888184e9a
+      mode: effect
+      purgeType: all
+      conditions: []
+    description: When you are dying, you revert to your true form and can’t turn back into an animal until you are no longer dying.
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: 9ea0b7a2-2720-40de-998e-2d88e5ec8c24
+source: Ongoing Effect
+transformation: true
+guid: 32130224-85e1-49b9-807f-f29888184e9a
+id: 32130224-85e1-49b9-807f-f29888184e9a
+ctime: 1753882346911
+domains:
+  CharacterOngoingEffect:32130224-85e1-49b9-807f-f29888184e9a: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Disciple of the Green
+custom: true
+description: ""
+mtime: 1765793798455
+iconid: ui-icons/skills/1.png

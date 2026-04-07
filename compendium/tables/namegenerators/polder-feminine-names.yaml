@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 851985f2-1df9-49f4-a917-a427167bbefa
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Agatha
+- __typeName: RollTableRow
+  id: 2911c967-48a8-49ee-acdf-c4b04433f360
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Amaryllis
+- __typeName: RollTableRow
+  id: bf587519-4e9c-4441-b6f7-afee6037dfdd
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Beverly
+- __typeName: RollTableRow
+  id: 798e80d2-ef9b-4a2a-85f2-18b3f4020fcb
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Esmerelda
+- __typeName: RollTableRow
+  id: 57ec6d7e-2ba5-41dc-b209-f789fe3584c9
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Marceline
+- __typeName: RollTableRow
+  id: 5b088a0f-41f7-4df7-a511-64daf9d1e21c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Modesty
+- __typeName: RollTableRow
+  id: cef59731-0a19-4162-a1ad-25bed7277c2d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Penelope
+- __typeName: RollTableRow
+  id: 39ac35c0-c484-4dba-b0d0-c044b6686b20
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Rosemarie
+- __typeName: RollTableRow
+  id: e77a22ae-d7f8-4075-9058-e81cf3b7e7de
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ursula
+- __typeName: RollTableRow
+  id: a8f9d67b-9324-4f48-8a23-ac132178ad5e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Weatherly
+id: 69639c5d-29c0-4975-bff1-ce901ec83293
+name: Polder Feminine Names
+subtable: true
+mtime: 1743455560223
+items: false
+ctime: 1743445920495

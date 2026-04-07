@@ -1,0 +1,11 @@
+__typeName: Culture
+id: 83bc21fa-4da3-4596-bae9-20b016678d63
+group: Ancestry Cultures
+name: Time Raider
+languageid: 86a6b7cc-6569-48cc-8867-b184204ebfd2
+mtime: 1769349236796
+aspects:
+  upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+  environment: 184b0626-5e2d-48bd-8877-2072df0f374f
+  organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+ctime: 1768796235506

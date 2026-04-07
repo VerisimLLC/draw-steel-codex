@@ -1,0 +1,53 @@
+__typeName: ActivatedAbility
+objectTarget: false
+id: 4af4ccee-f664-43d2-b971-3abaec71aa42
+targetAllegiance: ally
+targetType: target
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+numTargets: "<<numtargets>>"
+modifiers: []
+source: Monster
+strain: []
+guid: 7b7825ea-2ad7-40e5-b25b-800c6ad39543
+repeatTargets: false
+ctime: 1755299100252
+description: ""
+persistence: []
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 88d0fda3-29a3-4d76-ae54-e9253c73ccb1
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  promptText: ""
+  autoTarget: false
+  standardAbilityParams:
+    numrecoveries: "<<numrecoveries>>"
+  standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+  targeting: self
+name: Self Or Ally May Spend Recovery
+selfTarget: true
+mtime: 1759800527126
+abilityType: none
+iconid: ui-icons/skills/1.png

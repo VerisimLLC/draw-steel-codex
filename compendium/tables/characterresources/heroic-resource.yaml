@@ -1,0 +1,43 @@
+__typeName: CharacterResource
+largeQuantity: true
+mayBeNegative: true
+clearOutsideOfCombat: true
+usageLimit: unbounded
+id: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+grouping: Class Specific
+ctime: 1740125666094
+name: Heroic Resource
+display:
+  expended:
+    brightness: 0.5
+    saturation: 0.5
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.685186326503754
+      s: -0.00169110298156738
+      v: 1.0019394159317
+      a: 1
+  highlight:
+    brightness: 1.5
+    saturation: 1
+    hueshift: 1
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.685186326503754
+      s: -0.00169110298156738
+      v: 1.0019394159317
+      a: 1
+  normal:
+    brightness: 1
+    saturation: 1
+    hueshift: 0.957142421177455
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.685186326503754
+      s: -0.00169110298156738
+      v: 1.0019394159317
+      a: 1
+mtime: 1741331190417
+useQuantity: true
+iconid: 52bb62cd-e1cd-41e0-af44-f7b2e242f9d5

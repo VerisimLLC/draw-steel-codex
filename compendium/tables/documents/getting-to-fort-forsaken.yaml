@@ -1,0 +1,516 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter-4:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-13,-27,3"
+        - __usertype: LuaLoc
+          loc: "-13,-26,3"
+        - __usertype: LuaLoc
+          loc: "-12,-26,3"
+        - __usertype: LuaLoc
+          loc: "-12,-27,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-15,-29,3"
+        - __usertype: LuaLoc
+          loc: "-15,-28,3"
+        - __usertype: LuaLoc
+          loc: "-15,-27,3"
+        - __usertype: LuaLoc
+          loc: "-15,-26,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      name: 4th Reinforcement
+  encounter-5:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-24,-23,3"
+        - __usertype: LuaLoc
+          loc: "-24,-22,3"
+        - __usertype: LuaLoc
+          loc: "-23,-22,3"
+        - __usertype: LuaLoc
+          loc: "-23,-23,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-26,-25,3"
+        - __usertype: LuaLoc
+          loc: "-26,-24,3"
+        - __usertype: LuaLoc
+          loc: "-26,-23,3"
+        - __usertype: LuaLoc
+          loc: "-26,-22,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      name: 5th Reinforcement
+  encounter-3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-21,-16,3"
+        - __usertype: LuaLoc
+          loc: "-20,-16,3"
+        - __usertype: LuaLoc
+          loc: "-19,-18,3"
+        - __usertype: LuaLoc
+          loc: "-19,-19,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-22,-20,3"
+        - __usertype: LuaLoc
+          loc: "-21,-19,3"
+        - __usertype: LuaLoc
+          loc: "-22,-15,3"
+        - __usertype: LuaLoc
+          loc: "-22,-17,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      name: 3rd Reinforcement
+  encounter-2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-14,-21,3"
+        - __usertype: LuaLoc
+          loc: "-14,-19,3"
+        - __usertype: LuaLoc
+          loc: "-12,-22,3"
+        - __usertype: LuaLoc
+          loc: "-11,-24,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-17,-23,3"
+        - __usertype: LuaLoc
+          loc: "-14,-23,3"
+        - __usertype: LuaLoc
+          loc: "-16,-24,3"
+        - __usertype: LuaLoc
+          loc: "-16,-21,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      name: 2nd Reinforcement
+  encounter-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-20,-17,3"
+        - __usertype: LuaLoc
+          loc: "-20,-15,3"
+        - __usertype: LuaLoc
+          loc: "-20,-12,3"
+        - __usertype: LuaLoc
+          loc: "-19,-14,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-22,-16,3"
+        - __usertype: LuaLoc
+          loc: "-21,-13,3"
+        - __usertype: LuaLoc
+          loc: "-22,-14,3"
+        - __usertype: LuaLoc
+          loc: "-22,-11,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 4
+      name: 1st Reinforcement
+  scene:
+    __typeName: RichScene
+    identifier: false
+    image: 7124046a-3dfb-455a-8b5c-2ec567272a5e
+  encounter:
+    __typeName: RichEncounter
+    spawns: []
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-12,-24,3"
+        - __usertype: LuaLoc
+          loc: "-10,-25,3"
+        - __usertype: LuaLoc
+          loc: "-13,-25,3"
+        - __usertype: LuaLoc
+          loc: "-13,-18,3"
+        - __usertype: LuaLoc
+          loc: "-13,-21,3"
+        - __usertype: LuaLoc
+          loc: "-10,-23,3"
+        - __usertype: LuaLoc
+          loc: "-10,-19,3"
+        - __usertype: LuaLoc
+          loc: "-8,-23,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 8
+      - appearances: []
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-15,-23,3"
+        - __usertype: LuaLoc
+          loc: "-15,-24,3"
+        - __usertype: LuaLoc
+          loc: "-21,-22,3"
+        - __usertype: LuaLoc
+          loc: "-16,-19,3"
+        - __usertype: LuaLoc
+          loc: "-18,-19,3"
+        - __usertype: LuaLoc
+          loc: "-20,-19,3"
+        - __usertype: LuaLoc
+          loc: "-15,-21,3"
+        - __usertype: LuaLoc
+          loc: "-21,-24,3"
+        monsters:
+          f9b459aa-fe0a-43a5-b009-4d426f11f3a3: 8
+      name: New Encounter
+  image:
+    __typeName: RichImage
+    image: 7124046a-3dfb-455a-8b5c-2ec567272a5e
+id: 40533ec9-f856-4d33-994c-04700654171e
+ctime: 1762025572473
+textStorage:
+  __typeName: TextStorage
+  sections:
+    s: Please see [Lake Combat] for more information on this encounter.
+    DZ: |+
+      :<>[[scene]]
+
+
+    m: |2+
+       Creatures falling into the lake or swims between the logs alert eight clawfish, which swarm and attack. 
+
+    eQ: |
+      |{#The hero grazes the log with the raft. It doesn’t totally fall apart, but the hero (or heroes) with the lowest Agility score on the raft falls into the water as a section of the raft breaks away and unbalances it.}
+    g: |2+
+       If one or more heroes fall into the water or elect to swim to the fort, they must swim to shore while dealing with the clawfish.
+
+    e: |
+      |{#The hero strikes the spike logs with the raft, causing it to fall apart.}
+    f: |+
+      ## Taking a Swim
+
+    c: |2+
+       A hero steering the decoy raft must make a hard Agility test as they approach the shore.
+
+    d: |
+      |Steer the Decoy Raft: Agility Test
+    a: |+
+      ##  Spiked Logs
+
+    b: |2+
+       The bandits have rigged some sharpened logs just under the water’s surface right before the island. Only the decoy raft is structurally unsound enough to fall apart if it hits one of these trapped logs.
+
+    Y: |+
+      ## Other Means of Crossing
+
+    Z: |+
+      Another raft, which the bandits actually use to cross the lake, is hidden in the foliage a short distance from the shore. Heroes who search the woods automatically find the second raft. Swimming is also an option, as the water is calm and still and only 3 squares deep at its deepest. However, the clawfish who inhabit the lake are hungry, attacking swimmers (or anyone who enters the water) once they are at 40 feet or farther from the shoreline.
+
+
+    W: |
+      |**Using the Raft in the Codex**|
+    X: |+
+      |The raft object provided has up to 5 seats which tokens can slot into.|
+
+
+    U: |+
+      |{#The hero notices the raft’s wood is soaked in chemicals to make it flammable, and also that it’s built to fall apart if struck along the bottom. The hero also notices another raft, this one much safer, hidden in the bushes nearby.}
+
+    V: |+
+      If the decoy raft takes fire damage, it immediately catches fire. The first time on a turn that a creature touches the burning raft or if they start their turn touching it, they take 5 fire damage. The raft is destroyed at the end of the second round after which it started burning.
+
+
+    S: |
+      |{#The hero notices the raft’s wood is soaked in chemicals to make it flammable.}
+    T: |
+      |{#The hero notices the raft’s wood is soaked in chemicals to make it flammable, and also that it’s built to fall apart if struck along the bottom.}
+    Q: |+
+      The raft’s problematic design has been camouflaged. A hero examining the raft can make an easy Reason test.
+
+    R: |
+      |Examine the Raft: Easy Reason Test
+    O: |+
+      **Secret**: A second, sturdier raft is hidden nearby for the bandits’ use.
+
+
+    P: |+
+      ## Decoy Raft
+
+    M: |+
+      > * “A wooden raft, big enough to carry several humanoids, rests on this shore. Three paddles and a long steering pole rest beside the raft.”
+
+    N: |+
+      **Secret**: The raft here is a trapped decoy. The raft’s wood was soaked in an accelerant that easily combusts if hit with an open flame. It’s also rigged to fall apart if it hits the sharpened logs positioned just below the lake’s surface, halfway between the two shores.
+
+    K: |
+      > * "Water laps against the shore of a large lake with an island at its center about 400 feet away.”
+    L: |
+      > * “A stone and wood fort stands on the island, but it’s difficult to make out details from this distance.”
+    I: |+
+      ## A Short, Shocking Swim
+
+    J: |2
+       When the heroes arrive at the lake, provide the following information:
+    G: |2
+
+    H: |2+
+       This quest uses the [Fort Forsaken Map].
+
+
+    E: |+
+      # Overview
+
+    F: |
+      The Forsaken Wraiths are a bandit crew stealing food from Broadhurst and planning a violent raid. The bandits have established a stronghold, which they call Fort Forsaken, on an island at the center of a lake in the Silver Wood. The heroes must get to the island and infiltrate the fort to end the bandits’ mayhem. A head-on assault is very dangerous, but sneaking or bluffing their way into the fort can pay dividends. A power struggle between two bandit leaders gives the heroes an opportunity to end the bandits’ reign of terror with minimal bloodshed. The heroes can learn the location of Fort Forsaken from Brune the a Butcher (see B8. Butcher) or by questioning a bandit after they raid the village (see Wraith Raid in Events).
+    C: |+
+      :<>[[image]]
+
+    D: |
+      To share this image with your players, use the Scene below. 
+    ei: |+
+      |{#The hero avoids the spiked logs and makes it to the island.}
+
+
+    B: |+
+      :<># Getting to Fort Forsaken
+
+parentFolder: 3869de06-287d-49b3-b58a-e783f2d757c0
+updateid: 3d9fa2f6-6305-4e6d-93a4-304d55e642af
+description: Getting to Fort Forsaken
+content: |-
+  :<># Getting to Fort Forsaken
+
+  :<>[[image]]
+
+  To share the above image, use the "Present to Players" button at the top right of this dialog
+
+  # Overview
+
+  The Forsaken Wraiths are a bandit crew stealing food from Broadhurst and planning a violent raid. The bandits have established a stronghold, which they call Fort Forsaken, on an island at the center of a lake in the Silver Wood. The heroes must get to the island and infiltrate the fort to end the bandits’ mayhem. A head-on assault is very dangerous, but sneaking or bluffing their way into the fort can pay dividends. A power struggle between two bandit leaders gives the heroes an opportunity to end the bandits’ reign of terror with minimal bloodshed. The heroes can learn the location of Fort Forsaken from Brune the a Butcher (see B8. Butcher) or by questioning a bandit after they raid the village (see Wraith Raid in Events).
+
+   This quest uses the Fort Forsaken map.
+
+  ## A Short, Shocking Swim
+
+   When the heroes arrive at the lake, provide the following information:
+  > * “Water laps against the shore of a large lake with an island at its center about 400 feet away.”
+  > * “A stone and wood fort stands on the island, but it’s difficult to make out details from this distance.”
+  > * “A wooden raft, big enough to carry several humanoids, rests on this shore. Three paddles and a long steering pole rest beside the raft.”
+
+  **Secret**: The raft here is a trapped decoy. The raft’s wood was soaked in an accelerant that easily combusts if hit with an open flame. It’s also rigged to fall apart if it hits the sharpened logs positioned just below the lake’s surface, halfway between the two shores.
+
+  **Secret**: A second, sturdier raft is hidden nearby for the bandits’ use.
+
+  ## Decoy Raft
+
+  The raft’s problematic design has been camouflaged. A hero examining the raft can make an easy Reason test.
+
+  |Examine the Raft: Easy Reason Test
+  |The hero notices the raft’s wood is soaked in chemicals to make it flammable.
+  |The hero notices the raft’s wood is soaked in chemicals to make it flammable, and also that it’s built to fall apart if struck along the bottom.
+  |The hero notices the raft’s wood is soaked in chemicals to make it flammable, and also that it’s built to fall apart if struck along the bottom. The hero also notices another raft, this one much safer, hidden in the bushes nearby.
+
+  If the decoy raft takes fire damage, it immediately catches fire. The first time on a turn that a creature touches the burning raft or if they start their turn touching it, they take 5 fire damage. The raft is destroyed at the end of the second round after which it started burning.
+
+  ## Other Means of Crossing
+
+  Another raft, which the bandits actually use to cross the lake, is hidden in the foliage a short distance from the shore. Heroes who search the woods automatically find the second raft. Swimming is also an option, as the water is calm and still and only 3 squares deep at its deepest. However, the clawfish who inhabit the lake are hungry, attacking swimmers (or anyone who enters the water) once they are at 40 feet or farther from the shoreline.
+
+  ##  Spiked Logs
+
+   The bandits have rigged some sharpened logs just under the water’s surface right before the island. Only the decoy raft is structurally unsound enough to fall apart if it hits one of these trapped logs.
+
+   A hero steering the decoy raft must make a hard Agility test as they approach the shore.
+
+  |Steer the Decoy Raft: Agility Test
+  |The hero strikes the spike logs with the raft, causing it to fall apart.
+  |The hero grazes the log with the raft. It doesn’t totally fall apart, but the hero (or heroes) with the lowest Agility score on the raft falls into the water as a section of the raft breaks away and unbalances it.
+  |The hero avoids the spiked logs and makes it to the island.
+
+  ## Taking a Swim
+
+   If one or more heroes fall into the water or elect to swim to the fort, they must swim to shore while dealing with the clawfish.
+
+   Creatures falling into the lake or swims between the logs alert eight clawfish, which swarm and attack. At the start of each round a hero remains in the water, another eight clawfish appear until all clawfish 
+
+  At the start of each round if a hero is in the water, another eight clawfish appear. Reinforcements continue to arrive in this way until all clawfish are dead or a total of forty-eight clawfish have appeared.
+
+  To start this encounter, click [Draw Steel!]
+  [[setting:Number of Heroes]]
+
+  [[encounter]]
+  [[encounter]]
+  [[encounter]]
+  [[encounter]]
+  [[encounter]]
+  [[encounter]]
+
+  ## Reinforcements
+
+   At the start of each round if a hero is in the water, another eight clawfish appear. Reinforcements continue to arrive in this way until all clawfish are dead or a total of forty-eight clawfish have appeared.
+
+  ## Tactics
+   The clawfish rush the nearest hero and attack, fighting to the death! If Skewra wakes and sees the heroes approaching on a raft, she lights a torch, and shoots a burning arrow toward the raft, hoping to ignite it. She continues peppering the heroes with arrows until at least two of them make it to shore, then she runs toward the gate to raise the alarm.
+
+  ## Ending the Encounter
+   When the heroes arrive safely on the island, they earn 1 Victory each.
+
+  [[/awardvp 1|Award Victories]]
+mtime: 1765839888770

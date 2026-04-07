@@ -1,0 +1,127 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 05376c0d-459d-4fe0-9c9b-f1940786c3b6
+  properties:
+    __typeName: monster
+    groupid: eab02bc2-fd64-44cc-a27e-51df24fe02f7
+    cr: 2
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d732b17b-0918-423a-979c-706670dd42a6: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: d732b17b-0918-423a-979c-706670dd42a6
+        source: Character Feature
+        value: 5
+        domains:
+          CharacterFeature:d732b17b-0918-423a-979c-706670dd42a6: true
+        name: Swim Movement Speed
+        guid: cc9a755d-a427-4aef-b892-b90fbb3cbafe
+        description: Your speed is 5, swimming only.
+        behavior: attribute
+        attribute: swim
+      - __typeName: CharacterModifier
+        text: You only have a Swim speed and cannot move on any other surface.
+        sourceguid: d732b17b-0918-423a-979c-706670dd42a6
+        source: Character Feature
+        guid: 01b884b0-322a-47b2-866a-32f252dcf735
+        domains:
+          CharacterFeature:d732b17b-0918-423a-979c-706670dd42a6: true
+        name: Swim Movement Speed
+        description: Your speed is 5, swimming only.
+        behavior: movementtext
+        color: white
+      name: Swim Movement Speed
+      guid: d732b17b-0918-423a-979c-706670dd42a6
+      description: Your speed is 5, swimming only.
+      source: Character Feature
+    max_hitpoints: 10
+    inflictedConditions: []
+    keywords:
+      Green Animal Forms: true
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Canine
+    damage_taken: 0
+    resources: []
+    titles: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    equipment: []
+    levelChoices: []
+    walkingSpeed: 5
+    monster_type: Fish
+    savingThrowRatings: []
+    creatureSize: 1T
+  tokenType: null
+  bestiaryId: 49b92c47-5878-4ece-b5ee-704da077be3f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1753882566431
+description: null
+parentFolder: e88c4842-3ea1-49c0-ad20-dd7d6ba773ba
+artist: null
+ord: 2
+ctime: 1753882713491
+mtime: 1775167457194
+hidden: false

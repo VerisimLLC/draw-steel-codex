@@ -1,0 +1,55 @@
+__typeName: equipment
+itemPrerequisite: An ounce of costmary leaves
+keywords:
+  Potion: true
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: Thick and red, this liquid tastes of sour beer.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+iconid: 68adaf68-ef8f-4613-9797-313182c761e0
+id: e5040126-cb03-419a-ae11-09c3347dd03f
+ctime: 1755281502024
+projectGoal: "45"
+mtime: 1770816409269
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 298
+    docid: a623e586-b67d-4563-a5b8-62744d648c31
+  range: 5
+  consumables:
+    e5040126-cb03-419a-ae11-09c3347dd03f: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 76c2570f-091a-4f30-a933-e9facc3055e0
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  numTargets: "1"
+  iconid: 68adaf68-ef8f-4613-9797-313182c761e0
+  description: |
+    When you drink this potion as a maneuver, you regain Stamina equal to your recovery value without spending a Recovery.
+  name: Healing Potion
+  behaviors:
+  - __typeName: ActivatedAbilityHealBehavior
+    roll: Recovery Value
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 3
+name: Healing Potion
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+description: When you drink this potion as a maneuver, you regain Stamina equal to your recovery value without spending a Recovery.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 3

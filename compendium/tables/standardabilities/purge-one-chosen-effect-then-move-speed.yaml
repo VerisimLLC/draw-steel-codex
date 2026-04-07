@@ -1,0 +1,51 @@
+__typeName: ActivatedAbility
+id: debaff0b-bf70-4d47-8721-90d2909265f2
+behaviors:
+- __typeName: ActivatedAbilityPurgeEffectsBehavior
+  mode: conditions
+  targetDuration: all
+  conditions: []
+  purgeType: one
+  chatMessage: Fountains Roar, Now Free From the Earth
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  namedAbility: Move Speed
+  abilityType: named
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 3dd52195-ab40-4a4c-9bff-0ef4846a56ef
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 990f2487-a588-47b6-bf44-a753f52732bd
+ctime: 1770290693852
+targetType: self
+numTargets: "1"
+mtime: 1770290693852
+name: Purge One Chosen Effect then Move Speed
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

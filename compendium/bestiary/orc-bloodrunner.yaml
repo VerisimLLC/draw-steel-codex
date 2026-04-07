@@ -1,0 +1,723 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: a0711cd7-c3d5-4626-941d-aa8fc7443f2a
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 41d54cb0-c183-4e09-a780-e8f0a9751824
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 3
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 10
+    max_hitpoints_roll: "50"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    moveDistance: 8
+    53067033-f90b-4dec-b014-4c893c1176d3_history:
+      __typeName: StatHistory
+      entries:
+        88df6960-0047-405b-9683-ec1156d9d0b8:
+          refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-1
+          note: Unimpeded
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/0"
+        f9c76cd0-479c-4b47-ac4f-2f0171b1c845:
+          refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-2
+          note: Unimpeded
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/0"
+    traitNames: []
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      seq: 5
+      ongoingEffectid: 4c593376-10ea-48a8-ac49-f41d7b2d1745
+      duration: 0
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.58358226102941
+        queueguid: 7d2c6404-d412-4022-8b92-662ca53c987b
+        initiativeid: 1453ba0f-2305-4494-8aba-e176bfb47066
+        round: 1
+      sourceDescription: Applied by Jeddoar's <b>Overwhelming March</b> ability
+      stacks: 1
+      id: 92ce8773-5aad-4387-b0d1-cc98608b8c42
+      casterInfo:
+        abilityName: Overwhelming March
+        tokenid: 9af433eb-1915-433a-8453-6f0dc0494c33
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        a7d93d01-bee5-4353-8270-503308dfc703:
+          disposition: good
+          note: 100 Healing
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 50
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Orc Bloodrunner	Level 3 Platoon Harrier
+        Humanoid, Orc	EV 10
+        <b>Stamina</b> 50
+        <b>Speed</b> 8	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +2	Agility +2	Reason 0	Intuition +1	Presence +1
+        <b>Shield Bash</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage (enemy only); push X
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage (enemy only); push X
+        %E2%9C%B8	<b>17</b>	13 damage (enemy only); push X or prone
+        <b>Effect</b> Push X is equal to the number of squares the bloodrunner moved on their turn before using this ability.
+        <b>2 Malice</b> An ally pushed by this ability can make a free strike on a creature.
+
+        <b>Unimpeded</b>
+        This bloodrunner can share a prone creature's square. The first time a bloodrunner enters a creature's square on their turn, that creature takes 3 damage.
+
+        <b>Relentless</b>
+        If the bloodrunner's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3dffdd54-c55d-45d6-a144-712bf63a488a: true
+        sourceguid: 3dffdd54-c55d-45d6-a144-712bf63a488a
+        behavior: trigger
+        source: Trait
+        name: Relentless
+        description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Relentless: When Stamina drops to 0, dying orc can make a free strike before dying. If the target is reduced to 0 stamina, the Orc lives and stamina is reduced to 1 instead."
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: true
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          whenActive: combat
+          persistence: []
+          guid: f61ccc28-39b6-4787-bd94-2854f50cf2c0
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: c9123e2d-cdc9-4f2f-a705-b09023a6b418
+              repeatTargets: false
+              persistence: []
+              targetType: self
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: ""
+                  source: ""
+                  filterAbility: Ability.Free Strike
+                  guid: cd1b0bec-6589-4b98-9afe-fd0dd6c682a5
+                  name: Modify Attack
+                  attributes: []
+                  cannotModifyAction: true
+                  description: ""
+                  behavior: modifyability
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: b974d521-99b2-4344-826c-3d353129b454
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      invokeOnCaster: true
+                      filterTarget: target.stamina <= 0
+                      abilityType: custom
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        numTargets: "1"
+                        modifiers: []
+                        abilityType: none
+                        strain: []
+                        guid: 6406208d-3835-4fd2-b54a-e5beb287eb50
+                        repeatTargets: false
+                        persistence: []
+                        targetType: self
+                        behaviors:
+                        - __typeName: ActivatedAbilityHealBehavior
+                          applyto: caster
+                          roll: "1"
+                        iconid: ui-icons/skills/1.png
+                        name: Relentless - Heal if target of free strike dies
+                        preDescription: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc lives and drops to 1 stamina instead.
+                        description: ""
+                        range: 1
+                        implementation: 3
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              iconid: ui-icons/skills/1.png
+              name: Relentless Free Strike
+              description: ""
+              sourceReference:
+                __typeName: SourceReference
+                page: 218
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: 1
+              implementation: 3
+            invokeOnCaster: true
+            promptText: The dying Orc selects a Creature to Free Strike, if the target is reduce to 0 stamina the orc  lives and drops to 1 stamina instead.
+          trigger: zerohitpoints
+          name: Relentless
+          description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 578d6a9b-b460-41ae-a9fa-20a7708f6396
+      source: Trait
+      description: If the dying orc's Stamina drops to 0, they can make a free strike before dying. If the target is reduced to 0 Stamina or killed by the strike, the bloodrunner lives and their Stamina is reduced to 1 instead.
+      guid: 3dffdd54-c55d-45d6-a144-712bf63a488a
+      name: Relentless
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bc8f6f09-d816-489f-ad69-0b94b9ff9078: true
+        CharacterFeature:a2f87047-4854-4f8f-862a-4543f29a90c2: true
+        CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:bc8f6f09-d816-489f-ad69-0b94b9ff9078: true
+          CharacterFeature:a2f87047-4854-4f8f-862a-4543f29a90c2: true
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Unimpeded
+        resourceRefreshType: round
+        description: |-
+          The bloodrunner can end their movement in a prone creature's space.
+
+          The first time on a turn that a bloodrunner enters any creature's space, that creature takes 3 damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          targetFilter: ""
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            filterTarget: Target = Enemy
+            damageType: untyped
+            roll: "3"
+            titleText: Unimpeded
+            chatMessage: Bloodrunner entered another creature's space.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 53067033-f90b-4dec-b014-4c893c1176d3
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          targetType: target
+          domains:
+            CharacterFeature:bc8f6f09-d816-489f-ad69-0b94b9ff9078: true
+            CharacterFeature:a2f87047-4854-4f8f-862a-4543f29a90c2: true
+            CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+          trigger: movethrough
+          numTargets: "1"
+          name: Unimpeded
+          guid: 7b01ec58-7abc-4074-a603-091db2e29e66
+          description: The first time on a turn that a bloodrunner enters any creature's space, that creature takes 3 damage.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 53067033-f90b-4dec-b014-4c893c1176d3
+      - __typeName: CharacterModifier
+        text: This creature can end their movement in a prone creature's space.
+        sourceguid: f492943e-a198-49cb-8715-3f704c13bea4
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:bc8f6f09-d816-489f-ad69-0b94b9ff9078: true
+          CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+          CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+        name: Unimpeded
+        description: |-
+          The bloodrunner can end their movement in a prone creature's space.
+
+          The first time on a turn that a bloodrunner enters any creature's space, that creature takes 3 damage.
+        guid: 4e8e9fce-bb41-4f1d-af60-f00799ce9cf4
+        color: green
+      source: Trait
+      description: |-
+        The bloodrunner can end their movement in a prone creature's space.
+
+        The first time on a turn that a bloodrunner enters any creature's space, that creature takes 3 damage.
+      guid: bc8f6f09-d816-489f-ad69-0b94b9ff9078
+      name: Unimpeded
+      implementation: 3
+    role: Platoon Harrier
+    equipment: []
+    titles: []
+    opportunityAttack: 5
+    damageEntries:
+      c2f95ec2-ec50-452b-8dbf-132cf3641515:
+        seq: 10
+        id: c2f95ec2-ec50-452b-8dbf-132cf3641515
+        heal: 100
+    moveDistanceRoundId: 7d2c6404-d412-4022-8b92-662ca53c987b-1
+    resistances: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 50
+    initiativeGrouping: 31cbc073-b49b-4253-8e9b-cbf0cedf5040
+    keywords:
+      Humanoid: true
+      Orc: true
+    animations:
+      anim:
+      - resources:
+          53067033-f90b-4dec-b014-4c893c1176d3: 1
+        animType: consumeResource
+      guid: 62f2e83f-adcb-4b4d-bf24-6fe1c5be23a6-1041
+    equipmentMeta:
+      offhand0: []
+    creatureSize: 1M
+    damage_taken: 0
+    availableTriggers: []
+    walkingSpeed: 8
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    deathSavingThrowFailures: 0
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; push X
+        - 10 damage; push X
+        - 13 damage; push X or prone
+        filterTarget: ""
+        modesSelected:
+        - 1
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: ""
+        duration: 0
+        ongoingEffectCustom: d39102f7-8044-4ad7-86e6-76a68d32b936
+        ongoingEffect: d39102f7-8044-4ad7-86e6-76a68d32b936
+        stacks: Moved This Turn
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        targeting: prompt
+        modesSelected:
+        - 1
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: b3f54cdb-af50-4e63-8c27-cd835625112d
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: d850ed29-a923-4d94-ae76-1994ce2a7cb9
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      strain: []
+      guid: d3d9443b-8efb-46fe-99e4-f34475dd9f4a
+      description: Push X is equal to the number of squares the bloodrunner moved on their turn before using this ability.
+      targetType: target
+      numTargets: 1
+      modeList:
+      - rules: Damage + Push an Enemy
+        text: Target Enemy
+        condition: ""
+      - rules: Move Ally
+        text: Target Ally
+      - rules: Move Ally + Free Strike
+        text: Target Ally; +2 Malice
+        condition: Resources.malice >=2
+      sourceReference:
+        __typeName: SourceReference
+        page: 218
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Shield Bash
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      channeledResource: none
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: ""
+        duration: 0
+        ongoingEffectCustom: d39102f7-8044-4ad7-86e6-76a68d32b936
+        ongoingEffect: d39102f7-8044-4ad7-86e6-76a68d32b936
+        stacks: Moved This Turn
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 26331b3e-8161-448d-a31c-fce34767e9e5
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        - 3
+        - 1
+        filterTarget: ""
+        abilityType: standard
+        standardAbility: dd666b48-1f8c-41b7-8156-10022b92c023
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        filterTarget: Resources.malice >=2
+        modesSelected:
+        - 3
+        - 2
+        promptText: Making a Free Strike will cost 2 Malice, or select Skip.
+        abilityType: standard
+        standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 17e0e680-b67f-4e17-a0a4-311093c4d196
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+        filterTarget: Resources.malice >=2
+        modesSelected:
+        - 3
+        - 2
+        quantity: "2"
+        mode: expend
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      strain: []
+      guid: d3d9443b-8efb-46fe-99e4-f34475dd9f4a
+      description: Push X is equal to the number of squares the bloodrunner moved on their turn before using this ability.
+      targetType: target
+      numTargets: 1
+      modeList:
+      - rules: Move Ally + Free Strike
+        text: Target Ally; +2 Malice
+        condition: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 218
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Shield Bash (Allies)
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      channeledResource: none
+      abilityType: none
+      implementation: 3
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        d5715135-92bc-4e54-8246-f8e91deb17c3:
+          refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-13
+          note: Shield Bash (Allies)
+          userid: steam-76561198767161997
+          set: 0/1
+    movementSpeeds: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 7d81d3d6-f262-4fe8-b304-3c79af609daa-13
+        used: 1
+      53067033-f90b-4dec-b014-4c893c1176d3:
+        __typeName: CharacterResource
+        refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-2
+        used: 1
+    auras:
+    - __typeName: AuraInstance
+      casterid: 086c076b-2d1a-4385-9773-24e08cafea13
+      duration: eoe
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.58358226102941
+        queueguid: 7d2c6404-d412-4022-8b92-662ca53c987b
+        initiativeid: c4e31259-361c-4366-ae3f-7fd87d248cc9
+        round: 2
+      aura:
+        __typeName: Aura
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        blocks_line_of_effect: false
+        guid: fc783861-ab8a-41c5-9160-64ef8005415a
+        difficult_terrain: true
+      area:
+        __usertype: LuaShape
+        data: "{\"shape\": 1,\"originCreature\": [[-18, -3, 1]],\"areaTemplateObject\": null,\"targetPoint\": {\"x\": -15.96478,\"y\": -6.973147,\"z\": 0},\"range\": 100,\"radius\": 5,\"checklos\": false,\"locations\": null}"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      name: Mohler Cavity
+      aliveafterdeath: true
+      guid: b089b678-efbe-4390-b020-8dcb2d6d11b0
+      symbols:
+        mode: 1
+        castid: 5a6ccd19-986d-4b4c-a4f2-16a0e86612c5
+        spellname: Mohler Cavity
+        numberoftargets: 3
+        range: 100
+        charges: 1
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    - __typeName: AuraInstance
+      casterid: 086c076b-2d1a-4385-9773-24e08cafea13
+      duration: eoe
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.58358226102941
+        queueguid: 7d2c6404-d412-4022-8b92-662ca53c987b
+        initiativeid: c4e31259-361c-4366-ae3f-7fd87d248cc9
+        round: 2
+      aura:
+        __typeName: Aura
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        blocks_line_of_effect: false
+        guid: fc783861-ab8a-41c5-9160-64ef8005415a
+        difficult_terrain: true
+      area:
+        __usertype: LuaShape
+        data: "{\"shape\": 1,\"originCreature\": [[-18, -3, 1]],\"areaTemplateObject\": null,\"targetPoint\": {\"x\": -8.842854,\"y\": -7.246261,\"z\": 0},\"range\": 100,\"radius\": 5,\"checklos\": false,\"locations\": null}"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      name: Mohler Cavity
+      aliveafterdeath: true
+      guid: db9c03f0-9a0f-4436-89b7-d65b05e4c24b
+      symbols:
+        mode: 1
+        castid: 2eab669c-e20d-4759-8176-ca94ae1bd932
+        spellname: Mohler Cavity
+        numberoftargets: 3
+        range: 100
+        charges: 1
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    skillRatings: []
+    monster_type: Orc Bloodrunner
+  tokenType: null
+  bestiaryId: ddad6eca-0088-4b82-a198-aecb585a770f
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Orc Bloodrunner
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590318846
+mtime: 1775201137032
+hidden: false

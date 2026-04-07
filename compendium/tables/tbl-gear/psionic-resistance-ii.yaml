@@ -1,0 +1,43 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 812a13a4-57b6-41b3-b2b5-f8f073255309
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    resistanceFormula: min(3, Resistance + 2)
+    sourceguid: 812a13a4-57b6-41b3-b2b5-f8f073255309
+    source: Item
+    modtype: none
+    keywords:
+      Psionic: true
+    activationCondition: true
+    name: Psionic Resistance II
+    guid: 1cbc9d27-e740-4ddc-9881-46ca31d48dd4
+    description: ""
+    behavior: power
+    rollType: enemy_ability_power_roll
+  source: Item
+  name: Psionic Resistance II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 8eaae4a5-79c7-4f77-aaf0-145498e86605
+imbuePrereq: 39e88018-c0c4-4770-a206-bfe586a88ddd
+projectSource: Voll
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: A fresh crystalline scale from a gemstone dragon
+mtime: 1772492783547
+name: Psionic Resistance II
+imbueTargetType: armor
+description: Your characteristic scores are treated as 2 higher (to a maximum of 3) for the purpose of resisting the potencies of psionic abilities. This benefit replaces Psionic Resistance I.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

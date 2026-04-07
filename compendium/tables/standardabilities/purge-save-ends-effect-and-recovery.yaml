@@ -1,0 +1,49 @@
+__typeName: ActivatedAbility
+id: 64552cb4-9124-4932-805a-847f0a49b0a8
+behaviors:
+- __typeName: ActivatedAbilityPurgeEffectsBehavior
+  conditions: []
+  targetDuration: save|eot
+  purgeType: one
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 345e16d2-18b7-495b-a4f4-60ac67aa56a1
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 990f2487-a588-47b6-bf44-a753f52732bd
+ctime: 1746256520389
+targetType: self
+numTargets: "1"
+mtime: 1759285869225
+name: Purge Save Ends Effect and Recovery
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

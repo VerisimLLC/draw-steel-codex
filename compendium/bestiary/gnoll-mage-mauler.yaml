@@ -1,0 +1,248 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 37dfd657-3d00-4fa7-903f-7296717e918d
+  properties:
+    __typeName: monster
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    cr: 2
+    max_hitpoints: 4
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Gnoll
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 1
+    import:
+      type: mcdm
+      data: |-
+        Gnoll Mage Mauler	Level 2 Minion Hexer
+        Abyssal, Gnoll	EV 4 for four minions
+        **Stamina** 4
+        **Speed** 5	**Size** 1M /** Stability** 1
+        **With Captain** Melee distance +2	**Free Strike** 2
+        Might +2	Agility +1	Reason -1	Intuition 0	Presence 0
+        **Wizard Ripper** (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        **Keywords** Magic, Melee, Strike
+        **Distance** Melee 1	**Target** 1 creature or object per minion
+        %E2%9C%A6	**%E2%89%A411**	2 acid damage
+        %E2%98%85	**12%E2%80%9316**	3 cold damage
+        %E2%9C%B8	**17**	5 lightning damage; target can't use magic abilities (EoT)
+        **Effect** The target has a bane on their next power roll.
+        **Death Circle**
+        Whenever a non-minion ally within 5 is reduced to 0 Stamina, the mage mauler moves up to their speed.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:33a42bad-7d4f-4af8-bcaa-952431f26c44: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:fd198948-0d92-42f7-be90-41e4e5fc4e20: true
+        sourceguid: fd198948-0d92-42f7-be90-41e4e5fc4e20
+        behavior: trigger
+        source: Trait
+        name: Death Circle
+        description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the chainflail archer moves up to their speed.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: ""
+          repeatTargets: false
+          reasonedFilters: []
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: e16c73d8-d611-42a0-9307-4551632c2e6d
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            promptText: The Mage Mauler can move up to their speed.
+          triggerPrompt: The Mage Mauler can move up to their speed.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          persistence: []
+          modifiers: []
+          subjectRange: "5"
+          strain: []
+          guid: 5fe8b431-dad8-4fcb-b645-ef2bd0b771d6
+          trigger: zerohitpoints
+          targetType: self
+          conditionFormula: ""
+          name: Death Circle
+          numTargets: "1"
+          selfTarget: true
+          despawnBehavior: corpse
+          description: ""
+          subject: allies
+          iconid: ui-icons/skills/1.png
+        guid: e46e5e4c-0838-442b-9942-a103aa767f91
+      source: Trait
+      description: Whenever a non-minion ally within 5 is reduced to 0 Stamina, the mage mauler moves up to their speed.
+      guid: 33a42bad-7d4f-4af8-bcaa-952431f26c44
+      name: Death Circle
+      implementation: 3
+    role: Minion Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    innateLanguages:
+      ebc44aa6-305a-471e-843a-ef44a7c23810: true
+    initiativeGrouping: e93b50fb-da36-4263-983b-c7287f2ae346
+    ev: 4
+    damage_taken: 0
+    savingThrowRatings: []
+    resources: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 acid damage
+        - 3 cold damage
+        - 5 lightning damage; target can't use magic abilities (EoT)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 67c37f5e-8e65-4065-a753-8d82972b05b4
+        tiersSelected:
+        - 3
+        duration: end_of_next_turn
+        ongoingEffectCustom: 67c37f5e-8e65-4065-a753-8d82972b05b4
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: The target takes a bane on their next power roll.
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 154
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList: []
+      categorization: Signature Ability
+      guid: d7cb8b67-5490-4846-8c45-f1dc15d59ddb
+      targetType: target
+      numTargets: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Wizard Ripper
+      implementation: 4
+      description: The target takes a bane on their next power roll.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minionSquad: Gnoll Mage Mauler Squad 1
+    availableTriggers: []
+    walkingSpeed: 5
+    movementSpeeds: []
+    creatureSize: 1M
+    monster_type: Gnoll Mage Mauler
+    withCaptain: +2 bonus to melee distance
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 90f36276-e7f8-42c0-af8b-2b025a61d3f8
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222946034
+description: Gnoll Mage Mauler
+parentFolder: 820ecf96-578b-4508-8e79-c0fee75ec35e
+artist: null
+ord: 0
+ctime: 1741590282563
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4e58600f-249e-42c3-aa04-9641756a0661
+  displayCondition: Friends(Target, ConditionCaster("Bane on Ability Rolls which Harm the Caster"))
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  activationCondition: "1"
+  rollType: ability_power_roll
+  guid: 8e13e2df-c2e9-49ed-ade5-5efbbf3189bf
+  description: ""
+  behavior: power
+  name: Bane on Ability Rolls which Harm the Caster
+source: Ongoing Effect
+guid: 4e58600f-249e-42c3-aa04-9641756a0661
+id: 4e58600f-249e-42c3-aa04-9641756a0661
+ctime: 1770265675746
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Bane on Ability Rolls which Harm the Caster
+description: ""
+custom: true
+mtime: 1770265713341
+iconid: ui-icons/skills/1.png

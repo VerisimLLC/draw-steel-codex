@@ -1,0 +1,58 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:042b7151-4e61-47c6-af6c-d3803cd20048: true
+  sourceguid: 62198121-58ce-4510-be4f-5b89639e0d17
+  description: 2 Damange when token begins movement
+  source: Ongoing Effect
+  name: 2 Damage when moving
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: move
+    strain: []
+    guid: e3c1cb47-63af-42ea-bfca-73fd6c0d61d5
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:042b7151-4e61-47c6-af6c-d3803cd20048: true
+    targetType: self
+    persistence: []
+    name: 2 Damage when moving
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "2"
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: 7289b328-cf33-435d-b4c8-27b18ed9607e
+source: Ongoing Effect
+guid: 62198121-58ce-4510-be4f-5b89639e0d17
+id: 042b7151-4e61-47c6-af6c-d3803cd20048
+ctime: 1750482539938
+domains:
+  CharacterOngoingEffect:042b7151-4e61-47c6-af6c-d3803cd20048: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.593207955360413
+    v: 0.987023115158081
+    a: 1
+endTrigger: endturn
+mtime: 1757248840158
+description: 2 Damange when token begins movement
+name: 2 Damage when moving
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd

@@ -1,0 +1,63 @@
+versatile:
+  __typeName: WeaponProperty
+  name: Versatile
+  features: []
+  mtime: 1756036917321
+  id: versatile
+  ctime: 1756036917321
+finesse:
+  __typeName: WeaponProperty
+  name: Finesse
+  features: []
+  mtime: 1756036917305
+  id: finesse
+  ctime: 1756036917305
+ammo:
+  __typeName: WeaponProperty
+  name: Ammo
+  features: []
+  mtime: 1756036917325
+  id: ammo
+  ctime: 1756036917325
+loading:
+  __typeName: WeaponProperty
+  name: Loading
+  features: []
+  mtime: 1756036917356
+  id: loading
+  ctime: 1756036917356
+reach:
+  __typeName: WeaponProperty
+  name: Reach
+  features: []
+  mtime: 1756036915473
+  id: reach
+  ctime: 1756036915473
+light:
+  __typeName: WeaponProperty
+  name: Light
+  features: []
+  mtime: 1756036917349
+  id: light
+  ctime: 1756036917349
+heavy:
+  __typeName: WeaponProperty
+  name: Heavy
+  features: []
+  mtime: 1756036917252
+  id: heavy
+  ctime: 1756036917252
+thrown:
+  __typeName: WeaponProperty
+  name: Thrown
+  features: []
+  mtime: 1756036917352
+  id: thrown
+  ctime: 1756036917352
+range:
+  __typeName: WeaponProperty
+  name: Range
+  features: []
+  mtime: 1756036916961
+  id: range
+  ctime: 1756036916961

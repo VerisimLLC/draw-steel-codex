@@ -1,0 +1,17 @@
+__typeName: CharacterCondition
+guid: a61aab7c-ea46-489e-86ee-3e15bba4204f
+id: 6f23b05d-6683-42dc-a5b6-ee23d35d3177
+ctime: 1771648185788
+domains:
+  CharacterCondition:6f23b05d-6683-42dc-a5b6-ee23d35d3177: true
+powertable: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+showInMenus: false
+name: Careful Observation
+mtime: 1773705543926
+trackCaster: true
+iconid: ui-icons/skills/1.png

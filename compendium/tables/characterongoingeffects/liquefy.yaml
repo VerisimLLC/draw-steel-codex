@@ -1,0 +1,80 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  conditionid: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+  sourceguid: bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94
+  behavior: bestowcondition
+  source: Ongoing Effect
+  domains:
+    CharacterOngoingEffect:bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94: true
+  guid: 370fe059-adab-4eb9-9597-661ad790b03e
+  name: Liquefy
+  description: The ooze is invisible and hidden until the start of their next turn. This effect ends early if the ooze takes damage or uses an ability.
+- __typeName: CharacterModifier
+  conditionid: 31daf7f6-f77c-4f73-8eab-43e2d0f123c0
+  sourceguid: bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94
+  behavior: bestowcondition
+  source: Ongoing Effect
+  domains:
+    CharacterOngoingEffect:bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94: true
+  guid: 22276360-1728-4952-b693-b222adb0171f
+  name: Liquefy
+  description: The ooze is invisible and hidden until the start of their next turn. This effect ends early if the ooze takes damage or uses an ability.
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94: true
+  sourceguid: bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94
+  description: The ooze is invisible and hidden until the start of their next turn. This effect ends early if the ooze takes damage or uses an ability.
+  source: Ongoing Effect
+  name: Liquefy
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 3fd9ae93-ad4c-45e9-9971-5d3a0aa2a33f
+    repeatTargets: false
+    trigger: losehitpoints
+    castImmediately: true
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94
+      mode: effect
+      conditions: []
+    numTargets: "1"
+    name: Liquefy
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: fddc297e-f627-43bd-a68c-42c8c8703046
+source: Ongoing Effect
+guid: bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94
+id: bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94
+ctime: 1763984471107
+domains:
+  CharacterOngoingEffect:bb1a1ef8-339c-4d69-9b9a-bfc21c64ee94: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.344499975442886
+    s: 0.839843809604645
+    v: 0.919614434242249
+    a: 1
+mtime: 1763984675217
+name: Liquefy
+condition: none
+description: The ooze is invisible and hidden until the start of their next turn. This effect ends early if the ooze takes damage or uses an ability.
+endTrigger: useability
+iconid: 9158ce44-1602-4d8c-9db4-887894edf342

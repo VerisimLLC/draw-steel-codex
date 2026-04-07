@@ -1,0 +1,44 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 516ca56c-a4d8-4840-bca8-dd75fd226599
+ctime: 1761691607461
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: "{Secret: The half-shield on the altar at the far side of the room is the genuine right half of the Delian shield. However, escaping with it is no small task, as a wallmaster, eight decrepit skeletons, four skeletons, and two soulwights lie in wait here, hidden behind a wall erected by the wallmaster. A hero who suspects something can make a moderate Intuition test to try and figure out what’s unusual about this room.}\n \n\n"
+    M: |+
+      > * “The room outcrops to the south into two large chambers covered by red curtains.”
+
+    n: |
+      ## Loot
+    v: |
+      The right half of the Delian Shield is a half-circle emblazoned with the head of a dragon.
+    X: |
+      |{#Nothing stands out as odd.}
+    j: |+
+      See [Encounter D7].
+
+    G: |
+      > * “This long, rectangular hall ends in a raised section with a set of stairs leading up to an altar that holds half of a circular bronze shield and a book.”
+    h: |+
+      [[/activateobjects d7_wall activate|Show North Walls]][[/activateobjects d7_wall deactivate|Hide North Walls]] 
+
+    T: |
+      |Anything Unusual?: Intuition Test
+    f: |+
+      |{#The hero notices gaps in the walls and can tell there are monsters lying in wait for them. The heroes win initiative, but the monsters are not surprised.}
+
+    J: |
+      > * “Eight pillars line the walls of the room, with arches connecting them across the ceiling, granting it a cathedral-like appearance.”
+    D: |+
+      # D7. Hall of Regret
+
+    r: |
+      The book on the altar is a project source for [item:Unblinking Candle]s and contains a compartment that holds three embers from Quintessence. 
+    b: |
+      |{#The stonework in some sections of the north wall seems different from all the rest. The heroes and monsters become aware of each other at the same time.}
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: 9e491c82-b705-4618-91ae-7d41e7246a97
+description: D7. Hall of Regret
+content: "# D7. Hall of Regret\n\n> * “This long, rectangular hall ends in a raised section with a set of stairs leading up to an altar that holds half of a circular bronze shield and a book.”\n> * “Eight pillars line the walls of the room, with arches connecting them across the ceiling, granting it a cathedral-like appearance.”\n> * “The room outcrops to the south into two large chambers covered by red curtains.”\n\n{Secret: The half-shield on the altar at the far side of the room is the genuine right half of the Delian shield. However, escaping with it is no small task, as a wallmaster, eight decrepit skeletons, four skeletons, and two soulwights lie in wait here, hidden behind a wall erected by the wallmaster. A hero who suspects something can make a moderate Intuition test to try and figure out what’s unusual about this room.}\n \n\n|Anything Unusual?: Intuition Test\n|{#Nothing stands out as odd.}\n|{#The stonework in some sections of the north wall seems different from all the rest. The heroes and monsters become aware of each other at the same time.}\n|{#The hero notices gaps in the walls and can tell there are monsters lying in wait for them. The heroes win initiative, but the monsters are not surprised.}\n\nSee [Encounter D7].\n\n## Loot\nThe book on the altar is a project source for [Unblinking Candle]s and contains a compartment that holds three embers from Quintessence (see Treasure in Handouts).\nThe right half of the Delian Shield is a half-circle emblazoned with the head of a dragon.\n"
+mtime: 1769091854496

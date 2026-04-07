@@ -1,0 +1,474 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d8e1f845-7a9d-449c-bcc0-102f3f3b9dec
+    offtokenPortraitId: e366b710-b5f0-473b-b221-f14383208e03
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: a58c95f9-dd5d-435e-ad20-7178fa844841
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2816241
+    portraitOffset:
+      x: -0.05362039
+      y: 0.01659292
+    frameHueShift: 0.6684014
+    frameSaturation: 0.07967544
+    frameBrightness: 0.485714
+    popoutScale: 0.7212433
+    characterName: Spindlegoth
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 61046211-8c42-4c86-b70a-1b6080c65f31
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 3
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    moveDistance: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: "3"
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - Vertical slide 1
+        - Vertical slide 2
+        - Vertical slide 3
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: e865056d-cf43-4844-9e20-e77c5e384634
+      abilityType: none
+      numTargets: "1"
+      targetType: all
+      name: Thread Whip
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: 70e98d1d-4628-467b-bb6c-787f522b5f05
+      castImmediately: true
+      persistence: []
+      numTargets: "1"
+      name: Tightwire
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 467010fb-63af-4f40-94a1-ffe21e61a8db
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        standardAbilityParams:
+          distance: "<<movement speed>>"
+        abilityType: standard
+        applyto: caster
+      description: ""
+      abilityType: none
+      iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      implementationDetails: 'The hidden condition will automatically be applied to the Spindlegoth following a shift. '
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage; M<1 restrained (save ends)
+        - 7 damage; M<2 restrained (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+        riderid: 41dc37e3-bacc-4c54-94de-207bc37d914c
+        tiersSelected:
+        - 2
+        - 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        promptText: A target restrained this way is suffocating. If this ability fails to restrain the target, the spindlegoth shifts up to 2 squares and can attempt to hide.
+        applyto: targets
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: beb43344-3502-402e-8d77-e7110f129910
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        standardAbilityParams:
+          distance: "2"
+        tiersSelected:
+        - -1
+        abilityType: standard
+        filterTarget: (cast.tier = 1) or (cast.tier = 2 and target.might > 0) or (cast.tier = 3 and target.might > 1)
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 72d01bf7-b8d4-4304-9179-d3e7b8f68e62
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: (cast.tier = 1) or (cast.tier = 2 and target.might > 0) or (cast.tier = 3 and target.might > 1)
+        promptText: A target restrained this way is suffocating. If this ability fails to restrain the target, the spindlegoth shifts up to 2 squares and can attempt to hide.
+        abilityType: standard
+        tiersSelected:
+        - -1
+        standardAbility: 003a1b5e-0b14-4c99-b948-0f0fc715bbf2
+        applyto: targets
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        promptText: A target restrained this way is suffocating. If this ability fails to restrain the target, the spindlegoth shifts up to 2 squares and can attempt to hide.
+        guid: 61856941-5782-4c81-95a3-b41448820212
+        applyto: targets
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: beb43344-3502-402e-8d77-e7110f129910
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: cast.PassesPotency(target,"M", 1)
+        standardAbilityParams:
+          distance: "2"
+        standardAbility: bd9f9431-2ee2-41c1-81cb-c08570144cb9
+        abilityType: standard
+        tiersSelected:
+        - 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        promptText: A target restrained this way is suffocating. If this ability fails to restrain the target, the spindlegoth shifts up to 2 squares and can attempt to hide.
+        guid: 5f57e02a-9176-469d-b227-13f79fd5b9d6
+        applyto: targets
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: beb43344-3502-402e-8d77-e7110f129910
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: cast.PassesPotency(target,"M", 2)
+        standardAbilityParams:
+          distance: "2"
+        standardAbility: bd9f9431-2ee2-41c1-81cb-c08570144cb9
+        abilityType: standard
+        tiersSelected:
+        - 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4e364e7f-ba2b-4bd4-970c-5c67b6fe2911
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      iconid: 80eefb2e-eed0-4e13-8f19-21bad620cc8d
+      name: Choking Thread
+      numTargets: "1"
+      description: |-
+        A target restrained this way is suffocating. If this ability
+        fails to restrain the target, the spindlegoth shifts up to 2 squares
+        and can attempt to hide.
+      abilityType: none
+      implementation: 2
+    ongoingEffects: []
+    minion: false
+    stability: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a1a07e35-2a92-4fa6-b397-c536a52ee0fd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a1a07e35-2a92-4fa6-b397-c536a52ee0fd
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:a1a07e35-2a92-4fa6-b397-c536a52ee0fd: true
+        name: Needlefoot
+        guid: 76cad8f2-77e1-4409-9a91-bf28c12363f8
+        description: The spindlegoth ignores difficult terrain. While the spindlegoth is climbing, the surface of each square they enter takes 1 damage.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      source: Character Feature
+      description: The spindlegoth ignores difficult terrain. While the spindlegoth is climbing, the surface of each square they enter takes 1 damage.
+      guid: a1a07e35-2a92-4fa6-b397-c536a52ee0fd
+      name: Needlefoot
+      implementation: 2
+    role: Horde Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    initiativeGrouping: c1a247b5-3b66-44d5-baea-e80512190a93
+    notes:
+    - text: ""
+      title: Monster Notes
+    damage_taken: 0
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: ea5aeca4-3b11-4d3d-aefa-61929a36a465-717
+    walkingSpeed: 7
+    groupid: 651b548f-11c4-46ae-b4c6-1a093cf72847
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 77a41ee4-53ca-478e-9382-0df49c344910-1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 61c082c3-c0bd-49ee-9870-b70636ca8a67
+    moveDistanceRoundId: 986fc8d3-16f6-493d-98af-9653050a18f4-1
+    creatureSize: 1S
+    movementSpeeds:
+      climb: 7
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        1b7590ee-99f2-409c-bd34-2c18bfe5e787:
+          note: Choking Thread
+          timestamp: 1759265825694
+          refreshid: 86dfe4ff-71b3-4d26-940e-26d93627fc89-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        c6148956-639a-4eed-9be8-4ba8895058d4:
+          note: Choking Thread
+          timestamp: 1759268350684
+          refreshid: 986fc8d3-16f6-493d-98af-9653050a18f4-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        e0387484-b911-4d2d-9f47-78f57578f3d0:
+          note: Critical Hit!
+          timestamp: 1759266008797
+          refreshid: 02b93c1a-dc7d-4018-b947-12a96476eb98-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        00c2b864-c2ab-47ba-8bbe-bbd4fd8a8443:
+          note: Choking Thread
+          timestamp: 1759265991913
+          refreshid: 02b93c1a-dc7d-4018-b947-12a96476eb98-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        71edaca3-2b07-4bb6-bc6f-29c2750ba5ae:
+          note: Choking Thread
+          timestamp: 1759269071983
+          refreshid: 77a41ee4-53ca-478e-9382-0df49c344910-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        1fa5c58a-8421-41dd-bb64-a02dadff671d:
+          note: Choking Thread
+          timestamp: 1759265109461
+          refreshid: 617e3b90-94a6-48b0-b035-19dcdd45ca72
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        8feaf669-92f8-478a-9c16-e38eebef5a16:
+          note: Choking Thread Cast
+          timestamp: 1759265032973
+          refreshid: 2db74446-ceda-4837-a5b6-ce2a48985f44
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        f18028fc-2c5a-4a3e-ba97-ab6bf7ed35f8:
+          note: Choking Thread
+          timestamp: 1759265126522
+          refreshid: 3c144374-3637-40ed-8620-3be883fb7b8e
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        2cd82336-3bb8-4e71-98b4-7300ffcb1a92:
+          note: Tightwire
+          timestamp: 1758309256460
+          refreshid: f8c92e8c-de93-4939-add9-966817f4e159
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+    keywords:
+      Ruinborn: true
+      Beast: true
+    monster_type: Spindlegoth
+  tokenType: null
+  bestiaryId: e60df05a-71d7-466e-8521-e89b54113f8d
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1757964511108
+description: null
+parentFolder: d889803f-b4db-46a1-b41a-58e71bd2b2fb
+artist: null
+ord: 1
+ctime: 1763823770542
+mtime: 1763823967240
+hidden: false

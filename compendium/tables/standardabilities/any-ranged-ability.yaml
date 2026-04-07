@@ -1,0 +1,61 @@
+__typeName: ActivatedAbility
+repeatTargets: false
+keywords:
+  Ranged: true
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: Ability.Keywords has "ranged"
+    behavior: modifyability
+    guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+    cannotModifyAction: true
+    attributes: []
+    mustPayResourceCost: false
+    description: ""
+    name: Modify Attack
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: The target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+importMatch: ""
+ctime: 1770305169419
+targetType: self
+description: the target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+persistence: []
+name: Any Ranged Ability
+id: 225040eb-d1bd-402b-ba3f-28421d164356
+mtime: 1773667879352
+abilityType: none
+iconid: ui-icons/skills/1.png

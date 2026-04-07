@@ -1,0 +1,282 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c5ec4eb6-fd28-48de-bf8f-21e951823af4
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b83ae54d-81eb-4571-bdb9-8b4ff39ed647: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b83ae54d-81eb-4571-bdb9-8b4ff39ed647
+        source: Character Feature
+        seq: dd4e7fbd-5e89-4be5-ab6a-781be280ea27
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          modifiers:
+          - __typeName: CharacterModifier
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              guid: cf8d6e88-5b18-43d7-b47a-934cc9cd2802
+              repeatTargets: false
+              range: 1
+              targetType: self
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                damageType: holy
+                roll: Stacks()
+              trigger: beginturn
+              name: Spirit Aura
+              whenActive: combat
+              description: An enemy who moves within 2 squares of the spirit for the first time in a round or starts their turn there takes holy damage equal to your Intuition score.
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            description: ""
+            source: Aura
+            behavior: trigger
+            guid: db2169a3-4f26-485e-adec-fba661abec2d
+            name: Spirit Aura
+            sourceguid: 46335f30-44c1-449f-8898-fd48bf02c586
+          name: Spirit Aura
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: Summoner.intuition
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 4a60e906-91ac-4684-863c-9a8f84a6fc0b
+              trigger: losehitpoints
+              numTargets: "1"
+              targetType: self
+              name: Aura Trigger
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: 46335f30-44c1-449f-8898-fd48bf02c586
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          objectid: 090e0303-b65f-4ebc-85ad-dc9b9af1ec39
+        domains:
+          CharacterFeature:b83ae54d-81eb-4571-bdb9-8b4ff39ed647: true
+        radius: "2	"
+        guid: 44b59738-fdaf-4d5f-a9b3-d90e5b185da1
+        description: An enemy who moves within 2 squares of the spirit for the first time in a round or starts their turn there takes holy damage equal to your Intuition score.
+        behavior: aura
+        name: Spirit Aura
+      name: Spirit Aura
+      guid: b83ae54d-81eb-4571-bdb9-8b4ff39ed647
+      description: An enemy who moves within 2 squares of the spirit for the first time in a round or starts their turn there takes holy damage equal to your Intuition score.
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bcbe073a-c011-48a4-b0f3-19452dd5aed7: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:bcbe073a-c011-48a4-b0f3-19452dd5aed7: true
+        sourceguid: bcbe073a-c011-48a4-b0f3-19452dd5aed7
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "999	"
+          damageType: all
+          apply: Damage Reduction
+        guid: b11e039e-e2b1-4049-b099-be12190382eb
+        name: Can't be harmed
+        description: Damage from all attacks is reduced by 999
+      name: Can't be harmed
+      guid: bcbe073a-c011-48a4-b0f3-19452dd5aed7
+      description: Damage from all attacks is reduced by 999
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cebe5593-b22f-442d-b28b-6786d3df28c4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:cebe5593-b22f-442d-b28b-6786d3df28c4: true
+        sourceguid: cebe5593-b22f-442d-b28b-6786d3df28c4
+        description: The spirit lasts until the end of your next turn
+        source: Character Feature
+        name: Despawn
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDestroyBehavior
+            filterTarget: Ongoing Effects has "Font of Wrath Despawn"
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: d7edb07d-a2e6-4e84-bfe4-5fdc4a9f8a82
+            ongoingEffectCustom: d7edb07d-a2e6-4e84-bfe4-5fdc4a9f8a82
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: e88e8a40-b5f9-4859-b888-3101e885bd7c
+          subject: self
+          description: ""
+          targetType: self
+          name: Depspawn
+          trigger: endturn
+          numTargets: "1"
+          abilityFilters: []
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: dcb6f0bb-27c3-4cf7-a78d-7bdacb376508
+      name: Despawn
+      guid: cebe5593-b22f-442d-b28b-6786d3df28c4
+      description: The spirit lasts until the end of your next turn
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:53deefa0-7e13-4b78-a625-42e938f40fd6: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 53deefa0-7e13-4b78-a625-42e938f40fd6
+        source: Character Feature
+        seq: 650ac4dd-f3a8-40d6-800d-0d2b3f4e9d7a
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          blocks_movement: true
+          modifiers: []
+          source: Fon't of Wrath Movement Block
+          guid: ba15d857-2889-4214-9a58-6fb57f1063e0
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          name: Fon't of Wrath Movement Block
+        domains:
+          CharacterFeature:53deefa0-7e13-4b78-a625-42e938f40fd6: true
+        radius: "0"
+        guid: d32bb833-25f7-4400-9d77-4ba8186d80b1
+        description: You and your allies can move through the spirit's space, but enemies can't
+        behavior: aura
+        name: Blocks Movement
+      source: Character Feature
+      description: You and your allies can move through the spirit's space, but enemies can't
+      guid: 53deefa0-7e13-4b78-a625-42e938f40fd6
+      name: Blocks Movement
+      implementation: 3
+    max_hitpoints: 6
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Monster
+    damage_taken: 0
+    resources: []
+    titles: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    levelChoices: []
+    walkingSpeed: 30
+    creatureSize: "2"
+    monster_type: Font of Wrath
+  tokenType: null
+  bestiaryId: d483b13c-edd6-4975-93fe-dee334456ae7
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1746719766098
+description: null
+parentFolder: 8d262c13-fe50-4a79-afd3-08d7c62990c1
+artist: null
+ord: 1
+ctime: 1746719766098
+mtime: 1775167462727
+hidden: false

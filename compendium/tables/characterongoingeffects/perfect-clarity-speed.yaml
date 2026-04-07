@@ -1,0 +1,27 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 13c31a29-828a-4cb0-b6df-a52eefdcea93
+  sourceguid: aeb5b945-bc1a-45fa-8c1e-47da5a7b5d60
+  value: 3
+  source: Ongoing Effect
+  name: Perfect Clarity - Speed
+  behavior: attribute
+  description: You gain a +3 bonus to speed.
+  attribute: speed
+source: Ongoing Effect
+guid: aeb5b945-bc1a-45fa-8c1e-47da5a7b5d60
+id: aeb5b945-bc1a-45fa-8c1e-47da5a7b5d60
+ctime: 1749179783806
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Perfect Clarity - Speed
+iconid: ui-icons/skills/1.png
+description: You gain a +3 bonus to speed.
+mtime: 1749179783806
+implementation: 2

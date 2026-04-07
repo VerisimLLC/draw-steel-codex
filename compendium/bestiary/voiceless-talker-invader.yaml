@@ -1,0 +1,273 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e1f713c0-1e24-4af0-986b-451d1bed160b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Voiceless Talker Invader	Level 6 Elite Controller
+        Horror, Voiceless Talker	EV 32
+        <b>Stamina</b> 140	<b>Immunity</b> psychic 6
+        <b>Speed</b> 5 (teleport, hover)	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>Free Strike</b> 7
+        Might -1	Agility +1	Reason +3	Intuition +2	Presence +2
+        <b>Tentacle</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 damage
+        %E2%98%85	<b>12-16</b>	15 damage; M<2 grabbed
+        %E2%9C%B8	<b>17</b>	18 damage; M<3 grabbed
+
+        <b>Psionic Boom</b> (Action) %E2%97%86 2d10 + 3<b>%E2%97%86 </b>3 Malice
+        <b>Keywords</b> Area, Psionic
+        <b>Distance</b> 3 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 psychic damage; R<1 push 2
+        %E2%98%85	<b>12-16</b>	10 psychic damage; R<2 push 3
+        %E2%9C%B8	<b>17</b>	12 psychic damage; R<3 push 4 and prone
+        <b>2 Malice</b> The area of the burst increases to 5.
+
+        <b>Tentacle Toss</b> (Maneuver) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Melee, Psionic
+        <b>Distance</b> Melee 1<b>	Target</b> 1 grabbed creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage; vertical slide 2
+        %E2%98%85	<b>12-16</b>	10 damage; vertical slide 3
+        %E2%9C%B8	<b>17</b>	12 damage; vertical slide 5
+
+        <b>Brain Drain</b> (Triggered Action)
+        <b>Keywords</b> Psionic
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature grabbed by the invader
+        <b>Trigger</b> The target resists an ability's effect.
+        <b>Effect</b> The potency of the effect increases by 2.
+
+        <b>Psionic Amplifier</b>
+        When a non-minion Voiceless Talker within 5 of the invader uses an ability with the Psionic keyword, they can do so with a double edge and as if they were in the invader's space.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fca35e26-3c80-4f39-b204-8b48e4d34283: true
+      modifiers: []
+      name: Psionic Amplifier
+      description: When a non-minion Voiceless Talker within 5 of the invader uses an ability with the Psionic keyword, they can do so with a double edge and as if they were in the invader's space.
+      guid: fca35e26-3c80-4f39-b204-8b48e4d34283
+      source: Trait
+    role: Elite Controller
+    keywords:
+      Horror: true
+      Voiceless Talker: true
+    max_hitpoints_roll: "140"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Voiceless Talker Invader
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: -1
+        id: mgt
+    equipment: []
+    groupid: 2d9a554d-5f05-4fa2-a46b-e90b0735d7a3
+    damage_taken: 0
+    max_hitpoints: 140
+    resources: []
+    traitNames: []
+    ev: 32
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5de8887a-c57d-4ec3-b76c-d8f02766e3c4
+      implementation: 4
+      numTargets: 2
+      name: Tentacle
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage
+        - 15 damage; M<2 grabbed
+        - 18 damage; M<3 grabbed
+        roll: 2d10 + Reason
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 psychic damage; R<1 push 2
+        - 10 psychic damage; R<2 push 3
+        - 12 psychic damage; R<3 push 4 and prone
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2ce4e0dd-c982-47d5-88bc-17aab1fdf2d9
+      abilityType: none
+      implementation: 3
+      numTargets: 1
+      name: Psionic Boom
+      targetType: all
+      description: |2-
+
+        **2 Malice**: The size of the burst increases to 5.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Psionic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: ec145567-8834-4384-af76-7d1974c227e8
+      implementation: 3
+      numTargets: 1
+      name: Tentacle Toss
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; vertical slide 2
+        - 10 damage; vertical slide 2
+        - 12 damage; vertical slide 3
+        roll: 2d10 + Reason
+      description: |
+        The target must be grabbed by the invader.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Psionic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 69d9ed52-5026-4bf9-b9c6-320072a33e49
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Brain Drain
+      numTargets: 1
+      description: The potency of the effect increases by 2.
+      abilityType: none
+      implementation: 0
+    monster_category: Monster
+    movementSpeeds:
+      teleport: 5
+    levelChoices: []
+    minion: false
+    creatureSize: 1M
+    walkingSpeed: 5
+  tokenType: null
+  bestiaryId: c825bd97-d7f2-4403-bbaf-9cf786df224a
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1730266376535
+description: Voiceless Talker Invader
+parentFolder: bd101336-f4e1-43da-9fd2-57eb5700365b
+artist: null
+ord: 0
+ctime: 1741590306196
+mtime: 1775201137032
+hidden: false

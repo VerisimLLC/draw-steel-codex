@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 91494f35-cb5b-4a46-a3f2-0ceccd48a688
+id: 91494f35-cb5b-4a46-a3f2-0ceccd48a688
+ctime: 1772805804219
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+custom: true
+name: Bramble Barricade
+statusEffect: true
+description: ""
+mtime: 1772805804219
+iconid: ui-icons/skills/1.png

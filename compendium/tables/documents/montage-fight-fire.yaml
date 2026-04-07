@@ -1,0 +1,553 @@
+__typeName: MarkdownDocument
+annotations:
+  Party:vailableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Current player:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:currentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Current layer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:actedplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Acted Players:
+    __typeName: RichParty
+    partyid: false
+    state:
+      8c404866-2853-4d84-ac26-2ed68a11a650: highlight
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Actedplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Current Player:
+    __typeName: RichParty
+    partyid: false
+    state:
+      96c5aa09-e05b-40d0-a862-0f4ca7f233a2: highlight
+    tokensRemoved: []
+    tokensAdded: []
+  Party:urrentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  image:imageone:
+    __typeName: RichImage
+    uiscale: 0.500000305175781
+    image: "-MDiuJMHgUipszf0nOb5"
+  Party:availableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Available Players:
+    __typeName: RichParty
+    partyid: false
+    state:
+      6234d46f-eebd-412d-8cd7-34e5578c99a3: highlight
+      7af0512f-d82b-413d-ba8d-16b8ab830450: highlight
+      96c5aa09-e05b-40d0-a862-0f4ca7f233a2: highlight
+      5783189c-027a-4c1c-8f54-11730305146e: highlight
+      8c404866-2853-4d84-ac26-2ed68a11a650: highlight
+      d990db89-9651-4f27-833c-216bad9f083a: highlight
+      b5c7a9ab-3ea9-4ab1-9874-95ea1ebe6d0a: highlight
+      2975d22b-64ac-486c-a37c-d675a22a813a: highlight
+      a9490474-f132-4564-ba77-6498c8169f1e: highlight
+    tokensRemoved: []
+    tokensAdded: []
+  Party:Available players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Availableplayers:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  image:montageimage:
+    __typeName: RichImage
+  scene:image:
+    __typeName: RichScene
+    identifier: image
+    image: 66798e30-bc03-4cc9-b70d-993552a0630d
+  "image:":
+    __typeName: RichImage
+  scene:montageimage:
+    __typeName: RichScene
+    identifier: montageimage
+  Party:Acted players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+  Party:Currentplayer:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    tokensAdded: []
+    tokensRemoved: []
+id: 8a844533-b982-4f93-a987-05a5d5f78779
+ctime: 1765039894177
+textStorage:
+  __typeName: TextStorage
+  sections:
+    yR: |
+      ???query (montage_difficulty = 2) and (numheroes > 5)
+    yzzF: |
+      * **Cause of the Fire:** 
+    y: |
+      ???query (montage_difficulty = 2) and (numheroes < 4)
+    yw: |
+      :<>[[Party:Current Player]]
+    x: |
+      ???
+    u: |
+      |||
+    v: |
+      |Failures: |[[------]]|
+    yB: |
+      |||
+    t: |
+      |Successes: |[[------]]|
+    yZ: |
+      |||
+    r: |
+      ???
+    o: |
+      |||
+    p: |
+      |Failures: |[[-----]]|
+    m: |
+      ???query (montage_difficulty = 1) and (numheroes = 5)
+    n: |
+      |Successes: |[[-----]]|
+    k: |
+      |||
+    l: |
+      ???
+    i: |
+      |||
+    j: |
+      |Failures: |[[----]]|
+    g: |
+      ???query (montage_difficulty = 1) and (numheroes = 4)
+    h: |
+      |Successes: |[[----]]|
+    yJ: |
+      |||
+    f: |
+      ???
+    yzzX: |
+      [:Tests]
+      }
+
+      {
+    d: |
+      |Failures: |[[---]]|
+    a: |
+      test
+    b: |
+      |Successes: |[[---]]|
+    yQ: |
+      ???
+    Y: |
+      :<> [[/setvar montage_difficulty 1|Easy]][[/setvar montage_difficulty 2|Medium]][[/setvar montage_difficulty 3|Hard]] 
+
+      }
+
+      {!
+    yzR: |
+      *Suggested Skills*: Climb, Endurance, Persuade
+    yzZ: |
+      [ ]
+      {
+    yx: |+
+      :<>[[Party:Acted Players]]
+
+    U: |
+      * For four or fewer heroes, decrease the success limit and failure limits by 1 (to a minimum of 2) for every hero fewer than five.
+    yzzu: |+
+      #### Total Failure
+
+    S: |+
+      |**Six**|6|6|7|5|8|4|
+
+
+    yzzH: |
+      At the end of the first round of the montage test, the hostile cause of the fire appears—a squad of an invading army, a dragon, a team of arsonists, and so forth. The characters must engage in a standard or hard encounter with this threat. 
+      }
+      {
+    Q: |
+      |**Four**|4|4|5|3|6|2|
+    yY: |
+      |Successes: |[[-----]]|
+    O: |
+      |**Limits**|**Success**|**Failure**|**Success**|**Failure**|**Success**|**Failure**|
+    P: |
+      |**Three**|3|3|4|2|5|2|
+    M: |
+      **Montage Test Difficulty**
+    N: |
+      |**Heroes**|**Easy**||**Medium**||**Hard**||
+    K: |+
+      :<>[[scene:image]]
+      }
+
+
+    L: |
+      ## Party
+
+      {
+    I: |
+      * In a nearby stable, horses are panicking as their hay smolders. Burning rubble blocks pathways everywhere.
+
+      {
+    yp: |
+      ???query (montage_difficulty = 3) and (numheroes > 5)
+    G: |
+      * Elsewhere, some townsfolk flee while others throw water on the fire with no organization or plan. 
+    H: |
+      * Without leadership and a way to stop its spread, the fire could easily consume everything. 
+    E: |+
+      ## Setting the Scene
+
+    F: |
+      * Fire blazes in several buildings whose occupants need to be rescued.
+    C: |+
+      Fire has broken out in the town! The heroes must prevent the conflagration from spreading while saving as many townsfolk as possible. Their efforts might be made more difficult if the cause of the fire—such as a marauding dragon or an invading army—is still around causing trouble.
+      }
+
+    D: |+
+      *(see Montage Tests in [Draw Steel Heroes](pdf:Draw Steel Heroes:261))*
+
+    yzB: |
+      * **Bucket Brigades:** Characters can organize the would-be firefighters into disciplined bucket brigades, or can fight the fire directly in some other way.
+    B: |
+      # Montage Test: Fight Fire
+
+      {
+    yX: |
+      ???query (montage_difficulty = 3) and (numheroes < 4)
+    yzI: |
+      *Suggested Characteristics*: Might or Reason
+    yzzZ: |+
+      ## Montage Outcomes
+
+
+    yzzR: |
+      |Help!: Might or Presence (Lift, Persuade.)
+    yy: |+
+      {Add all your players to the available players party at the start. When a player is acting move them to the current player party by dragging their image. Then to acted players once they are done. At the end of the round move all players back to available players}
+
+
+    yq: |
+      |Successes: |[[--------]]|
+    yzw: |
+      * **Building Collapse:** While a hero is in or near a blazing building, it starts to collapse. The hero must escape before the building crumbles.
+    yzY: |
+      *Suggested Skills*: Intimidate, Lead, Persuade.
+    yzy: |
+      *Suggested Skills*: Climb, Gymnastics, Jump.
+    yzzl: |+
+      #### Partial Success
+
+    yzzL: |
+      *Suggested Characteristics*: Might or Agility or Reason or Intuition or Presence
+    yzh: |+
+      |Medium
+      }
+
+    yzd: |
+      *Suggested Characteristics*: Might or Presence
+    yzQ: |
+      *Suggested Characteristics*: Might or Presence
+    yP: |
+      |||
+    yW: |
+      ???
+    yzr: |
+      [ ]
+      {
+    yz: |+
+      ## Montage Challenges
+
+    yzb: |+
+      |Medium
+      }
+
+    yzz: |
+      [ ]
+      }
+      {
+    yzD: |
+      *Suggested Skills*: Architecture, Intimidate, Lead.
+    yzX: |
+      *Suggested Characteristics*: Presence
+    yj: |
+      ???query (montage_difficulty = 3) and (numheroes = 5)
+    yzG: |+
+      |Medium
+      }
+
+    yb: |
+      |||
+    yzT: |
+      [ ] [ ] 
+      {
+    yzj: |
+      *Suggested Characteristics*: Might
+    yO: |
+      |Failures: |[[----]]|
+    yzE: |
+      [ ]
+      {
+    yV: |
+      |||
+    yzM: |
+      [ ]
+      {
+    ys: |
+      |Failures: |[[----]]|
+    yk: |
+      |Successes: |[[-------]]|
+    yze: |
+      *Suggested Skills*: Handle Animals, Lift, Ride.
+    yzU: |
+      |Evacuating Buildings: Might or Presence (Climb, Endurance, Persuade)
+    yzk: |
+      *Suggested Skills*: Endurance, Lift.
+    yzzx: |+
+      When the fire finally burns out, the town lies in ruins. Townsfolk mourn their dead or grimly prepare to find a new home. Characters earn no Victories from the montage test, but might earn Victories from combat undertaken during the montage test. 
+
+      }
+
+
+    yN: |
+      |||
+    yzu: |+
+      ## Optional Twists
+
+    yU: |
+      |Failures: |[[-----]]|
+    yzzc: |+
+      #### Total Success
+
+    yt: |
+      |||
+    yl: |
+      |||
+    yzs: |
+      |Use the Freed Horses: Reason or Presence (Drive, Handle Animals, Ride)
+    J: |
+      Add a Scene here to show to your players while the montage is happening. Make sure to select **ShowBelow UI** so that they can still access their character panel and roll dice. 
+    yzS: |
+      *Special*: A creature who doesn’t have fire immunity loses a Recovery if they incur a consequence on the test for this challenge. The heroes can attempt this challenge twice during the montage test. 
+    yza: |
+      |Find More Firefighters: Presence (Intimidate, Lead, Persuade)
+    yd: |
+      ???query (montage_difficulty = 3) and (numheroes = 4)
+    R: |
+      |**Five**|5|5|6|4|7|3|
+    yzF: |
+      |Bucket Brigades: Presence or Reason (Architecture, Intimidate, Lead.)
+    yzzf: |
+      The fire is extinguished. Buildings are damaged but no lives were lost. Each character earns 2 Victories if the montage test was hard, or 1 Victory if it was easy or moderate, in addition to any Victories earned from combat during the montage test.
+    X: |+
+      [[setting:Number of Heroes]] 
+
+    V: |+
+      * For six or more heroes, increase the success and failure limits by 1 for every hero more than five.
+
+    yM: |
+      |Successes: |[[------]]|
+    yzN: |
+      |Clearing a Firebreak: Might or Reason(Endurance, Lift)
+    yzzP: |
+      [ ] [ ]
+      }
+      {
+    yh: |
+      |||
+    Z: |
+      ???query (montage_difficulty = 1) and (numheroes < 4)
+    c: |
+      |||
+    yT: |
+      |||
+    yzc: |
+      * **Free the Horses:** Characters can loose the stabled horses threatened by the fire and lead them to safety.
+    e: |
+      |||
+    yzp: |
+      *Suggested Characteristics*: Reason or Presence
+    yc: |
+      ???
+    yzP: |
+      * **Evacuating Buildings:** Characters must save people trapped in burning buildings.
+    s: |
+      ???query (montage_difficulty = 1) and (numheroes > 5)
+    yzi: |
+      * **Move Burning Rubble:** Shifting burning debris blocking doorways can allow people to escape the blaze.
+    yu: |+
+      ???
+      }
+
+    yzx: |
+      *Suggested Characteristics*: Agility or Intuition
+    yzo: |
+      * **Use the Freed Horses (if the Free the Horses challenge was successful):** Characters can put the horses to work clearing rubble or bringing people to safety.
+    yzzD: |
+      |Medium
+      }
+      {
+    yD: |
+      |||
+    yzl: |
+      [ ]
+      {
+    yzH: |
+      * **Clearing a Firebreak:** Preventing the fire from spreading might involve clearing the ground of flammable materials, either by moving it or burning it away under controlled conditions.
+    yE: |
+      ???
+    yzzV: |+
+      **Common Tests you may present to your players during a montage:**
+
+    yo: |
+      ???
+    ym: |
+      |Failures: |[[---]]|
+    yzW: |
+      * **Find More Firefighters:** By finding groups that aren’t fighting the fire,such as fleeing civilians, characters can convince them to help.
+    yg: |
+      |Failures: |[[--]]|
+    yA: |
+      |Successes: |[[----]]|
+    yL: |
+      ???query (montage_difficulty = 2) and (numheroes = 5)
+    yzzB: |
+      |Building Collapse: Agility or Intuition (Climb, Gymnastics, Jump)
+    yzg: |
+      |Free the Horses: Might or Presence (Handle Animals, Lift, Ride.)
+    yzO: |+
+      |Medium
+      }
+
+    yzA: |+
+      {You can adjust the difficulty of the test by selecting the text to the right of it and cycling between them.}
+
+
+    yzV: |+
+      |Medium
+      }
+
+    ye: |
+      |Successes: |[[------]]|
+    yG: |
+      |Successes: |[[-----]]|
+    yI: |
+      |Failures: |[[---]]|
+    ya: |
+      |Failures: |[[--]]|
+    T: |
+      **Montage Test Adjustment**
+    yS: |
+      |Successes: |[[-------]]|
+    w: |
+      |||
+    q: |
+      |||
+    yr: |
+      |||
+    yzv: |
+      At the end of the first montage test round, an emergency crops up. One or more heroes, selected by the players, must deal with the situation before the end of the round. If the heroes successfully deal with the twist, they earn a success for the montage test. Otherwise, they earn a failure.
+      }
+      {
+    yzzN: |
+      *Suggested Skills*: Lift, Persuade.
+    yzL: |
+      *Special*: A creature loses a Recovery if they incur a consequence on the test for this challenge.
+    yzf: |
+      [ ]
+      {
+    yv: |
+      :<>[[Party:Available Players]]
+    yzzJ: |
+      * **Help!:** Townsfolk are about to run into a burning building to save a trapped relative. This twist requires two tests, each of which nets a success or a failure for the montage test. One hero can try to prevent the townspeople from entering the burning building while another rescues the relative.
+    yH: |
+      |||
+    yzq: |
+      *Suggested Skills*: Drive, Handle Animals, Ride
+    yC: |
+      |Failures: |[[--]]|
+    yi: |
+      ???
+    yzK: |
+      *Suggested Abilities*: Any that deal fire damage
+    yzt: |
+      |Medium
+      }
+
+      {
+    yzzi: |+
+      [[//awardvp 1 |Award Heroes 1 Victory]] or [[//awardvp 2|Award Heroes 2 Victories]]
+
+
+    yF: |
+      ???query (montage_difficulty = 2) and (numheroes = 4)
+    yn: |
+      |||
+    yzzo: |
+      The fire is quenched, although many buildings burned and a few lives were lost. Each character earns 1 Victory if the montage test was moderate or hard, in addition to any Victories earned from combat during the montage test.
+    yzn: |+
+      |Medium
+      }
+
+    yzm: |
+      |Move Burning Rubble: Might (Endurance, Lift)
+    yK: |
+      ???
+    yzJ: |
+      *Suggested Skills*: Endurance, Lift
+    yzzr: |+
+      [[//awardvp 1 |Award Heroes 1 Victory]]
+
+
+    yzC: |
+      *Suggested Characteristics*: Presence or Reason
+    yzzT: |
+      |Medium
+      }
+
+
+      {
+    W: |+
+      *Use the buttons below to adjust the montage difficulty*
+
+    yf: |
+      |||
+parentFolder: cf1df5d8-e2ff-45b6-8ea2-1bf283d7a89e
+updateid: 15081cca-0c3f-466f-b828-81893249d381
+mtime: 1765042613763
+content: ""
+description: Montage - Fight Fire

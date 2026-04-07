@@ -1,0 +1,179 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b6ee223c-76fd-48ee-8c35-a22a68e6ff73
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Ghoul Craver	Level 4 Minion Harrier
+        Undead	EV 6 for four minions
+        <b>Stamina</b> 8	<b>Immunity</b> corruption 4, poison 4
+        <b>Speed</b> 7 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Strike damage +2	<b>Free Strike</b> 2
+        Might +3	Agility +2	Reason 0	Intuition 0	Presence 0
+        <b>Taste</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12-16</b>	4 damage
+        %E2%9C%B8	<b>17</b>	6 damage
+        <b>Effect</b> The ghoul craver has a double edge on this ability when targeting bleeding creatures.
+
+        <b>Ever So Hungry</b>
+        While 3 or more ghoul cravers are adjacent to an enemy, that enemy can't shift.
+
+        <b>Hunger</b>
+        The ghoul craver's speed increases by 2 while charging, until the end of their turn.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5fdc8543-acbd-468a-8181-5bff7d3dffd0: true
+      modifiers: []
+      name: Ever So Hungry
+      description: While 3 or more ghoul cravers are adjacent to an enemy, that enemy can't shift.
+      guid: 5fdc8543-acbd-468a-8181-5bff7d3dffd0
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6fe5117e-c23d-43fd-b671-52d81555887a: true
+      modifiers: []
+      name: Hunger
+      description: The ghoul craver's speed increases by 2 while charging, until the end of their turn.
+      guid: 6fe5117e-c23d-43fd-b671-52d81555887a
+      source: Trait
+    role: Minion Harrier
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    monster_type: Ghoul Craver
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    withCaptain: +2 damage bonus to strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 8
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 6 damage
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a23c0e8a-c4b8-4958-94e6-91613e5a9b17
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Taste
+      numTargets: 1
+      description: The ghoul craver has a double edge on this ability when targeting bleeding creatures.
+      abilityType: none
+      implementation: 3
+    keywords:
+      Undead: true
+    movementSpeeds:
+      climb: 7
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 321d1ae5-dc14-4737-887f-dd74a0343395
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969981
+description: Ghoul Craver
+parentFolder: 68f67367-de21-43f0-8448-61d0408cd721
+artist: null
+ord: 3
+ctime: 1741590235117
+mtime: 1775201137032
+hidden: false

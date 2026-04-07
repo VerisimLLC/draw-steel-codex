@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+id: 9c0bec24-4f6c-4ebf-a74d-948c578067b1
+behaviors:
+- __typeName: ActivatedAbilitySaveBehavior
+  applyto: caster
+  conditionsMode: one
+  rollMode: purge
+  includeProne: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 5
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 3e1a20e9-f5c8-4074-8389-f565d6bda3f3
+ctime: 1756420983431
+targetType: self
+numTargets: "1"
+mtime: 1772733612682
+name: Remove Condition or Prone
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

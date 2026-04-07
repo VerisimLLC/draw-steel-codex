@@ -1,0 +1,55 @@
+__typeName: ActivatedAbility
+targetFilter: "<<targetfilter>>"
+id: bd9f9431-2ee2-41c1-81cb-c08570144cb9
+targetType: emptyspace
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1774540081579
+categorization: Hidden
+range: "<<distance>>"
+repeatTargets: false
+testCases:
+- text: ""
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 12e9b308-313f-4688-87fb-a040094aaa63
+importMatch: ""
+ctime: 1759254967533
+importMatchType: rules
+targeting: pathfind
+numTargets: "1"
+name: Shift and Hide
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: shift
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  invokeOnCaster: true
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 7acb3c73-de02-4257-a712-588a111494f5
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  standardAbility: 9683c15c-de03-4129-869c-d4054928cf97
+  abilityType: standard
+  applyto: caster
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

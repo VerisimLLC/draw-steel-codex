@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: none
+stackable: true
+id: bf68d026-4fd0-4280-9dba-5756f2e45b51
+ctime: 1760186354386
+domains:
+  CharacterOngoingEffect:bf68d026-4fd0-4280-9dba-5756f2e45b51: true
+display:
+  brightness: 1.60000174386161
+  saturation: 0.871427699497768
+  hueshift: 0.464284406389509
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.121094107627869
+    v: 0.792884349822998
+    a: 1
+sustainFormula: ""
+name: Rage
+guid: bf68d026-4fd0-4280-9dba-5756f2e45b51
+description: 'Rage points inlicted by the Werewolf. A creature who starts their turn with 10 or more rage expends their rage. '
+mtime: 1760189270822
+iconid: 699cf8b4-6b8e-41cf-ba1f-c41f5b799cce

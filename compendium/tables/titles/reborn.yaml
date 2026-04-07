@@ -1,0 +1,97 @@
+__typeName: Title
+effect: |2-
+   A god or other powerful being has determined that it is not yet your time to die. Your body fades away, but you reappear alive 24 hours later in a location of your choice. You regain all your Stamina and Recoveries, and your choice of your Intuition or Presence increases by 1 (to a maximum of 6).
+
+  Additionally, choose one of the following benefits:
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Characteristic Increase
+    numChoices: 1
+    description: |-
+      Your choice of your Intuition or Presence increases by 1
+      (to a maximum of 6).
+    guid: ccd7be7e-0ba1-48e5-b47d-ae9543c42414
+    options:
+    - __typeName: CharacterFeature
+      description: ""
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 594dffc9-2278-4de2-a3c5-9f539d55d0c2
+        sourceguid: c92b51cc-fa6a-4582-aff5-9479176fd737
+        behavior: attribute
+        source: Feat
+        name: Intuition Increase
+        description: ""
+        value: 1
+        attribute: inu
+      source: Feat
+      name: Intuition Increase
+      guid: c92b51cc-fa6a-4582-aff5-9479176fd737
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: a0fbd9fd-070a-499b-bc9f-404dfdb47af7
+        filter: Intuition < 6
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: ""
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 972fb6e0-113a-4581-95a8-1eba5349ef8f
+        sourceguid: 4f6f3044-352a-4689-a645-c90b45dfac5d
+        behavior: attribute
+        source: Feat
+        name: Presence Increase
+        description: ""
+        value: 1
+        attribute: prs
+      source: Feat
+      name: Presence Increase
+      guid: 4f6f3044-352a-4689-a645-c90b45dfac5d
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: cb19647d-a8df-4d99-bd94-ad0862f87f74
+        filter: Presence < 6
+      implementation: 4
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Reborn Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 5b3bafd4-e4e4-4cea-9a38-dfdde784dacf
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Holy Weapon
+      description: You have a leveled treasure of the Director’s choice.
+      guid: 96964562-263d-48a8-9996-3f9ac4570cd7
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Kill Me Once, Shame On You
+      description: Choose a creature keyword belonging to one of the creatures who defeated you. Any creature with that keyword takes a bane on ability rolls against you.
+      guid: c808f356-aaea-4320-abbd-bbb53004a254
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterSkillChoice
+      name: Memories of the Beyond
+      numChoices: 2
+      guid: 7bb4c1e6-2cbc-491f-a35f-e64d9896904f
+      source: Feat
+      description: Choose 2 Skills
+id: db230134-014e-452c-928d-a1afbb74721c
+ctime: 1762352357999
+name: Reborn
+description: I remember this world. I suppose my task is not yet complete.
+mtime: 1775218732287
+echelon: "4"
+prerequisite: |-
+  You died in glorious battle while on a quest for a
+  higher power.

@@ -1,0 +1,43 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  guid: 6888233e-90ff-43f5-8819-8f274cdb53fa
+  sourceguid: bdc02680-fa83-490b-af02-f4b6621fcb60
+  description: While grabbed this way, a target can't communicate or use magic abilities
+  source: Ongoing Effect
+  name: Strangle
+  behavior: suppressabilities
+  explanation: While Grabbed by Strangle ability, a target can’t communicate or use magic abilities.
+  keywords:
+    Magic: true
+- __typeName: CharacterModifier
+  sourceguid: bdc02680-fa83-490b-af02-f4b6621fcb60
+  source: Ongoing Effect
+  value: 1
+  description: While grabbed this way, a target can't communicate or use magic abilities
+  name: Strangle
+  guid: 89682147-d645-41a5-86d2-50b89d1f2d7f
+  displayIcon: false
+  behavior: attribute
+  attribute: ef12c36f-cad4-40a5-8256-f8a4275f38df
+source: Ongoing Effect
+guid: bdc02680-fa83-490b-af02-f4b6621fcb60
+id: bdc02680-fa83-490b-af02-f4b6621fcb60
+ctime: 1766139716610
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+description: While grabbed this way, a target can't communicate or use magic abilities
+name: Strangle
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+mtime: 1768317580233
+powerTableText: While Grabbed by Strangle, a target can’t communicate or use magic abilities.
+implementation: 3

@@ -1,0 +1,248 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 72f849c4-3fd6-4873-ad43-52efe7f46cd4
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Assassin	Level 6 Platoon Artillery
+        Fey, Humanoid, Shadow Elf	EV 16
+        <b>Stamina</b> 70
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 7
+        Might +0	Agility +3	Reason +2	Intuition +1	Presence +1
+        <b>Neon Assault</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 15<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 damage
+        %E2%98%85	<b>12-16</b>	15 damage
+        %E2%9C%B8	<b>17</b>	18 damage
+        <b>Effect</b> The next ability used against the target has a double edge.
+        <b>5 Malice</b> Each non-minion ally within 3 squares of the target makes a free strike against them.
+
+        <b>Splitbow</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 2 Malice
+        <b>Keywords</b> Area, Ranged, Weapon
+        <b>Distance</b> 1 x 4 line within 10<b>	Target</b> All enemies in the line
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; I<1 bleeding (save ends).
+        %E2%98%85	<b>12-16</b>	10 damage; I<2 bleeding (save ends).
+        %E2%9C%B8	<b>17</b>	12 damage; I<3 bleeding (save ends).
+        <b>Effect</b> Push 4.
+
+        <b>Of the Umbra</b>
+        The assassin ignores concealment granted by darkness. While the assassin is in direct sunlight, they have damage weakness 3. While the assassin is concealed, they have damage immunity 3.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:28fa9754-efc6-4436-978f-c5ffce6eca69: true
+      modifiers: []
+      name: Of the Umbra
+      description: The assassin ignores concealment granted by darkness. While the assassin is in direct sunlight, they have damage weakness 3. While the assassin is concealed, they have damage immunity 3.
+      guid: 28fa9754-efc6-4436-978f-c5ffce6eca69
+      source: Trait
+    role: Platoon Artillery
+    keywords:
+      Fey: true
+      Humanoid: true
+      Shadow Elf: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    monster_type: Shadow Elf Assassin
+    opportunityAttack: 7
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    levelChoices: []
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    walkingSpeed: 5
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage
+        - 15 damage
+        - 18 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a2ea04c6-c7c7-4990-abfa-f3e71ed103ff
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Neon Assault
+      numTargets: 1
+      description: The next ability used against the target has a double edge.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: f8ae7bb9-e67e-4a72-a504-859c4f01d1dd
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; I<1 bleeding (save ends)
+        - 10 damage; I<2 bleeding (save ends)
+        - 12 damage; I<3 bleeding (save ends)
+        roll: 2d10 + Agility
+      name: Splitbow
+      implementation: 3
+      description: Push 4.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 129
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 15
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: Each non-minion ally within 3 squares of the target can make a free strike against them.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage
+        - 15 damage
+        - 18 damage
+        roll: 2d10 + Agility
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Lumina Assault
+      guid: 8eea9361-f194-4b67-ba5c-286422c88d21
+      description: |-
+        The next ability used against the target has a double edge.
+        **5 Malice**: Each non-minion ally within 3 squares of the target can make a free strike against them.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    monster_category: Monster
+    movementSpeeds:
+      climb: 5
+    damage_taken: 0
+    minion: false
+    ev: 16
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: b90b0546-088b-4a13-9fd3-a69eb64b8531
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Shadow Elf Assassin
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590299796
+mtime: 1775201137032
+hidden: false

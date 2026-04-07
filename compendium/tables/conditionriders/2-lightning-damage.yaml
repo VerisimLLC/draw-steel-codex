@@ -1,0 +1,55 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 8489e1aa-46dd-4b10-841a-b87b6ea5588c
+    repeatTargets: false
+    abilityType: none
+    trigger: beginturn
+    targetType: self
+    numTargets: "1"
+    name: 2 Lightning Damage
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Grab Damage
+      roll: "2"
+      damageType: lightning
+      chatMessage: Lightning damage while grabbed
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: A creature grabbed this way takes 2 lightning damage at the start of each of their turns.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: b8df3ba5-4ac8-4eaa-983c-ad2ba0fa81a2
+  name: 2 Lightning Damage
+  sourceguid: b996a5ca-d7b9-4410-8ee5-85fcddef5ec0
+source: Ongoing Effect
+guid: b996a5ca-d7b9-4410-8ee5-85fcddef5ec0
+id: b996a5ca-d7b9-4410-8ee5-85fcddef5ec0
+ctime: 1754541045926
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+name: 2 Lightning Damage
+description: A creature grabbed this way takes 2 lightning damage at the start of each of their turns.
+mtime: 1754541045926
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+implementation: 3

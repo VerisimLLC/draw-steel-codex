@@ -1,0 +1,203 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0b4d58b0-2503-469f-bfaf-1a1396f44f58
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Noctis Mage	Level 6 Platoon Hexer
+        Fey, Humanoid, Shadow Elf	EV 16
+        <b>Stamina</b> 70
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +0	Agility +2	Reason +3	Intuition +1	Presence +1
+        <b>Blotting Bolt</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 5<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12-16</b>	14 damage
+        %E2%9C%B8	<b>17</b>	17 damage
+        <b>Effect The target has a bane on their next strike.</b>
+        <b>3 Malice</b> The target has a double bane on the next signature action they use.
+
+        <b>Enemies in the Dark</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 3 Malice
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 5<b>	Target</b> Two enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; R<1 the target makes a free strike against an enemy of the noctis mage's choice.
+        %E2%98%85	<b>12-16</b>	10 damage; R<2 the target makes a free strike against an enemy of the noctis mage's choice.
+        %E2%9C%B8	<b>17</b>	13 damage; R<3 the target uses a signature action against an enemy of the noctis mage's choice.
+
+        <b>Of the Umbra</b>
+        The noctis mage ignores concealment granted by darkness. While the noctis mage is in direct sunlight, they have damage weakness 3. While the noctis mage is concealed, they have damage immunity 3.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:30bd1638-f6dd-4066-bae2-c57e0dcc2a23: true
+      modifiers: []
+      name: Of the Umbra
+      description: The noctis mage ignores concealment granted by darkness. While the noctis mage is in direct sunlight, they have damage weakness 3. While the noctis mage is concealed, they have damage immunity 3.
+      guid: 30bd1638-f6dd-4066-bae2-c57e0dcc2a23
+      source: Trait
+    role: Platoon Hexer
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Shadow Elf: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 6
+    monster_type: Shadow Elf Noctis Mage
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9e85bee3-c610-4085-ad7a-a43879d5ac66
+      implementation: 3
+      numTargets: 1
+      name: Blotting Bolt
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 14 damage
+        - 17 damage
+        roll: 2d10 + Reason
+      description: |-
+        The target takes a bane on their next strike.
+        **3 Malice**: The target instead has a double bane on the next ability they use.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; R<1 the target makes a free strike against one enemy of the noctis mage's choice
+        - 10 damage; R<2 the target makes a free strike against one enemy of the noctis mage's choice
+        - 13 damage; R<3 the target uses a signature ability against one enemy of the noctis mage's choice.
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 80c3c79f-2705-4160-b8db-27907e8b7032
+      abilityType: none
+      implementation: 4
+      numTargets: 2
+      name: Enemies in the Dark
+      targetType: target
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 5
+    ev: 16
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 9b3bdb16-7c34-441c-875c-2204532e7ce9
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Shadow Elf Noctis Mage
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590287007
+mtime: 1775201137032
+hidden: false

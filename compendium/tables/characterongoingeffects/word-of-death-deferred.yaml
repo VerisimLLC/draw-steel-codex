@@ -1,0 +1,83 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 7a3fafcc-ba84-4602-97d0-2429f1f8eeb3
+  source: Ongoing Effect
+  value: 99
+  domains:
+    CharacterOngoingEffect:7a3fafcc-ba84-4602-97d0-2429f1f8eeb3: true
+  name: Word of Death Deferred
+  guid: 6fb0bdb2-eb93-43a6-b807-258fd076a522
+  description: You are unconscious until you regain Stamina
+  behavior: attribute
+  attribute: 9248b479-12c2-4d1f-a1d2-7416fd63f244
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:7a3fafcc-ba84-4602-97d0-2429f1f8eeb3: true
+  sourceguid: 7a3fafcc-ba84-4602-97d0-2429f1f8eeb3
+  description: You are unconscious until you regain Stamina
+  source: Ongoing Effect
+  name: Word of Death Deferred
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: You've taken damage while you were unconscious. You die.
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: true
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 1b099a94-b935-4d72-bb17-4c3e21d8c213
+    name: Word of Death Deferred
+    castImmediately: true
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "100"
+      chatMessage: Damage taken while unconscious. You die.
+      doesNotTrigger: true
+    domains:
+      CharacterOngoingEffect:7a3fafcc-ba84-4602-97d0-2429f1f8eeb3: true
+    trigger: losehitpoints
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 6b9b490c-8b6a-4bed-99b3-36c6bc2d268e
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 7a3fafcc-ba84-4602-97d0-2429f1f8eeb3
+  source: Ongoing Effect
+  value: -999
+  domains:
+    CharacterOngoingEffect:7a3fafcc-ba84-4602-97d0-2429f1f8eeb3: true
+  name: Word of Death Deferred
+  guid: 0e06233d-8f8e-483a-b9d8-43d0efc7c636
+  description: You are unconscious until you regain Stamina
+  behavior: attribute
+  attribute: f70898b2-fb61-4384-a673-bdb2fbf51a35
+source: Ongoing Effect
+condition: bfe300f4-83f9-4303-9abb-951974025e88
+guid: 7a3fafcc-ba84-4602-97d0-2429f1f8eeb3
+id: 7a3fafcc-ba84-4602-97d0-2429f1f8eeb3
+ctime: 1769596505187
+domains:
+  CharacterOngoingEffect:7a3fafcc-ba84-4602-97d0-2429f1f8eeb3: true
+endTrigger: regainhitpoints
+description: You are unconscious until you regain Stamina
+name: Word of Death Deferred
+iconid: 144134df-02dc-44cd-9e2e-3d546b31a0f2
+custom: true
+mtime: 1770553070405
+implementation: 3

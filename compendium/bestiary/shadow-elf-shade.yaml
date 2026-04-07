@@ -1,0 +1,180 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1f33e86e-7c5c-4146-9204-637f1fa4b070
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Shade	Level 4 Ambusher Retainer
+        Fey, Humanoid, Shadow Elf	EV 23
+        <b>Stamina</b> 60
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M/<b>Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +1	Agility +2	Reason 0	Intuition +2	Presence +1
+        <b>Shadow Dagger</b> (Action) - 2d10 + highest characteristic - Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 3 	<b>Target </b>One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>		6 damage
+        %E2%98%85	<b>12-16</b>	10 damage
+        %E2%9C%B8	<b>17</b>		13 damage
+        <b>Effect</b> When the shade starts their turn concealed from the target, gain a surge.
+
+        <b>Gathering Gloom</b> (Maneuver, Encounter)
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 1	<b>Target</b> -
+        <b>Effect</b> Until the end of the next turn, the area is filled with darkness. The shade's mentor ignores concealment granted by this darkness.
+
+        <b>Of the Umbra</b>
+        The shade ignores concealment granted by darkness. While the shade is in direct sunlight, they have damage weakness 3. While the shade is concealed, they have damage immunity 3.
+
+        Level 7 Retainer Advancement Ability
+        <b>Slow-Poison Needle</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 5	<b>Target</b> 1 creature
+        %E2%9C%A6	<b>%E2%89%A411</b>		at the start of the target's next turn, 8 poison damage and weakened (save ends)
+        %E2%98%85	<b>12-16</b>		at the start of the target's next turn, 12 poison damage and weakened (save ends)
+        %E2%9C%B8	<b>17</b>		at the start of the target's next turn, 16 poison damage and weakened (save ends)
+        <b>Effect </b>The slow-poison needle is initially painless. When using this ability, the shade can remain hidden if they are already hidden.
+
+        Level 10 Retainer Advancement Ability
+        <b>Shadow-Poison Dagger </b>(Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> 1 creature
+        %E2%9C%A6	<b>%E2%89%A411</b>		12 poison damage; shadowed vision (save ends)
+        %E2%98%85	<b>12-16</b>		17 poison damage; shadowed vision (save ends)
+        %E2%9C%B8	<b>17</b>		23 poison damage; shadowed vision (save ends)
+        <b>Effect </b>While a creature has shadowed vision, every creature has concealment from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d7c316c3-47b7-4467-8f2c-d85fe1f88ddc: true
+      modifiers: []
+      name: Of the Umbra
+      guid: d7c316c3-47b7-4467-8f2c-d85fe1f88ddc
+      description: The shade ignores concealment granted by darkness. While the shade is in direct sunlight, they have damage weakness 3. While the shade is concealed, they have damage immunity 3.
+      source: Trait
+    role: Ambusher Retainer
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Shadow: true
+      Shadow Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    monster_type: Shadow Elf Shade
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 60
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: caa8bbe2-bb78-4ea4-bfe0-1e83d5f74ad4
+      meleeRange: 1
+      numTargets: 1
+      name: Shadow Dagger
+      behaviors: []
+      description: When the shade starts their turn concealed from the target, gain a surge.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 5
+    ev: 23
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 4e5fb8b4-f4e4-4b86-9e5b-524601299baf
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962494057
+description: Shadow Elf Shade
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590247898
+mtime: 1775167492952
+hidden: false

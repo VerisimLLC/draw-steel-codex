@@ -1,0 +1,226 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 339d7abe-31e3-4a2a-845b-e830e0fa534e
+  details: "You gain 2 piety the first time in an encounter that you or an ally within 10 squares of you uses the Aid Another maneuver or an ability that targets an ally. \n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: Ally Targets Ally
+isSubclass: true
+ctime: 1727946183851
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: ab218c37-2561-4c0f-b9dd-58576e03945e
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f4d7b6d8-de5d-4a2b-b379-2c2a2a6b0b38
+        source: Love Domain Class Feature
+        behavior: trigger
+        domains:
+          class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        name: Love Domain Piety
+        resourceRefreshType: encounter
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Aid Another: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: f6d50221-0613-4b00-9d0a-a916b97d2b86
+          guid: 013cede2-b9f2-4dd2-92bb-866126cc845a
+          persistence: []
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: targetwithability
+          domains:
+            class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          conditionFormula: subject != target and Friends(subject, target)
+          numTargets: "1"
+          name: Love Domain Piety
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 2 + 1 when level >= 4
+            checklistid: 339d7abe-31e3-4a2a-845b-e830e0fa534e
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Ally Aided Another!
+          description: |-
+            You gain 2 piety the first time in an encounter that you or an ally within 10 squares of you uses the Aid Another maneuver or an ability that targets an ally.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: selfandallies
+          iconid: ui-icons/skills/1.png
+        guid: f6d50221-0613-4b00-9d0a-a916b97d2b86
+      name: Love Domain Piety
+      classid: f269127d-8e7c-4ed4-b80b-da35dec411c7
+      description: ""
+      source: Love Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 934f4482-bee3-4e6e-9ab4-47d17ca8d8e5
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: e929bf0f-1faf-4f39-a29a-171c2d1680ab
+        description: Each ally within 10 squares of you gains temporary Stamina equal to two times your Intuition score.
+        source: Love Domain Class Feature
+        name: Love Domain Effect
+        behavior: activated
+        guid: 308aab69-d26c-4356-acfc-c4a447ab00d7
+        activatedAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: 0.309803903102875
+              v: 1
+              a: 1
+          targetFilter: not Enemy
+          guid: b598caa8-2d9d-4ae5-aeda-8b532c5beaaf
+          repeatTargets: false
+          abilityType: none
+          domains:
+            class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          targetType: all
+          categorization: Trigger
+          name: Love Domain Effect
+          behaviors:
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: Intuition*2
+          description: Each ally within 10 squares of you gains temporary Stamina equal to two times your Intuition score.
+          range: "10	"
+          iconid: 2dbee8c9-19b0-40da-acda-bf20c2401f4e
+      name: Love Domain Effect
+      classid: f269127d-8e7c-4ed4-b80b-da35dec411c7
+      description: Each ally within 10 squares of you gains temporary Stamina equal to two times your Intuition score.
+      source: Love Domain Class Feature
+      implementation: 3
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f269127d-8e7c-4ed4-b80b-da35dec411c7: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+name: Love Domain
+prerequisite: Deity.Domains has "Love"
+mtime: 1768291449428
+id: f269127d-8e7c-4ed4-b80b-da35dec411c7
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

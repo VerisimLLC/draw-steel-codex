@@ -1,0 +1,71 @@
+__typeName: Kit
+stability: 1
+armor: Heavy
+health: 9
+id: 55ca4cd3-7856-4b2e-b581-05ea3ee672bc
+weapons:
+  Light: true
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Warrior Priest
+description: The Warrior Priest kit imbues the power of the gods into your weapon, making it a smiting instrument. You wade into the fray without fear, thanks to the power of the divine ... and the heavy armor you're wearing.
+mtime: 1770565639189
+type: martial
+speed: 1
+imported: aeb2d270-6f43-4245-95dd-f4e40de7ec5e
+damageBonuses:
+  melee:
+  - 1
+  - 1
+  - 1
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Magic: true
+    Weapon: true
+    Kit: true
+    Strike: true
+    Melee: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 3 + M, R, I or P holy damage
+    - 5 + M, R, I or P holy damage
+    - 8 + M, R, I or P holy damage
+    roll: 2d10 + Might or Reason or Intuition or Presence
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: a5feff79-ba94-487f-be63-0db2898d05a2
+    stacks: Max(Might, Intuition, Reason, Presence)
+    duration: end_of_next_turn
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: The impact of your weapon brands your target for destruction.
+  sourceReference:
+    __typeName: SourceReference
+    page: 224
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  effectImplemented: false
+  numTargets: 1
+  modifiers: []
+  strain: []
+  guid: 03cc2ab4-28c5-4470-86d0-dc15894497ca
+  implementation: 4
+  persistence: []
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  targetType: target
+  name: Weakening Brand
+  categorization: Signature Ability
+  description: The target has damage weakness equal to the characteristic score you used on this ability's power roll (EoT).
+  abilityType: none
+  iconid: 22371de9-6aeb-4e63-b37a-43963cc80b95
+kitManeuver: false
+equipmentDescription: You wear heavy armor and wield a light weapon.
+portraitid: 64365ff4-ac82-49f9-947b-c53b06e410bf

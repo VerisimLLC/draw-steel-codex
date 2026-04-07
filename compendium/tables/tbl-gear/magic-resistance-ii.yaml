@@ -1,0 +1,43 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 4bdae66e-8681-4d19-b1c5-ca2a25b76332
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    resistanceFormula: min(3, Resistance + 2)
+    sourceguid: 4bdae66e-8681-4d19-b1c5-ca2a25b76332
+    source: Item
+    modtype: none
+    keywords:
+      Magic: true
+    activationCondition: true
+    name: Magic Resistance II
+    guid: e3206cc0-c596-41ce-8826-1d225c70e956
+    description: ""
+    behavior: power
+    rollType: enemy_ability_power_roll
+  source: Item
+  name: Magic Resistance II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 88cc3a8f-5a24-438f-a206-2b81801e3598
+imbuePrereq: f102a730-76d8-4302-8ff4-609b8dfd4074
+projectSource: The First Language
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770698928353
+type: Gear
+itemPrerequisite: A scale from a mature dragon
+mtime: 1772492713211
+name: Magic Resistance II
+imbueTargetType: armor
+description: Your characteristic scores are treated as 1 higher (to a maximum of 3) for the purpose of resisting the potencies of magic abilities. This benefit replaces Magic Resistance I.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

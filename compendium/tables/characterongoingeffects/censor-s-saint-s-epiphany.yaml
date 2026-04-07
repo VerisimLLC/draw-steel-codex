@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 9fa7949f-9d98-4162-bbff-30e024125ac1
+  source: Ongoing Effect
+  modtype: appendroll
+  keywords: []
+  replaceText: 1d10 + {Caster.Presence}
+  guid: 37e99186-3446-4233-b2ed-04c3ab1fbc46
+  name: Censor's Saint's Epiphany
+  rollType: project_roll
+  description: You gain 1d10 + the Caster's Presence Score
+  behavior: power
+  activationCondition: true
+source: Ongoing Effect
+guid: 9fa7949f-9d98-4162-bbff-30e024125ac1
+id: 9fa7949f-9d98-4162-bbff-30e024125ac1
+ctime: 1767234591894
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Censor's Saint's Epiphany
+description: You gain 1d10 + the Caster's Presence Score
+custom: true
+mtime: 1767234689738
+iconid: ui-icons/skills/1.png

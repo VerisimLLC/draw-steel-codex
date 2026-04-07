@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: "2"
+category: Class Specific
+name: MaxMinionSquads
+documentation: You can manage up to two squads of minions. Newly summoned minions can either be organized into a new squad or be distributed into other squads under your control. A squad can’t contain more than eight minions, and all minions in the squad must have the same name.
+mtime: 1760385507669
+id: a08a9cf7-54f7-4a80-9e32-e59e1e13b0ff
+ctime: 1760385023307

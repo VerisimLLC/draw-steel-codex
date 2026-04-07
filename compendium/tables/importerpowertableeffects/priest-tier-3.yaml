@@ -1,0 +1,29 @@
+__typeName: ActivatedAbility
+id: d9c67b7a-7f9b-4c37-a874-e05362d548a1
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: c7727b08-d3e2-4065-85cd-6e85ee5c867d
+  ongoingEffectCustom: false
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+testCases:
+- text: the next attack against the target has a +2
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 32078c40-42ec-46d9-9023-3b8b9b2a4a53
+importMatch: the next attack against the target has a \+2
+ctime: 1711343112421
+targetType: self
+repeatTargets: false
+description: ""
+name: Priest tier 3
+numTargets: "1"
+mtime: 1770658393409
+abilityType: none
+iconid: ui-icons/skills/1.png

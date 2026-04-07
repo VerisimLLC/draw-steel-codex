@@ -1,0 +1,210 @@
+2fb998b9-5924-46b5-927a-c97d8a66d391:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 752d95d5-07f2-4beb-ba9e-15b9bc905f5a
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start + 1} Piety; 1d6 + {Level} Psychic Damage
+  - __typeName: RollTableRow
+    id: a5fa3928-63d2-464b-9ece-72a8dbccc352
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start + 2} Piety
+  - __typeName: RollTableRow
+    id: 1c4fe35e-fb59-45e3-be29-99f9c339d5c6
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start + 4} Piety; choose and use a domain effect
+  rollType: d3
+  name: Prayer Table
+  mtime: 1769642136604
+  id: 2fb998b9-5924-46b5-927a-c97d8a66d391
+  ctime: 1741928218036
+fea8816d-9682-4d44-9f69-a9b68e8bee30:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: adventureTables
+        key: b10bf4b7-a2fe-429a-ad74-69c75a0938c6
+    choiceName: Gain Drama
+    id: 08bd0d2a-9072-4d01-957f-928fbb37fa4a
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: adventureTables
+        key: f467aa03-77fb-43e9-a266-b40cc984a936
+    choiceName: Appeal to the Muses
+    id: a3680892-2ea3-4fe8-848c-2d81d8066494
+  rollType: namedChoice
+  name: Troubadour Muse Choice
+  mtime: 1753664318689
+  id: fea8816d-9682-4d44-9f69-a9b68e8bee30
+  ctime: 1753664058100
+f467aa03-77fb-43e9-a266-b40cc984a936:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 899008fc-f4a9-4253-b3cb-fb4416935167
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start + 1} drama; the Director gains 1d3 Malice
+  - __typeName: RollTableRow
+    id: ab71a713-bf39-4c32-b022-78abfb3a5f95
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start + 1} drama; Gain 1 Heroic Resource, which you can keep or give to an ally within distance of your active performance; the Director gains 1 Malice.
+  - __typeName: RollTableRow
+    id: 9ea98a34-2840-48a8-9617-0be45902471c
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start + 2} drama; Gain 2 Heroic Resources, which you can keep or distribute to allies within distance of your active performance.
+  name: Muses Table
+  mtime: 1769642093361
+  id: f467aa03-77fb-43e9-a266-b40cc984a936
+  ctime: 1753664221941
+b10bf4b7-a2fe-429a-ad74-69c75a0938c6:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 47b75e2f-8b96-4a9f-8af8-2965bf4a0a83
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start} drama
+  - __typeName: RollTableRow
+    id: d9eb6d82-8275-4a74-9b6b-7fc1f9471be8
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start+1} drama
+  - __typeName: RollTableRow
+    id: 04ee11a0-cceb-4c52-a2ee-c9e32a839ddc
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start+2} drama
+  name: Drama Table
+  mtime: 1772712308579
+  id: b10bf4b7-a2fe-429a-ad74-69c75a0938c6
+  ctime: 1753664069905
+2dd5cb43-f6de-4ec9-a388-e4a990c4b709:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 2259f638-bc6d-45a7-b0b1-1d4f1b7ba434
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start} Piety
+  - __typeName: RollTableRow
+    id: a37d12aa-c4d7-41c4-a9e2-d1a3dc1d18da
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start + 1} Piety
+  - __typeName: RollTableRow
+    id: 8020ec97-71d1-4f59-a5f5-e322a3dec0e7
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Gain {Heroic Resource Gain at Start + 2} Piety
+  name: Piety Table
+  mtime: 1769642117266
+  id: 2dd5cb43-f6de-4ec9-a388-e4a990c4b709
+  ctime: 1741928234912
+0fd2f4bc-f37e-4469-b8d3-031970498b45:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: adventureTables
+        key: b10bf4b7-a2fe-429a-ad74-69c75a0938c6
+    choiceName: Gain Drama
+    id: 25325f6a-ae8a-402d-95ea-23dfb08e83e0
+  rollType: namedChoice
+  name: Troubadour Muse Choice Level 1
+  mtime: 1753669222796
+  id: 0fd2f4bc-f37e-4469-b8d3-031970498b45
+  ctime: 1753669188681
+bec51cc1-df56-4913-9785-45bde55e672f:
+  __typeName: RollTable
+  text: true
+  rows:
+  - __typeName: RollTableRow
+    id: 3c98cb9b-ebad-4fb2-ae2b-a05a6300567f
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Do Not Pray
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: adventureTables
+        key: 2dd5cb43-f6de-4ec9-a388-e4a990c4b709
+  - __typeName: RollTableRow
+    id: 4ab0ab5d-1d8c-43d6-bcf2-c02a851dab56
+    value:
+      __typeName: VariantCollection
+      items:
+      - __typeName: Variant
+        type: text
+        value: Pray
+      - __typeName: Variant
+        type: tableRoll
+        dataTable: adventureTables
+        key: 2fb998b9-5924-46b5-927a-c97d8a66d391
+  rollType: namedChoice
+  name: Conduit Prayer Choice
+  mtime: 1741928283230
+  id: bec51cc1-df56-4913-9785-45bde55e672f
+  ctime: 1741928283230

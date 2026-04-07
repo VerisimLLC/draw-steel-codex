@@ -1,0 +1,21 @@
+__typeName: equipment
+itemPrerequisite: A year’s lifespan from the creator or another willing creature, the laughter of a young hero
+keywords:
+  Magic: true
+projectSource: Texts or lore in Khelt
+flavor: An ornately decorated golden vial smells of summer rain and subtle zesty fruits.
+weight: 1
+echelon: 4
+specialDescription: ""
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+ctime: 1775046773346
+type: Gear
+projectGoal: "360"
+mtime: 1775046773346
+name: Restorative of the Bright Court
+category: Gear
+description: When opened as a maneuver, this vial bursts into a storm of multicolored lights. You and each ally within 5 squares of you regain 1d6 Recoveries. However, any mortal using this treasure draws the interest of a powerful fey noble.
+projectRollCharacteristic:
+  rea: true
+  prs: true
+id: 3972da33-0d98-4076-8a4c-014cd7700112

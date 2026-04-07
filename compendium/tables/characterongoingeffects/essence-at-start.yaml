@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+stackable: true
+id: 1320a32d-4016-4036-a645-29b3ad1d15b1
+endTrigger: endturn
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 1320a32d-4016-4036-a645-29b3ad1d15b1
+  source: Ongoing Effect
+  value: Stacks - 1
+  name: Essence at Start
+  guid: a99a8cd9-e9b8-4fa2-804c-1c06d090ff60
+  description: ""
+  behavior: attribute
+  attribute: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+source: Ongoing Effect
+guid: 1320a32d-4016-4036-a645-29b3ad1d15b1
+ctime: 1758989765169
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Essence at Start
+sustainFormula: Combat Round > 0
+statusEffect: false
+description: ""
+mtime: 1759196178775
+iconid: ui-icons/skills/1.png

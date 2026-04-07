@@ -1,0 +1,196 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5e75d655-6646-40f9-a385-e6ff7ec8d34d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Sniper	Level 4 Minion Artillery
+        Fey, Humanoid, Shadow Elf	EV 6 for four minions
+        <b>Stamina</b> 7
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Strike damage +2	<b>Free Strike</b> 3
+        Might +1	Agility +3	Reason +0	Intuition +0	Presence +0
+        <b>Neon Arrow</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 7<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12-16</b>	5 damage
+        %E2%9C%B8	<b>17</b>	7 damage
+        <b>Effect</b> The next strike made against the target has an edge.
+
+        <b>Of the Umbra</b>
+        The sniper ignores concealment granted by darkness. While the sniper is in direct sunlight, they have damage weakness 3. While the sniper is concealed, they have damage immunity 3.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f59d862f-969f-4981-b5ce-13308979989e: true
+      modifiers: []
+      name: Of the Umbra
+      description: The sniper ignores concealment granted by darkness. While the sniper is in direct sunlight, they have damage weakness 3. While the sniper is concealed, they have damage immunity 3.
+      guid: f59d862f-969f-4981-b5ce-13308979989e
+      source: Trait
+    role: Minion Artillery
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "7"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    monster_type: Shadow Elf Sniper
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    withCaptain: +2 damage bonus to strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 7
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 7
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a9f416ac-6d72-42c2-b20d-ece8c0cf14eb
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Neon Arrow
+      numTargets: 1
+      description: The next strike made against the target has an edge.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 7
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bbfbcace-840e-4617-a527-b7114b583c67
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Lumina Arrow
+      sourceReference:
+        __typeName: SourceReference
+        page: 128
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: The next strike made against the target gains an edge.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Fey: true
+      Humanoid: true
+      Shadow Elf: true
+    movementSpeeds:
+      climb: 5
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: afcbfa17-27f8-4dd4-b7bd-d10a0eedd378
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222946034
+description: Shadow Elf Sniper
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590295786
+mtime: 1775201137032
+hidden: false

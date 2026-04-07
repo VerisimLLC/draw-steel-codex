@@ -1,0 +1,142 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    description: Rolled weapon abilities that use this weapon deal an additional 1/2/3 psychic damage, or an extra 2/4/6 psychic damage if the target is winded.
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    activationCondition: true
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: 1 + 1 when target.winded
+        threshold: 1
+      - script: 2 + 2 when target.winded
+        threshold: 5
+      - script: 3 + 3 when target.winded
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    damageTypeMappings: []
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    hasCustomTrigger: true
+    customTrigger:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 1cdacd2f-9876-4b0c-bd13-03a0864eb1fc
+      repeatTargets: false
+      trigger: d20roll
+      castImmediately: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          modifiers:
+          - __typeName: CharacterModifier
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: 6880b61b-917e-44a4-a9c3-b49996235472
+              repeatTargets: false
+              trigger: dealdamage
+              conditionFormula: target.winded and ((target.stamina+damage) > target.maximumStamina/2)
+              targetType: self
+              persistence: []
+              name: Executioner's Blade
+              behaviors:
+              - __typeName: ActivatedAbilityLimitBehavior
+                keyOverride: executionerblade
+                key: 99fea9b1-80a5-49b1-8cb1-6401fbf528da
+                applyto: caster
+                refresh: encounter
+              - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+                applyto: caster
+                stamina: "10"
+                chatMessage: Executioner's Blade
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            description: ""
+            source: Ongoing Effect
+            behavior: trigger
+            guid: 511c99fa-e8c6-4ec5-9bcb-f3a612cca158
+            name: Executioner's Blade
+            sourceguid: cc9b968e-9ab9-4f58-beec-9e8dd827c6b7
+          source: Ongoing Effect
+          guid: cc9b968e-9ab9-4f58-beec-9e8dd827c6b7
+          id: cc9b968e-9ab9-4f58-beec-9e8dd827c6b7
+          name: Executioner's Blade
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          implementation: 3
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      numTargets: "1"
+      name: Executioner's Blade
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    rollType: ability_power_roll
+    modtype: none
+    damageModifierType: psychic
+    behavior: power
+    name: Executioner's Blade Extra Damage
+  source: Item
+  name: Executioner's Blade Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: abc5e471-1fab-4831-bc13-6b305ae83db2
+itemPrerequisite: The skull of a convicted criminal
+keywords:
+  Heavy Weapon: true
+  Psionic: true
+projectSource: Texts or lore in Caelian
+flavor: This blade exudes a faint hum that grows louder as its quarry weakens.
+level9: The weapon’s extra psychic damage increases to 3, or to 6 if the target is winded. Additionally, you gain an edge on any ability using the weapon against a winded target.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+projectGoal: "450"
+ctime: 1759282949591
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+domains:
+  item:7ec8d387-6081-4177-bc42-5ff9d0d36f79: true
+level5: The weapon’s extra psychic damage increases to 2, or to 4 if the target is winded. Additionally, whenever you cause an enemy to become winded with an ability using the weapon, you gain 2 surges that you can immediately spend.
+id: 7ec8d387-6081-4177-bc42-5ff9d0d36f79
+name: Executioner’s Blade
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 psychic damage, or an extra 2 psychic damage if the target is winded. Additionally, the first time in an encounter that you cause an enemy to become winded with an ability using the weapon, you gain 10 temporary Stamina.
+mtime: 1759891772645
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: bf0ffb54-7fa8-4e61-8684-7965d9ece257

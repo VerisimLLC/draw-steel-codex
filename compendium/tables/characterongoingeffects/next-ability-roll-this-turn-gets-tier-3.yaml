@@ -1,0 +1,59 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 8f2681a1-5ec7-4592-9477-62453792205c
+  source: Ongoing Effect
+  guid: 5137e64f-eeda-4d7a-98eb-6ed5dbbd8631
+  behavior: power
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 09a4cc5f-38fe-4a72-8c96-e66227fe1857
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 8f2681a1-5ec7-4592-9477-62453792205c
+      mode: effect
+      conditions: []
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  domains:
+    CharacterOngoingEffect:8f2681a1-5ec7-4592-9477-62453792205c: true
+  rollType: ability_power_roll
+  activationCondition: true
+  description: The next ability roll you make this turn automatically gets a tier 3 result.
+  modtype: tier3
+  name: Next Ability Roll This Turn Gets Tier 3
+source: Ongoing Effect
+display:
+  blend: add
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+  brightness: 2
+guid: 8f2681a1-5ec7-4592-9477-62453792205c
+id: 8f2681a1-5ec7-4592-9477-62453792205c
+ctime: 1746869658776
+domains:
+  CharacterOngoingEffect:8f2681a1-5ec7-4592-9477-62453792205c: true
+description: The next ability roll you make this turn automatically gets a tier 3 result.
+custom: true
+name: Next Ability Roll This Turn Gets Tier 3
+statusEffect: true
+mtime: 1746870163487
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e
+implementation: 3

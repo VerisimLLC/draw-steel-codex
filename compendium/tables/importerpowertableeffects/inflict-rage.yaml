@@ -1,0 +1,36 @@
+__typeName: ActivatedAbility
+objectTarget: false
+id: 1707d477-ea33-4faf-a2bf-be9ec064c047
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: bf68d026-4fd0-4280-9dba-5756f2e45b51
+  filterTarget: not Subclasses has "Stormwight"
+  stacks: "<<amount>>"
+  ongoingEffectCustom: false
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+invokeSurroundingAbility: false
+categorization: Hidden
+range: 1
+description: ""
+testCases:
+- text: the target gains 2 rage
+- text: the target gains 8 rage
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 34326cca-72ff-471a-906f-9f59bb05fb0a
+importMatch: the target gains <<amount>> rage
+ctime: 1760186577529
+importMatchType: rules
+numTargets: "1"
+targetType: target
+name: Inflict Rage
+repeatTargets: false
+mtime: 1772545071281
+abilityType: none
+iconid: ui-icons/skills/1.png

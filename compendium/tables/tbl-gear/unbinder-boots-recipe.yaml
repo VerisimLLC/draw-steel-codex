@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 75e450ce-9ff2-45d3-a7b1-3bc5e0e24cd0
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765469309313
+ctime: 1765469309313
+name: Unbinder Boots Recipe
+flavor: Text or lore in Caelian
+description: The project source necessary to craft Unbinder Boots
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

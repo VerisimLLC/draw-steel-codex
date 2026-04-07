@@ -1,0 +1,11 @@
+__typeName: DamageType
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Lightning
+ctime: 1699861784806
+mtime: 1699861791430
+id: 14e4938b-b811-4356-adde-994bd417f0c7
+iconid: 7d43c722-94dc-4bce-bc01-6c34d8e8a4ac

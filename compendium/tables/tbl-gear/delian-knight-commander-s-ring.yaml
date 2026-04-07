@@ -1,0 +1,66 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 86fda081-ffb1-4596-bf70-5c1ef4471c48
+  name: Delian Knight Commander's Ring
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 86fda081-ffb1-4596-bf70-5c1ef4471c48
+    modifyDescription: "*Delian Knight Commander's Ring* adds 2 range"
+    source: Item
+    filterAbility: Ability.affiliation is all
+    guid: b4e6023e-ca47-4b5b-9dc5-1b10710cc05f
+    attributes:
+    - operation: Add
+      value: "2"
+      id: range
+    behavior: modifyability
+    description: While you wear this ring, the distance of ranged abilities that target only you or your allies increases by 2.
+    name: Delian Knight Commander's Ring
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 75e99896-ef5d-4958-9f33-56442b997157
+      repeatTargets: false
+      behaviors: []
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      targetType: self
+      abilityType: none
+      name: New Ability
+      abilityModification: true
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Item
+  addText: Add Magical Property
+  description: While you wear this ring, the distance of ranged abilities that target only you or your allies increases by 2.
+  itemAttached: true
+  implementation: 2
+itemPrerequisite: An emerald washed with a dragon’s tear
+keywords:
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: The ring is a gold band with an emerald cut like a shield.
+weight: 1
+category: Gear
+specialDescription: ""
+iconid: cbd5e632-04aa-46e5-9a2b-67e58257b95a
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+id: 70c93731-3a5f-4e02-b226-8b21a8771456
+ctime: 1760183425441
+type: Gear
+domains:
+  item:70c93731-3a5f-4e02-b226-8b21a8771456: true
+projectGoal: "150"
+name: Delian Knight Commander's Ring
+mtime: 1762460847972
+description: While you wear this ring, the distance of ranged abilities that target only you or your allies increases by 2.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 2

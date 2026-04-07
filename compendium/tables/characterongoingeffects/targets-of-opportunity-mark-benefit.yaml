@@ -1,0 +1,76 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:6cc65c9c-e228-4ce6-b3b4-c31658018cc5: true
+  sourceguid: 6cc65c9c-e228-4ce6-b3b4-c31658018cc5
+  behavior: triggerdisplay
+  source: Ongoing Effect
+  name: "Targets of Opportunity: Mark Benefit"
+  description: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to add one additional target to the strike.
+  guid: 35da8f25-2dc0-44bd-8c74-a87eae578b43
+  ability:
+    __typeName: TriggeredAbilityDisplay
+    effect: Add one additional target to the strike
+    guid: 88d4cd57-f6df-437a-ac1b-2e5359752952
+    distance: "-"
+    keywords: []
+    target: You or one ally
+    name: Targets of Opportunity
+    cost: 2 Focus
+    trigger: The target makes a strike agaInst a creature marked by you
+    type: passive
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:6cc65c9c-e228-4ce6-b3b4-c31658018cc5: true
+  abilityTargets: TargetCount+1
+  trigger: casting
+  source: Ongoing Effect
+  powerRollModifier:
+    __typeName: CharacterModifier
+    source: Trigger
+    modtype: none
+    resourceCostAmount: "2"
+    activationCondition: false
+    resourceCostType: cost
+    behavior: power
+    name: Targets of Opportunity
+    rules: ""
+    rollType: ability_power_roll
+    keywords:
+      Strike: true
+    guid: 87a062e9-1698-4a40-874c-d01251270edd
+  guid: 7ad16415-8f12-4b55-9e34-9f6c77f4005e
+  castingFilter: ability.Keywords has "Strike"
+  targetFilter: Target.ConditionCaster("Mark") = Triggerer
+  type: passive
+  targetType: selforally
+  behavior: powertabletrigger
+  name: "Targets of Opportunity: Mark Benefit"
+  rules: ""
+  description: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to add one additional target to the strike.
+  range: 10
+  sourceguid: 6cc65c9c-e228-4ce6-b3b4-c31658018cc5
+source: Ongoing Effect
+guid: 6cc65c9c-e228-4ce6-b3b4-c31658018cc5
+id: 6cc65c9c-e228-4ce6-b3b4-c31658018cc5
+ctime: 1753340082703
+domains:
+  CharacterOngoingEffect:6cc65c9c-e228-4ce6-b3b4-c31658018cc5: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.804499804973602
+    s: 1.00166630744934
+    v: 1.00191080570221
+    a: 1
+custom: true
+name: "Targets of Opportunity: Mark Benefit"
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+description: Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to add one additional target to the strike.
+mtime: 1757888766035
+implementation: 3

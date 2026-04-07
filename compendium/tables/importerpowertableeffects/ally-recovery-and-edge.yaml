@@ -1,0 +1,55 @@
+__typeName: ActivatedAbility
+id: 06d7da3c-0d31-493b-b93e-5dbb4f301f8a
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: caster
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: f6f46a8b-e889-4d79-95f0-19034c07e43f
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors:
+    - __typeName: ActivatedAbilityHealBehavior
+      roll: target.Maximum Hitpoints/3
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+      mode: expend
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: a9ef06ef-c643-4316-a177-b9f45291461e
+      ongoingEffectCustom: false
+    range: 5*<<range>>
+    name: Invoked Ability
+    targetType: target
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  promptText: Choose ally to spend a recovery and gain +1
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+testCases:
+- text: an ally within 5 can spend a Recovery and has a +1 on the next attack they make this encounter.
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 62bde5c9-4cd3-409c-b816-a6fac0d0e22a
+importMatch: an ally within <<range>> can spend a Recovery and has a \+1 on the next attack they make this encounter
+ctime: 1711422885875
+targetType: self
+repeatTargets: false
+description: ""
+name: Ally Recovery and Edge
+numTargets: "1"
+mtime: 1759800709204
+abilityType: none
+iconid: ui-icons/skills/1.png

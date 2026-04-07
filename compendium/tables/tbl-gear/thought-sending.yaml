@@ -1,0 +1,63 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: d9cdcaa6-9047-42aa-b744-32864d5eb466
+  description: Your ranged magic and psionic abilities gain a +2 distance bonus. Additionally, you can telepathically communicate with any willing creature who knows a language and whose name you know, provided they are on the same world as you. You must initiate the conversation, but once you do, the creature can respond until you end the conversation.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: d9cdcaa6-9047-42aa-b744-32864d5eb466
+    modifyDescription: Range increased by Thought Sending Imbuement
+    source: Thought Sending Imbuement
+    filterAbility: Ability.Keywords has "Ranged" and (Ability.Keywords has "Magic" or Ability.Keywords has "Psionic")
+    behavior: modifyability
+    keywords: []
+    attributes:
+    - operation: Add
+      value: "2"
+      id: range
+    guid: aa53c422-c9f3-4b84-8fd9-ef524c3fc637
+    description: Your ranged magic and psionic abilities gain a +2 distance bonus. Additionally, you can telepathically communicate with any willing creature who knows a language and whose name you know, provided they are on the same world as you. You must initiate the conversation, but once you do, the creature can respond until you end the conversation.
+    name: Thought Sending
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 9b44af90-5ec8-419a-a081-4144642235f2
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Thought Sending Imbuement
+  name: Thought Sending
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+id: fa757f87-f45f-4c4d-8c8b-07b9f3dfe730
+imbuePrereq: none
+projectSource: Variac
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: The brain of a psionic creature
+mtime: 1774489942656
+name: Thought Sending
+imbueTargetType: implement
+description: Your ranged magic and psionic abilities gain a +2 distance bonus. Additionally, you can telepathically communicate with any willing creature who knows a language and whose name you know, provided they are on the same world as you. You must initiate the conversation, but once you do, the creature can respond until you end the conversation.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 3

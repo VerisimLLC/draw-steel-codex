@@ -1,0 +1,68 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  behavior: power
+  keywords:
+    Attack: true
+  hasCustomTrigger: false
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: dca4e13c-3ee6-4ef3-b4bb-aca6fab5e56e
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: db4a514a-7380-47d7-a842-e5f09309d372
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  domains:
+    CharacterOngoingEffect:3d0b375f-3314-495b-89ff-59d761fc2cba: true
+    CharacterOngoingEffect:2378b77e-dc66-4f7b-9851-ba4365a4d969: true
+  rollType: all
+  activationCondition: true
+  description: This creature has a double bane on all power rolls for the duration.
+  modtype: double_bane
+  name: Double Bane On All Power Rolls
+source: Ongoing Effect
+display:
+  brightness: 1.69999738420759
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.979500114917755
+    s: 0.984774827957153
+    v: 0.663087010383606
+    a: 1
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+id: 2378b77e-dc66-4f7b-9851-ba4365a4d969
+ctime: 1757921161959
+domains:
+  CharacterOngoingEffect:3d0b375f-3314-495b-89ff-59d761fc2cba: true
+  CharacterOngoingEffect:2378b77e-dc66-4f7b-9851-ba4365a4d969: true
+iconid: 31f05982-a8cd-4fc1-8488-30240ee44e5e
+categorization: common
+endTrigger: none
+name: Double Bane On All Power Rolls
+description: This creature has a double bane on all power rolls for the duration.
+mtime: 1757921999413
+implementation: 3

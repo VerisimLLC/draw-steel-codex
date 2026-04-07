@@ -1,0 +1,61 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:b236776a-5e7b-45cf-8d92-11e415cb3ec7: true
+  sourceguid: b236776a-5e7b-45cf-8d92-11e415cb3ec7
+  description: While weakened, take damage when casting supernatural abilities with Malice
+  source: Ongoing Effect
+  name: Arcane Disruptor
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: Arcane Disruptor - Use Supernatural Ability
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: true
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    hasManualVersion: false
+    strain: []
+    whenActive: combat
+    guid: 835bd7b8-e93d-4e9d-835e-bd42d7f94954
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: ConditionCaster("Arcane Disruptor").Intuition
+      titleText: Arcane Disruptor
+      chatMessage: Arcane Disruptor Damage
+    conditionFormula: Used Ability.MaliceCost > 0
+    trigger: useability
+    persistence: []
+    name: Arcane Disruptor
+    domains:
+      CharacterOngoingEffect:b236776a-5e7b-45cf-8d92-11e415cb3ec7: true
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 23396241-8e50-4938-b653-f6c9de903c76
+source: Ongoing Effect
+guid: b236776a-5e7b-45cf-8d92-11e415cb3ec7
+id: b236776a-5e7b-45cf-8d92-11e415cb3ec7
+ctime: 1758077614554
+domains:
+  CharacterOngoingEffect:b236776a-5e7b-45cf-8d92-11e415cb3ec7: true
+sustainFormula: ConditionCaster("weakened") = ConditionCaster("Arcane Disruptor")
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Arcane Disruptor
+custom: true
+description: While weakened, take damage when casting supernatural abilities with Malice
+mtime: 1758647395540
+iconid: ui-icons/skills/1.png

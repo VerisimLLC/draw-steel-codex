@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Exploration Perks
+name: I've Got You!
+description: Whenever a willing ally falls and would land on you or adjacent to you, you can safely catch them as a free triggered action. Neither of you takes damage from the ally’s fall.
+mtime: 1755079450819
+id: e0c518bd-dd36-4937-bcc6-e31ae177c896
+ctime: 1730700509292

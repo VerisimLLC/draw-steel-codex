@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: ec6081c3-1686-4c4e-b22a-1d235d065143
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765469789339
+ctime: 1765469789339
+name: Kuran'zoi Prismscale Recipe
+flavor: Text or lore in Voll
+description: The project source necessary to craft a Kuran'zoi Prismscale
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

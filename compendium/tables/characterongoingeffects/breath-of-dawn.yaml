@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: c84fb613-973d-4079-b39a-987547368dc4
+  sourceguid: 60714fd4-4d50-42f7-b65b-264819b1741c
+  value: 8
+  source: Ongoing Effect
+  name: Breath of Dawn
+  behavior: attribute
+  description: 'You have +8 stability until the end of the encounter. '
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+guid: 60714fd4-4d50-42f7-b65b-264819b1741c
+id: 60714fd4-4d50-42f7-b65b-264819b1741c
+ctime: 1773582444166
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0720004290342331
+    s: 0.953125
+    v: 0.904310464859009
+    a: 1
+name: Breath of Dawn
+description: 'You have +8 stability until the end of the encounter. '
+custom: true
+mtime: 1773582444166
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

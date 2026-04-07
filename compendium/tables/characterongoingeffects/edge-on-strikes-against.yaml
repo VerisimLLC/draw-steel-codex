@@ -1,0 +1,40 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  modtype: edge
+  keywords:
+    Attack: true
+  activationCondition: true
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  rollType: enemy_ability_power_roll
+  domains:
+    CharacterOngoingEffect:67f10517-edfe-455f-a837-ae4e9699593a: true
+  description: Strikes against this creature have an edge
+  behavior: power
+  name: Edge on Strikes Against
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 1
+    s: 1.00166606903076
+    v: 1.00191080570221
+    a: 1
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+id: b4f21d9a-e2a8-48f8-a2a7-c742e218a250
+ctime: 1743926192004
+domains:
+  CharacterOngoingEffect:67f10517-edfe-455f-a837-ae4e9699593a: true
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+categorization: common
+endTrigger: none
+name: Edge on Strikes Against
+description: Strikes against this creature have an edge
+mtime: 1743926224539
+implementation: 3

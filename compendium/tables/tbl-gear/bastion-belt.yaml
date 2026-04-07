@@ -1,0 +1,52 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 42b7ed65-4051-49fb-b266-9784455bef09
+  description: While worn, this belt grants you a +3 bonus to Stamina and a +1 bonus to Stability. This Stamina bonus adds to the Stamina bonus granted by other treasures.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 01d09a4b-a78b-49e3-8c54-c23a367d01d2
+    sourceguid: 42b7ed65-4051-49fb-b266-9784455bef09
+    value: 3
+    source: Item
+    name: Bastion Belt
+    behavior: attribute
+    description: While worn, this belt grants you a +3 bonus to Stamina and a +1 bonus to Stability. This Stamina bonus adds to the Stamina bonus granted by other treasures.
+    attribute: hitpoints
+  - __typeName: CharacterModifier
+    guid: 786831e5-151d-484d-a34e-f02418e0cb85
+    sourceguid: 42b7ed65-4051-49fb-b266-9784455bef09
+    value: 1
+    source: Item
+    name: Bastion Belt
+    behavior: attribute
+    description: While worn, this belt grants you a +3 bonus to Stamina and a +1 bonus to Stability. This Stamina bonus adds to the Stamina bonus granted by other treasures.
+    attribute: forcedmoveresistance
+  source: Item
+  name: Bastion Belt
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 1de29367-2f07-45ad-aa23-25bcf4dd7012
+keywords:
+  Magic: true
+  Waist: true
+projectSource: Texts or lore in High Kuric
+flavor: This thick leather belt features a bone clasp and feels unusually heavy when handled
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+implementation: 4
+itemPrerequisite: A giant’s tooth
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+projectGoal: "300"
+echelon: 2
+ctime: 1774846047082
+name: Bastion Belt
+mtime: 1774846047082
+description: While worn, this belt grants you a +3 bonus to Stamina and a +1 bonus to Stability. This Stamina bonus adds to the Stamina bonus granted by other treasures.
+projectRollCharacteristic:
+  mgt: true
+  inu: true
+iconid: a8779a17-22e7-41a2-8e57-c0b5fe32844b

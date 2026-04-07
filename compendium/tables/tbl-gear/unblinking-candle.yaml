@@ -1,0 +1,22 @@
+__typeName: equipment
+features: []
+itemPrerequisite: An ember from Quintessence
+keywords:
+  Magic: true
+projectSource: Texts in Kalliak
+weight: 1
+category: Gear
+specialDescription: ""
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+mtime: 1761779762482
+ctime: 1760183747022
+type: Gear
+implementation: 4
+projectGoal: "45"
+name: Unblinking Candle
+id: 80eb1eed-67f3-4a73-abeb-ec0196d3e427
+description: This candle sheds no heat and spills no wax. It can burn even in conditions that would extinguish a mundane candle, such as underwater.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 77cc41bd-025b-41ff-8f52-83ffcfff4b4c

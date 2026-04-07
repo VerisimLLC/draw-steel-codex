@@ -1,0 +1,260 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  targetFilter: Enemy
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityAuraBehavior
+    duration: endturn
+    aura:
+      __typeName: Aura
+      applyto: enemies
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: 3dd870fb-aac8-40dc-965c-2a912cafb334
+      objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+  - __typeName: ActivatedAbilityOrderTargetsBehavior
+    orderFormula: Distance(Target, Self)
+    guid: d1db3762-d283-40c6-ac23-a0fd5b0f4af5
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    invokeOnCaster: false
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 11005dd1-a6a8-45c9-8ec3-5350eacac327
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    standardAbilityParams:
+      range: "5"
+    promptText: Destination square must be away from the Water Wolf and once the creature is outside of the area they stop movement.
+    abilityType: standard
+    runOnController: false
+    standardAbility: 3e18f2b2-893d-4945-9564-cf75a5e16849
+    targeting: prompt
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.66124951839447
+      s: 0.915429353713989
+      v: 0.904310524463654
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 65
+    docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+  range: "5"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: ad3d3941-99c4-4569-ac4f-9b59f0fd79cf
+  abilityType: none
+  targetType: line
+  iconid: b6c78c6e-ac58-437c-a83d-2549d06a5412
+  numTargets: "1"
+  radius: "1"
+  name: Change Course
+  description: A water wolf acting this turn pours a river from their mouth in a 5 × 1 line within 1 square of them. Each enemy in the area slides up to 5 squares away from the water wolf or until they exit the area. Enemies are force moved one at a time, starting with the enemy nearest to the water wolf, and can be pushed into other targets in the same line. The river then evaporates.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetFilter: target.type = "Water Wolf"
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.661927342414856
+      s: 0.913419902324677
+      v: 0.905882358551025
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 65
+    docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: fd742c23-0a5d-4674-92ff-bbc93a4b0c62
+  abilityType: none
+  channeledResource: none
+  iconid: 489e5e7e-4f0c-4a59-9ff1-97f6b104a9a8
+  numTargets: "1"
+  selfTarget: true
+  name: Pack Formation
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: c808cbb7-1e3d-42ab-9ffd-b3d012a9f7f5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: b540692e-6d85-4f30-8a35-f14621fb0b43
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: This Shift can be Skipped to use Water Weird first.
+        abilityType: standard
+        standardAbilityParams:
+          distance: Movement Speed
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        namedAbility: Water Weird
+        abilityType: named
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: d175eada-877e-4919-95a9-5abae9b9d23c
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: b540692e-6d85-4f30-8a35-f14621fb0b43
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: This ability only allows shifting up to the creatures Movement Speed. If they have already shifted their movement speed before using Water Weird, this Shift should be skipped.
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        guid: da89890f-2a71-47b0-93f3-ed3c3ccc0745
+        abilityType: standard
+        standardAbilityParams:
+          distance: Movement Speed
+      targetType: self
+      name: Shift & Water Weird
+      numTargets: "1"
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    promptText: Choose a location to Shift to and then use Water Weird
+  description: Each water wolf in the encounter shifts up to their speed and can use their Water Weird feature at any point during this shift.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  targetFilter: type = "Water Wolf"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 344a6062-6023-4b03-8872-c7a097e36052
+    duration: endround
+    ongoingEffectCustom: 344a6062-6023-4b03-8872-c7a097e36052
+  - __typeName: ActivatedAbilityAuraBehavior
+    duration: endround
+    aura:
+      __typeName: Aura
+      modifiers: []
+      name: Step of the Mist
+      guid: f86c52f7-f2b9-4b12-90e6-43170669e631
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      objectid: 99b893f4-d067-4af2-ae5e-28c60a06fd90
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.661927342414856
+      s: 0.913419902324677
+      v: 0.905882358551025
+      a: 1
+  sourceReference:
+    __typeName: SourceReference
+    page: 65
+    docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: db9e44aa-ca11-4ad3-a987-ddd217424b54
+  abilityType: none
+  targetType: map
+  iconid: a6181095-2968-4f20-9dab-f7d58772f34e
+  numTargets: "1"
+  selfTarget: true
+  name: Step of the Mist
+  description: The encounter map becomes misty until the end of the round, with visible droplets of water suspended in midair. While in the mist, any water wolf can fly and gains a +2 bonus to the distance of forced movement from their abilities.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+mtime: 1762212014912
+name: Water Wolf
+traits: []
+attacks: []
+id: f4e22b22-ff83-4443-a797-0dd3a7d0c496
+ctime: 1759183282436

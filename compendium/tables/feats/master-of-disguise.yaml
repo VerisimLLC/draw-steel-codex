@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: intrigue perk
+name: Master of Disguise
+description: You can don or remove a disguise as part of any test you make using the Hide skill, or while using the Hide maneuver.
+mtime: 1755374303602
+id: e96c69ff-7e7f-4955-8685-ac08e06b3da9
+ctime: 1730449708544

@@ -1,0 +1,27 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 42873cb8-a22a-435d-a1c4-95f0e0bef694
+  sourceguid: 0817bc3c-737a-4f85-9996-dcd03978cbe9
+  value: 1
+  source: Ongoing Effect
+  name: Increase Size
+  behavior: attribute
+  description: Size increased by 1 step.
+  attribute: creatureSize
+source: Ongoing Effect
+guid: 0817bc3c-737a-4f85-9996-dcd03978cbe9
+id: 0817bc3c-737a-4f85-9996-dcd03978cbe9
+ctime: 1759500649015
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Increase Size
+statusEffect: false
+mtime: 1759500663317
+description: Size increased by 1 step.
+iconid: 68eecff7-6407-4fde-adbe-ee829a72b1ad

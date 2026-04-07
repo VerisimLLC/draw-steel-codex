@@ -1,0 +1,94 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: cf74246c-5a20-4615-8807-68f237659073
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    import: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Canine
+    damage_taken: 0
+    resources: []
+    titles: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    levelChoices: []
+    walkingSpeed: 30
+    monster_type: Rodent
+    groupid: a68c91b6-55f3-4c16-82d9-e0da68078b49
+    keywords:
+      Animal: true
+  tokenType: null
+  bestiaryId: 49b92c47-5878-4ece-b5ee-704da077be3f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1753882566431
+description: null
+parentFolder: 4b3931af-633a-4d06-a87c-a4139290d258
+artist: null
+ord: 2
+ctime: 1753882726268
+mtime: 1775167458271
+hidden: false

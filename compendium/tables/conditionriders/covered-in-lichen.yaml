@@ -1,0 +1,21 @@
+__typeName: ConditionRider
+modifiers: []
+source: Ongoing Effect
+guid: 3086abf0-a9ff-4be4-a3e3-46a8b966e5b1
+id: e4aa5b34-065d-49fc-8e16-3ae0632e68b0
+ctime: 1768807849954
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+name: Covered in Lichen
+description: While Weakened this way, the target is covered in lichen.
+mtime: 1768807883080
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725

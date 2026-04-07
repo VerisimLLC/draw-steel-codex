@@ -1,0 +1,44 @@
+__typeName: MarkdownDocument
+annotations: []
+id: f556720b-66bf-4c3a-8007-2fecca87f286
+ctime: 1764097362833
+textStorage:
+  __typeName: TextStorage
+  sections:
+    p: |+
+      The knight wielding a sword is also wearing a lion helm.
+
+    M: "Should the past be forgot, so shall Parthus the Bleak rise once more.\n \n"
+    k: |+
+      Septimus was either second or last in the formation.
+
+    I: |+
+      “Remember well the tale of the knights noble, who in valiance slew Parthus the Bleak. Open not this door until they are properly equipped.
+
+    G: |+
+      ## A Large Brass Plaque With A Handle And An Inscription:
+
+    u: |
+      The knight wielding a spear stood in front of the one with a plumed helm, but behind Cornelia.”
+    V: |+
+      Septimus is not wearing the lion helm.
+
+    f: |+
+      Cornelia is wearing the cowl.
+
+    E: |+
+      # Hall of Triumph
+
+    a: |+
+      Aeolias stands in front of the knight wearing a plumed helm, but behind the knight with a sword.
+
+    Q: |+
+      Four knights battled that day: Portia, the knight with an axe, the knight in a Falcon Helm, and the knight who stands first in the formation.
+
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: 02682bf9-8717-4e13-9726-14141aed208a
+mtime: 1764099738817
+content: |-
+  # Sign Title
+  Design this sign.
+description: Sign

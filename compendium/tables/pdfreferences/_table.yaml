@@ -1,0 +1,624 @@
+fc948480-cab0-4c7f-ab7f-e656e0a22f05:
+  __typeName: PDFFragment
+  width: 216.429565429688
+  id: fc948480-cab0-4c7f-ab7f-e656e0a22f05
+  ctime: 1761493972469
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761742021009
+  description: Delian Knight Commander's Ring
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 288.257718443871
+  page: 1
+  area:
+  - 0.362768530845642
+  - 0.496560364961624
+  - 0.636038184165955
+  - 0.967569708824158
+bb93a393-d032-46c2-bc46-583b07084a40:
+  __typeName: PDFFragment
+  width: 218.319728851318
+  id: bb93a393-d032-46c2-bc46-583b07084a40
+  ctime: 1761494142811
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494231552
+  description: Unblinking Candle
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 288.257718443871
+  page: 3
+  area:
+  - 0.361575245857239
+  - 0.0270952582359314
+  - 0.637231469154358
+  - 0.498104602098465
+16a40e96-c8c7-4988-8b2c-5394c356d7b0:
+  __typeName: PDFFragment
+  width: 215.484389305115
+  id: 16a40e96-c8c7-4988-8b2c-5394c356d7b0
+  ctime: 1761666057642
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761666068166
+  description: Buzz Balm
+  refid: 4e9a754b-5bf7-40b1-9691-fa2ffacc5710
+  height: 285.422389626503
+  page: 3
+  area:
+  - 0.637231469154358
+  - 0.0301832854747772
+  - 0.909307718276978
+  - 0.496559739112854
+50a35d45-87a6-47eb-be70-85ba097e73c6:
+  __typeName: PDFFragment
+  width: 208.868722915649
+  id: 50a35d45-87a6-47eb-be70-85ba097e73c6
+  ctime: 1761421242957
+  parentFolder: 635c0cdb-878c-4bb4-9247-e284f4fe94bf
+  mtime: 1761493660594
+  description: Harim Follower Card
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 137.040564537048
+  page: 5
+  area:
+  - 0.367541790008545
+  - 0.505826711654663
+  - 0.631264925003052
+  - 0.729749202728271
+b839806c-6c4a-48ec-9e9b-cdb778ecdb39:
+  __typeName: PDFFragment
+  width: 215.484436511993
+  id: b839806c-6c4a-48ec-9e9b-cdb778ecdb39
+  ctime: 1761419867659
+  parentFolder: 635c0cdb-878c-4bb4-9247-e284f4fe94bf
+  mtime: 1761493664007
+  description: Mikael Follower Card
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 140.821002960205
+  page: 5
+  area:
+  - 0.636038184165955
+  - 0.735925912857056
+  - 0.908114492893219
+  - 0.966025590896606
+6e59aa59-bb54-45f7-890e-368e77580d7e:
+  __typeName: PDFFragment
+  width: 213.594320297241
+  id: 6e59aa59-bb54-45f7-890e-368e77580d7e
+  ctime: 1761421313837
+  parentFolder: 635c0cdb-878c-4bb4-9247-e284f4fe94bf
+  mtime: 1761493658514
+  description: Dunquat Follower Card
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 139.875856876373
+  page: 5
+  area:
+  - 0.363961815834045
+  - 0.735926389694214
+  - 0.633651614189148
+  - 0.964481711387634
+42fb9a12-eaaa-415c-9857-829dd1ce7abe:
+  __typeName: PDFFragment
+  width: 213.594273090363
+  id: 42fb9a12-eaaa-415c-9857-829dd1ce7abe
+  ctime: 1761494114678
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494244568
+  description: Snapdragon
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 286.367517471313
+  page: 3
+  area:
+  - 0.637231469154358
+  - 0.499648928642273
+  - 0.906921207904816
+  - 0.967569708824158
+80c9c81d-0021-42af-896a-77897ccdaaf7:
+  __typeName: PDFFragment
+  width: 216.429565429688
+  id: 80c9c81d-0021-42af-896a-77897ccdaaf7
+  ctime: 1761493905846
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494172469
+  description: Bloodbound Band
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 290.147937655449
+  page: 0
+  area:
+  - 0.362768530845642
+  - 0.0240066647529602
+  - 0.636038184165955
+  - 0.498104602098465
+fd689ef9-7e2b-484c-90dd-da66b1e57cfc:
+  __typeName: PDFFragment
+  width: 218.319823265076
+  id: fd689ef9-7e2b-484c-90dd-da66b1e57cfc
+  ctime: 1761494480039
+  parentFolder: 635c0cdb-878c-4bb4-9247-e284f4fe94bf
+  mtime: 1761494484815
+  description: Illwyth Follower Card
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 288.257718443871
+  page: 5
+  area:
+  - 0.0894988775253296
+  - 0.0270952582359314
+  - 0.365155220031738
+  - 0.498104602098465
+0fb14edf-b3b5-4654-8fa5-996f456a1cdc:
+  __typeName: PDFFragment
+  width: 208.868817329407
+  id: 0fb14edf-b3b5-4654-8fa5-996f456a1cdc
+  ctime: 1761421012382
+  parentFolder: 635c0cdb-878c-4bb4-9247-e284f4fe94bf
+  mtime: 1761493673317
+  description: Tansy Follower Card
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 138.930820226669
+  page: 5
+  area:
+  - 0.640811383724213
+  - 0.504282176494598
+  - 0.904534637928009
+  - 0.731293320655823
+984a5271-46ba-4ca2-8489-7285cf863f9b:
+  __typeName: PDFFragment
+  width: 216.429518222809
+  id: 984a5271-46ba-4ca2-8489-7285cf863f9b
+  ctime: 1761493991304
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494188721
+  description: Foesense Lenses
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 286.367535710335
+  page: 1
+  area:
+  - 0.634844839572906
+  - 0.498104602098465
+  - 0.908114433288574
+  - 0.966025412082672
+53acda4b-8cd2-4991-93b0-5e6ef243c82a:
+  __typeName: PDFFragment
+  width: 215.484436511993
+  id: 53acda4b-8cd2-4991-93b0-5e6ef243c82a
+  ctime: 1761493816761
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494161549
+  description: Amulet of the Delian Order
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 282.587079048157
+  page: 0
+  area:
+  - 0.362768530845642
+  - 0.502737522125244
+  - 0.634844839572906
+  - 0.964481115341187
+b428b2bd-35c0-4839-afc9-27f4c189a637:
+  __typeName: PDFFragment
+  width: 209.813804626465
+  id: b428b2bd-35c0-4839-afc9-27f4c189a637
+  ctime: 1761493602240
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761493685886
+  description: Heelcutter
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 279.751750230789
+  page: 2
+  area:
+  - 0.0954654216766357
+  - 0.50428181886673
+  - 0.360381841659546
+  - 0.961392521858215
+a2df9dac-b889-41e1-91a3-640fc6f55b71:
+  __typeName: PDFFragment
+  width: 214.539307594299
+  id: a2df9dac-b889-41e1-91a3-640fc6f55b71
+  ctime: 1761494049265
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494213874
+  description: Healing Potion
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 288.257718443871
+  page: 1
+  area:
+  - 0.637231469154358
+  - 0.0270952582359314
+  - 0.908114433288574
+  - 0.498104602098465
+c1cbd9c5-6b54-4d53-be84-33889f2c786c:
+  __typeName: PDFFragment
+  width: 218.319823265076
+  id: c1cbd9c5-6b54-4d53-be84-33889f2c786c
+  ctime: 1761493731329
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494239831
+  description: Lachomp Tooth
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 285.422407865524
+  page: 2
+  area:
+  - 0.634844839572906
+  - 0.501193225383759
+  - 0.910501182079315
+  - 0.967569708824158
+3f923837-3642-4b2c-a08a-fb0fd49fa247:
+  __typeName: PDFFragment
+  width: 583.335189342499
+  id: 3f923837-3642-4b2c-a08a-fb0fd49fa247
+  ctime: 1761734046246
+  parentFolder: b73845ee-ca74-4495-8ffe-fd17283140fd
+  mtime: 1761734058137
+  description: Quest Leads
+  refid: 6db9cf43-2562-4584-962f-10277ccde9bc
+  height: 762.261271476746
+  page: 0
+  area:
+  - 0.0241649150848389
+  - 0.0179542303085327
+  - 0.977326989173889
+  - 0.980405330657959
+9deb9f0e-ec8b-4926-8c21-5c43d3a98be1:
+  __typeName: PDFFragment
+  width: 217.374599933624
+  id: 9deb9f0e-ec8b-4926-8c21-5c43d3a98be1
+  ctime: 1761494396415
+  parentFolder: bd94aa83-f3c6-43ab-9de0-f991db5f073a
+  mtime: 1761494542020
+  description: Monster Bane
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 285.422371387482
+  page: 4
+  area:
+  - 0.634844839572906
+  - 0.502737522125244
+  - 0.909307718276978
+  - 0.969113945960999
+c9aeadd6-e307-4a01-93e1-1aeef41756d5:
+  __typeName: PDFFragment
+  width: 218.319634437561
+  id: c9aeadd6-e307-4a01-93e1-1aeef41756d5
+  ctime: 1761493831764
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494165925
+  description: Black Ash Dart
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 286.367517471313
+  page: 0
+  area:
+  - 0.633651614189148
+  - 0.499648928642273
+  - 0.909307718276978
+  - 0.967569708824158
+59515193-2f48-4be6-adfb-e255b62a853b:
+  __typeName: PDFFragment
+  width: 216.429565429688
+  id: 59515193-2f48-4be6-adfb-e255b62a853b
+  ctime: 1761493746059
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494285103
+  description: Mirror Token
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 287.312608838081
+  page: 2
+  area:
+  - 0.0906921625137329
+  - 0.028639554977417
+  - 0.363961815834045
+  - 0.498104602098465
+72c1c230-152a-41ef-b46d-12c55faf15c4:
+  __typeName: PDFFragment
+  width: 216.429565429688
+  id: 72c1c230-152a-41ef-b46d-12c55faf15c4
+  ctime: 1761493792377
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494157874
+  description: Adaptive Second Skin of Toxins
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 289.202791571617
+  page: 0
+  area:
+  - 0.0894988775253296
+  - 0.496560364961624
+  - 0.362768530845642
+  - 0.969113945960999
+ceaf34af-98bf-4d11-a99a-1915e5eb00e5:
+  __typeName: PDFFragment
+  width: 218.319728851318
+  id: ceaf34af-98bf-4d11-a99a-1915e5eb00e5
+  ctime: 1761493712183
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494224807
+  description: Imp's Tongue
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 285.422407865524
+  page: 2
+  area:
+  - 0.361575245857239
+  - 0.499648928642273
+  - 0.637231469154358
+  - 0.966025412082672
+11dea550-fc5a-4e78-8864-68ea2416d21e:
+  __typeName: PDFFragment
+  width: 212.649144172668
+  id: 11dea550-fc5a-4e78-8864-68ea2416d21e
+  ctime: 1761494412857
+  parentFolder: bd94aa83-f3c6-43ab-9de0-f991db5f073a
+  mtime: 1761494545297
+  description: Queen Slayer
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 286.367480993271
+  page: 4
+  area:
+  - 0.0930788516998291
+  - 0.0270952582359314
+  - 0.361575245857239
+  - 0.495015978813171
+99b98483-079d-4d9c-a376-0f17d5592e00:
+  __typeName: PDFFragment
+  width: 216.429565429688
+  id: 99b98483-079d-4d9c-a376-0f17d5592e00
+  ctime: 1761494034958
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494198030
+  description: Growth Potion
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 287.312645316124
+  page: 1
+  area:
+  - 0.363961815834045
+  - 0.0270952582359314
+  - 0.637231469154358
+  - 0.496560364961624
+3ad47c40-8bad-46cc-87b4-cb8ed88bf0fb:
+  __typeName: PDFFragment
+  width: 216.429565429688
+  id: 3ad47c40-8bad-46cc-87b4-cb8ed88bf0fb
+  ctime: 1761493951300
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494181671
+  description: Cup of Iulius
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 287.31259059906
+  page: 1
+  area:
+  - 0.0894988775253296
+  - 0.499648928642273
+  - 0.362768530845642
+  - 0.969113945960999
+4d2da4cc-6351-4cd0-9d17-23c04201dc41:
+  __typeName: PDFFragment
+  width: 219.264904975891
+  id: 4d2da4cc-6351-4cd0-9d17-23c04201dc41
+  ctime: 1761494099989
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494235538
+  description: Shrouded Memory
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 288.257718443871
+  page: 3
+  area:
+  - 0.360381841659546
+  - 0.498104602098465
+  - 0.637231469154358
+  - 0.969113945960999
+c0bd7ebf-7555-4f87-a0a2-95ef09235e30:
+  __typeName: PDFFragment
+  width: 219.264904975891
+  id: c0bd7ebf-7555-4f87-a0a2-95ef09235e30
+  ctime: 1761494379033
+  parentFolder: bd94aa83-f3c6-43ab-9de0-f991db5f073a
+  mtime: 1761494494271
+  description: Delian Delver
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 288.257718443871
+  page: 4
+  area:
+  - 0.360381841659546
+  - 0.498104602098465
+  - 0.637231469154358
+  - 0.969113945960999
+ec24ed98-691e-4178-8bc1-694f0990fcae:
+  __typeName: PDFFragment
+  width: 217.37474155426
+  id: ec24ed98-691e-4178-8bc1-694f0990fcae
+  ctime: 1761494022153
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494194629
+  description: Giant's-Blood Flame
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 284.477261781693
+  page: 1
+  area:
+  - 0.0906921625137329
+  - 0.0301838517189026
+  - 0.365155220031738
+  - 0.495015978813171
+de9cc350-0992-4c55-95f6-839d068535a1:
+  __typeName: PDFFragment
+  width: 215.484389305115
+  id: de9cc350-0992-4c55-95f6-839d068535a1
+  ctime: 1761493927710
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494179040
+  description: Color Cloak (Red)
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 286.367499232292
+  page: 0
+  area:
+  - 0.637231469154358
+  - 0.0301838517189026
+  - 0.909307718276978
+  - 0.498104602098465
+d6a49cdb-c42a-4e1c-ac68-e91b537944c7:
+  __typeName: PDFFragment
+  width: 213.612070083618
+  id: d6a49cdb-c42a-4e1c-ac68-e91b537944c7
+  ctime: 1759469993959
+  parentFolder: bd94aa83-f3c6-43ab-9de0-f991db5f073a
+  mtime: 1761493675923
+  description: Violet's Savior
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 284.981278896332
+  page: 4
+  area:
+  - 0.366082549095154
+  - 0.0307737588882446
+  - 0.635794758796692
+  - 0.496429443359375
+33367c50-90a3-418e-91a8-2cef4324aabb:
+  __typeName: PDFFragment
+  width: 210.758980751038
+  id: 33367c50-90a3-418e-91a8-2cef4324aabb
+  ctime: 1761422018121
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761493678468
+  description: Quantum Satchel
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 287.312608838081
+  page: 2
+  area:
+  - 0.639618098735809
+  - 0.0270947813987732
+  - 0.905727922916412
+  - 0.496559828519821
+d0351966-221e-4ccc-b012-2a826eabb722:
+  __typeName: PDFFragment
+  width: 217.374647140503
+  id: d0351966-221e-4ccc-b012-2a826eabb722
+  ctime: 1761494127456
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494258291
+  description: Unbinder Boots
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 286.367535710335
+  page: 3
+  area:
+  - 0.0894988775253296
+  - 0.028639554977417
+  - 0.363961815834045
+  - 0.496560364961624
+d1ffd3c0-2598-406a-9efa-9ba91485b09c:
+  __typeName: PDFFragment
+  width: 213.594225883484
+  id: d1ffd3c0-2598-406a-9efa-9ba91485b09c
+  ctime: 1761494327144
+  parentFolder: bd94aa83-f3c6-43ab-9de0-f991db5f073a
+  mtime: 1761494490925
+  description: Courser Chanterelle
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 283.532188653946
+  page: 4
+  area:
+  - 0.0930788516998291
+  - 0.501193225383759
+  - 0.362768530845642
+  - 0.964481115341187
+cd6477be-fd86-4c38-bd88-6827b1f3ac09:
+  __typeName: PDFFragment
+  width: 213.594131469727
+  id: cd6477be-fd86-4c38-bd88-6827b1f3ac09
+  ctime: 1761404498964
+  parentFolder: 635c0cdb-878c-4bb4-9247-e284f4fe94bf
+  mtime: 1761493653701
+  description: Abbott Loric Follower Card
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 143.656258821487
+  page: 5
+  area:
+  - 0.0930788516998291
+  - 0.734381973743439
+  - 0.362768411636353
+  - 0.969114422798157
+1e20247d-cc4c-494e-94cf-c660bac38152:
+  __typeName: PDFFragment
+  width: 217.374647140503
+  id: 1e20247d-cc4c-494e-94cf-c660bac38152
+  ctime: 1761493762236
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494291224
+  description: Portable Cloud
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 288.257754921913
+  page: 2
+  area:
+  - 0.362768530845642
+  - 0.0255509614944458
+  - 0.637231469154358
+  - 0.496560364961624
+7e8acaa5-324d-457e-9952-7661ce847052:
+  __typeName: PDFFragment
+  width: 217.374599933624
+  id: 7e8acaa5-324d-457e-9952-7661ce847052
+  ctime: 1761494451022
+  parentFolder: bd94aa83-f3c6-43ab-9de0-f991db5f073a
+  mtime: 1761494576082
+  description: Voice of Peace
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 288.257736682892
+  page: 4
+  area:
+  - 0.634844839572906
+  - 0.028639554977417
+  - 0.909307718276978
+  - 0.499648928642273
+7502910a-f6cd-46ed-b7e4-30ad0422a474:
+  __typeName: PDFFragment
+  width: 212.649144172668
+  id: 7502910a-f6cd-46ed-b7e4-30ad0422a474
+  ctime: 1761494085217
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494249544
+  description: Revenger's Wrap
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 283.532188653946
+  page: 3
+  area:
+  - 0.0930788516998291
+  - 0.501193225383759
+  - 0.361575245857239
+  - 0.964481115341187
+83d63281-ee35-4274-b4b2-06c1c7c5a5d9:
+  __typeName: PDFFragment
+  width: 211.629475593567
+  id: 83d63281-ee35-4274-b4b2-06c1c7c5a5d9
+  ctime: 1759469935616
+  parentFolder: 635c0cdb-878c-4bb4-9247-e284f4fe94bf
+  mtime: 1761493655746
+  description: Ashleigh Follower Card
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 141.747216939926
+  page: 5
+  area:
+  - 0.0944931507110596
+  - 0.501950919628143
+  - 0.361702084541321
+  - 0.733564019203186
+12077bc5-439d-46b3-b4c9-689042fef228:
+  __typeName: PDFFragment
+  width: 216.429565429688
+  id: 12077bc5-439d-46b3-b4c9-689042fef228
+  ctime: 1761493883427
+  parentFolder: 29b00fb6-062b-49c8-af63-a458384d2932
+  mtime: 1761494168914
+  description: Blade of the Luxurious Fop
+  refid: 68c1a67d-7b9a-4b90-94fc-6771bcaf49f4
+  height: 286.367499232292
+  page: 0
+  area:
+  - 0.0894988775253296
+  - 0.0301838517189026
+  - 0.362768530845642
+  - 0.498104602098465
+26fc2ed4-b36e-4b6a-ac7c-cbadb79d3dd5:
+  __typeName: PDFFragment
+  width: 597.941471815109
+  id: 26fc2ed4-b36e-4b6a-ac7c-cbadb79d3dd5
+  ctime: 1761734003874
+  parentFolder: b73845ee-ca74-4495-8ffe-fd17283140fd
+  mtime: 1761734014595
+  description: Hall of Triumph
+  refid: 6db9cf43-2562-4584-962f-10277ccde9bc
+  height: 770.477274656296
+  page: 1
+  area:
+  - 0.0152148008346558
+  - 0.0121910274028778
+  - 0.992243349552155
+  - 0.985015869140625

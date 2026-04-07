@@ -1,0 +1,24 @@
+__typeName: CharacterFeature
+testCases:
+- text: Cold Immunity 5	
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4738375e-968d-454d-8bd0-966b3841e554
+  behavior: resistance
+  source: Monster
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "<<immunity>>"
+    damageType: cold
+    apply: Damage Reduction
+  description: ""
+  name: Cold Immunity
+  guid: 83af3cd5-75a6-4af9-9bd6-869cb5e28b6d
+source: Monster
+guid: 4738375e-968d-454d-8bd0-966b3841e554
+importMatch: cold Immunity <<immunity>>
+ctime: 1710226929002
+name: Cold Immunity
+description: ""
+id: d11584fd-fc91-4646-aac0-355db98629e5
+mtime: 1711784294855

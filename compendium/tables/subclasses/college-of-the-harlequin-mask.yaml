@@ -1,0 +1,1392 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727069440934
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3270b0f6-303a-41cf-a5d0-83f55fc206cb
+        source: College of the Harlequin Mask Class Feature
+        value: 1
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        name: Parkour
+        guid: e7810856-2429-4c25-9830-07056a4083eb
+        description: Your movement no longer provokes opportunity attacks. Additionally, you can use your Harlequin Gambit feature as a free triggered action when a creature is reduced to 0 Stamina by your Clever Trick ability
+        behavior: attribute
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 5c4d880e-9d85-40be-822b-7b2881342f1a
+        description: |-
+          Whenever you reduce an adjacent non-minion creature to 0 Stamina, you can immediately use a free maneuver to use your I’m No Threat ability and then move up to your speed.
+
+          If the creature is the same size as you, you can disguise yourself as them using I’m No Threat without spending insight. If you do, while I’m No Threat is active, the creature’s body is disguised to look like your body. The illusion ends on their body if another creature physically interacts with it. When the illusion would end for either you or the creature’s body, it ends for both.
+        source: College of the Harlequin Mask Class Feature
+        name: Harlequin Gambit
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: I'm No Threat
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: d7062eff-414a-4110-a44c-1170f8b45f13
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: e2be0f49-716f-409c-9d71-35af2e36e332
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+            promptText: Move up to your speed
+          triggerPrompt: Whenever you reduce an adjacent non-minion creature to 0 Stamina, you can immediately use a free maneuver to use your I’m No Threat ability and then move up to your speed.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: true
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          guid: 1c688668-4d7a-4213-847c-06b251d781b7
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          trigger: custom
+          persistence: []
+          name: Clever Trick - Harlequin Gambit
+          targetType: self
+          description: You can use your Harlequin Gambit feature as a free triggered action when a creature is reduced to 0 Stamina by your Clever Trick ability.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 2a79815d-4c0d-45ca-8dbe-55fd43b3ea03
+      source: College of the Harlequin Mask Class Feature
+      guid: 3270b0f6-303a-41cf-a5d0-83f55fc206cb
+      domains:
+        class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+      description: Your movement no longer provokes opportunity attacks. Additionally, you can use your Harlequin Gambit feature as a free triggered action when a creature is reduced to 0 Stamina by your Clever Trick ability
+      name: Parkour
+      implementation: 3
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 68a24e90-956e-47e1-9c4e-eb61800203d4
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 67c1d8f7-8f34-49cc-a890-c92fafdd20a9
+        source: College of the Harlequin Mask Class Feature
+        behavior: proficiency
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        guid: d218dcef-0243-46e8-98e1-ace9c6d4c51d
+        equate: false
+        name: Lie Skill
+        proficiency: proficient
+        description: ""
+        subtype: skill
+        skills:
+          4f4b7168-8702-469d-b001-65d250fd4082: true
+      name: Lie Skill
+      classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+      description: ""
+      source: College of the Harlequin Mask Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: dd9d4193-31d1-4452-b11c-0af1f7c4533c
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 898d8543-f3d5-49be-9469-e7e29e9e0731
+        description: Taking on the illusory countenance of another creature gives you an advantage on subterfuge.
+        source: College of the Harlequin Mask Class Feature
+        name: I'm No Threat
+        behavior: activated
+        guid: c283c2da-e9bf-4eac-bfca-04544a483cf0
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter:
+            __typeName: GoblinScriptTable
+            entries:
+            - script: Target = Caster
+              threshold: 1
+            - script: Target != Caster and (target.Size <= (Caster.Size+1))
+              threshold: 2
+            editableField: true
+            id: table
+            field: Mode
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            modesSelected:
+            - 2
+          - __typeName: ActivatedAbilityDisguiseBehavior
+            monsterType: f0d9f3c0-a36e-4cd9-be0f-a2048fc8e227
+            mode: bestiary
+            modesSelected:
+            - 1
+            appearanceName: I'm No Threat
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: 5bfdee00-2ff7-441c-b377-1dead683352b
+            ongoingEffectCustom: 5bfdee00-2ff7-441c-b377-1dead683352b
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            filterTarget: Level < 5
+            modesSelected:
+            - 2
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            mode: expend
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 7658003d-fc43-4e77-be3f-e836e554fa8f
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Friend! You may Disengage as part of I'm No Threat
+            filterTarget: Level >= 2 {this is an upgrade from Friend! achieved at Level 2}
+            standardAbilityParams:
+              prompt: Friend! You may Disengage as part of I'm No Threat
+            standardAbility: a0cde3eb-493e-41ac-bfe0-b0ec583431af
+            abilityType: standard
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: Taking on the illusory countenance of another creature gives you an advantage on subterfuge.
+          sourceReference:
+            __typeName: SourceReference
+            page: 177
+            docid: a623e586-b67d-4563-a5b8-62744d648c31
+          range: "10"
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          persistence: []
+          modifiers: []
+          implementation: 3
+          strain: []
+          modeList:
+          - text: Appear Harmless
+          - text: Disguise as Target
+            condition: Heroic Resources Available to Spend >= 1 or Level >= 5
+          numTargets: "1"
+          guid: 6473a88d-1278-4a3f-a771-303d162d70ef
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          targetType: target
+          categorization: Ability
+          name: I'm No Threat
+          selfTarget: true
+          description: |
+            You envelop yourself in an illusion that makes you appear nonthreatening and harmless to your enemies. You might take on the appearance of a harmless animal of your size, such as a sheep or capybara, or you might appear as a less heroic and unarmed version of yourself. While this illusion lasts, your strikes gain an edge, and when you take the Disengage move action, you gain a +1 bonus to the distance you can shift.
+
+            The illusion ends when you harm another creature, when you physically interact with a creature, when you use this ability again, or when you end the illusion (no action required). If you end this illusion by harming another creature, you gain 1 surge.
+
+            **Spend 1 Insight:** Choose a creature whose size is no more than 1 greater than yours and who is within 10 squares. This ability’s illusion makes you appear as that creature. This illusion covers your entire body, including clothing and armor, and alters your voice to sound like that of the creature. You gain an edge on tests made to convince the creature’s allies that you are the creature.
+          abilityType: none
+          iconid: a1f8b8ab-a695-4b99-af22-02986221aec6
+      - __typeName: CharacterModifier
+        sourceguid: dd9d4193-31d1-4452-b11c-0af1f7c4533c
+        source: College of the Harlequin Mask Class Feature
+        guid: ac59e1f3-b186-441d-a0a2-6bcb5545b43d
+        monsterDefault: f0d9f3c0-a36e-4cd9-be0f-a2048fc8e227
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        appearance: I'm No Threat
+        description: Taking on the illusory countenance of another creature gives you an advantage on subterfuge.
+        behavior: alternateappearance
+        name: I'm No Threat
+      name: I'm No Threat
+      classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+      description: Taking on the illusory countenance of another creature gives you an advantage on subterfuge.
+      source: College of the Harlequin Mask Class Feature
+      implementation: 2
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 5c4d880e-9d85-40be-822b-7b2881342f1a
+        description: |-
+          Whenever you reduce an adjacent non-minion creature to 0 Stamina, you can immediately use a free maneuver to use your I’m No Threat ability and then move up to your speed.
+
+          If the creature is the same size as you, you can disguise yourself as them using I’m No Threat without spending insight. If you do, while I’m No Threat is active, the creature’s body is disguised to look like your body. The illusion ends on their body if another creature physically interacts with it. When the illusion would end for either you or the creature’s body, it ends for both.
+        source: College of the Harlequin Mask Class Feature
+        name: Harlequin Gambit
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: I'm No Threat
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: d87624fb-d718-4720-9b6d-6b3bd431dc28
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            abilityType: standard
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 550a85b0-87ad-4356-86c3-1fc33e09ccf5
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+            promptText: Move up to your speed
+          triggerPrompt: Whenever you reduce an adjacent non-minion creature to 0 Stamina, you can immediately use a free maneuver to use your I’m No Threat ability and then move up to your speed.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 6e9bd439-0436-4b1d-a522-1749f4e38089
+          actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          trigger: kill
+          persistence: []
+          name: Harlequin Gambit
+          targetType: self
+          description: Whenever you reduce an adjacent non-minion creature to 0 Stamina, you can immediately use a free maneuver to use your I’m No Threat ability and then move up to your speed.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: b37e9e3e-f327-4697-84e9-536dfd21e98b
+      source: College of the Harlequin Mask Class Feature
+      guid: 5c4d880e-9d85-40be-822b-7b2881342f1a
+      domains:
+        class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      canHavePrerequisites: true
+      classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+      description: |-
+        Whenever you reduce an adjacent non-minion creature to 0 Stamina, you can immediately use a free maneuver to use your I’m No Threat ability and then move up to your speed.
+
+        If the creature is the same size as you, you can disguise yourself as them using I’m No Threat without spending insight. If you do, while I’m No Threat is active, the creature’s body is disguised to look like your body. The illusion ends on their body if another creature physically interacts with it. When the illusion would end for either you or the creature’s body, it ends for both.
+      name: Harlequin Gambit
+      implementation: 3
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 6th Level Harlequin Mask Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 9af8fc6c-55c5-4e07-ad68-ac792edff6c4
+          description: Until the start of your next turn, any ability roll made against a target gains an edge.
+          source: College of the Harlequin Mask Class Feature
+          name: Look!
+          behavior: activated
+          guid: f6f8d50f-9b29-4249-80d2-4499799185ba
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 2e1612bc-c652-4aae-a060-36a557ca20c3
+              durationUntilEndOfTurn: false
+              duration: 1
+              ongoingEffectCustom: 2e1612bc-c652-4aae-a060-36a557ca20c3
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You distract your foes, allowing your allies to take advantage of that distraction
+            categorization: Heroic Ability
+            range: "5"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 169
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain: []
+            guid: fe5f3622-4f72-4583-980f-685efdb56ee7
+            rangeTextOverride: 5 burst
+            numTargets: "1"
+            domains:
+              class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            targetType: all
+            implementation: 3
+            name: Look!
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: Until the start of your next turn, any ability roll made against a target gains an edge.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of the Harlequin Mask Class Feature
+        guid: 9af8fc6c-55c5-4e07-ad68-ac792edff6c4
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+        description: Until the start of your next turn, any ability roll made against a target gains an edge.
+        name: Look!
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: f45fd80e-a7f2-4202-81a1-568e38f7aae7
+          description: ""
+          source: College of the Harlequin Mask Class Feature
+          name: Puppet Strings
+          behavior: activated
+          guid: 53421c39-b94e-47fa-9987-72c37c167f4c
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetTextOverride: Two enemies
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - |2-
+                 2 damage; if the target has  R < Weak , before the damage is
+                resolved, they make a free strike.
+              - |2-
+                 5 damage; if the target has R < Average , before the damage is
+                resolved, they use a main action ability of your choice
+              - |-
+                7 damage; if the target has R < Strong , before the damage is resolved, they can shift up to their speed and use a main
+                action ability of your choice.
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 1
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 614cb662-9ce6-44ea-aa91-79bb9293de5a
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Use Free Strike
+              filterTarget: not Cast.PassesPotency(target, "R", "Weak")
+              standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+              abilityType: standard
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 2
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 614cb662-9ce6-44ea-aa91-79bb9293de5a
+                repeatTargets: false
+                abilityType: none
+                categorization: Hidden
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    cannotModifyAction: true
+                    filterAbility: Ability.action
+                    behavior: modifyability
+                    guid: 6ee26fd1-60d4-4253-a8d8-1633db50cb84
+                    attributes: []
+                    source: ""
+                    description: ""
+                    name: Modify Attack
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      guid: 721f636f-ec84-4bd6-96a1-68806fef30e6
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors: []
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                numTargets: "1"
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptText: Use Main Action ability
+              filterTarget: not Cast.PassesPotency(target, "R", "Average")
+              guid: 7625c09e-6ac2-43dd-81e9-fbd832208ac9
+              standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+              abilityType: custom
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 3
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 614cb662-9ce6-44ea-aa91-79bb9293de5a
+                repeatTargets: false
+                abilityType: none
+                behaviors:
+                - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                  movementType: shift
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  tiersSelected:
+                  - 2
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    persistence: []
+                    modifiers: []
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    strain: []
+                    guid: 614cb662-9ce6-44ea-aa91-79bb9293de5a
+                    repeatTargets: false
+                    abilityType: none
+                    categorization: Hidden
+                    behaviors:
+                    - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                      modifier:
+                        __typeName: CharacterModifier
+                        cannotModifyAction: true
+                        filterAbility: Ability.action
+                        behavior: modifyability
+                        guid: 6ee26fd1-60d4-4253-a8d8-1633db50cb84
+                        attributes: []
+                        source: ""
+                        description: ""
+                        name: Modify Attack
+                        ability:
+                          __typeName: ActivatedAbility
+                          numTargets: "1"
+                          modifiers: []
+                          guid: 721f636f-ec84-4bd6-96a1-68806fef30e6
+                          repeatTargets: false
+                          display:
+                            brightness: 1
+                            saturation: 1
+                            hueshift: 0
+                            bgcolor: "#ffffffff"
+                          abilityModification: true
+                          behaviors: []
+                          abilityType: none
+                          name: New Ability
+                          targetType: self
+                          description: ""
+                          range: 1
+                          iconid: ui-icons/skills/1.png
+                    numTargets: "1"
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                  promptText: Use Main Action ability
+                  filterTarget: ""
+                  guid: 16a33b62-e6ce-4dd4-87d9-aadaaa5f06f2
+                  standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+                  abilityType: custom
+                targeting: pathfind
+                targetType: emptyspace
+                name: Invoked Ability
+                persistence: []
+                description: ""
+                range: Walking Speed
+                iconid: ui-icons/skills/1.png
+              promptText: Shift up to speed and use main action
+              filterTarget: not Cast.PassesPotency(target, "R", "Strong")
+              guid: f8dcd74f-dfff-4c1c-abf4-44ac20cea98f
+              standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+              abilityType: custom
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You prick little needles on the tips of your fingers into the nerves of your enemies and cause them to lose control.
+            sourceReference:
+              __typeName: SourceReference
+              page: 169
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            abilityType: none
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            numTargets: "2"
+            strain: []
+            guid: 8e8feaf5-7e2d-4b16-90d0-d1bb342ce38b
+            rangeTextOverride: Melee 1
+            targetType: target
+            domains:
+              class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            implementation: 2
+            properties:
+              remainhidden: true
+            name: Puppet Strings
+            persistence: []
+            description: You choose the new targets for the original target’s free strike or ability. Additionally, if you are hidden or disguised, using this ability doesn’t cause you to be revealed.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of the Harlequin Mask Class Feature
+        guid: f45fd80e-a7f2-4202-81a1-568e38f7aae7
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+        description: ""
+        name: Puppet Strings
+        implementation: 3
+      classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+      guid: 08a64966-6793-466a-be28-609c9931d902
+      source: College of the Harlequin Mask Class Feature
+      description: Choose one of the following abilities
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: 6d65b960-bc50-417d-8760-a8b6adbb19e3
+      modifiers:
+      - __typeName: CharacterModifier
+        abilityTargets: ""
+        multitarget: all
+        targetFilter: Self
+        castingFilter: ""
+        targetType: enemy
+        range: ""
+        sourceguid: 6d65b960-bc50-417d-8760-a8b6adbb19e3
+        source: College of the Harlequin Mask Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          keywords: []
+          activationCondition: false
+          name: Friend!
+          rules: ""
+          rollType: ability_power_roll
+          guid: 80b6240c-5256-42c4-b388-606053123b95
+          modtype: none
+        guid: 8bf52105-0548-4d06-8ec1-0072d9d441fe
+        type: passive
+        behavior: powertabletrigger
+        trigger: casting
+        rules: |-
+          Your illusions make your enemies believe you are their friend in critical moments. Whenever an enemy uses an ability or trait that targets 
+          multiple allies and you are within distance of the effect, you can choose to be a target of the effect as well.
+        description: |-
+          Your illusions make your enemies believe you are their friend in critical  moments. Whenever an enemy uses an ability or trait that targets  multiple allies and you are within distance of the effect, you can choose to be a target of the effect as well.
+
+          Additionally, when you use your I’m No Threat ability, you can take the Disengage move action as part of that ability.
+        name: Friend!
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      name: Friend!
+      classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+      description: |-
+        Your illusions make your enemies believe you are their friend in critical  moments. Whenever an enemy uses an ability or trait that targets  multiple allies and you are within distance of the effect, you can choose to be a target of the effect as well.
+
+        Additionally, when you use your I’m No Threat ability, you can take the Disengage move action as part of that ability.
+      source: College of the Harlequin Mask Class Feature
+      implementation: 2
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 79c88177-7b4a-4a68-87e1-f45f141e185d
+          description: Illusory sounds make your foes reposition themselves as they cower or investigate the disturbance.
+          source: College of the Harlequin Mask Class Feature
+          name: Machinations of Sound
+          behavior: activated
+          guid: b0e38578-8457-44db-b453-6fbef2d5c89b
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Area: true
+              Magic: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                modifiers:
+                - __typeName: CharacterModifier
+                  operation: set
+                  sourceguid: 471b8dde-1b87-42d4-9c51-552d41369fd7
+                  source: Ongoing Effect
+                  value: Intuition
+                  name: Insight instead of Stability
+                  guid: f92d235a-ac93-4df3-9d7e-2b591df22eac
+                  description: This forced movement ignores stability. Instead, the forced movement is reduced by a number equal to the target’s Intuition score.
+                  behavior: attribute
+                  attribute: forcedmoveresistance
+                source: Ongoing Effect
+                guid: 471b8dde-1b87-42d4-9c51-552d41369fd7
+                id: 471b8dde-1b87-42d4-9c51-552d41369fd7
+                name: Insight instead of Stability
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                description: This forced movement ignores stability. Instead, the forced movement is reduced by a number equal to the target’s Intuition score.
+                implementation: 3
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - slide 4
+              - slide 5
+              - slide 7
+              roll: 2d10 + Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Illusory sounds make your foes reposition themselves as they cower or investigate the disturbance.
+            sourceReference:
+              __typeName: SourceReference
+              page: 180
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "10"
+            abilityType: none
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modifiers: []
+            targetType: cube
+            strain: []
+            guid: fe7b8eab-8a50-4b26-a9dd-6b42b6cce071
+            numTargets: "1"
+            categorization: Heroic Ability
+            domains:
+              class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            name: Machinations of Sound
+            implementation: 3
+            radius: "3"
+            persistence: []
+            description: This forced movement ignores stability. Instead, the forced movement is reduced by a number equal to the target’s Intuition score.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of the Harlequin Mask Class Feature
+        guid: 79c88177-7b4a-4a68-87e1-f45f141e185d
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+        description: Illusory sounds make your foes reposition themselves as they cower or investigate the disturbance.
+        name: Machinations of Sound
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 007ce2c3-c009-46f3-8786-d578fc974219
+          source: College of the Harlequin Mask Class Feature
+          powerRollModifier:
+            __typeName: CharacterModifier
+            resourceCostType: cost
+            changeTargetRange: ability
+            modtype: none
+            keywords:
+              Strike: true
+            activationCondition: false
+            overrideCost: false
+            rollType: ability_power_roll
+            changeTarget: true
+            changeTargetFilter: not friends(target, Current)
+            behavior: power
+            resourceCostAmount: "5"
+            hasCustomTrigger: true
+            customTrigger:
+              __typeName: TriggeredAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: f69c5678-f0db-4305-be3e-b2b0230c6cca
+              repeatTargets: false
+              abilityType: none
+              trigger: d20roll
+              targetType: self
+              numTargets: "1"
+              name: New Ability
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                runOnController: true
+                promptText: "So Gullible: Teleport within 3 spaces of the attacker"
+                standardAbilityParams:
+                  range: "0"
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 5cd972e7-c53f-44ab-b7b5-9ed1e5f4bef6
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                runOnController: true
+                promptText: "So Gullible: Make a Free Strike against the attacker"
+                autoTarget: false
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 89364428-775f-4907-b510-7103952e59cf
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 8058a496-dc57-4cc5-a605-db20ef49f566
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                autoTarget: true
+                abilityType: standard
+                standardAbilityParams:
+                  numrecoveries: "1"
+                standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            name: So Gullible
+            rules: ""
+            guid: 5b60019b-0bf8-44a1-8e28-2f609664b5a8
+            source: Trigger
+          guid: a43989f4-4709-41cd-8377-ed1c174f2a2c
+          type: free
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          targetType: self
+          behavior: powertabletrigger
+          name: So Gullible
+          rules: Use Clever Trick. Teleport within 3 of the target and strike. Spend a Recovery.
+          description: ""
+          range: 10
+          trigger: strike
+        - __typeName: CharacterModifier
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 9fc16ff8-7975-424a-b911-16c19a883fff
+          behavior: triggerdisplay
+          source: College of the Harlequin Mask Class Feature
+          name: So Gullible
+          description: 'You use your Clever Trick ability with no insight cost against the triggering strike and creature. You appear in an unoccupied space within 3 squares of that creature and can make a free strike against them. You can then spend a Recovery. '
+          guid: dd3c5170-6bf4-4fe6-accd-c4231ce57640
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: You use your Clever Trick ability with no insight cost against the triggering creature and strike. You can teleport to an unoccupied  space within 3 squares of that creature and can make a free strike against them. You can then spend a Recovery.
+            guid: cd19a460-39e7-46fb-9873-a479c77d3bcd
+            distance: Self
+            keywords:
+              Magic: true
+            target: Self
+            trigger: Another creature targets you with a strike.
+            cost: 5 Insight
+            flavor: When your enemy strikes, you reveal you were in a different place all along.
+            type: free
+            name: So Gullible
+        source: College of the Harlequin Mask Class Feature
+        guid: 9fc16ff8-7975-424a-b911-16c19a883fff
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+        description: 'You use your Clever Trick ability with no insight cost against the triggering strike and creature. You appear in an unoccupied space within 3 squares of that creature and can make a free strike against them. You can then spend a Recovery. '
+        name: So Gullible
+        implementation: 3
+      classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+      guid: 9db4cc15-42ba-471e-a19b-873300a9acc8
+      description: Your specialization grants your choice of one of two abilities.
+      name: 2nd-Level Harlequin Mask Abilities
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+        class:a58112e5-6466-4189-b810-5d0d93adc075: true
+      guid: ef61b16b-4b2f-44a2-813a-0eba61ee3a12
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 007ce2c3-c009-46f3-8786-d578fc974219
+        source: College of the Harlequin Mask Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          changeTargetFilter: not friends(target, Current)
+          behavior: power
+          source: Trigger
+          changeTargetRange: ability
+          guid: 5b60019b-0bf8-44a1-8e28-2f609664b5a8
+          activationCondition: false
+          keywords:
+            Strike: true
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            targetFilter: Level >= 8
+            repeatTargets: false
+            targetType: self
+            triggerPrompt: 'If the target of your Clever Trick ability was reduced to 0 stamina, you can use your Harlequin Gambit ability as a free triggered action '
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            mandatory: false
+            range: 1
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 7890b971-53c8-455d-9f93-e7dd3b865090
+            numTargets: "1"
+            behaviors:
+            - __typeName: ActivatedAbilityCustomTriggerBehavior
+              value: ""
+              triggerName: Clever Trick - Harlequin Gambit
+            trigger: d20roll
+            name: Harlequin Gambit
+            description: 'If the target of your Clever Trick ability was reduced to 0 stamina, you can use your Harlequin Gambit ability as a free triggered action '
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          modtype: none
+          rollType: ability_power_roll
+          rules: ""
+          resourceCostType: cost
+          name: Clever Trick
+          changeTarget: true
+        guid: ebe4fd52-6776-4e9e-b631-6af3a8258718
+        type: trigger
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        targetType: self
+        behavior: powertabletrigger
+        name: Clever Trick
+        rules: Choose a new target for the strike.
+        description: ""
+        range: 10
+        trigger: strike
+      - __typeName: CharacterModifier
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        sourceguid: 007ce2c3-c009-46f3-8786-d578fc974219
+        behavior: triggerdisplay
+        source: College of the Harlequin Mask Class Feature
+        name: Clever Trick
+        description: ""
+        guid: 14db4533-f52b-4924-8746-8e14b61cac59
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: Choose an enemy within distance of the triggering strike, including the enemy who targeted you. The strike targets that enemy instead.
+          guid: 465ac1ee-ea06-4c6d-b0c3-4432d35ff047
+          distance: Self
+          keywords:
+            Magic: true
+          target: Self
+          trigger: An enemy targets you with a strike.
+          cost: 1 Insight
+          flavor: You sow a moment of confusion in combat, to your enemy’s peril.
+          name: Clever Trick
+      name: Clever Trick
+      classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+      description: ""
+      source: College of the Harlequin Mask Class Feature
+      implementation: 3
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th Level Harlequin Mask Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: e86ad022-7fac-4534-ab11-c0c004aac046
+          description: ""
+          source: College of the Harlequin Mask Class Feature
+          name: I Am You!
+          behavior: activated
+          guid: 418a6ad6-fc80-48ee-9d5f-14a1c77c898f
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: One creature
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            implementationDetails: Can copy most but can't copy immunities yet
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              runOnController: true
+              standardAbilityParams:
+                casterid: "<<Caster.ID>>"
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 7c2cc13a-3478-4e82-a66e-068c24e6d65d
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              standardAbility: 565c5395-13d3-458c-8adf-c8ba712d42ed
+            - __typeName: ActivatedAbilityStealAbilityBehavior
+              applyto: targets
+              duration: eoe
+              ongoingEffectCustom: 1de6c883-c52f-421a-b86c-51f8d357dab1
+              ongoingEffect: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+              stacks: 1
+              abilityFilter: Ability.Usable as Signature Ability
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your mask reflects your foe’s face. Surely they won’t need it much longer
+            categorization: Heroic Ability
+            range: "10"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            numTargets: "1"
+            strain: []
+            guid: 3435f4bf-d120-462a-95ec-f3481d073431
+            targetType: target
+            rangeTextOverride: Ranged 10
+            domains:
+              class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 172
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            implementation: 2
+            name: I Am You!
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: Until the end of the encounter, you gain the target’s damage immunities and speed (if they are better than yours), and can use any types of movement they can use. You can also use the target’s signature ability, using their bonus for the power roll.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of the Harlequin Mask Class Feature
+        guid: e86ad022-7fac-4534-ab11-c0c004aac046
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+        description: ""
+        name: I Am You!
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+            class:a58112e5-6466-4189-b810-5d0d93adc075: true
+          sourceguid: 084be7fd-c74c-4e03-9e3e-9c153fcbe6a9
+          description: ""
+          source: College of the Harlequin Mask Class Feature
+          name: It Was Me All Along
+          behavior: activated
+          guid: 9ea0cc4c-5746-471f-94d7-d467df79bf33
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: true
+            targetTextOverride: 'One creature or object '
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            implementationDetails: ""
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - '15 + A damage '
+              - '21 + A damage '
+              - '28 + A damage '
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityModifyPowerRollBehavior
+              guid: a5d7ed94-29a0-44dd-97f3-984cb27c7a31
+              modifier:
+                __typeName: CharacterModifier
+                sourceguid: a5d7ed94-29a0-44dd-97f3-984cb27c7a31
+                displayCondition: "1"
+                guid: ebf2a7c6-7fea-43ae-b6fb-476318ccee74
+                keywords: []
+                activationCondition: Caster.Ongoing Effects has "I'm No Threat"
+                behavior: power
+                domains: []
+                name: I'm No Threat Disguise
+                rollType: ability_power_roll
+                description: If you are disguised as a creature the target knew using your I’m No Threat ability, this ability deals extra damage equal to three times your Agility score.
+                modtype: none
+                damageModifier: Agility *3
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: After everything you’ve been through together, you twist the blade and make the pain extra personal.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            numTargets: "1"
+            strain: []
+            guid: df194388-f64c-4427-a9b5-ee9a97d21bd3
+            targetType: target
+            rangeTextOverride: Melee 1
+            domains:
+              class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+              class:a58112e5-6466-4189-b810-5d0d93adc075: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 172
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            implementation: 4
+            name: It Was Me All Along
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: If you are disguised as a creature the target knew using your I’m No Threat ability, this ability deals extra damage equal to three times your Agility score.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: College of the Harlequin Mask Class Feature
+        guid: 084be7fd-c74c-4e03-9e3e-9c153fcbe6a9
+        domains:
+          class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+          class:a58112e5-6466-4189-b810-5d0d93adc075: true
+        canHavePrerequisites: true
+        classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+        description: ""
+        name: It Was Me All Along
+        implementation: 4
+      classid: 3e4ca196-05e0-4541-920b-049e7e87f943
+      guid: 1d73a159-fecc-4a86-83eb-0083f1660fbc
+      source: College of the Harlequin Mask Class Feature
+      description: Choose one of the following abilities
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:3e4ca196-05e0-4541-920b-049e7e87f943: true
+      class:a58112e5-6466-4189-b810-5d0d93adc075: true
+details: |
+  Graduates of the College of the Harlequin Mask learn illusion magic, which they use to infiltrate enemy strongholds and create orchestrated chaos in combat. You gain the Lie skill.
+name: College of the Harlequin Mask
+mtime: 1773668271067
+id: 3e4ca196-05e0-4541-920b-049e7e87f943
+primaryClassId: a58112e5-6466-4189-b810-5d0d93adc075

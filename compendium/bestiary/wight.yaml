@@ -1,0 +1,206 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 127b42bf-7593-4bf6-bef1-cc0b22424834
+    offtokenPortraitId: d68e8ea3-dd9e-4aea-9c60-e0e1a8406317
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3753238
+    portraitOffset:
+      x: -0.1451875
+      y: 0.1896681
+    frameHueShift: 0.4653828
+    frameSaturation: 0.3826432
+    frameBrightness: 0.2483385
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 95206892-cd41-41bc-bf9f-9c3307f0b371
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 12
+    inflictedConditions: []
+    ev: 7
+    max_hitpoints_roll: "12"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 1
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage
+        - 4 corruption damage; slowed (EoT) or weakened (EoT) if already slowed
+        - 5 corruption damage; slowed (MGT ends) or weakened (MGT ends) if already slowed
+        roll: 2d10 + 1
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0025a521-810c-4035-86d6-9320ce2f6b6e
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Lifestealer Longsword
+      numTargets: 1
+      description: The target rapidly ages each time they take damage from this attack. The target regains their vitality and loses any conditions incurred by this ability when the wight is destroyed.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: b95e040e-c31f-4609-8d4e-85b04836fc12
+      abilityType: none
+      numTargets: "1"
+      behaviors: []
+      name: Raise
+      implementation: 0
+      description: This maneuver can only be used once for each creature the wight attacked with their lifestealer longsword. The target returns to "life" with half their Stamina.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Wight	Level 1 Hexer Captain
+        Corporeal, Undead	EV 7
+        <b>Stamina</b> 12	<b>Immunity</b> corruption 3, poison 3
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 2
+        Might +1	Agility +1	Reason 0	Intuition 0	Presence +1
+        <b>Lifestealer Longsword</b> (Action) %E2%97%86 2d10 + 1 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Reach 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 corruption damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 corruption damage; slowed (EoT) or weakened (EoT) if already slowed
+        %E2%9C%B8	<b>17</b>	5 corruption damage; slowed (MGT ends) or weakened (MGT ends) if already slowed
+        <b>Effect</b> The target rapidly ages each time they take damage from this attack. The target regains their vitality and loses any conditions incurred by this ability when the wight is destroyed.
+
+        <b>Raise</b> (Maneuver) %E2%97%86 3 VP
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 3<b>	Target</b> 1 dead ally
+        <b>Effect</b> This maneuver can only be used once for each creature the wight attacked with their lifestealer longsword. The target returns to "life" with half their Stamina.
+
+        <b>Arise</b>
+        The first time the wight is reduced to 0 Stamina with non-fire/non-holy damage and their body isn't destroyed, they regain half their Stamina and fall prone.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c47f55ec-34fe-4239-b2ce-df297fe74138: true
+      modifiers: []
+      name: Arise
+      description: The first time the wight is reduced to 0 Stamina with non-fire/non-holy damage and their body isn't destroyed, they regain half their Stamina and fall prone.
+      guid: c47f55ec-34fe-4239-b2ce-df297fe74138
+      source: Trait
+    role: Hexer Captain
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: poison
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 2
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: f037735c-2fe5-4b1f-b48c-eadcfcd5a31f
+    keywords:
+      Undead: true
+      Corporeal: true
+    monster_type: Wight
+  tokenType: null
+  bestiaryId: 9f8395dd-8137-43f3-ba75-14fb1e697856
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Wight
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 12
+ctime: 1741590288333
+mtime: 1775201137032
+hidden: false

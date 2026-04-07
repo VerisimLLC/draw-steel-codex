@@ -1,0 +1,38 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  attributes:
+    con: true
+    dex: true
+    str: true
+  deletable: false
+  source: Transformation
+  name: Wolfish Hybrid
+  guid: 83ee93e3-18c3-4d59-bff3-9f48f7bc1115
+  behavior: transform
+  description: 'You are a wolfish hybrid until the end of your turn. Yoou have your usual statistics but you must make a melee free strike against the nearest creature if you can. You can shift up to your speed toward that creature if necessary. If allies and enmies are equally near, you target an ally. '
+- __typeName: CharacterModifier
+  guid: 13e0e294-85c1-4494-a173-847d78a81ed9
+  sourceguid: 27e406c3-f785-4ef5-9de5-2c8cf032b9e7
+  value: 1
+  source: Ongoing Effect
+  name: Wolfish Hybrid
+  behavior: attribute
+  description: 'You are a wolfish hybrid until the end of your turn. Yoou have your usual statistics but you must make a melee free strike against the nearest creature if you can. You can shift up to your speed toward that creature if necessary. If allies and enmies are equally near, you target an ally. '
+  attribute: disguised
+source: Ongoing Effect
+transformation: true
+guid: 27e406c3-f785-4ef5-9de5-2c8cf032b9e7
+id: 27e406c3-f785-4ef5-9de5-2c8cf032b9e7
+ctime: 1768304570315
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Wolfish Hybrid
+custom: true
+description: 'You are a wolfish hybrid until the end of your turn. Yoou have your usual statistics but you must make a melee free strike against the nearest creature if you can. You can shift up to your speed toward that creature if necessary. If allies and enmies are equally near, you target an ally. '
+mtime: 1768304838146
+iconid: ui-icons/skills/1.png

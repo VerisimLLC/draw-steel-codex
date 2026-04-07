@@ -1,0 +1,39 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 85207975-8ca9-466a-928f-1113dbced002
+  description: You gain a +6 bonus to Stamina.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: ec66a0fb-4346-45ca-92ca-3e907973edee
+    sourceguid: 85207975-8ca9-466a-928f-1113dbced002
+    value: 6
+    source: Warding I Imbuement
+    name: Warding I
+    behavior: attribute
+    description: You gain a +6 bonus to Stamina.
+    attribute: hitpoints
+  source: Warding I Imbuement
+  name: Warding I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: df0e67b0-049b-4a55-8943-79091a365925
+imbuePrereq: none
+projectSource: Zaliac
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: Three skulls from the same chimera
+mtime: 1774490095113
+name: Warding I
+imbueTargetType: implement
+description: You gain a +6 bonus to Stamina.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 4

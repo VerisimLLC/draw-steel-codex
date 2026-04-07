@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 3fdfb157-027a-43e4-955b-264c82ba68d0
+id: 3fdfb157-027a-43e4-955b-264c82ba68d0
+ctime: 1763833412473
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Spirit Meld
+description: You move with your Mentor. You cannot be sensed, can't affect or be affected by other creatures or objects
+custom: true
+mtime: 1763833412473
+iconid: ui-icons/skills/1.png

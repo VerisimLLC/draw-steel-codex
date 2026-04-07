@@ -1,0 +1,181 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  disableSplitIntoMeleeAndRanged: true
+  resourceNumber: "3"
+  objectTarget: false
+  targetFilter: not Minion and target.Keywords has "Radenwight"
+  repeatTargets: false
+  rangeTextOverride: ""
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    invokeOnCaster: false
+    customAbility:
+      __typeName: ActivatedAbility
+      disableSplitIntoMeleeAndRanged: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; push 3
+        - 10 damage; push 3; taunted (EoT)
+        - 13 damage; push 5; taunted (EoT)
+        guid: a889c511-c84d-467c-af5e-773e1f1f1b45
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 9d02f1df-cf11-408e-b972-55751f036a40
+        modesSelected:
+        - 1
+        ongoingEffectCustom: 9d02f1df-cf11-408e-b972-55751f036a40
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 7fa8d039-3fcc-475b-965b-da046561e597
+      numTargets: "1"
+      modeList:
+      - text: Target Is Wearing Clothes
+      - text: Target No Clothes
+      name: Trouser Cut
+      targetType: self
+      description: If the target is wearing clothing covering the lower half of their body, they must use a maneuver once to pull that clothing up before they can move.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: ""
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: dfa284b4-4f33-4a69-b770-900c60353b46
+  abilityType: none
+  numTargets: "1"
+  keywords:
+    Ranged: true
+    Magic: true
+    Melee: true
+  name: Trouser Cut
+  targetType: target
+  description: |-
+    If the target is wearing clothing covering the lower half of their body, they must use a maneuver once to pull that clothing up before they can move.
+
+    Special: This ability can’t be used by a minion.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ui-icons/skills/1.png
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetFilter: target.Keywords has "Radenwight"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 50e46efc-40e2-42a8-8745-61f1476cdb55
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityType: none
+      behaviors: []
+      targetType: self
+      name: Invoked Ability
+      numTargets: "1"
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    promptText: 'Each radenwight in the encounter shifts up to their speed. '
+    abilityType: standard
+    standardAbilityParams:
+      distance: "<<Movement Speed>>"
+    standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    abilityType: standard
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 68a7b6f4-8ea9-4585-8a76-7eaaf7f1ec70
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+    promptText: If a radenwight ends this shift adjacent to one or more radenwights, they can make a melee free strike against each enemy adjacent to them.
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 28bf86af-9fff-49f7-a101-2ea23b3b215a
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: map
+  name: Rat Race
+  numTargets: "1"
+  description: Each radenwight in the encounter shifts up to their speed. If a radenwight ends this shift adjacent to one or more radenwights, they can make a melee free strike against each enemy adjacent to them.
+  abilityType: none
+  implementation: 3
+- __typeName: MaliceAbility
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: c3db04b5-9c09-4627-9604-78c65f5fc84d
+  repeatTargets: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  abilityType: none
+  behaviors: []
+  targetType: self
+  name: Rally the Rodents
+  numTargets: "1"
+  description: |-
+    A radenwight uses music to coordinate living rats, forming a 10 wall of rats scurrying atop one another into unoccupied spaces anywhere on the encounter map. The wall doesn’t block line of effect for radenwights and their allies, but it does for other creatures as the rats coordinate their movements with the radenwights.
+    Each square of the wall has 10 Stamina.
+
+    If the last radenwight in the encounter dies and the wall is still standing, the rats let out a hideous screech as they disperse. Each enemy on the encounter map makes an Intuition test.
+
+    <= 7 | sonic damage; the target can’t take a respite activity during their next respite
+    12-16 | 5 sonic damage
+    17+ | No effect.
+  range: 1
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+mtime: 1770395222732
+name: Radenwight
+traits: []
+attacks: []
+id: 763027dd-bc4d-485c-9bfc-6888f41a1b35
+ctime: 1758524924849

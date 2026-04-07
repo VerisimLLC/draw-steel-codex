@@ -1,0 +1,100 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  targetFilter: target.type = "Angulotl"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: f074610b-99d0-40a1-9653-8738688f19e1
+    duration: endround
+    ongoingEffectCustom: f074610b-99d0-40a1-9653-8738688f19e1
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 41
+    docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+  range: "100"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 7a80fb7e-8cf6-43ec-8c41-eb93c1788410
+  abilityType: none
+  targetType: map
+  iconid: ui-icons/skills/1.png
+  numTargets: "1"
+  selfTarget: true
+  name: Leapfrog
+  description: |
+    Until the end of the round, when an angulotl moves through an inactive angulotl’s space, the inactive angulotl can use a free triggered action to jump 3 squares.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetFilter: target.type != "Angulotl" and target.Count Nearby Creatures(1, "Angulotl") > 0
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    isTest: false
+    roll: 2d10 + Might or Agility
+    resistanceRoll: true
+    tiers:
+    - 5 sonic damage; slowed (EoT)
+    - 4 sonic damage
+    - No effect
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: de62754f-2745-4443-aba5-810d97fd25ee
+  iconid: ui-icons/skills/1.png
+  resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+  targetType: map
+  name: Resonating Croak
+  numTargets: "1"
+  description: |
+    Each angulotl in the encounter puffs out their throat and starts loudly droning Any non-angulotl adjacent to an angulotl makes an Intuition test.
+  abilityType: none
+  implementation: 2
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: bc677f0d-6554-4f96-8e84-924d8aa1c3b6
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: b936df43-5c0e-4046-9221-ce360fa5131b
+    duration: eoe
+    ongoingEffectCustom: false
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Rainfall
+  selfTarget: true
+  numTargets: "1"
+  description: |
+    An angulotl calls clouds to cover the encounter map and unleash rain until the end of the round. Any creature or object that is exposed to the sky is wet until the end of the encounter.
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+mtime: 1772099444538
+name: Angulotl
+traits: []
+attacks: []
+id: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+ctime: 1744743407745

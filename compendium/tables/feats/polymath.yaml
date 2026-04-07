@@ -1,0 +1,32 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: de0eea27-3f5a-40d4-9b05-1bb0a1a62915
+      displayCondition: "1"
+      source: Feat
+      behavior: power
+      adjustments: []
+      keywords: []
+      rollRequirement: unskilled
+      guid: 53714bfd-7b78-4b08-b5ea-729455044fe8
+      modtype: plusone
+      rollType: test_power_roll
+      activationCondition: title has "Recall Lore"
+      description: Whenever you make a test to recall lore and don’t have a skill that applies to the test, you gain a +1 bonus to the power roll.
+      name: Polymath
+      attribute: rea
+    name: Polymath
+    description: ""
+    guid: de0eea27-3f5a-40d4-9b05-1bb0a1a62915
+    canHavePrerequisites: true
+    source: Feat
+tag: Lore Perks
+name: Polymath
+description: Whenever you make a test to recall lore and don’t have a skill that applies to the test, you gain a +1 bonus to the power roll.
+mtime: 1757311198895
+id: 3ed4339d-36c2-441b-a75f-e79e0a12470d
+ctime: 1730700870782

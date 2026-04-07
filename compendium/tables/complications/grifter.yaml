@@ -1,0 +1,17 @@
+__typeName: CharacterComplication
+drawback: Whenever you meet an NPC for the first time, the Director can decide that NPC was a victim of one of your previous cons and remembers you. If they do so, the party gains a hero token.
+mtime: 1765369353794
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+    guid: d9f0863a-8194-4c21-9e01-a7fa46e719f2
+    description: Choose a Skill from the Intrigue Skill Group
+    source: Feat
+name: Grifter
+ctime: 1755515085112
+description: You used to be a con artist, but those days are pretty much behind you. Being a hero is an even better racket. After all, if you’re saving the world, who can be mad at you for stealing a few coins along the way?
+id: 522199a7-1d96-48c7-a5ed-d47073df6cea
+benefit: You have one skill of your choice from the intrigue skill group

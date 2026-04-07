@@ -1,0 +1,221 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 37aad305-377b-4b0e-b57f-7e7b5fd98dcd
+    offtokenPortraitId: null
+    portraitFrameId: 332770d5-bdfb-40bb-92c0-f8476e7e80f2
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.05648202
+      y: 0.1451861
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 3b75e336-528b-4d60-a8ff-48ca371fc1a4
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Big Animal A	Level 1 Elite Mount
+        Animal	EV 12
+        <b>Stamina</b> 60
+        <b>Speed</b> 6	<b>Size</b> 2 /<b> Stability</b> 1
+        <b>Free Strike</b> 4
+        Might +1	Agility +2	Reason -2	Intuition +1	Presence -2
+        <b>Natural Weapon</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	%E2%89%A411	6 damage
+        %E2%98%85	12%E2%80%9316	9 damage; A<1 3 damage
+        %E2%9C%B8	17	12 damage; A<2 3 damage
+
+        <b>Toss</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        <b>Effect</b> Vertical slide 3. If the target is an ally, they can make a free strike and then fall without taking damage.
+
+        <b>Juke</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> The animal is targeted by an area ability.
+        <b>Effect</b> The animal shifts 2 before the ability activates.
+
+        <b>Nature Calls</b>
+        The beast ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:66051194-bc31-4543-80a0-3189e908ae67: true
+      modifiers: []
+      name: Nature Calls
+      description: The beast ignores 1 bane on their abilities while in an encounter outside or in a natural environment.
+      guid: 66051194-bc31-4543-80a0-3189e908ae67
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6218e808-8af8-48e3-a9fb-92e4f9ce0904: true
+      modifiers: []
+      name: Nature's Spirit
+      description: While outdoors or in a natural environment, the animal can negate a bane on their abilities or turn a double bane into a bane.
+      guid: 6218e808-8af8-48e3-a9fb-92e4f9ce0904
+      source: Trait
+    role: Elite Mount
+    inflictedConditions: []
+    keywords:
+      Animal: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    monster_type: Big Animal A
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 60
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bdfd5990-704e-4a21-81a4-07dbd27798ca
+      implementation: 4
+      numTargets: 2
+      name: Natural Weapon
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage; A<1 3 damage
+        - 12 damage; A<2 3 damage
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 292569e3-e8f8-4523-a0d0-42c4b7016246
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Toss
+      numTargets: 1
+      description: Vertical slide 3. If the target is an ally, they can make a free strike and then fall without taking damage.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 1d436586-b0b4-4c2e-89fe-ddfb9aa51ce0
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Juke
+      numTargets: 1
+      description: The animal shifts 2 before the ability activates.
+      abilityType: none
+      implementation: 0
+    groupid: a68c91b6-55f3-4c16-82d9-e0da68078b49
+    movementSpeeds: []
+    ev: 12
+    minion: false
+    levelChoices: []
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: d5dee439-a041-4dba-ae19-a137e6ae9965
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Big Animal A
+parentFolder: 4b3931af-633a-4d06-a87c-a4139290d258
+artist: null
+ord: 6
+ctime: 1741590313770
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,18 @@
+__typeName: MarkdownDocument
+description: Grabbing the Ring
+parentFolder: eaf490ac-5c37-4c4b-9843-f2c26f95ec52
+updateid: 399484d2-21a0-47c7-b45b-621d231dd915
+annotations: []
+id: 6e6084be-e33e-41bc-9cd0-163d684a687b
+mtime: 1761434441297
+content: |-
+  # Grabbing the Ring
+
+  If the heroes wish to obtain the ring, they can attempt to steal it from [Illwyth]’s hand. While talking to her, a hero can engage in a bit of sleight of hand with a hard Agility test.
+  |Steal Illwyth’s Ring: Agility Test
+  |{# The hero fails to get the ring and Illwyth notices. She makes a mental note the heroes need to be dealt with and tells her friends as soon as possible (see Gilded Showdown in Events).}
+  |{# The hero fails to get the ring, but Illwyth doesn’t notice.}
+  |{# The hero gets the ring without Illwyth’s immediate notice. However, she eventually figures out what happened after the heroes finish their next respite. She tells her friends (see Gilded Showdown in Events).}
+
+  See [Gilded Showdown] in [Events], and make a note on the [Respite Tracker] if necessary.
+ctime: 1761428179883

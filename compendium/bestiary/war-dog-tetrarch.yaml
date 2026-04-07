@@ -1,0 +1,460 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 207d654e-644d-4f3c-a8b7-b756112d9e99
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |
+        War Dog Tetrarch	Level 6 Leader
+        Humanoid, War Dog	EV 32
+        <b>Stamina</b> 180
+        <b>Speed</b> 7	<b>Size</b> 1M /<b>Stability</b> 2
+        <b>Free Strike</b> 7
+        Might +4	Agility +3	Reason +2	Intuition +3	Presence +4
+        <b>Houndblade</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 3<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 damage
+        %E2%98%85	<b>12-16</b>	16 damage; taunted (EoT)
+        %E2%9C%B8	<b>17</b>	19 damage; taunted (EoT)
+        <b>Effect</b> A creature taunted by this ability has a bane on strikes.
+        <b>3 Malice</b> Each target loses 1d3 Recoveries.
+
+        <b>"Get them, you dolts!" </b>(Maneuver) %E2%97%86 1 Malice per target
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10	<b>Target</b> Up to three creatures
+        <b>Effect</b> The target shifts up to their speed and makes a free strike. The target deals an additional 4 damage if they strike a taunted enemy.
+
+        <b>Sneering Disregard</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Triggering creature
+        <b>Trigger</b> A non-taunted creature targets the tetrarch with a power roll.
+        <b>Effect</b> The tetrarch imposes a double bane on the power roll. If the target gets a tier-1 result, the tetrarch ignores any additional effects of the ability, and the target is frightened of the tetrarch (save ends).
+
+        <b>End Effect</b>
+        At the end of their turn, the tetrarch can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Chosen of the Iron Saint</b>
+        The Director gains 1 malice whenever an ally within 10 of the tetrarch gets a tier-3 result on an attack.
+
+        <b>Enter the Fray</b> (Villain Action 1) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area
+        <b>Distance</b> 2 burst<b>Target</b> All enemies
+        <b>Effect</b> The tetrarch leaps 7 squares before using this action.
+        %E2%9C%A6	<b>%E2%89%A411</b>	push 2; I<2 frightened (save ends)
+        %E2%98%85	<b>12-16</b>	push 4; I<3 frightened (save ends)
+        %E2%9C%B8	<b>17</b>	push 5; I<4 frightened (save ends)
+
+        <b>Lay Waste </b>(Villain Action 2) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> Five 2 cubes within 20<b>Target</b> All creatures and objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 fire damage; A<2 slowed (EoT)
+        %E2%98%85	<b>12-16</b>	13 fire damage; A<3 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	16 fire damage; A<4 slowed (save ends)
+        <b>Effect</b> The cubes are set ablaze. Until the end of the encounter, the affected area is considered difficult terrain, and a creature takes 2 fire damage for each affected square they enter.
+
+        <b>"You Would Dare?!"</b> (Villain Action 3)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>Target</b> Self
+        <b>Effect</b> Until the end of the encounter, the tetrarch rallies themself, gains damage immunity 2, and their signature action now targets three creatures or objects.
+
+
+        War Dogs - 3rd Echelon
+        The Body Banks are full of the remains of enemies of the state, conquered peoples, war dogs who have experienced a second death, and even scraps of monsters and animals that might prove useful. While the creation of new War Dogs is by no means an exact process, the flesh sculptors take great pride in crafting a highly destructive, single-mindedly fanatical army.
+        Rank and File
+        The vast majority of War Dogs are simple amalgams of humanoids, fused, stitched, and welded together with stolen Upper World technology and forbidden alchemy. Their unnatural origin is on clear display; patchwork skin, mismatched limbs, and unsettling proportions mark them as artificial revenants. As a War Dog proves their loyalty and rises in rank, they may be rewarded with special attention from the flesh sculptors, evening out their construction and supplying them with higher quality material. War Dogs who have risen through the ranks this way pride themselves on their nearly normal appearances.
+        Happy Accidents
+        Making War Dogs is more art than science, and happy little accidents can create War Dogs with unusual characteristics. These War Dogs are given great attention by the flesh sculptors, both to further improve the abilities of these deviants and to learn how to replicate their creation.
+        Made to Order
+        War Dogs are most often made by playing the odds: each new resurrection is assumed to create certain ratios of infantry, mages, specialists, and so on. However, by radically altering the processes and providing special materials, War Dogs can be made that bear little resemblance to any humanoid and with power beyond that of the usual conscript.
+        These monstrous War Dogs are developed to fulfill very specific roles and combat niches, often fused with inorganic materials after their rebirth to become living war machines. Despite the War Dog tendency to value appearance, they are highly respected for having been chosen for greatness and consider their monstrous forms a badge of honor bestowed by Ajax.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d0e5e037-8101-4565-88ba-066921dc2460: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "10"
+            purgeType: one
+          triggerPrompt: End effect for 10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the tetrarch can take 10 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+      guid: d0e5e037-8101-4565-88ba-066921dc2460
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:936ba514-ae7c-4f00-ae44-c01f9b758f4e: true
+      modifiers: []
+      name: Chosen of the Iron Saint
+      description: The Director gains 1 malice whenever an ally within 10 of the tetrarch gets a tier-3 result on an attack.
+      guid: 936ba514-ae7c-4f00-ae44-c01f9b758f4e
+      source: Trait
+    role: Leader
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "180"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 7
+    monster_type: War Dog Tetrarch
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 4
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 180
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Charge: true
+        Weapon: true
+        Strike: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 damage
+        - 16 damage; taunted (EoT)
+        - 19 damage; taunted (EoT)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 34875884-0e1f-4327-8f65-531c40aac3f8
+      meleeRange: 1
+      numTargets: 2
+      targetType: target
+      name: Houndblade
+      iconid: ui-icons/skills/1.png
+      description: A creature taunted by this ability has a bane on strikes.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 206e02e3-bb4e-4022-a715-cda9f5d3c427
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: "\"Get them, you dolts!\" "
+      numTargets: 3
+      description: The target shifts up to their speed and makes a free strike. The target deals an additional 4 damage if they strike a taunted enemy.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: a78d3192-9312-438b-9b0a-a5c55d6444ec
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Sneering Disregard
+      numTargets: 1
+      description: The tetrarch imposes a double bane on the power roll. If the target gets a tier-1 result, the tetrarch ignores any additional effects of the ability, and the target is frightened of the tetrarch (save ends).
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - push 2; I<2 frightened (save ends)
+        - push 4; I<3 frightened (save ends)
+        - push 5; I<4 frightened (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'a4cc80fd-786c-4d2b-8a0"
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 089763af-276b-4ad5-a808-e835a4fbe96b
+      numTargets: 1
+      targetType: all
+      implementation: 3
+      name: Enter the Fray
+      effectImplemented: false
+      description: The tetrarch leaps 7 squares before using this action.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: f21cbb6e-dbcf-4053-b930-738c636df8e8
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '01929f52-8269-4c0b-921"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 fire damage; A<2 slowed (EoT)
+        - 13 fire damage; A<3 slowed (save ends)
+        - 16 fire damage; A<4 slowed (save ends)
+        roll: 2d10 + Might
+      name: 'Lay Waste '
+      numTargets: 1
+      description: The cubes are set ablaze. Until the end of the encounter, the affected area is considered difficult terrain, and a creature takes 2 fire damage for each affected square they enter.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c5a6e868-d150-4fcb-be7b-fb360b216894
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: be4b1140-7825-441a-b85e-f44f3b7cbac3
+        multicharge: false
+      implementation: 0
+      behaviors: []
+      name: "\"You Would Dare?!\""
+      numTargets: "1"
+      description: Until the end of the encounter, the tetrarch rallies themself, gains damage immunity 2, and their signature action now targets three creatures or objects.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 10
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 65b66076-0b27-4fef-9e7d-db67bb01c4d8
+      abilityType: none
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 309
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Get Them, You Dolts!
+      numTargets: 3
+      description: |
+        Note: Costs 1 Malice per targetEach target shifts up to their speed and can make a free strike. If the free strike targets an enemy taunted by the tetrarch, it deals an extra 4 damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        "-": true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 309
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 8b4c7b80-03e0-4de9-87e5-229b8e4c81c2
+        multicharge: false
+      villainAction: Villain Action 3
+      numTargets: 1
+      modifiers: []
+      guid: d8b85aea-4d31-46d6-9b7d-058c93f0ecd9
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      name: You Would Dare?!
+      categorization: Villain Action
+      description: Until the end of the encounter, the tetrarch has damage immunity 2, and their Houndblade ability targets three creatures or objects.
+      abilityType: none
+      implementation: 0
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 32
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 8141cc22-433f-4d33-b8a6-ec00c4239c1b
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Tetrarch
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 12
+ctime: 1749972311689
+mtime: 1775201137032
+hidden: false

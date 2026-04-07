@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 34ef8b9b-9259-4489-b6d6-d9e741ff4b24
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Melee: true
+    Weapon: true
+  activationCondition: true
+  description: Your weapon receives a +3 bonus to rolled damage.
+  name: Improved Sanctified Weapon - Melee
+  behavior: power
+  damageModifier: "3"
+  rollType: ability_power_roll
+  guid: a9d511e4-6fd3-4144-9c41-396e5bdced18
+source: Ongoing Effect
+guid: 34ef8b9b-9259-4489-b6d6-d9e741ff4b24
+id: 34ef8b9b-9259-4489-b6d6-d9e741ff4b24
+ctime: 1764521997140
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Improved Sanctified Weapon - Melee
+description: Your weapon receives a +3 bonus to rolled damage.
+custom: true
+mtime: 1764522146047
+iconid: ui-icons/skills/1.png

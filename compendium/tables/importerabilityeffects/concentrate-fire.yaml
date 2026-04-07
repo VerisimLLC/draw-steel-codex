@@ -1,0 +1,31 @@
+__typeName: ActivatedAbility
+insertAtStart: false
+id: 663ab593-12c7-4242-a61e-88994572e6e2
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: 6a05b496-d824-4cbe-9926-f4bf72f4123d
+  durationUntilEndOfTurn: true
+  duration: 1
+  ongoingEffectCustom: 6a05b496-d824-4cbe-9926-f4bf72f4123d
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: |
+    The target is marked until the start of the centurion's next turn. The centurion and each of their allies gain an edge and :surge: on attacks against targets marked by the centurion.
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: 0613b5d9-334a-4256-a364-2a6e4ae5036a
+importMatch: "The target is marked until the start of <<monster>>'s next turn. <<monster>> and each of their allies gain an edge and :surge: on attacks against targets marked by <<monster>>."
+ctime: 1731826926874
+targetType: self
+repeatTargets: false
+name: Concentrate Fire
+mtime: 1743460283239
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

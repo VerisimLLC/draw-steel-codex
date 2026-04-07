@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 3276c468-deb3-4cb2-aabc-6f8ac7b7b609
+  source: Ongoing Effect
+  modtype: none
+  keywords: []
+  rollRequirement: surges
+  damageTypeMappings:
+    untyped: poison
+  guid: 49bf3718-d599-4aa0-b625-9e3b35008aaa
+  name: Coat the Blade
+  rollType: ability_power_roll
+  description: Whenever you use a surge before the end of the encounter, you can choose to have it deal poison damage.
+  behavior: power
+  activationCondition: false
+source: Ongoing Effect
+guid: 3276c468-deb3-4cb2-aabc-6f8ac7b7b609
+id: 3276c468-deb3-4cb2-aabc-6f8ac7b7b609
+ctime: 1760190611020
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: Whenever you use a surge before the end of the encounter, you can choose to have it deal poison damage.
+name: Coat the Blade
+hiddenOnToken: true
+mtime: 1760190611020
+custom: true
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 4d0fc447-5866-4385-86ad-4bb2ea5ef869
+id: 4d0fc447-5866-4385-86ad-4bb2ea5ef869
+ctime: 1769683153654
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: You Will All Witness my Blade
+statusEffect: false
+mtime: 1769683245153
+description: ""
+iconid: ui-icons/skills/1.png

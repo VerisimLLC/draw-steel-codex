@@ -1,0 +1,41 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:c7e6ec1c-5d74-4248-957d-e6a4eddcfaac: true
+    CharacterOngoingEffect:a5feff79-ba94-487f-be63-0db2898d05a2: true
+  sourceguid: a5feff79-ba94-487f-be63-0db2898d05a2
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-Stacks"
+    damageType: sonic
+    apply: Damage Reduction
+  guid: 0ead142c-d32e-4a8d-aa11-53c9086df28f
+  name: Damage Weakness - Sonic
+  description: ""
+source: Ongoing Effect
+guid: a5feff79-ba94-487f-be63-0db2898d05a2
+id: 8d29ad0b-4e85-4d91-bcc7-cc540d02e2ec
+ctime: 1758751279281
+domains:
+  CharacterOngoingEffect:c7e6ec1c-5d74-4248-957d-e6a4eddcfaac: true
+  CharacterOngoingEffect:a5feff79-ba94-487f-be63-0db2898d05a2: true
+display:
+  brightness: 0.999999128069196
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.509700179100037
+    s: 0.851351380348206
+    v: 0.87058824300766
+    a: 0.45250016450882
+name: Damage Weakness - Sonic
+description: ""
+mtime: 1758751984275
+stackable: true
+iconid: e8b60b7d-78a7-4ef0-8622-62ee5c1bb39b

@@ -1,0 +1,35 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e4f3e9a6-8510-4e8c-a0c8-7105c01e72e4
+  source: Ongoing Effect
+  guid: 262ede02-78eb-43fd-8eaa-e4204d44303b
+  keywords: []
+  activationCondition: false
+  domains:
+    CharacterOngoingEffect:e4f3e9a6-8510-4e8c-a0c8-7105c01e72e4: true
+  rollType: ability_power_roll
+  name: Summoner's Sword
+  modtype: none
+  description: This strike deals an additional 2 damage for each ally adjacent to you.
+  damageModifier: 2*Stacks
+  behavior: power
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+id: e4f3e9a6-8510-4e8c-a0c8-7105c01e72e4
+ctime: 1760394460964
+domains:
+  CharacterOngoingEffect:e4f3e9a6-8510-4e8c-a0c8-7105c01e72e4: true
+name: Summoner's Sword
+custom: true
+endTrigger: attack
+guid: e4f3e9a6-8510-4e8c-a0c8-7105c01e72e4
+description: This strike deals an additional 2 damage for each ally adjacent to you.
+mtime: 1760395463753
+iconid: 170fa23d-cb8f-4f7a-8608-1d281994f844

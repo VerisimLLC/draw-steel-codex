@@ -1,0 +1,154 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  repeatTargets: false
+  targetType: emptyspace
+  multipleModes: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "3"
+  persistence: []
+  modifiers: []
+  strain: []
+  modeList:
+  - text: Optacus
+  - text: Tyburaki
+  - text: Unguloid
+  numTargets: "4"
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  behaviors:
+  - __typeName: ActivatedAbilitySummonBehavior
+    modesSelected:
+    - 1
+    monsterType: 055f52c3-eca2-4160-b347-b1d53aa384da
+    groupInitiativeWithCaster: false
+    casterChoosesCreatures: false
+    allCreaturesTheSame: true
+  - __typeName: ActivatedAbilitySummonBehavior
+    modesSelected:
+    - 2
+    allCreaturesTheSame: true
+    groupInitiativeWithCaster: false
+    guid: 8b03144c-8934-4caa-ae40-f840e9886ba2
+    casterChoosesCreatures: false
+    monsterType: 43a150d2-b635-4642-896d-71683e481724
+  - __typeName: ActivatedAbilitySummonBehavior
+    modesSelected:
+    - 3
+    allCreaturesTheSame: true
+    groupInitiativeWithCaster: false
+    guid: 85adf0ee-9589-415a-8903-52eb2cd7afde
+    casterChoosesCreatures: false
+    monsterType: 050f71fe-7fe5-4916-844a-dcaf046011f3
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "6"
+      objectTarget: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 528aeb9c-dbde-49a1-b499-25ad75910c74
+      repeatTargets: false
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: I<5 frightened (save ends)
+      targetType: target
+      modifiers: []
+      name: Invoked Ability
+      persistence: []
+      description: 'The first time an enemy is within 10 squares of Relg when he uses this feature and has I<5 is frightened of any minions Relg summons (save ends). '
+      range: "10"
+      iconid: ui-icons/skills/1.png
+    invokeOnCaster: true
+    promptText: 'The first time an enemy is within 10 squares of Relg when he uses this feature and has I<5 is frightened of any minions Relg summons (save ends). '
+  name: Birth
+  guid: 72c46560-a25c-4385-ad8c-1034337daf8b
+  description: 'Relg regurgitates four level 10 demon minions (most commonly optacus, tyburaki, or unguloid) within 3 squares of him. The first time an enemy is within 10 squares of Relg when he uses this feature and has I<5 is frightened of any minions Relg summons (save ends). '
+  abilityType: none
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: a88ffdec-4365-4ab9-8f4d-28d443af46db
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Soul Rend
+  range: 1
+  description: 'Relg burns some of his accumulated soul energy to empower his onslaught. Until the start of Relg’s next turn, each time a creature takes damage from Relg, they take an additional 5 corruption damage. '
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: ac462c10-3e03-419b-9869-7ef29339654c
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: 80c4b94e-6680-4d8a-b556-e39e87e139c1
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  targetType: self
+  name: Solo Action
+  range: 1
+  description: Relg takes an additional main action on his turn. He can use this feature even if he is dazed.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "10"
+  strain: []
+  guid: 61066b3c-68dc-4b25-894e-370529e283f3
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Lake of Oblivion
+  range: 1
+  description: |-
+    Relg cuts open a rift to the Abyssal Waste and floods the encounter map in a shallow lake of steaming liquid lethe until the end of the encounter.        
+    An enemy that ends their turn in the lake adjacent to one or more of their allies makes a melee free strike against a creature of Relg’s choice.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1765642857761
+name: Relg
+traits: []
+attacks: []
+id: cd4c4f85-6eeb-4d49-9c38-8e4168fb24df
+ctime: 1765639079710

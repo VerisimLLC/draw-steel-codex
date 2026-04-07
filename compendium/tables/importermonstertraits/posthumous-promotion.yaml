@@ -1,0 +1,53 @@
+__typeName: CharacterFeature
+testCases:
+- text: If the target has a loyalty collar, they are reduced to 0 Stamina.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 77e7c5c3-cb54-4bd4-b25d-f5dbd389c0a6
+  guid: 21cf7f24-286e-4e6b-a0a2-1a935dc6fb4f
+  source: Monster
+  behavior: activated
+  description: ""
+  name: Posthumous Promotion
+  activatedAbility:
+    __typeName: ActivatedAbility
+    objectTarget: false
+    targetFilter: Target has "Loyalty Collar"
+    targetTextOverride: 1 creature
+    repeatTargets: false
+    keywords:
+      Ranged: true
+      Magic: true
+    targetType: target
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Signature Ability
+    range: "10	"
+    persistence: []
+    modifiers: []
+    behaviors:
+    - __typeName: ActivatedAbilityDestroyBehavior
+    strain: []
+    guid: 6bb0131d-d192-45ea-bb63-3194497914e8
+    rangeTextOverride: Ranged 10
+    numTargets: "1"
+    domains: []
+    iconid: ui-icons/skills/1.png
+    selfTarget: true
+    name: Posthumous Promotion
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    description: The target's loyalty collar detonates, killing them instantly.
+    abilityType: none
+    implementation: 3
+source: Monster
+guid: 77e7c5c3-cb54-4bd4-b25d-f5dbd389c0a6
+importMatch: If the target has a loyalty collar, they are reduced to 0 Stamina.
+ctime: 1775013027602
+name: Posthumous Promotion
+id: 97ece922-c1d5-4c34-897b-3c39b3540960
+description: ""
+mtime: 1775081774119
+implementation: 3

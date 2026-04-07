@@ -1,0 +1,59 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 8c1e56c7-b7b7-4f2b-a359-42515ca79653
+  source: Ongoing Effect
+  activationCondition: true
+  guid: 2ccce322-c447-4929-8c73-79cfbee7ae43
+  domains:
+    CharacterOngoingEffect:8c1e56c7-b7b7-4f2b-a359-42515ca79653: true
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: cba0f28c-3018-411b-8fc7-94ce25e62e82
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 8c1e56c7-b7b7-4f2b-a359-42515ca79653
+      mode: effect
+      conditions: []
+      applyto: caster
+    name: New Ability
+    trigger: d20roll
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  addText: ""
+  name: "Fate: Tier 3 Effect"
+  behavior: power
+  description: This creature's next power roll automatically gets a tier 1 result.
+  modtype: tier3
+  rollType: all
+source: Ongoing Effect
+guid: 8c1e56c7-b7b7-4f2b-a359-42515ca79653
+id: 8c1e56c7-b7b7-4f2b-a359-42515ca79653
+ctime: 1728012092100
+domains:
+  CharacterOngoingEffect:8c1e56c7-b7b7-4f2b-a359-42515ca79653: true
+display:
+  brightness: 1.91428571428571
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: "Fate: Tier 3 Effect"
+iconid: 32077eeb-5e0b-4dd8-b538-4bab491da0ed
+description: This creature's next power roll automatically gets a tier 1 result.
+mtime: 1742971367700
+implementation: 3

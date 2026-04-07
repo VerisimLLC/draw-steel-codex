@@ -1,0 +1,46 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: 89521cd2-d9cb-43b8-b17d-3a45d2a0387d
+        repeatTargets: false
+        trigger: endturn
+        conditionFormula: not dead
+        targetType: self
+        persistence: []
+        name: End Turn Save
+        behaviors:
+        - __typeName: ActivatedAbilitySaveBehavior
+          applyto: caster
+        description: ""
+        range: 5
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: End Turn Save Global Rule Mod Feature
+      behavior: trigger
+      guid: eece7f6a-9129-431d-b49a-16e5acf51714
+      name: End Turn Save
+      sourceguid: d2b4ac7c-444b-429b-a7c2-99b38b931b65
+    name: End Turn Save
+    description: ""
+    guid: d2b4ac7c-444b-429b-a7c2-99b38b931b65
+    source: End Turn Save Global Rule Mod Feature
+    implementation: 3
+name: End Turn Save
+mtime: 1772713269810
+id: 800867b2-86ac-4848-b95f-e147019ef22d
+ctime: 1711321751814

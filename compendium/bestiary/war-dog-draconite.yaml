@@ -1,0 +1,229 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 87f2d1fc-368c-4844-b6d4-a57e930f7f13
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        War Dog Draconite	Level 7 Minion Brute
+        Humanoid, War Dog	EV 9 for four minions
+        <b>Stamina</b> 13
+        <b>Speed</b> 5	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>With Captain</b> Strike damage +3	<b>Free Strike</b> 4
+        Might +4	Agility +1	Reason -2	Intuition -1	Presence +2
+        <b>Greatsword and Roar</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12-16</b>	4 damage; 3 psychic damage
+        %E2%9C%B8	<b>17</b>	4 damage; 4 psychic damage; target moves up to their speed away from the draconite
+        <b>Effect </b>If the target is winded after taking damage, they are frightened of the draconite (EoT).
+
+        <b>Loyalty Collar</b>
+        When the draconite dies, they explode, dealing 2d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:001f97f4-103a-4e4b-8f87-e72757b246d9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 2d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the draconite is reduced to 0 Stamina, their loyalty collar explodes, dealing 2d6 damage to each adjacent enemy and object.
+      guid: 001f97f4-103a-4e4b-8f87-e72757b246d9
+      name: Loyalty Collar
+      implementation: 3
+    role: Minion Brute
+    inflictedConditions: []
+    ev: 9
+    max_hitpoints_roll: "13"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    monster_type: War Dog Draconite
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    withCaptain: +3 damage bonus to strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 13
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 4 damage; 3 psychic damage
+        - 4 damage; 4 psychic damage; target moves up to their speed away from the draconite
+        roll: 2d10 + 4
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 92c207e7-62f1-495c-8de7-659ee1eb3a21
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Greatsword and Roar
+      numTargets: 1
+      description: If the target is winded after taking damage, they are frightened of the draconite (EoT).
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 0 damage; 4 damage; frightened (EoT)
+        - 3 psychic damage; 4 damage; frightened (EoT)
+        - 4 psychic damage; 4 damage; frightened (EoT); the target must move their speed  in a straight line away from the draconite
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ff2d0ebf-4967-4399-97c9-5377a399b49a
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Greatsword & Roar
+      sourceReference:
+        __typeName: SourceReference
+        page: 310
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: If this damage leaves the target winded, they are frightened of the draconite until the end of the target's next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: "2"
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 63aa794a-5d60-4b50-928a-d2d6f91a23c0
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Draconite
+parentFolder: dd2974a5-afe0-42da-8fb3-f9cb518106e0
+artist: null
+ord: 1
+ctime: 1749972310549
+mtime: 1775201137032
+hidden: false

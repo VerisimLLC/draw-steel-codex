@@ -1,0 +1,72 @@
+__typeName: CharacterComplication
+drawback: Now that you finally have people who care about you, you won’t let anyone take them away! Whenever a creature reduces one of your allies to 0 Stamina, you are taunted by that creature until your ally’s Stamina is higher than 0, another creature makes you taunted, or the end of the encounter.
+mtime: 1768385684374
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: ""
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: true
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 2d8be557-e492-4417-953f-a9a96712c793
+        abilityType: none
+        trigger: dying
+        castImmediately: true
+        persistence: []
+        conditionFormula: ""
+        name: Loner - Drawback
+        behaviors:
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          applyto: targets
+          rule: taunted (EoT)
+        - __typeName: ActivatedAbilityFloatTextBehavior
+          text: Loner Drawback
+          color:
+            __usertype: LuaColor
+            h: 0
+            s: 0.830634832382202
+            v: 0.998205065727234
+            a: 1
+        - __typeName: ActivatedAbilityConditionSourceBehavior
+          applyto: all_creatures
+          filterTarget: Target = Attacker
+          condid: 85e26e12-e853-464d-bbbc-98ddf2c0071a
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: subject
+          ongoingEffect: e5b9fa52-b2aa-4cc2-b46a-d18828bdcf9a
+          duration: eoe
+          ongoingEffectCustom: e5b9fa52-b2aa-4cc2-b46a-d18828bdcf9a
+        description: ""
+        subject: otherheroes
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Feat
+      behavior: trigger
+      guid: 6afb94e1-0283-4fd7-ba05-716dcf4e87f2
+      name: Loner - Drawback
+      sourceguid: 5e437b33-6031-4552-bb7b-2c509f2ab547
+    source: Feat
+    canHavePrerequisites: true
+    guid: 5e437b33-6031-4552-bb7b-2c509f2ab547
+    name: Loner - Drawback
+    implementation: 3
+name: Loner
+ctime: 1755515751455
+description: You’ve always been a lone wolf. With no one else to lean on, you’ve picked up a million survival tricks. Which made it all the more surprising when you joined your current adventuring group and found the family you’d never known you needed.
+id: cd37b13a-9134-41bf-9081-9f8756f76b23
+benefit: When you finish a respite, choose a skill you don’t have. You have that skill until the end of your next respite.

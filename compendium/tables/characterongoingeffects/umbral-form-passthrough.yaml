@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: ca1b9a97-0203-40c9-86a5-f92fd112a141
+id: ca1b9a97-0203-40c9-86a5-f92fd112a141
+ctime: 1767502518881
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Umbral Form passthrough
+statusEffect: false
+mtime: 1767502524078
+description: ""
+iconid: ui-icons/skills/1.png

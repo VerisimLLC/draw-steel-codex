@@ -1,0 +1,281 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 4bf72a4e-da43-4287-b9fa-eba98b943306
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Mindkiller	Level 6 Elite Hexer
+        Horror, Voiceless Talker	EV 32
+        <b>Stamina </b>140	I<b>mmunity</b> psychic 6
+        <b>Speed</b> 6 (fly, hover)	<b>Size</b> 1M /<b> Stability </b>2
+        <b>Free Strike</b> 7
+        Might -1	Agility +3	Reason +2	Intuition +2	Presence +0
+        <b>Killer Claws</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 damage
+        %E2%98%85	<b>12-16</b>	17 damage; A<2 grabbed
+        %E2%9C%B8	<b>17</b>	21 damage; A<3 grabbed
+
+        <b>Concealing Strike</b> (Action) <b>%E2%97%86 </b>2d10 + 2<b>%E2%97%86 </b>2 Malice
+        <b>Keywords</b> Psionic, Ranged, Strike
+        <b>Distance</b> Ranged 5<b>	Target</b> 2 creatures
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 damage; R<1 the mindkiller is invisible to the target (save ends)
+        %E2%98%85	<b>12-16</b>	15 damage; R<2 the mindkiller is invisible to the target (save ends)
+        %E2%9C%B8	<b>17</b>	18 damage; R<3 the mindkiller is invisible to the target (save ends)
+
+        <b>Mindwipe</b> (Maneuver)
+        <b>Keywords</b> Attack, Psionic
+        <b>Distance</b> Melee 1<b>	Target</b> 1 grabbed creature
+        <b>EffectR<2</b> The mindkiller drains one point from the target's Reason, Intuition, or Presence score (Director's choice) and adds it to their own score until the end of the encounter.
+
+        <b>Meat Shield</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> 1 grabbed creature
+        <b>Trigger</b> The mindkiller takes damage
+        <b>Effect</b> The mindkiller halves the incoming damage. The target takes the other half of the damage.
+        <b>3 Malice </b>The target takes the full damage in place of the mindkiller.
+
+        <b>Psionic Conductor</b>
+        When a non-minion Voiceless Talker within 5 of the mindkiller uses an ability with the Psionic keyword, they can do so as if they were in the mindkiller's space.
+
+        <b>Nimble</b>
+        The mindkiller can move through other creatures and objects at normal speed.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b5af285a-b5b3-46bf-a03d-264e6c82284b: true
+      modifiers: []
+      name: Psionic Conductor
+      description: When a non-minion Voiceless Talker within 5 of the mindkiller uses an ability with the Psionic keyword, they can do so as if they were in the mindkiller's space.
+      guid: b5af285a-b5b3-46bf-a03d-264e6c82284b
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:55e4f5fb-d73a-4c19-91f3-3f5fdd7f4846: true
+      modifiers: []
+      name: Nimble
+      description: The mindkiller can move through other creatures and objects at normal speed.
+      guid: 55e4f5fb-d73a-4c19-91f3-3f5fdd7f4846
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2ce7c9df-b639-4b8c-8d7a-c00fcd5d55ed: true
+      modifiers: []
+      name: Brain Latch
+      description: The mindkiller can grab creatures who are size 4 or smaller, using their Reason score in place of Might. A creature grabbed by the mindkiller takes a bane on ability rolls made to escape the grab.
+      guid: 2ce7c9df-b639-4b8c-8d7a-c00fcd5d55ed
+      source: Trait
+    role: Elite Hexer
+    inflictedConditions: []
+    keywords:
+      Horror: true
+      Voiceless Talker: true
+    max_hitpoints_roll: "140"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Mindkiller
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: -1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 140
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0df807e7-4ab5-4e67-86d1-0c1cee52f07d
+      implementation: 4
+      numTargets: 1
+      name: Killer Claws
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 damage
+        - 17 damage; A<2 grabbed
+        - 21 damage; A<3 grabbed
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 045fd17c-4e10-4346-a49a-edb6ec70c704
+      abilityType: none
+      implementation: 4
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage; R<1 the mindkiller is invisible to the target (save ends)
+        - 15 damage; R<2 the mindkiller is invisible to the target (save ends)
+        - 18 damage; R<3 the mindkiller is invisible to the target (save ends)
+        roll: 2d10 + Agility
+      name: Concealing Strike
+      numTargets: 2
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: e735c1e3-e42a-4a95-a0bd-10d41b286f2c
+      implementation: 0
+      numTargets: 1
+      name: Mindwipe
+      behaviors: []
+      description: |
+        The target must be grabbed by the mindkiller. If the target has R<2, they take a -1 penalty to their Reason, Intuition, or Presence score and the mindkiller has a +1 bonus to the same score, all until the end of the encounter.Minkiller Reason buffMinkiller Intuition buffMinkiller Presence buff
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 61689f80-afd1-4197-9404-e43e70e4ef9c
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Meat Shield
+      numTargets: 1
+      description: The mindkiller halves the incoming damage. The target takes the other half of the damage.
+      abilityType: none
+      implementation: 0
+    groupid: 2d9a554d-5f05-4fa2-a46b-e90b0735d7a3
+    movementSpeeds:
+      fly: 6
+    ev: 32
+    minion: false
+    levelChoices: []
+    creatureSize: 1S
+  tokenType: null
+  bestiaryId: 693b5f0a-a0d7-49d1-9cc4-c558b1d6ff0a
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1730266376535
+description: Mindkiller
+parentFolder: bd101336-f4e1-43da-9fd2-57eb5700365b
+artist: null
+ord: 0
+ctime: 1741590261412
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,187 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 615061ab-2f86-4617-93f3-e3c1904ef14a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Cyclops	Level 10 Minion Controller
+        Giant, Ogre	EV 12 for four minions
+        <b>Stamina</b> 14
+        <b>Speed</b> 6	<b>Size</b> 3 /<b> Stability</b> 5
+        <b>With Captain</b> Speed +4<b>Free Strike</b> 4
+        Might +5	Agility -1	Reason -1	Intuition +3	Presence -1
+        <b>Wild Slam</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 burst<b>Target</b> All enemies and objects in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage; A<3 3 damage
+        %E2%98%85	<b>12-16</b>	6 damage; push 3; A<4 4 damage
+        %E2%9C%B8	<b>17</b>	7 damage; prone; A<5 5 damage, restrained (save ends)
+        <b>Effect</b> The cyclops automatically has a 17 on the power roll. They can still roll to see if they get a crit.
+
+        <b>Limited Vision</b>
+        The cyclops can't establish line of effect beyond 3 squares. Whenever the cyclops takes damage from a ranged ability, they can move 3 squares towards the source of the damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ad203c6b-bf4f-40b8-bef7-e6dff0c8b5b4: true
+      modifiers: []
+      name: Limited Vision
+      description: The cyclops can't establish line of effect beyond 3 squares. Whenever the cyclops takes damage from a ranged ability, they can move 3 squares towards the source of the damage.
+      guid: ad203c6b-bf4f-40b8-bef7-e6dff0c8b5b4
+      source: Trait
+    role: Minion Controller
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "14"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    groupid: 83a948ff-8852-4626-adfc-f05ec9e2af22
+    monster_type: Cyclops
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    withCaptain: +4 bonus to speed
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 14
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; A<3 3 damage
+        - 6 damage; push 3; A<4 4 damage
+        - 7 damage; prone; A<5 5 damage and restrained (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 72a9e875-e01e-4da6-9b1c-6bc699eab505
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Wild Slam
+      numTargets: 1
+      description: The cyclops automatically has a 17 on the power roll. They can still roll to see if they get a crit.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 7
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: 36677deb-8245-4821-a00f-3beb10317876
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Rampage
+      sourceReference:
+        __typeName: SourceReference
+        page: 209
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        Until the end of the round, each ogre has damage immunity 5 and deals an extra 5 damage with abilities, and heroic abilities that target any ogre have their Heroic Resource cost reduced by 1 (to a minimum of 1).
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 0
+    keywords:
+      Ogre: true
+      Giant: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: "3"
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 7455cb34-1011-49d3-a04d-db3ba3811e62
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961969465
+description: Cyclops
+parentFolder: f3ad56da-f6fa-4d7d-a056-0d090e6a130f
+artist: null
+ord: 0
+ctime: 1741590266930
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: f567abcc-5ae7-4e66-80d0-501bfcdb95cc
+id: f567abcc-5ae7-4e66-80d0-501bfcdb95cc
+ctime: 1767504292006
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: One Vial Makes You Better
+description: ""
+custom: true
+mtime: 1767504292006
+iconid: ui-icons/skills/1.png

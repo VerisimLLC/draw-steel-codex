@@ -1,0 +1,56 @@
+__typeName: ActivatedAbility
+id: 8a23dd83-d329-41b1-89d4-26b36912b6de
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: Ability.FreeStrike or (Ability.name = "Move Speed") or (ability.name = "Spark of Life")
+    behavior: modifyability
+    guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+    name: Modify Attack
+    attributes: []
+    description: ""
+    cannotModifyAction: true
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: Allows the target creature to choose to either move their speed, or make a free strike.
+repeatTargets: false
+ctime: 1770803095435
+guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+numTargets: "1"
+mtime: 1770807262293
+name: Move Speed or Make Free Strike or Spark of Life
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

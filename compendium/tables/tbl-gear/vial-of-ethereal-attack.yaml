@@ -1,0 +1,103 @@
+__typeName: equipment
+itemPrerequisite: A signed agreement with a ghost, a large obsidian disk
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Anjali
+flavor: |-
+  Clear liquid seems to constantly churn within an obsidian vial, even
+  when at rest.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+implementation: 3
+description: 'As a maneuver, you throw this vial up to 10 squares, destroying the vial and creating a 2-cube ethereal vortex centered on the spot where it lands. The vortex dissipates at the end of the encounter or when you dismiss it (no action required). Any creature who enters the vortex for the first time in a combat round or starts their turn there takes 10 psychic damage. At the start of each of your turns, you can move the vortex up to 5 squares (no action required). '
+echelon: 2
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: "90"
+id: 69568568-3f8c-4b81-8ab8-871ab4fc14b2
+ctime: 1774843450518
+name: Vial of Ethereal Attack
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  implementationDetails: Does not prompt at start of turn to move but there is an ability to move it in the Maneuver action bar.
+  targetType: cube
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 318
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: "10"
+  consumables:
+    69568568-3f8c-4b81-8ab8-871ab4fc14b2: 1
+  numTargets: "1"
+  modifiers: []
+  description: 'As a maneuver, you throw this vial up to 10 squares, destroying the vial and creating a 2-cube ethereal vortex centered on the spot where it lands. The vortex dissipates at the end of the encounter or when you dismiss it (no action required). Any creature who enters the vortex for the first time in a combat round or starts their turn there takes 10 psychic damage. At the start of each of your turns, you can move the vortex up to 5 squares (no action required). '
+  strain: []
+  guid: f3beb0ec-dedd-4f50-be45-a9d7235e7de8
+  behaviors:
+  - __typeName: ActivatedAbilityAuraBehavior
+    duration: eoe
+    aura:
+      __typeName: Aura
+      modifiers: []
+      source: Vial of Ethereal Attack
+      guid: fc4fd5c6-d4ea-4490-a51d-73ad763a0ce7
+      objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+      canrelocate: true
+      relocateRange: 5
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      triggers:
+      - ability:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          silent: true
+          range: 5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: c1f7d457-1ce5-45af-9e57-caa5cf623d8c
+          trigger: onenter
+          castImmediately: true
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: 10 psychic damage
+          numTargets: "1"
+          name: Etheral Vortex
+          radius: 0
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        trigger: onenter
+      description: 'Any creature who enters the vortex for the first time in a combat round or starts their turn there takes 10 psychic damage. At the start of each of your turns, you can move the vortex up to 5 squares (no action required). '
+      relocateResource: none
+      name: Etheral Vortex
+  iconid: ebe7c48a-c1f5-4ad5-9cee-cc001712144f
+  categorization: Ability
+  persistence: []
+  radius: "2"
+  name: Vial of Ethereal Attack
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 3
+mtime: 1774844926200
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: ebe7c48a-c1f5-4ad5-9cee-cc001712144f

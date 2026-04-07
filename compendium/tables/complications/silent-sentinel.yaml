@@ -1,0 +1,99 @@
+__typeName: CharacterComplication
+drawback: You have sonic weakness 5. Additionally, whenever you take sonic damage, you are dazed until the end of your next turn.
+mtime: 1768301582997
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You have the Eavesdrop and Sneak skills from the intrigue skill group.
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Feat
+      behavior: proficiency
+      description: You have the Eavesdrop and Sneak skills from the intrigue skill group.
+      equate: false
+      name: Silent Sentinel - Benefit
+      sourceguid: 7eed0a3d-e21e-4dbb-8b8f-b82b2431ed15
+      proficiency: proficient
+      guid: 8ac46e68-7a14-4abc-ba8c-04b3e18e53c6
+      skills:
+        ae13b5cf-718a-42a4-ab5e-18d46b289ac6: true
+        c9eb14a5-e283-448a-80f1-7ea071e0d883: true
+    source: Feat
+    canHavePrerequisites: true
+    guid: 7eed0a3d-e21e-4dbb-8b8f-b82b2431ed15
+    name: Silent Sentinel - Benefit
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      lore: true
+    name: Silent Sentinel - Benefit Skill Choice
+    guid: 79c3d41a-703f-4423-a9a7-72a88b954370
+    description: Choose a Skill from the Lore Skill Group
+    source: Feat
+  - __typeName: CharacterFeature
+    description: You have sonic weakness 5. Additionally, whenever you take sonic damage, you are dazed until the end of your next turn.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: fd82b7c2-d48c-4202-a688-e791da1c6501
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: sonic
+        apply: Damage Reduction
+      description: You have sonic weakness 5. Additionally, whenever you take sonic damage, you are dazed until the end of your next turn.
+      name: Silent Sentinel - Drawback
+      guid: 9e5dc74f-54c2-4da8-a598-863b4ce5f01e
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          rule: dazed (EoT)
+        - __typeName: ActivatedAbilityFloatTextBehavior
+          text: Silent Sentinel
+          color:
+            __usertype: LuaColor
+            h: 0
+            s: 0.938476741313934
+            v: 0.957080125808716
+            a: 1
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 08059736-751b-4106-9edd-f86f20066b09
+        persistence: []
+        conditionFormula: Damage Type = "sonic"
+        targetType: self
+        castImmediately: true
+        trigger: losehitpoints
+        name: Silent Sentinel - Drawback
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: You have sonic weakness 5. Additionally, whenever you take sonic damage, you are dazed until the end of your next turn.
+      source: Feat
+      behavior: trigger
+      guid: b00641c9-8c29-454d-8fae-09f617c43cfc
+      name: Silent Sentinel - Drawback
+      sourceguid: fd82b7c2-d48c-4202-a688-e791da1c6501
+    source: Feat
+    canHavePrerequisites: true
+    guid: fd82b7c2-d48c-4202-a688-e791da1c6501
+    name: Silent Sentinel - Drawback
+    implementation: 3
+name: Silent Sentinel
+ctime: 1755517227927
+description: You were trained by a group of spies, who psionically infused silence into your every step and enhanced your ability to hear distant whispers. But your enhanced hearing has some nasty side effects.
+id: cb295bd7-b588-4771-abab-a548f55442e1
+benefit: You have the Eavesdrop and Sneak skills from the intrigue skill group, plus one skill of your choice from the lore skill group. Additionally, you can telepathically communicate with any creature provided they share a language with you and you can observe each other. A creature you communicate with this way can respond telepathically if they choose.

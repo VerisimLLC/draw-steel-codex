@@ -1,0 +1,58 @@
+__typeName: equipment
+itemPrerequisite: A leftover carcass of a lachomp meal
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Caelian
+flavor: A thumb-sized serrated tooth manages to scratch your flesh in some way whenever it is handled.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+id: 7095a164-63e1-4c7b-b629-cb38cfe5820a
+ctime: 1759150684747
+projectGoal: 45 (yields 1d3 teeth)
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+mtime: 1762278693403
+name: Lachomp Tooth
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  consumables:
+    7095a164-63e1-4c7b-b629-cb38cfe5820a: 1
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  modifiers: []
+  strain: []
+  guid: a248b033-9ef4-4898-97ca-a22fbad94d3d
+  persistence: []
+  description: |-
+    As a maneuver, you attach a lachomp tooth to a weapon, allowing that weapon to supernaturally flicker in and out of reality. Your next strike that uses the weapon can tear through multiple targets in a line (for a ranged strike) or surrounding you (for a melee strike). The strike adds the following effects to the tier outcomes of the power roll:
+
+    Tier 1: You can affect one additional target with this strike.
+    Tier 2: You can affect up to three additional targets with this strike.
+    Tier 3: You can affect up to seven additional targets with this strike.
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: e0f901d7-e06d-44cb-89b0-dbd0eaf7afd1
+    ongoingEffectCustom: e0f901d7-e06d-44cb-89b0-dbd0eaf7afd1
+  name: Lachomp Tooth
+  numTargets: "1"
+  attributeOverride: no_attribute
+  abilityType: none
+  iconid: c7fe6e0c-807a-4b8f-918b-c6c7d51a1084
+description: |-
+  As a maneuver, you attach a lachomp tooth to a weapon, allowing that weapon to supernaturally flicker in and out of reality. Your next strike that uses the weapon can tear through multiple targets in a line (for a ranged strike) or surrounding you (for a melee strike). The strike adds the following effects to the tier outcomes of the power roll:
+
+  Tier 1: You can affect one additional target with this strike.
+  Tier 2: You can affect up to three additional targets with this strike.
+  Tier 3: You can affect up to seven additional targets with this strike.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: c7fe6e0c-807a-4b8f-918b-c6c7d51a1084

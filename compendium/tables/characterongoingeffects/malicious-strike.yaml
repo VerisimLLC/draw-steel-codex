@@ -1,0 +1,35 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e0e647b9-ffc4-46ae-8139-6588d59f29d6
+  source: Ongoing Effect
+  guid: e6567e1e-81f4-4c8b-820f-f4bb08121efe
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:e0e647b9-ffc4-46ae-8139-6588d59f29d6: true
+  rollType: ability_power_roll
+  name: Malicious Strike
+  modtype: none
+  description: ""
+  damageModifier: Highest Characteristic + Stacks
+  behavior: power
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+id: e0e647b9-ffc4-46ae-8139-6588d59f29d6
+ctime: 1758819242930
+domains:
+  CharacterOngoingEffect:e0e647b9-ffc4-46ae-8139-6588d59f29d6: true
+name: Malicious Strike
+custom: true
+endTrigger: useability
+guid: e0e647b9-ffc4-46ae-8139-6588d59f29d6
+description: ""
+mtime: 1758821190593
+iconid: 699cf8b4-6b8e-41cf-ba1f-c41f5b799cce

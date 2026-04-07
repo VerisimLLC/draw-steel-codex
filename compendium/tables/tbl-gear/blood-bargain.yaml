@@ -1,0 +1,98 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: a27bf5aa-4a5d-4f01-91a2-c489ef9429b1
+  description: As a maneuver, you can harm yourself with the weapon, taking 1d6 damage that can't be reduced in any way. An ally within 5 squares can then spend a Recovery.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: a27bf5aa-4a5d-4f01-91a2-c489ef9429b1
+    guid: d0687c79-2d5c-44c4-8faa-6a166a317a33
+    source: Blood Bargain Imbuement
+    behavior: activated
+    description: As a maneuver, you can harm yourself with the weapon, taking 1d6 damage that can't be reduced in any way. An ally within 5 squares can then spend a Recovery.
+    name: Blood Bargain
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 301
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: d6d039f8-9b76-42d1-a39a-978f5b6bfc47
+      numTargets: "1"
+      iconid: ui-icons/skills/1.png
+      domains: []
+      castImmediately: true
+      persistence: []
+      name: Blood Bargain
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        cannotBeReduced: true
+        roll: 1d6
+        titleText: Blood Bargain
+        chatMessage: Damage from Blood Bargain
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        promptText: Select an Ally to Spend a Recovery.
+        standardAbilityParams:
+          range: "5"
+          numtargets: "1"
+          numrecoveries: "1"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 0c8c8d02-f5e0-4c36-961e-6e484183cf96
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: a478d5f1-fed3-4772-9930-c3e82dc23f12
+      description: As a maneuver, you can harm yourself with the weapon, taking 1d6 damage that can't be reduced in any way. An ally within 5 squares can then spend a Recovery.
+      abilityType: none
+      implementation: 4
+  source: Blood Bargain Imbuement
+  name: Blood Bargain
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: The blood of a devil
+imbuePrereq: none
+projectSource: Anjali
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: 0fb8d316-931e-400c-85ea-521dfbeaea3c
+mtime: 1774492893526
+name: Blood Bargain
+imbueTargetType: weapon
+description: As a maneuver, you can harm yourself with the weapon, taking 1d6 damage that can't be reduced in any way. An ally within 5 squares can then spend a Recovery.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 9fa86bff-ddc1-468e-b550-7f53db0ab4fb

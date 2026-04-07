@@ -1,0 +1,352 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-2,-11,3"
+        invisibleToPlayers:
+        - false
+        monsters:
+          ead25791-d9d2-4dbb-a7a4-12477b570d31: 1
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 0,-11,3
+        invisibleToPlayers:
+        - false
+        monsters:
+          d71e374a-21bd-4cc7-89c4-98939bd810fd: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,-5,3"
+        - __usertype: LuaLoc
+          loc: "-11,-6,3"
+        - __usertype: LuaLoc
+          loc: "-10,4,3"
+        - __usertype: LuaLoc
+          loc: "-11,5,3"
+        - __usertype: LuaLoc
+          loc: "-11,-5,3"
+        - __usertype: LuaLoc
+          loc: "-10,6,3"
+        - __usertype: LuaLoc
+          loc: "-9,-7,3"
+        - __usertype: LuaLoc
+          loc: "-9,5,3"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 8
+      - appearances: []
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 8
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 5,-6,3
+        - __usertype: LuaLoc
+          loc: 8,-7,3
+        - __usertype: LuaLoc
+          loc: 9,-7,3
+        - __usertype: LuaLoc
+          loc: 8,-5,3
+        - __usertype: LuaLoc
+          loc: 4,-7,3
+        - __usertype: LuaLoc
+          loc: 4,-5,3
+        - __usertype: LuaLoc
+          loc: 2,-6,3
+        - __usertype: LuaLoc
+          loc: 3,-5,3
+        invisibleToPlayers: []
+        minHeroes: 4
+      - appearances: []
+        monsters:
+          7b2d1bdd-9a22-47dc-8ab5-7341c86172af: 8
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-6,-2,3"
+        - __usertype: LuaLoc
+          loc: "-5,-1,3"
+        - __usertype: LuaLoc
+          loc: "-6,0,3"
+        - __usertype: LuaLoc
+          loc: "-5,1,3"
+        - __usertype: LuaLoc
+          loc: "-5,3,3"
+        - __usertype: LuaLoc
+          loc: "-5,4,3"
+        - __usertype: LuaLoc
+          loc: "-6,4,3"
+        - __usertype: LuaLoc
+          loc: "-6,6,3"
+        invisibleToPlayers: []
+        minHeroes: 5
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-6,-5,3"
+        - __usertype: LuaLoc
+          loc: 4,-2,3
+        - __usertype: LuaLoc
+          loc: "-4,-5,3"
+        - __usertype: LuaLoc
+          loc: "4,0,3"
+        - __usertype: LuaLoc
+          loc: "-6,-7,3"
+        - __usertype: LuaLoc
+          loc: 7,-2,3
+        - __usertype: LuaLoc
+          loc: "-4,-7,3"
+        - __usertype: LuaLoc
+          loc: "7,0,3"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          d9255add-5423-4f42-97ea-9b29ce23987a: 8
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-11,1,3"
+        - __usertype: LuaLoc
+          loc: "-10,1,3"
+        - __usertype: LuaLoc
+          loc: "-11,-1,3"
+        - __usertype: LuaLoc
+          loc: "-9,0,3"
+        - __usertype: LuaLoc
+          loc: "-9,-1,3"
+        - __usertype: LuaLoc
+          loc: "-9,1,3"
+        - __usertype: LuaLoc
+          loc: "-10,-2,3"
+        - __usertype: LuaLoc
+          loc: "-11,0,3"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          4d33c185-2dd1-4e13-a3a2-b32246bc9b5a: 8
+      - appearances: []
+        monsters:
+          d71e374a-21bd-4cc7-89c4-98939bd810fd: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "4,5,3"
+        invisibleToPlayers: []
+        minHeroes: 6
+      name: Within the Palisade
+id: 8992c598-e86a-400c-b4eb-4815689039c2
+ctime: 1762007461720
+textStorage:
+  __typeName: TextStorage
+  sections:
+    ex: |+
+      ## Heroes Start
+
+    dO: |
+      |3|Eight [human raider]s (minion squad)|
+    kz: |
+      |{#The door begins to break. One more test with a result of 12+ brings it down.}
+    lz: |+
+      |{#The door falls aside.}
+
+
+    mz: |+
+      ## Cookfire
+
+    nz: |+
+      The first time a creature touches the cookfire in the mess tent on a turn or starts their turn touching it, they take 2 fire damage.
+
+
+    gz: |+
+      ## Fort Door
+
+    hz: |+
+      The entry to the fort remains open unless there is an attack. In that case, a series of wooden planks are pulled into place. This door has 40 Stamina and can be forced open with a moderate Might test:
+
+    iz: |
+      |Force open the door: Moderate Might Test
+    jz: |
+      |{#The door does not budge.}
+    sz: "If the heroes are inside when the alarm is raised, the raiders and the scoundrel engage them in melee, while the rest of the humans use ranged abilities. The bandits spread the damage around, hoping to hamper all the heroes at once.\n \n\n"
+    tz: |+
+      ## Ending the Encounter
+
+    vz: |+
+      When the heroes outnumber the bandits, the remaining bandits flee and the heroes earn 1 Victory each.
+
+    oz: |+
+      ## Training Grounds
+
+    pz: |+
+      In the center of the fort's open courtyard, fighting dummies and archery targets sit waiting to be pummeled, shot, or stabbed as part of the bandits' training regimen. Each dummy has sharp spear and dagger extensions that are harmless when training. A creature force moved into a space containing a fighting dummy takes an extra 5 damage, and the dummy is destroyed.
+
+
+    qz: |+
+      ## Tactics
+
+    b: |+
+      When you are ready, [Draw Steel!]
+
+    ds: |
+      * For four heroes, remove eight **human raiders**.
+    dF: |
+      |1|One [human scoundrel] (Kora)|
+    do: |
+      * For six heroes, add one **human trickshot** as their own group.
+    dw: |+
+      * For three heroes, remove sixteen **human raiders**.
+
+
+    Y: |+
+      [[encounter]]
+
+    W: |+
+      [[setting:Number of Heroes]]
+
+    dg: |
+      **Encounter Adjustments**
+    fy: |+
+      There isn't a specific space on the reference map for the heroes to start if the alarm is raised, since they might get caught anywhere in or near the fort. Use your best judgment in giving them a place to start.
+
+
+    dc: |+
+      |7|Eight [human rogue]s (minion squad)|
+
+    dL: |
+      |2|One [human trickshot] (Berrick)|
+    O: |+
+      The heroes fight an army of bandits within their fort.
+
+    xz: |+
+      [[//awardvp 1|Award 1 Victory]]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    rz: |+
+      If the heroes are outside the palisade when the alarm is raised, the trickshot, archers, and rogues climb to the top of the palisade and prepare ranged strikes against oncoming heroes, while the scoundrel and raiders put up the fort door then stand before it and await intruders.
+
+    H: |+
+      # Within the Palisade
+
+    dU: |
+      |5|Eight [human raider]s (minion squad)|
+    dR: |
+      |4|Eight [human raider]s (minion squad)|
+    d: |
+      |**Group**|**Creatures**|
+    c: |
+      **Within the Palisade Group**
+    dY: |
+      |6|Eight [human archer]s (minion squad)|
+    dk: |+
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+
+parentFolder: 3869de06-287d-49b3-b58a-e783f2d757c0
+updateid: 0670a9c6-22be-47fb-9a7e-6c69bb3d7a1e
+mtime: 1769097928310
+content: |-
+  # Combat
+
+  ## Leadup
+
+  Write an overview of the leadup to the battle, including conditions under which combat begins. Who wins initiative under which conditions?
+
+  An example test you might include to determine who wins initiative:
+
+  |Spot the Enemy: Intuition Test (Alertness, Survival)
+  |Medium
+
+  ## Objectives
+
+  The heroes must defeat all the goblins to win this encounter. They lose if at least four goblins breach the wall.
+
+  ## Combat
+
+  Allow easy adjustment of the number of heroes to balance for:
+
+  [[setting:Number of Heroes]]
+
+  [[encounter]]
+
+  When you are ready, [Draw Steel!]
+
+  ## Tactics
+
+  Describe the tactics used by the monsters in the battle here.
+
+  ## Aftermath and Rewards
+
+  [End Combat] once the battle is over.
+
+  The heroes gain 1 VP if they win the battle.
+
+  [[/awardvp 1|Award Victories]]
+
+  If the heroes search their enemy's bodies they also find a [Healing Potion].
+description: Within the Palisade Encounter

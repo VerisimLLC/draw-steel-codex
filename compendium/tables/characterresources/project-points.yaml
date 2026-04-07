@@ -1,0 +1,11 @@
+__typeName: CharacterResource
+textColor: dark
+usageLimit: unbounded
+id: 093190b1-d6f8-4ad8-8a13-cfa3c4407a32
+ctime: 1730449659793
+largeQuantity: true
+hasLargeDisplay: false
+name: Project Points
+useQuantity: true
+mtime: 1730449659793
+iconid: 5d69e025-aa73-478e-b601-1e3178dedf58

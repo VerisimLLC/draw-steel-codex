@@ -1,0 +1,8 @@
+__typeName: CustomAttribute
+baseValue: Size
+category: Combat
+name: SizeWhenGrabbing
+documentation: This is the size of the creature used when grabbing another creature.
+mtime: 1760293269608
+id: 8d5825a9-586c-4a6f-b62c-40e65c829cd4
+ctime: 1760293269608

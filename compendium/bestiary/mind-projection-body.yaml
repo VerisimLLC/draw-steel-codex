@@ -1,0 +1,123 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Mind Projection Body
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7e7e4c03-84b6-4ce7-bc56-15e489bacf5c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    characterFeatures: []
+    role: Solo
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Monster
+    availableTriggers: []
+    levelChoices: []
+    monster_type: Mind Projection Body
+    walkingSpeed: 5
+    skillProficiencies: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    max_hitpoints: 10
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      ongoingEffectid: 6f22dc84-df2a-487c-8043-804602951cd8
+      time:
+        __typeName: TimePoint
+        time: 2.55416917987899
+      seq: 1
+      stacks: 1
+      id: b3955677-619d-4fdf-ac6e-72399edd1458
+      timestamp: 1765946151646
+    damage_taken: 0
+    resources: []
+    minion: false
+    retainer: false
+    initiativeGrouping: 34f15941-38b2-42fc-bb02-961a28cf821d
+  tokenType: null
+  bestiaryId: 4a6ca3e2-4eb6-46c8-8a22-729b0c99282e
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1765945502578
+description: null
+parentFolder: f5575269-dbdf-44a0-8f47-93f5c989bf4f
+artist: null
+ord: 1
+ctime: 1765945502578
+mtime: 1775167446904
+hidden: false

@@ -1,0 +1,408 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: e3003fe2-bde3-42a8-be1b-39955e28bd17
+    offtokenPortraitId: null
+    portraitFrameId: ee19571e-cde1-421e-83c3-1fa3228b2d5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.2197267
+      y: 0.1554127
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5227b32e-a3de-41c0-b5b1-b04e25bc9ea1
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    import:
+      type: mcdm
+      data: |-
+        Uraxxinoth		Lvl 1 Solo
+        |<b>Stamina</b>|100|<b>Size</b>|3 x 3
+        |<b>Winded</b>|50|<b>Weight</b>|6
+        |<b>Reach</b>|1|<b>Speed</b>|5 (climb, fly)
+        |<b>FMR</b>|4|<b>Opportunity Attack</b>|6
+        |<b>Characteristics</b>|<b>Score</b>
+        |<b>Might</b>|2
+        |<b>Agility</b>|-1
+        |<b>Reason</b>|1
+        |<b>Intuition</b>|1
+        |<b>Presence</b>|1
+        <b>Cold Immunity 5</b>
+        <b>Ice Walker: </b>Uraxxinoth can walk and climb on ice as if it were normal terrain.
+        <b>Solo Turns: </b>Uraxxinoth takes 2 turns each round. They can use two actions on each of their turns and can take each turn after an enemy turn they choose. While dazed, Uraxxinoth can take one action and one maneuver per turn.
+        <b>Frosty Bite</b>
+        <b>Keywords:</b><i> </i>Attack, Melee, Weapon	<b>Type:</b> Action
+        <b>Distance:</b> Melee 3			<b>Target:</b> 1 creature or object
+        <b>Roll 2d6 + Might:</b>
+        <i>7 or lower:</i> <b>2 damage, 2 cold damage</b>
+        <i>8-10:</i><b> 4 damage, 4 cold damage; weakened 1</b>
+        <i>11+:</i> <b>6 damage, 6 cold damage; weakened 2</b>
+        <b>Spit Frost</b>
+        <i>Just one puff chills you to the bone.</i>
+        <b>Keywords:</b><i> </i>Attack, Ranged, Weapon	<b>Type:</b> Action
+        <b>Distance:</b> Ranged	5		<b>Target:</b> 1 creature
+        <b>Roll 2d6 + Might:</b>
+        <i>7 or lower:</i> <b>3 cold damage</b>
+        <i>8-10:</i><b> 6 cold damage; slowed 1</b>
+        <i>11+:</i> <b>10 cold damage; slowed 3</b>
+        Maneuver
+        <b>Icy Winds</b>
+        <i>I control the weather in this domain.</i>
+        <b>Keywords:</b> Area, Magic, Melee	<b>Type:</b> Maneuver
+        <b>Distance:</b><i> </i>3 Burst			<b>Target:</b> All enemies
+        <b>Effect:</b><i> </i>Uraxxinoth slides each target up to 2 squares.
+        Triggered Actions
+        <b>Ice Shield</b>
+        <i>An incoming attack is blocked by a sudden shield of ice.</i>
+        <b>Keywords:</b><i> </i>Magic		<b>Type:</b> Triggered
+        <b>Distance:</b> Self
+        <b>Trigger:</b> An enemy within distance damages Uraxxinoth.
+        <b>Effect:</b><i> </i>The damage is halved.
+        Villain Abilities
+        Uraxxinoth can only use one villain ability per round.
+        <b>Recharge: Ice Breath</b>
+        <i>Things this cold feel like a knife in your lungs.</i>
+        <b>Keywords:</b><i> </i>Area, Melee, Weapon	<b>Type:</b> Action
+        <b>Distance:</b> 4 Cube within 1		<b>Target: </b>All creatures
+        <b>Roll 2d6 + Might:</b>
+        <i>7 or lower:</i> <b>5 cold damage</b>
+        <i>8-10:</i><b> 10 cold damage</b>
+        <i>11+:</i> <b>15 cold damage</b>
+        <b>Recharge: Blizzard</b>
+        <i>A snowstorm whips around the dragon</i><i>.</i>
+        <b>Keywords:</b><i> </i>Area, Magic, Melee	<b>Type:</b> Maneuver
+        <b>Distance:</b> 1 Burst			<b>Target: </b>All creatures
+        <b>Roll 2d6 + Reason:</b>
+        <i>7 or lower:</i> <b>slowed 1</b>
+        <i>8-10:</i><b> restrained 1</b>
+        <i>11+:</i> <b>restrained 5</b>
+        <b>Extra:</b> The blizzard lasts until the start of the next round and gives Uraxxinoth concealment against their enemies, but doesn't conceal enemies from Uraxxinoth.
+        <b>Recharge: Ice Spears</b>
+        <i>The ice covering Uraxxinoth's body explodes from the dragon in all directions.</i>
+        <b>Keywords:</b><i> </i>Area, Magic, Melee	<b>Type:</b> Action
+        <b>Distance:</b> 3 Burst			<b>Target: </b>All creatures
+        <b>Roll 2d6 + Reason:</b>
+        <i>7 or lower:</i> <b>3 damage and 3 cold damage</b>
+        <i>8-10:</i><b> 5 damage and 5 cold damage</b>
+        <i>11+:</i> <b>7 damage and 7 cold damage</b>
+        <b>Extra:</b> Restrained creatures take an additional 5 cold damage.
+        <b>Who is Uraxxinoth?</b>
+        A young, brash dragon who commands the power of ice, Uraxxinoth has organized a group of kobolds to help gather a hoard of treasure. Uraxxinoth needs vast wealth to perform a ritual that will summon Garinos, an imprisoned archdevil whose sole desire is to see Orden plunged into an eternal winter. Uraxxinoth wants this too and believe that together, the dragon and the devil can make the world and icy place.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:720b4569-7dc6-4f23-bfac-f0000bb4101c: true
+      modifiers: []
+      name: Keywords
+      description: Dragon
+      guid: 720b4569-7dc6-4f23-bfac-f0000bb4101c
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7fe9970f-7b0f-48e5-864a-33e7711f6eb8: true
+      modifiers: []
+      name: Fire Immunity
+      description: "5"
+      guid: 7fe9970f-7b0f-48e5-864a-33e7711f6eb8
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9d94b57a-6ce0-4b53-967d-1c38e8fbea02: true
+      modifiers: []
+      name: Second Wind
+      description: The first time in an encounter that Uraxxinoth drops to 0 Stamina, she regains 50 Stamina. This regain of Stamina can't be stopped in any way. In addition, each enemy within 5 of Uraxxinoth suffers <b>Frightened 3 vs INU</b>.
+      guid: 9d94b57a-6ce0-4b53-967d-1c38e8fbea02
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9df2a881-6274-4c3d-b61a-7dbfd423320a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 41b5a94f-3523-4087-b3e7-856d9e53a357
+        sourceguid: 02b3f255-8bc0-4d26-aa65-57d78d9e8cd9
+        behavior: attribute
+        source: Trait
+        name: Leader Turns
+        value: 2 - 1
+        description: ""
+        attribute: extraturns
+      name: Solo Turns
+      description: Uraxxinoth takes 2 turns each round. She can use two actions on each of her turns and can take each turn after an enemy turn she chooses. While dazed, Uraxxinoth can take one action and one maneuver per turn.
+      guid: 9df2a881-6274-4c3d-b61a-7dbfd423320a
+      source: Trait
+    role: Solo
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: "150"
+    innateAttacks: []
+    reach: 5
+    skillRatings: []
+    notes:
+    - text: Uraxxinoth can walk and climb on ice as if it were normal terrain.
+      title: "Ice Walker:"
+    - text: Uraxxinoth takes 2 turns each round. They can use two actions on each of their turns and can take each turn after an enemy turn they choose. While dazed, Uraxxinoth can take one action and one maneuver per turn.
+      title: "Solo Turns:"
+    weight: 5
+    monster_type: Uraxxinoth
+    attributes:
+      inu:
+        baseValue: 1
+        id: inu
+      pre:
+        __typeName: CharacterAttribute
+        id: pre
+      mgt:
+        baseValue: 2
+        id: mgt
+      agl:
+        baseValue: -1
+        id: agl
+      rsn:
+        baseValue: 1
+        id: rsn
+      rea:
+        baseValue: 1
+        id: rea
+      prs:
+        baseValue: 1
+        id: prs
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      agi:
+        __typeName: CharacterAttribute
+        id: agi
+      end:
+        __typeName: CharacterAttribute
+        id: end
+    max_hitpoints: 150
+    levelChoices: []
+    creatureSize: Large
+    walkingSpeed: 25
+    resources: []
+    monster_category: Monster
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      abilityType: none
+      guid: 45e7869a-669a-4682-9919-5c37256c4594
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      categorization: Signature Ability
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; 3 fire damage; slide 2
+        - 5 damage; 5 fire damage; slide 3
+        - 7 damage; 7 fire damage; slide 4
+        roll: 2d6 + Might
+      iconid: ui-icons/skills/1.png
+      name: Fiery Bite
+      targetType: target
+      description: ""
+      range: 5
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 10 damage; if the target's AGL defense is 1 or lower, Uraxxinoth can automatically grab them
+        - 14 damage; if the target's AGL defense is 3 or lower, Uraxxinoth can automatically grab them
+        roll: 2d6 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 4ecada72-f7a5-4de5-ae5e-38c21b2a94a9
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Claw
+      numTargets: "1"
+      description: With this ability, Uraxxinoth can only grab targets who are size 1 and can only grab up two at once.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: Just one puff burns you to the bone.
+      categorization: Signature Ability
+      range: 25
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c5e7be53-733d-47d9-9d31-bb77aa4ee195
+      implementation: 4
+      numTargets: "1"
+      name: Spit Fire
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 fire damage
+        - 10 fire damage; on fire 2 vs AGL
+        - 13 fire damage; on fire 5 vs AGL
+        roll: 2d6 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: Behold the fires of the Nine Cities!
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 288b18ec-a28d-4591-b3c5-cabcab0c2396
+      numTargets: 1
+      targetType: all
+      name: Bubbling Lava
+      iconid: ui-icons/skills/1.png
+      description: The ground in the area is covered in a puddle of lava that lasts until the end of the encounter. When a creature starts their turn in the lava or enters it for the first time on a turn, they take 5 fire damage.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: eb7d22a3-0f8f-4315-9bd1-fb6e002f304f
+      targetType: target
+      numTargets: "1"
+      name: Twitching Tail
+      iconid: ui-icons/skills/1.png
+      description: Prone 3 vs MGT
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 fire damage
+        - 9 fire damage
+        - 12 fire damage
+        roll: 2d6 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: Uraxxinoth flies into the air, then explodes into the ground.
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a34a6bb1-d21b-4844-b4bf-f5a9662fb6c3
+      iconid: ui-icons/skills/1.png
+      targetType: all
+      name: Uraxxinoth can only use one villain ability per round.
+      numTargets: 1
+      description: The area and Uraxxinoth's space become a pool a lava that follow the rules in the Effect section of Uraxxinoth's Bubbling Lava ability.
+      abilityType: none
+      implementation: 3
+    damage_taken: 0
+    movementSpeeds:
+      climb: 25
+      fly: 25
+    fmr: 2
+    opportunityAttack: "8"
+    currentMoveType: fly
+    notesRevision: b9b2f906-4bc2-4922-ac04-549f55dd22a3
+  tokenType: null
+  bestiaryId: 5470d4dd-fce0-4243-8a5e-9078241c1c34
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1709449591513
+description: Uraxxinoth
+parentFolder: 79a93387-4cb0-465f-9085-31c8eec6e3f7
+artist: null
+ord: 14
+ctime: 1741590251825
+mtime: 1775201137032
+hidden: false

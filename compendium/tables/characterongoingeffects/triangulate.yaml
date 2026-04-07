@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 40848fff-2b54-45f6-b116-a7428e34c19d
+  source: Ongoing Effect
+  guid: e477281e-60f2-44af-86b3-553e07e852aa
+  keywordFilter: []
+  domains:
+    CharacterOngoingEffect:40848fff-2b54-45f6-b116-a7428e34c19d: true
+  casterCondition: Ongoing Effect.Caster
+  name: Triangulate
+  description: ""
+  filterCondition: Ongoing Effect.Caster.id = Caster.id
+  behavior: castingorigin
+source: Ongoing Effect
+guid: 40848fff-2b54-45f6-b116-a7428e34c19d
+id: 40848fff-2b54-45f6-b116-a7428e34c19d
+ctime: 1773605000977
+domains:
+  CharacterOngoingEffect:40848fff-2b54-45f6-b116-a7428e34c19d: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Triangulate
+custom: true
+description: ""
+mtime: 1773611511825
+iconid: ui-icons/skills/1.png

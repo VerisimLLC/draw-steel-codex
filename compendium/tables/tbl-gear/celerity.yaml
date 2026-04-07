@@ -1,0 +1,119 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 073af236-805b-4f58-b0ef-aa9f3e165aa9
+  description: "Immediately after using a magic or psionic ability that requires a main action, you can shift up to 3 squares, or you can use the Escape Grab maneuver as a free maneuver (see Maneuvers in Chapter 10: Combat)."
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      triggerPrompt: Immediately after using a magic or psionic ability that requires a main action, you can shift up to 3 squares, or you can use the Escape Grab maneuver as a free maneuver.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: ed2a1fac-d858-4439-95f7-c780c9e6de8a
+      conditionFormula: Used Ability.main action and (Used Ability.keywords has "magic" or Used Ability.keywords has "psionic")
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        filterTarget: not Conditions has "Grabbed"
+        rule: shift 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        filterTarget: Conditions has "Grabbed"
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 8f9a6ddb-5466-4ad2-88be-419ee232d301
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              cannotModifyAction: true
+              filterAbility: Ability.name = "Escape Grab"
+              behavior: modifyability
+              guid: b97adf82-9d06-4686-92d1-c54d1b6dc2e0
+              attributes: []
+              source: ""
+              description: ""
+              name: Modify Attack
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: a2dee103-50a3-4376-b841-2103f898fe43
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                behaviors: []
+                abilityType: none
+                name: New Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          castImmediately: true
+          targetType: self
+          numTargets: "1"
+          name: Invoked Ability
+          description: ""
+          categorization: Hidden
+          range: 1
+          iconid: ui-icons/skills/1.png
+      trigger: useability
+      name: Celerity
+      description: "Immediately after using a magic or psionic ability that requires a main action, you can shift up to 3 squares, or you can use the Escape Grab maneuver as a free maneuver (see Maneuvers in Chapter 10: Combat)."
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: "Immediately after using a magic or psionic ability that requires a main action, you can shift up to 3 squares, or you can use the Escape Grab maneuver as a free maneuver (see Maneuvers in Chapter 10: Combat)."
+    source: Celerity Imbuement
+    behavior: trigger
+    guid: bdfe3da5-8940-45f7-8d1a-019b9af9a2f2
+    name: Celerity
+    sourceguid: 073af236-805b-4f58-b0ef-aa9f3e165aa9
+  source: Celerity Imbuement
+  name: Celerity
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A dire falcon’s beak
+imbuePrereq: none
+projectSource: Khelt
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: 9613252b-565c-4389-9aaa-e3ddc07c1e0a
+mtime: 1774700312888
+name: Celerity
+imbueTargetType: implement
+description: "Immediately after using a magic or psionic ability that requires a main action, you can shift up to 3 squares, or you can use the Escape Grab maneuver as a free maneuver (see Maneuvers in Chapter 10: Combat)."
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: c1bbb154-7b6c-4fee-9029-2470f756e2a4

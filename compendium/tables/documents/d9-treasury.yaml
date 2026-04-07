@@ -1,0 +1,91 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 90acd13c-4af5-419b-ade9-d5e6ea64ec44
+ctime: 1761691872213
+textStorage:
+  __typeName: TextStorage
+  sections:
+    D: |+
+      # D9. Treasury
+
+
+    P: |+
+      > * “Below the mural, there is a large stone plinth with a jeweled golden chalice atop it.”
+
+    M: |
+      > * “Among the trophies, a shiny double-sided axe is mounted on the wall, with a small plaque on it that reads ‘Heelcutter.’”
+    n: |
+      A hero who attempts to remove the chalice finds it is affixed to the plinth. If a hero has researched the Delian Tomb or has the History or Magic skill, they can tell that this chalice is not the [item:Cup of Iulius].
+    k: |+
+      ## The End?
+
+    G: |
+      > * “A large mural depicting Delian knights locked in combat with giants and ogres dominates the northernmost wall of this room.”
+    Y: |+
+      ## Magic Ward
+
+    J: |
+      > * “The west and east walls are lined with trophies from some of their more extraordinary escapades, including a thorn dragon head, a fire giant finger, and a basilisk tongue.”
+    w: |
+      If the heroes clear the way to the treasury and then head back to Broadhurst, the [Gilded Hand] (see [Another Meeting With the Hand] and [B1. Feather Bed Inn]) speaks to them about it, provided the mercenaries are still in town.
+    h: |+
+      The axe mounted on the wall is [item:Heelcutter], a giantslaying axe. There are also two vials of [item:fire giant blood], and a recipe in Caelian detailing how to make a [item:Giant's-Blood Flame] ([item:Giant's-Blood Flame Recipe]).
+
+
+    e: |+
+      ## Loot
+
+    V: |+
+      [[/objectcommand d9_secret_door Start; objectcommand d9_secret_door playsound; broadcast screenshake 4 0.2 8 5 | Reveal Secret Passage]]  [[/objectcommand d9_secret_door Reset | Hide Secret Passage]]
+      } 
+
+
+    S: |+
+      {Secret: This room was built to dissuade tomb raiders. It’s intentionally meant to look like the final room of the tomb, with various treasures placed here to slake their greed. However, the mural conceals a secret door that only opens if the Delian Knight Commander Ring is placed in the chalice.
+
+    t: |+
+      ## Second Level Cleared
+
+    q: |+
+      Inspecting the cup reveals there is small, circular divot inside, large enough to hold a piece of jewelry like a ring. If the [item:Delian Knight Commander's Ring] is placed in the chalice, the mural wall lifts to reveal the stairs down to the third level of the tomb (see [Tomb Third Level]). The ring can be retrieved once the wall ascends.
+
+
+    b: |+
+      The walls, floor, and ceiling of this room can’t be damaged or destroyed, thanks to a magic ward.
+
+
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: 721c9d38-d8d8-4f9d-9ead-71b80ad90de2
+description: D9. Treasury
+content: |
+  # D9. Treasury
+
+
+  > * “A large mural depicting Delian knights locked in combat with giants and ogres dominates the northernmost wall of this room.”
+  > * “The west and east walls are lined with trophies from some of their more extraordinary escapades, including a thorn dragon head, a fire giant finger, and a basilisk tongue.”
+  > * “Among the trophies, a shiny double-sided axe is mounted on the wall, with a small plaque on it that reads ‘Heelcutter.’”
+  > * “Below the mural, there is a large stone plinth with a jeweled golden chalice atop it.”
+
+  {Secret: This room was built to dissuade tomb raiders. It’s intentionally meant to look like the final room of the tomb, with various treasures placed here to slake their greed. However, the mural conceals a secret door that only opens if the Delian Knight Commander Ring is placed in the chalice.} 
+
+
+  ## Magic Ward
+
+  The walls, floor, and ceiling of this room can’t be damaged or destroyed, thanks to a magic ward.
+
+
+  ## Loot
+
+  The axe mounted on the wall is [Heelcutter], a giantslaying axe (see Treasure in Handouts). There are also two vials of fire giant blood, and a recipe in Caelian detailing how to make a [Giant's-Blood Flame] (see Treasure in Handouts).
+
+
+  ## The End?
+
+  A hero who attempts to remove the chalice finds it is affixed to the plinth. If a hero has researched the Delian Tomb or has the History or Magic skill, they can tell that this chalice is not the [Cup of Iulius].
+  Inspecting the cup reveals there is small, circular divot inside, large enough to hold a piece of jewelry like a ring. If the [Delian Knight Commander's Ring] is placed in the chalice, the mural wall lifts to reveal the stairs down to the third level of the tomb (see [Tomb Third Level]). The ring can be retrieved once the wall ascends.
+
+
+  ## Second Level Cleared
+
+  If the heroes clear the way to the treasury and then head back to Broadhurst, the [Gilded Hand] (see [Another Meeting With the Hand] and [B1. Feather Bed Inn]) speaks to them about it, provided the mercenaries are still in town.
+mtime: 1766237646184

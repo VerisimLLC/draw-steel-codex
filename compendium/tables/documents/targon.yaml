@@ -1,0 +1,29 @@
+__typeName: MarkdownDocument
+description: Targon
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: a4b961f9-df20-4993-8b98-144d55f054e8
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.499999389648437
+    halign: center
+    image: 171ca8a9-76d2-405f-b9de-57bfb7d124dd
+id: 4b853973-2dba-4b75-a0f2-3241ba290aca
+mtime: 1761428239105
+content: |-
+  # Targon
+
+  [[image]]
+
+  *A human tactician in his twenties, Targon is always scowling. He’s the leader of the group, though he listens more than he speaks and doesn’t offer more than a grunted word or two to anyone outside of the Gilded Hand.*
+  {
+  Secret: See the [Gilded Hand]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761427142845

@@ -1,0 +1,40 @@
+__typeName: CharacterComplication
+drawback: You have a -1 penalty to speed.
+mtime: 1764671748953
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: fa93af44-c888-4989-b287-131bbe07211d
+      sourceguid: c17aecfd-e24d-4b0e-a552-3f70d3cd0241
+      value: -1
+      source: Feat
+      name: Curse of Caution
+      behavior: attribute
+      description: ""
+      attribute: speed
+    - __typeName: CharacterModifier
+      sourceguid: c17aecfd-e24d-4b0e-a552-3f70d3cd0241
+      displayCondition: not Taken Turn
+      source: Feat
+      modtype: bane
+      keywords: []
+      activationCondition: not Taken Turn
+      rollType: enemy_ability_power_roll
+      guid: 5db9c4d4-f4df-489d-9c90-c3118bc2d38f
+      description: ""
+      behavior: power
+      name: Curse of Caution
+    source: Feat
+    canHavePrerequisites: true
+    guid: c17aecfd-e24d-4b0e-a552-3f70d3cd0241
+    name: Curse of Caution
+    implementation: 3
+name: Curse of Caution
+ctime: 1755513523402
+description: When you were young, you did something reckless and unthinking that endangered a hag or cost them something dear. The hag cursed you to always take your time, forcing you to be cautious and thorough—even to your detriment. The curse has saved you from trouble a few times, but not being able to get away from trouble might be your downfall if you can’t shake it.
+id: 4035841e-0d1d-4ec9-b18a-1ed2ed44b38f
+benefit: Until you’ve taken your turn in a combat round, any strike made against you takes a bane.

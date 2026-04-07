@@ -1,0 +1,532 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 04d16491-d346-4b02-8d3c-06a0ab08dc27
+    offtokenPortraitId: 5e633841-be0c-43b5-9a87-8268f142f995
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.51
+    portraitOffset:
+      x: -0.07900351
+      y: 0.1285954
+    frameHueShift: 0.3888902
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 9649584b-8db7-468e-9ad0-000b82eb78a9
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 1
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    moveDistance: 1
+    traitNames: []
+    ongoingEffects: []
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        ANGULOTL SLINK	LEVEL 1 HORDE AMBUSHER
+        Angulotl, Humanoid	EV 3
+        Stamina 15	Immunity poison 2
+        Speed 7 (swim, climb)	Size 1S / Stability 0
+        Free Strike 2
+        Might +1	Agility +2	Reason 0	Intuition 0	Presence 0
+        Tonguelash (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        Keywords Melee, Strike, Weapon
+        Distance Melee 6	Target 1 creature or object
+        %E2%9C%A6	%E2%89%A411	4 damage; pull 2
+        %E2%98%85	12%E2%80%9316	6 damage; pull 4
+        %E2%9C%B8	17	7 damage; pull 6
+        Effect The target is wet (save ends) (see Wet). Allies targeted by this ability take no damage and are pulled 6, ignoring stability.
+
+        Hop To It (Free Maneuver) %E2%97%86 1 Malice
+        Keywords %E2%80%94
+        Distance Self	Target Self
+        Effect The slink jumps 3 squares. If the slink lands in cover or concealment, they can immediately Hide.
+
+        Toxiferous
+        When an adjacent enemy grabs or uses a melee ability against the slink, they take 2 poison damage.
+
+        Adhesive
+        The slink excretes residue into their square at the end of each of their turns. A non-angulotl creature or object that enters or leaves the square must use a maneuver to withstand the adhesive or be restrained (EoT).
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+        CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+        sourceguid: ec4426d5-b894-4154-a4ee-acf74c5a231c
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the slink or uses a melee ability against them, that enemy takes 2 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous
+            roll: "2"
+            damageType: poison
+            chatMessage: Melee ability vs toxic creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 78fcc0c8-76b3-489c-815a-9b29f1ffcee6
+          persistence: []
+          domains:
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          conditionFormula: target = self and (UsedAbility.Keywords has "Melee")
+          subject: enemy
+          name: Toxiferous
+          trigger: targetwithability
+          targetType: subject
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 932d333e-a635-43cb-adef-28e62124c4ef
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+        sourceguid: 014e497d-86b9-4eeb-9958-db7261fe30f8
+        behavior: trigger
+        source: Character Feature
+        name: Toxiferous
+        description: Whenever an adjacent enemy grabs the slink or uses a melee ability against them, that enemy takes 2 poison damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 707c0f0a-249d-4502-a335-c6b0c4a5def9
+          repeatTargets: false
+          trigger: inflictcondition
+          conditionFormula: condition = "Grabbed" and (HasAttacker)
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "2"
+            damageType: poison
+            guid: b2778aba-d949-4c29-a3bd-ce8613a7c864
+            titleText: Toxiferous
+            chatMessage: Grabbed a Toxiferous Creature
+          targetType: attacker
+          name: Toxiferous
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        guid: cc1e4089-bc89-4ee2-b113-10f36cb6f593
+      source: Character Feature
+      description: Whenever an adjacent enemy grabs the slink or uses a melee ability against them, that enemy takes 2 poison damage.
+      guid: 014e497d-86b9-4eeb-9958-db7261fe30f8
+      name: Toxiferous
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fc0a9fd6-0538-402d-a1e3-0ec90852ab8b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:fc0a9fd6-0538-402d-a1e3-0ec90852ab8b: true
+        sourceguid: fc0a9fd6-0538-402d-a1e3-0ec90852ab8b
+        behavior: trigger
+        source: Character Feature
+        name: Adhesive
+        description: The slink excretes a sticky residue into their square at the end of each of their turns. Any non-angulotl who enters or leaves the square is stuck, and must use a maneuver to break free or be restrained until the end of their turn. Objects are likewise affected, and a creature must use a maneuver to remove an object from the square.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: b2fe2b1b-6385-42ee-898a-f5f843584643
+          repeatTargets: false
+          abilityType: none
+          trigger: endturn
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aliveafterdeath: true
+            aura:
+              __typeName: Aura
+              applyto: othertype
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              modifiers: []
+              name: Adhesive Sludge
+              triggers:
+              - ability:
+                  __typeName: TriggeredAbility
+                  repeatTargets: false
+                  behaviors:
+                  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                    ongoingEffect: f01c752e-d091-4aa4-9428-02ea6e85bbac
+                    duration: 0
+                    ongoingEffectCustom: f01c752e-d091-4aa4-9428-02ea6e85bbac
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  silent: true
+                  range: 5
+                  persistence: []
+                  modifiers: []
+                  strain: []
+                  guid: 486aa9b8-809b-4505-88fc-46cf67ec5d6c
+                  trigger: onenter
+                  numTargets: "1"
+                  targetType: self
+                  name: Stuck in Adhesive
+                  radius: 0
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                trigger: onenter
+              guid: 94071af3-87d7-4041-a18b-4b1bb3a2c58e
+              objectid: "-Mh207qK2XOwNp0FbeLj"
+              implementation: 3
+          targetType: all
+          name: Adhesive
+          numTargets: "1"
+          description: ""
+          range: "0"
+          iconid: ui-icons/skills/1.png
+        guid: 5c896282-1e1a-4208-9f70-eb2afe4eaddd
+      source: Character Feature
+      description: The slink excretes a sticky residue into their square at the end of each of their turns. Any non-angulotl who enters or leaves the square is stuck, and must use a maneuver to break free or be restrained until the end of their turn. Objects are likewise affected, and a creature must use a maneuver to remove an object from the square.
+      guid: fc0a9fd6-0538-402d-a1e3-0ec90852ab8b
+      name: Adhesive
+      implementation: 3
+    role: Horde Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    innateLanguages:
+      e14c1512-fc48-4cb6-945c-18b3eb0b808d: true
+    initiativeGrouping: 865bdce4-2d76-4b47-903e-5dae73d2c890
+    auras:
+    - __typeName: AuraInstance
+      casterid: 7214d9fd-eb14-4ac0-950d-e9f06856b5e8
+      duration: none
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 0.547081083409926
+        queueguid: ff0c14f5-630d-4c90-bffe-472b3be22629
+        initiativeid: 0e1a1594-16b8-4eab-92f8-683408171172
+        round: 13
+      aura:
+        __typeName: Aura
+        applyto: othertype
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        modifiers: []
+        name: Adhesive Sludge
+        triggers:
+        - ability:
+            __typeName: TriggeredAbility
+            repeatTargets: false
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: f01c752e-d091-4aa4-9428-02ea6e85bbac
+              duration: 0
+              ongoingEffectCustom: f01c752e-d091-4aa4-9428-02ea6e85bbac
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            silent: true
+            range: 5
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 486aa9b8-809b-4505-88fc-46cf67ec5d6c
+            trigger: onenter
+            numTargets: "1"
+            targetType: self
+            name: Stuck in Adhesive
+            radius: 0
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          trigger: onenter
+        guid: 94071af3-87d7-4041-a18b-4b1bb3a2c58e
+        objectid: "-Mh207qK2XOwNp0FbeLj"
+        implementation: 3
+      object:
+        objid: 7a82f5f7-8fc4-4684-8805-bdd029683f5a
+        floorid: 1df126f4-550b-4e03-ae4e-92f09171fca1
+      area:
+        __usertype: LuaShape
+        data: "{\"shape\": 7,\"originCreature\": [[-8, -6, 1]],\"areaTemplateObject\": null,\"targetPoint\": {\"x\": -8,\"y\": -6,\"z\": 0},\"range\": 0,\"radius\": 0,\"checklos\": false,\"locations\": null}"
+      aliveafterdeath: true
+      name: Adhesive
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: a4306364-9bee-4ffa-9f53-56e06db7111a
+      symbols:
+        mode: 1
+        numberoftargets: 0
+        castid: 55008df7-a6fc-42b1-b216-18fc8254113c
+      iconid: ui-icons/skills/1.png
+    damage_taken: 0
+    groupid: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+    walkingSpeed: 5
+    resources: []
+    creatureSize: 1S
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "6"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 8f9c0570-3ed4-4749-90f6-bf5c315487f3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "1"
+      iconid: ui-icons/skills/1.png
+      name: Tonguelash
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage; pull 2
+        - 6 damage; pull 4
+        - 7 damage; pull 6
+        filterTarget: not Friends(target, caster)
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: b936df43-5c0e-4046-9221-ce360fa5131b
+        filterTarget: not Friends(target, caster)
+        duration: save_ends
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: Pull 6
+        filterTarget: Friends(target, caster)
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: b936df43-5c0e-4046-9221-ce360fa5131b
+        filterTarget: Friends(target, caster)
+        duration: eoe
+        ongoingEffectCustom: false
+      description: The target is wet (save ends). Any ally targeted by this ability ignores the damage, is wet until the end of the encounter, and is pulled up to 6 squares, ignoring stability.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: Jump 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: be0e8342-1af5-4362-b3cd-125ce1e97c41
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 9683c15c-de03-4129-869c-d4054928cf97
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: none
+      modifiers: []
+      strain: []
+      guid: 48c957db-45ae-4e5d-9ea1-2c41b4089bad
+      abilityType: none
+      implementation: 3
+      castImmediately: true
+      numTargets: 1
+      targetType: self
+      name: Hop to It
+      persistence: []
+      description: |
+        The slink jumps up to 3 squares. If they have cover or concealment when they land, they can attempt to hide.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    availableTriggers:
+      478f099d-b92e-424d-84de-5780b610e760:
+        __typeName: ActiveTrigger
+        text: Opportunity Attack
+        rules: Free Strike against moving creature
+        clearOnDismiss: true
+        id: 478f099d-b92e-424d-84de-5780b610e760
+        targets:
+        - 7d77cd61-3421-430b-8b32-c0fadeb0192f
+    movementSpeeds:
+      climb: 5
+      swim: 5
+    equipmentMeta:
+      offhand0: []
+    moveDistanceRoundId: ff0c14f5-630d-4c90-bffe-472b3be22629-13
+    monster_type: Angulotl Slink
+    keywords:
+      Humanoid: true
+      Angulotl: true
+  tokenType: null
+  bestiaryId: a54e8399-4aae-49d3-9aff-87cc75747745
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Angulotl Slink
+parentFolder: b4d6a13f-3431-4ade-b564-2cc17bcde303
+artist: null
+ord: 0
+ctime: 1741590291480
+mtime: 1775201137032
+hidden: false

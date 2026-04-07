@@ -1,0 +1,40 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: d109fd10-ac55-4f0a-85f3-d8ee7869b8ef
+  sourceguid: 51819a1a-ac83-4eb5-b430-0e27256ae4d2
+  value: 5
+  source: Ongoing Effect
+  name: Jam Session
+  behavior: attribute
+  description: You have a +5 bonus to speed until the end of their next turn. While under this effect, each target must use their full movement during their turn.
+  attribute: speed
+- __typeName: CharacterModifier
+  text: While under the effect, you must use your full movement during your turn.
+  sourceguid: 51819a1a-ac83-4eb5-b430-0e27256ae4d2
+  guid: 45b05016-377e-4552-8e7d-fea99935f73c
+  source: Ongoing Effect
+  name: Jam Session
+  description: You have a +5 bonus to speed until the end of their next turn. While under this effect, each target must use their full movement during their turn.
+  behavior: movementtext
+  color: red
+source: Ongoing Effect
+guid: 51819a1a-ac83-4eb5-b430-0e27256ae4d2
+id: 51819a1a-ac83-4eb5-b430-0e27256ae4d2
+ctime: 1773234678919
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.781999826431274
+    s: 0.99023449420929
+    v: 0.965716361999512
+    a: 1
+name: Jam Session
+description: You have a +5 bonus to speed until the end of their next turn. While under this effect, each target must use their full movement during their turn.
+custom: true
+mtime: 1773234980238
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd

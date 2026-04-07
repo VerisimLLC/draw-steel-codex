@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Lore Perks
+name: Travelling Sage
+description: On any day when you don’t take a respite, you can spend 1 uninterrupted hour working on a research project using a skill you have from the lore skill group. If you do so, you gain 1d10 project points toward that project.
+mtime: 1755079540878
+id: be69d346-225a-470b-b129-7d4ccdff79f2
+ctime: 1754890007695

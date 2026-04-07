@@ -1,0 +1,53 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: ally
+    targetType: all
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "2"
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 68beb97b-dbd6-4c21-86ab-f14d75de8bb9
+    persistence: []
+    abilityType: none
+    conditionFormula: ConditionCaster("Weakened") = Subject
+    trigger: endturn
+    whenActive: combat
+    name: Pillar of Holy Fire
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: Subject.Presence*2
+      damageType: untyped
+      chatMessage: Pillar of Holy Fire damage
+    description: ""
+    subject: other
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 1fe419a3-ea91-440a-ae67-f162e4f8f34e
+  name: with Pillar of Holy Fire
+  sourceguid: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+source: Ongoing Effect
+guid: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+id: d6537789-d9b0-47c4-9ea5-59a3514952ed
+ctime: 1768177519465
+condition: c27e0b16-291a-45ad-8406-973e26576a44
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: with Pillar of Holy Fire
+description: ""
+mtime: 1768177519465
+iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335

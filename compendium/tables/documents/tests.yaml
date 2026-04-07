@@ -1,0 +1,27 @@
+__typeName: MarkdownDocument
+id: b730caf3-494b-4f5a-9634-b2fed7ecf749
+updateid: 2de86c2b-b801-4df2-bfdf-7971918e5cee
+annotations: []
+description: Tests
+mtime: 1761429459549
+content: |-
+  |Easy Test: Any Characteristic
+  |You succeed on the task and incur a consequence.
+  |You succeed on the task.
+  |You succeed on the task with a reward.
+
+  |Medium Test: Any Characteristic
+  |You fail the task.
+  |You succeed on the task and incur a consequence.
+  |You succeed on the task.
+
+  |Hard Test: Any Characteristic
+  |You fail the task and incur a consequence.
+  |You fail the task.
+  |You succeed on the task.
+
+  |Assist a Test: Any Characteristic
+  |You get in the way or make things worse. The creature takes a bane on their test.
+  |Your help grants the other creature an edge on their test.
+  |Your help gives the other creature a double edge on their test
+ctime: 1757511095345

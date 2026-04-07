@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 57d44f9f-d093-4189-90de-348b78b4f09f
+id: 57d44f9f-d093-4189-90de-348b78b4f09f
+ctime: 1770554544838
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Righteous Phalanx Target
+statusEffect: false
+mtime: 1770554554168
+description: This creature has been hit by Righteous Phalanx this round.
+iconid: ui-icons/skills/1.png

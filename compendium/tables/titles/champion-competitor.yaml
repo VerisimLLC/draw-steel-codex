@@ -1,0 +1,59 @@
+__typeName: Title
+effect: "A characteristic used during the competition increases by 1 (to a maximum of 6). Additionally, choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Champion Competitor
+    numChoices: 1
+    description: Choose one of the following benefits
+    guid: 3c1627d4-b9ac-4113-a9cc-aa4d50f929d8
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Best of the Best
+      description: Choose a skill you used during the competition. You gain a +4 bonus to tests made using that skill instead of a +2 bonus.
+      guid: 64170678-099e-4406-ba2d-d0c9555f752d
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      description: You earn 2 Renown and 1 Wealth.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: b2266f49-f07a-4715-bb1d-cad0a0545b83
+        sourceguid: 3b5d3384-de20-4b32-bf53-ba803e3ff6c3
+        behavior: attribute
+        source: Feat
+        name: Glory and Riches
+        description: You earn 2 Renown and 1 Wealth.
+        value: 2
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      - __typeName: CharacterModifier
+        guid: 8c0db6d6-f644-4f2a-a831-5af49275c013
+        sourceguid: 3b5d3384-de20-4b32-bf53-ba803e3ff6c3
+        behavior: attribute
+        source: Feat
+        name: Glory and Riches
+        description: You earn 2 Renown and 1 Wealth.
+        value: 1
+        attribute: 036da4db-4406-4038-ae7d-cf0b37890f5f
+      source: Feat
+      canHavePrerequisites: true
+      guid: 3b5d3384-de20-4b32-bf53-ba803e3ff6c3
+      name: Glory and Riches
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: I’ll Just Take the Prize
+      description: You gain a trinket or leveled treasure of the Director’s choice.
+      guid: 76b0f65f-87c7-47af-af16-15a4add023ee
+      canHavePrerequisites: true
+      source: Feat
+id: c74fb944-edd8-41d6-a5c4-e7d4986e52c8
+ctime: 1762352193243
+name: Champion Competitor
+description: Marduk uses the Beldoit Gambit! Avanna counters with the Iron Defense and goes on the attack! Marduk’s last tower is knocked down! And just like that, we have a new … world … champion!
+mtime: 1775216217181
+echelon: "4"
+prerequisite: You beat the best in the world at a game or sport.

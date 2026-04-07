@@ -1,0 +1,85 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:f2cb0c27-7f2a-4f06-9977-fbc2f5beada3: true
+  sourceguid: f2cb0c27-7f2a-4f06-9977-fbc2f5beada3
+  description: While restrained this way, the target moves with the gummy ball. A target who is no longer restrained moves to the nearest unoccupied space adjacent to the gummy ball.
+  source: Ongoing Effect
+  name: Restrained By Bowl
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: Creature is restrained by you and they move with the gummy ball.
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    abilityType: none
+    numTargets: "1"
+    modifiers: []
+    subjectRange: "1"
+    strain: []
+    guid: 1ec78d4b-17fd-49b0-b137-faca4ea7238f
+    trigger: move
+    conditionFormula: Subject = Self.ConditionCaster("Restrained By Bowl")
+    domains:
+      CharacterOngoingEffect:f2cb0c27-7f2a-4f06-9977-fbc2f5beada3: true
+    hasManualVersion: false
+    persistence: []
+    name: Restrained by Bowl
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      abilityType: standard
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 7de8a01b-d07c-44b0-80d4-e68106fd0aa5
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+      promptText: Move creature with the gummy ball
+    description: ""
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: 33eb0328-f39d-47fc-8a9d-5349f9c49e24
+source: Ongoing Effect
+guid: f2cb0c27-7f2a-4f06-9977-fbc2f5beada3
+id: f2cb0c27-7f2a-4f06-9977-fbc2f5beada3
+ctime: 1763986663511
+domains:
+  CharacterOngoingEffect:f2cb0c27-7f2a-4f06-9977-fbc2f5beada3: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+custom: true
+name: Restrained By Bowl
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+description: While restrained this way, the target moves with the gummy ball. A target who is no longer restrained moves to the nearest unoccupied space adjacent to the gummy ball.
+mtime: 1764055856336
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db

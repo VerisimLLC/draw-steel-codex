@@ -1,0 +1,61 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    damageTypeMappings: []
+    description: 1/2/3
+    name: Thunderhead Bident Extra Damage
+    behavior: power
+    damageModifierType: sonic
+    modtype: none
+    rollType: ability_power_roll
+  source: Item
+  name: Thunderhead Bident Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 08b94575-a855-46ac-98d9-4517795ea68a
+itemPrerequisite: A jar of captured thunder, two ingots of moon metal
+keywords:
+  Magic: true
+  Medium Weapon: true
+projectSource: Texts or lore in Zaliac
+level5: The weapon’s extra sonic damage increases to 2, and the additional distance or distance of a push for abilities using the weapon increases to 2 squares. Additionally, the weapon can be used with ranged weapon abilities, and gains power the farther it is hurled. For each 2 squares the weapon travels to the target of a ranged strike, the strike deals an extra 1 sonic damage.
+level9: The weapon’s extra sonic damage increases to 3, and it deals an extra 1 sonic damage for each square it travels as part of a ranged strike. Additionally, whenever you make a weapon strike using this weapon, each enemy adjacent to the target takes 6 sonic damage.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+ctime: 1759397636984
+id: 37303870-6a01-4f63-9111-dbd1a6fe6c0e
+name: Thunderhead Bident
+description: Any weapon ability that deals rolled damage using this weapon deals an extra 1 sonic damage. Additionally, when the weapon is used with any ability that pushes a target, you gain a +1 bonus to the forced movement distance. If the weapon is used with a damage-dealing ability that doesn’t impose forced movement, you can push the target 1 square.
+mtime: 1759397903123
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 0ee65f66-d25f-4c2c-8dfb-4ef0f14e138b

@@ -1,0 +1,301 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5eef384c-9f82-46cc-a0bf-dec58635b244
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Rotting Zombie
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ce1109ce-c332-4dc5-ae10-dbc14973902a
+  properties:
+    __typeName: monster
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 5
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "5"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: -2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: -2
+        id: agl
+      prs:
+        baseValue: -3
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: -5
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 30f927af-13de-480d-a406-f9bd5cc42877
+      numTargets: 1
+      implementation: 4
+      persistence:
+        enabled: true
+      name: Rotting Fist
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage; M<2 prone if size 1, or slowed (save ends) otherwise
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        tiersSelected:
+        - 3
+        filterTarget: Size < 5
+        rule: M<2 prone
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        tiersSelected:
+        - 3
+        filterTarget: Size > 4
+        rule: M<2 slowed (save ends)
+      description: "On a Tier 3 result: M<2 prone if size 1, or slowed (save ends) otherwise. "
+      abilityType: none
+      iconid: b67b89e6-cc8a-40bd-848b-37aef0455137
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |-
+        Rotting Zombie	Level 1 Brute Minion
+        Corporeal, Undead	EV 4
+        **Stamina** 8	**Immunity** corruption 2, poison 2
+        **Speed** 6	**Size** 1M /** Stability** 0
+        **Free Strike** 2
+        Might +1	Agility -2	Reason -5	Intuition -2	Presence -3
+        **Rotting Fist** (Action) %E2%97%86 2d10 + 1 %E2%97%86 Signature
+        **Keywords** Attack, Melee, Weapon
+        **Distance** Reach 1**	Target** 1 creature or object per minion
+        %E2%9C%A6	**%E2%89%A4**11a	2 damage
+        %E2%98%85	**12%E2%80%9316**	3 damage; slowed (EoT)
+        %E2%9C%B8	**17**	4 damage; prone if size 1, slowed (EoT) otherwise
+        **Arise Together**
+        If the rotting zombie's captain has the Arise trait, they also gain the Arise trait.
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2d9de553-c63d-4ffe-8714-02ebd572aa5b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:2d9de553-c63d-4ffe-8714-02ebd572aa5b: true
+        sourceguid: 2d9de553-c63d-4ffe-8714-02ebd572aa5b
+        behavior: trigger
+        source: Character Feature
+        name: Death Grasp
+        description: 'When the rotting zombie is reduced to 0 Stamina, their space is difficult terrain. The first time any enemy who has M<2 enters this space, they are slowed (save ends) and the effect ends. '
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 817e9fa9-19f4-4dda-a3c7-df9b5e7e9ee6
+          repeatTargets: false
+          abilityType: none
+          trigger: creaturedeath
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aliveafterdeath: true
+            aura:
+              __typeName: Aura
+              modifiers: []
+              source: Death Grasp
+              guid: 0978cf5d-1ad4-463e-afef-d96c0b8b2f26
+              objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+              applyto: enemies
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              creatureFilter: Might Potency Resistance < 2
+              name: Death Grasp
+              triggers:
+              - destroyaura: true
+                ability:
+                  __typeName: TriggeredAbility
+                  repeatTargets: false
+                  behaviors:
+                  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                    rule: Slowed (save ends)
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  silent: true
+                  range: 5
+                  persistence: []
+                  modifiers: []
+                  strain: []
+                  guid: 25fcb7b2-f467-47ab-ae96-ed8ce0725b7f
+                  trigger: onenter
+                  numTargets: "1"
+                  targetType: self
+                  name: Death Grasp
+                  radius: 0
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                trigger: onenter
+              description: The first time any enemy who has M<2 enters this space, they are slowed (save ends) and the effect ends.
+              difficult_terrain: true
+              iconid: 74db885f-d96e-4b14-af40-69292a0d6a22
+          targetType: self
+          name: Death Grasp
+          numTargets: "1"
+          description: ""
+          range: "0"
+          iconid: ui-icons/skills/1.png
+        guid: f79de82a-7d9a-48be-8dbb-a1f02a6b250a
+      source: Character Feature
+      description: 'When the rotting zombie is reduced to 0 Stamina, their space is difficult terrain. The first time any enemy who has M<2 enters this space, they are slowed (save ends) and the effect ends. '
+      guid: 2d9de553-c63d-4ffe-8714-02ebd572aa5b
+      name: Death Grasp
+      implementation: 3
+    role: Minion Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    initiativeGrouping: 409745f7-bb33-42c1-a662-e99e1a3e6e41
+    keywords:
+      Undead: true
+      Soulless: true
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 4
+    resources: []
+    minionSquad: Rotting Zombie Squad 3
+    traitNames: []
+    withCaptain: +1 damage bonus to strikes
+    movementSpeeds: []
+    monster_type: Rotting Zombie
+    creatureSize: 1M
+    equipmentMeta:
+      offhand0: []
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 53bb2329-398d-4e45-872b-6924ae5d70d2
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Rotting Zombie
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 5
+ctime: 1741590250872
+mtime: 1775201137032
+hidden: false

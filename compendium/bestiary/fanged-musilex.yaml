@@ -1,0 +1,91 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Fanged Musilex
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    cr: 1
+    max_hitpoints: 10
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    walkingSpeed: 5
+    keywords:
+      Summoner: true
+      Heroic: true
+      Abyssal: true
+      Demon: true
+    damage_taken: 0
+    resources: []
+    skillRatings: []
+    monster_type: Fanged Musilex
+    minion: true
+    savingThrowRatings: []
+    role: Minion Brute
+  tokenType: null
+  bestiaryId: 7bb0d11c-d3ac-49cf-b7c8-fca737dbe9c8
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1759616990357
+description: null
+parentFolder: 5f39048d-1ec5-41e4-94d5-216af193e382
+artist: null
+ord: 3
+ctime: 1759616990357
+mtime: 1775167538852
+hidden: false

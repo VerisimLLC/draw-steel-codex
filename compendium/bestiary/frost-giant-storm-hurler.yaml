@@ -1,0 +1,256 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 052b3f18-25a7-4f74-9952-c4f477bfa2a9
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 8
+    import:
+      type: mcdm
+      data: |+
+        Frost Giant Storm Hurler	Level 8 Elite Artillery
+        Frost Giant, Giant	EV 40
+        <b>Stamina</b> 180	<b>Immunity</b> cold 8
+        <b>Speed</b> 7	<b>Size</b> 4 /<b> Stability</b> 5
+        <b>Free Strike</b> 9
+        Might +4	Agility -1	Reason 0	Intuition 0	Presence 0
+        <b>Ice Javelins</b> (Action)%E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 15<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	13 cold damage
+        %E2%98%85	<b>12%E2%80%9316</b>	18 cold damage; M<3 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	22 cold damage; M<4 bleeding (save ends)
+        <b>Effect</b> Each time a creature bleeding from this ability takes damage due to bleeding, their speed decreases by 1 (to a minimum of 0) until the condition ends.
+
+        <b>Flower of Frost</b> (Action) %E2%97%86 3 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 15<b>	Target</b> Special
+        <b>Effect</b> The storm hurler throws three size 1L javelins into unoccupied squares within distance. A javelin has 30 Stamina and fire weakness 5. At the start of the storm hurler's next turn, each javelin with 1 or more Stamina explodes in a shower of icicles. Each enemy and object within 3 squares of an exploding javelin makes an <b>Agility test.</b>
+        %E2%9C%B8	<b>%E2%89%A411</b>	14 cold damage; push 4; bleeding (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	11 cold damage; push 2; slowed (save ends)
+        %E2%9C%A6	<b>17</b>	7 cold damage
+
+        <b>Ice Dance</b> (Maneuver)
+        <b>Keywords</b> Attack, Melee
+        <b>Distance</b> Melee 1<b>	Target</b> 1 giant ally
+        <b>Effect</b> Both giants shift 6, staying adjacent to each other. The storm hurler allows the target to jump 5 and make a free strike.
+
+        <b>Frozen Retribution</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> The storm hurler is targeted by a ranged strike.
+        <b>Effect</b> The storm hurler imposes a double bane on the strike. If the result is tier 1, the storm hurler uses their Ice Javelins ability against the striker.
+
+        <b>Kingdom of Isolation</b>
+        The storm hurler is surrounded by a snowstorm. An enemy that starts their turn within 2 squares of the storm hurler can't shift.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fc086eda-3f33-4796-ac34-b916532430a1: true
+      modifiers: []
+      name: Kingdom of Isolation
+      description: The storm hurler is surrounded by a snowstorm. An enemy that starts their turn within 2 squares of the storm hurler can't shift.
+      guid: fc086eda-3f33-4796-ac34-b916532430a1
+      source: Trait
+    role: Elite Artillery
+    keywords:
+      Giant: true
+      Frost Giant: true
+    max_hitpoints_roll: "180"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 8
+      damageType: cold
+      apply: Damage Reduction
+    opportunityAttack: 9
+    monster_type: Frost Giant Storm Hurler
+    attributes:
+      agl:
+        baseValue: -1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    groupid: c65d0a89-5546-48aa-a79e-9838030eef8d
+    damage_taken: 0
+    max_hitpoints: 180
+    resources: []
+    traitNames: []
+    ev: 40
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 13 cold damage
+        - 18 cold damage; M<3 bleeding (save ends)
+        - 22 cold damage; M<4 bleeding (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 15
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6fbf2b09-030b-4980-a147-4e89772f24b1
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Ice Javelins
+      numTargets: 2
+      description: Each time a creature bleeding from this ability takes damage due to bleeding, their speed decreases by 1 (to a minimum of 0) until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 295b8088-5141-4eb8-93e7-1c4283d4770e
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Flower of Frost
+      implementation: 0
+      description: The storm hurler throws three size 1L javelins into unoccupied squares within distance. A javelin has 30 Stamina and fire weakness 5. At the start of the storm hurler's next turn, each javelin with 1 or more Stamina explodes in a shower of icicles. Each enemy and object within 3 squares of an exploding javelin makes an Agility test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 3a93fafb-7848-4f68-8459-566c5608e2e2
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Ice Dance
+      numTargets: 1
+      description: Both giants shift 6, staying adjacent to each other. The storm hurler allows the target to jump 5 and make a free strike.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: ed9c8a93-12d1-4bd1-a4a2-9e4e41a16772
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Frozen Retribution
+      numTargets: 1
+      description: The storm hurler imposes a double bane on the strike. If the result is tier 1, the storm hurler uses their Ice Javelins ability against the striker.
+      abilityType: none
+      implementation: 0
+    monster_category: Monster
+    movementSpeeds: []
+    levelChoices: []
+    minion: false
+    creatureSize: "4"
+    walkingSpeed: 7
+  tokenType: null
+  bestiaryId: e47d59ac-b486-4ded-93b3-d9e36821c38f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Frost Giant Storm Hurler
+parentFolder: df6abed8-c255-4902-a351-776e8730267f
+artist: null
+ord: 0
+ctime: 1741590321310
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,93 @@
+__typeName: Class
+levels:
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:0380181e-acad-4cdb-ae6d-c7cd11df6ad2: true
+      class:cc89a950-5ff0-4048-bd43-1f2875446034: true
+heroicResourceChecklist: []
+id: cc89a950-5ff0-4048-bd43-1f2875446034
+name: Punisher
+ctime: 1752730890717
+mtime: 1752730890717
+isSubclass: true
+primaryClassId: 0380181e-acad-4cdb-ae6d-c7cd11df6ad2

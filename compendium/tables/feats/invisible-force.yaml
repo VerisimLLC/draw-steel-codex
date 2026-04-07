@@ -1,0 +1,51 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 2ca89282-a95f-4bf7-9c5e-75dd926bc4b1
+      guid: cb1ca616-110c-4de5-bee5-2a262ec04ca8
+      source: Feat
+      behavior: activated
+      description: 'You manipulate a tiny object with your mind. '
+      name: Invisible Force
+      activatedAbility:
+        __typeName: ActivatedAbility
+        objectTarget: true
+        repeatTargets: false
+        keywords:
+          Ranged: true
+          Psionic: true
+        targetAllegiance: none
+        behaviors: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        flavor: You manipulate a tiny object with your mind.
+        range: "10"
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: b9f90cba-978a-4c47-ad03-9901467145ad
+        domains: []
+        numTargets: "1"
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        name: Invisible Force
+        targetType: target
+        description: You can grab or manipulate the target object with your mind, moving the object up to a number of squares equal to your Reason, Intuition, or Presence score (your choice). You can use this ability to turn doorknobs, pull levers, and so forth. You can manipulate any small movable piece of a larger object as long as the piece is unattended and size 1T. You can’t use this ability to break a smaller piece off a larger object.
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+    name: Invisible Force
+    guid: 2ca89282-a95f-4bf7-9c5e-75dd926bc4b1
+    description: 'You manipulate a tiny object with your mind. '
+    source: Feat
+tag: Supernatural Perks
+name: Invisible Force
+description: 'You gain the following ability. '
+mtime: 1755375708387
+id: 71374e96-d0fd-4203-b97c-81e30fadf936
+ctime: 1730701344580

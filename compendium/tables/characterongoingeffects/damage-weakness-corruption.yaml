@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: fff07343-f44a-42cf-bb95-dbec6413f352
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "-(stacks)"
+    damageType: corruption
+    apply: Damage Reduction
+  description: ""
+  name: Damage Weakness - Corruption
+  guid: 0f11076c-de54-48f8-928d-ef89f6d54c71
+source: Ongoing Effect
+stackable: true
+id: fff07343-f44a-42cf-bb95-dbec6413f352
+ctime: 1758308912702
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.819892466068268
+    s: 1
+    v: 0.972549021244049
+    a: 1
+guid: fff07343-f44a-42cf-bb95-dbec6413f352
+name: Damage Weakness - Corruption
+custom: true
+mtime: 1758751561298
+description: ""
+iconid: e8b60b7d-78a7-4ef0-8622-62ee5c1bb39b

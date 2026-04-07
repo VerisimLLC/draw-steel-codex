@@ -1,0 +1,27 @@
+__typeName: ActivatedAbility
+id: 3e18f2b2-893d-4945-9564-cf75a5e16849
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+repeatTargets: false
+ctime: 1741589852397
+targetType: anyspace
+targeting: straightline
+numTargets: "1"
+name: Slide Creature
+description: ""
+mtime: 1770287305844
+abilityType: none
+iconid: ui-icons/skills/1.png

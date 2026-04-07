@@ -1,0 +1,61 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    modtype: none
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    behavior: power
+    description: ""
+    name: Bloody Hand Wraps Extra Damage
+    rollType: ability_power_roll
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    damageTypeMappings: []
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+  source: Item
+  name: Bloody Hand Wraps Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 4084d9c7-7358-4c02-84fd-f80c44a4d328
+itemPrerequisite: One cotton bolt soaked in the blood of six adventurers
+keywords:
+  Hands: true
+  Psionic: true
+projectSource: Texts or lore in Caelian
+flavor: These rough hand wraps are stained with blood that never comes clean.
+level9: The damage bonus granted by the hand wraps increases to +3. Additionally, once per turn, you can take 15 damage that can’t be reduced in any way to use a signature ability (no action required). On your turn, you can use the wraps’ signature ability option, melee free strike option, or Grab maneuver option, but only one.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+level5: The damage bonus granted by the hand wraps increases to +2. Additionally, once per turn, you can take 10 damage that can’t be reduced in any way to make a melee free strike (no action required). On your turn, you can use the wraps’ melee free strike option or Grab maneuver option, but only one.
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+id: 158b8282-86cd-48a4-bb23-9ea6d4c724fc
+ctime: 1759399274864
+name: Bloody Hand Wraps
+description: While you wear these hand wraps, any weapon ability that deals rolled damage using your unarmed strikes gains a +1 damage bonus. Additionally, once per turn, you can take 5 damage that can’t be reduced in any way to use the Grab maneuver (no action required).
+mtime: 1759399274864
+projectRollCharacteristic:
+  agl: true
+  inu: true
+  mgt: true
+iconid: 9eb91f6d-9d13-4114-afab-ef56a54156f1

@@ -1,0 +1,74 @@
+__typeName: MarkdownDocument
+annotations: []
+id: c57ff9e6-ad7d-4d5d-bf5c-56aecbe99aae
+ctime: 1762858474355
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |+
+      ## Well
+
+    W: |+
+      [[/spawn Targon 10 5|Spawn Targon]]
+
+
+    U: |+
+      If the heroes recruited [Illwyth] as a retainer, [Targon] appears at the start of the second round of combat on any edge of the map or rooftop that you choose. He keeps his distance, using Dual Targeting Shot and paying the extra Malice cost to give his allies additional free strikes.
+
+
+    S: |
+      ## Targon Appears
+    t: |+
+      [[//awardvp 1|Award Heroes 1 Victory]]
+
+    Q: |+
+      * For three heroes, remove Boddorff Buckfeather and reduce Gorek's Stamina to 80 and Mara's Stamina to 40.
+
+
+    O: |
+      * For four heroes, remove Boddorff Buckfeather from the start of the encounter.
+    M: |+
+      If this encounter has four or three heroes, make the following adjustments:
+
+    n: |+
+      ## Ending the Encounter
+
+    K: |
+      **Encounter Adjustments**
+    w: 'Return to [Gilded Showdown] for more aftermath information. '
+    I: |+
+      [[/spawn Mara 5 8|Spawn Mara]] [[/spawn Gorek 1 6 |Spawn Gorek]] [[/spawn "Boddorff Buckfeather" 3 6|Spawn Boddorff Buckfeather]]
+
+    q: |+
+      The encounter ends when only one mercenary has Stamina above 0. That mercenary immediately tries to flee. If the heroes give chase, that mercenary surrenders. The heroes earn 1 Victory each for winning the day.
+
+    G: |+
+      This encounter takes place on the [Gilded Showdown Map].
+
+    h: |+
+      Gorek wades into the fray against his rival, with Boddorff close behind to provide support and maximize his Stalwart Guardian trait. Mara uses The Earth Devours to target as many creatures as she can. If she can't target at least two heroes with the ability, she uses The Writhing Green instead. She also uses Jaws of the Void to stay out of melee combat.
+
+    e: |+
+      At the start of the encounter, each member of the Gilded Hand picks a rival for their Rivalry trait who has a class that closely matches their own. For example, Boddorff Buckfeather would pick a conduit, but if none is available, he might pick a censor or troubadour.
+
+    k: |+
+      When the rivals have plenty of Malice to spend, they use Coordinated Takedown.
+
+
+    c: |+
+      ## Tactics
+
+    C: |+
+      # Gilded Showdown
+
+    a: |+
+      The well at the center of the town is 4 squares deep and has less than 1 square of water in it.
+
+
+    E: |
+      The heroes are attacked by members of the [Gilded Hand]. 
+parentFolder: 8f8abd40-80c0-491b-a260-b1a04b211977
+updateid: 28e00ec2-7512-41fe-ab51-3c6be67631ab
+mtime: 1773432620242
+content: "# Gilded Showdown\n\nThe heroes are attacked by members of the [Gilded Hand]. \nThis encounter takes place on the [Gilded Showdown Map].\n\n[[/spawn Mara 5 8|Spawn Mara]] [[/spawn Gorek 1 6 |Spawn Gorek]] [[/spawn \"Boddorf Buckfeather\" 3 6|Spawn Boddorf Buckfeather]]\n\n**Encounter Adjustments**\nIf this encounter has four or three heroes, make the following adjustments:\n\n* For four heroes, remove Boddorff Buckfeather from the start of the encounter.\n* For three heroes, remove Boddorff Buckfeather and reduce Gorek's Stamina to 80 and Maraʼs Stamina to 40.\n\n\n## Targon Appears\nIf the heroes recruited [Illwyth] as a retainer, [Targon] appears at the start of the second round of combat on any edge of the map or rooftop that you choose. He keeps his distance, using Dual Targeting Shot and paying the extra Malice cost to give his allies additional free strikes.\n\n\n[[/spawn Targon 10 5|Spawn Targon]]\n\n\n## Well\n\nThe well at the center of the town is 4 squares deep and has less than 1 square of water in it.\n\n\n## Tactics\n\nAt the start of the encounter, each member of the Gilded Hand picks a rival for their Rivalry trait who has a class that closely matches their own. For example, Boddorff Buckfeather would pick a conduit, but if none is available, he might pick a censor or troubadour.\n\nGorek wades into the fray against his rival, with Boddorff close behind to provide support and maximize his Stalwart Guardian trait. Mara uses The Earth Devours to target as many creatures as she can. If she can't target at least two heroes with the ability, she uses The Writhing Green instead. She also uses Jaws of the Void to stay out of melee combat.\n\nWhen the rivals have plenty of Malice to spend, they use Coordinated Takedown.\n\n\n## Ending the Encounter\n\nThe encounter ends when only one mercenary has Stamina above 0. That mercenary immediately tries to flee. If the heroes give chase, that mercenary surrenders. The heroes earn 1 Victory each for winning the day.\n\n[[/awardvp 1|Award Heroes 1 Victory]]\n\nReturn to [Gilded Showdown] for more aftermath information. "
+description: Gilded Showdown Encounter

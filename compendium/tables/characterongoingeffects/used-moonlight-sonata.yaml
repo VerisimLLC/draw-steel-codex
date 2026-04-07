@@ -1,0 +1,49 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 21e674b5-0e2f-4a1f-b228-d4f2984485fb
+    repeatTargets: false
+    trigger: endcombat
+    castImmediately: true
+    behaviors:
+    - __typeName: ActivatedAbilityRemoveCreatureBehavior
+    numTargets: "1"
+    name: Used Moonlight Sonata
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: While this performance is active, each target who is dead can choose to continue taking turns after death. On each of their turns, a target can move and use either a main action or a maneuver, but can’t spend Recoveries or use triggered actions. At the end of the encounter, each target who chose to take turns this way turns to dust and blows away.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 7636fc60-03ca-45a8-b8ca-a31cd2711d77
+  name: Used Moonlight Sonata
+  sourceguid: cc4e2d7e-1949-48b7-8cb4-a12fd745cdec
+source: Ongoing Effect
+guid: cc4e2d7e-1949-48b7-8cb4-a12fd745cdec
+id: cc4e2d7e-1949-48b7-8cb4-a12fd745cdec
+ctime: 1773657103909
+hiddenFromEnemies: false
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+name: Used Moonlight Sonata
+custom: true
+description: While this performance is active, each target who is dead can choose to continue taking turns after death. On each of their turns, a target can move and use either a main action or a maneuver, but can’t spend Recoveries or use triggered actions. At the end of the encounter, each target who chose to take turns this way turns to dust and blows away.
+mtime: 1773657103909
+iconid: ui-icons/skills/1.png

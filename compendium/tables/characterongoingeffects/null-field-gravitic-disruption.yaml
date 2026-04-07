@@ -1,0 +1,61 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:9f815361-29a4-4d13-83f1-37990ceb3ce1: true
+  sourceguid: 9f815361-29a4-4d13-83f1-37990ceb3ce1
+  description: The first time on a turn that a target takes damage, you can slide them 2
+  source: Ongoing Effect
+  name: Null Field - Gravitic Disruption
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetFilter: ""
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 52d75032-fa61-4671-8bad-42215bf5822b
+      duration: 0
+      ongoingEffectCustom: 52d75032-fa61-4671-8bad-42215bf5822b
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: Slide 2
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: ""
+    persistence: []
+    modifiers: []
+    subjectRange: Nullifying Aura Radius
+    strain: []
+    guid: e66e06b4-84ec-497a-89d7-e4a9c8018c6a
+    abilityType: none
+    trigger: losehitpoints
+    conditionFormula: Subject.Ongoing Effects has not "Gravitic Disruption Target"
+    numTargets: "1"
+    targetType: subject
+    name: Null Field - Gravitic Disruption
+    domains:
+      CharacterOngoingEffect:9f815361-29a4-4d13-83f1-37990ceb3ce1: true
+    description: The first time on a turn that a target takes damage, you can slide them 2.
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: 1b1e3120-a163-4502-81b9-683607a88898
+source: Ongoing Effect
+guid: 9f815361-29a4-4d13-83f1-37990ceb3ce1
+id: 9f815361-29a4-4d13-83f1-37990ceb3ce1
+ctime: 1749487145797
+domains:
+  CharacterOngoingEffect:9f815361-29a4-4d13-83f1-37990ceb3ce1: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Null Field - Gravitic Disruption
+custom: true
+description: The first time on a turn that a target takes damage, you can slide them 2
+mtime: 1755989398932
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,57 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:4cb0bba7-8733-4256-b65d-a81fb9132d36: true
+  sourceguid: 4cb0bba7-8733-4256-b65d-a81fb9132d36
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: 2*Intuition
+    damageType: all
+    apply: Damage Reduction
+  guid: 6857fac4-1512-45c3-ba5a-db4da1d266b7
+  name: Avatar of Uttermost Cold
+  description: Until the end of the encounter or until you are dead, you become an avatar of uttermost cold. You gain immunity to all damage equal to the cold damage immunity granted by your Entropic Adaptability trait, you ignore the negative effects of dying, and you have a +2 bonus to potencies.
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: 4cb0bba7-8733-4256-b65d-a81fb9132d36
+  source: Ongoing Effect
+  value: "-(Maximum Stamina/2)"
+  domains:
+    CharacterOngoingEffect:4cb0bba7-8733-4256-b65d-a81fb9132d36: true
+  name: Avatar of Uttermost Cold
+  guid: 07c8ab17-0af7-4c4c-8868-c9f11bffd9a7
+  description: Until the end of the encounter or until you are dead, you become an avatar of uttermost cold. You gain immunity to all damage equal to the cold damage immunity granted by your Entropic Adaptability trait, you ignore the negative effects of dying, and you have a +2 bonus to potencies.
+  behavior: attribute
+  attribute: f70898b2-fb61-4384-a673-bdb2fbf51a35
+- __typeName: CharacterModifier
+  sourceguid: 4cb0bba7-8733-4256-b65d-a81fb9132d36
+  source: Ongoing Effect
+  value: 2
+  domains:
+    CharacterOngoingEffect:4cb0bba7-8733-4256-b65d-a81fb9132d36: true
+  name: Avatar of Uttermost Cold
+  guid: 59043078-5854-43e1-a4ef-b09a82cf534e
+  description: Until the end of the encounter or until you are dead, you become an avatar of uttermost cold. You gain immunity to all damage equal to the cold damage immunity granted by your Entropic Adaptability trait, you ignore the negative effects of dying, and you have a +2 bonus to potencies.
+  behavior: attribute
+  attribute: 20009cb8-8c21-497f-9563-b2d8c99176dd
+source: Ongoing Effect
+guid: 4cb0bba7-8733-4256-b65d-a81fb9132d36
+id: 4cb0bba7-8733-4256-b65d-a81fb9132d36
+ctime: 1772542355203
+domains:
+  CharacterOngoingEffect:4cb0bba7-8733-4256-b65d-a81fb9132d36: true
+sustainFormula: not self.stamina <= self.Dying Stamina
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Avatar of Uttermost Cold
+custom: true
+description: Until the end of the encounter or until you are dead, you become an avatar of uttermost cold. You gain immunity to all damage equal to the cold damage immunity granted by your Entropic Adaptability trait, you ignore the negative effects of dying, and you have a +2 bonus to potencies.
+mtime: 1772545809048
+iconid: ui-icons/skills/1.png

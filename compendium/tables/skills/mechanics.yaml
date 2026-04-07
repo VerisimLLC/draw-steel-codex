@@ -1,0 +1,11 @@
+__typeName: Skill
+specializations:
+- __typeName: SkillSpecialization
+  text: Magic
+  id: dbfd3faa-0a46-4d12-8fce-752316d91d9e
+attribute: rea
+name: Mechanics
+mtime: 1768772544730
+description: Build machines and clockwork items
+id: ac718c6f-05e2-4301-997c-b1c54aad9250
+ctime: 1699740134721

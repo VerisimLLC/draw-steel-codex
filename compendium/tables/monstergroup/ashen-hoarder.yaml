@@ -1,0 +1,111 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: 347764e2-27c4-42d8-b2e6-e457d167ac84
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Relentless Strikes
+  range: 1
+  description: The ashen hoarder moves up to their speed and can make a free strike against two targets.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: a58f8774-1aa0-475c-9e37-3d2b46268bd9
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: ff129c4d-d11d-4142-a7f0-61684fb5a995
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  targetType: self
+  name: Solo Action
+  range: 1
+  description: |-
+    The ashen hoarder takes an additional main action on their turn.
+    They can use this feature even if they are dazed.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: 071f1cee-19de-464a-990e-720f43d1482d
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Blade Wall
+  range: 1
+  description: The ashen hoarder summons a 10 wall of bones and blades into unoccupied squares within 5 squares of them. Each square of the wall has 5 Stamina. An enemy who comes adjacent to the wall for the first time in a round or starts their turn there takes 3 damage.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: false
+  repeatTargets: false
+  targetAllegiance: enemy
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: agl
+    roll: 2d10 +  Agility
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 14 damage; restrained and bleeding (save ends)
+    - 11 damage; bleeding (EoT)
+    - 6 damage
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "20"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: da97deec-78e7-478d-a992-f8c2358af84e
+  abilityType: none
+  numTargets: "1"
+  preDescription: ""
+  name: Bone Storm
+  targetType: all
+  description: The ashen hoarder launches bone lances into the air, raining them down on enemies and impaling those unlucky enough to be on the receiving end. Each enemy within 20 squares of the ashen hoarder makes an Agility test.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+mtime: 1762940931911
+name: Ashen Hoarder
+traits: []
+attacks: []
+id: ef5afc45-93f8-4b91-8709-f5503bf65386
+ctime: 1758524517396

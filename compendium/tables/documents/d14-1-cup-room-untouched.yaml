@@ -1,0 +1,46 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 36a8f872-a48f-4375-85ab-765e45e86750
+ctime: 1761751516141
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |
+      > * “As you enter, a voice calls out, ‘No fell hand shall seize the Cup of Iulius so long as Dame Cornelia has bones with which to do something about it!’”
+    n: |
+      # Loot
+    K: |
+      > * “A massive set of steps leads up to a landing where the Cup of Iulius sits on a plinth that stands between two massive, flaming braziers.”
+    h: |+
+      See [Encounter D14.1].
+
+    V: |
+      > * “An armored wight emerges from a sarcophagus on the landing. She produces a glaive, blocking your view of the chalice. She drives the blade into the ground, causing humanoid figures to writhe and rise around her on the landing.”
+    F: |+
+      # D14.1 Cup Room Untouched
+
+    v: |2+
+
+
+    t: |
+      Cornelia’s sarcophagus contains a [item:Revenger's Wrap]. The plinth holds the [item:Cup of Iulius].
+    x: "[[/activateobject cup_of_iulius activate|Show Cup of Iulius]] [[/activateobject cup_of_iulius deactivate|Hide Cup of Iulius]]"
+    b: |+
+      Dame Cornelia leads twelve decrepit skeletons, four soulwights, and three zombies in attacking the heroes.
+
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 858efcdf-47a7-499a-9a87-bfe81651ca71
+mtime: 1764237757374
+content: |
+  # D14.1 Cup Room Untouched
+
+  > * “A massive set of steps leads up to a landing where the Cup of Iulius sits on a plinth that stands between two massive, flaming braziers.”
+  > * “As you enter, a voice calls out, ‘No fell hand shall seize the Cup of Iulius so long as Dame Cornelia has bones with which to do something about it!’”
+  > * “An armored wight emerges from a sarcophagus on the landing. She produces a glaive, blocking your view of the chalice. She drives the blade into the ground, causing humanoid figures to writhe and rise around her on the landing.”
+  Dame Cornelia leads twelve decrepit skeletons, four soulwights, and three zombies in attacking the heroes.
+
+  See [Encounter D14.1].
+
+  # Loot
+  Cornelia’s sarcophagus contains a [Revenger's Wrap] (see Treasure in Handouts). The plinth holds the [Cup of Iulius] (see Treasure in Handouts).
+description: D14.1 Cup Room Untouched

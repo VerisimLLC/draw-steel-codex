@@ -1,0 +1,33 @@
+__typeName: ActivatedAbility
+id: 382f33da-d9a0-4eae-a17a-a745381f987c
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: 61ced55f-0a64-4c52-889f-441d2d7ac199
+  stacks: "<<number>>"
+  duration: save_ends
+  ongoingEffectCustom: 61ced55f-0a64-4c52-889f-441d2d7ac199
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+repeatTargets: false
+testCases:
+- text: the target has acid weakness 7 (save ends)
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 91fd0d0a-6639-4c03-aa91-065d0da8cffc
+importMatch: the target has acid weakness <<number>> \(save ends\)
+ctime: 1758308644727
+description: ""
+implementation: 3
+targetType: self
+name: Weakness - Acid
+numTargets: "1"
+mtime: 1759800604420
+abilityType: none
+iconid: 1c43b197-58f2-44e1-aaf0-a0045b00e57d

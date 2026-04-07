@@ -1,0 +1,64 @@
+__typeName: equipment
+itemPrerequisite: A sheet of paper infused with the dust of a painite
+keywords:
+  Magic: true
+  Scroll: true
+projectSource: Texts or lore in the First Language
+flavor: This scroll is marked by sigils of power, death, and life.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+implementation: 2
+description: |-
+  As a respite activity, you repeatedly chant the contents of this scroll over the remains of a creature who has been dead for less than 1 year. The creature’s soul must be willing to return to life for the scroll to work. If they are not willing, you instinctively understand that as you start the respite activity and can cease it immediately. The scroll is not consumed, and you can undertake a new respite activity. 
+  A creature with a willing soul returns to life at the end of the respite with full Stamina and half their Recoveries. You regain only half your Recoveries at the end of the respite, and the scroll is consumed.
+echelon: 2
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: "90"
+id: e0f9459d-4cee-430b-9e48-02c49a3301c2
+ctime: 1774828182347
+name: Scroll of Resurrection
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  implementationDetails: Implemented as Reminder text for the Respite Journal popup.
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: This scroll is marked by sigils of power, death, and life.
+  categorization: Ability
+  range: 5
+  consumables:
+    e0f9459d-4cee-430b-9e48-02c49a3301c2: 1
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: 41eeb6d0-196b-48af-b885-93e929a145ea
+  sourceReference:
+    __typeName: SourceReference
+    page: 318
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  persistence: []
+  castImmediately: true
+  description: |-
+    As a respite activity, you repeatedly chant the contents of this scroll over the remains of a creature who has been dead for less than 1 year. The creature’s soul must be willing to return to life for the scroll to work. If they are not willing, you instinctively understand that as you start the respite activity and can cease it immediately. The scroll is not consumed, and you can undertake a new respite activity. 
+    A creature with a willing soul returns to life at the end of the respite with full Stamina and half their Recoveries. You regain only half your Recoveries at the end of the respite, and the scroll is consumed.c
+  implementation: 2
+  name: Scroll of Resurrection
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 3a6cc5fe-cab9-4190-8e27-6f04d466067c
+    ongoingEffectSource: specific
+    ongoingEffectCustom: false
+  attributeOverride: no_attribute
+  abilityType: none
+  iconid: 4ea41df8-e4e2-462a-b192-d48e6945d37f
+mtime: 1774831874105
+projectRollCharacteristic:
+  inu: true
+  prs: true
+iconid: 4ea41df8-e4e2-462a-b192-d48e6945d37f

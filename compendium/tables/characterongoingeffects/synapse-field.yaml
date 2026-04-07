@@ -1,0 +1,70 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: c55ea457-eca1-4e27-8c33-3a84fef06215
+  sourceguid: c68b9ef9-a813-40e9-a23c-e6453b470233
+  value: 1
+  source: Ongoing Effect
+  name: Synapse Field
+  behavior: attribute
+  description: whenever an enemy in the area takes rolled damage, they take extra psychic damage equal to twice your Intuition score.
+  attribute: bd01a4c5-0758-4453-8d71-5d2257aa23fd
+- __typeName: CharacterModifier
+  description: whenever an enemy in the area takes rolled damage, they take extra psychic damage equal to twice your Intuition score.
+  sourceguid: 201e40e9-1173-41dd-b143-c19ae4d8cfb6
+  behavior: trigger
+  source: Ongoing Effect
+  resourceRefreshType: none
+  guid: b4f72976-8153-4a4e-943d-adf0d03e386c
+  name: Synapse Field
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: subject
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: Nullifying Aura Radius
+    usageLimitOptions:
+      resourceRefreshType: none
+      charges: "1"
+      resourceid: b4f72976-8153-4a4e-943d-adf0d03e386c
+    persistence: []
+    modifiers: []
+    subjectRange: Nullifying Aura Radius
+    strain: []
+    guid: ea3aba57-54fb-4ad2-a2b6-c842983bbff8
+    abilityType: none
+    trigger: losehitpoints
+    conditionFormula: not Ability.name is Synapse Field
+    hasManualVersion: true
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Synapse Field
+      roll: Intuition*2
+      damageType: psychic
+      chatMessage: Synapse Field
+    name: Synapse Field
+    numTargets: "1"
+    description: ""
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 201e40e9-1173-41dd-b143-c19ae4d8cfb6
+id: 201e40e9-1173-41dd-b143-c19ae4d8cfb6
+ctime: 1757981564076
+sustainFormula: Ongoing Effects has "Null Field"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Synapse Field
+statusEffect: false
+description: whenever an enemy in the area takes rolled damage, they take extra psychic damage equal to twice your Intuition score.
+mtime: 1758855232146
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,330 @@
+__typeName: Race
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 0bffccfe-db01-4afc-97f5-29521026cbe1
+      source: Wode Elf Race Feature
+      behavior: power
+      keywords: []
+      activationCondition: true
+      skills:
+      - fdd43bde-6062-484d-aea6-3803d396ea8e
+      - ae13b5cf-718a-42a4-ab5e-18d46b289ac6
+      modtype: edge
+      name: "Signature Trait: Wode Elf Glamor"
+      rollType: test_power_roll
+      description: You can magically alter your appearance to better blend in with your surroundings. You gain an edge on tests made to hide and sneak, and tests made to find you while you are hidden take a bane.
+      guid: 8fe64061-f6c5-4df9-aca3-30318867e473
+      attribute: all
+    - __typeName: CharacterModifier
+      sourceguid: 0bffccfe-db01-4afc-97f5-29521026cbe1
+      source: Wode Elf Race Feature
+      guid: 1d9fbaa2-34a3-403c-aa03-c0b0b4564b38
+      keywords: []
+      activationCondition: true
+      filterCondition: Conditions has "Hidden"
+      behavior: power
+      rollType: opposed_power_roll
+      name: Wode Elf Glamour
+      description: Tests made to find Wode Elves while they are hidden take a bane.
+      modtype: bane
+      skills:
+      - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+    name: "Signature Trait: Wode Elf Glamor"
+    description: You can magically alter your appearance to better blend in with your surroundings. You gain an edge on tests made to hide and sneak, and tests made to find you while you are hidden take a bane.
+    guid: 0bffccfe-db01-4afc-97f5-29521026cbe1
+    source: Wode Elf Race Feature
+    implementation: 3
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    numChoices: "3"
+    costsPoints: true
+    options:
+    - __typeName: CharacterFeature
+      guid: f4930dba-0bc0-41ba-8960-0019e8435f2d
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: e0e81d04-0372-45a8-a55a-4c168a76874d
+        sourceguid: f4930dba-0bc0-41ba-8960-0019e8435f2d
+        value: 1
+        source: Wode Elf Race Feature
+        name: Forest Walk
+        behavior: attribute
+        description: |
+          You can shift into difficult terrain.
+        attribute: 6a081cac-d26a-4e1e-a26b-2ace8c92fb58
+      source: Wode Elf Race Feature
+      name: Forest Walk
+      description: |
+        You can shift into difficult terrain.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 82b5be82-d442-4fd7-a16f-765c8659f729
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 01cfcdfb-5ae1-463f-8787-dbdbf4b59628
+        source: Elf, Wode Race Feature
+        modtype: edge
+        keywords: []
+        activationCondition: true
+        guid: 612b10c4-5681-4827-b584-3224bda4037a
+        behavior: power
+        name: Revisit Memory
+        description: Accessing memories is as easy as living in the present for you. You have an edge on all tests made to recall lore.
+        addText: Accessing memories is as easy as living in the present for you. You have an edge on all tests made to recall lore.
+        rollType: test_power_roll
+        skills:
+        - 61709a09-1a95-4726-b722-c40639cae405
+        - 80526c1a-3cfd-40dc-9065-eb840df8601d
+        - 0df23459-ab2f-4659-8a2d-ae5820dc889f
+        - 57101165-410a-4734-98ee-d4e5b656d3df
+        - bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+        - f15f5445-666a-4ea9-bdf3-fbed284bae85
+        - 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+        - afd26a9a-22e2-4341-b171-f7e3182c8744
+        - f014760c-c987-4436-81ba-5e6acfdf6905
+        - 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+        - 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+      source: Elf, Wode Race Feature
+      name: Revisit Memory
+      description: Accessing memories is as easy as living in the present for you. You have an edge on all tests made to recall lore.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: c99de9a3-ac0e-4f77-9d9b-cec57478943d
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: c99de9a3-ac0e-4f77-9d9b-cec57478943d
+        source: Wode Elf Race Feature
+        value: |
+          6
+        name: Swift
+        guid: f08f5c4b-c64f-4405-839e-dec0ec468c56
+        description: Your speed is 6.
+        behavior: attribute
+        attribute: speed
+      source: Wode Elf Race Feature
+      name: Swift
+      description: Your speed is 6.
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 0e0af5a5-58dd-4a7f-9a11-9e4cafe9ab41
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 2f3eafd8-bb90-4714-9f14-d2f2cd1e9fb9
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            chatMessage: Quick and Brutal
+          conditionFormula: Natural Roll >= 19 and ((Ability.Keywords has "strike") or Ability.Action)
+          whenActive: combat
+          numTargets: "1"
+          trigger: rollpower
+          name: Quick and Brutal
+          description: "Whenever you make an ability roll as an action and the roll is a natural 19 or natural 20—a total of 19 or 20 before adding your characteristic score or other modifiers—you score a critical hit. A critical hit allows you to immediately take an additional action after resolving the power roll, whether or not it’s your turn and even if you are dazed (see Conditions below). \n\nYou can’t score a critical hit with an ability roll made as a maneuver or any other action type, but you can score a critical hit with an action you use off your turn. For example, an opportunity attack made as a triggered action or a signature attack used as a free triggered action with the assistance of the tactician’s Strike Now ability can be critical hits. "
+          abilityType: none
+          iconid: b5db9101-7d79-4166-b119-21a12922ffcd
+        description: ""
+        source: Elf, Wode Race Feature
+        behavior: trigger
+        guid: 61535b77-a5e8-45bf-9b6e-0025cab584b2
+        name: Critical Hit!
+        sourceguid: e14ab0db-d62e-4789-959b-c0eecf06302c
+      source: Elf, Wode Race Feature
+      name: Quick and Brutal
+      description: 'When you score a critical hit, you can take an additional action and move action instead of just an action. '
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: 'Your elven body and mind can’t be contained for long. You succeed on saving throws when you get a 5 or higher. '
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: min
+        sourceguid: eb9f71ba-ffae-4065-b90c-0bbdff48d2b0
+        source: Elf, Wode Race Feature
+        value: 5
+        name: Otherworldly Grace
+        guid: 4f094c73-aefc-4e15-bc9e-2d7181f6a65a
+        description: 'Your elven body and mind can’t be contained for long. You succeed on saving throws when you get a 5 or higher. '
+        behavior: attribute
+        attribute: 006e37a7-bd0d-4602-8a76-05e1ef6c56d3
+      source: Elf, Wode Race Feature
+      name: Otherworldly Grace
+      guid: 14d80a96-0aac-4322-aa0b-a6ff575fb9d4
+      pointsCost: 2
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 6e3cf3a4-8628-4220-bff2-2ff2b9c1487f
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6e3cf3a4-8628-4220-bff2-2ff2b9c1487f
+        guid: 85aed66a-c8da-42f0-bc5e-841c76869211
+        source: Elf, Wode Race Feature
+        behavior: activated
+        description: "You have the ability: The Wode Defends."
+        name: The Wode Defends
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          keywords:
+            Ranged: true
+            Magic: true
+            Strike: true
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.343749761581421
+              s: 0.772363126277924
+              v: 0.659837245941162
+              a: 1
+          flavor: Thorny vines erupt into existence and attempt to bind your foe.
+          categorization: Ability
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 55e4606b-b161-4f59-b9f9-1acf06686498
+          domains: []
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          numTargets: "1"
+          name: The Wode Defends
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 2 + M or A damage; A < [weak] slowed (save ends)
+            - 3 + M or A damage; A < [average] slowed (save ends)
+            - 5 + M or A damage; A < [strong] restrained (save ends)
+            roll: 2d10 + Might or Agility
+          description: ""
+          abilityType: none
+          iconid: 5db1172b-326f-42d8-b028-b500d89b27b0
+      source: Elf, Wode Race Feature
+      name: The Wode Defends
+      description: "You have the ability: The Wode Defends."
+      pointsCost: 2
+      implementation: 3
+    pointsName: ancestry points
+    guid: 4a6ad647-b104-4544-b3a5-f170de50d6dc
+    name: Purchased Wode Elf traits
+    description: "You have 3 Ancestry points to spend on the following traits:"
+  domains:
+    race:e15296f9-deb9-48ae-be8a-0a1d37f2222c: true
+lifeSpan: 1,200–3,000
+nameGenerator: 7ed9148e-8bed-4278-9f15-a8c6be702a95
+id: e15296f9-deb9-48ae-be8a-0a1d37f2222c
+ctime: 1700243006504
+lore: |-
+  “I’m scared,” Wenna said. “We should go back.” The forest felt as if it was closing in on them.
+
+  “We’re not going back,” Jeremy said. Normally, such a statement would be the end of the discussion, but they were alone and far from home.
+
+  “What if we’re going in circles?”
+
+  “Then we keep going in circles!” Dade said from somewhere up ahead. “Until we find the elves.”
+
+  “The elves have found you!” a clear, bright voice called out. The children froze. They scanned the wood, but there were no signs of the speaker.
+
+  Then, only a few feet from them, a half-dozen figures melded out of the background, as if the trees and bushes and grass had been painted on them to perfectly match the wode. They wore light armor covered in leaves, moss, and vines, and they bristled with weapons.
+
+  Meliora gasped. Credan frowned, and Wenna hushed her. Dade was ushered back toward them by two more wode elves, his bow in hand. The children huddled together, Credan’s hand on the symbol of Saint Gryffyn around his neck, and Jeremy’s hand on the hilt of his sword.
+
+  The elves were tall, taller than an adult human, but seemed always to crouch as soon as they stopped moving. Their eyes were unsettling, widely spaced and huge. But it was their ears, long and tall and twisting and set with great scoops to catch all sound, that marked them as elves of the wode.
+
+  “Admittedly, though, most terrans regret the experience.” The voice they had heard called out again—from above. The children looked up and now saw a wode elf with long, furry, twisting ears and nut-brown skin smiling down at them. They wore a brightly colored outfit. The children watched the elf leap lightly from branch to lower branch until finally landing with a flourish on the forest floor before them.
+
+  “Consort!” An elf before them spoke in Yllyric as he stood from his crouch and bowed. “We have been tracking these since they entered the wode.”
+
+  Meliora, who understood the words, whispered to the others. “They called that one ‘consort!’”
+
+  Llyander smiled, looking from Meliora to the elf who had just addressed them with a See? I told you! look on their face.
+
+  The tall, swashbuckling elf bowed to the children. “I am Llyander, the Lightning Strike, Consort to Queen Imyrr.” They indicated the elf who had spoken. “This is my cousin, Rhythylthin.”
+
+  “How did you know we were here?” Jeremy asked. Dade stood just behind him, with an arrow now nocked.
+
+  The one called Rhythylthin reached out while Dade was turned, looking at the queen’s consort, and deftly plucked the arrow from the young man’s bow.
+
+  “Nothing happens within the wode without our knowledge,” the elf said. Dade spun on him and nocked another arrow. “And approval,” Rhythylthin added, clenching his fist and snapping the arrow in it. “You come bearing a gift for our queen—the Codex Dryadalis.”
+
+  Llyander nodded at the heavy scroll Meliora carried. “My cousin Rhythylthin here was sent to capture you and escort you to the Orchid Court. But I am the queen’s consort, and have my own thoughts on the matter.”
+
+  The elf smiled at the children. “But have no fear,” they said. Their Vaslorian was perfect, their voice a melody. “You are safe … now.” The pause before “now” spoke volumes.
+
+  “Are you a … a … boy or a girl?” Wenna asked.
+
+  Llyander smiled gaily. “I am a song! I contain melodies and harmonies alike,” they said. Wenna smiled.
+
+  Rhythylthin rolled his eyes. Llyander noticed this and winked at him. “Fashions change. My cousin here wears the new trends.” They gestured at the other wode elf’s garb and masculine appearance. “Me? I’m old fashioned.” They gestured to their own outfit and appearance. “Grace never goes out of style.”
+
+  Llyander turned to Rhythylthin and the rest of the wode elf band. “Their gift goes to Lord Tear, methinks. I will escort them.” Then, suddenly imperious, they added, “You may go.”
+
+  In spite of his previous skepticism toward the queen’s consort, Rhythylthin straightened and bowed. As one, the elves turned and flowed into the wode. In only a few steps, they melded into the trees and undergrowth.
+
+  “How did they do that?” Meliora demanded, spinning to confront their benefactor.
+
+  “Hmm? Do what?” Llyander asked, looking after the elves, wondering what Meliora meant. 
+
+  “Just … disappear like that!”
+
+  Llyander looked at the other children with a combination of wonder and annoyance. “Do terran children not play hiding games?”
+
+  “Well …” Jeremy looked at Dade, who was no help. “We do, but …”
+
+  Llyander made a theatrical, dismissive gesture with one arm. “Well, it is the same thing, then. But for our people, it is a game we practice all our lives! We would be poor protectors of the wode if we could not conceal ourselves within it.”
+
+  “But that was …” Meliora was frustrated at the elf’s seeming evasion. “That was magic!”
+
+  “You say? Well,” Llyander mused, “terrans are a part and apart, it is said. It is your blessing and your curse methinks. Perhaps someday you can explain it to me!” The elf’s eyes twinkled at Meliora’s frustration.
+
+  Llyander turned and marched off. “Come!” they called. The children ran to catch up.
+
+  “Where are we going?” Wenna asked.
+
+  “I enjoy the favor of Lord Tear,” Llyander said. “We are old friends. With me as your guide, he will treat you well—likely bestow favor upon you! You should be in anticipation of great treasure.” They smiled.
+
+  The elf stopped suddenly and spun toward them, serious but kindly. They pointed to each of the children in turn.
+
+  “I will instruct you on the proper etiquette, but remember this: Lord Tear will test us. Some tests for you and some for me. The high elves and the wode elves are but distant cousins. You will hear much that is polite, much that is flattering, but it is all another kind of glamor. It hides deep tensions, recently exacerbated by the treaty with Ajax.”
+
+  The children nodded. The elf, satisfied, marched off and they followed.
+
+  Jeremy turned to Dade. “I feel like we’re in a dream,” he whispered.
+
+  “You are!” their escort called out. “The wode is a dream! With a little luck, one you may soon wake safely from.”
+moveSpeeds:
+  walk: 5
+details: "Children of the sylvan celestials and masters of the elf-haunted forests called wodes, wode elves see all forests as their domain by birthright. They know and enjoy their reputation among humans for snatching children who wander too far into the woods. Humans should fear the trees. \n\nThe wode elves’ natural ability to mask their presence, called glamor, complements their guerilla style of fighting, letting them strike quickly from cover and then meld back into the underbrush. These traits also make the relatively few wode elves who dwell in cities naturally adept at urban warfare. "
+name: Elf, Wode
+mtime: 1757511383504
+height: 5’6’’–6’6’’
+weight: 100–150
+portraitid: 9089e2ec-6a9c-44ad-827f-41b527ccd47c

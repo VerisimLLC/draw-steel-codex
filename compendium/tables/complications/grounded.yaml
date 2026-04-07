@@ -1,0 +1,116 @@
+__typeName: CharacterComplication
+drawback: You attract lightning. Whenever any creature within 2 squares of you takes lightning damage, you take 5 lightning damage that can’t be reduced in any way
+mtime: 1765489957573
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    domains:
+      class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+      class:c1e1c512-6092-423f-85b2-324547f7f390: true
+    modifiers:
+    - __typeName: CharacterModifier
+      domains:
+        class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+        class:c1e1c512-6092-423f-85b2-324547f7f390: true
+      sourceguid: 60cd87f1-9485-4620-8cdb-2e87f1d701d8
+      description: You have the 1st-level Elementalist Specialization feature Motivate Earth. If you also gain this feature in any other way, the Motivate Earth ability becomes a ranged ability for you with a distance of ranged 5.
+      source: Complication
+      name: Grounded - Benefit
+      behavior: activated
+      guid: 98a4eace-c22d-4eee-a56b-d48ac5aa84de
+      activatedAbility:
+        __typeName: ActivatedAbility
+        resourceNumber: 2
+        targetTextOverride: Special
+        repeatTargets: false
+        keywords:
+          Earth: true
+          Magic: true
+          Melee: true
+        targetType: self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        flavor: 'The earth rises, falls, or opens up at your command. '
+        sourceReference:
+          __typeName: SourceReference
+          page: 130
+          docid: a623e586-b67d-4563-a5b8-62744d648c31
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 163b5beb-9ac9-4f75-be99-3f3272ea9011
+        abilityType: none
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        domains:
+          class:cb7d3e3a-e0c6-4161-8cd0-773be869ec2c: true
+          class:c1e1c512-6092-423f-85b2-324547f7f390: true
+        numTargets: "1"
+        behaviors: []
+        name: Motivate Earth
+        categorization: Heroic Ability
+        description: "You touch a square containing mundane dirt, stone, or metal and create a 5 wall of the same material, which rises up out of the ground and must include the square you touched. \n\nAlternatively, you touch a structure made of mundane dirt, stone, or metal that occupies 2 or more squares. You can open a 1-square opening in the structure where you touched it. You can instead touch an existing doorway or other opening that is 1 square or smaller in a mundane dirt, stone, or metal surface. The opening is sealed by the same material that makes up the surface. "
+        resourceCost: none
+        iconid: ui-icons/skills/1.png
+    source: Complication
+    classid: cb7d3e3a-e0c6-4161-8cd0-773be869ec2c
+    guid: aef37324-41e0-4a33-a26b-6323f2d87977
+    description: You have the 1st-level Elementalist Specialization feature Motivate Earth. If you also gain this feature in any other way, the Motivate Earth ability becomes a ranged ability for you with a distance of ranged 5.
+    name: Grounded - Benefit
+  - __typeName: CharacterFeature
+    description: You attract lightning. Whenever any creature within 2 squares of you takes lightning damage, you take 5 lightning damage that can’t be reduced in any way.
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        triggerPrompt: "You attract lightning. Whenever a creature within 2 of you takes lightning damage,you take 5 lightning damage that can't be reduced in any way. "
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        persistence: []
+        modifiers: []
+        subjectRange: "2"
+        strain: []
+        guid: 3c2a0e3f-874e-45e1-8e3d-4b8cb0bf68f4
+        behaviors:
+        - __typeName: ActivatedAbilityDamageBehavior
+          roll: "5"
+          damageType: lightning
+          cannotBeReduced: true
+          titleText: ""
+          chatMessage: ""
+        abilityType: none
+        castImmediately: true
+        trigger: losehitpoints
+        numTargets: "1"
+        name: Grounded - Drawback
+        conditionFormula: Damage Type = "Lightning"
+        description: You attract lightning. Whenever any creature within 2 squares of you takes lightning damage, you take 5 lightning damage that can’t be reduced in any way.
+        subject: other
+        iconid: ui-icons/skills/1.png
+      description: You attract lightning. Whenever any creature within 2 squares of you takes lightning damage, you take 5 lightning damage that can’t be reduced in any way.
+      source: Feat
+      behavior: trigger
+      guid: 30b23d10-6459-4179-8de5-626c8c4f3410
+      name: Grounded - Drawback
+      sourceguid: 7cf7637d-b7ec-47de-83d1-0f5bdff7fba5
+    source: Feat
+    canHavePrerequisites: true
+    guid: 7cf7637d-b7ec-47de-83d1-0f5bdff7fba5
+    name: Grounded - Drawback
+    implementation: 3
+name: Grounded
+ctime: 1755515146639
+description: Once when you were a child, your settlement was in danger and you called out to the earth for aid. That call was answered by a summoning of protective dirt-and-stone walls, and ever since then, you’ve felt the earth’s presence as a friend and protector.
+id: 19b749a3-f666-49e2-8a68-b50d2c537d28
+benefit: "You have the 1st-level Elementalist Specialization feature Motivate Earth (see Chapter 5: Classes). If you also gain this feature in any other way, the Motivate Earth ability becomes a ranged ability for you with a distance of ranged 5."

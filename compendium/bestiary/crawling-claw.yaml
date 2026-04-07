@@ -1,0 +1,293 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: fe5c5cd4-2075-400b-8ec8-5850355c34a1
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.741174
+    portraitOffset:
+      x: 0.08789045
+      y: -0.06853911
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Crawling Claw
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 70022116-994f-42d6-9b71-001531d27add
+  properties:
+    __typeName: monster
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    cr: 1
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      inu:
+        baseValue: -1
+        id: inu
+      pre:
+        __typeName: CharacterAttribute
+        id: pre
+      mgt:
+        baseValue: 0
+        id: mgt
+      agl:
+        baseValue: 2
+        id: agl
+      rsn:
+        baseValue: -4
+        id: rsn
+      rea:
+        baseValue: -5
+        id: rea
+      prs:
+        baseValue: -1
+        id: prs
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      agi:
+        __typeName: CharacterAttribute
+        id: agi
+      end:
+        __typeName: CharacterAttribute
+        id: end
+    weight: 1
+    creatureSize: 1T
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: edaa7169-bfae-4138-9ed9-74b3011d846a
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+        standardAbilityParams:
+          distance: "<<cast.damage dealt>>"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 88f4de29-8996-4984-bb27-1cf455936c96
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      name: Fingernails
+      iconid: 5c6cdce4-5d3d-41dc-8f51-50660905f343
+      description: The crawling claw shifts a number of squares equal to the damage dealt.
+      abilityType: none
+      implementation: 4
+    damageThreshold: 5
+    opportunityAttack: 1
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Crawling Claw	Level 1 Minion Harrier
+        Undead	EV 3 for four minions
+        <b>Stamina</b> 4	<b>Immunity</b> corruption 1, poison 1
+        <b>Speed </b>6 (climb)	<b>Size</b> 1T /<b> Stability</b> 0
+        <b>With Captain</b> Speed +2	<b>Free Strike</b> 1
+        Might 0	Agility +2	Reason -5	Intuition -1	Presence -1
+        <b>Fingernails</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	1 damage
+        %E2%98%85	12%E2%80%9316	2 damage
+        %E2%9C%B8	17+	3 damage
+        <b>Effect</b> The crawling claw shifts a number of squares equal to the damage dealt.
+
+        <b>Disorganized</b>
+        The crawling claw can't grant the flanking benefit to allies.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2c287927-fac6-469d-85a8-a0a5ed009605: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 2c287927-fac6-469d-85a8-a0a5ed009605
+        source: Trait
+        guid: c0ca55ff-77c4-4422-8f69-89e018416568
+        domains:
+          CharacterFeature:2c287927-fac6-469d-85a8-a0a5ed009605: true
+        name: Disorganized
+        value: 1
+        description: The crawling claw can't grant the flanking benefit to allies.
+        behavior: attribute
+        attribute: b3eda2a2-a0da-44c7-8a67-e34f4805ff96
+      source: Trait
+      description: The crawling claw can't grant the flanking benefit to allies.
+      guid: 2c287927-fac6-469d-85a8-a0a5ed009605
+      name: Disorganized
+      implementation: 3
+    role: Minion Harrier
+    equipment: []
+    xp: 0
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    keywords:
+      Undead: true
+      Soulless: true
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: ddf8ac45-b82e-403d-a095-2f756bde1261-2037
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        3c36238c-8ec9-42a9-8f59-c3e9581944b6:
+          refreshid: c1fb1021-4a8b-4cd2-9167-65d1f274a2b7
+          note: Fingernails
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        af72331b-7422-49bf-9568-1aec0c9b17d4:
+          refreshid: b71a8201-99ea-4093-a8a7-1ee13d3fa5a8
+          note: Fingernails
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        f8bb522c-d6b0-462f-ab6c-5220411aedf5:
+          refreshid: 57f9234e-d438-4ac2-ad52-1f9e4fba4641
+          note: Fingernails
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        f513a129-ddfd-45b2-84d5-c57ecb20bc66:
+          refreshid: 760f918c-cee1-4626-b25a-0c0161dd5621
+          note: Fingernails
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+    attributesBonusAdd: []
+    minion: true
+    initiativeGrouping: 9c54ede1-0933-4ad1-a9e7-645f12edfb90
+    monster_type: Crawling Claw
+    damage_taken: 0
+    savingThrowRatings: []
+    walkingSpeed: 6
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 9bb33cc7-ee9d-4c06-bdf0-d0c7b3b8ceb3
+        used: 1
+    minionSquad: Crawling Claw Squad 1
+    traitNames: []
+    max_hitpoints_history:
+      __typeName: StatHistory
+      entries:
+        c7716399-6930-4d4a-933b-dcf6a8424eaf:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 1
+        24bab17e-7756-4d34-a6c3-d40cfffc3f80:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 5
+    movementSpeeds:
+      climb: 6
+    fmr: 0
+    withCaptain: +2 bonus to speed
+    monster_category: Monster
+    availableTriggers: []
+  tokenType: null
+  bestiaryId: 3257ec4a-a527-4711-b464-8123c13eb36c
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 0
+  createdTimestamp: 1709024280898
+description: Crawling Claw
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 1
+ctime: 1741590235318
+mtime: 1775201137032
+hidden: false

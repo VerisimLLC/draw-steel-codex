@@ -1,0 +1,337 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:round2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - spawnlocs:
+        - __usertype: LuaLoc
+          loc: "1,4,1"
+        - __usertype: LuaLoc
+          loc: "1,3,1"
+        monsters:
+          9fd8f529-4635-452a-b90c-4dc1ff74a891: 2
+      - spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-1,4,1"
+        - __usertype: LuaLoc
+          loc: "-1,3,1"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      name: Round 2
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "1,9,1"
+        - __usertype: LuaLoc
+          loc: "1,10,1"
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      - appearances:
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,9,1"
+        - __usertype: LuaLoc
+          loc: "-1,9,1"
+        minHeroes: 4
+      - appearances:
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-1,10,1"
+        - __usertype: LuaLoc
+          loc: "0,10,1"
+        minHeroes: 5
+      - appearances:
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "0,8,1"
+        - __usertype: LuaLoc
+          loc: "1,8,1"
+        minHeroes: 6
+      name: Goblin Guards
+    spawns:
+    - e6b40913-d770-4426-ac84-33f8bb150352
+    - e2ce1379-9883-4b32-8755-0d30dbd15f48
+    - 3d8baaad-1b84-4c08-92eb-42b0e744b4a8
+    - 3c848668-7065-4e9a-86f7-47e6da3ea391
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: 04eae049-3fdf-478c-a40f-d2376837e0fa
+ctime: 1757312325176
+textStorage:
+  __typeName: TextStorage
+  sections:
+    oZ: |
+      ???query slowstart = 0
+    x: |+
+      If the heroes capture or question a goblin, the goblin provides the following information and then flees the first chance they get: [What do the goblins know].
+
+
+
+    u: |+
+      When the battle is done, [Ashleigh] tells the heroes that much as she wants to join the rescue for [Violet], she knows that she’s likely just going to get in the way. She stays outside the tomb to wait for them, refusing to go back to Broadhurst until she knows the fate of her daughter.
+
+
+    v: |+
+      ## What do the goblins know?
+
+    s: |+
+      *The Journals in The Delian Tomb Adventure provide a button to automatically add a victory to your players' sheets, and the Codex will automatically start them with the correct amount of Heroic Resources. Players can manually adjust their victories on their sheets as well if needed.*
+
+
+    t: |+
+      ## Ashleigh Waits
+
+    q: |
+      > * “Huzzah! You won your first Draw Steel battle. That means each of you earns 1 Victory.”
+    r: |+
+      > * “Keep track of your Victories on your hero’s sheet. Each time you start a new combat encounter, you gain heroic resources equal to the number of Victories you have.”
+
+    o: |
+      ???query slowstart = 1
+    p: |
+      Give the players the following information:
+    m: |+
+      ## Victory
+
+    n: |
+      If the heroes win the battle, they now gain their "Encounter 2" features from the slow start rules. They also each gain a victory.
+    k: |
+      |Fleeing Foes|
+    l: |+
+      |If the heroes wish to give chase at the end of an encounter when their foes flee, go around the table and have each hero narrate how they catch up to an enemy and deliver a finishing blow until all the enemies are dealt with.|
+
+
+    i: |+
+      ## Ending the Encounter
+
+    j: |+
+      The goblins fight until after the second wave arrives and they are outnumbered two to one. They then flee—at which point the encounter is over.
+
+
+    g: |
+      ## Tactics
+    h: |+
+      During the first round, the goblin warriors run at the hero nearest to them, taking the Charge action with Spear Charge to close the gap if necessary. As the goblins attack, they shout for help. During the second round of combat, the assassins try to flank a hero to gain an edge on their Sword Stab ability. The new and remaining warriors get close to an opponent using Spear Charge and then attempt to back out of the fray, using hit-and-run tactics.
+
+
+    e: |
+      ## Ashleigh
+    f: |+
+      Ashleigh isn't much help in a fight. Because of her non-threatening status, the goblins ignore her while there are still heroes to contend with. She hides behind a tree in the starting area of the battle and stays there.
+
+    c: |+
+      You can use this encounter panel to add these goblins at the start of round 2:
+
+    d: |+
+      [[encounter:round2]]
+
+    a: |+
+      ## Round 2 Reinforcements
+
+    b: |+
+      At the start of the second round of combat, two goblin assassins and two goblin warriors emerge from the entrance of the tomb, appearing anywhere you choose within 3 squares of the entrance.
+
+    or: |+
+      ???
+
+    oi: |
+      [[//awardvp 1|Award Heroes 1 Victory]]
+    oQ: |
+      ???
+    Y: |+
+      When you are ready to start the combat, [Draw Steel!]
+
+    Z: |+
+      *If this is your first time running a combat in Draw Steel, read [Explaining Combat]. The Codex automates a lot of it for you, but it may be good to know why certain automations are happening.*
+
+
+
+    W: |+
+      Press the **Place on Map** button to place the monster tokens down.
+
+    X: |+
+      [[encounter]]
+
+    U: |+
+      [[setting:numheroes]]
+
+    V: |
+      Use the encounter panel below to easily add the goblins to their correct position on the battle map. 
+    S: |+
+      * For three heroes, remove four **goblin warriors** at the start of the encounter.
+
+    T: |+
+      To correctly calculate the size of the encounter, configure the number of heroes who will be playing. The Codex will then adjust the encounter to fir your selected numbr of heroes. The encounter information will still be provided here, and in future encounters. 
+
+    Q: |
+      * For six heroes, add two **goblin warriors** to the start of the encounter.
+    R: |
+      * For four heroes, remove two **goblin warriors** at the start of the encounter.
+    O: |+
+      |The Delian Tomb is written for five players each controlling one hero, but the adventure includes adjustments for groups of heroes as small as three or as large as six where appropriate.|
+
+
+    P: |+
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+
+    M: |+
+      ## Encounter Adjustments
+
+    N: |
+      |##### Encounter Adjustments|
+    K: |
+      | 4|Two [goblin warrior]s | 
+    L: |+
+      | 5|Two [goblin assassin]s | 
+
+
+    I: |
+      | 2|Two [goblin warrior]s | 
+    J: |
+      | 3|Two [goblin warrior]s | 
+    G: |
+      |**Group** |**Creatures** | 
+    H: |
+      | 1|Two [goblin warrior]s | 
+    E: |+
+      At the start of combat, there are six **goblin warriors**. These warriors act in groups of two.
+
+
+    F: |
+      **Goblin Guard Groups**
+    C: |+
+      The heroes battle goblins outside the Delian Tomb.
+
+    D: |+
+      When the goblins notice the heroes, they attack!
+
+    oH: |
+      [[//slowstartlevel 2; awardvp 1|Award Heroes 1 Victory and Level to Encounter 2]]
+    B: |+
+      # Goblin Guards
+
+parentFolder: 05ac910d-c832-46cc-8ca6-449bde0d4969
+updateid: 27447117-ae84-41d9-8102-b0203e320faf
+mtime: 1770124241148
+content: |+
+  # Goblin Guards
+
+  The heroes battle goblins outside the Delian Tomb.
+
+  When the goblins notice the heroes, they attack!
+
+  At the start of combat, there are six **goblin warriors**. These warriors act in groups of two.
+
+
+  **Goblin Guard Groups**
+  |**Group** |**Creatures** | 
+  | 1|Two [goblin warrior]s | 
+  | 2|Two [goblin warrior]s | 
+  | 3|Two [goblin warrior]s | 
+  | 4|Two [goblin warrior]s | 
+  | 5|Two [goblin assassin]s | 
+
+
+  ## Encounter Adjustments
+
+  |##### Encounter Adjustments|
+  |The Delian Tomb is written for five players each controlling one hero, but the adventure includes adjustments for groups of heroes as small as three or as large as six where appropriate.|
+
+
+  If this encounter has more or fewer than five heroes, make the following adjustments:
+
+  * For six heroes, add two **goblin warriors** to the start of the encounter.
+  * For four heroes, remove two **goblin warriors** at the start of the encounter.
+  * For three heroes, remove four **goblin warriors** at the start of the encounter.
+
+  To correctly calculate the size of the encounter, configure the number of heroes who will be playing. The Codex will then adjust the encounter to fir your selected numbr of heroes. The encounter information will still be provided here, and in future encounters. 
+
+  [[setting:numheroes]]
+
+  Use the encounter panel below to easily add the goblins to their correct position on the battle map. 
+  Press the **Place on Map** button to place the monster tokens down.
+
+  [[encounter]]
+
+  When you are ready to start the combat, [Draw Steel!]
+
+  *If this is your first time running a combat in Draw Steel, read [Explaining Combat]. The Codex automates a lot of it for you, but it may be good to know why certain automations are happening.*
+
+
+
+  ## Round 2 Reinforcements
+
+  At the start of the second round of combat, two goblin assassins and two goblin warriors emerge from the entrance of the tomb, appearing anywhere you choose within 3 squares of the entrance.
+
+  You can use this encounter panel to add these goblins at the start of round 2:
+
+  [[encounter:round2]]
+
+  ## Ashleigh
+  Ashleigh isn't much help in a fight. Because of her non-threatening status, the goblins ignore her while there are still heroes to contend with. She hides behind a tree in the starting area of the battle and stays there.
+
+  ## Tactics
+  During the first round, the goblin warriors run at the hero nearest to them, taking the Charge action with Spear Charge to close the gap if necessary. As the goblins attack, they shout for help. During the second round of combat, the assassins try to flank a hero to gain an edge on their Sword Stab ability. The new and remaining warriors get close to an opponent using Spear Charge and then attempt to back out of the fray, using hit-and-run tactics.
+
+
+  ## Ending the Encounter
+
+  The goblins fight until after the second wave arrives and they are outnumbered two to one. They then flee—at which point the encounter is over.
+
+
+  |Fleeing Foes|
+  |If the heroes wish to give chase at the end of an encounter when their foes flee, go around the table and have each hero narrate how they catch up to an enemy and deliver a finishing blow until all the enemies are dealt with.|
+
+
+  ## Victory
+
+  If the heroes win the battle, they now gain their "Encounter 2" features from the slow start rules. They also each gain a victory.
+
+  :<>[[/slowstartlevel 2; awardvp 1|Give Hero Rewards]]
+
+  Give the players the following information:
+  > * “Huzzah! You won your first Draw Steel battle. That means each of you earns 1 Victory.”
+  > * “Keep track of your Victories on your hero’s sheet. Each time you start a new combat encounter, you gain heroic resources equal to the number of Victories you have.”
+
+  *The Journals in The Delian Tomb Adventure provide a button to automatically add a victory to your players' sheets, and the Codex will automatically start them with the correct amount of Heroic Resources. Players can manually adjust their victories on their sheets as well if needed.*
+
+
+  ## Ashleigh Waits
+
+  When the battle is done, [Ashleigh] tells the heroes that much as she wants to join the rescue for [Violet], she knows that she’s likely just going to get in the way. She stays outside the tomb to wait for them, refusing to go back to Broadhurst until she knows the fate of her daughter.
+
+
+  ## What do the goblins know?
+
+  If the heroes capture or question a goblin, the goblin provides the following information and then flees the first chance they get: [What do the goblins know].
+
+
+
+description: Goblin Guards Combat

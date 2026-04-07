@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 7d23e637-0f28-489c-a604-a5f8a223d1c3
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ak'karatar
+- __typeName: RollTableRow
+  id: d690fb27-6ab4-4fa7-a3db-4e61b342fe47
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ip'pritt
+- __typeName: RollTableRow
+  id: 646c135b-f9e7-4ab2-9209-0302cfc74c54
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ner'radmok
+- __typeName: RollTableRow
+  id: 2680077b-357c-4dc9-8b5f-a1c25ed8743e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Orov'vika
+- __typeName: RollTableRow
+  id: df1d331e-511c-4044-ac68-1d326ed0a297
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Phe'kala
+- __typeName: RollTableRow
+  id: 71db2469-b27c-49ac-bf96-e6d5dac35bf7
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Quix'x
+- __typeName: RollTableRow
+  id: 89bdfcdc-055e-43e1-a5da-99568970daaf
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Thes'srika
+- __typeName: RollTableRow
+  id: a5944aba-449f-45e5-9998-b3c9d075d910
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Thos'sivik
+- __typeName: RollTableRow
+  id: 55290792-987a-4090-b662-b440e891ae74
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Um'manri,
+- __typeName: RollTableRow
+  id: 0863e3aa-cad3-460e-864d-bd0288b44307
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vir'rikin
+id: ab71663c-7b83-4796-953c-423665d11387
+name: Time Raiders Feminine Names
+subtable: true
+mtime: 1743456099481
+items: false
+ctime: 1743446353203

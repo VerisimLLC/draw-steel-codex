@@ -1,0 +1,270 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    modtype: none
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: false
+    behavior: power
+    description: ""
+    name: Cold Damage
+    rollType: ability_power_roll
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries: []
+      editableField: true
+      id: table
+      field: Level
+    damageTypeMappings:
+      lightning: cold
+      corruption: cold
+      holy: cold
+      untyped: cold
+      sonic: cold
+      cold: cold
+      poison: cold
+      psychic: cold
+      acid: cold
+      fire: cold
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+  source: Item
+  name: Cold Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    modtype: none
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: false
+    behavior: power
+    description: ""
+    name: Fire Damage
+    rollType: ability_power_roll
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries: []
+      editableField: true
+      id: table
+      field: Level
+    damageTypeMappings:
+      lightning: fire
+      corruption: fire
+      holy: fire
+      untyped: fire
+      sonic: fire
+      cold: fire
+      poison: fire
+      psychic: fire
+      acid: fire
+      fire: fire
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+  source: Item
+  name: Fire Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 2ff804b5-b54e-4737-8fda-16460a65fbcc
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    modtype: none
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: false
+    behavior: power
+    description: ""
+    name: Lightning Damage
+    rollType: ability_power_roll
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries: []
+      editableField: true
+      id: table
+      field: Level
+    damageTypeMappings:
+      lightning: lightning
+      corruption: lightning
+      holy: lightning
+      untyped: lightning
+      sonic: lightning
+      cold: lightning
+      poison: lightning
+      psychic: lightning
+      acid: lightning
+      fire: lightning
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+  source: Item
+  name: Lightning Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: be771923-51cf-4d5e-aeaf-069369a2a186
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    modtype: none
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: false
+    behavior: power
+    description: ""
+    name: Sonic Damage
+    rollType: ability_power_roll
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries: []
+      editableField: true
+      id: table
+      field: Level
+    damageTypeMappings:
+      lightning: sonic
+      corruption: sonic
+      holy: sonic
+      untyped: sonic
+      sonic: sonic
+      cold: sonic
+      poison: sonic
+      psychic: sonic
+      acid: sonic
+      fire: sonic
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+  source: Item
+  name: Sonic Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 3884de30-0acf-4a37-941e-f5d132170610
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: f619d1c3-4b65-45b6-b114-81983663c732
+    source: Item
+    value: 3
+    filterCondition: Level >= 5
+    name: Level 5 Bonus Range
+    guid: 22f68f4b-6b6d-4286-8865-c6be8b935ba9
+    description: ""
+    behavior: attribute
+    attribute: 90d8d88a-97ae-41a5-925f-e8e474f13c48
+  source: Item
+  name: Level 5 Bonus Range
+  addText: Add Magical Property
+  itemAttached: true
+  guid: f619d1c3-4b65-45b6-b114-81983663c732
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: Level>=9
+    sourceguid: befdc6dc-3372-4608-b3b1-61b4a09ee9a6
+    name: Level 9 Immunity
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "10"
+      damageType: cold
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: "10"
+      damageType: fire
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: "10"
+      damageType: lightning
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: "10"
+      damageType: sonic
+      apply: Damage Reduction
+    description: ""
+    behavior: resistance
+    guid: 3158d701-9fa3-4a9f-aef9-66c59404a593
+  source: Item
+  name: Level 9 Immunity
+  addText: Add Magical Property
+  itemAttached: true
+  guid: befdc6dc-3372-4608-b3b1-61b4a09ee9a6
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    source: Item
+    modtype: none
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    activationCondition: true
+    behavior: power
+    description: 1/2/3
+    name: Blade of Quintessence Extra Damage
+    rollType: ability_power_roll
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    damageTypeMappings: []
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+  source: Item
+  name: Blade of Quintessence Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: fe1edffe-b686-4ca2-b268-fe30e61d772f
+itemPrerequisite: A ruby hardened in the fires of the City of Brass, a sapphire that has been struck by lightning
+keywords:
+  Magic: true
+  Medium Weapon: true
+projectSource: Texts or lore in Zaliac
+flavor: This crystal blade houses a stormy vortex of fire, ice, and lightning.
+level9: The weapon’s damage bonus increases to +3. Additionally, while you wield or carry the weapon, you have immunity 10 to cold, fire, lightning, and sonic damage.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+description: Any weapon ability that deals rolled damage using this weapon gains a +1 damage bonus. Additionally, you can change the damage type of such abilities to cold, fire, lightning, or sonic.
+implementation: 3
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+projectGoal: "450"
+level5: |
+  The weapon’s damage bonus increases to +2. Additionally, the weapon can be used with ranged weapon abilities, and returns to you when a ranged ability is resolved. Ranged abilities used with the weapon increase their distance by 3, and must deal cold, fire, lightning, or sonic damage (chosen when you use the ability).
+id: 4311014c-2c04-4034-9ffe-f06c1d63234a
+name: Blade of Quintessence
+ctime: 1758398044599
+mtime: 1772884601200
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 496c3d71-5138-4dd3-962b-6c0e9d471b24

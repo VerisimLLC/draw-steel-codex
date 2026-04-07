@@ -1,0 +1,33 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Dragon Blooded Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 67e0b76b-c4a3-4815-b3ef-a9edbf51ea36
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Dragon Scaled
+      description: "Dragon scales grow on your body wherever the heart’s blood of the dragon touched you. You gain the Wyrmplate signature trait from the dragon knight ancestry (see Chapter 3: Ancestries)."
+      guid: 99b65fcf-06f4-40dc-82c2-534784fd2c99
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Dragon Touched
+      description: You gain 3 ancestry points to spend on purchased dragon knight ancestry traits.
+      guid: e96d27b2-8df0-4cd3-ad6a-80ee3d9bf21a
+      canHavePrerequisites: true
+      source: Feat
+id: 2cb6ad12-e439-4915-b37c-4c639e6213fc
+ctime: 1762351920313
+name: Dragon Blooded
+description: I stabbed the wyrm Axarthan in the heart and their silver blood washed over me, leaving me … as you see.
+mtime: 1775214899899
+echelon: "3"
+prerequisite: You defeat a leader or solo creature with the Dragon keyword, such as a gloom dragon.

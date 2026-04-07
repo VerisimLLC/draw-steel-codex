@@ -1,0 +1,182 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 4954839f-4ea6-4561-88e7-60d9e6361f15
+    offtokenPortraitId: 79784822-c21c-4ae1-8d36-72d85219de7c
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3690789
+    portraitOffset:
+      x: -0.04523593
+      y: 0.2488935
+    frameHueShift: 0.78
+    frameSaturation: 0.8
+    frameBrightness: 0.67
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: def8f660-5afa-41ab-b568-a88c7843a1bd
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 5
+    skillProficiencies: []
+    max_hitpoints: 9
+    inflictedConditions: []
+    ev: 7
+    max_hitpoints_roll: "9"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage
+        - 5 corruption damage; slowed (EoT)
+        - 6 corruption damage; slowed (EoT)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: cdae3f47-16b5-4936-a660-a1e9c3979c7a
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Litigation
+      numTargets: 1
+      description: Shift 1.
+      abilityType: none
+      implementation: 3
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Devil Scrivener	Level 5 Minion Harrier
+        Devil, Infernal	EV 7 for four minions
+        <b>Stamina</b> 9	<b>Immunity</b> Fire 5
+        <b>Speed</b> 6 (fly)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Speed +3<b>Free Strike</b> 3
+        Might 0	Agility +3	Reason +1	Intuition +1	Presence +2
+        <b>Litigation</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Magic, Melee, Strike
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	%E2%89%A411	3 corruption damage
+        %E2%98%85	12%E2%80%9316	5 corruption damage; slowed (EoT)
+        %E2%9C%B8	17	6 corruption damage; slowed (EoT)
+        <b>Effect</b> Shift 1.
+
+        <b>True Name</b>
+        If a creature within 10 squares of the scrivener speaks the scrivener's true name aloud, the scrivener loses their fire immunity and the additional effects on their signature action.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8f00172c-1521-4c25-9f57-8ec52b3eaeea: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 38864cdb-b509-4f1b-a1d7-8da114911a67
+        behavior: resistance
+        source: Trait
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "5"
+          damageType: fire
+          apply: Damage Reduction
+        description: ""
+        name: Fire Immunity
+        guid: 6c047d23-3490-4db5-8a14-2a0f0207b964
+      name: True Name
+      description: If a creature within 10 squares speaks the scrivener's true name, the scrivener loses their fire immunity and any nondamaging effects of their signature ability until the end of the encounter.
+      guid: 8f00172c-1521-4c25-9f57-8ec52b3eaeea
+      source: Trait
+    role: Minion Harrier
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    withCaptain: +3 bonus to speed
+    opportunityAttack: 3
+    damage_taken: 0
+    groupid: 2c4ebcaf-087b-4f0d-a94a-61e9b67fb70f
+    resources: []
+    walkingSpeed: 6
+    minionSquad: Devil Scrivener Squad 2
+    creatureSize: 1M
+    traitNames: []
+    movementSpeeds:
+      fly: 6
+    availableTriggers: []
+    initiativeGrouping: b63e667c-c5ff-4153-9b13-f47bcca5aae8
+    monster_type: Devil Scrivener
+    keywords:
+      Infernal: true
+      Devil: true
+  tokenType: null
+  bestiaryId: d24e75af-3074-445a-ab5d-a2ff90d79821
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222946034
+description: Devil Scrivener
+parentFolder: f202e578-675b-4891-ad36-09c24f35518b
+artist: null
+ord: 0
+ctime: 1741590312779
+mtime: 1775201137032
+hidden: false

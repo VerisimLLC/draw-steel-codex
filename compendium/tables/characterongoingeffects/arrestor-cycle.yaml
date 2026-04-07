@@ -1,0 +1,63 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:13c6f64e-4bdd-4e4f-905d-5195002b9d0c: true
+  sourceguid: 13c6f64e-4bdd-4e4f-905d-5195002b9d0c
+  description: A target who doesn’t lose their turn takes psychic damage equal to twice your Intuition score for each main action they take until the end of their next turn.
+  source: Ongoing Effect
+  name: Arrestor Cycle
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: c36bd41b-ab9c-4bbc-a279-edc5b9f9dc55
+    castImmediately: true
+    domains:
+      CharacterOngoingEffect:13c6f64e-4bdd-4e4f-905d-5195002b9d0c: true
+    conditionFormula: Resource = "Main Action"
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: 2*(ConditionCaster("Arrestor Cycle").Intuition)
+      damageType: psychic
+      chatMessage: Arrestor Cycle
+    numTargets: "1"
+    trigger: useresource
+    name: Arrestor Cycle
+    description: A target who doesn’t lose their turn takes psychic damage equal to twice your Intuition score for each main action they take until the end of their next turn.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: f96be630-ed65-4700-b43d-9285da68cec4
+source: Ongoing Effect
+guid: 13c6f64e-4bdd-4e4f-905d-5195002b9d0c
+id: 13c6f64e-4bdd-4e4f-905d-5195002b9d0c
+ctime: 1772628527069
+domains:
+  CharacterOngoingEffect:13c6f64e-4bdd-4e4f-905d-5195002b9d0c: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.819500029087067
+    s: 0.99023449420929
+    v: 0.970632612705231
+    a: 1
+endTrigger: none
+name: Arrestor Cycle
+custom: true
+mtime: 1772631133532
+description: A target who doesn’t lose their turn takes psychic damage equal to twice your Intuition score for each main action they take until the end of their next turn.
+iconid: f908f22f-4baa-4444-aaed-664f73dfdcc3

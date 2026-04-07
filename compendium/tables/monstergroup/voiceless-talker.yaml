@@ -1,0 +1,82 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: b437c19c-de70-4231-94f7-6317f4b4a47d
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Guise
+  range: 1
+  description: One non-minion voiceless talker projects a psionic screen over their body, preventing other creatures from treating them as an enemy until the end of the voiceless talker’s next turn.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Psionic: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 6 psychic damage; R<1 the target can’t treat their allies as allies (save ends)
+    - 10 psychic damage; R<2 the target perceives their allies as enemies (save ends)
+    - 13 psychic damage; R<3 the target perceives their allies as enemies (save ends)
+    roll: 2d10 + 3
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "5"
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  modifiers: []
+  strain: []
+  guid: 1374dab7-70d7-49ac-a463-ffc36513bf29
+  abilityType: none
+  persistence: []
+  numTargets: "1"
+  name: Memory Thief
+  targetType: target
+  description: "Special: This ability can’t be used by a minion."
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "10"
+  strain: []
+  guid: 46a3f3ed-0dfd-47fc-967a-93542ea75fdc
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Evolutionary Circuit
+  range: 1
+  description: All voiceless talkers link their minds, creating a circuit that empowers them while two or more voiceless talkers remain in the encounter. While this circuit is active, any psionic strike made by a voiceless talker deals an extra 5 damage. Additionally, when a non-minion voiceless talker takes damage, they can use a free triggered action to swap places with any voiceless talker minion on the encounter map. The minion takes the damage instead.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1762961770578
+name: Voiceless Talker
+traits: []
+attacks: []
+id: 2d9a554d-5f05-4fa2-a46b-e90b0735d7a3
+ctime: 1758525017325

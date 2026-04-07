@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: min
+  sourceguid: a833c9a3-bb8a-4bb0-ae49-fc81ed49b7f3
+  source: Ongoing Effect
+  value: 0
+  name: Float Powder
+  guid: 1d0f7e07-fff8-48d7-bea6-a24a8953c99b
+  description: Dousing yourself in this powder as a maneuver causes you to weightlessly float off the ground. For 1 hour, your stability is reduced to 0, and you can fly and hover. Additionally, the hag that the powder is sourced from knows exactly where and when you use it.
+  behavior: attribute
+  attribute: forcedmoveresistance
+- __typeName: CharacterModifier
+  guid: 81f3ef12-000e-494d-9e0b-ea1bf481082e
+  sourceguid: a833c9a3-bb8a-4bb0-ae49-fc81ed49b7f3
+  value: 1
+  source: Ongoing Effect
+  name: Float Powder
+  behavior: attribute
+  description: Dousing yourself in this powder as a maneuver causes you to weightlessly float off the ground. For 1 hour, your stability is reduced to 0, and you can fly and hover. Additionally, the hag that the powder is sourced from knows exactly where and when you use it.
+  attribute: fly
+source: Ongoing Effect
+guid: a833c9a3-bb8a-4bb0-ae49-fc81ed49b7f3
+id: a833c9a3-bb8a-4bb0-ae49-fc81ed49b7f3
+ctime: 1774792735768
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Float Powder
+description: Dousing yourself in this powder as a maneuver causes you to weightlessly float off the ground. For 1 hour, your stability is reduced to 0, and you can fly and hover. Additionally, the hag that the powder is sourced from knows exactly where and when you use it.
+custom: true
+mtime: 1774792735768
+iconid: ui-icons/skills/1.png

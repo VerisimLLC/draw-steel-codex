@@ -1,0 +1,69 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:97214170-ea60-4843-b2ec-920c00723e0e: true
+  sourceguid: 97214170-ea60-4843-b2ec-920c00723e0e
+  description: Until the end of the encounter or until you are dying, whenever a target makes a strike, they take holy damage equal to twice your Presence score. A target judged by you takes an extra 2d6 holy damage.
+  source: Ongoing Effect
+  name: Edict of Purifying Pacifism
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      filterTarget: ConditionCaster("judged") = caster
+      damageType: holy
+      roll: 2d6 + Presence*2
+      guid: a2ea3b33-a2ce-4d2b-9cbb-e3a1324b939b
+      titleText: Edict of Purifying Pacifism Damage
+      chatMessage: Edict of Purifying Pacifism Damage
+    - __typeName: ActivatedAbilityDamageBehavior
+      filterTarget: not ConditionCaster("judged") = caster
+      damageType: holy
+      roll: Presence*2
+      titleText: Edict of Purifying Pacifism Damage
+      chatMessage: Edict of Purifying Pacifism Damage
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    abilityType: none
+    persistence: []
+    modifiers: []
+    subjectRange: "2"
+    strain: []
+    guid: 38a3061f-cf01-43bc-8589-84834bff3cd1
+    trigger: useability
+    hasManualVersion: true
+    conditionFormula: Used Ability.Keywords has "Strike"
+    numTargets: "1"
+    domains:
+      CharacterOngoingEffect:97214170-ea60-4843-b2ec-920c00723e0e: true
+    name: Edict of Purifying Pacifism
+    targetType: subject
+    description: Until the end of the encounter or until you are dying, whenever a target makes a strike, they take holy damage equal to twice your Presence score. A target judged by you takes an extra 2d6 holy damage.
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: d7004f41-eb6f-476c-8044-7c7b818371e8
+source: Ongoing Effect
+guid: 97214170-ea60-4843-b2ec-920c00723e0e
+id: 97214170-ea60-4843-b2ec-920c00723e0e
+ctime: 1751135328591
+domains:
+  CharacterOngoingEffect:97214170-ea60-4843-b2ec-920c00723e0e: true
+sustainFormula: ""
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Edict of Purifying Pacifism
+custom: true
+description: Until the end of the encounter or until you are dying, whenever a target makes a strike, they take holy damage equal to twice your Presence score. A target judged by you takes an extra 2d6 holy damage.
+mtime: 1756952157912
+iconid: ui-icons/skills/1.png

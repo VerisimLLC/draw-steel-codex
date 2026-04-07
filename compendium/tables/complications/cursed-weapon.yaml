@@ -1,0 +1,31 @@
+__typeName: CharacterComplication
+drawback: You have damage weakness 2.
+mtime: 1765803910942
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 56fec142-80f7-4ebc-a034-e7c3dd747582
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-2"
+        damageType: all
+        apply: Damage Reduction
+      description: ""
+      name: Cursed Weapon
+      guid: 84d5b295-bef8-42dc-9e67-ab09b2c2af62
+    source: Feat
+    canHavePrerequisites: true
+    guid: 56fec142-80f7-4ebc-a034-e7c3dd747582
+    name: Cursed Weapon
+    implementation: 3
+name: Cursed Weapon
+ctime: 1755513789437
+description: When you were young, you found or were given a magic weapon. Since then, you’ve carried it always at your side, letting it inspire you to lead the life of a hero—even though the weapon is cursed.
+id: 7abebf3e-9adb-404c-8b6f-26488f3bdf1d
+benefit: "You have a leveled weapon of your choice (see Treasures in Chapter 13: Rewards)."

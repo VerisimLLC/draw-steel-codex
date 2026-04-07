@@ -1,0 +1,577 @@
+__typeName: Kit
+stability: 2
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      movementTypes:
+      - from: push
+        to: pull
+      - from: slide
+        to: pull
+      sourceguid: f0a9e86b-6d73-4a4a-b8f6-ef333defb5af
+      source: Boren Kit Feature
+      description: Whenever you use forced movement to push a creature, you can pull that creature instead. Whenever you pull a creature adjacent to you and that creature has M < Average, you can use a free triggered action to make that creature grabbed by you.
+      guid: abe5f17d-c2ca-4451-85b6-e810e983a21c
+      behavior: forcedmovement
+      name: Aspect Benefits
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        targetFilter: Distance(Target, Caster) < 2
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          filterTarget: ""
+          rule: grabbed
+        triggerPrompt: Grab Creature
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        abilityType: none
+        persistence: []
+        modifiers: []
+        subjectRange: ""
+        strain: []
+        whenActive: always
+        trigger: finishmove
+        targetType: subject
+        conditionFormula: type =  "pull" and (Attacker = Self) and (Subject.Might < Self. Average)
+        numTargets: "1"
+        guid: 7c24068a-0daf-44d7-ad8f-409464ef58d4
+        name: Aspect Benefits
+        description: ""
+        abilityFilters: []
+        subject: enemy
+        iconid: ui-icons/skills/1.png
+      description: Whenever you use forced movement to push a creature, you can pull that creature instead. Whenever you pull a creature adjacent to you and that creature has M < Average, you can use a free triggered action to make that creature grabbed by you.
+      source: Boren Kit Feature
+      behavior: trigger
+      guid: c5a1b40b-9b26-490c-b7b8-63b0d03ce9aa
+      name: Aspect Benefits
+      sourceguid: f0a9e86b-6d73-4a4a-b8f6-ef333defb5af
+    name: Aspect Benefits
+    description: Whenever you use forced movement to push a creature, you can pull that creature instead. Whenever you pull a creature adjacent to you and that creature has M < Average, you can use a free triggered action to make that creature grabbed by you.
+    guid: f0a9e86b-6d73-4a4a-b8f6-ef333defb5af
+    source: Boren Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      guid: 1c83fce7-c4c5-4b56-b9c5-d00393eb0eb9
+      source: Boren Kit Feature
+      behavior: activated
+      description: |-
+        **Animal Form: Bear**
+        While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+        **Hybrid Form: Bear**
+        While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      name: Bear Form
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        targetType: self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        flavor: You assume the form of the animal who channels your ferocity
+        sourceReference:
+          __typeName: SourceReference
+          page: 159
+          docid: a623e586-b67d-4563-a5b8-62744d648c31
+        range: 1
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 78d5d3cc-ecaf-4786-b109-556e89c998b1
+        domains: []
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 35a5dd13-3be7-4ac5-a616-0a3ce44bfdf9
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityDisguiseBehavior
+          monsterType: f5272042-0333-4560-b67d-1c8582dbb6f2
+          mode: bestiary
+          appearanceName: Boren Form
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          applyto: caster
+          ongoingEffect: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+          ongoingEffectCustom: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+        castImmediately: true
+        persistence: []
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        name: "Animal Form: Boren"
+        categorization: Hidden
+        description: "**Bear:** While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities."
+        abilityType: none
+        iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+    - __typeName: CharacterModifier
+      filterCondition: Ongoing Effects has "Boren Form" or Ongoing Effects has "Hybrid Boren Form"
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      source: Boren Kit Feature
+      name: Bear Form
+      description: |-
+        **Animal Form: Bear**
+        While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+        **Hybrid Form: Bear**
+        While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      behavior: activated
+      guid: badec940-c066-4308-b8de-22463227d61f
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+          mode: effect
+          conditions: []
+          applyto: caster
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 35a5dd13-3be7-4ac5-a616-0a3ce44bfdf9
+          mode: effect
+          conditions: []
+        multipleModes: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        modeList: []
+        castImmediately: true
+        domains: []
+        numTargets: "1"
+        guid: 820333ae-fce7-445e-87d1-4e44231b3f8a
+        name: True Form
+        targetType: self
+        description: Revert to your original form.
+        abilityType: none
+        iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+    - __typeName: CharacterModifier
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      guid: 4be09982-5378-4484-9e8b-3725b9725c0b
+      source: Boren Kit Feature
+      behavior: activated
+      description: |-
+        **Animal Form: Bear**
+        While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+        **Hybrid Form: Bear**
+        While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      name: Bear Form
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: fd0d8817-ae11-49bb-a3a2-70d256c3b74e
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityDisguiseBehavior
+          monsterType: f5272042-0333-4560-b67d-1c8582dbb6f2
+          mode: bestiary
+          appearanceName: Hybrid Boren Form
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 35a5dd13-3be7-4ac5-a616-0a3ce44bfdf9
+          ongoingEffectCustom: 35a5dd13-3be7-4ac5-a616-0a3ce44bfdf9
+        - __typeName: ActivatedAbilityLimitBehavior
+          keyOverride: transform_stamina
+          key: a59a20c6-5d8a-4f09-a523-d0edfb420bbc
+          applyto: caster
+          refresh: encounter
+        - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+          applyto: caster
+          filterTarget: (not (Ongoing Effects has "Stormwight Has Transformed")) and level >= 4
+          stamina: "10"
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          page: 159
+          docid: a623e586-b67d-4563-a5b8-62744d648c31
+        range: 1
+        actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+        modifiers: []
+        domains: []
+        strain: []
+        guid: 78d5d3cc-ecaf-4786-b109-556e89c998b1
+        numTargets: "1"
+        iconid: 4dc0c122-f4b8-4c7b-aa8c-4456a9cd8cb3
+        castImmediately: true
+        targetType: self
+        categorization: Hidden
+        name: "Hybrid Form: Boren"
+        persistence: []
+        description: "**Bear:** While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina."
+        abilityType: none
+        implementation: 3
+    - __typeName: CharacterModifier
+      description: |-
+        **Animal Form: Bear**
+        While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+        **Hybrid Form: Bear**
+        While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      behavior: alternateappearance
+      name: Bear Form
+      source: Boren Kit Feature
+      guid: 8475f0cd-34e8-4929-98f6-7d23d62c52fb
+      monsterDefault: f5272042-0333-4560-b67d-1c8582dbb6f2
+      appearance: Boren Form
+    - __typeName: CharacterModifier
+      description: |-
+        **Animal Form: Bear**
+        While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+        **Hybrid Form: Bear**
+        While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+      sourceguid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+      behavior: alternateappearance
+      name: Bear Form
+      source: Boren Kit Feature
+      guid: 2b0017c1-387e-4002-a447-686c39e54125
+      monsterDefault: f5272042-0333-4560-b67d-1c8582dbb6f2
+      appearance: Boren Hybrid Form
+    name: Bear Form
+    description: |-
+      **Animal Form: Bear**
+      While you are in your bear form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities.
+      **Hybrid Form: Bear**
+      While you are in your hybrid form, your size is 2 and you gain a +1 bonus to distance with melee weapon abilities. At 4th level, the first time you take hybrid form in an encounter, you gain 10 temporary Stamina.
+    guid: e59c0356-397a-4242-9f09-e2d035c9bbf8
+    source: Boren Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      operation: max
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      source: Boren Kit Feature
+      value: 2
+      filterCondition: Heroic Resources This Turn >= 2
+      name: Boren Growing Ferocity
+      guid: e203f602-d5f3-4a6c-af94-61cb024ac33d
+      description: ""
+      behavior: attribute
+      attribute: 7a91dad1-97f4-4411-b326-425d58bb2bb2
+    - __typeName: CharacterModifier
+      filterCondition: Heroic Resources This Turn >= 2
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      description: ""
+      name: Boren Growing Ferocity
+      guid: a8d9a30d-ebb9-4810-8672-e423dd0f3aff
+      behavior: trigger
+      source: Boren Kit Feature
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        characterConditionRequired: 70504ebe-3899-41d3-9f60-74b52ce35e39
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        characterConditionInflictedBySelf: true
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: b5ea6a4f-b29e-4d1e-960a-accc20fb1189
+        abilityType: none
+        conditionFormula: attacker = self
+        numTargets: "1"
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          chatMessage: "Boren Growing Ferocity: Strike Grabbed Creature"
+        trigger: attacked
+        name: Boren Growing Ferocity
+        description: ""
+        subject: other
+        iconid: ui-icons/skills/1.png
+    - __typeName: CharacterModifier
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      source: Boren Kit Feature
+      behavior: trigger
+      filterCondition: Heroic Resources This Turn >= 4
+      name: Boren Growing Ferocity
+      resourceRefreshType: turn
+      description: ""
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        targetType: self
+        characterConditionRequired: 70504ebe-3899-41d3-9f60-74b52ce35e39
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        characterConditionInflictedBySelf: true
+        range: 1
+        usageLimitOptions:
+          resourceRefreshType: turn
+          charges: "1"
+          resourceid: 891f280c-5075-4bc8-b99a-5f225dac570e
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 3f2ef6bd-96ce-4bc0-95f3-c29e649b6ee3
+        abilityType: none
+        conditionFormula: Condition = "Grabbed"
+        trigger: inflictcondition
+        persistence: []
+        name: Boren Growing Ferocity
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+          chatMessage: "Boren Growing Ferocity: Grabbed"
+          quantity: 2 when level >= 4 and Heroic Resources This Turn >= 8 else 1
+        description: ""
+        subject: other
+        iconid: ui-icons/skills/1.png
+      guid: 891f280c-5075-4bc8-b99a-5f225dac570e
+    - __typeName: CharacterModifier
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      displayCondition: Ability.name = "Grab" or Ability.name = "Knockback"
+      source: Boren Kit Feature
+      modtype: edge
+      keywords: []
+      activationCondition: "1"
+      filterCondition: Heroic Resources This Turn >= 6 and (level < 7 or Heroic Resources This Turn < 10)
+      name: Boren Growing Ferocity
+      rollType: ability_power_roll
+      description: When you have 6 or more Ferocity you have an edge on the Grab and the Knockback maneuvers.
+      guid: 764d3393-368d-4c96-bb89-58187630ae49
+      behavior: power
+    - __typeName: CharacterModifier
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      displayCondition: Ability.name = "Grab" or Ability.name = "Knockback"
+      source: Boren Kit Feature
+      modtype: double_edge
+      keywords: []
+      activationCondition: "1"
+      filterCondition: Heroic Resources This Turn >= 10 and Level >= 7
+      name: Boren Growing Ferocity
+      rollType: ability_power_roll
+      description: |-
+        You have a double edge on the Grab and Knockback 
+        maneuvers.
+      guid: dc4e5d32-5935-4a16-b657-a6565c0874c9
+      behavior: power
+    - __typeName: CharacterModifier
+      filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      description: ""
+      name: Boren Growing Ferocity
+      guid: e9ffa90a-b0a0-46ca-bbc6-3f7f978aa7f0
+      behavior: trigger
+      source: Boren Kit Feature
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: ae447302-faac-4610-8843-40262637abd5
+        repeatTargets: false
+        trigger: useability
+        conditionFormula: UsedAbility.Categorization = "Heroic Ability"
+        targetType: self
+        persistence: []
+        name: Boren Growing Ferocity
+        behaviors:
+        - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+          stamina: "10"
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+    - __typeName: CharacterModifier
+      sourceguid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+      displayCondition: (target.conditions has "Grabbed") and target.ConditionCaster("Grabbed") = self
+      source: Boren Kit Feature
+      guid: e84ce084-f208-4f5c-9eb5-65d3be783340
+      behavior: power
+      keywords: []
+      activationCondition: "1"
+      filterCondition: Level >= 10 and Heroic Resources This Turn >= 12
+      customPotency: Might
+      name: Boren Growing Ferocity
+      rollType: ability_power_roll
+      potencymod: custom
+      description: When you have 12 or more Ferocity you add your Might score to your ability's Potencies.
+      modtype: none
+    - __typeName: CharacterModifier
+      sourceguid: 975fe624-6765-42fa-9ee2-f59c70c9c39d
+      progression:
+      - level: 0
+        description: Can grab two creatures at once. When you strike a grabbed creature you gain 1 surge.
+        resources: 2
+        tooltip: You can have up to two creatures grabbed at a time. Additionally, whenever you make a strike against a creature you have grabbed, you gain 1 surge.
+      - level: 0
+        description: When you grab a creature you gain 1 surge (1/turn).
+        resources: 4
+        tooltip: The first time you grab a creature on a turn, you gain 1 surge.
+      - level: 0
+        description: Edge on Grab and Knockback.
+        resources: 6
+        tooltip: You gain an edge on the Grab and Knockback maneuvers.
+      - level: 4
+        description: When you grab a creature you gain 2 surges (1/turn).
+        resources: 8
+        tooltip: The first time you grab a creature on a turn, you gain 2 surges instead of 1.
+      - level: 7
+        description: Double Edge on Grab and Knockback.
+        resources: 10
+        tooltip: You have a double edge on the Grab and Knockback maneuvers.
+      - level: 10
+        description: When you use a heroic ability gain 10 temporary Stamina. Potency of effects targeting you reduced by 2.
+        resources: 12
+        tooltip: Whenever you use a heroic ability, you gain 10 temporary Stamina. Additionally, whenever you have a creature grabbed, any ability roll made against that creature gains a bonus to its potency equal to your Might score.
+      source: Boren Kit Feature
+      description: ""
+      guid: 8965564a-9613-43fc-b743-cee637da0294
+      behavior: growingresources
+      name: Boren Growing Ferocity
+    name: Boren Growing Ferocity
+    description: ""
+    guid: 7fcde679-5d83-4c09-b816-b3d328f2ee36
+    source: Boren Kit Feature
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Your primordial damage type is cold.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: b254cfb8-7cad-47a5-8cf4-a078a7f0df2b
+      displayCondition: Ability.name is Visceral Roar or Ability.name is Deluge
+      source: Boren Kit Feature
+      guid: 2aaf0056-8853-458d-8c74-1549b05668de
+      keywords: []
+      activationCondition: "1"
+      damageTypeMappings:
+        untyped: cold
+      rollType: ability_power_roll
+      modtype: none
+      description: Your primordial damage type is cold.
+      behavior: power
+      name: "Primordial Storm: Blizzard"
+    source: Boren Kit Feature
+    canHavePrerequisites: true
+    guid: b254cfb8-7cad-47a5-8cf4-a078a7f0df2b
+    name: "Primordial Storm: Blizzard"
+    implementation: 3
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+      source: Boren Kit Feature
+      behavior: resistance
+      filterCondition: Level >= 7
+      name: Elemental Form
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: Might*2 when Level < 10 else Might*3
+        damageType: cold
+        apply: Damage Reduction
+      description: |-
+        You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+        Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+      guid: 9817a60d-103f-4788-89f9-e451d78ff4da
+      domains:
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+    source: Boren Kit Feature
+    guid: 52a952c2-128c-4d93-9c5e-da57c5143f73
+    domains:
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      class:965c7b2d-4cff-4198-8ad2-86c446db40be: true
+    canHavePrerequisites: true
+    classid: 965c7b2d-4cff-4198-8ad2-86c446db40be
+    description: |-
+      You exhibit ever-stronger signs of how the force of the Primordial Chaos flows within you. Whenever you show strong emotion or increase your ferocity, elemental motes attuned to your mood flit around you, and your skin changes in appearance to reflect an element of your choice. 
+      Additionally, if you are a berserker or reaver, you have immunity to acid, cold, corruption, fire, lightning, poison, and sonic damage equal to your Might score. If you are a stormwight, you have immunity to the damage type of your Primordial Storm feature equal to twice your Might score.
+    name: Elemental Form
+    implementation: 4
+health: 9
+damageBonuses:
+  melee:
+  - 0
+  - 0
+  - 4
+  supernatural:
+  - 0
+  - 0
+  - 0
+id: a9048d14-49ac-400f-8f5b-0c0d0c87566e
+ctime: 1727311265711
+type: stormwight
+speed: 0
+portraitid: 2b91674e-9a49-4704-96bc-693de088559a
+name: Boren
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Strike: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 2 + M damage; M < weak, grabbed
+    - 5 + M damage; M < average, grabbed
+    - 11 + M damage; M < strong, grabbed
+    roll: 2d10 + Might
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: Attacks with your sharp and deadly claws grab the weak
+  sourceReference:
+    __typeName: SourceReference
+    page: 144
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: d9992bf2-1879-4ead-97b2-595e9747b57d
+  categorization: Signature Ability
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  targetType: target
+  implementation: 4
+  name: Bear Claws
+  numTargets: "1"
+  description: ""
+  abilityType: none
+  iconid: a393d50b-bef4-4a90-a1bf-767971ef2117
+description: With this stormwight kit, you channel your primordial ferocity into the form of a bear, becoming large, durable, and imposing. Boren are tied to the craggy, rocky north, and this aspect is associated with the blizzard’s bitter cold.
+kitManeuver: true
+mtime: 1773366619670

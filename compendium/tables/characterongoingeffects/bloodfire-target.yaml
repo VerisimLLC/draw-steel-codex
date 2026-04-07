@@ -1,0 +1,22 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 1b827707-8a6a-4bee-9954-2874b40404ce
+id: 1b827707-8a6a-4bee-9954-2874b40404ce
+ctime: 1700240712967
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.957162261009216
+    v: 0.918698966503143
+    a: 1
+name: Bloodfire Target
+description: When a creature deals Damage to you, you gain 1 Boon on Attacks against them until the end of your next turn.
+custom: true
+mtime: 1742452107881
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce

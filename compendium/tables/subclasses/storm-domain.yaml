@@ -1,0 +1,230 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 1cc01b13-90b5-46b2-82fd-f9d0bedd8eec
+  details: "You gain 2 piety the first time in an encounter that an enemy within 10 squares of you is force moved. \n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: Enemy Force Moved
+isSubclass: true
+ctime: 1728003828261
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: ccebfa63-ed67-4a14-929f-3d32a58fa758
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2f3b3515-4d17-4f50-8687-aaf63f768f78
+        source: Storm Domain Class Feature
+        behavior: trigger
+        domains:
+          class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        name: Storm Domain Piety
+        resourceRefreshType: encounter
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Creature Force Moved: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: e41e6a10-d61d-4a28-b06a-b989459b8f61
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: forcemove
+          domains:
+            class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          guid: 7b23b035-186b-4b99-bf2c-e1001d23aa7e
+          persistence: []
+          name: Piety
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 2 + 1 when level >=4
+            checklistid: 1cc01b13-90b5-46b2-82fd-f9d0bedd8eec
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: Creature force moved
+          description: |-
+            You gain 2 piety the first time in an encounter that an enemy within 10 squares of you is force moved.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: e41e6a10-d61d-4a28-b06a-b989459b8f61
+      name: Storm Domain Piety
+      classid: c2e40d91-5e93-4b1c-9fd1-84f404d4198f
+      description: ""
+      source: Storm Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: c0e958d9-eb92-463b-8219-2997c88f6b14
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: Each enemy in a 3 cube within 10 squares takes lightning damage equal to twice your Intuition score.
+        source: Storm Domain Class Feature
+        name: Storm Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: enemy
+          repeatTargets: false
+          targetType: cube
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.536250054836273
+              s: 0.751366853713989
+              v: 1.00268924236298
+              a: 1
+          categorization: Trigger
+          range: "10"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: lightning
+            roll: 2*Intuition
+          domains:
+            class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          iconid: 1c1b85b7-98f3-423c-8d45-705e86fc0227
+          numTargets: "1"
+          radius: 3
+          name: Storm Domain Effect
+          description: Each enemy in a 3 cube within 10 squares takes lightning damage equal to twice your Intuition score.
+          abilityType: none
+          implementation: 1
+      name: Storm Domain Effect
+      classid: c2e40d91-5e93-4b1c-9fd1-84f404d4198f
+      description: Each enemy in a 3 cube within 10 squares takes lightning damage equal to twice your Intuition score.
+      source: Storm Domain Class Feature
+      implementation: 3
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:c2e40d91-5e93-4b1c-9fd1-84f404d4198f: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+name: Storm Domain
+prerequisite: Deity.Domains has "Storm"
+mtime: 1768291515627
+id: c2e40d91-5e93-4b1c-9fd1-84f404d4198f
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

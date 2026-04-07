@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Noble House
+id: 13f3273f-eac0-4c72-8c56-d17f620e4b28
+mtime: 1769349267314
+aspects:
+  upbringing: b778e944-2650-464c-9773-305f65cca665
+  environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796447713

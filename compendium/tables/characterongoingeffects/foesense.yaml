@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: set
+guid: 0aa5cbf1-3c4d-499c-a76a-918aa10e4c2b
+id: 0aa5cbf1-3c4d-499c-a76a-918aa10e4c2b
+ctime: 1759182301679
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Foesense
+description: The creature who inflicted this effect can use this creature's senses, including using abilities as though in their space.
+mtime: 1759182301679
+iconid: 2b3b154b-cac7-44f2-a36f-e60ecb3e4f6f
+implementation: 2

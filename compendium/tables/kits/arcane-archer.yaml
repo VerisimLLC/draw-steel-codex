@@ -1,0 +1,98 @@
+__typeName: Kit
+name: Arcane Archer
+kitManeuver: false
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+damageBonuses:
+  ranged:
+  - 2
+  - 2
+  - 2
+portraitid: ""
+speed: 1
+id: 8187baf6-442b-44af-b4b7-ed74ab708b47
+description: The Arcane Archer kit allows you to combine magic and ranged weapon attacks. Your lack of armor keeps you mobile, and your magic makes your arrows explode to devastate your foes.
+type: martial
+weapons:
+  Bow: true
+imported: b962d663-4260-4f93-9136-f104afae2759
+equipmentDescription: You wear no armor and wield a bow.
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Magic: true
+    Weapon: true
+    Kit: true
+    Strike: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 + A, R, I, or P fire damage
+    - 7 + A, R, I, or P fire damage
+    - 10 + A, R, I, or P fire damage
+    roll: 2d10 + Agility or Reason or Intuition or Presence
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: first_target
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 12624012-aa03-41c5-9ace-4e4795f4d301
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        damageType: fire
+        roll: max(invoker.Agility, invoker.Reason, invoker.Intuition, invoker.Presence)
+      targetType: target
+      name: Invoked Ability
+      numTargets: "1"
+      description: ""
+      range: "2"
+      iconid: ui-icons/skills/1.png
+    promptText: Deal {Max(Agility, Reason, Intuition, Presence)} fire damage to a target within 2 squares
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.103749632835388
+      s: 0.854882478713989
+      v: 1.0030654668808
+      a: 1
+  flavor: Your ammunition explodes with magical energy.
+  sourceReference:
+    __typeName: SourceReference
+    page: 219
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 15
+  effectImplemented: false
+  persistence: []
+  modifiers: []
+  iconid: e50fb78c-962f-489f-a7bb-287db3d5b640
+  strain: []
+  guid: 553b7264-d7e2-4f64-8561-586bb30b4bcf
+  categorization: Signature Ability
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  numTargets: "1"
+  proximityTargeting: true
+  targetType: target
+  name: Exploding Arrow
+  proximityRange: "2"
+  description: A creature or object within 2 squares of your target takes fire damage equal to the characteristic score you added to this ability's power roll.
+  abilityType: none
+  implementation: 4
+mtime: 1770562275205
+range: 10
+disengage: 1

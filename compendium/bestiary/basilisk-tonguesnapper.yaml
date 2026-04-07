@@ -1,0 +1,345 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5f44469f-9213-4256-920f-5a69d97fae44
+    offtokenPortraitId: cc14079e-909d-443d-a17f-d7cafc009ecb
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440925
+    portraitOffset:
+      x: -0.1085405
+      y: 0.05392712
+    frameHueShift: 0.7433633
+    frameSaturation: 0.6189485
+    frameBrightness: 1
+    popoutScale: 0.99
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Basilisk Tonguesnapper	Level 1 Hexer Captain
+        Basilisk, Monster	EV 26
+        <b>Stamina</b> 50	<b>Immunity</b> Poison 5
+        <b>Speed</b> 8	<b>Size</b> 2 <b>Stability</b> 2
+        <b>Free Strike</b> 4
+        Might +1	Agility +1	Reason -3	Intuition -1	Presence -1
+        <b>Prehensile Tongue</b> (Action) %E2%97%86 2d10 + 1 %E2%97%86 Signature
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Reach 3
+        <b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 poison damage; pull 1
+        %E2%98%85	<b>12-16</b>	7 poison damage; pull 2
+        %E2%9C%B8	<b>17</b>	10 poison damage; pull 3
+        Effect	A target restrained by petrifying eye beams will remain restrained if pulled by this effect.
+
+        <b>Petrifying Eye Beams </b>(Maneuver) %E2%97%86 MGT RR
+        <b>Keywords</b> Magic, Ranged, Resistance
+        <b>Distance</b> Ranged 5
+        <b>Target</b> 2 creatures
+        %E2%9C%B8	<b>%E2%89%A411</b>	Restrained (MGT ends)
+        %E2%98%85	<b>12-16</b>	Slowed (MGT ends)
+        %E2%9C%A6	<b>17</b>	Slowed (EoT)
+        <b>Effect</b> 		The target magically begins to turn to stone. Targets that are already slowed have a bane on this resistance roll. While restrained, the target, or a creature adjacent to them, can use an action to cut the encroaching stone from the target's body. When they do, the target takes 8 damage which can't be reduced in any way, and they are no longer restrained.
+
+        <b>A</b> target that ends two consecutive turns restrained by this ability is petrified until freed by a magical effect.
+
+        <b>Barrage</b> (Action) %E2%97%86 2d10 + 1 %E2%97%86 <b>5 VP</b>
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Reach
+        <b>Target</b> 3 creatures
+        <b>Effect </b>Make a prehensile tongue attack against each target.
+
+        <b>Neurotoxin Splash</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger</b> The basilisk takes Weapon damage.
+        <b>Distance</b> 2 burst
+        <b>Target</b> All enemies
+        <b>Effect</b> Each target takes 5 poison damage and is slowed (EoT).
+
+        <b>Petrifying Fumes</b>
+        A creature that begins their turn adjacent to the basilisk is slowed (EoT).
+
+    skillProficiencies: []
+    role: Elite Hexer
+    inflictedConditions: []
+    keywords:
+      Basilisk: true
+      Beast: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: acid
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 4
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -3
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    monster_type: Basilisk Tonguesnapper
+    walkingSpeed: 8
+    availableTriggers: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6ea142d1-b066-45d6-9cba-872eab87747a: true
+      modifiers: []
+      name: Petrifying Fumes
+      description: A creature that begins their turn adjacent to the basilisk is slowed (EoT).
+      guid: 6ea142d1-b066-45d6-9cba-872eab87747a
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:fe77752d-f1d5-47c6-a522-afdad89db31a: true
+      modifiers: []
+      name: Restorative Salve
+      description: "After a basilisk dies, a character can make a Reason test to claim oil from the basilisk's mouth, which can be used to create a special salve. One dose of salve can be applied to a petrified creature as a main action, and 1 minute after the salve is applied, that creature is no longer petrified.!The character must complete the Find a Cure down time project in Draw Steel: Heroes to create one dose of salve.@The character creates one dose of salve and can create two more doses by completing the Find a Cure downtime project.#The character creates three doses of salve."
+      guid: fe77752d-f1d5-47c6-a522-afdad89db31a
+      source: Trait
+    damage_taken: 0
+    max_hitpoints: 40
+    resources: []
+    traitNames: []
+    initiativeGrouping: c367b12b-08a3-4f02-aa7f-76b17b2d7b76
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b652e725-bd77-4720-87c6-bb9b26c95cf7
+      implementation: 3
+      numTargets: 1
+      name: Prehensile Tongue
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 acid damage; pull 1
+        - 10 acid damage; pull 2
+        - 14 acid damage; pull 3
+        roll: 2d10 + Agility
+      description: |-
+        This ability can pull targets restrained by Petrifying Eye Beams, and ignores stability if it does so.
+        **3 Malice**: The tonguesnapper targets two additional creatures or  objects.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Resistance: true
+        Magic: true
+        Ranged: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: mgt
+        roll: 2d10 + Agility
+        resistanceRoll: true
+        tiers:
+        - A<0 restrained (save ends)
+        - A<1 restrained (save ends)
+        - Slowed (save ends); or if A<2 restrained (save ends)
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 800e9711-69fa-4947-bce6-c42543e663ff
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: 'Petrifying Eye Beams '
+      numTargets: 2
+      description: The target magically begins to turn to stone. Targets that are already slowed have a bane on this resistance roll. While restrained, the target, or a creature adjacent to them, can use an action to cut the encroaching stone from the target's body. When they do, the target takes 8 damage which can't be reduced in any way, and they are no longer restrained.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ea73abdc-39d3-4ce6-8c0d-3bdc8c6f3bea
+      abilityType: none
+      numTargets: 3
+      behaviors: []
+      name: Barrage
+      implementation: 0
+      description: Make a prehensile tongue attack against each target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 296ea305-568c-4ee2-876e-fad53723f677
+      numTargets: 1
+      targetType: all
+      name: Neurotoxin Splash
+      iconid: ui-icons/skills/1.png
+      description: Each target takes 5 poison damage and is slowed (EoT).
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Magic: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: 3cd13d6f-6d0b-4ae1-8890-f62c2a1e7443
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 corruption damage; R<0 dazed (save ends)
+        - 10 corruption damage; R<1 dazed (save ends)
+        - 14 corruption damage; R<2 dazed and slowed (save ends)
+        roll: 2d10 + Agility
+      name: Wink
+      sourceReference:
+        __typeName: SourceReference
+        page: 49
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: A creature dazed this way can't benefit from edges or double edges and can't gain or use surges.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 3
+    levelChoices: []
+    movementSpeeds: []
+    monster_category: Monster
+    minion: false
+    creatureSize: "2"
+    ev: 12
+  tokenType: null
+  bestiaryId: 0375ee09-8820-4144-80e9-04c37247c018
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Basilisk Tonguesnapper
+parentFolder: a2e7e9a5-6ef8-4681-bc88-fd6aa8612059
+artist: null
+ord: 1
+ctime: 1741590213603
+mtime: 1775201137032
+hidden: false

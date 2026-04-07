@@ -1,0 +1,90 @@
+__typeName: CharacterComplication
+drawback: Your body bears a fiendish mark. Any creature who understands religion and notes the mark can tell that your soul belongs to Hell, imposing a bane on any test you make to interact with those creatures (unless they’re into that). Additionally, when you die, your soul goes to Hell and you can’t be restored to life.
+mtime: 1765964649030
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Infernal Contract... But, Like, Bad - Benefit
+    numChoices: 1
+    guid: b610849c-4135-4c68-9429-fd6f5c0606ae
+    description: Choose one of the following benefits
+    options:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 1f690edc-cd99-4676-90f3-e0ab78a289b7
+        sourceguid: e7e9b501-086e-4db0-85be-bcfa69212054
+        value: 2
+        source: Feat
+        name: Renown +2
+        behavior: attribute
+        description: You earn 2 renown.
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      name: Renown +2
+      description: You earn 2 renown.
+      guid: e7e9b501-086e-4db0-85be-bcfa69212054
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: a2a2b360-52c9-468f-8f82-8a085da25fba
+        sourceguid: 993214dd-9e03-4a63-882e-c873f7df1243
+        value: 2
+        source: Feat
+        name: Wealth +2
+        behavior: attribute
+        description: Your Wealth increases by 2
+        attribute: 036da4db-4406-4038-ae7d-cf0b37890f5f
+      name: Wealth +2
+      description: Your Wealth increases by 2
+      guid: 993214dd-9e03-4a63-882e-c873f7df1243
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: f3efed67-063e-4d34-9e7a-21300e087355
+        sourceguid: f0ececb4-04a0-4595-a316-bf71851485d7
+        value: 3
+        source: Feat
+        name: Stamina +3
+        behavior: attribute
+        description: You gain a +3 bonus to Stamina
+        attribute: hitpoints
+      name: Stamina +3
+      description: You gain a +3 bonus to Stamina
+      guid: f0ececb4-04a0-4595-a316-bf71851485d7
+      canHavePrerequisites: true
+      source: Feat
+  - __typeName: CharacterFeature
+    description: Your body bears a fiendish mark. Any creature who understands religion and notes the mark can tell that your soul belongs to Hell, imposing a bane on any test you make to interact with those creatures (unless they’re into that). Additionally, when you die, your soul goes to Hell and you can’t be restored to life.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 7521ca6d-af8e-483a-adb4-9f79a48e490a
+      source: Feat
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: Infernal Contract… But, Like, Bad - Drawback
+      guid: 091ecbb0-b648-4dcd-9d6f-79eda1074b16
+      description: Your body bears a fiendish mark. Any creature who understands religion and notes the mark can tell that your soul belongs to Hell, imposing a bane on any test you make to interact with those creatures (unless they’re into that).
+      modtype: bane
+      rollType: test_power_roll
+    source: Feat
+    canHavePrerequisites: true
+    guid: 7521ca6d-af8e-483a-adb4-9f79a48e490a
+    name: Infernal Contract… But, Like, Bad - Drawback
+    implementation: 3
+name: Infernal Contract… But, Like, Bad
+ctime: 1755515589575
+description: You made a deal with a devil. Not a very good deal, because it wasn’t a very good devil. It’s too late for regrets, though, because your soul is forfeit unless you find a loophole or can convince the devil to void the deal.
+id: 3a32e6b4-06b4-4471-bb33-7fb64232ed01
+benefit: |-
+  Choose one of the following benefits:
+
+  - You earn 2 Renown.
+  - Your Wealth increases by 2.
+  - You gain a +3 bonus to Stamina.

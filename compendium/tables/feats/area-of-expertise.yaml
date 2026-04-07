@@ -1,0 +1,271 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Crafting Skill Choice
+    numChoices: 1
+    guid: 5485f4d5-9996-4a4b-9329-9729c05252a8
+    description: |-
+      Choose one skill you already have from the crafting skill group.
+      Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead. Additionally, if you spend 1 minute inspecting an object related to the chosen skill, you can estimate its value and learn of any flaws in its construction.
+    options:
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Alchemy
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - cdae52cd-ef20-461d-ae18-253023cdb827
+      source: Feat
+      canHavePrerequisites: true
+      guid: 960ddf05-4718-4222-acbc-940c37e15a61
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: cdae52cd-ef20-461d-ae18-253023cdb827
+      name: Alchemy
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Architecture
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - cdae52cd-ef20-461d-ae18-253023cdb827
+      source: Feat
+      canHavePrerequisites: true
+      guid: df815cba-81ea-466b-998d-814db49432ea
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: 078b501f-e549-4725-993f-7ed8d57fc2ae
+      name: Architecture
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Blacksmithing
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - 50ca6145-2d22-4496-a355-c7b2df2cf0de
+      source: Feat
+      canHavePrerequisites: true
+      guid: e9290708-66f5-4644-9ee1-bf1560e633f2
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: 50ca6145-2d22-4496-a355-c7b2df2cf0de
+      name: Blacksmithing
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Carpentry
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - 436ea6c1-6386-43b2-b074-020992cc73fd
+      source: Feat
+      canHavePrerequisites: true
+      guid: 554eebe3-3641-4af4-9e81-180cd5552beb
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: 436ea6c1-6386-43b2-b074-020992cc73fd
+      name: Carpentry
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Cooking
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - becbc5ec-de63-481b-8247-e62c2a6fd8cb
+      source: Feat
+      canHavePrerequisites: true
+      guid: 40a99e3a-0c09-4774-8b49-b3db57f64ec1
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: becbc5ec-de63-481b-8247-e62c2a6fd8cb
+      name: Cooking
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Fletching
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - 5ca5c242-fe6d-43b3-86b0-b5314a9fe39a
+      source: Feat
+      canHavePrerequisites: true
+      guid: 672d8823-d5bc-4f5f-90c4-6d28f63373ed
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: 5ca5c242-fe6d-43b3-86b0-b5314a9fe39a
+      name: Fletching
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Forgery
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - 75d64fef-b075-4221-8cbc-c6b6328ee22c
+      source: Feat
+      canHavePrerequisites: true
+      guid: 2728ee8c-f30d-436c-b2f6-4dddae40029a
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: 75d64fef-b075-4221-8cbc-c6b6328ee22c
+      name: Forgery
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Jewelry
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - 192827b0-ef39-4d5f-840a-b3c654e7b158
+      source: Feat
+      canHavePrerequisites: true
+      guid: 7645bd7a-2c00-4057-9ac5-6887c1272909
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: 192827b0-ef39-4d5f-840a-b3c654e7b158
+      name: Jewelry
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Mechanics
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - ac718c6f-05e2-4301-997c-b1c54aad9250
+      source: Feat
+      canHavePrerequisites: true
+      guid: 34f8abe8-4f0b-4219-8bf6-254a52475ff1
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: ac718c6f-05e2-4301-997c-b1c54aad9250
+      name: Mechanics
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 960ddf05-4718-4222-acbc-940c37e15a61
+        source: Feat
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: e69596f4-f678-4bed-a53f-bac020c562d8
+        name: Tailoring
+        behavior: power
+        description: Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead.
+        rollType: test_power_roll
+        skills:
+        - 8b5a4de7-badf-4e23-8ff2-0f7a832ff754
+      source: Feat
+      canHavePrerequisites: true
+      guid: a2b27006-a87d-4b94-9895-3990e43861ed
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: skillProficiency
+        guid: 05742ba9-3582-4a65-a291-8e7de9c54ed4
+        skill: 8b5a4de7-badf-4e23-8ff2-0f7a832ff754
+      name: Tailoring
+tag: Crafting Perk
+name: Area of Expertise
+description: |-
+  Choose one skill you already have from the crafting skill group.
+  Whenever you obtain a tier 1 outcome on an easy or medium test using this skill, you treat it as a tier 2 outcome instead. Additionally, if you spend 1 minute inspecting an object related to the chosen skill, you can estimate its value and learn of any flaws in its construction.
+mtime: 1763675896328
+id: b335e849-7c62-47a8-b20b-632ef338ef83
+ctime: 1730449823809

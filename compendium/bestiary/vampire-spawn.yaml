@@ -1,0 +1,242 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 16352be8-9288-41ed-a55b-614ee6a99cc9
+    offtokenPortraitId: null
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.9994796
+    frameSaturation: 0.1374282
+    frameBrightness: 0.4888378
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1dff499f-89b9-4b71-9a48-6cb645946466
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 4
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Vampire Spawn
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 1 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 267
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: The target takes an additional 3 corruption damage.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 corruption damage; M<2 bleeding (save ends)
+        - 9 corruption damage; M<3 bleeding (save ends)
+        roll: 2d10 + Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: d7db736a-adef-4b9c-b8df-8b507c5faefd
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            damageType: corruption
+            roll: "3"
+          targetType: targets
+          name: Invoked Ability
+          categorization: Hidden
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        promptText: "Malice: The target takes an additional 3 corruption damage."
+        autoTarget: false
+        applyto: caster
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Exsanguinating Bite
+      guid: a45c6d9a-9ce5-462d-8b71-4f6e181838ab
+      description: |-
+        The vampire spawn regains Stamina equal to any corruption damage dealt.
+        **1 Malice**: The target takes an additional 3 corruption damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 50ca32cb-2117-4193-9a58-9647af674293
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Vampiric Celerity
+      numTargets: 1
+      description: The vampire spawn shifts 1 and then moves up to their speed. The next ability the vampire uses before the start of their next turn has an edge.
+      abilityType: none
+      implementation: 0
+    opportunityAttack: 2
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Vampire Spawn	Level 4 Horde Harrier
+        Undead, Vampire	EV 6
+        <b>Stamina</b> 30	<b>Immunity</b> corruption 4, poison 4
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 2
+        Might +2	Agility +3	Reason -1	Intuition +1	Presence +2
+        <b>Exsanguinating Bite</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12-16</b>	7 corruption damage; M<2 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	9 corruption damage; M<3 bleeding (save ends)
+        <b>Effect</b> The vampire spawn regains Stamina equal to the corruption damage they deal.
+        <b>1 Malice</b> The target takes an additional 3 corruption damage.
+
+        <b>Vampiric Celerity</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect </b>The vampire spawn shifts 1 and then moves up to their speed. The next ability the vampire uses before the start of their next turn has an edge.
+
+        <b>Unslakable Bloodthirst</b>
+        The vampire spawn has a speed of 10 while a creature is bleeding within 10. The vampire spawn must strike a bleeding creature on their turn if they are able to.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:68db9005-9684-40fd-834a-6440f992bdb0: true
+      modifiers: []
+      name: Unslakable Bloodthirst
+      description: The vampire spawn has a speed of 10 while a creature is bleeding within 10. The vampire spawn must strike a bleeding creature on their turn if they are able to.
+      guid: 68db9005-9684-40fd-834a-6440f992bdb0
+      source: Trait
+    role: Horde Harrier
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: poison
+      apply: Damage Reduction
+    availableTriggers: []
+    damage_taken: 0
+    resources: []
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    minion: false
+    walkingSpeed: 5
+    traitNames: []
+    movementSpeeds:
+      climb: 5
+    creatureSize: 1M
+    initiativeGrouping: cb2fbaa8-6527-45f2-bcfd-e594f9580292
+    monster_category: Monster
+    keywords:
+      Undead: true
+      Vampire: true
+  tokenType: null
+  bestiaryId: a2a44737-df41-4635-8af5-3fd05a86f8b1
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961969981
+description: Vampire Spawn
+parentFolder: 68f67367-de21-43f0-8448-61d0408cd721
+artist: null
+ord: 9
+ctime: 1741590289847
+mtime: 1775201137032
+hidden: false

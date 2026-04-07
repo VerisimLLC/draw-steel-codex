@@ -1,0 +1,211 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 9b9f5885-68e3-4ab5-b180-cf690e2a0069
+ctime: 1761751207283
+textStorage:
+  __typeName: TextStorage
+  sections:
+    x: |
+      If the heroes arrive after the [Gilded Hand] has already swept through, ceiling oozes have been dispatched, but the sludges are still in the pit and the stairs have been oiled. All tests made to avoid slipping down into the pit have a double bane.
+    v: |+
+      # After the Hand
+
+    Ge: |
+      [[/relocate -10 -8 0 -5 ; relocate -9 -8 1 -5;  relocate -10 -9 0 -6; relocate -9 -9 1 -6; |Relocate Room Creatures to Pit]]
+    t: |+
+      A hero who investigates the pit can find a small metal tin containing three [item:Black Ash Dart]s.
+
+
+    r: |+
+      ## Loot
+
+    o: |+
+      {The passage leads to [D13. A Moment's Reprieve].
+
+    p: |+
+      [[/objectcommand d10_pit_door opendoor|Open Secret Door]][[/objectcommand d10_pit_door closedoor|Close Secret Door]]
+      }
+
+
+    EZ: |+
+      [[/activateobjects d10_stair_green activate|Activate Stair Trap]][[/activateobjects d10_stair_green deactivate|Deactivate Stair Trap]]
+
+    n: |+
+      |{#The hero discovers the secret door, which hides a passage.} 
+
+    l: |
+      |{#The hero finds nothing.}
+    i: |
+      |Inspect the Pit: Reason Test
+    j: |
+      |{#The hero finds nothing and takes 2 acid damage from residual ooze on the walls of the pit.}
+    g: |+
+      ## Secret Door
+
+    h: |
+      If a hero inspects the pit, they can make a hard Reason test to find the secret door.
+    e: |+
+      |{#The creature can shift 1 square. If they don’t shift off the pit with this movement, treat this as a result of 12–16.}
+
+    f: |+
+      The pit snaps shut at the end of the round after opening. A creature adjacent to it can use a maneuver to open it again.
+
+
+    c: |
+      |{#The creature falls into the pit.}
+    d: |
+      |{#The creature falls but catches themselves. They are left hanging from the ledge of the pit.}
+    a: |
+      If a creature steps on the pit, it pops open. The creature must make a moderate Agility test.
+    b: |
+      |Avoid the Pit Trap: Agility Test
+    Gl: |2+
+
+
+    GR: |+
+      [[/activateobjects d10_pit_trap activate; elevationcircle 0.5 -5.5 1 -4;relocate -10 -8 0 -5 ; relocate -9 -8 1 -5;  relocate -10 -9 0 -6; relocate -9 -9 1 -6;|Open the Pit]] [[/elevationcircle 0.5 -5.5 1 4;activateobjects d10_pit_trap deactivate; relocate 0 -5 -10 -8; relocate 1 -5 -9 -8;  relocate 0 -6 -10 -9; relocate 1 -6 -9 -9;|Close the Pit]]
+
+    GI: |+
+      *Opening the pit will drop any tokens placed there down four spaces. When you "Close the Pit" it relocates any creatures in those squares to the pit room on the left, and when you "Open the Pit" it relocates them back. *
+
+    O: |
+      |Ride the Slide: Agility Test
+    Y: |
+      |{#The hero notices the pit trap by triggering it. They have an edge on the test made to avoid falling in.}
+    Z: |+
+      |{#The hero notices the seam of the pit trap.}
+
+    W: |
+      |Find the Pit Trap: Reason or Intuition Test
+    X: |
+      |{#The hero fails to notice the pit trap.}
+    U: |+
+      At the bottom of the stairs is a trapdoor which pops open if a 1S or larger creature or object is placed on top of it. The pit is 3 squares deep and oozes live at its bottom. There’s enough of a ledge around the pit that a creature who is aware of the pit can move past it (but not stop in its space) without triggering it, or use a maneuver to jam the pit’s cover so it can’t open.
+
+    V: |
+      A creature who searches as they approach can make a moderate Reason or Intuition test.
+    S: |+
+      If a creature is force moved into the area of the slide, they must make this same test.
+
+
+    T: |+
+      ## Pit Trap
+
+    Q: |
+      |{#The hero slides toward the end of the slide. They can stop themself at any space along the way, but take 1 damage per space slid in this way.}
+    R: |+
+      |{#The hero can slide down to any space along the slide without consequence.}
+
+    GU: |
+      *Just in case you need to manually relocate any creatures between them as well:*
+    P: |
+      |{#The hero falls prone and slides directly toward the pit, falling in if it hasn’t been jammed closed.}
+    M: |+
+      |{#The hero notices the trap before it triggers.}
+
+
+    N: |+
+      Once the slide triggers, the area from the pressure plate onwards (indicated by the arrow on the map) becomes difficult terrain. A creature moving into the terrain can attempt to slide down it. This costs no movement, but the creature must make a moderate Agility test.
+
+    K: |
+      |{#The hero doesn’t see it coming at all. They fall prone, take 8 damage, and fall into the pit trap at the bottom.}
+    L: |
+      |{#The hero reacts, but just a moment too late. They fall prone, take 6 damage, but catch themself just before they fall into the pit.}
+    I: |
+      Whoever’s leading the heroes down must make a hard Intuition test.
+    J: |
+      |Notice the Slide Trap: Intuition Test
+    G: |+
+      See [Encounter D10].
+
+    H: |+
+      ## Slide Trap
+
+    E: |
+      {Secret: One of the steps is a trap that will turn the subsequent steps into a slide, sending whoever steps on it tumbling down toward a pit trap.}
+    F: |+
+      {Secret: Two creeping sludges are at the bottom of the pit. Another four creeping sludges and six imit putties cling to the ceiling and attack when the heroes enter the chamber or trigger the pit trap.}
+
+    C: |
+      > * “As you descend the stairs, a silence grows.”
+    D: |+
+      > * “The world above becomes more and more distant, and you feel the weight of this compound’s age in the very air you breathe. This is it: the bowels of the Delian Tomb.”
+
+    GX: |
+      [[/relocate 0 -5 -10 -8; relocate 1 -5 -9 -8;  relocate 0 -6 -10 -9; relocate 1 -6 -9 -9; |Relocate Pit Creatures to Room]]
+    B: |+
+      ## D10. The First Trick
+
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: fa089f34-50f9-4234-845f-5fc7c0c98d67
+mtime: 1764275939352
+content: |
+  ## D10. The First Trick
+
+  > * “As you descend the stairs, a silence grows.”
+  > * “The world above becomes more and more distant, and you feel the weight of this compound’s age in the very air you breathe. This is it: the bowels of the Delian Tomb.”
+
+  {Secret: One of the steps is a trap that will turn the subsequent steps into a slide, sending whoever steps on it tumbling down toward a pit trap.}
+  {Secret: Two creeping sludges are at the bottom of the pit. Another four creeping sludges and six imit putties cling to the ceiling and attack when the heroes enter the chamber or trigger the pit trap.}
+
+  See [Encounter D10].
+
+
+  ## Slide Trap
+
+  Whoever’s leading the heroes down must make a hard Intuition test.
+  |Notice the Slide Trap: Intuition Test
+  |{#The hero doesn’t see it coming at all. They fall prone, take 8 damage, and fall into the pit trap at the bottom.}
+  |{#The hero reacts, but just a moment too late. They fall prone, take 6 damage, but catch themself just before they fall into the pit.}
+  |{#The hero notices the trap before it triggers.}
+
+
+  Once the slide triggers, the area from the pressure plate onwards (indicated by the arrow on the map) becomes difficult terrain. A creature moving into the terrain can attempt to slide down it. This costs no movement, but the creature must make a moderate Agility test.
+
+  |Ride the Slide: Agility Test
+  |{#The hero falls prone and slides directly toward the pit, falling in if it hasn’t been jammed closed.}
+  |{#The hero slides toward the end of the slide. They can stop themself at any space along the way, but take 1 damage per space slid in this way.}
+  |{#The hero can slide down to any space along the slide without consequence.}
+
+  If a creature is force moved into the area of the slide, they must make this same test.
+
+
+  ## Pit Trap
+
+  At the bottom of the stairs is a trapdoor which pops open if a 1S or larger creature or object is placed on top of it. The pit is 3 squares deep and oozes live at its bottom. There’s enough of a ledge around the pit that a creature who is aware of the pit can move past it (but not stop in its space) without triggering it, or use a maneuver to jam the pit’s cover so it can’t open.
+
+  A creature who searches as they approach can make a moderate Reason or Intuition test.
+  |Find the Pit Trap: Reason or Intuition Test
+  |{#The hero fails to notice the pit trap.}
+  |{#The hero notices the pit trap by triggering it. They have an edge on the test made to avoid falling in.}
+  |{#The hero notices the seam of the pit trap.}
+
+  If a creature steps on the pit, it pops open. The creature must make a moderate Agility test.
+  |Avoid the Pit Trap: Agility Test
+  |{#The creature falls into the pit.}
+  |{#The creature falls but catches themselves. They are left hanging from the ledge of the pit.}
+  |{#The creature can shift 1 square. If they don’t shift off the pit with this movement, treat this as a result of 12–16.}
+
+  The pit snaps shut at the end of the round after opening. A creature adjacent to it can use a maneuver to open it again.
+
+
+  ## Secret Door
+
+  If a hero inspects the pit, they can make a hard Reason test to find the secret door.
+  |Inspect the Pit: Reason Test
+  |{#The hero finds nothing and takes 2 acid damage from residual ooze on the walls of the pit.}
+  |{#The hero finds nothing.}
+  |{#The hero discovers the secret door, which hides a passage.} 
+
+  {The passage leads to [D13. A Moment’s Reprieve].}
+
+
+  ## Loot
+
+  A hero who investigates the pit can find a small metal tin containing three [Black Ash Dart]s (see Treasure in Handouts).
+
+
+  # After the Hand
+
+  If the heroes arrive after the [Gilded Hand] has already swept through, ceiling oozes have been dispatched, but the sludges are still in the pit and the stairs have been oiled. All tests made to avoid slipping down into the pit have a double bane.
+description: D10. The First Trick

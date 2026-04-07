@@ -1,0 +1,72 @@
+__typeName: Title
+effect: "Choose one of the following benefits:\v\vIf you take this title, you might occasionally be called upon to perform duties for the person who granted your noble rank."
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Noble Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: 48b2d3e5-d5bc-46ad-a5d3-7ecbdbdc0de2
+    options:
+    - __typeName: CharacterFeature
+      description: You gain an edge on Presence tests made to interact with royals, nobles, and their feudal followers, provided they are aware of your noble rank.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37acc727-762c-4afc-81e2-c5f9b9759341
+        source: Feat
+        behavior: power
+        keywords: []
+        activationCondition: false
+        guid: 5bb57795-05c5-4d45-b88e-c6e0d9c6a003
+        rollType: test_power_roll
+        modtype: edge
+        description: You gain an edge on Presence tests made to interact with royals, nobles, and their feudal followers, provided they are aware of your noble rank.
+        name: I Know How to Talk to These People
+        attribute: prs
+      source: Feat
+      canHavePrerequisites: true
+      guid: 37acc727-762c-4afc-81e2-c5f9b9759341
+      name: I Know How to Talk to These People
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You earn 1 Renown and 1 Wealth.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 40e3d188-c19e-4d1a-a39b-bfc61a6ed923
+        sourceguid: 44140846-8915-4a76-990f-72befe15a018
+        behavior: attribute
+        source: Feat
+        name: Noble Splendor
+        description: You earn 1 Renown and 1 Wealth.
+        value: 1
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      - __typeName: CharacterModifier
+        guid: 68c6ae8b-040e-479d-99eb-94245d29df45
+        sourceguid: 44140846-8915-4a76-990f-72befe15a018
+        behavior: attribute
+        source: Feat
+        name: Noble Splendor
+        description: You earn 1 Renown and 1 Wealth.
+        value: 1
+        attribute: 036da4db-4406-4038-ae7d-cf0b37890f5f
+      source: Feat
+      canHavePrerequisites: true
+      guid: 44140846-8915-4a76-990f-72befe15a018
+      name: Noble Splendor
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Retinue
+      description: The number of followers you can recruit increases by two.
+      guid: db07ccd5-6f50-408e-96d8-36db25c61347
+      canHavePrerequisites: true
+      source: Feat
+id: a129c9a7-0f7c-485d-ab3d-aae692d87482
+ctime: 1762352018772
+name: Noble
+description: Technically, I’m called Lord Morninghill these days. I did a little favor for Duke Kenway at the Battle of Black Forest.
+mtime: 1775215855884
+echelon: "3"
+prerequisite: A monarch or important noble grants you a noble rank.

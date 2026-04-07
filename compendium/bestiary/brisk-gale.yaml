@@ -1,0 +1,273 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Brisk Gale
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 567b006f-17cf-47aa-a9da-cf515658c46c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 2
+    inflictedConditions: []
+    ev: 1
+    max_hitpoints_roll: 2
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    monster_type: Brisk Gale
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 1 damage
+        - 1 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 sonic damage
+        - 1 sonic damage
+        - 1 sonic damage
+        roll: "12"
+        modesSelected:
+        - 2
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: 6f538843-7dab-46ad-904e-e099607244dd
+    opportunityAttack: 1
+    stability: 0
+    import:
+      type: mcdm
+      data: |
+        BRISK GALE Level 1 MINION HARRIER
+        Elemental EV 1 for four minions
+        1S 5 2 0 1
+        Size Speed Stamina Stability Free Strike
+        Immunity: Sonic 2 Weakness: -
+        Movement: Fly With Captain:
+        M ight -2 A gility +2 R eason 0 I ntuition 0 P resence +1
+        t Cutting the Air
+        The gale doesn't provoke opportunity attacks by moving.
+        t Whirlwind
+        When the gale is reduced to 0 Stamina, winds whip in their space
+        until the end of the encounter. You or any ally that enters this space
+        or starts their turn there can immediately shift 1 (including
+        vertically).
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bc8c7ae0-16f6-4dc5-a158-e7d0e8ea2392: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        value: 1
+        source: Trait
+        name: Crafty
+        behavior: attribute
+        description: The gale doesn't provoke opportunity attacks by moving.
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      source: Trait
+      description: The gale doesn't provoke opportunity attacks by moving.
+      guid: bc8c7ae0-16f6-4dc5-a158-e7d0e8ea2392
+      name: Cutting the Air
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0f6ebd2a-49c8-43c4-a43f-97d650662469: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0f6ebd2a-49c8-43c4-a43f-97d650662469
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:0f6ebd2a-49c8-43c4-a43f-97d650662469: true
+        name: Whirlwind
+        resourceRefreshType: encounter
+        description: When the gale is reduced to 0 Stamina, winds whip in their space until the end of the encounter. You or any ally that enters this space or starts their turn there can immediately shift 1 (including vertically).
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            applyto: targets
+            aura:
+              __typeName: Aura
+              applyto: selfandfriends
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              modifiers: []
+              name: Whirlwind
+              source: Whirlwind
+              guid: a5da65ea-26cf-43cf-bbd1-674c29d31394
+              objectid: 01913ccd-9bd3-4fcd-ac87-529f6780ecfc
+              iconid: 570019f5-290e-4091-9fe0-d361b9e41629
+            aliveafterdeath: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: ac2fde91-345f-457a-b170-d8eb8af89497
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 490e879c-927e-40a0-8d09-600304054604
+          castImmediately: true
+          targetType: self
+          name: Whirlwind
+          trigger: creaturedeath
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: ac2fde91-345f-457a-b170-d8eb8af89497
+      name: Whirlwind
+      guid: 0f6ebd2a-49c8-43c4-a43f-97d650662469
+      description: When the gale is reduced to 0 Stamina, winds whip in their space until the end of the encounter. You or any ally that enters this space or starts their turn there can immediately shift 1 (including vertically).
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1495f57d-65b7-4bc5-86c8-636db7580bae: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1495f57d-65b7-4bc5-86c8-636db7580bae: true
+        sourceguid: 1495f57d-65b7-4bc5-86c8-636db7580bae
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "2"
+          damageType: sonic
+          apply: Damage Reduction
+        guid: 483bf585-8d61-4949-87b2-869bc0e40bf5
+        name: Sonic Immunity
+        description: ""
+      name: Sonic Immunity
+      guid: 1495f57d-65b7-4bc5-86c8-636db7580bae
+      description: ""
+      source: Character Feature
+    role: Harrier Harrier
+    equipment: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 6cec58c3-68f4-4ae1-98d6-42e114c16a76
+    damage_taken: 0
+    resources: []
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    minionSquad: Brisk Gale Squad 2
+    minion: true
+    walkingSpeed: 5
+    name: Brisk Gale
+    movementSpeeds:
+      Fly: 5
+    creatureSize: 1S
+    monster_category: Summoner Signature
+    keywords:
+      Air: true
+      Signature: true
+      Elemental: true
+      Summoner: true
+  tokenType: null
+  bestiaryId: cab2d5e7-2f12-48bc-aa2f-a9278edf18e2
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: 1
+  createdTimestamp: 1757331495444
+description: null
+parentFolder: ab335af6-6b6f-4e77-9295-060f8ee787ab
+artist: null
+ord: 1
+ctime: 1759502680995
+mtime: 1775167536216
+hidden: false

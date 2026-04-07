@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: College Conclave
+id: d0cb07bd-b8ec-4e89-b315-0dd7a8dfc176
+mtime: 1769349247346
+aspects:
+  upbringing: 788c28f1-06bb-4a18-94d9-b58ba8d9af88
+  environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796305109

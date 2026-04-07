@@ -1,0 +1,47 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: f8a9b0c1-d2e3-4567-fabc-678901234fab
+  description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, you can teleport that creature up to 2 squares after the ability's effects resolve.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: f8a9b0c1-d2e3-4567-fabc-678901234fab
+    displayCondition: ability.doesdamage
+    source: Item
+    guid: e7f8a9b0-c1d2-3456-efab-567890123efa
+    keywords:
+      Magic: true
+      Psionic: true
+    activationCondition: ability.doesdamage
+    addText: // // You teleport the target up to 2 squares
+    behavior: power
+    rollType: ability_power_roll
+    matchAnyKeywords: true
+    description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, you can teleport that creature up to 2 squares after the ability's effects resolve.
+    modtype: none
+    name: Displacing I
+  source: Item
+  name: Displacing I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: Slime from an ooze
+imbuePrereq: none
+projectSource: Khelt
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: 75ac6a82-df8a-4129-92bf-3b30c4577a5f
+mtime: 1774269104723
+name: Displacing I
+imbueTargetType: implement
+description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, you can teleport that creature up to 2 squares after the ability's effects resolve. If the creature started on a horizontal surface, they must end on a horizontal surface.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: b6d77c40-9db3-4062-a31c-627c1a76678b

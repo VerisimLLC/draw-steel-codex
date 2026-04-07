@@ -1,0 +1,518 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5e2ce054-8529-4173-b33d-e7f1b6939ee9
+    offtokenPortraitId: 650a5f5d-984f-431e-8c7f-ef7f53e31910
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2941191
+    portraitOffset:
+      x: -0.1037052
+      y: 0.1832256
+    frameHueShift: 0
+    frameSaturation: 0.5856624
+    frameBrightness: 0.267078
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2c408e4e-1df7-4c8c-8e65-c62ce53de777
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: -2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    creatureSize: 1M
+    levelChoices: []
+    moveDistance: 19
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: f5aa4129-0834-4323-9d01-a5054cd90cfc
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Razor Claws
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 4 damage
+        - 5 damage; M<2 bleeding (save ends)
+        roll: 2d10 + Agility
+      description: ""
+      abilityType: none
+      iconid: a393d50b-bef4-4a90-a1bf-767971ef2117
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: anyspace
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 0f794ff7-5f6a-4c55-a59d-d54aa86c4057
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        movementType: jump
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          objectTarget: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 46951b8b-82aa-4385-bd68-3017faf7005d
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: 1 damage; prone
+          modifiers: []
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        invokeOnCaster: true
+        promptText: If the ghoul lands on a size 1 enemy they are knocked prone
+      name: Leap
+      iconid: c451291d-df72-4ba0-92c6-195e2d7f9136
+      description: The ghoul jumps 3 squares. If they land on a size 1 enemy, that enemy is knocked prone and the ghoul makes a free strike against them.
+      abilityType: none
+      implementation: 3
+    damageEntries:
+      3a0de62f-4bd3-419c-8b73-f49deb60c4aa:
+        damage: 9
+        id: 3a0de62f-4bd3-419c-8b73-f49deb60c4aa
+      0dab31ba-62cb-4b98-9859-b9477571d3be:
+        id: 0dab31ba-62cb-4b98-9859-b9477571d3be
+        heal: 9
+      8bd7e57c-728f-4a6e-aa71-20cd138ec6a0:
+        damage: 7
+        id: 8bd7e57c-728f-4a6e-aa71-20cd138ec6a0
+      09e02d7f-e9c3-4572-85c8-7aa39e4e056b:
+        id: 09e02d7f-e9c3-4572-85c8-7aa39e4e056b
+        heal: 7
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        17f4ee23-710b-47a4-a6da-571ed526597f:
+          note: 4 damage from New Test Hero's Melee Free Strike
+          disposition: bad
+          attackerid: 2791eda7-5841-4d37-9b03-fc5ffcfcb180
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: -2
+        5fd57cc1-85ea-467f-b881-abdb79d0121e:
+          disposition: good
+          note: Cackling Ghoul's Arise
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1
+        a8011415-2cd6-446a-a7a0-c0045e7e1338:
+          note: 9 damage from New Test Hero's Melee Free Strike
+          disposition: bad
+          attackerid: 2791eda7-5841-4d37-9b03-fc5ffcfcb180
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: -8
+        1e142aff-3e13-4aa0-879a-23e8747c32bf:
+          disposition: good
+          note: Cackling Ghoul's Arise
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1
+        5d2a0a38-41cd-440f-85fc-3d1e4b8d40f3:
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 2
+        e68e949e-824d-49c4-b556-752d19a482d3:
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 15
+        984d9691-b94c-40bb-8f4d-57904d0fb2ad:
+          note: 7 damage from New Test Hero's Melee Free Strike
+          disposition: bad
+          attackerid: 2791eda7-5841-4d37-9b03-fc5ffcfcb180
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: -6
+        7346601f-ffee-45d3-a038-cb32e6398a54:
+          disposition: good
+          note: Cackling Ghoul's Arise
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Ghoul	Level 1 Horde Harrier
+        Undead	EV 3
+        <b>Stamina</b> 15	<b>Immunity</b> corruption 1, poison 1
+        <b>Speed</b> 7	<b>Size</b> 1M/<b> Stability</b> 0
+        <b>Free Strike</b> 1
+        Might 0	Agility +2	Reason -2	Intuition 0	Presence -1
+        <b>Razor Claws</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	3 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage; M<2 bleeding (save ends)
+
+        <b>Leap</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The ghoul jumps 3 squares. If they land on a size 1 enemy, that enemy is knocked prone and the ghoul makes a free strike against them.
+
+        <b>Hunger</b>
+        If the ghoul charges, their speed increases by 2 until the end of their turn.
+
+        <b>Arise</b>
+        The first time the ghoul is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they regain half their Stamina and fall prone.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2812268f-af69-4bba-a0df-18e68eb349d0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:2812268f-af69-4bba-a0df-18e68eb349d0: true
+        sourceguid: 2812268f-af69-4bba-a0df-18e68eb349d0
+        behavior: trigger
+        source: Trait
+        name: Hunger
+        description: If the ghoul charges, their speed increases by 2 until the end of their turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 42c11695-b806-417e-b695-efe114a1e405
+          persistence: []
+          conditionFormula: Trigger Name = "BeginCharge"
+          behaviors:
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            text: Hunger...
+            filterTarget: ""
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: 41e79778-7267-4947-b05a-824b0600c681
+            duration: 0
+            ongoingEffectCustom: false
+          castImmediately: true
+          trigger: custom
+          name: Hunger
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 5f3ac36b-9c8d-4ded-a904-6640f0dcf9a4
+      - __typeName: CharacterModifier
+        sourceguid: 2812268f-af69-4bba-a0df-18e68eb349d0
+        source: Trait
+        value: 2
+        domains:
+          CharacterFeature:2812268f-af69-4bba-a0df-18e68eb349d0: true
+        name: Hunger
+        guid: 0039b9ec-d470-432e-a29d-424601d4159f
+        description: If the ghoul charges, their speed increases by 2 until the end of their turn.
+        behavior: attribute
+        attribute: 6707d8ac-4323-47bc-9593-e36fd1ac146e
+      name: Hunger
+      description: If the ghoul charges, their speed increases by 2 until the end of their turn.
+      guid: 2812268f-af69-4bba-a0df-18e68eb349d0
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5dfcd239-8451-4760-b966-de47ace83f71
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+        name: Arise
+        resourceRefreshType: encounter
+        description: The first time the ghoul is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they regain half their Stamina and fall prone.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b3ebebbe-7f14-4100-a2b9-636f20cb525d
+          conditionFormula: Damage Type != "Fire" And Damage Type != "Holy"
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: (-Stamina) + 1
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            applyto: caster
+            text: Arise!
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            applyto: caster
+            rule: prone
+          name: Arise
+          trigger: zerohitpoints
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+      name: Arise
+      description: The first time the ghoul is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they regain half their Stamina and fall prone.
+      guid: 5dfcd239-8451-4760-b966-de47ace83f71
+      source: Trait
+    role: Horde Harrier
+    equipment: []
+    titles: []
+    opportunityAttack: 1
+    moveDistanceRoundId: 5b4caf02-6122-448e-8e08-752fc1119735-1
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    notes:
+    - text: ""
+      title: Monster Notes
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 69291499-5650-475f-9f94-7a40db97528a-465
+    max_hitpoints: 15
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      ongoingEffectid: 41e79778-7267-4947-b05a-824b0600c681
+      duration: 0
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 0.524891213809743
+        queueguid: edecec63-9a6e-4230-bb33-8de991cd6c79
+        initiativeid: 6595e450-5708-4cd5-a0d1-73edc1a8c5bb
+        round: 1
+      seq: 1
+      stacks: 1
+      id: 84af8740-3821-4ee9-8f27-43317cd5b907
+      casterInfo:
+        abilityName: Hunger
+        tokenid: d76fcb50-7275-4773-9c35-1af1fb4da3de
+    initiativeGrouping: cfad18eb-68c4-4edf-9b5f-09ad209385bb
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        94ff6078-77c6-44f1-b173-ec718ad45752:
+          note: Leap
+          abilityid: 0f794ff7-5f6a-4c55-a59d-d54aa86c4057
+          refreshid: a1ad951e-50a6-427d-8c5e-03d4b3ce80a6-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        b3b2fc91-a5a8-4974-aff0-0197944aba32:
+          note: Leap
+          abilityid: 0f794ff7-5f6a-4c55-a59d-d54aa86c4057
+          refreshid: 8320c9a8-cef7-4c7b-bb80-25826e9b9db6-2
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        301ad3db-48dd-4912-bffc-82dafa5762a3:
+          note: Leap
+          abilityid: 0f794ff7-5f6a-4c55-a59d-d54aa86c4057
+          refreshid: 27d1912b-7144-4fac-b3fa-720fa8767a1e
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        b6a074ee-0b55-4c5a-8d5e-d38358fedc99:
+          refreshid: 5b4caf02-6122-448e-8e08-752fc1119735-1
+          note: Charge
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        10a530e3-afd6-43f2-aeaa-2734064e11cb:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: b7a26033-8259-45dc-aedc-6f9c80d5a365
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        8550f511-86e0-42a5-ae7d-a0cd21c41000:
+          refreshid: edecec63-9a6e-4230-bb33-8de991cd6c79-1
+          note: Charge
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        a8abd3b2-9197-4c60-88b6-b6206bc6b954:
+          note: Melee Free Strike
+          abilityid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+          refreshid: a1ad951e-50a6-427d-8c5e-03d4b3ce80a6-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    damage_taken: 0
+    monster_category: Monster
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: edecec63-9a6e-4230-bb33-8de991cd6c79-1
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 8320c9a8-cef7-4c7b-bb80-25826e9b9db6-2
+        used: 1
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    deathSavingThrowFailures: 0
+    keywords:
+      Undead: true
+    traitNames: []
+    movementSpeeds: []
+    walkingSpeed: 7
+    equipmentMeta:
+      offhand0: []
+    skillRatings: []
+    monster_type: Ghoul
+  tokenType: null
+  bestiaryId: 9584f1f7-037a-42eb-aeed-e68c51a30ebd
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Ghoul
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 4
+ctime: 1741590284417
+mtime: 1775201137032
+hidden: false

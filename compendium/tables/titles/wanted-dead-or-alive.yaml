@@ -1,0 +1,79 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+prerequisite: You are declared an outlaw by a governmental authority.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Wanted Dead or Alive Benefit
+    numChoices: 1
+    guid: fbabe6e8-ccb5-4f8c-b0f1-c8ee02e3ced0
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      description: When negotiating with criminals, your Renown score is considered to be 2 higher than usual.
+      modifiers:
+      - __typeName: CharacterModifier
+        text: When negotiating with criminals, your Renown score is considered to be 2 higher than usual.
+        sourceguid: f3ca1b47-30e7-406f-b848-b5be4a1c787c
+        source: Feat
+        behavior: movementtext
+        name: Honor Among Thieves
+        texttype: negotiation
+        description: When negotiating with criminals, your Renown score is considered to be 2 higher than usual.
+        guid: b83f0b8e-5cd9-4851-b4b9-81a613ddeca3
+        color: white
+      source: Feat
+      canHavePrerequisites: true
+      guid: f3ca1b47-30e7-406f-b848-b5be4a1c787c
+      name: Honor Among Thieves
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: When you make a melee strike that targets a minion and at least one more minion is within distance of the strike, the strike gains a +3 damage bonus.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: df92f069-821d-49ad-9586-a48dda15b515
+        displayCondition: Target.Minion and (Count Nearby Enemies(Reach, "Minion") > 1)
+        source: Feat
+        guid: 81804661-85f1-4908-b617-30e2426958cc
+        keywords:
+          Strike: true
+          Melee: true
+        activationCondition: Target.Minion and (Count Nearby Enemies(Reach, "Minion") > 1)
+        behavior: power
+        name: Minion Mower
+        description: When you make a melee strike that targets a minion and at least one more minion is within distance of the strike, the strike gains a +3 damage bonus.
+        damageModifier: "3"
+        rollType: ability_power_roll
+        modtype: none
+      source: Feat
+      canHavePrerequisites: true
+      guid: b95eb25b-decc-4eb2-a0c9-eda03cb2c7b7
+      name: Minion Mower
+      implementation: 3
+    - __typeName: CharacterFeature
+      description: You gain an edge on the Escape Grab maneuver. Additionally, when you succeed on a test to escape bonds or manacles, as part of the same maneuver, you can transfer the bonds or manacles to an adjacent creature of the same size without them immediately noticing.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 19c662ee-1d2c-4d5c-a923-3279d97efa16
+        displayCondition: Ability.Name = "Escape Grab"
+        source: Feat
+        modtype: edge
+        keywords: []
+        activationCondition: Ability.Name = "Escape Grab"
+        rollType: ability_power_roll
+        guid: 0cc8b586-7a07-4e5e-85e7-87d562b7c3ed
+        description: You gain an edge on the Escape Grab maneuver. Additionally, when you succeed on a test to escape bonds or manacles, as part of the same maneuver, you can transfer the bonds or manacles to an adjacent creature of the same size without them immediately noticing.
+        behavior: power
+        name: No, You’re Under Arrest!
+      source: Feat
+      canHavePrerequisites: true
+      guid: 19c662ee-1d2c-4d5c-a923-3279d97efa16
+      name: No, You’re Under Arrest!
+      implementation: 3
+name: Wanted Dead or Alive
+mtime: 1773772202269
+description: A hundred silver?! An insult! I turned my father in for fifty golden crowns. And he was innocent!
+id: 9972c25e-d691-474d-893b-001790061d0a
+ctime: 1762351099195

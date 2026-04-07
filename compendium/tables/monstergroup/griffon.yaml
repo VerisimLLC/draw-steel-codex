@@ -1,0 +1,96 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "3"
+  strain: []
+  guid: d85aa735-d7b6-4d63-ba8d-21038efe1860
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Swoop
+  range: 1
+  description: The griffon flies up to their speed, and can make a free strike against each creature who makes an opportunity attack against them during this movement.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: inu
+    roll: 2d10 + Intuition
+    isTest: false
+    resistanceRoll: true
+    tiers:
+    - Frightened (save ends)
+    - Frightened (EoT)
+    - No effect.
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 167
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "5"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: c194330b-b3f4-41aa-8896-56175c06a159
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+  targetType: target
+  name: Piercing Cry
+  numTargets: "1"
+  description: A griffon acting this turn unleashes a hideous screech at one enemy within 5 squares of them, forcing that creature to make an Intuition test.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+- __typeName: MaliceAbility
+  resourceNumber: "10"
+  targetFilter: Target.Flying Speed = 0
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 268ef8c6-6e69-4dd5-8992-f5208a4d8392
+    duration: eoe
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 167
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 36c78e6d-c195-4bee-ba98-1c4570256ba9
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+  numTargets: "1"
+  name: Wildwinds
+  targetType: map
+  description: Winds bluster and blow across the encounter map. Until the end of the encounter, each creature who can’t fly or isn’t mounted on a flying creature takes a -3 penalty to stability, and any forced movement effect targeting such a creature moves them an additional 5 squares.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+mtime: 1771346027248
+name: Griffon
+traits: []
+attacks: []
+id: cd4b3117-654e-4293-be42-bbf547b2a6fa
+ctime: 1758524794519

@@ -1,0 +1,23 @@
+__typeName: ActivatedAbility
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+numTargets: "1"
+modifiers: []
+range: 5
+importMatchType: rules
+guid: 6839bf48-f87c-43cd-8f64-a0b35943a5c7
+repeatTargets: false
+keywords: []
+id: 6839bf48-f87c-43cd-8f64-a0b35943a5c7
+behaviors:
+- __typeName: ActivatedAbilitySetStaminaBehavior
+  roll: "0"
+targetType: self
+name: Posthumous Promotion - Loyalty Collar Kill
+importMatch: (if |any )?(<<monster>>|target|targets?) (has|who has|with) a loyalty collar,? (they |is )?(are |)(reduced to 0 stamina|killed)
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

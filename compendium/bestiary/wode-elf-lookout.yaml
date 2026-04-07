@@ -1,0 +1,257 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 58ade2c9-8a03-40ae-a6fb-c1c1c7e03126
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    damage_taken_minion_count: 4
+    monster_type: Wode Elf Lookout
+    levelChoices: []
+    damage_taken_seq: 2
+    traitNames: []
+    ongoingEffects: []
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Lookout	Level 1 Minion Support
+        Fey, Humanoid, Wode Elf	EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed </b>7	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Speed +2	<b>Free Strike</b> 1
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Longbow</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 8<b>Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	1 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	2 damage
+        %E2%9C%B8	<b>17</b>	3 damage
+
+        <b>There!</b>
+        A wode elf within 5 of the lookout can make a ranged strike as if occupying the lookout's space.
+
+        <b>Masking Glamor</b>
+        The lookout immediately hides at the end of their turn while in cover or concealment, even if they are observed.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:17119a05-b0f4-48dc-beb3-399f2c73c832: true
+      modifiers: []
+      name: There!
+      description: A wode elf within 5 of the lookout can make a ranged strike as if occupying the lookout's space.
+      guid: 17119a05-b0f4-48dc-beb3-399f2c73c832
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ab759e91-96e7-4d17-b8ce-668e2d1a2cec
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1)) and Self.Ignore Cover <= 0 '
+        guid: 45b4cf5f-c55c-4d76-9767-0f9389ceaf29
+        name: Masking Glamor
+        domains:
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+        description: Abilities targeting the lookout that would take a bane from cover have a double bane instead.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: ab759e91-96e7-4d17-b8ce-668e2d1a2cec
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Target.Conditions has "concealment"
+        domains:
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the lookout that would take a bane from concealment have a double bane instead.
+        behavior: power
+        guid: b8519013-2fe9-4d33-91df-4607085f6129
+      source: Trait
+      description: Abilities targeting the lookout that would take a bane from cover or concealment have a double bane instead.
+      guid: ab759e91-96e7-4d17-b8ce-668e2d1a2cec
+      name: Masking Glamor
+      implementation: 2
+    role: Minion Support
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 1
+    initiativeGrouping: a38b90b2-521c-40ad-9521-7fa7269e8e65
+    monster_category: Monster
+    damage_taken: 0
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    walkingSpeed: 7
+    resources: []
+    minionSquad: Wode Elf Lookout Squad 2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 137
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 8
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 75de90ca-c8a9-4dd1-9741-d5437cc43bc8
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + Agility
+      implementation: 4
+      persistence: []
+      categorization: Signature Ability
+      name: Longbow
+      numTargets: 1
+      description: ""
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    damageEntries:
+      059be9ad-2683-468d-a1ff-d3587262e71b:
+        damage: 6
+        seq: 3
+        attackerid: c4e31259-361c-4366-ae3f-7fd87d248cc9
+        id: 059be9ad-2683-468d-a1ff-d3587262e71b
+        damage_type: untyped
+    movementSpeeds:
+      climb: 7
+    withCaptain: +2 bonus to speed
+    creatureSize: 1M
+    equipmentMeta:
+      offhand0: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Wode Elf: true
+  tokenType: null
+  bestiaryId: 318effd6-6529-4ad0-87bd-8cc3ca8a2873
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Wode Elf Lookout
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590234866
+mtime: 1775201137032
+hidden: false

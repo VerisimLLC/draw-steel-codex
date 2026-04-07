@@ -1,0 +1,51 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: cb81bb46-448a-4353-9ab6-ad27416240a1
+  modifyDescription: You can use Defend as a maneuver
+  source: Ongoing Effect
+  filterAbility: Ability.name = "Defend"
+  behavior: modifyability
+  domains:
+    CharacterOngoingEffect:cb81bb46-448a-4353-9ab6-ad27416240a1: true
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  name: The Green Defends Its Servants
+  attributes: []
+  description: ""
+  guid: 74422cb4-1018-4679-8677-94312689c2f7
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 8bc9736f-4482-45c1-b397-5725284502bf
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: cb81bb46-448a-4353-9ab6-ad27416240a1
+id: cb81bb46-448a-4353-9ab6-ad27416240a1
+ctime: 1772842474349
+domains:
+  CharacterOngoingEffect:cb81bb46-448a-4353-9ab6-ad27416240a1: true
+display:
+  brightness: 1
+  saturation: 0
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: The Green Defends Its Servants
+custom: true
+description: ""
+mtime: 1772842812355
+iconid: 075a7376-9878-4f90-bab6-0b780b7e13a3

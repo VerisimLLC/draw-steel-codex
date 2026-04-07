@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  guid: cb24310b-6a2f-4027-bbdb-2c34a9f9b2b3
+  sourceguid: f04ac94e-cd0f-455b-b056-b067cc846aca
+  value: "-(stacks)"
+  source: Ongoing Effect
+  name: The Mountain Does Not Move caster
+  behavior: attribute
+  description: ""
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+casterTracking: one
+stackable: true
+id: f04ac94e-cd0f-455b-b056-b067cc846aca
+ctime: 1767216617440
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: ""
+name: The Mountain Does Not Move caster
+guid: f04ac94e-cd0f-455b-b056-b067cc846aca
+custom: true
+mtime: 1767216617440
+iconid: ui-icons/skills/1.png

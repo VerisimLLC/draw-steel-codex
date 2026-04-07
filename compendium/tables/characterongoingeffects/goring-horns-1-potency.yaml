@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 752a0a90-b1be-405a-a61a-ec4c8c1f8898
+  source: Ongoing Effect
+  modtype: none
+  keywords: []
+  activationCondition: Ability.name is "Goring Horns"
+  domains:
+    CharacterOngoingEffect:752a0a90-b1be-405a-a61a-ec4c8c1f8898: true
+  description: This ongoing affect increases potency by 1 because the Minotaur has charged this turn.
+  name: Goring Horns +1 Potency
+  rollType: ability_power_roll
+  potencymod: "1"
+  behavior: power
+  guid: 2d6329e5-d9a5-4bcb-8019-8dc752e5fc08
+source: Ongoing Effect
+domains:
+  CharacterOngoingEffect:752a0a90-b1be-405a-a61a-ec4c8c1f8898: true
+guid: 752a0a90-b1be-405a-a61a-ec4c8c1f8898
+id: 752a0a90-b1be-405a-a61a-ec4c8c1f8898
+ctime: 1765092043742
+hiddenFromEnemies: false
+hiddenOnToken: false
+description: This ongoing affect increases potency by 1 because the Minotaur has charged this turn.
+name: Goring Horns +1 Potency
+statusEffect: true
+custom: true
+mtime: 1770566253249
+iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93

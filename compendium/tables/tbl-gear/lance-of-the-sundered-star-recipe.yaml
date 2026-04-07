@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: 655e619a-88ed-4970-bcd2-f33bb9a54d58
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765471016450
+ctime: 1765471016450
+name: Lance of the Sundered Star Recipe
+flavor: Text or lore in Hyrallic
+description: The project source necessary to craft Lance of the Sundered Star
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

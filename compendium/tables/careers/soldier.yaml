@@ -1,0 +1,53 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 268e9d5e-b6d9-4b42-93c2-d662d08e5e52
+projectpoints: "0"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      exploration: true
+    name: Soldier Exploration Skill
+    description: "Choose one skill from the exploration skill group (Quick Build: Endurance) "
+    guid: 46c4c253-c10d-4954-8c45-861338f13084
+    source: Soldier Career Feature
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+    name: Soldier Intrigue Skill
+    description: "Choose one skill from the intrigue skill group (Quick Build: Alertness)"
+    guid: 98daa3eb-7fd9-4d28-bb94-3a7194589587
+    source: Soldier Career Feature
+  - __typeName: CharacterLanguageChoice
+    name: Soldier Languages
+    numChoices: 2
+    description: Choose two Languages
+    source: Soldier Career Feature
+    guid: 78d6e12a-f104-42ea-820d-8d2172586a98
+  - __typeName: CharacterFeatChoice
+    guid: 1adf1f63-337a-4371-a866-0a669f308617
+    description: "Choose one perk from the exploration perk type. (Quick Build: Teamwork)"
+    tag: exploration perks
+    name: Soldier Exploration Perk
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 2a57b966-9c8e-4031-99dd-be8bd53b0af1
+      source: Soldier Career Feature
+      guid: 30b57377-c2ea-4038-a778-6fd5c3ed0371
+      name: Soldier's Renown
+      value: 1
+      description: ""
+      behavior: attribute
+      attribute: d97c2794-cb70-420f-b078-e260b43e154b
+    name: Soldier's Renown
+    guid: 1f231659-2f97-440e-bf1e-3740cb11b0c2
+    description: ""
+    source: Soldier Career Feature
+name: Soldier
+mtime: 1768796544626
+description: "In your formative years, you fought tirelessly in skirmishes and campaigns against enemy forces. In defining your career, think about the following questions: \n\nWhich army and company did you serve? \n\nWhat conflicts were you a part of? \n\nWhat rank did you achieve? \n\nWhat heroics did you perform in the heat of battle? \n\nYou gain the following career benefits: \n\nRenown: +1  "
+id: f19b68c6-6dfb-4d23-986b-32e5229b217c
+ctime: 1730564554830

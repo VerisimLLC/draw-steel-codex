@@ -1,0 +1,150 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 890d323b-80a5-4f3b-a925-2819dfe9ea3e
+      guid: 5ef7b8a3-883c-480a-b0f4-6384d7a878ef
+      source: Charge Global Rule Mod Feature
+      behavior: activated
+      description: When you take the Charge action, you move up to your speed in a straight line without shifting, and can then make a melee free strike (see Free Strikes) or use an  ability with the Charge keyword against a creature when you end your move. You can’t move through difficult terrain as part of your movement with this action. You  can’t climb, fly, or swim as part of this action unless you have that type of movement as a keyword in your speed.
+      name: Charge
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityCustomTriggerBehavior
+          applyto: caster_including_squad
+          value: ""
+          triggerName: BeginCharge
+        - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+          applyto: caster_including_squad
+          momentaryEffect:
+            __typeName: CharacterOngoingEffect
+            modifiers:
+            - __typeName: CharacterModifier
+              guid: 2c8b8665-8542-4cce-8bd8-87960685db90
+              sourceguid: a64f1565-e2f8-46d4-a382-7a02c675ada8
+              value: 1
+              source: Ongoing Effect
+              name: Charging
+              behavior: attribute
+              description: This creature is charging
+              attribute: 0be0b448-fb91-4cf9-a418-9b630342b62d
+            source: Ongoing Effect
+            guid: a64f1565-e2f8-46d4-a382-7a02c675ada8
+            id: a64f1565-e2f8-46d4-a382-7a02c675ada8
+            name: Charging
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0
+                s: 1.00112962722778
+                v: 1.00129628181458
+                a: 1
+            description: This creature is charging
+            implementation: 3
+            iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+          name: Ability Duration Effect
+        - __typeName: ActivatedAbilityRelocateCreatureBehavior
+          movementType: move
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          applyto: caster_minions
+          customAbility:
+            __typeName: ActivatedAbility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            numTargets: "1"
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 8b7e0e1a-b1c7-4967-82c8-208c5f811f70
+            repeatTargets: false
+            targetType: emptyspace
+            persistence: []
+            behaviors:
+            - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              movementType: move
+              guid: 67a38538-34a9-4c23-b782-2fbe071711c0
+            targeting: straightpath
+            selfTarget: true
+            name: Squad Charge
+            description: ""
+            range: Charging Speed
+            iconid: ui-icons/skills/1.png
+          promptWhenResolvingText: Choose Squad Member to Charge
+          autoTarget: false
+          filterTarget: caster.minion
+          promptWhenResolving: true
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          applyto: caster
+          targeting: prompt
+          promptText: Choose Charging Attack
+          autoTarget: false
+          abilityType: standard
+          standardAbility: 923bf32c-4233-4fec-8895-7ce18da28744
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: 71b79813-c37a-4945-84fc-6d40fa73cdc5
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0
+            s: 1.00112962722778
+            v: 1.00129628181458
+            a: 1
+        categorization: Common Ability
+        range: Charging Speed
+        persistence: []
+        modifiers: []
+        numTargets: "1"
+        strain: []
+        guid: 47e7d7e4-8750-487e-953b-4d93106a7809
+        iconid: b4d8d555-a8c8-44e9-aa8c-cf3718d3d1ea
+        sourceReference:
+          __typeName: SourceReference
+          page: 274
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        domains: []
+        targeting: straightpath
+        targetType: emptyspace
+        name: Charge
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        description: When you take the Charge action, you move up to your speed in a straight line without shifting, and can then make a melee free strike (see Free Strikes) or use an  ability with the Charge keyword against a creature when you end your move. You can’t move through difficult terrain as part of your movement with this action. You  can’t climb, fly, or swim as part of this action unless you have that type of movement as a keyword in your speed.
+        abilityType: none
+        implementation: 3
+    name: Charge
+    description: When you take the Charge action, you move up to your speed in a straight line without shifting, and can then make a melee free strike (see Free Strikes) or use an  ability with the Charge keyword against a creature when you end your move. You can’t move through difficult terrain as part of your movement with this action. You  can’t climb, fly, or swim as part of this action unless you have that type of movement as a keyword in your speed.
+    guid: 890d323b-80a5-4f3b-a925-2819dfe9ea3e
+    source: Charge Global Rule Mod Feature
+    implementation: 3
+name: Charge
+mtime: 1775024270995
+id: 75fed15a-50f0-45ef-99fe-607e72b87046
+ctime: 1742872901872

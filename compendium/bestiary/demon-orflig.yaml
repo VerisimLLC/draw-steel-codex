@@ -1,0 +1,174 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: a348f118-2c28-4576-84d6-a7504ded38f8
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Demon Orflig	Level 4 Harrier Minion
+        Abyssal, Demon	EV 7
+        <b>Stamina</b> 10	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6 (fly)	<b>Size</b> 1T /<b> Stability</b> 0
+        <b>With Captain </b>Speed +2	<b>Free Strike</b> 2
+        Might -1	Agility +3	Reason +1	Intuition +0	Presence -1
+        <b>Soul Prism</b> (Action) %E2%97%86 2d10 + 2%E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 corruption damage; slide 2
+        %E2%98%85	<b>12-16</b>	5 corruption damage; vertical slide 2
+        %E2%9C%B8	<b>17</b>	6 corruption damage; vertical slide 4
+
+        <b>Imposing Energy</b>
+        A enemy who starts their turn with two or more orfligs adjacent to them is slowed (EoT).
+
+        <b>Soulsight</b>
+        Each creature within 2 of the orflig can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4a3fc53c-4ca2-4ec4-9fb0-1dc202fa2688: true
+      modifiers: []
+      name: Imposing Energy
+      description: A enemy who starts their turn with two or more orfligs adjacent to them is slowed (EoT).
+      guid: 4a3fc53c-4ca2-4ec4-9fb0-1dc202fa2688
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e7c7ae5d-760d-462f-afeb-ea39e9034d4c: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the orflig can't be hidden from them.
+      guid: e7c7ae5d-760d-462f-afeb-ea39e9034d4c
+      source: Trait
+    role: Harrier Minion
+    inflictedConditions: []
+    keywords:
+      Demon: true
+      Abyssal: true
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 2
+    monster_type: Demon Orflig
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: -1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 10
+    traitNames:
+    - With Captain Speed +2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Magic: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: bd516120-950d-4a2f-b0c3-13d45fdc7cc8
+      implementation: 4
+      numTargets: 1
+      name: Soul Prism
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage; slide 2
+        - 5 corruption damage; vertical slide 2
+        - 6 corruption damage; vertical slide 4
+        roll: 2d10 + 2
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    movementSpeeds:
+      fly: 6
+    ev: 7
+    minion: true
+    levelChoices: []
+    creatureSize: 1T
+  tokenType: null
+  bestiaryId: 262ff4cd-5713-4b5d-bd28-f9c4af23dae3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Demon Orflig
+parentFolder: d2197625-9db6-4f37-8d6f-353a079bffdf
+artist: null
+ord: 9
+ctime: 1741590231771
+mtime: 1775201137032
+hidden: false

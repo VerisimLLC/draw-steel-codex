@@ -1,0 +1,172 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 074f159f-4ff1-4ef3-b48a-c4251f48b938
+  source: Ongoing Effect
+  seq: d852323d-50e5-429a-b842-d02f36ddc90c
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    creatureFilter: ""
+    name: Reflector Field
+    triggers: []
+    guid: a0e48dd0-7046-41c5-8a52-37db7f4130e3
+    modifiers: []
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  domains:
+    CharacterOngoingEffect:074f159f-4ff1-4ef3-b48a-c4251f48b938: true
+  radius: Stacks
+  guid: 404d13e3-9171-4976-a961-ce8b3fa344d2
+  description: ""
+  behavior: aura
+  name: Reflector Field
+- __typeName: CharacterModifier
+  type: passive
+  sourceguid: a0e48dd0-7046-41c5-8a52-37db7f4130e3
+  multitarget: one
+  source: Aura
+  powerRollModifier:
+    __typeName: CharacterModifier
+    displayCondition: Ability.Keywords has "Ranged"
+    changeTargetRange: ability
+    modtype: none
+    keywords: []
+    activationCondition: Ability.Keywords has "Ranged"
+    rollType: ability_power_roll
+    changeTarget: true
+    changeTargetEffect: none
+    source: Trigger
+    behavior: power
+    hasCustomTrigger: false
+    customTrigger:
+      __typeName: TriggeredAbility
+      targetFilter: ""
+      repeatTargets: false
+      reasonedFilters: []
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: 2d6
+        filterTarget: Strained > 0
+        titleText: Strained Reflector Field
+        chatMessage: Strained Reflector Field
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: e3a4c677-fd32-4ee1-a3d1-20ac46dc7035
+      numTargets: "1"
+      description: ""
+      targetType: self
+      trigger: d20roll
+      name: New Ability
+      abilityFilters: []
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    damageMultiplier: half
+    name: Reflector Field
+    rules: ""
+    changeTargetFilter: Target = Caster
+    guid: 31f8574b-e015-4f3f-b4bc-450c385b5298
+  behavior: powertabletrigger
+  targetFilter: ""
+  forceReroll: false
+  filterCondition: Strained < 1
+  targetType: ally
+  trigger: strike
+  name: Reflector Field
+  rules: Whenever an enemy targets an ally in the area with a ranged ability, the ability is negated on the ally and reflected back at the enemy. The ability deals half the damage to the enemy that it would have dealt to the ally and loses any additional effects.
+  description: ""
+  range: "3"
+  guid: 9544efe7-c7a8-4c07-ba14-713ae3e522c9
+- __typeName: CharacterModifier
+  type: passive
+  sourceguid: a0e48dd0-7046-41c5-8a52-37db7f4130e3
+  multitarget: one
+  source: Aura
+  powerRollModifier:
+    __typeName: CharacterModifier
+    displayCondition: Ability.Keywords has "Ranged"
+    changeTargetRange: ability
+    modtype: none
+    keywords: []
+    activationCondition: Ability.Keywords has "Ranged"
+    rollType: ability_power_roll
+    changeTarget: true
+    changeTargetEffect: none
+    source: Trigger
+    behavior: power
+    hasCustomTrigger: true
+    customTrigger:
+      __typeName: TriggeredAbility
+      targetFilter: ""
+      repeatTargets: false
+      reasonedFilters: []
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: 2d6
+        filterTarget: Strained > 0
+        titleText: Strained Reflector Field
+        chatMessage: Strained Reflector Field
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: e3a4c677-fd32-4ee1-a3d1-20ac46dc7035
+      numTargets: "1"
+      description: ""
+      targetType: self
+      trigger: d20roll
+      name: New Ability
+      abilityFilters: []
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    damageMultiplier: half
+    name: Reflector Field
+    rules: ""
+    changeTargetFilter: Target = Caster
+    guid: 31f8574b-e015-4f3f-b4bc-450c385b5298
+  behavior: powertabletrigger
+  targetFilter: ""
+  forceReroll: false
+  filterCondition: Strained > 0
+  targetType: ally
+  trigger: strike
+  name: Reflector Field
+  rules: Whenever an enemy targets an ally in the area with a ranged ability, the ability is negated on the ally and reflected back at the enemy. The ability deals half the damage to the enemy that it would have dealt to the ally and loses any additional effects.
+  description: ""
+  range: "4"
+  guid: 8d4402f9-7a41-436c-893e-f4917a619b74
+source: Ongoing Effect
+stackable: true
+id: 074f159f-4ff1-4ef3-b48a-c4251f48b938
+ctime: 1757768315976
+domains:
+  CharacterOngoingEffect:074f159f-4ff1-4ef3-b48a-c4251f48b938: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Reflector Field
+guid: 074f159f-4ff1-4ef3-b48a-c4251f48b938
+description: ""
+mtime: 1758335318541
+iconid: ui-icons/skills/1.png

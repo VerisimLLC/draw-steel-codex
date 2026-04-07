@@ -1,0 +1,127 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 3797ff38-ed69-45b3-97f2-d27900e99f5c
+  description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On an 8 or higher, you gain 1 Heroic Resource and you can spend a Recovery. This replaces the benefit of Rejuvenating I.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityRollBehavior
+        rollDescription: Rejuvenating II
+        roll: 1d10
+      - __typeName: ActivatedAbilityCustomTriggerBehavior
+        value: cast.Roll
+        triggerName: RejuvenatingRoll
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        standardAbilityParams:
+          numrecoveries: "1"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: aeec0c15-c153-47df-9e36-4cbba82d0f12
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+      triggerPrompt: You used an ability that cost 1 or more of your Heroic Resource. Roll a d10, on a 8 or higher, you gain 1 Heroic Resource and can spend a Recovery
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: dbb5e227-1d3c-4483-bf36-4f4f1f5624c3
+      castImmediately: true
+      conditionFormula: Used Ability.HeroicResourceCost > 0
+      numTargets: "1"
+      targetType: self
+      trigger: useability
+      name: Rejuvenating II
+      description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On an 8 or higher, you gain 1 Heroic Resource and you can spend a Recovery. This replaces the benefit of Rejuvenating I.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On an 8 or higher, you gain 1 Heroic Resource and you can spend a Recovery. This replaces the benefit of Rejuvenating I.
+    source: Item
+    behavior: trigger
+    guid: ae1d06da-cab0-4141-a202-7229a9c18dc3
+    name: Rejuvenating II
+    sourceguid: 3797ff38-ed69-45b3-97f2-d27900e99f5c
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityReplenishBehavior
+        resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+        chatMessage: Rejuvenating II Heroic Resource Gain
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 0ed2dc16-3a6e-4a24-b8ca-9404f73e7d1e
+      persistence: []
+      conditionFormula: Trigger Name = "RejuvenatingRoll" and Trigger Value >= 8
+      targetType: self
+      castImmediately: true
+      trigger: custom
+      name: Rejuvenating II
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On an 8 or higher, you gain 1 Heroic Resource and you can spend a Recovery. This replaces the benefit of Rejuvenating I.
+    source: Item
+    behavior: trigger
+    guid: c2a6825e-4839-4caf-a5dd-b02cbd070f6e
+    name: Rejuvenating II
+    sourceguid: 3797ff38-ed69-45b3-97f2-d27900e99f5c
+  source: Item
+  name: Rejuvenating II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A still-growing bonsai tree at least 30 years old
+imbuePrereq: 92becbc6-e823-4fb9-b298-1ac1a7712df8
+projectSource: The First Language
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+description: Whenever you use an ability that costs 1 or more of your Heroic Resource, roll a d10. On an 8 or higher, you gain 1 Heroic Resource and you can spend a Recovery. This replaces the benefit of Rejuvenating I.
+type: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+ctime: 1770699205313
+projectGoal: "150"
+implementation: 4
+id: a62bbb96-f723-45e8-97e8-da4b30f89ebf
+name: Rejuvenating II
+imbueTargetType: implement
+mtime: 1774483559044
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 876fda7f-fa4f-46f8-9c55-8d9a13ec611c

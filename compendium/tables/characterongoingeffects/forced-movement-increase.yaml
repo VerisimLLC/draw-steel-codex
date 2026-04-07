@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 9678a711-b008-41be-a82f-5b126039a4a6
+  sourceguid: ef1858e7-4e73-4b1e-9a1c-58388a3c4921
+  value: stacks
+  source: Ongoing Effect
+  name: Forced Movement Increase
+  behavior: attribute
+  description: Forced movement effects against this creature move the creature further.
+  attribute: ba15f0e1-b50c-4324-af08-ce8f2b8f2cf0
+source: Ongoing Effect
+guid: ef1858e7-4e73-4b1e-9a1c-58388a3c4921
+id: ef1858e7-4e73-4b1e-9a1c-58388a3c4921
+ctime: 1747274137671
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.0020809173584
+    v: 1.00238585472107
+    a: 1
+implementation: 3
+name: Forced Movement Increase
+stackable: true
+description: Forced movement effects against this creature move the creature further.
+mtime: 1771341933276
+iconid: 11d94f0a-d2cb-4f82-a64e-b36bc75e8670

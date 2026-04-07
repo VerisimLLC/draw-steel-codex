@@ -1,0 +1,47 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: d10f06a1-833a-4a03-966e-70d2ae48f03c
+      source: Dying Global Rule Mod Feature
+      guid: bd720da9-9323-44c0-9ef5-82da5f31dd2a
+      filterCondition: stamina <= Dying Stamina and (Hero or Retainer)
+      name: Catch Breath
+      description: |-
+        When your Stamina is 0 or lower, you are dying. While dying, you can’t take the Catch Breath action in combat, and whenever you make a test using Might or Agility, make an attack, or use an action, maneuver, or a triggered action, you lose 1d6 Stamina after the action, maneuver, or triggered action is resolved. This Stamina loss can’t be prevented in any way. While you are dying, your allies can help you spend recoveries in combat, and you can spend Recoveries out of combat as usual.
+
+        While your Stamina is lower than 0, if it reaches the negative of your winded value, you die. When you die, you can’t be brought back to life without the use of a special powerful item such as a Scroll of Resurrection.
+      explanation: You cannot Catch Breath while dying.
+      behavior: suppressabilities
+    - __typeName: CharacterModifier
+      sourceguid: d10f06a1-833a-4a03-966e-70d2ae48f03c
+      source: Dying Global Rule Mod Feature
+      guid: c4dd3a1b-dc06-40ad-a2af-4e2254265f1b
+      conditionid: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+      name: Dying
+      behavior: bestowcondition
+      description: |-
+        When your Stamina is 0 or lower, you are dying. While dying, you can’t take the Catch Breath action in combat, and whenever you make a test using Might or Agility, make an attack, or use an action, maneuver, or a triggered action, you lose 1d6 Stamina after the action, maneuver, or triggered action is resolved. This Stamina loss can’t be prevented in any way. While you are dying, your allies can help you spend recoveries in combat, and you can spend Recoveries out of combat as usual.
+
+        While your Stamina is lower than 0, if it reaches the negative of your winded value, you die. When you die, you can’t be brought back to life without the use of a special powerful item such as a Scroll of Resurrection.
+      explanation: You are Bleeding because you are Dying.
+      filterCondition: stamina <= Dying Stamina and (Hero or Retainer) {bleeding from dying}
+    name: Dying
+    description: |-
+      When your Stamina is 0 or lower, you are dying. While dying, you can’t take the Catch Breath action in combat, and whenever you make a test using Might or Agility, make an attack, or use an action, maneuver, or a triggered action, you lose 1d6 Stamina after the action, maneuver, or triggered action is resolved. This Stamina loss can’t be prevented in any way. While you are dying, your allies can help you spend recoveries in combat, and you can spend Recoveries out of combat as usual.
+
+      While your Stamina is lower than 0, if it reaches the negative of your winded value, you die. When you die, you can’t be brought back to life without the use of a special powerful item such as a Scroll of Resurrection.
+    guid: d10f06a1-833a-4a03-966e-70d2ae48f03c
+    source: Dying Global Rule Mod Feature
+    implementation: 2
+applyRetainers: true
+applyMonsters: true
+ctime: 1728897599467
+name: Dying
+id: 1f00c2e7-6e6a-4f23-bd3c-da4c38e35fbd
+mtime: 1774555664954
+applyCharacters: true
+applyCompanions: true

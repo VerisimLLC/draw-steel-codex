@@ -1,0 +1,20 @@
+__typeName: equipment
+id: 80ec5203-735f-4587-8653-63e3aab2996b
+type: Gear
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+implementation: 2
+description: Your magic and psionic abilities ignore damage immunities.
+itemPrerequisite: Black iron harvested from a slain blood elemental
+ctime: 1770699205313
+projectGoal: "150"
+projectSource: Anjali
+imbuePrereq: none
+name: Piercing
+imbueTargetType: implement
+mtime: 1770782345484
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+imbueLevel: 9

@@ -1,0 +1,34 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 6906316a-26fe-4101-9a4b-60192b77c270
+  displayCondition: ability.name = "Escape Grab"
+  source: Ongoing Effect
+  modtype: double_bane
+  keywords: []
+  activationCondition: ability.name = "Escape Grab"
+  rollType: ability_power_roll
+  guid: 822471a2-8df7-40bb-ae94-ecdc4a0665dc
+  description: This creature has a double bane on the Escape Grab maneuver.
+  behavior: power
+  name: Bane on Escape Grab
+source: Ongoing Effect
+guid: 6906316a-26fe-4101-9a4b-60192b77c270
+id: 151356cb-4497-4917-a281-80c182c8e88f
+ctime: 1771184621938
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+name: Double Bane on Escape Grab
+description: This creature has a double bane on the Escape Grab maneuver.
+mtime: 1771184685870
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+implementation: 3

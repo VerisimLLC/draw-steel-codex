@@ -1,0 +1,41 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: You gain an edge on Presence tests made to win other creatures over or make a good impression (Charming) or to imtimidate, coerce, or bully (Threatening).
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 06e69503-1735-4edb-a5ac-3c1886ec0455
+    source: Item
+    modtype: edge
+    keywords: []
+    activationCondition: true
+    guid: 2c9ad0aa-d4f6-4b14-bca2-dd226b1c067d
+    name: Charming | Threatening
+    rollType: test_power_roll
+    description: You gain an edge on Presence tests made to win other creatures over or make a good impression (Charming) or to imtimidate, coerce, or bully (Threatening).
+    behavior: power
+    attribute: prs
+  source: Item
+  name: Charming | Threatening
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 06e69503-1735-4edb-a5ac-3c1886ec0455
+id: deeea59e-7077-4eb2-a0e8-7cac897402d6
+imbuePrereq: none
+projectSource: Khelt
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770698928353
+type: Gear
+itemPrerequisite: A lock of hair from a fey, taken in amicable bargain for Charming or in violence for Threatening
+mtime: 1774268960700
+name: Awe
+imbueTargetType: armor
+description: When you start this project, choose either Charming or Threatening. If you choose Charming, you gain an edge on Presence tests made to win other creatures over or make a good impression. If you choose Threatening, you gain an edge on Presence tests made to intimidate, coerce, or bully.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 3

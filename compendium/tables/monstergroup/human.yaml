@@ -1,0 +1,161 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  objectTarget: true
+  targetFilter: Enemy
+  targetTextOverride: Each enemy and object in the area
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Area: true
+    Magic: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 4 corruption damage; A<0 slowed (save ends)
+    - 6 corruption damage; A<1 slowed (save ends)
+    - 9 corruption damage; A<2 restrained (save ends)
+    guid: 4755e8c0-1895-4d3b-8fe5-2c52c044a128
+    roll: 2d10 + 2
+  - __typeName: ActivatedAbilityAuraBehavior
+    grow: 0
+    duration: endturn
+    aura:
+      __typeName: Aura
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: 0876c820-4211-422c-a38e-de3f75b717bb
+      modifiers: []
+      objectid: 4623e5a8-2823-4611-98aa-63ee700f38ab
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 187
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "10"
+  abilityType: none
+  persistence: []
+  modifiers: []
+  description: "Special: This ability can’t be used by a minion."
+  strain: []
+  guid: 128bed36-1d44-4310-bdd7-f4214a9d3804
+  numTargets: "1"
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  targetType: cube
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+  radius: "3"
+  name: Alchemical Device
+  selfTarget: false
+  abilityFilters:
+  - formula: not Minion
+    reason: This ability can’t be used by a minion.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetFilter: target.keywords has "Human" and not Enemy
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: b84c003b-3914-42e6-a3f9-79ff79e17382
+    duration: 0
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 181
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 25192130-c5a4-4856-9f2e-dfdca7631de5
+  abilityType: none
+  targetType: map
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+  numTargets: "1"
+  selfTarget: true
+  name: Exploit Opening
+  description: Each human acting this turn gains an edge on abilities until the end of their turn, or has a double edge on any ability that targets an enemy affected by a condition.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: false
+  targetFilter: target.keywords has "Human" and not minion and not Enemy
+  repeatTargets: false
+  implementationDetails: ""
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 181
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "100"
+  numTargets: "1"
+  modifiers: []
+  strain: []
+  guid: aa1b6af9-b807-41ba-a2c2-035ec6affa28
+  abilityType: none
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    invokeOnCaster: false
+    targeting: prompt
+    customAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Hidden
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: b7501bd9-ca38-4bee-8b0f-6166ed440e27
+      iconid: ui-icons/skills/1.png
+      castImmediately: true
+      numTargets: "1"
+      sourceReference:
+        __typeName: SourceReference
+        page: 181
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Invoked Ability
+      behaviors:
+      - __typeName: ActivatedAbilityHealBehavior
+        roll: 5 * level
+      description: ""
+      abilityType: none
+      implementation: 4
+  selfTarget: true
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+  name: Staying Power
+  persistence: []
+  description: Each non-minion human in the encounter regains Stamina equal to 5 times their level.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+mtime: 1772557825287
+name: Human
+traits: []
+attacks: []
+id: f185d16e-35aa-42db-9fbd-529f55ab7935
+ctime: 1758373685003

@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: bdb5ce73-3ce0-4860-b91c-a1eb8d1edd3b
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "100"
+    damageType: poison
+    apply: Damage Reduction
+  description: You have immunty all to poison damage
+  name: Poison Immunity
+  guid: 393b9519-8aaf-415b-af97-1baa96428870
+source: Ongoing Effect
+guid: bdb5ce73-3ce0-4860-b91c-a1eb8d1edd3b
+id: bdb5ce73-3ce0-4860-b91c-a1eb8d1edd3b
+ctime: 1772837651229
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Poison Immunity
+description: You have immunty all to poison damage
+custom: true
+mtime: 1772837651229
+iconid: 699cf8b4-6b8e-41cf-ba1f-c41f5b799cce

@@ -1,0 +1,35 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: f05aac84-be1a-4c1d-b28a-dd126f09c09c
+  sourceguid: f73a9980-a8e2-4683-809c-3ae0ffeeb4d1
+  value: 1
+  source: Ongoing Effect
+  name: Prey - Medicinal Draught
+  behavior: attribute
+  description: A medicinal draught that grants a +1 bonus to speed and increases your Recoveries by 2. This benefit lasts until the end of your next respite.
+  attribute: speed
+- __typeName: CharacterModifier
+  resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+  sourceguid: f73a9980-a8e2-4683-809c-3ae0ffeeb4d1
+  behavior: resource
+  source: Ongoing Effect
+  name: Prey - Medicinal Draught
+  num: 2
+  description: A medicinal draught that grants a +1 bonus to speed and increases your Recoveries by 2. This benefit lasts until the end of your next respite.
+  guid: 00b7250d-12cc-4c84-bbdf-99d621ef8fcc
+source: Ongoing Effect
+guid: f73a9980-a8e2-4683-809c-3ae0ffeeb4d1
+id: f73a9980-a8e2-4683-809c-3ae0ffeeb4d1
+ctime: 1768915149223
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Prey - Medicinal Draught
+description: A medicinal draught that grants a +1 bonus to speed and increases your Recoveries by 2. This benefit lasts until the end of your next respite.
+custom: true
+mtime: 1768915149223
+iconid: ui-icons/skills/1.png

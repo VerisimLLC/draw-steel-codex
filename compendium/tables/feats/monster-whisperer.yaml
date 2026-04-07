@@ -1,0 +1,10 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Exploration Perks
+name: Monster Whisperer
+description: You can use the Handle Animals skill to interact with nonsapient creatures who are not animals.
+mtime: 1755079453415
+id: 786cac63-676f-48b9-abb8-21b0cb9ffcf9
+ctime: 1730700522404

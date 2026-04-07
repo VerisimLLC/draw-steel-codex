@@ -1,0 +1,43 @@
+__typeName: CharacterFeature
+testCases:
+- text: The first time in an encounter that the ankheg drops to 0 Stamina, they regain 25 Stamina. This regain of Stamina can’t be stopped in any way.
+- text: The first time in an encounter that Uraxxinoth drops to 0 Stamina, she regain 50 Stamina. This regain of Stamina can’t be stopped in any way.
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: bf091628-a361-447a-955f-ac149d17c93c
+    repeatTargets: false
+    range: 5
+    conditionFormula: Hitpoints = <<stamina>>
+    behaviors:
+    - __typeName: ActivatedAbilityHealBehavior
+      applyto: caster
+      roll: "<<healing>>"
+    targetType: self
+    name: Second Wind
+    trigger: losehitpoints
+    description: ""
+    abilityType: none
+    iconid: 2dbee8c9-19b0-40da-acda-bf20c2401f4e
+  description: ""
+  source: Monster
+  behavior: trigger
+  guid: 7279c6d4-cfca-4964-8883-7d8cf8634edd
+  name: Second Wind
+  sourceguid: 3c28b076-1b6f-4677-b0dd-08771b913e0f
+source: Monster
+guid: 3c28b076-1b6f-4677-b0dd-08771b913e0f
+importMatch: The first time in an encounter that <<monster>> drops to <<stamina>> Stamina, <<monster>> regains? <<healing>> Stamina. This regain of Stamina can’t be stopped in any way.
+ctime: 1711734862540
+name: Second Wind
+description: ""
+id: 07adc8da-192e-492b-946d-a6098a918c1c
+mtime: 1711994196786

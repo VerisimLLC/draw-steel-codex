@@ -1,0 +1,9 @@
+__typeName: MarkdownDocument
+description: Skull Sigil
+parentFolder: 8e307759-fe9b-408a-bb88-34f90e1fe01b
+updateid: b430fa74-9572-4967-81a1-15c4fe793311
+annotations: []
+id: cb7b70cd-ef51-46f9-aab3-20ce22eafb2f
+mtime: 1763389450823
+content: "# Skull Sigil\n\nThe skull sigil animates the dead in this room. The sigil is an object with 60 Stamina; corruption, poison, and psychic immunity; and holy weakness 5. Whenever the sigil takes damage, each creature in a space that includes the sigil takes 1d6 lightning damage.\n\nWhen the sigil is destroyed, the undead in this room die. As a maneuver, a hero can make an easy Reason test to examine the skull:\n\n|Examine the Skull Sigil: Reason Test\n|{#The hero must connect their mind to the skull's magic to discover its nature. Doing so deals 5 psychic damage to the hero, but they also learn that the symbol is what's causing the dead to rise and remain animated.}\n|{#The hero knows that the symbol can cause the dead to rise in this room and keep them animated.}\n|{#As 12–16, except the hero can deal 10 damage to the sigil as part of the test.}\n\n\n\n## To adjust the Skull Sigil's Stamina\n\nEnter 'Object Mode' by clicking on the Objects panel. It is located on the right side panel by default. Then left lick on the skull sigil object on the floor. Go to the \"Targetable\" property and then adjust Stamina down below. \vAs a reminder:\n* For four heroes the sigil has 40 Stamina.\n* For three heroes the sigil has 20 Stamina.\n\nYou could also just delete the object once enough damage has been done to it if you do not want to edit it. "
+ctime: 1759886707172

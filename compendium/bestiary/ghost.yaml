@@ -1,0 +1,952 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 2176bc6d-e482-4a63-8851-a65dca87b6ef
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.5411757
+    portraitOffset:
+      x: 0.03404326
+      y: 0.1523438
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: bc4d2670-040f-4f1b-ac0b-cb4421425ba7
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: -2
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Ghost
+    aurasEnteredTurnId: f6cf982a-5036-44db-a723-5b64bfba1702-2-d4efc425-5fd6-4ebe-bd5c-87f72c459824
+    levelChoices: []
+    moveDistance: 3
+    deathSavingThrowFailures: 0
+    damageEntries:
+      4171d7cf-3740-4950-8324-8a4d2945776c:
+        damage: 1
+        id: 4171d7cf-3740-4950-8324-8a4d2945776c
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        39c419ae-91ed-4099-a370-86ec65e4de46:
+          note: 4 damage from Talent Lv3's Melee Free Strike
+          disposition: bad
+          attackerid: 32f7f53d-2717-4339-8834-291f0af39c42
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 76
+        e30bdc08-7afe-44d0-aad0-4bb74ad823c1:
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 80
+        b9d74770-ed09-4d20-81a1-0c1cf7658029:
+          note: 1 damage from Talent Lv3's Melee Free Strike
+          disposition: bad
+          attackerid: 32f7f53d-2717-4339-8834-291f0af39c42
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 79
+        e4fbebc9-7327-4aee-a7ee-a7d77d2484e1:
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 80
+    minion: false
+    stability: 1
+    opportunityAttack: 4
+    import:
+      type: mcdm
+      data: |
+        Ghost	Level 1 Leader
+        Incorporeal, Undead	EV 20
+        <b>Stamina</b> 40	<b>Immunity</b> corruption 3, poison 3
+        <b>Speed</b> 6 (fly, hover)	<b>Size</b> 1M/<b> Stability</b> 1
+        <b>Free Strike</b> 2
+        Might -2	Agility +2	Reason 0	Intuition 0	Presence +3
+        <b>Heat Death </b>(Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 5	<b>Target</b> Two creatures
+        %E2%9C%A6	%E2%89%A411	4 cold damage; P<1 slowed (save ends)
+        %E2%98%85	12%E2%80%9316	7 cold damage; P<2 slowed (save ends)
+        %E2%9C%B8	17+	8 cold damage; P<3 slowed (save ends)
+        <b>Effect</b> The next strike made against a target has an edge.
+
+        <b>Haunt</b> (Maneuver)
+        <b>Keywords</b> Ranged
+        <b>Distance</b> Ranged 8	<b>Target</b> Self or one incorporeal ally
+        <b>Effect</b> The target shifts up to their speed.
+        <b>2 Malice</b> The ghost chooses one additional target.
+
+        <b>Shriek</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Melee 1	<b>Target</b> The triggering creature
+        <b>Trigger</b> A creature within distance targets the ghost with a strike.
+        <b>Effect</b> The ghost halves the incoming damage and the target takes 2 sonic damage.
+
+        <b>Phantom Flow</b>
+        Each incorporeal undead creature within 10 squares of the ghost ignores difficult terrain.
+
+        <b>Paranormal Activity</b> (Villain Action 1)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst	<b>Target</b> Each size 1S or larger object in the burst
+        <b>Effect</b> Each target floats 1 square into the air and is pulled 5 squares toward the nearest enemy within 3 squares of them.
+
+        <b>Spirited Away</b> (Villain Action 2) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst	<b>Target</b> Each enemy in the burst
+        %E2%9C%A6	%E2%89%A411	P<1 levitated (EoT) (see effect)
+        %E2%98%85	12%E2%80%9316	P<2 levitated (EoT)
+        %E2%9C%B8	17+	P<3 levitated for the rest of the encounter
+        <b>Effect</b> A levitated target floats 1 square off the ground when they are first affected, then rises 1 square at the end of each of their turns. If a levitated target can't already fly, they can fly but are slowed and weakened while flying in this way.
+
+        <b>Awful Wail</b> (Villain Action 3) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 burst	<b>Target</b> Each enemy in the burst
+        %E2%9C%A6	%E2%89%A411	2 sonic damage
+        %E2%98%85	12%E2%80%9316	5 sonic damage
+        %E2%9C%B8	17+	5 sonic damage
+        <b>EffectP<2</b> the target is reduced to 1 Stamina if they have 2 or more Stamina after taking damage.
+
+        <b>Corruptive Phasing</b>
+        The ghost can move through other creatures and objects at normal speed. The first time in a round that the ghost passes through a creature, that creature takes 2 corruption damage. The ghost doesn't take damage from being force moved into objects.
+        Undead - 2nd Echelon
+        When the dead rise, all of hell rises with them.
+        Lady Demelza, Courser
+        Mummies
+        Mummies are humanoids raised from the dead via a complex series of magical rituals. The process tethers a creature's soul to their earthly body, preventing them from crossing into true death. As part of the mummification process, a corpse is embalmed and wrapped in cloth imbued with necromantic power. Mummification is reserved for situations of grave import. A great hero may voluntarily be mummified upon death to eternally guard future generations or a holy relic. On the other hand, a great villain may be mummified to prevent them from escaping their crimes through death.
+        Vampire Spawn
+        Vampirism is a curse of blood. A curse that harrows its victims, turning them into mirror-mockeries of life that nonetheless hunger for life's essence: blood. With that hunger comes power everlasting over life and death. By feeding, a vampire passes this curse onto their victims.
+        Though vampires are fundamentally changed from their mortal forms, they retain the intellect and memories of their mortal selves. A vampire's power grows as they spend time in undeath. Vampire spawn, the youngest of their ilk, are barely separated from their mortal selves. They are driven by their thirst for blood and their master's orders. Few spawn survive long enough to become true vampires.
+        Mournlings
+        Powered by sorrow and rage, these hulking amalgamations of dirt or flesh defend the homes of their creators, brutally attacking intruders while sobbing uncontrollably. Mournlings express far more emotion than many other undead guardians, for their makers imbued them with sadness and loss. Though their druidic creators are long-dead, some original mournlings still defend forests, meadows, and other natural places they were built to protect.
+        Outside of battle, mournlings patrol for interlopers in a trance-like state. When an unknown creature creates a disturbance or approaches them, the mournling unleashes a primal cry that conveys the very essence of suffering, then they burst into violence. They continue to sob and moan even as they viciously beat their enemies to a pulp.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:43d0fdbe-fd8d-467b-a5a7-b573dd178737: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 43d0fdbe-fd8d-467b-a5a7-b573dd178737
+        source: Trait
+        seq: bb072038-980d-4353-b385-899141972a78
+        guid: 4728ae81-175e-411e-8d34-f15911aecf9d
+        domains:
+          CharacterFeature:43d0fdbe-fd8d-467b-a5a7-b573dd178737: true
+        radius: "10"
+        behavior: aura
+        description: Each undead with a Phasing trait within 10 squares of the ghost can't be made slowed or weakened
+        aura:
+          __typeName: Aura
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 6b6d3323-0176-453a-9325-1d9796e7e511
+            guid: 8782982a-8a85-4353-b489-bc7e5a1df4fa
+            source: Aura
+            conditions:
+            - 68f455f5-135f-495c-822d-40d809d2b15f
+            - 567a3454-ead6-4416-b338-ed73d64b7805
+            description: Each undead with a Phasing trait within 10 squares of the ghost can't be made slowed or weakened
+            behavior: conditionimmunity
+            name: Phantom Flow
+          guid: 6b6d3323-0176-453a-9325-1d9796e7e511
+          objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+          applyto: selfandfriends
+          creatureFilter: Keywords has "undead" and Keywords has "phasing"
+          name: Phantom Flow
+          description: Each undead with a Phasing trait within 10 squares of the ghost can't be made slowed or weakened
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        name: Phantom Flow
+      source: Trait
+      description: Each undead with a Phasing trait within 10 squares of the ghost can't be made slowed or weakened
+      guid: 43d0fdbe-fd8d-467b-a5a7-b573dd178737
+      name: Phantom Flow
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7a036515-edcb-4139-be97-1cfc3826d18f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:7a036515-edcb-4139-be97-1cfc3826d18f: true
+        sourceguid: 7a036515-edcb-4139-be97-1cfc3826d18f
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Shriek
+        description: ""
+        guid: ebc4ee12-3182-4c01-8d99-be14795893df
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: The triggering creature
+          effect: The ghost halves the damage from the strike and the target takes 3 sonic damage
+          name: Shriek
+          trigger: A creature within distance targets the ghost with a strike
+          cost: 1 Malice
+          guid: 6dc845bb-e117-4aa4-9ceb-9b5fb8ee21ad
+          distance: Melee 1
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: 7a036515-edcb-4139-be97-1cfc3826d18f
+        source: Character Feature
+        behavior: trigger
+        domains:
+          CharacterFeature:7a036515-edcb-4139-be97-1cfc3826d18f: true
+        name: Shriek
+        resourceRefreshType: round
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 1
+          repeatTargets: false
+          targetType: attacker
+          triggerPrompt: The ghost halves the damage from the strike and the target takes 2 sonic damage
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: true
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 37861833-49ec-4387-93ed-3c4e96c0cdca
+          abilityType: none
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 5d31db58-ff93-4ce3-ae7d-eb6eb29dbd58
+          trigger: losehitpoints
+          numTargets: "1"
+          conditionFormula: ""
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Shriek
+            roll: "2"
+            damageType: sonic
+            chatMessage: 2 sonic damage
+          name: Shriek
+          whenActive: combat
+          description: ""
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+        guid: 37861833-49ec-4387-93ed-3c4e96c0cdca
+      - __typeName: CharacterModifier
+        sourceguid: 7a036515-edcb-4139-be97-1cfc3826d18f
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          guid: b86562af-feef-47f8-9707-bbea65ee69f6
+          hasTriggerBefore: false
+          rollType: enemy_ability_power_roll
+          source: Trigger
+          activationCondition: false
+          behavior: power
+          triggerBefore:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 5763d1b8-4b35-415b-9441-fcd6bf3c045a
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            behaviors: []
+            targetType: self
+            name: New Ability
+            numTargets: "1"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          keywords: []
+          hasCustomTrigger: false
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: c6e1b8a3-bcbc-4f83-923c-b2c6622a3a57
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            behaviors:
+            - __typeName: ActivatedAbilityCustomTriggerBehavior
+              triggerName: ""
+              value: ""
+            targetType: self
+            name: New Ability
+            numTargets: "1"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          name: Shriek
+          resourceRefreshType: round
+          modtype: none
+          rules: ""
+          changeTarget: false
+        guid: 3374a4bb-dbe6-4b5b-b12e-a6eca5a4b798
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          CharacterFeature:7a036515-edcb-4139-be97-1cfc3826d18f: true
+        targetType: self
+        trigger: takedamage
+        name: Shriek
+        rules: ""
+        description: ""
+        range: 10
+        additionalCostModifiers: []
+      name: Shriek
+      description: ""
+      guid: 7a036515-edcb-4139-be97-1cfc3826d18f
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+        CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: eb4af70b-5da4-42e6-9284-0f83f05e5060
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+          CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+        name: Corruptive Phasing
+        guid: 0fe98a87-35d7-4be2-9daa-ac5618c7fde3
+        description: The ghost can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the spirit moves through a creature other than their mentor, that creature takes 2 corruption damage.
+        behavior: attribute
+        attribute: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+      - __typeName: CharacterModifier
+        sourceguid: eb4af70b-5da4-42e6-9284-0f83f05e5060
+        source: Character Feature
+        behavior: trigger
+        domains:
+          CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+          CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+        name: Corruptive Phasing
+        resourceRefreshType: turn
+        description: The ghost can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the spirit moves through a creature other than their mentor, that creature takes 2 corruption damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Corruptive Phasing
+            roll: "2"
+            damageType: corruption
+            chatMessage: Corruptive Phasing
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: 83731820-b002-4f24-8a47-10250be9873e
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: ba92bb75-6f8b-4dc0-a5da-e7fcc86e588e
+          name: Corruptive Phasing
+          domains:
+            CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+            CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+          numTargets: "1"
+          conditionFormula: not (Self.Mentor = Target)
+          trigger: movethrough
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 83731820-b002-4f24-8a47-10250be9873e
+      - __typeName: CharacterModifier
+        sourceguid: f492943e-a198-49cb-8715-3f704c13bea4
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+          CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+        name: Corruptive Phasing
+        guid: 80bc5991-a3d1-47af-afdf-3d7a093524a8
+        description: The ghost can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the spirit moves through a creature other than their mentor, that creature takes 2 corruption damage.
+        behavior: attribute
+        attribute: 8e55aa4a-aae4-4df7-85b7-07ce1b93a6c9
+      - __typeName: CharacterModifier
+        text: This creature can move through walls and objects.
+        sourceguid: f492943e-a198-49cb-8715-3f704c13bea4
+        source: Character Feature
+        behavior: movementtext
+        domains:
+          CharacterFeature:f492943e-a198-49cb-8715-3f704c13bea4: true
+          CharacterFeature:eb4af70b-5da4-42e6-9284-0f83f05e5060: true
+        name: Corruptive Phasing
+        description: The ghost can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the spirit moves through a creature other than their mentor, that creature takes 2 corruption damage.
+        guid: 659a964e-6a8c-42a1-b9ab-4bf3b43643fe
+        color: green
+      source: Character Feature
+      description: The ghost can move through creatures and objects at their usual speed, but can't end their turn inside a creature or object. The first time in a round that the spirit moves through a creature other than their mentor, that creature takes 2 corruption damage.
+      guid: f492943e-a198-49cb-8715-3f704c13bea4
+      name: Corruptive Phasing
+      implementation: 3
+    role: Leader
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        0e2bfc9a-1859-47cb-97c3-8f37b19a8973:
+          refreshid: 8dcdcd1c-f470-4687-88ee-53eb14ddd2aa-2
+          note: "Used triggered ability: Shriek"
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        c1f73f85-0ae7-4606-80de-1f2e219549cb:
+          refreshid: 8dcdcd1c-f470-4687-88ee-53eb14ddd2aa-1
+          note: "Used triggered ability: Shriek"
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    equipment: []
+    b86562af-feef-47f8-9707-bbea65ee69f6_history:
+      __typeName: StatHistory
+      entries:
+        152b2abf-1c01-47c8-84e0-a8dbba8a6743:
+          refreshid: 8dcdcd1c-f470-4687-88ee-53eb14ddd2aa-2
+          note: Manually Set
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 80
+    moveDistanceRoundId: f6cf982a-5036-44db-a723-5b64bfba1702-2
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: poison
+      apply: Damage Reduction
+    titles: []
+    initiativeGrouping: d4efc425-5fd6-4ebe-bd5c-87f72c459824
+    keywords:
+      Undead: true
+    equipmentMeta:
+      offhand0: []
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 9b4a0c66-35ea-4443-904c-f03528f8974e-663
+    availableTriggers:
+      df3aec4a-fbf8-4f64-82d0-68e59208692e:
+        __typeName: ActiveTrigger
+        triggered: false
+        powerRollModifier:
+          __typeName: CharacterModifier
+          sourceguid: 7a036515-edcb-4139-be97-1cfc3826d18f
+          source: Character Feature
+          powerRollModifier:
+            __typeName: CharacterModifier
+            damageModifier: "2"
+            source: Trigger
+            rollType: enemy_ability_power_roll
+            behavior: power
+            guid: b1cd1ae2-75f4-4b09-a4af-99b63804f135
+            keywords: []
+            activationCondition: false
+            resourceCostType: cost
+            modtype: none
+            name: Shriek Damage
+            rules: ""
+            damageModifierType: sonic
+            resourceRefreshType: round
+            changeTarget: true
+          guid: 2e7d322a-1022-42a2-9f6a-619191eefa44
+          type: trigger
+          domains:
+            CharacterFeature:7a036515-edcb-4139-be97-1cfc3826d18f: true
+          targetType: self
+          trigger: takedamage
+          name: Shriek Damage
+          rules: ""
+          description: ""
+          range: 10
+          behavior: powertabletrigger
+        id: df3aec4a-fbf8-4f64-82d0-68e59208692e
+        targets:
+        - f8d97793-2935-4257-81b1-06a664b4cd3a
+        heroicResourceCost: 1
+        originalAbilityRange: 1
+        ping: 295f37c9-c0ef-4a07-8ee5-360d546488d9
+        casterid: 32f7f53d-2717-4339-8834-291f0af39c42
+        free: false
+        dismissed: true
+    creatureSize: 1M
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        6077d127-69d1-4ae0-8374-6d186cf85230:
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        ba514542-87e4-4723-82f5-cac7c3a67780:
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        b359d7af-c4c6-4d79-9d1f-d3e979b099f3:
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        99b73bb4-e64a-4a90-b345-0b9ef7cf179c:
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        a0308b39-a293-45ca-b04d-352ea9caf0de:
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        24545a2a-7b3f-4aaa-8620-778d09324313:
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        ba4ba7d2-5c7a-4b4e-8759-bf5a4c2e0abc:
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+        520da50a-95d5-45f9-99e1-207e091321d2:
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+    resources:
+      5813890b-2f44-4d14-b8bf-97423216a8f3:
+        __typeName: CharacterResource
+        refreshid: ebb66039-8587-4bba-b41a-72332cafd62f
+        used: 1
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      b86562af-feef-47f8-9707-bbea65ee69f6:
+        __typeName: CharacterResource
+        refreshid: 8dcdcd1c-f470-4687-88ee-53eb14ddd2aa-2
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: 8dcdcd1c-f470-4687-88ee-53eb14ddd2aa-2
+        used: 1
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      numTargets: 2
+      modifiers: []
+      strain: []
+      guid: 5e5212dd-a64c-482e-a04a-69ee1064ecec
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 cold damage; P<1 slowed (save ends)
+        - 10 cold damage; P<2 slowed (save ends)
+        - 13 cold damage; P<3 slowed (save ends)
+        roll: 2d10 + Presence
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 529b5f9b-c443-40ae-aff3-9102eb3ac2df
+        ongoingEffectCustom: false
+      name: 'Heat Death '
+      iconid: c3369254-93f1-4904-a241-0dfde27e981f
+      description: The next strike made against a target has an edge.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: target has "* phasing"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 8d2251ed-88e4-42ac-9a7f-b84bee8dd96f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Self or one ally with a Phasing trait
+        abilityType: standard
+        standardAbilityParams:
+          distance: "<<movement speed>>"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: f6c10c59-fa85-4720-aa32-120a60933a9f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        invokeOnCaster: true
+        standardAbilityParams:
+          range: "8"
+          distance: "<<movement speed>>"
+          count: "1"
+        standardAbility: 090c096b-0841-45db-bb48-175f51a3bf75
+        abilityType: standard
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 265
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 8
+      effectImplemented: true
+      persistence: []
+      modifiers: []
+      guid: d559f8e3-f93f-47fa-b177-40cdb2612f7b
+      strain: []
+      modeList:
+      - text: Haunt
+      - text: 2 Malice
+        hasAbility: false
+        rules: Choose one additional target
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1
+      categorization: Signature Ability
+      targetType: target
+      implementation: 3
+      name: Haunt
+      selfTarget: true
+      description: The target shifts up to their speed.
+      abilityType: none
+      iconid: 92a6d94b-65ab-49b6-b33e-0dae78f3a332
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetFilter: target.object
+      targetTextOverride: Each target rises 1 square into the air and is vertically pulled up to 5 squares toward the nearest enemy within 3 squares of the target.
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'c38b28c2-2e08-48a9-bef"
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 09644de8-2d28-43ea-aecf-adf50ad2c2ec
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      effectImplemented: false
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: vertical slide 5
+      name: Paranormal Activity
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      description: Each target rises 1 square into the air and is vertically pulled up to 5 squares toward the nearest enemy within 3 squares of the target.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: true
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a99d030f-4c3a-44ca-a320-b69343be5e50
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '00ebf958-8286-4633-956"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - P<1 the target is levitated (EoT)
+        - P<2 the target is levitated (EoT)
+        - P<3 the target is levitated until the end of the encounter
+        roll: 2d10 + Presence
+      name: Spirited Away
+      numTargets: 1
+      description: A levitated target floats 1 square off the ground when they are first affected, then rises 1 square at the end of each of their turns. If a levitated target can't already fly, they can fly but are slowed and weakened while flying in this way.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetAllegiance: enemy
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '5813890b-2f44-4d14-b8b"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 599ef19c-5efd-439f-9d53-5553be11cdcc
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 sonic damage
+        - 5 sonic damage
+        - 8 sonic damage
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityDelayBehavior
+        proceedCondition: ""
+      - __typeName: ActivatedAbilityDamageBehavior
+        cannotBeReduced: true
+        roll: target.Stamina - 1
+        filterTarget: (not Cast.PassesPotency(self, "P", 2)) and Winded and (Maximum Stamina *0.5 <= (Stamina + Cast.Damage Dealt Against(self)))
+      numTargets: 1
+      implementation: 3
+      name: Awful Wail
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: 'A target who has P<2 is reduced to 1 Stamina if they are winded after taking this damage. '
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        titleText: Shriek
+        roll: "2"
+        damageType: sonic
+        chatMessage: 2 sonic damage
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 264
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 8398f5b6-70ad-4937-8460-44daa3ad88fc
+      abilityType: none
+      categorization: Trigger
+      numTargets: 1
+      iconid: ui-icons/skills/1.png
+      name: Shriek
+      targetType: target
+      description: |
+        The ghost halves the damage from the strike and the target takes 2 sonic damage.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 2
+    aurasEntered:
+      bb072038-980d-4353-b385-899141972a78: true
+    traitNames: []
+    movementSpeeds:
+      fly: 6
+    walkingSpeed: 6
+    monster_category: Monster
+    skillRatings: []
+    5813890b-2f44-4d14-b8bf-97423216a8f3_history:
+      __typeName: StatHistory
+      entries:
+        6cb322ed-dd6b-4acf-a242-246211536c0d:
+          refreshid: 804b0a35-c9f4-4f19-9df7-167c053c3f21
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        a5befc8b-1714-43d6-a35a-8ff65e3825cc:
+          refreshid: ebb66039-8587-4bba-b41a-72332cafd62f
+          note: Awful Wail
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        399eded1-6936-4b81-835b-cf17dd32c02f:
+          refreshid: 8dcdcd1c-f470-4687-88ee-53eb14ddd2aa
+          note: Awful Wail
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: "-1/0"
+  tokenType: null
+  bestiaryId: 6e6907ea-19a9-42b0-8ea2-248602f6144a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Ghost
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 3
+ctime: 1764021630705
+mtime: 1764021630705
+hidden: false

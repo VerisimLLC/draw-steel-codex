@@ -1,0 +1,17 @@
+__typeName: CultureAspect
+mtime: 1756162955225
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      interpersonal: true
+    name: Noble Skill
+    guid: 3540f23e-edce-4bb1-abe8-309fb6f1008e
+    description: Choose one skill from the interpersonal skill group. (*Quick Build:* Lead)
+    source: Noble Culture Feature
+name: Noble
+category: upbringing
+description: 'Your hero grew up among leaders who rule over others and play the games of politics to maintain power. Many families are nobles by birthright, but some cultures have noble titles earned through deeds or popularity. Whatever the case, heroes with this background understand why the whispered words in the right ear can sometimes be more powerful than any army. '
+id: b778e944-2650-464c-9773-305f65cca665
+ctime: 1730730257075

@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: a3e14816-22d5-4fb3-afec-6eeeab0a8c52
+  sourceguid: 07ac66e4-2b88-4753-b51d-7fef1c784f0d
+  value: Stacks
+  source: Ongoing Effect
+  name: Squad! On Me!
+  behavior: attribute
+  description: "Effect: Until the start of the Casters next turn, you gain a bonus to your Stability equal to your Might score."
+  attribute: forcedmoveresistance
+source: Ongoing Effect
+guid: 07ac66e4-2b88-4753-b51d-7fef1c784f0d
+id: 07ac66e4-2b88-4753-b51d-7fef1c784f0d
+ctime: 1745472013457
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.678250074386597
+    s: 0.808105409145355
+    v: 0.980712711811066
+    a: 1
+name: Squad! On Me!
+description: "Effect: Until the start of the Casters next turn, you gain a bonus to your Stability equal to your Might score."
+custom: true
+mtime: 1753250369722
+iconid: b86a7a42-15dc-4220-b27c-27919193e357

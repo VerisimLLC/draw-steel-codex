@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 6cfb41d2-b1b7-44f3-a218-f4052e17d2bb
+  sourceguid: 7c5dc392-ab6d-4ed6-a575-14d461ff555f
+  value: 1
+  source: Ongoing Effect
+  name: Nature's Bounty - Speed
+  behavior: attribute
+  description: You have a +1 bonus to speed
+  attribute: speed
+source: Ongoing Effect
+guid: 7c5dc392-ab6d-4ed6-a575-14d461ff555f
+id: 7c5dc392-ab6d-4ed6-a575-14d461ff555f
+ctime: 1773027961643
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Nature's Bounty - Speed
+description: You have a +1 bonus to speed
+custom: true
+mtime: 1773028055251
+iconid: bc90bb09-9e3c-46d4-bf16-0e5c0134dbf8

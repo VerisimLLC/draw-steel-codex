@@ -1,0 +1,107 @@
+__typeName: CharacterOngoingEffect
+association: []
+stackable: false
+id: 9988166e-a54b-4b26-b92d-d6faff5a4c6b
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.0020809173584
+    v: 1.00238585472107
+    a: 1
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:9988166e-a54b-4b26-b92d-d6faff5a4c6b: true
+  sourceguid: 9988166e-a54b-4b26-b92d-d6faff5a4c6b
+  description: 'When the bomb detonates, you make a power roll targeting each enemy within 2 squares of it. '
+  source: Ongoing Effect
+  name: Sticky Bomb
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: subject
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "2"
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: edc31684-e2dd-4293-b42f-6f5a093c2550
+    conditionFormula: self.ConditionCaster("Sticky Bomb") = subject and Subject.Ongoing Effects has not "Sticky Bomb Armed"
+    subject: any
+    domains:
+      CharacterOngoingEffect:9988166e-a54b-4b26-b92d-d6faff5a4c6b: true
+    numTargets: "1"
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      applyto: caster
+      text: Sticky Bomb Explosion!!
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 1.00208127498627
+        v: 1.00238597393036
+        a: 1
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        repeatTargets: false
+        keywords:
+          Ranged: true
+        targetType: target
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          docid: cf5452e1-bebd-4e70-b02f-217b3364cb69
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 824d2581-5d5b-4a9e-a92c-a4485de9a12f
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          tiers:
+          - 4 + A fire damage
+          - 7 + A fire damage
+          - 11 + A fire damage
+          roll: 2d10 + Agility
+        name: Sticky Bomb Explosion
+        numTargets: "1"
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      filterTarget: ""
+      targetingFormula: (not friends(target, caster)) and (Invoker.Distance(target) <= 2)
+      targeting: formula
+    trigger: endturn
+    name: Sticky Bomb
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 2c552ee8-3f73-4c8a-80ec-5f39682441f2
+source: Ongoing Effect
+casterTracking: one
+guid: 9988166e-a54b-4b26-b92d-d6faff5a4c6b
+ctime: 1728450681836
+domains:
+  CharacterOngoingEffect:9988166e-a54b-4b26-b92d-d6faff5a4c6b: true
+implementation: 3
+name: Sticky Bomb
+custom: true
+description: 'When the bomb detonates, you make a power roll targeting each enemy within 2 squares of it. '
+mtime: 1763325100012
+iconid: 132173ee-030a-4c54-b2d3-0362443642c2

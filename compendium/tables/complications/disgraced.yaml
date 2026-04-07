@@ -1,0 +1,34 @@
+__typeName: CharacterComplication
+drawback: Anyone who has heard of you and is influenced by your Renown treats you as infamous. Whenever you are part of a negotiation with an NPC who has an interest of 2 or lower, that NPC makes a plan to hurt you personally after the negotiation ends—and carries that plan out.
+mtime: 1765804117291
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: a3eb78a8-5fe3-4ba1-8be7-0494b059ae1b
+      sourceguid: b54e7201-0883-4ce6-9caf-44bbe4b219ee
+      value: 1
+      source: Complication
+      name: Disgraced - Benefit
+      behavior: attribute
+      description: ""
+      attribute: d97c2794-cb70-420f-b078-e260b43e154b
+    source: Complication
+    canHavePrerequisites: true
+    guid: b54e7201-0883-4ce6-9caf-44bbe4b219ee
+    name: Disgraced - Benefit
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+      interpersonal: true
+    guid: 9a372434-4a7f-42ae-83be-ce3a28976f12
+    source: Feat
+name: Disgraced
+ctime: 1755513845372
+description: You’re a disgraced member of a powerful family or guild, having been turned out by your relatives or peers. Those you were once close to won’t give you the time of day anymore, much less lend a helping hand, until you clear your name or clean up your act.
+id: 20074a1e-23b6-4ea2-b721-2372abf10e5f
+benefit: You earn 1 Renown, and you have one skill of your choice from the interpersonal or intrigue skill group.

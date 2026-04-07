@@ -1,0 +1,53 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 6b4b2aa0-0ba2-44a7-af70-986a9a8f849a
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 5
+    targetType: self
+    behaviors:
+    - __typeName: ActivatedAbilitySavingThrowBehavior
+      dcvalue: "10"
+      dc: end
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 24cc3b64-2dc4-40de-b5dc-6c216c05cb03
+      mode: effect
+      conditions: []
+      applyto: passed_save
+    name: Weakened
+    trigger: endturn
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 18b3fcda-a26a-4657-9acb-91b50cfc529a
+  name: Weakened -- Weakening Strike
+  sourceguid: 24cc3b64-2dc4-40de-b5dc-6c216c05cb03
+source: Ongoing Effect
+guid: 24cc3b64-2dc4-40de-b5dc-6c216c05cb03
+id: 24cc3b64-2dc4-40de-b5dc-6c216c05cb03
+ctime: 1704789036397
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+name: Weakened -- Weakening Strike
+iconid: 6cda6156-84cb-4c95-9973-de54b30a6815
+description: ""
+mtime: 1746377953820
+implementation: 3

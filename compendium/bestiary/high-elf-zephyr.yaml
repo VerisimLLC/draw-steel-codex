@@ -1,0 +1,441 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 76dbe2c9-71df-473d-8bea-52e70e142c63
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_type: High Elf Zephyr
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: d525247e-2544-459b-b273-08116aaf84e0
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 damage
+        - 9 damage
+        roll: 2d10 + Agility
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 5e6b4fd9-fc40-4e26-994b-43d1f3a16c1f
+        tiersSelected:
+        - 3
+        duration: 0
+        ongoingEffectCustom: e29284de-2c5a-4b4c-9494-7c7ab3bc21b0
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 291b788d-2ceb-4260-ae9a-fe433a898fe9
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Make Free Strike against adjacent creature to the target. If that creature and the target both have A<2, the creature and the target are both prone.
+        invokeOnCaster: true
+        abilityType: standard
+        standardAbility: 3d8ddf2c-ec14-48ff-adaa-8fcc5794b7e9
+        tiersSelected:
+        - 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: all_creatures
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: a1252eb3-093a-4db2-adfc-8fc2353d2166
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: c885a4ba-bb51-4676-977d-95df9aa19d85
+            ongoingEffectCustom: false
+          targetType: self
+          name: Invoked Ability
+          persistence: []
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        promptText: If both targets taking Damage from Sweeping Blade have A<2, they will be made prone.
+        tiersSelected:
+        - 3
+        filterTarget: target.Agility < 2 and Ongoing Effects has "Sweeping Blade"
+      name: Sweeping Blade
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: Shift 2.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: e1e22c28-89ce-43d5-ad2a-4f10f43d1f0a
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Windwalk
+      numTargets: 1
+      description: The zephyr moves up to their speed through the air. They must end this movement on solid ground or immediately fall prone.
+      abilityType: none
+      implementation: 0
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        High Elf Zephyr	Level 1 Platoon Harrier
+        Fey, High Elf, Humanoid	EV 6
+        <b>Stamina</b> 30
+        <b>Speed</b> 7	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 3
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Sweeping Blade</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage
+        %E2%9C%B8	<b>17</b>	9 damage; the zephyr makes a free strike on a creature adjacent to the target; both creatures are A<2 prone
+        <b>Effect</b> Shift 2.
+
+        <b>Windwalk</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect </b>The zephyr moves up to their speed through the air<b>.</b> They must end this movement on solid ground or immediately fall prone.
+
+        <b>Like the Wind</b>
+        All of the zephyr's movement is considered shifting.
+
+        <b>Otherworldly Grace</b>
+        At the start of their turn, the zephyr can turn the duration of one save ends effect they suffer from into EoT.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:188ab5b2-c549-456e-8088-fbae37013e48: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 188ab5b2-c549-456e-8088-fbae37013e48
+        source: Character Feature
+        guid: 3148fbee-bffd-4873-aa56-5835729452e4
+        domains:
+          CharacterFeature:188ab5b2-c549-456e-8088-fbae37013e48: true
+        description: The zephyr flies up to their speed. If they don't end this movement on solid ground, they are prone.
+        name: Windwalk
+        value: Movement Speed
+        displayIcon: true
+        behavior: attribute
+        attribute: fly
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:188ab5b2-c549-456e-8088-fbae37013e48: true
+        sourceguid: 188ab5b2-c549-456e-8088-fbae37013e48
+        behavior: trigger
+        source: Character Feature
+        name: Windwalk
+        description: The zephyr flies up to their speed. If they don't end this movement on solid ground, they are prone.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: c885a4ba-bb51-4676-977d-95df9aa19d85
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: 90941514-4aa8-44e7-a20b-9be108ffe23e
+          conditionFormula: Movement Type = "Fly"
+          targetType: self
+          numTargets: "1"
+          trigger: endturn
+          name: Windwalk
+          description: The zephyr flies up to their speed. If they end their turn not on solid ground, they are made prone.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: b9298093-34b6-479f-8f7e-5da6e5a1f55e
+      source: Character Feature
+      description: The zephyr flies up to their speed. If they don't end this movement on solid ground, they are prone.
+      guid: 188ab5b2-c549-456e-8088-fbae37013e48
+      name: Windwalk
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+        CharacterFeature:82dfb4d8-8ea7-4caa-9f25-ad169cd71b92: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:82dfb4d8-8ea7-4caa-9f25-ad169cd71b92: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Like the Wind
+        guid: 5427ee2d-b82d-4015-8231-038dfe066d97
+        description: All of the zephyr's movement is considered shifting.
+        behavior: attribute
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Like the Wind: you do not provoke opportunity attacks by moving."
+        sourceguid: 82dfb4d8-8ea7-4caa-9f25-ad169cd71b92
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+          CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+          CharacterFeature:82dfb4d8-8ea7-4caa-9f25-ad169cd71b92: true
+        name: Like the Wind
+        description: All of the zephyr's movement is considered shifting.
+        guid: 18ed2a74-ffb0-4e15-a4a4-d94f64aa2678
+        color: green
+      source: Trait
+      description: All of the zephyr's movement is considered shifting.
+      guid: 82dfb4d8-8ea7-4caa-9f25-ad169cd71b92
+      name: Like the Wind
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:49ac6af9-452c-4eb9-a646-f8dfa1410a23: true
+        CharacterFeature:b403222e-4a0f-47cb-9efc-0455f35e6173: true
+        CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:49ac6af9-452c-4eb9-a646-f8dfa1410a23: true
+          CharacterFeature:b403222e-4a0f-47cb-9efc-0455f35e6173: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: b403222e-4a0f-47cb-9efc-0455f35e6173
+        behavior: trigger
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the zephyr can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            purgeType: one
+            targetDuration: save
+            chatMessage: Otherworldly Grace - Change One Save Ends to EoT
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          targetType: self
+          conditionFormula: Conditions has "Bleeding" or Conditions has "Dazed" or Conditions has "Frightened" or Conditions has "Prone" or Conditions has "Restrained" or Conditions has "Slowed" or Conditions has "Taunted" or Conditions has "Weakened"
+          domains:
+            CharacterFeature:49ac6af9-452c-4eb9-a646-f8dfa1410a23: true
+            CharacterFeature:b403222e-4a0f-47cb-9efc-0455f35e6173: true
+            CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+          guid: 06403a7e-7fba-4636-ae6a-e39e5f0ab66c
+          numTargets: "1"
+          trigger: endturn
+          name: Otherworldly Grace
+          description: At the start of each of their turns, the zephyr can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 2d5b3c25-3f7f-4d71-91af-bd5adcca9170
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:49ac6af9-452c-4eb9-a646-f8dfa1410a23: true
+          CharacterFeature:b403222e-4a0f-47cb-9efc-0455f35e6173: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: b403222e-4a0f-47cb-9efc-0455f35e6173
+        behavior: triggerdisplay
+        source: Trait
+        name: Otherworldly Grace
+        description: At the start of each of their turns, the zephyr can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+        guid: 84848167-3b4c-437e-95d0-746aa9c2c413
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: Choose one Save Ends Effect which you can end at the end of your turn.
+          guid: b4fd7f36-84ab-4b2e-a645-510b904862dd
+          keywords: []
+      source: Trait
+      description: At the start of each of their turns, the zephyr can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+      guid: b403222e-4a0f-47cb-9efc-0455f35e6173
+      name: Otherworldly Grace
+      implementation: 2
+    role: Platoon Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: 40cb23cd-39bf-4c41-8fe8-c85cca738d56
+    opportunityAttack: 3
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        760ee003-0eb0-4494-8a0d-115fef9508c9:
+          note: Sweeping Blade
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 1/1
+        5ed5ad5b-e74c-40d8-8379-31555c83e728:
+          note: Sweeping Blade
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 1/1
+        ec692317-da6c-4d01-a708-c525a3c96660:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-1
+          note: Sweeping Blade
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 0/1
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-1
+        used: 1
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    walkingSpeed: 7
+    creatureSize: 1M
+    traitNames: []
+    movementSpeeds: []
+    monster_category: Monster
+    keywords:
+      Fey: true
+      Humanoid: true
+      High Elf: true
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 20597054-134d-4105-bf33-5df9621b5f2f-435
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 8633cc93-720b-4d97-8795-7737e15b015e
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: High Elf Zephyr
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590277043
+mtime: 1775201137032
+hidden: false

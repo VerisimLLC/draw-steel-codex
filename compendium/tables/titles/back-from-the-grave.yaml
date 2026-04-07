@@ -1,0 +1,103 @@
+__typeName: Title
+effect: You are restored to life. You gain the Tough But Withered signature trait from the revenant ancestry.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    domains:
+      race:a68bafb1-60b2-4c60-b4f7-58032ef8fdbc: true
+    modifiers:
+    - __typeName: CharacterModifier
+      domains:
+        race:a68bafb1-60b2-4c60-b4f7-58032ef8fdbc: true
+      sourceguid: f2932630-2019-40e8-b683-f390d0b733c2
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: Level
+        damageType: cold
+        apply: Damage Reduction
+      - __typeName: ResistanceEntry
+        dr: Level
+        damageType: corruption
+        apply: Damage Reduction
+      - __typeName: ResistanceEntry
+        dr: Level
+        damageType: poison
+        apply: Damage Reduction
+      - __typeName: ResistanceEntry
+        dr: Level
+        damageType: lightning
+        apply: Damage Reduction
+      guid: b788feff-b771-4e9f-a464-5e5f5084015b
+      name: "Signature Trait: Tough But Withered"
+      description: |-
+        Your undead body grants you cold, corruption, lightning immunity, and poison immunity equal to your level. You also have fire weakness 5. You can’t suffocate, and you don’t need to eat or drink to stay alive.
+
+        Additionally, when your Stamina equals the negative of your winded value, you become inert instead of dying. You can continue to observe your surroundings, but you can’t speak, take actions, maneuvers, or triggered actions, or move and you fall prone. If you take any fire damage while in this state, your body is destroyed and you die. Otherwise, after 12 hours, you regain Stamina equal to your recovery value.
+    - __typeName: CharacterModifier
+      domains:
+        race:a68bafb1-60b2-4c60-b4f7-58032ef8fdbc: true
+      sourceguid: f2932630-2019-40e8-b683-f390d0b733c2
+      behavior: resistance
+      source: Feat
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: fire
+        apply: Damage Reduction
+      guid: 7cc6e7f7-aed8-4d3d-b83a-9bf626dc6a43
+      name: "Signature Trait: Tough But Withered"
+      description: |-
+        Your undead body grants you cold, corruption, lightning immunity, and poison immunity equal to your level. You also have fire weakness 5. You can’t suffocate, and you don’t need to eat or drink to stay alive.
+
+        Additionally, when your Stamina equals the negative of your winded value, you become inert instead of dying. You can continue to observe your surroundings, but you can’t speak, take actions, maneuvers, or triggered actions, or move and you fall prone. If you take any fire damage while in this state, your body is destroyed and you die. Otherwise, after 12 hours, you regain Stamina equal to your recovery value.
+    - __typeName: CharacterModifier
+      domains:
+        race:a68bafb1-60b2-4c60-b4f7-58032ef8fdbc: true
+      sourceguid: f2932630-2019-40e8-b683-f390d0b733c2
+      description: |-
+        Your undead body grants you cold, corruption, lightning immunity, and poison immunity equal to your level. You also have fire weakness 5. You can’t suffocate, and you don’t need to eat or drink to stay alive.
+
+        Additionally, when your Stamina equals the negative of your winded value, you become inert instead of dying. You can continue to observe your surroundings, but you can’t speak, take actions, maneuvers, or triggered actions, or move and you fall prone. If you take any fire damage while in this state, your body is destroyed and you die. Otherwise, after 12 hours, you regain Stamina equal to your recovery value.
+      source: Feat
+      name: "Signature Trait: Tough But Withered"
+      behavior: trigger
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        persistence: []
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        strain: []
+        guid: b9997374-ce5a-4cf9-8664-74bd163dea65
+        repeatTargets: false
+        abilityType: none
+        trigger: losehitpoints
+        targetType: self
+        numTargets: "1"
+        name: Tough But Withered
+        behaviors: []
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      guid: 6bf2e075-7416-4a0e-8a1d-0346f9c833cc
+    source: Feat
+    description: |-
+      Your undead body grants you cold, corruption, lightning immunity, and poison immunity equal to your level. You also have fire weakness 5. You can’t suffocate, and you don’t need to eat or drink to stay alive.
+
+      Additionally, when your Stamina equals the negative of your winded value, you become inert instead of dying. You can continue to observe your surroundings, but you can’t speak, take actions, maneuvers, or triggered actions, or move and you fall prone. If you take any fire damage while in this state, your body is destroyed and you die. Otherwise, after 12 hours, you regain Stamina equal to your recovery value.
+    guid: af355d3d-d306-4b20-b677-97b24d7279ac
+    name: "Signature Trait: Tough But Withered"
+    implementation: 2
+id: a19d104d-985d-4160-9ab2-b5885e0711bb
+ctime: 1762351858917
+name: Back From the Grave
+description: Hi! Remember me?
+mtime: 1775133906847
+echelon: "3"
+prerequisite: You die at the hands of your greatest foe, that foe still lives, and you aren’t a revenant.

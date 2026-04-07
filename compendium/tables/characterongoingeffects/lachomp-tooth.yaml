@@ -1,0 +1,96 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e0f901d7-e06d-44cb-89b0-dbd0eaf7afd1
+  modifyDescription: This ability will be affected by the Lachomp Tooth
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Melee: true
+    Weapon: true
+  domains:
+    CharacterOngoingEffect:e0f901d7-e06d-44cb-89b0-dbd0eaf7afd1: true
+  attributes:
+  - operation: Add
+    value: "1"
+    id: numtargets
+  guid: a6d629e4-8253-4209-9718-66d2c2345c09
+  description: You attach a lachomp tooth to a weapon, allowing that weapon to supernaturally flicker in and out of reality.
+  name: Lachomp Tooth
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 3f9fad71-ca6d-455c-9b0a-2989f35dc2f6
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: e0f901d7-e06d-44cb-89b0-dbd0eaf7afd1
+  modifyDescription: This ability will be affected by the Lachomp Tooth
+  source: Ongoing Effect
+  behavior: modifyability
+  keywords:
+    Ranged: true
+    Weapon: true
+  domains:
+    CharacterOngoingEffect:e0f901d7-e06d-44cb-89b0-dbd0eaf7afd1: true
+  attributes:
+  - operation: targeting
+    targeting: line
+    radius: "1"
+    value: ""
+    id: targettype
+  - operation: Add
+    value: "5"
+    id: range
+  guid: 2732eaeb-e724-4ed7-abd1-fb547b61c4da
+  description: You attach a lachomp tooth to a weapon, allowing that weapon to supernaturally flicker in and out of reality.
+  name: Lachomp Tooth
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 06852359-a982-4678-9055-796a3a448056
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors: []
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: e0f901d7-e06d-44cb-89b0-dbd0eaf7afd1
+id: e0f901d7-e06d-44cb-89b0-dbd0eaf7afd1
+ctime: 1761692563688
+domains:
+  CharacterOngoingEffect:e0f901d7-e06d-44cb-89b0-dbd0eaf7afd1: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Lachomp Tooth
+custom: true
+description: You attach a lachomp tooth to a weapon, allowing that weapon to supernaturally flicker in and out of reality.
+mtime: 1762278690177
+iconid: ui-icons/skills/1.png

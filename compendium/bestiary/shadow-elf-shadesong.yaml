@@ -1,0 +1,195 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 76f29c32-1a91-4cc1-b2f3-c0ee78bf57db
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Shadesong	Level 5 Controller
+        Fey, Humanoid, Shadow Elf	EV 23
+        <b>Stamina</b> 60
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +0	Agility +3	Reason +3	Intuition +2	Presence +0
+        <b>Night Knife</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12-16</b>	13 damage
+        %E2%9C%B8	<b>17</b>	16 damage
+        <b>Effect</b> The shadesong can target an additional creature or object while concealed.
+
+        <b>Duskcaller</b> (Maneuver)
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 2 cube within 3<b>	Target</b> Special
+        <b>Effect</b> The affected area is covered in darkness and is considered concealment until the start of the shadesong's next turn.
+        <b>2 Malice</b> The area of the cube increases by 3.
+
+        <b>Of the Umbra</b>
+        The shadesong ignores concealment granted by darkness. While the shadesong is in direct sunlight, they have damage weakness 3. While the shadesong is concealed, they have damage immunity 3.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b98d428c-8494-4f05-83e9-17f2ec79c688: true
+      modifiers: []
+      name: Of the Umbra
+      description: The shadesong ignores concealment granted by darkness. While the shadesong is in direct sunlight, they have damage weakness 3. While the shadesong is concealed, they have damage immunity 3.
+      guid: b98d428c-8494-4f05-83e9-17f2ec79c688
+      source: Trait
+    role: Controller
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Shadow: true
+      Shadow Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 6
+    monster_type: Shadow Elf Shadesong
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 60
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 13 damage
+        - 16 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 899e3df1-e525-4222-a0d1-724725529498
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Night Knife
+      numTargets: 1
+      description: The shadesong can target an additional creature or object while concealed.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 5ee6d02d-993f-48f8-b1d8-f41443cec1b6
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Duskcaller
+      numTargets: "1"
+      description: The affected area is covered in darkness and is considered concealment until the start of the shadesong's next turn.
+      abilityType: none
+      implementation: 0
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 5
+    ev: 23
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: acdeab03-2aac-42db-afe0-947935a253b5
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962492884
+description: Shadow Elf Shadesong
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590295114
+mtime: 1775201137032
+hidden: false

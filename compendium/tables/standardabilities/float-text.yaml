@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+repeatTargets: false
+behaviors:
+- __typeName: ActivatedAbilityFloatTextBehavior
+  text: "<<text>>"
+  color: "#ffffffff"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: e9538add-ad53-4e86-914b-86673a8e5251
+numTargets: "1"
+ctime: 1752043756821
+castImmediately: true
+id: 0cec8b9b-4a80-44aa-86b5-2e2a85e4be2c
+mtime: 1765262106379
+name: Float Text
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,245 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ee837d2f-572c-457c-8455-db5beeca00ae
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        War Dog Tormentite	Level 5 Horde Hexer
+        Humanoid, War Dog	EV 7
+        <b>Stamina</b> 30
+        <b>Speed</b> 5	<b>Size</b> 1M /<b>Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +0	Agility +0	Reason +2	Intuition +3	Presence +0
+        <b>Mark of Agony</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 corruption damage
+        %E2%98%85	<b>12-16</b>	8 corruption damage; marked (save ends)
+        %E2%9C%B8	<b>17</b>	9 corruption damage; marked (save ends)
+        <b>Effect</b> Strikes against marked targets have an edge. Whenever the tormentite takes damage, each marked target takes 3 damage.
+
+        <b>Vortex of Pain</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 4 cube within 10<b>Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 corruption damage
+        %E2%98%85	<b>12-16</b>	4 corruption damage
+        %E2%9C%B8	<b>17</b>	5 corruption damage; an ally within the affected area can end one save ends effect affecting them and give it to a target.
+        <b>Effect</b> The tormentite regains 2 Stamina per target of this ability.
+
+        <b>Persistent Pain</b>
+        The tormentite takes 1 damage at the start of each of their turns.
+
+        <b>Loyalty Collar</b>
+        When the tormentite dies, they explode, dealing 2d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:86d9ec06-91da-4f99-a99d-6b34ee89dc21: true
+      modifiers: []
+      name: Persistent Pain
+      description: The tormentite takes 1 damage at the start of each of their turns.
+      guid: 86d9ec06-91da-4f99-a99d-6b34ee89dc21
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c025d260-6a4c-4f20-8249-ee0ba5125073: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 2d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the tormentite is reduced to 0 Stamina, their loyalty collar explodes, dealing 2d6 damage to each adjacent enemy and object.
+      guid: c025d260-6a4c-4f20-8249-ee0ba5125073
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Hexer
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: War Dog Tormentite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 30
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 corruption damage
+        - 8 corruption damage; the target is marked (save ends)
+        - 9 corruption damage; the target is marked (save ends)
+        roll: 2d10 + Intuition
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ff730891-732e-408e-9dad-df4bb1b89921
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Mark of Agony
+      numTargets: 1
+      description: Strikes against marked targets have an edge. Whenever the tormentite takes damage, each marked target takes 3 damage.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage
+        - 4 corruption damage
+        - 5 corruption damage; one ally in the area can end one effect on them that can be ended by a saving throw, and can give that effect to one target
+        roll: 2d10 + Intuition
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      guid: 777ce3a9-2e65-4522-915a-4afea1474343
+      abilityType: none
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: cube
+      implementation: 3
+      name: Vortex of Pain
+      radius: 4
+      description: The tormentite regains 2 Stamina per target of this ability.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 7
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: a76b7d4f-e54b-4a4c-87d3-c17476e17bb3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Tormentite
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 10
+ctime: 1749972313226
+mtime: 1775201137032
+hidden: false

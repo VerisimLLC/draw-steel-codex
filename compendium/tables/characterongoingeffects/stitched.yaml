@@ -1,0 +1,64 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 87f1775b-960d-4c65-ab57-787da859f54e
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  activationCondition: true
+  guid: 103a01f9-557e-46f7-a4eb-c991c7d995ad
+  rollType: ability_power_roll
+  filterCondition: Distance(BoundCreatures("Stitched")) > 1
+  description: ""
+  behavior: power
+  name: Stitched
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: Cast.Damage Dealt Against(Subject)*0.5
+      chatMessage: Stitched Shared Damage
+      doesNotTrigger: true
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 2ff66787-10e8-437b-b446-e7677f9102d7
+    persistence: []
+    conditionFormula: BoundOngoingEffect(Subject, "Stitched") and (not  BoundOngoingEffect(Attacker, "Stitched"))
+    subject: other
+    targetType: self
+    trigger: losehitpoints
+    name: Stitched
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: d9db1751-b5f1-4224-b2a0-5d1e95c0444b
+  name: Stitched
+  sourceguid: 87f1775b-960d-4c65-ab57-787da859f54e
+source: Ongoing Effect
+casterTracking: bond
+guid: 87f1775b-960d-4c65-ab57-787da859f54e
+id: 87f1775b-960d-4c65-ab57-787da859f54e
+ctime: 1765944643134
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Stitched
+description: ""
+custom: true
+mtime: 1765945186753
+iconid: ui-icons/skills/1.png

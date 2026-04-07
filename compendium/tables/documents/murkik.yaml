@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Murkik
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 324f59e6-5fd6-4a1f-95f0-f09cb878f2fe
+annotations:
+  image:
+    __typeName: RichImage
+id: b1a5de36-950c-4563-9590-21e3123da45f
+mtime: 1761473996919
+content: |-
+  # Murkik
+
+  [[image]]
+
+  *Leader of the dwarf merchants staying at the inn. The dwarf’s muscles ripple under his stone skin, his left hand is missing three fingers, and he’s happy to chat with anyone.*
+  {
+  Secret: see [Dwarf Merchants]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761423376785

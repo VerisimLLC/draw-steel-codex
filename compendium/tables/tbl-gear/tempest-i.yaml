@@ -1,0 +1,67 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: c1c77fc8-156f-4495-865c-4ac753633d93
+  description: As a maneuver, you infuse this armor with the essence of a storm. The first time an adjacent creature deals damage to you before the end of your next turn, they take lightning damage equal to your highest characteristic score and you can push them 1 square.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: c1c77fc8-156f-4495-865c-4ac753633d93
+    guid: f376f6a7-6686-4aa3-acd3-4f473c411a96
+    source: Item
+    behavior: activated
+    description: As a maneuver, you infuse this armor with the essence of a storm. The first time an adjacent creature deals damage to you before the end of your next turn, they take lightning damage equal to your highest characteristic score and you can push them 1 square.
+    name: Tempest I
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 3be83144-3153-48c0-995e-8da136042a2f
+        durationUntilEndOfTurn: true
+        duration: 1
+        ongoingEffectCustom: 3be83144-3153-48c0-995e-8da136042a2f
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 84ac525d-a5ab-486c-95a9-ae3cce6d8429
+      targetType: self
+      castImmediately: true
+      domains: []
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Tempest I
+      numTargets: "1"
+      description: As a maneuver, you infuse this armor with the essence of a storm. The first time an adjacent creature deals damage to you before the end of your next turn, they take lightning damage equal to your highest characteristic score and you can push them 1 square.
+      abilityType: none
+      implementation: 4
+  source: Item
+  name: Tempest I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 2d28e946-c80f-49c1-bdde-3cfffd204a99
+imbuePrereq: none
+projectSource: Ullorvic
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770698928353
+type: Gear
+itemPrerequisite: A strip of starmetal struck by lightning
+mtime: 1774699637977
+name: Tempest I
+imbueTargetType: armor
+description: As a maneuver, you infuse this armor with the essence of a storm. The first time an adjacent creature deals damage to you before the end of your next turn, they take lightning damage equal to your highest characteristic score and you can push them 1 square.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

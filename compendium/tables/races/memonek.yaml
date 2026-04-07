@@ -1,0 +1,437 @@
+__typeName: Race
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    domains:
+      race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 2e0bcc99-99e5-436b-8305-271484cd6bf1
+      source: Memonek Race Feature
+      value: -1
+      domains:
+        race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+      name: "Signature Trait: Lightweight"
+      guid: e15dcaeb-dd4e-4c98-a434-6fb7af8211d8
+      description: Your body is light for a creature of your height. Your size is considered 1S when being force moved by another creature.
+      behavior: attribute
+      attribute: creaturesizewhenforcemoved
+    source: Memonek Race Feature
+    description: Your body is light for a creature of your height. Your size is considered 1S when being force moved by another creature.
+    guid: 2e0bcc99-99e5-436b-8305-271484cd6bf1
+    name: "Signature Trait: Lightweight"
+    implementation: 3
+  - __typeName: CharacterFeature
+    domains:
+      race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 49d08628-cc53-4fdb-a4b0-d8cf04bc4890
+      source: Memonek Race Feature
+      value: 2
+      domains:
+        race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+      name: "Signature Trait: Fall Lightly"
+      guid: 26e56fc2-5cd9-4d1e-99ba-61f467717003
+      description: Your silicone body is low in density. Whenever you fall, you reduce the distance of the fall by 2 squares.
+      behavior: attribute
+      attribute: 151ac2f1-5bd3-4070-8b16-e14896d6933b
+    source: Memonek Race Feature
+    description: Your silicone body is low in density. Whenever you fall, you reduce the distance of the fall by 2 squares.
+    guid: 49d08628-cc53-4fdb-a4b0-d8cf04bc4890
+    name: "Signature Trait: Fall Lightly"
+    implementation: 3
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    costsPoints: true
+    name: Purchased Memonek Traits
+    guid: 857eced3-1cdc-4c6e-84ea-3d7bd61ba3c9
+    numChoices: "4	"
+    options:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: fdc92619-4c4f-45cc-a897-0b2002cc41f6
+        source: Memonek Race Feature
+        value: 1
+        domains:
+          race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+        name: I Am Law
+        guid: 3b5b291a-5dcb-4e3d-9824-816ceb10dc4e
+        description: Your lawful nature and quick reflexes give no quarter to enemies trying to get around you. Enemy creatures can’t pass through your space unless you allow them to do so.
+        behavior: attribute
+        attribute: 2ada332c-ff63-45c6-8a33-a8bfcfc74081
+      source: Memonek Race Feature
+      guid: fdc92619-4c4f-45cc-a897-0b2002cc41f6
+      pointsCost: 1
+      domains:
+        race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+      name: I Am Law
+      description: Your lawful nature and quick reflexes give no quarter to enemies trying to get around you. Enemy creatures can’t pass through your space unless you allow them to do so.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Memonek Race Feature
+      guid: 6d34b63b-98a6-4b9e-a385-75e5070c4a3d
+      pointsCost: 1
+      domains:
+        race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+      name: Systematic Mind
+      description: You have an edge on tests to parse schematics, maps, and other systematic documentation that aren’t inherently chaotic. In addition, you interact with any language you don’t know as if you know a related language, whether or not you actually do.
+      canHavePrerequisites: true
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+        sourceguid: 119daf46-2425-40be-a6dd-ee2255806072
+        behavior: conditionimmunity
+        source: Memonek Race Feature
+        conditions:
+        - ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+        guid: c05802d7-9d18-4ec5-a63e-28f3c0d4fa7b
+        name: Unphased
+        description: Your ordered mind can’t be caught off guard. You can’t be surprised.
+      source: Memonek Race Feature
+      guid: 119daf46-2425-40be-a6dd-ee2255806072
+      pointsCost: 1
+      domains:
+        race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+      name: Unphased
+      description: Your ordered mind can’t be caught off guard. You can’t be surprised.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      guid: 68ef24d5-b2b8-46a0-bace-3e69b80e88d6
+      canHavePrerequisites: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 4fc6dbfc-b66d-4b2a-8f9c-7a19ca679cc8
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.14312481880188
+              s: 0.866113185882568
+              v: 0.981862306594849
+              a: 1
+          range: 1
+          targetType: self
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            mode: replenish
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: Memonek Useful Emotion
+          name: Useful Emotion
+          trigger: rollinitiative
+          description: Velloparatha might hinder, but it also fuels your strikes. You know how to turn your pain into something your enemies feel. When combat starts, you gain one surge.
+          abilityType: none
+          iconid: a068e145-df2a-4664-9993-98e4bd189a3f
+        description: 'Velloparatha might hinder, but it also fuels your strikes. You know how to turn your pain into something your enemies feel. When combat starts, you gain one surge. '
+        source: Memonek Race Feature
+        behavior: trigger
+        guid: 67b12d8d-7894-4351-b16c-c3e4f6936f41
+        name: Useful Emotion
+        sourceguid: 68ef24d5-b2b8-46a0-bace-3e69b80e88d6
+      source: Memonek Race Feature
+      name: Useful Emotion
+      description: 'Velloparatha might hinder, but it also fuels your strikes. You know how to turn your pain into something your enemies feel. When combat starts, you gain one surge. '
+      pointsCost: 1
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: abe8e829-a2bf-4ebd-ab98-628f413d9eca
+        source: Memonek Race Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          rollRequirement: bane
+          filterCondition: not (OngoingEffects has "Keeper Of Order")
+          source: Trigger
+          behavior: power
+          guid: 56e6dc7e-7a75-4f75-aeb6-b62bcfdb22c6
+          modtype: remove_bane
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 022a4868-d2f9-42d0-90d9-20e7169d4f6e
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: 35253481-b7f6-4d1f-85b6-800f31ea7849
+              duration: endround
+              ongoingEffectCustom: 35253481-b7f6-4d1f-85b6-800f31ea7849
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          activationCondition: false
+          rollType: ability_power_roll
+          resourceRefreshType: round
+          resourceCostId: keeperoforder
+          name: Keeper of Order
+          rules: ""
+        guid: 72dc4cf3-62fa-4756-9b17-24408654591e
+        type: free
+        domains:
+          race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+        targetType: selforally
+        behavior: powertabletrigger
+        name: Keeper of Order
+        rules: Remove a bane from the roll.
+        description: Your connection to Axiom, the plane of uttermost law, allows you manage chaos around you. When you or a creature adjacent to you makes a power roll, you can remove an edge or a bane on the roll as a free triggered action. You can only use this benefit once per round.
+        range: "1"
+        trigger: powerroll
+      - __typeName: CharacterModifier
+        domains:
+          race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+        sourceguid: abe8e829-a2bf-4ebd-ab98-628f413d9eca
+        behavior: triggerdisplay
+        source: Memonek Race Feature
+        name: Keeper of Order
+        description: Your connection to Axiom, the plane of uttermost law, allows you manage chaos around you. When you or a creature adjacent to you makes a power roll, you can remove an edge or a bane on the roll as a free triggered action. You can only use this benefit once per round.
+        guid: a28a5c3c-9ec9-49e7-a75e-6cd58cd00ff3
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: free
+          effect: The power roll has an edge or a bane removed from it.
+          target: One creature
+          trigger: The creature makes a power roll	
+          name: Keeper of Order
+          guid: 26ad1744-2a5f-47c3-8341-3edfa7fb6cdf
+          distance: 1 square
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: abe8e829-a2bf-4ebd-ab98-628f413d9eca
+        source: Memonek Race Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          rollRequirement: edge
+          filterCondition: not (OngoingEffects has "Keeper Of Order")
+          source: Trigger
+          behavior: power
+          guid: 56e6dc7e-7a75-4f75-aeb6-b62bcfdb22c6
+          modtype: remove_edge
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 022a4868-d2f9-42d0-90d9-20e7169d4f6e
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: 35253481-b7f6-4d1f-85b6-800f31ea7849
+              duration: endround
+              ongoingEffectCustom: 35253481-b7f6-4d1f-85b6-800f31ea7849
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          activationCondition: false
+          rollType: ability_power_roll
+          resourceRefreshType: round
+          resourceCostId: keeperoforder
+          name: Keeper of Order
+          rules: ""
+        guid: 22dd9c93-bb2c-44d9-94cb-3753f8bf68da
+        type: free
+        domains:
+          race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+        targetType: enemy
+        behavior: powertabletrigger
+        name: Keeper of Order
+        rules: Remove an edge from the roll.
+        description: Your connection to Axiom, the plane of uttermost law, allows you manage chaos around you. When you or a creature adjacent to you makes a power roll, you can remove an edge or a bane on the roll as a free triggered action. You can only use this benefit once per round.
+        range: "1"
+        trigger: powerroll
+      source: Memonek Race Feature
+      guid: abe8e829-a2bf-4ebd-ab98-628f413d9eca
+      pointsCost: 2
+      domains:
+        race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+      name: Keeper of Order
+      description: Your connection to Axiom, the plane of uttermost law, allows you manage chaos around you. When you or a creature adjacent to you makes a power roll, you can remove an edge or a bane on the roll as a free triggered action. You can only use this benefit once per round.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1ba41227-3b34-4271-9008-e3492c7eeb1a
+        source: Memonek Race Feature
+        value: 2
+        domains:
+          race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+        name: Lightning Nimbleness
+        guid: 012704cf-807f-435d-b7a3-cee193f31de2
+        description: You can push your body to move at incredible speeds. Your speed is 7.
+        behavior: attribute
+        attribute: speed
+      source: Memonek Race Feature
+      guid: 1ba41227-3b34-4271-9008-e3492c7eeb1a
+      pointsCost: 2
+      domains:
+        race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+      name: Lightning Nimbleness
+      description: You can push your body to move at incredible speeds. Your speed is 7.
+      canHavePrerequisites: true
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+        sourceguid: 2dd85e83-5a02-40f2-a2e1-260820203108
+        behavior: conditionimmunity
+        source: Memonek Race Feature
+        conditions:
+        - f3f4aa55-2d4d-4ab6-8f9f-fe27cb3c90a2
+        - 68f455f5-135f-495c-822d-40d809d2b15f
+        guid: f7e8cf96-203f-4aa4-8659-ef3a6a628dcd
+        name: Nonstop
+        description: Your connection to Axiom allows you to regulate your movements, even when other creatures would be forced to pause. You can’t be slowed.
+      source: Memonek Race Feature
+      guid: 2dd85e83-5a02-40f2-a2e1-260820203108
+      pointsCost: 2
+      domains:
+        race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+      name: Nonstop
+      description: Your connection to Axiom allows you to regulate your movements, even when other creatures would be forced to pause. You can’t be slowed.
+      canHavePrerequisites: true
+      implementation: 3
+  domains:
+    race:f1c7be70-88d7-47e6-ae22-63e205cfed34: true
+lifeSpan: 70–120
+nameGenerator: cf3554ca-5814-42fd-8aff-6b88ed753354
+id: f1c7be70-88d7-47e6-ae22-63e205cfed34
+ctime: 1726557835634
+lore: |-
+  “You want to tell me what just happened?” Sir John asked. Count Revile avoided his gaze, then turned and stamped across the bloody battlefield. “I’m fine!” Revile shouted, all evidence to the contrary.
+
+  “I know what I saw,” John said as he followed his friend. “You went into a bloodlust. And it’s not the first time. Listen!” John shouted, uncharacteristically, trying to get the count to pay attention. “You asked me for help, remember? You want to get home,” John gestured to the sky, “… and you asked for help and I said, ‘Do you remember?’ I said, ‘Is there anything else we should know?’
+
+  “Now I meant, ‘Is there anyone coming after you we need to know about?’ But it’s starting to seem like there’s something wrong with you. That you knew about and chose not to tell me.”
+
+  Vithyaranu, Count of the ALAV Revile paced back and forth, his cloak billowing. John continued.
+
+  “Listen, whether you like it or not, whether I like it or not, I’m in charge of this mission. Either you tell me what’s going on, or I have no choice. I have to conclude you’re a danger to the team and cut you loose.”
+
+  Revile stopped and turned to look at the rest of the party, recovering from their wounds. The memonek’s white porcelain chest heaved as he tried to calm himself. His ceramic skin looked as strong as plate, but John knew it was brittle, fragile.
+
+  Count Revile took a deep breath. “We call it velloparatha,” he said. “In your tongue it would be … worldsick. Or world-sickness? It is a thing that happens … to my people … when they come to your world. It is an illness of … of feeling. Emotion.”
+
+  “Are you going mad?” John asked, his voice quiet. He wanted to give the count a chance to answer privately.
+
+  The memonek smiled ruefully. “It feels that way sometimes. I spent an hour this morning staring at an insect that landed on my finger. A grasshopper the dwarf called it. I thought I had never seen a thing so perfect and beautiful. That was awe. As powerful as I have ever felt. In the battle today, anger. Just as powerful.
+
+  “I thought I could resist it. When I arrived here and felt no different I thought perhaps worldsickness was a legend. But it is a slow process, this illness. These insidious emotions.”
+
+  “No emotions where you’re from?”
+
+  Count Revile shook his head. “Not like this. We are creatures of reason, we of Axiom. It is our art, our pride. Our religion sometimes methinks. We have emotions; joy, sadness, wonder, grief. But they are … a fashion. They do not happen to us; they are something we indulge in, out of propriety. Here … everything is order and chaos mixed. Even in me. In me.” Revile placed his hand on his chest. 
+
+  “In the battle today. That anger was not directed at Ajax’s war dogs. It was at myself.”
+
+  “At yourself ? Why? What did you …?”
+
+  “John,” the memonek said, and now it was his turn to whisper. “I was afraid. Afraid of … of being wounded, of failing you, failing my friends. Of dying. And out of that fear came … enormous anger. At myself. Anger that I was so weak so … useless. Anger so … strong, so powerful … I forgot who I was.”
+
+  John chuckled. “That’s just …” He smiled broadly. “That’s just normal. We all feel that way.”
+
+  “What? No, you don’t understand …”
+
+  “Oh I don’t understand, okay, let me guess. It felt like you were gonna piss yourself.”
+
+  “Yes!!”
+
+  “Yeah, happens to all of us.”
+
+  “Even you?!”
+
+  Sir John shrugged. “Are you kidding? Sure. But it doesn’t help. You still got a job to do. In fact I’d say that is the job. Anyone can learn the blade.” He placed his hand on the pommel of his sword. “Nothing special about that. It’s learning to deal with the fear. That’s the job. What separates the professionals from the amateurs.”
+
+  Count Revile said nothing, just thought. 
+
+  “Feeling better?”
+
+  Revile nodded. “I always recover afterwards. But these outbursts come unbidden. Like thunder from a clear sky.”
+
+  “Hm. Yeah. Well that explains what happened when you met Embers.”
+
+  Count Revile did not like being reminded of that. He looked to the sky and shook his head. “I made a fool of myself.”
+
+  “Don’t be so hard on yourself. If you’re trying to seduce our void mage you made a good start of it. She’s three hundred years old. I’ve known her since I was fifteen. I don’t think I’ve ever seen her blush. Anyway, now that I know what’s going on, now that I know you’re basically a giant teenager with overactive glands, I can relax a little.”
+
+  Embers approached and handed John a small, heavy object. She looked at the two men then walked away.
+
+  “She was right,” John said looking at the iridoss starcore. “They didn’t know what it was, but they sure as hell didn’t want us to get it.
+
+  “Here,” John said, handing the engine over to Count Revile. “I guess you’re free to go.”
+
+  Revile looked at the elaborate cage of brass and glass holding a swirling blue starfield. “I guess I am,” he said. He looked at Sir John. “I didn’t expect our friendship to be so short.”
+
+  John smiled and maybe blushed a little. “Well,” he said looking at the rest of the crew, “being one of my friends these days is a hazardous profession.”
+
+  The count just got more serious. “I was lucky to meet one such as you on this world.”
+
+  John shrugged. “Only world I’ve ever known.”
+
+  Count Revile hefted the starcore. “I have responsibilities to keep. I will return home and this place will be only a memory.” The count was openly sad. “And you can forget about the alien you rescued and his ship of glass and steel.”
+
+  “Oh, I doubt that,” John said. “But I’ll tell you this. I’ll never look at the stars the same way again.”
+
+  John offered his hand. Revile shook it and then held it.
+
+  “If there are many like you in this world of gods and sorcery,” the noble memonek star captain said, “then your victory over evil is assured.”
+
+  “I don’t know about many,” John said, extricating his hand. He looked at the dwarf, elf, and hakaan. 
+
+  “But there might be enough.”
+moveSpeeds:
+  walk: 5
+details: |-
+  The native denizens of Axiom, the Plane of Uttermost Law, memonek dwell in a land with lakes and trees and birds and flowers. But on this alien world, the lakes are seas of mercury, the birds glitter with wings of glass stretched gossamer thin, and the flowers’ petals are iridescent metal as flexible and fragile as any earthly rose. 
+
+  The minds of memonek are highly ordered. Their reason is their great pride. But when descending to the lower planes, including a manifold like Orden where law and chaos mix, a sickness comes over them—an uncontrollable sensation called emotion.
+name: Memonek
+mtime: 1770433956966
+height: 5’0’’–6’0’’
+weight: 50–100
+portraitid: 813282dd-577e-4071-9014-8ff7ebe05bfa

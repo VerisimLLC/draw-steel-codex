@@ -1,0 +1,31 @@
+__typeName: ActivatedAbility
+id: 555af318-7295-4f87-821a-3e6b7cd5da67
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: f905e96c-6b89-4d88-9688-71fabc39c9c2
+  duration: save_ends
+  ongoingEffectCustom: false
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: the target is illuminated (save ends)
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 87112af3-0f94-4938-b295-8eb14489b558
+importMatch: the target is illuminated \(save ends\)
+ctime: 1754549596911
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Illuminated (save ends)
+targetType: self
+mtime: 1765297923016
+abilityType: none
+iconid: ui-icons/skills/1.png

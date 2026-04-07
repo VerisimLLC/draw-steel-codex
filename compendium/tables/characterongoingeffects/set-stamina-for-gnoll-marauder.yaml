@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: fd514296-80ab-42ca-af98-ec8a40d2a5e0
+  source: Ongoing Effect
+  value: 7
+  name: Set Stamina for Gnoll Marauder
+  guid: 702317de-5eac-4f7f-8db5-22d5dac5414c
+  description: ""
+  behavior: attribute
+  attribute: hitpoints
+source: Ongoing Effect
+guid: fd514296-80ab-42ca-af98-ec8a40d2a5e0
+id: fd514296-80ab-42ca-af98-ec8a40d2a5e0
+ctime: 1755433784418
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Set Stamina for Gnoll Marauder
+statusEffect: false
+mtime: 1755433784418
+description: ""
+iconid: ui-icons/skills/1.png

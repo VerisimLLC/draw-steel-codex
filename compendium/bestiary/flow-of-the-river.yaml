@@ -1,0 +1,419 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 873bfe4c-6fad-4dac-ae24-c91a2a539135
+    offtokenPortraitId: 4fdeda9d-ce98-4b8d-962d-3975d9678138
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: e3344131-ceaf-4db6-8631-d9e0b06ac91b
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3565846
+    portraitOffset:
+      x: -0.22616
+      y: 0.2074118
+    frameHueShift: 0.4966163
+    frameSaturation: 0.7886816
+    frameBrightness: 0.6824873
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: true
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fdbb654d-4f92-413c-a0d4-568f7609dbee
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    minionDamageTime: 1759755682134
+    max_hitpoints: 4
+    inflictedConditions: []
+    keywords:
+      Elemental: true
+      Water Wolf: true
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    damage_taken_minion_count: 1
+    monster_type: Flow Of The River
+    levelChoices: []
+    damage_taken_seq: 2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; the flow can shift 1 square; pull 1
+        - 3 damage; the flow shifts up to 2 squares; pull 2
+        - 5 damage; the flow shifts up to 5 squares; pull 3
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.0326170921325684
+          v: 0.377125144004822
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 63
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 82ca8bed-01a6-4d53-9554-080afefc73a6
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd
+      targetType: target
+      name: Bite and Drag
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    damageEntries:
+      b49d557f-7f1f-43d4-805e-a2cd560ae19e:
+        damage: 3
+        timestamp: 1759755682134
+        attackerid: 92bcbf1a-fa29-4077-a39b-e1e8b651c4c5
+        id: b49d557f-7f1f-43d4-805e-a2cd560ae19e
+        damage_type: collide
+    minion: true
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+        source: Monster Trait
+        value: 1
+        domains:
+          CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+        name: Aquavuken
+        guid: 23c8d184-e074-4b7d-bf8e-5678ad053e2f
+        description: The flow ignores difficult terrain and can move on top of water as if it were solid ground.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+        source: Monster Trait
+        value: 1
+        domains:
+          CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+        name: Aquavuken
+        guid: 02fd9bbc-2a33-4ca1-bac9-2762c96b4eab
+        description: The flow ignores difficult terrain and can move on top of water as if it were solid ground.
+        behavior: attribute
+        attribute: swim
+      - __typeName: CharacterModifier
+        sourceguid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+        source: Monster Trait
+        value: 1
+        domains:
+          CharacterFeature:3d752deb-6aed-4e57-884a-675d5a5d29ec: true
+        name: Aquavuken
+        guid: 2083f030-beb3-4f59-9e6d-3024adb3f622
+        description: The flow ignores difficult terrain and can move on top of water as if it were solid ground.
+        behavior: attribute
+        attribute: 6a081cac-d26a-4e1e-a26b-2ace8c92fb58
+      source: Monster Trait
+      description: The flow ignores difficult terrain and can move on top of water as if it were solid ground.
+      guid: 3d752deb-6aed-4e57-884a-675d5a5d29ec
+      name: Aquavuken
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8cd34fc6-0e2e-4602-b09a-8e09d1d7844b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8cd34fc6-0e2e-4602-b09a-8e09d1d7844b
+        source: Monster Trait
+        value: 1
+        filterCondition: (Count Nearby Friends(1)) > 0
+        guid: 4ebb876c-6f7c-4fdf-b404-02c31aac9623
+        name: Pack Strong
+        domains:
+          CharacterFeature:8cd34fc6-0e2e-4602-b09a-8e09d1d7844b: true
+        description: While adjacent to any ally, the flow can't be flanked or made frightened.
+        behavior: attribute
+        attribute: 0dede2a8-4f44-45aa-be20-342fdffd4916
+      - __typeName: CharacterModifier
+        sourceguid: 8cd34fc6-0e2e-4602-b09a-8e09d1d7844b
+        source: Monster Trait
+        behavior: conditionimmunity
+        domains:
+          CharacterFeature:8cd34fc6-0e2e-4602-b09a-8e09d1d7844b: true
+        name: Pack Strong
+        conditions:
+        - 1211270f-bfce-45a6-b937-d72f0e8a06a8
+        description: While adjacent to any ally, the flow can't be flanked or made frightened.
+        guid: 9db9c505-e308-4bbd-bf24-42c98a162a60
+        filterCondition: (Count Nearby Friends(1)) > 0
+      source: Monster Trait
+      description: While adjacent to any ally, the flow can't be flanked or made frightened.
+      guid: 8cd34fc6-0e2e-4602-b09a-8e09d1d7844b
+      name: Pack Strong
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5206732f-94ee-4c4c-8cea-17acb4f52bfa: true
+        CharacterFeature:e0f8ade6-fa4d-4019-9a31-0c107802f793: true
+        CharacterFeature:7548f29d-c7c6-4bbe-b09a-81cc79598787: true
+        CharacterFeature:bb609a6f-b0f8-43f5-80b1-17fa9f9e79fd: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:5206732f-94ee-4c4c-8cea-17acb4f52bfa: true
+          CharacterFeature:e0f8ade6-fa4d-4019-9a31-0c107802f793: true
+          CharacterFeature:7548f29d-c7c6-4bbe-b09a-81cc79598787: true
+          CharacterFeature:bb609a6f-b0f8-43f5-80b1-17fa9f9e79fd: true
+        sourceguid: 7548f29d-c7c6-4bbe-b09a-81cc79598787
+        description: Once on their turn as a free maneuver, the flow can enter an adjacent body of water and reappear in an unoccupied space adjacent to another body of water within 5 squares. Any other water elemental can be treated as a body of water for the purpose of using this ability.
+        source: Monster Trait
+        name: Water Weird
+        behavior: activated
+        guid: 8090ac66-c914-43ef-87ad-7a5f39ee5fd3
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: Self
+          targetTextOverride: 1 unoccupied space adjacent to water
+          repeatTargets: false
+          rangeTextOverride: 5 squares
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.573750078678131
+              s: 0.903710961341858
+              v: 0.883498311042786
+              a: 1
+          categorization: Signature Ability
+          preDescription: Once on their turn as a free maneuver, the flow can enter an adjacent body of water and reappear in an unoccupied space adjacent to another body of water within 5 squares. Any other water elemental can be treated as a body of water for the purpose of using this ability
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 31089149-4c73-4eee-bdab-0fda85fef0c7
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: The target square must be adjacent to a body of water. Another water elemental can be treated as a body of water for this ability.
+            standardAbilityParams:
+              range: "5"
+            abilityType: standard
+            standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+            runOnController: true
+          persistence: []
+          modifiers: []
+          castImmediately: true
+          strain: []
+          guid: 7ec0660e-c126-4e25-b37e-5f652635d5b3
+          numTargets: "1"
+          range: "5"
+          domains:
+            CharacterFeature:5206732f-94ee-4c4c-8cea-17acb4f52bfa: true
+            CharacterFeature:e0f8ade6-fa4d-4019-9a31-0c107802f793: true
+            CharacterFeature:7548f29d-c7c6-4bbe-b09a-81cc79598787: true
+            CharacterFeature:bb609a6f-b0f8-43f5-80b1-17fa9f9e79fd: true
+          reasonedFilters: []
+          actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+          name: Water Weird
+          selfTarget: true
+          description: ""
+          abilityType: none
+          iconid: 98e46b21-b1bb-4899-bd9c-ac1ee95f7239
+      source: Monster Trait
+      description: Once on their turn as a free maneuver, the flow can enter an adjacent body of water and reappear in an unoccupied space adjacent to another body of water within 5 squares. Any other water elemental can be treated as a body of water for the purpose of using this ability.
+      guid: 5206732f-94ee-4c4c-8cea-17acb4f52bfa
+      name: Water Weird
+      implementation: 3
+    role: Minion Harrier
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 2
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 8b0218ba-853e-4d0b-ae6b-5e0ad06329bf
+    monster_category: Monster
+    damage_taken: 0
+    animations:
+      anim:
+      - animType: floatlabel
+        text: It worked!
+        color: "#ffffffff"
+      guid: f10f38ce-eb9b-4ed5-8984-8bf1fba193a5-359
+    walkingSpeed: 6
+    skillProficiencies: []
+    minionSquad: Flow Of The River Squad 7
+    groupid: f4e22b22-ff83-4443-a797-0dd3a7d0c496
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+    withCaptain: Speed +2
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        06c426f9-a6f4-41d9-bb42-3bcf0bdfcf3b:
+          timestamp: 1759806337215
+          note: Bite and Drag
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        b01a0740-ad3d-4027-b584-720c3913c4ae:
+          timestamp: 1759806292014
+          note: Bite and Drag
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        032838b5-c332-4401-9621-12f91a040ef7:
+          timestamp: 1759811106398
+          note: Bite and Drag
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        f7ca0c60-4da2-42d4-bc93-1692c0585156:
+          timestamp: 1759878447736
+          note: Bite and Drag
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        d70b4813-dac3-4243-a069-7e1820ef6fba:
+          timestamp: 1759810927948
+          note: Bite and Drag
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        5e9aca98-f701-46dd-a7b6-8b833356f926:
+          timestamp: 1759825974580
+          note: Bite and Drag
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        edd02844-df72-4600-872d-ef76db06ead4:
+          timestamp: 1759806270832
+          note: Bite and Drag
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 1/1
+        3f9bc2ba-cbd3-4ffd-8dbe-1a6edce9b3b9:
+          timestamp: 1759810885390
+          note: Bite and Drag
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    availableTriggers: []
+    equipmentMeta:
+      offhand0: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 0d6b005a-1cd3-4692-932c-f59f20697b00
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1759754514271
+description: null
+parentFolder: 925dd5e3-050d-4020-912e-43234e811688
+artist: null
+ord: 2
+ctime: 1759755345321
+mtime: 1775167472303
+hidden: false

@@ -1,0 +1,91 @@
+__typeName: Kit
+portraitid: 98fa8fcd-5a62-4736-924d-0753b2900b2e
+stability: 1
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+description: Meant for brawlers and boxers, the Pugilist kit gives you access to a melee fighting style that gives you a boost to Stamina and damage while allowing you to float like a butterfly. If you want to be a tough, strong hero who doles out punishment with your fists, then this kit is for you.
+health: 6
+damageBonuses:
+  melee:
+  - 1
+  - 1
+  - 1
+id: e4ca76ab-795d-43f6-99e3-f67f8390f9d0
+kitManeuver: false
+type: martial
+weapons:
+  Unarmed Strike: true
+imported: f2afeffb-67fc-49d3-b425-88bfebcdcaf2
+name: Pugilist
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: Keeping your enemies stumbling around the battlefield is second nature to you.
+  sourceReference:
+    __typeName: SourceReference
+    page: 221
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  effectImplemented: false
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 26fdf316-46ee-440b-983b-9abcf7c6fb2d
+  numTargets: 1
+  categorization: Signature Ability
+  implementation: 4
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 3 + M or A damage
+    - 6 + M or A damage; slide 1
+    - 8 + M or A damage; slide 2
+    roll: 2d10 + Might or Agility
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 1b2ea40b-a952-41fc-901a-9a294ab3f137
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: Movement Speed
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        movementType: shift
+      targeting: vacated
+      name: Invoked Ability
+      targetType: emptyspace
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Shift into a square the target left
+    autoTarget: false
+    tiersSelected:
+    - 2
+    - 3
+  name: Let's Dance
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  description: You can shift into any square your target leaves after you slide them.
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+mtime: 1770565329456
+speed: 2
+equipmentDescription: You wear no armor and wield only your unarmed strikes.

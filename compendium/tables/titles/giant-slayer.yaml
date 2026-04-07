@@ -1,0 +1,212 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: "Giant Slayer Benefit:"
+    numChoices: 1
+    guid: bdb77244-5574-44df-a11c-36b5761669b8
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      description: Any creature of size 2 or larger takes a bane on strikes against you.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 459eaec4-c614-40c4-abe6-e588542df29b
+        displayCondition: 'Caster.Size > 4 '
+        source: Feat
+        modtype: bane
+        keywords:
+          Strike: true
+        activationCondition: "1"
+        activationAfterRoll: false
+        name: Smallfolk Dodge
+        rollType: enemy_ability_power_roll
+        description: Any creature of size 2 or larger takes a bane on strikes against you.
+        guid: af7999ec-c039-4b11-b613-a00dcdb8cf7e
+        behavior: power
+      source: Feat
+      canHavePrerequisites: true
+      guid: 459eaec4-c614-40c4-abe6-e588542df29b
+      name: Smallfolk Dodge
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: You have the following ability, which can be paid for using the Heroic Resource of your class.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 946a4c96-4d92-4288-8093-4a877616a6d7
+        guid: 95686c57-45e4-4876-9d27-7706879cff70
+        source: Title
+        behavior: activated
+        description: You have the following ability, which can be paid for using the Heroic Resource of your class.
+        name: The Harder They Fall
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "7"
+          objectTarget: false
+          repeatTargets: false
+          keywords:
+            Strike: true
+            Melee: true
+            Weapon: true
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: Timber!
+          sourceReference:
+            __typeName: SourceReference
+            page: 344
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          range: 1
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 0da8c88c-0647-4aee-839f-71b8ed4e3d09
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 7 damage; M < weak, prone and can't stand (save ends)
+            - 11 damage; M < average, prone and can't stand (save ends)
+            - 16 damage; M < strong, prone and can't stand (save ends)
+            roll: 2d10 + Might or Agility
+          - __typeName: ActivatedAbilityModifyPowerRollBehavior
+            guid: 649bf762-7b68-4d73-a75a-7e465059e4f0
+            modifier:
+              __typeName: CharacterModifier
+              sourceguid: 649bf762-7b68-4d73-a75a-7e465059e4f0
+              displayCondition: Target.Size > 4
+              modtype: edge
+              keywords: []
+              activationCondition: "1"
+              domains: []
+              activationAfterRoll: false
+              name: The Harder They Fall
+              rollType: ability_power_roll
+              description: If the target is size 2 or larger, you gain an edge on this ability
+              guid: ecbfe413-e231-4b3e-b761-7c55be809d30
+              behavior: power
+          domains: []
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          implementation: 4
+          name: The Harder They Fall
+          categorization: Heroic Ability
+          description: "Special: If the target is size 2 or larger, you gain an edge on this ability"
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+      source: Title
+      canHavePrerequisites: true
+      guid: 946a4c96-4d92-4288-8093-4a877616a6d7
+      name: The Harder They Fall
+      implementation: 4
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      name: Up the Beanstalk
+      numChoices: 1
+      guid: 6a90b9a5-4880-4395-8e6f-39405219999e
+      description: Choose a benefit
+      options:
+      - __typeName: CharacterFeature
+        description: ""
+        modifiers:
+        - __typeName: CharacterModifier
+          subtype: skill
+          source: Feat
+          behavior: proficiency
+          description: ""
+          equate: false
+          name: Climb Skill
+          sourceguid: 4683f11f-0e64-4df3-8ad1-521661779f46
+          proficiency: proficient
+          guid: 714dd093-0338-4d3c-bd1f-7adfaa619167
+          skills:
+            5052a2e5-938c-46f9-81fd-68a98fe363b5: true
+        - __typeName: CharacterModifier
+          sourceguid: 4683f11f-0e64-4df3-8ad1-521661779f46
+          source: Feat
+          behavior: power
+          keywords: []
+          activationCondition: false
+          name: Up The Beanstalk
+          guid: cc399005-8e7e-47e8-bcf3-be6b14e7e596
+          description: While you’re climbing a creature, the creature has a double bane on strikes against you and you have a double edge on tests made to stay on the creature.
+          modtype: double_bane
+          rollType: enemy_ability_power_roll
+        - __typeName: CharacterModifier
+          sourceguid: 4683f11f-0e64-4df3-8ad1-521661779f46
+          source: Feat
+          behavior: power
+          keywords: []
+          activationCondition: false
+          name: Up The Beanstalk - Stay On Creature
+          guid: 07a10597-72ee-4c5a-b197-5c6f7b12cdc1
+          description: While you’re climbing a creature, the creature has a double bane on strikes against you and you have a double edge on tests made to stay on the creature.
+          modtype: double_edge
+          rollType: test_power_roll
+        source: Feat
+        canHavePrerequisites: true
+        guid: 4683f11f-0e64-4df3-8ad1-521661779f46
+        name: Climb Skill
+        implementation: 4
+      - __typeName: CharacterFeature
+        guid: fcbf18a8-ad87-41b3-96b9-3f65db93d9d4
+        canHavePrerequisites: true
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: fcbf18a8-ad87-41b3-96b9-3f65db93d9d4
+          source: Title
+          modtype: edge
+          keywords: []
+          activationCondition: true
+          behavior: power
+          activationAfterRoll: false
+          name: Up The Beanstalk
+          guid: 468f18a7-fc15-4251-9191-63275e3b7ac8
+          description: 'If you already have this skill, you instead gain an edge on tests made using the Climb skill. '
+          rollType: test_power_roll
+          skills:
+          - 5052a2e5-938c-46f9-81fd-68a98fe363b5
+        - __typeName: CharacterModifier
+          sourceguid: 4683f11f-0e64-4df3-8ad1-521661779f46
+          source: Title
+          behavior: power
+          keywords: []
+          activationCondition: false
+          name: Up The Beanstalk
+          guid: 309bfae1-e369-4407-a73a-fb493e20f886
+          description: While you’re climbing a creature, the creature has a double bane on strikes against you and you have a double edge on tests made to stay on the creature.
+          modtype: double_bane
+          rollType: enemy_ability_power_roll
+        - __typeName: CharacterModifier
+          sourceguid: 4683f11f-0e64-4df3-8ad1-521661779f46
+          source: Title
+          behavior: power
+          keywords: []
+          activationCondition: false
+          name: Up The Beanstalk - Stay On Creature
+          guid: 8204657c-8454-4052-b15c-1e1be2bb4068
+          description: While you’re climbing a creature, the creature has a double bane on strikes against you and you have a double edge on tests made to stay on the creature.
+          modtype: double_edge
+          rollType: test_power_roll
+        source: Title
+        name: Already Have Climb
+        description: 'If you already have this skill, you instead gain an edge on tests made using the Climb skill. '
+        prerequisites:
+        - __typeName: CharacterPrerequisite
+          type: skillProficiency
+          guid: c6d93d02-122b-4ca5-8c29-5d2ae1806295
+          skill: 5052a2e5-938c-46f9-81fd-68a98fe363b5
+        implementation: 4
+id: b286051a-ace1-4ac3-b549-ab20a8626501
+ctime: 1762351519760
+name: Giant Slayer
+description: Come back here, puny one, and let me crush you!
+mtime: 1775104414876
+echelon: "2"
+prerequisite: You defeat a leader or solo creature with the Giant keyword, such as a fire giant chief.

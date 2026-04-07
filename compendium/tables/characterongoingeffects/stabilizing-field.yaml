@@ -1,0 +1,128 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: c68b9ef9-a813-40e9-a23c-e6453b470233
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:fa9574d7-d996-410a-89b9-55a42dee8aa5: true
+  name: Stabilizing Field
+  guid: 9eb6c7b2-f057-402e-9298-13a134207ab0
+  description: Ignore Difficult Terrain and Attacks Targeting take a -1 potency. You and allies can end effects on you at the start of turns.
+  behavior: attribute
+  attribute: bd01a4c5-0758-4453-8d71-5d2257aa23fd
+- __typeName: CharacterModifier
+  sourceguid: fa9574d7-d996-410a-89b9-55a42dee8aa5
+  source: Ongoing Effect
+  seq: 51dc4f59-a320-4378-8b19-9d243ad9d028
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: 4831052d-f180-41df-bc09-6e3cab2af835
+      sourceguid: b043146e-f958-4b72-8ef5-d599df33ab14
+      value: 1
+      source: Aura
+      name: Stabilizing Field
+      behavior: attribute
+      description: ""
+      attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+    - __typeName: CharacterModifier
+      sourceguid: b043146e-f958-4b72-8ef5-d599df33ab14
+      source: Aura
+      modtype: none
+      keywords: []
+      activationCondition: true
+      description: reduce the potency of enemy effects targeting you by 1 for you
+      name: Stabilizing Field
+      behavior: power
+      potencymod: "-1"
+      rollType: enemy_ability_power_roll
+      guid: 8193587d-65e5-4f0c-963c-a152dc341210
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: a95c8ce8-e659-484c-8813-012529706027
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: standard
+          standardAbility: 0b1cc306-e0b8-4898-836a-c84b0ee7df47
+        triggerPrompt: Stabilizing Field - End Effect on Self
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: b45c34f1-5bbd-41c9-b971-874728565cbd
+        numTargets: "1"
+        castImmediately: true
+        whenActive: combat
+        targetType: self
+        trigger: beginturn
+        name: Stabilizing Field
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: 482d2e37-c4d5-4d77-82e6-e9bdca2884b4
+      name: Stabilizing Field
+      sourceguid: b043146e-f958-4b72-8ef5-d599df33ab14
+    name: Stabilizing Field
+    guid: b043146e-f958-4b72-8ef5-d599df33ab14
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+  domains:
+    CharacterOngoingEffect:fa9574d7-d996-410a-89b9-55a42dee8aa5: true
+  radius: Nullifying Aura Radius
+  guid: 4a551411-5faa-4ed3-a9fe-ca9518a5532a
+  description: Ignore Difficult Terrain and Attacks Targeting take a -1 potency. You and allies can end effects on you at the start of turns.
+  behavior: aura
+  name: Stabilizing Field
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: fa9574d7-d996-410a-89b9-55a42dee8aa5
+id: fa9574d7-d996-410a-89b9-55a42dee8aa5
+ctime: 1757981168250
+domains:
+  CharacterOngoingEffect:fa9574d7-d996-410a-89b9-55a42dee8aa5: true
+sustainFormula: Ongoing Effects has "Null Field"
+description: Ignore Difficult Terrain and Attacks Targeting take a -1 potency. You and allies can end effects on you at the start of turns.
+name: Stabilizing Field
+statusEffect: false
+mtime: 1757982032896
+custom: true
+iconid: ui-icons/skills/1.png

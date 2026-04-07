@@ -1,0 +1,60 @@
+__typeName: Title
+effect: " Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Unstoppable Benefit
+    numChoices: 1
+    guid: 1d8ae05c-d940-4907-9989-4e19bc55ad13
+    description: " Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      description: While you are winded, your melee strikes gain a +3 damage bonus.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: aba20249-db03-4616-9b64-321d33332834
+        displayCondition: self.winded
+        source: Feat
+        modtype: none
+        keywords:
+          Strike: true
+          Melee: true
+        activationCondition: "1"
+        behavior: power
+        activationAfterRoll: false
+        name: From Hell’s Heart
+        description: While you are winded, your melee strikes gain a +3 damage bonus.
+        damageModifier: "3"
+        rollType: ability_power_roll
+        guid: b2e815d2-4b6c-45ef-8c90-937e2c704ca6
+      source: Feat
+      canHavePrerequisites: true
+      guid: aba20249-db03-4616-9b64-321d33332834
+      name: From Hell’s Heart
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Furious Attack
+      description: Choose one signature ability from the fury class. You gain that ability regardless of whether your class and subclass allow you to take it. If this ability allows you to gain or spend ferocity, you can’t do so unless you have the Ferocity class feature.
+      guid: 1e4a595c-1e90-4a73-afc1-fe75e0222adb
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      description: When you use the Charge action, your strike made as part of that action gains a damage bonus equal to the number of squares you moved as part of the charge.
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: 427fc75c-b61b-4874-acc9-7bc433b98362
+      name: Furious Charge
+      implementation: 1
+id: 20a4c41e-1d85-4dac-b18b-d3ab43fda9bb
+ctime: 1762351807181
+name: Unstoppable
+description: |-
+  I seen the goblin king run ’im through with a spear. Then I seen ’im pull ’imself back up, spear still in ’im, and headbutt the goblin king … then he
+  pulls out the spear and throws it on the goblin king’s corpse.
+mtime: 1775133705635
+echelon: "2"
+prerequisite: You defeat a foe while at or below 0 Stamina.

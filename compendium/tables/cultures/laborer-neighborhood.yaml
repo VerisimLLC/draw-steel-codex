@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Laborer Neighborhood
+id: 7cde3202-46d1-414a-963b-8fc59795e886
+mtime: 1769349256604
+aspects:
+  upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+  environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+  organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+ctime: 1768796373920

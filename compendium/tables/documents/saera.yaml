@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Saera
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: fff79589-6cbd-4603-a78c-758d0574af9c
+annotations:
+  image:
+    __typeName: RichImage
+id: 754b57f1-e4d4-4f3e-b2cb-ee9e9fede521
+mtime: 1761685369184
+content: |-
+  # Saera
+
+  [[image]]
+
+  *Banished member of the Forsaken Wraiths from Wend*
+  {
+  Secret: A Werewolf, see [Wolf Den] and [Fort Forsaken]'s "What Do the Forsaken Wraiths Know"
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761684129443

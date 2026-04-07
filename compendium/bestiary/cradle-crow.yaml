@@ -1,0 +1,151 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5f7bbdd9-e458-480a-bc62-9af2d814c0b2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Cradle Crow	Level 1 Harrier Minion
+        Construct, High Elf	EV 2
+        <b>Stamina</b> 6
+        <b>Speed </b>7 (fly)	<b>Size</b> 1T /<b> Stability</b> 0
+        <b>With Captain</b> Edge on strikes<b>Free Strike</b> 2
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Heckle</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	3 damage
+        %E2%9C%B8	<b>17</b>	4 damage; taunted (EoT)
+        <b>Effect</b>	The cradle crow ignores opportunity attacks from the target until the end of its turn.
+
+    characterFeatures: []
+    role: Harrier Minion
+    inflictedConditions: []
+    keywords:
+      Elf: true
+      High: true
+      Construct: true
+      High Elf: true
+    max_hitpoints_roll: "6"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    monster_type: Cradle Crow
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 6
+    traitNames:
+    - With Captain Edge on strikes
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 3 damage
+        - 4 damage; taunted (EoT)
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 20bd57d0-6a18-49cf-aa9c-ff2d2209b99e
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Heckle
+      numTargets: 1
+      description: The cradle crow ignores opportunity attacks from the target until the end of its turn.
+      abilityType: none
+      implementation: 3
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    movementSpeeds:
+      fly: 7
+    ev: 2
+    minion: true
+    levelChoices: []
+    creatureSize: 1T
+  tokenType: null
+  bestiaryId: 1993ecc4-56d3-4f7e-8430-f5b6fd61e2d0
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Cradle Crow
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590223935
+mtime: 1775201137032
+hidden: false

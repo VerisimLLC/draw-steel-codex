@@ -1,0 +1,98 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:f1a35227-d720-4f04-8818-af3939be2684: true
+  sourceguid: f1a35227-d720-4f04-8818-af3939be2684
+  description: Whenever the Director spends Malice, choose yourself or one ally within 10 squares. The chosen character gains 2 of their Heroic Resource.
+  source: Ongoing Effect
+  name: Counterstrategy
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: Choose yourself or one ally within 10 squares. The chosen character gains 2 of their Heroic Resource.
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    guid: 7c17360f-432f-4401-96e8-7bafbbec0f37
+    range: 1
+    abilityType: none
+    trigger: useresource
+    persistence: []
+    modifiers: []
+    subjectRange: "100"
+    strain: []
+    whenActive: combat
+    hasManualVersion: false
+    numTargets: "1"
+    conditionFormula: Resource = "Malice"
+    domains:
+      CharacterOngoingEffect:f1a35227-d720-4f04-8818-af3939be2684: true
+    castImmediately: true
+    name: Counterstrategy
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Counterstrategy!
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 0.987304627895355
+        v: 0.982608497142792
+        a: 1
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        repeatTargets: false
+        targetAllegiance: ally
+        targetType: target
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: "10"
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 5fb3478e-f52f-41e1-b009-fa697a6ed24e
+        numTargets: "1"
+        behaviors:
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          chatMessage: Counterstrategy
+          quantity: "2"
+        selfTarget: true
+        name: Invoked Ability
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      promptText: Choose yourself or one ally within 10 squares to gain 2 Heroic Resource
+    description: Until the end of the encounter or until you are dying, whenever the Director spends Malice, choose yourself or one ally within 10 squares. The chosen character gains 2 of their Heroic Resource.
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  guid: b64ef39a-e4d9-4e2d-b7e2-cf6e8b679c0b
+source: Ongoing Effect
+guid: f1a35227-d720-4f04-8818-af3939be2684
+id: f1a35227-d720-4f04-8818-af3939be2684
+ctime: 1771158247778
+domains:
+  CharacterOngoingEffect:f1a35227-d720-4f04-8818-af3939be2684: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Counterstrategy
+iconid: 2742eef6-4b53-4a5b-a547-c41ce376c66a
+description: Whenever the Director spends Malice, choose yourself or one ally within 10 squares. The chosen character gains 2 of their Heroic Resource.
+mtime: 1771158664191
+implementation: 4

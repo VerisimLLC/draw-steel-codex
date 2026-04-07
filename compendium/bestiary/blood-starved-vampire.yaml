@@ -1,0 +1,171 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 16352be8-9288-41ed-a55b-614ee6a99cc9
+    offtokenPortraitId: ca71a033-256d-4115-9d6d-f6d021a5c69a
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.1879237
+    portraitOffset:
+      x: 0.1120024
+      y: 0.2163527
+    frameHueShift: 0
+    frameSaturation: 0.14
+    frameBrightness: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 881447e7-27ba-4cd6-8212-6448f3359a1f
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 7
+    skillProficiencies: []
+    max_hitpoints: 12
+    inflictedConditions: []
+    ev: 9
+    max_hitpoints_roll: "12"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -3
+        id: prs
+      rea:
+        baseValue: -3
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 6 damage
+        - 7 damage; M<4 bleeding (EoT)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 29f62311-279a-40ef-8d47-8e67dd8f2bcd
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Feeding Frenzy
+      numTargets: 1
+      description: The target is knocked prone and can't stand (EoT) if they were already bleeding.
+      abilityType: none
+      implementation: 3
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Blood-Starved Vampire	Level 7 Minion Harrier
+        Undead, Vampire	EV 9 for four minions
+        <b>Stamina</b> 12	<b>Immunity</b> corruption 7, poison 7
+        <b>Speed</b> 6 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Speed +3	<b>Free Strike</b> 3
+        Might +4	Agility +1	Reason -3	Intuition +1	Presence -3
+        <b>Feeding Frenzy</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	3 damage
+        %E2%98%85	12%E2%80%9316	6 damage
+        %E2%9C%B8	17	7 damage; M<4 bleeding (EoT)
+        <b>Effect</b> The target is knocked prone and can't stand (EoT) if they were already bleeding.
+
+        <b>Unslakable Bloodthirst</b>
+        The vampire has a speed of 10 while a creature is bleeding within 10. The vampire must strike a bleeding creature on their turn if they are able to.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e8934162-fedd-4e8c-bb93-d24697e8bf38: true
+      modifiers: []
+      name: Unslakable Bloodthirst
+      description: The vampire has a speed of 10 while a creature is bleeding within 10. The vampire must strike a bleeding creature on their turn if they are able to.
+      guid: e8934162-fedd-4e8c-bb93-d24697e8bf38
+      source: Trait
+    role: Minion Harrier
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 7
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 7
+      damageType: poison
+      apply: Damage Reduction
+    withCaptain: +3 bonus to speed
+    damage_taken: 0
+    opportunityAttack: 3
+    resources: []
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    minionSquad: Blood-Starved Vampire Squad 3
+    walkingSpeed: 6
+    traitNames: []
+    movementSpeeds:
+      climb: 6
+    creatureSize: 1M
+    initiativeGrouping: 77618eb8-3ea8-44d6-ab94-4ff067338a44
+    monster_type: Blood-Starved Vampire
+    keywords:
+      Undead: true
+      Vampire: true
+  tokenType: null
+  bestiaryId: cbb8b896-d125-4a82-9b8f-9d32e81f2e0a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961969981
+description: Blood-Starved Vampire
+parentFolder: 68f67367-de21-43f0-8448-61d0408cd721
+artist: null
+ord: 6
+ctime: 1741590307804
+mtime: 1775201137032
+hidden: false

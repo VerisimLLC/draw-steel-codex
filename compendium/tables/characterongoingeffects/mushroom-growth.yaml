@@ -1,0 +1,132 @@
+__typeName: CharacterOngoingEffect
+association: []
+canEndWithAction: true
+source: Ongoing Effect
+display:
+  blend: add
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.263874769210815
+    s: 0.352099716663361
+    v: 1.00306534767151
+    a: 1
+  brightness: 1
+guid: bf4e5113-25d6-4c58-a32b-454f5390dfa0
+id: bf4e5113-25d6-4c58-a32b-454f5390dfa0
+ctime: 1747548260415
+domains:
+  CharacterOngoingEffect:bf4e5113-25d6-4c58-a32b-454f5390dfa0: true
+description: Whenever this creature takes damage, the caster of mushroom growth and any of their allies who are adjacent to the creature gain a surge. May be removed by this creature or an adjacent ally as an action.
+endActionType: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+name: Mushroom Growth
+custom: true
+mtime: 1747550254467
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:bf4e5113-25d6-4c58-a32b-454f5390dfa0: true
+  sourceguid: bf4e5113-25d6-4c58-a32b-454f5390dfa0
+  description: Whenever this creature takes damage, the caster of mushroom growth and any of their allies who are adjacent to the creature gain a surge. May be removed by this creature or an adjacent ally as an action.
+  source: Ongoing Effect
+  name: Mushroom Growth
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    persistence: []
+    modifiers: []
+    trigger: losehitpoints
+    targetFilter: enemy and (Target.Distance(caster) <= 1 or target = (Caster.ConditionCaster("Mushroom Growth")))
+    guid: d814f837-ac37-4970-bb81-d47330504fd9
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:bf4e5113-25d6-4c58-a32b-454f5390dfa0: true
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+      chatMessage: Mushroom Growth
+    targetType: all
+    name: Mushroom Growth
+    numTargets: "1"
+    description: ""
+    range: "99"
+    iconid: ui-icons/skills/1.png
+  guid: 105f8d98-43f6-4fbf-bba9-662c74bef4fd
+- __typeName: CharacterModifier
+  sourceguid: bf4e5113-25d6-4c58-a32b-454f5390dfa0
+  source: Ongoing Effect
+  seq: 16a15662-b262-48da-825c-deb823a08605
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: e42e1fe1-02d9-457b-845b-a1f70025f6f7
+      guid: 68256e6d-2fc7-47e7-85bc-dc9233640eca
+      source: Aura
+      behavior: activated
+      description: ""
+      name: Aura
+      activatedAbility:
+        __typeName: ActivatedAbility
+        targetFilter: (not enemy) and (Target.OngoingEffects has "Mushroom Growth")
+        repeatTargets: false
+        targetType: target
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor:
+            __usertype: LuaColor
+            h: 0.289187550544739
+            s: 0.473389148712158
+            v: 1.0030654668808
+            a: 1
+        categorization: Signature Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        guid: 7a54caed-00a3-405f-893f-b8bd06e55d53
+        numTargets: "1"
+        iconid: 39d88090-e456-4d36-b141-87e933ac8d06
+        domains: []
+        actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+        selfTarget: true
+        name: Remove Mushroom Growth
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: bf4e5113-25d6-4c58-a32b-454f5390dfa0
+          mode: effect
+          conditions: []
+        description: Remove Mushroom Growth from yourself or an adjacent ally.
+        abilityType: none
+        implementation: 3
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.281499862670898
+        s: 0.409374833106995
+        v: 1.0030654668808
+        a: 1
+    triggers: []
+    guid: e42e1fe1-02d9-457b-845b-a1f70025f6f7
+    iconid: 39d88090-e456-4d36-b141-87e933ac8d06
+    implementation: 3
+  domains:
+    CharacterOngoingEffect:bf4e5113-25d6-4c58-a32b-454f5390dfa0: true
+  radius: "1"
+  guid: 4677176f-d7f2-4939-b7a1-fd3e52e7fac9
+  description: Whenever this creature takes damage, the caster of mushroom growth and any of their allies who are adjacent to the creature gain a surge. May be removed by this creature or an adjacent ally as an action.
+  behavior: aura
+  name: Mushroom Growth
+iconid: 6d6770f0-ca18-4f66-9f91-ef3f624a538d

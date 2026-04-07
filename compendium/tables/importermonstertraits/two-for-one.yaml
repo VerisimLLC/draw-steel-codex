@@ -1,0 +1,13 @@
+__typeName: CharacterFeature
+testCases:
+- text: The adeptus and one other 1/2 level ally can take their turn at the same time.
+modifiers: []
+source: Monster
+importMatchType: rules
+importMatch: "<<monster>> and one other 1/2 level ally can take their turn at the same time."
+ctime: 1709485515055
+name: Two for One
+id: ad6ef535-88ac-4fe1-ad19-39addb390949
+mtime: 1709533616511
+description: ""
+guid: 52628188-be6e-47c7-b483-ff55e08eb469

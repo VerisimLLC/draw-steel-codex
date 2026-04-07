@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 23a94202-d5fe-464a-b9b9-b98611a17f59
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Tier 2 or Higher
+  guid: 2f061d9a-35fb-4f84-bf88-ca70425715ec
+  description: You cannot receive less than a tier 2 result on your power rolls.
+  modtype: nottierone
+  rollType: all
+source: Ongoing Effect
+guid: 23a94202-d5fe-464a-b9b9-b98611a17f59
+id: 23a94202-d5fe-464a-b9b9-b98611a17f59
+ctime: 1771994384968
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Tier 2 or Higher
+description: You cannot receive less than a tier 2 result on your power rolls.
+custom: true
+mtime: 1771994467431
+iconid: 5ab4af83-d9d2-4642-ba34-dc72b8c3ae34

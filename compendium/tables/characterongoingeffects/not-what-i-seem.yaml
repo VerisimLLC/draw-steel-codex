@@ -1,0 +1,77 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a36cadba-7069-4982-a542-35bda34b8811
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:a36cadba-7069-4982-a542-35bda34b8811: true
+  name: Not What I Seem
+  guid: c604ba02-02a2-4451-9e63-1c2638922ef8
+  description: You are disguised as a minion. You get a double edge on your first Main Action this encounter and then reveal yourself.
+  behavior: attribute
+  attribute: disguised
+- __typeName: CharacterModifier
+  sourceguid: a36cadba-7069-4982-a542-35bda34b8811
+  source: Ongoing Effect
+  guid: 1a68a3eb-3355-4e6c-9954-c50fd4644f2a
+  behavior: power
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 54a3f8a0-de5c-429e-8c3a-8c52ff8581d0
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: a36cadba-7069-4982-a542-35bda34b8811
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  domains:
+    CharacterOngoingEffect:a36cadba-7069-4982-a542-35bda34b8811: true
+  rollType: ability_power_roll
+  activationCondition: true
+  description: You are disguised as a minion. You get a double edge on your first Main Action this encounter and then reveal yourself.
+  modtype: double_edge
+  name: Not What I Seem
+source: Ongoing Effect
+display:
+  blend: add
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.761999845504761
+    s: 0.279296636581421
+    v: 1.00306534767151
+    a: 1
+  brightness: 1
+guid: a36cadba-7069-4982-a542-35bda34b8811
+id: a36cadba-7069-4982-a542-35bda34b8811
+ctime: 1751609916640
+domains:
+  CharacterOngoingEffect:a36cadba-7069-4982-a542-35bda34b8811: true
+description: You are disguised as a minion. You get a double edge on your first Main Action this encounter and then reveal yourself.
+hiddenFromEnemies: true
+name: Not What I Seem
+custom: true
+mtime: 1751613802711
+iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80
+implementation: 3

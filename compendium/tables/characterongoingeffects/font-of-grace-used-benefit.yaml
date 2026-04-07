@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 99a3752e-a23f-4e52-9313-e1259e746b6d
+id: 99a3752e-a23f-4e52-9313-e1259e746b6d
+ctime: 1769739574658
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Font of Grace - Used Benefit
+description: ""
+custom: true
+mtime: 1769739574658
+iconid: ui-icons/skills/1.png

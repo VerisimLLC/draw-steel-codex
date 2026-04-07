@@ -1,0 +1,36 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:48cb6d1e-23c0-4165-924f-fd1337b36670: true
+  sourceguid: 48cb6d1e-23c0-4165-924f-fd1337b36670
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: stacks
+    damageType: all
+    apply: Damage Reduction
+  guid: 6f73b356-b4b3-467f-8466-4f4021a5e842
+  name: Damage Immunity
+  description: You have damage immunity until the end of your next turn
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+stackable: true
+id: 48cb6d1e-23c0-4165-924f-fd1337b36670
+ctime: 1711335189075
+domains:
+  CharacterOngoingEffect:48cb6d1e-23c0-4165-924f-fd1337b36670: true
+guid: 48cb6d1e-23c0-4165-924f-fd1337b36670
+implementation: 3
+name: Damage Immunity
+description: You have damage immunity until the end of your next turn
+custom: true
+mtime: 1772951516760
+iconid: 20c26bc2-3c3b-498c-af59-f29874538b13

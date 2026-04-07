@@ -1,0 +1,2679 @@
+f1c8e7cc-cf1d-417a-84ef-997bde94b5b4:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    conditionid: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+    sourceguid: f1c8e7cc-cf1d-417a-84ef-997bde94b5b4
+    description: While grabbed this way, you are also bleeding
+    source: Ongoing Effect
+    behavior: bestowcondition
+    guid: dc96607d-8949-4eb5-a847-852589bb7abf
+    explanation: While grabbed this way, you are also bleeding
+    name: Bull Shot
+  source: Ongoing Effect
+  guid: f1c8e7cc-cf1d-417a-84ef-997bde94b5b4
+  id: f1c8e7cc-cf1d-417a-84ef-997bde94b5b4
+  ctime: 1774789228042
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  display:
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: Bull Shot
+  description: While grabbed this way, you are also bleeding
+  mtime: 1774789575762
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+8bb86a91-4188-4993-b92e-b2fe2111812a:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 8bb86a91-4188-4993-b92e-b2fe2111812a
+    displayCondition: Ability.Keywords has "magic" or Ability.Keywords has "psionic"
+    source: Ongoing Effect
+    modtype: bane
+    keywords: []
+    activationCondition: "1"
+    activationAfterRoll: false
+    name: Nullring Strike
+    rollType: ability_power_roll
+    description: While slowed in this way, the target takes a bane on magic or psionic abilities.
+    guid: d5c22265-72d3-472e-9428-cd26eac1c453
+    behavior: power
+  source: Ongoing Effect
+  guid: 8bb86a91-4188-4993-b92e-b2fe2111812a
+  id: 8bb86a91-4188-4993-b92e-b2fe2111812a
+  ctime: 1775048012840
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 68f455f5-135f-495c-822d-40d809d2b15f
+  name: Nullring Strike
+  description: While slowed in this way, the target takes a bane on magic or psionic abilities.
+  mtime: 1775048207731
+  iconid: c97f2b52-07a3-43ac-8e5b-f10944132412
+  implementation: 4
+cdc219ca-17eb-44ff-a3f0-c25964d330e4:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    description: Cannot search for hidden creatures while Restrained this way.
+    sourceguid: 4e8ac4a8-fb9f-4edd-a8ae-f5c73bcbf559
+    abilityFilter: not Ability.name = "Search for Hidden Creatures"
+    source: Ongoing Effect
+    behavior: suppressabilities
+    guid: 752adc51-b3c5-481f-a26a-eaead8061f33
+    explanation: You cannot search for hidden creatures while restrained this way.
+    name: Can't Search for Hidden
+  source: Ongoing Effect
+  guid: 4e8ac4a8-fb9f-4edd-a8ae-f5c73bcbf559
+  id: cdc219ca-17eb-44ff-a3f0-c25964d330e4
+  ctime: 1768805113177
+  display:
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  name: Can't Search for Hidden
+  description: Cannot search for hidden creatures while Restrained this way.
+  mtime: 1768805113177
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+  implementation: 3
+c26f00e5-92a2-49ba-af30-fce0496d40fe:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 17ebf7e0-a047-4efe-9371-2cd06dc7e2b6
+      repeatTargets: false
+      abilityType: none
+      trigger: winded
+      targetType: self
+      numTargets: "1"
+      name: and Terror Manifest
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "25"
+        filterTarget: Solo or Leader
+        damageType: psychic
+        chatMessage: Terror Manifest Damage
+      - __typeName: ActivatedAbilityDestroyBehavior
+        filterTarget: not solo or leader
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Ongoing Effect
+    behavior: trigger
+    guid: d3ee5423-b611-4947-ad6f-a545fe1576ed
+    name: and Terror Manifest
+    sourceguid: c26f00e5-92a2-49ba-af30-fce0496d40fe
+  source: Ongoing Effect
+  guid: c26f00e5-92a2-49ba-af30-fce0496d40fe
+  id: c26f00e5-92a2-49ba-af30-fce0496d40fe
+  ctime: 1768522223130
+  condition: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: and Terror Manifest
+  description: ""
+  mtime: 1768522223130
+  iconid: 6cda6156-84cb-4c95-9973-de54b30a6815
+ac6ebb08-728d-493b-b62d-9758746b4369:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 6906316a-26fe-4101-9a4b-60192b77c270
+    displayCondition: Ability.name is Escape Grab
+    source: Ongoing Effect
+    modtype: bane
+    keywords: []
+    activationCondition: "1"
+    rollType: ability_power_roll
+    guid: 822471a2-8df7-40bb-ae94-ecdc4a0665dc
+    description: ""
+    behavior: power
+    name: Bane on Escape Grab and Damage
+  - __typeName: CharacterModifier
+    sourceguid: 6906316a-26fe-4101-9a4b-60192b77c270
+    modifyDescription: ""
+    source: Ongoing Effect
+    filterAbility: 'Ability.name is Escape '
+    behavior: modifyability
+    attributes: []
+    guid: 0486ace7-08c3-4381-b3f3-cf2cc25e5ff2
+    description: ""
+    name: Bane on Escape Grab and Damage
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: a2f865c4-1401-44b3-98b8-7be2ff25f9e4
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        applyto: caster
+        roll: Invoker.Agility
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Ongoing Effect
+  guid: 6906316a-26fe-4101-9a4b-60192b77c270
+  id: ac6ebb08-728d-493b-b62d-9758746b4369
+  ctime: 1767413604848
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: Bane on Escape Grab and Damage
+  description: ""
+  mtime: 1767413712910
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+bdc02680-fa83-490b-af02-f4b6621fcb60:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 6888233e-90ff-43f5-8819-8f274cdb53fa
+    sourceguid: bdc02680-fa83-490b-af02-f4b6621fcb60
+    description: While grabbed this way, a target can't communicate or use magic abilities
+    source: Ongoing Effect
+    name: Strangle
+    behavior: suppressabilities
+    explanation: While Grabbed by Strangle ability, a target can’t communicate or use magic abilities.
+    keywords:
+      Magic: true
+  - __typeName: CharacterModifier
+    sourceguid: bdc02680-fa83-490b-af02-f4b6621fcb60
+    source: Ongoing Effect
+    value: 1
+    description: While grabbed this way, a target can't communicate or use magic abilities
+    name: Strangle
+    guid: 89682147-d645-41a5-86d2-50b89d1f2d7f
+    displayIcon: false
+    behavior: attribute
+    attribute: ef12c36f-cad4-40a5-8256-f8a4275f38df
+  source: Ongoing Effect
+  guid: bdc02680-fa83-490b-af02-f4b6621fcb60
+  id: bdc02680-fa83-490b-af02-f4b6621fcb60
+  ctime: 1766139716610
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  description: While grabbed this way, a target can't communicate or use magic abilities
+  name: Strangle
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+  mtime: 1768317580233
+  powerTableText: While Grabbed by Strangle, a target can’t communicate or use magic abilities.
+  implementation: 3
+060701e9-f849-4882-b5c8-8ac75b29ee36:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    operation: add
+    sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+    source: Ongoing Effect
+    value: -1
+    name: New Ongoing Effect
+    guid: 3e0e241b-e35b-4a91-a498-8b79f44bef48
+    description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+    behavior: attribute
+    attribute: f09c8c3c-a863-456f-868f-1bbbace18380
+  - __typeName: CharacterModifier
+    guid: 330c469a-4949-4c37-b3cf-34add26ee1a6
+    sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+    value: -1
+    source: Ongoing Effect
+    name: 1 Lower Potency Resistance
+    behavior: attribute
+    description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+    attribute: 1422a518-b444-4ac5-b200-2f0b33aca87b
+  - __typeName: CharacterModifier
+    guid: ace16a35-6651-43b0-9c6d-3cde856a6e2e
+    sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+    value: -1
+    source: Ongoing Effect
+    name: 1 Lower Potency Resistance
+    behavior: attribute
+    description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+    attribute: 39e08262-baa3-4947-98cd-fb8045ff991e
+  - __typeName: CharacterModifier
+    guid: 7647b115-9651-4aa3-9b25-983ed98da063
+    sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+    value: -1
+    source: Ongoing Effect
+    name: 1 Lower Potency Resistance
+    behavior: attribute
+    description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+    attribute: e4c0b067-bfc8-4a41-8b6d-4f167da13591
+  - __typeName: CharacterModifier
+    guid: ecdbfc76-bea0-498a-aba2-ff07119d96f3
+    sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+    value: -1
+    source: Ongoing Effect
+    name: 1 Lower Potency Resistance
+    behavior: attribute
+    description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+    attribute: 23e48f75-9484-47a6-a068-fbdb31a2e77c
+  source: Ongoing Effect
+  guid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+  id: 060701e9-f849-4882-b5c8-8ac75b29ee36
+  ctime: 1772115599503
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  condition: c27e0b16-291a-45ad-8406-973e26576a44
+  name: 1 Lower Potency Resistance
+  description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+  mtime: 1772115599503
+  iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335
+  implementation: 4
+6906316a-26fe-4101-9a4b-60192b77c270:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 6906316a-26fe-4101-9a4b-60192b77c270
+    displayCondition: ability.name = "Escape Grab"
+    source: Ongoing Effect
+    modtype: bane
+    keywords: []
+    activationCondition: ability.name = "Escape Grab"
+    rollType: ability_power_roll
+    guid: 822471a2-8df7-40bb-ae94-ecdc4a0665dc
+    description: ""
+    behavior: power
+    name: Bane on Escape Grab
+  source: Ongoing Effect
+  guid: 6906316a-26fe-4101-9a4b-60192b77c270
+  id: 6906316a-26fe-4101-9a4b-60192b77c270
+  ctime: 1755181243344
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  name: Bane on Escape Grab
+  description: ""
+  mtime: 1770882792981
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+  implementation: 3
+2747a5d0-b396-4767-be12-a25aa28d7bc4:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      characterConditionRequired: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      whenActive: combat
+      guid: 26d20ae2-3803-4d91-845b-5df41e5f7786
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        applyto: targets
+        roll: 1d6
+        titleText: ""
+        chatMessage: Minotaur Disembowling Horns
+      numTargets: "1"
+      trigger: beginturn
+      name: Minotaur Disembowling Horns
+      description: While bleeding this way, the target takes 1d6 damage at the start of each of their turns.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    description: |-
+      While bleeding this way, the target takes 1d6 damage at the 
+      start of each of their turns.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 6e8d74ea-445d-4d6c-ab84-e7081a540ca9
+    name: Minotaur Disembowling Horns
+    sourceguid: 2747a5d0-b396-4767-be12-a25aa28d7bc4
+  source: Ongoing Effect
+  guid: 2747a5d0-b396-4767-be12-a25aa28d7bc4
+  id: 2747a5d0-b396-4767-be12-a25aa28d7bc4
+  ctime: 1765296305476
+  condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Minotaur Disembowling Horns
+  description: |-
+    While bleeding this way, the target takes 1d6 damage at the 
+    start of each of their turns.
+  mtime: 1765296538875
+  iconid: bd44e33a-fb70-490c-acac-882da0d34642
+d6537789-d9b0-47c4-9ea5-59a3514952ed:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: ally
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: "2"
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 68beb97b-dbd6-4c21-86ab-f14d75de8bb9
+      persistence: []
+      abilityType: none
+      conditionFormula: ConditionCaster("Weakened") = Subject
+      trigger: endturn
+      whenActive: combat
+      name: Pillar of Holy Fire
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: Subject.Presence*2
+        damageType: untyped
+        chatMessage: Pillar of Holy Fire damage
+      description: ""
+      subject: other
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 1fe419a3-ea91-440a-ae67-f162e4f8f34e
+    name: with Pillar of Holy Fire
+    sourceguid: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+  source: Ongoing Effect
+  guid: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+  id: d6537789-d9b0-47c4-9ea5-59a3514952ed
+  ctime: 1768177519465
+  condition: c27e0b16-291a-45ad-8406-973e26576a44
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: with Pillar of Holy Fire
+  description: ""
+  mtime: 1768177519465
+  iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335
+70accbd2-fd49-4e17-a737-b6c61db3a783:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: d712003b-20e2-4ba1-835a-ba93e26f9ae3
+      repeatTargets: false
+      abilityType: none
+      trigger: beginturn
+      targetType: self
+      numTargets: "1"
+      name: With Net On Fire
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        damageType: fire
+        roll: "2"
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: While weakened, you take 2 fire damage at the start of each of your turns.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: d7577c4f-84fd-4bd2-9f2d-5f8335ff4c80
+    name: and On Fire
+    sourceguid: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+  source: Ongoing Effect
+  guid: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+  id: 70accbd2-fd49-4e17-a737-b6c61db3a783
+  ctime: 1751783083830
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.672959685325623
+      v: 0.958149790763855
+      a: 1
+  condition: 567a3454-ead6-4416-b338-ed73d64b7805
+  description: While weakened, you take 2 fire damage at the start of each of your turns.
+  name: and On Fire
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+  mtime: 1751783083830
+  powerTableText: Weakened and on fire
+  implementation: 3
+9946d3ef-ca5c-431d-94da-e266b88b204d:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      targetFilter: ""
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 38fe3216-0672-44f5-b2cd-5e96ca5d687f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: You must make a Free Strike against your Ally
+        filterTarget: ""
+        standardAbilityParams:
+          targetid: "<<Caster.id>>"
+        abilityType: standard
+        standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      hasManualVersion: true
+      strain: []
+      guid: 8e96c861-84e2-4f27-89f5-448dbcf7cc90
+      abilityType: none
+      trigger: beginturn
+      conditionFormula: ""
+      subjectRange: "5"
+      numTargets: "1"
+      name: and Your Allies Turn on You!ct
+      targetType: subject
+      description: You must make a free strike against your ally targeted by *Your Allies Turn on You*
+      subject: allies
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 8b0f8d07-f608-4427-afc1-19b768162ccb
+    name: and Your Allies Turn on You!ct
+    sourceguid: 9946d3ef-ca5c-431d-94da-e266b88b204d
+  source: Ongoing Effect
+  guid: 9946d3ef-ca5c-431d-94da-e266b88b204d
+  id: 9946d3ef-ca5c-431d-94da-e266b88b204d
+  ctime: 1768263545677
+  condition: 68f455f5-135f-495c-822d-40d809d2b15f
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: and Your Allies Turn on You!ct
+  description: ""
+  mtime: 1768263545677
+  iconid: c97f2b52-07a3-43ac-8e5b-f10944132412
+771a0987-b0d6-431f-b785-72990d20f1a4:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 48fe105b-93c6-47c4-a127-631f8aa92bd8
+      castImmediately: true
+      behaviors:
+      - __typeName: ActivatedAbilityFloatTextBehavior
+        text: Heat Drain!
+        color:
+          __usertype: LuaColor
+          h: 0.650750398635864
+          s: 0.987304985523224
+          v: 0.987824261188507
+          a: 1
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: 2*ConditionCaster("Restrained").Intuition
+        damageType: cold
+        chatMessage: Heat Drain
+      conditionFormula: Subject = ConditionCaster("Restrained")
+      subject: other
+      numTargets: "1"
+      trigger: beginturn
+      name: Heat Drain
+      description: While restrained this way, the target takes cold damage equal to your Intuition score at the start of each of your turns. Additionally, whenever the target damages another creature while restrained this way, any potency associated with the damage is reduced by 2.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: While restrained this way, the target takes cold damage equal to your Intuition score at the start of each of your turns. Additionally, whenever the target damages another creature while restrained this way, any potency associated with the damage is reduced by 2.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 61274135-1edf-4eb7-addb-f5e503443a3f
+    name: Heat Drain
+    sourceguid: 771a0987-b0d6-431f-b785-72990d20f1a4
+  - __typeName: CharacterModifier
+    sourceguid: 771a0987-b0d6-431f-b785-72990d20f1a4
+    displayCondition: ability.doesdamage
+    source: Ongoing Effect
+    guid: c9a8cabb-8975-4e1b-a76c-ebb4af8b5e33
+    keywords: []
+    activationCondition: ability.doesdamage
+    behavior: power
+    name: Heat Drain
+    description: While restrained this way, the target takes cold damage equal to your Intuition score at the start of each of your turns. Additionally, whenever the target damages another creature while restrained this way, any potency associated with the damage is reduced by 2.
+    potencymod: "-2"
+    rollType: ability_power_roll
+    modtype: none
+  source: Ongoing Effect
+  guid: 771a0987-b0d6-431f-b785-72990d20f1a4
+  id: 771a0987-b0d6-431f-b785-72990d20f1a4
+  ctime: 1772632037210
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: with Heat Drain
+  description: While restrained this way, the target takes cold damage equal to your Intuition score at the start of each of your turns. Additionally, whenever the target damages another creature while restrained this way, any potency associated with the damage is reduced by 2.
+  mtime: 1772677511924
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+2dee9fce-0059-4357-b389-56441732b380:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 2dee9fce-0059-4357-b389-56441732b380
+    behavior: power
+    source: Ongoing Effect
+    replaceText: Restrained becomes Petrified
+    modtype: none
+    adjustments: []
+    keywords: []
+    hasCustomTrigger: false
+    customTrigger:
+      __typeName: TriggeredAbility
+      numTargets: "1"
+      modifiers: []
+      guid: dc0321b9-8ff4-46a2-a590-f620b36d3276
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      targetType: self
+      behaviors: []
+      name: New Ability
+      trigger: d20roll
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    rollType: enemy_ability_power_roll
+    name: Slow to Retrained
+    activationCondition: true
+    description: Any other effect that slows will instead make the target restrained
+    guid: 16620086-393e-4888-9b7b-c01812d716e9
+    replacePattern: slowed
+  source: Ongoing Effect
+  guid: 2dee9fce-0059-4357-b389-56441732b380
+  id: 2dee9fce-0059-4357-b389-56441732b380
+  ctime: 1765899732664
+  condition: 68f455f5-135f-495c-822d-40d809d2b15f
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: Slow to Retrained
+  description: Any other effect that slows will instead make the target restrained
+  mtime: 1765901255451
+  iconid: c97f2b52-07a3-43ac-8e5b-f10944132412
+93d793cd-6683-4626-b505-907cf3f426f3:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 93d793cd-6683-4626-b505-907cf3f426f3
+    guid: b59bdcb3-b914-492d-8413-2f9027503010
+    source: Ongoing Effect
+    behavior: activated
+    description: A creature restrained this way can use a main action to end the effect early.
+    name: Can End Effect with Main Action
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - 2989a051-204f-442e-967d-edafc2dd5e43
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 3a728c26-8cf5-4284-8499-7292919fc5e8
+      targetType: self
+      castImmediately: true
+      domains: []
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Remove Restrained
+      numTargets: "1"
+      description: Use your main action to end the Restrained effect early.
+      abilityType: none
+      implementation: 4
+  source: Ongoing Effect
+  guid: 93d793cd-6683-4626-b505-907cf3f426f3
+  id: 93d793cd-6683-4626-b505-907cf3f426f3
+  ctime: 1771849984949
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: Can End Effect with Main Action
+  description: A creature restrained this way can use a main action to end the effect early.
+  mtime: 1771936004550
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+c12ff7bd-4dd7-49c3-b07e-f40f7cd28407:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+    sourceguid: c12ff7bd-4dd7-49c3-b07e-f40f7cd28407
+    source: Ongoing Effect
+    guid: d42d6ff4-8027-4961-af28-0830b13a97ea
+    description: While this creature is weakened it is also restrained.
+    behavior: bestowcondition
+    name: Also Restrained
+  source: Ongoing Effect
+  guid: c12ff7bd-4dd7-49c3-b07e-f40f7cd28407
+  id: c12ff7bd-4dd7-49c3-b07e-f40f7cd28407
+  ctime: 1751707592734
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.672959685325623
+      v: 0.958149790763855
+      a: 1
+  condition: 567a3454-ead6-4416-b338-ed73d64b7805
+  description: While this creature is weakened it is also restrained.
+  name: Also Restrained
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+  mtime: 1751707838317
+  powerTableText: Weakened with Restrained
+  implementation: 3
+c9fc06e7-d728-484b-8536-cfbac5363a7e:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: c9fc06e7-d728-484b-8536-cfbac5363a7e
+    displayCondition: caster.type = "Ogre"
+    source: Ongoing Effect
+    modtype: edge
+    keywords: []
+    activationCondition: caster.type = "Ogre"
+    rollType: enemy_ability_power_roll
+    guid: d2a96ab3-1559-4729-a6bd-510f07034eb4
+    description: All Ogres have an edge on strikes against creatures frightened by this ability
+    behavior: power
+    name: Ogre Horrible Bellow
+  source: Ongoing Effect
+  guid: c9fc06e7-d728-484b-8536-cfbac5363a7e
+  id: c9fc06e7-d728-484b-8536-cfbac5363a7e
+  ctime: 1747093990719
+  condition: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Ogre Horrible Bellow
+  description: All Ogres have an edge on strikes against creatures frightened by this ability
+  mtime: 1758093195893
+  iconid: 6cda6156-84cb-4c95-9973-de54b30a6815
+d6c7146d-bf12-4ea8-8dc6-edc5060c328e:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: f55768d9-214f-4c67-bea5-adb3890e3900
+      repeatTargets: false
+      abilityType: none
+      trigger: losehitpoints
+      targetType: self
+      numTargets: "1"
+      name: Invisible Ends if Damage Taken
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        mode: conditions
+        targetDuration: all
+        conditions:
+        - 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+        purgeType: all
+        chatMessage: Take Damage; Invisible Ends
+      description: This Invisibility Ends early if damage is taken or they use an ability
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: This Invisibility Ends early if damage is taken or they use an ability
+    source: Ongoing Effect
+    behavior: trigger
+    guid: c3fd76c5-aecf-4139-9cb7-e5775ec2334e
+    name: Invisible End Early
+    sourceguid: d6c7146d-bf12-4ea8-8dc6-edc5060c328e
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 44d529e3-cbc9-486e-a851-ae354442c223
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+        targetDuration: all
+        purgeType: all
+        chatMessage: Ability Used; Invisible Ends
+      conditionFormula: UsedAbility.name != "Chroma Cloak" {add any abilities here that might themselves trigger invisibility so they don't immediately remove it}
+      whenActive: combat
+      numTargets: "1"
+      trigger: useability
+      name: Invisible End Early if Use an Ability
+      description: This Invisibility Ends early if damage is taken or they use an ability
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: This Invisibility Ends early if damage is taken or they use an ability
+    source: Ongoing Effect
+    behavior: trigger
+    guid: a62163b2-ecc7-46f1-b664-21c078575988
+    name: Invisible End Early
+    sourceguid: d6c7146d-bf12-4ea8-8dc6-edc5060c328e
+  source: Ongoing Effect
+  guid: d6c7146d-bf12-4ea8-8dc6-edc5060c328e
+  id: d6c7146d-bf12-4ea8-8dc6-edc5060c328e
+  ctime: 1766137944632
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  removeThisInsteadOfCondition: false
+  condition: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+  name: Invisible End Early
+  description: This Invisibility Ends early if damage is taken or they use an ability
+  mtime: 1768209142302
+  iconid: 6cda6156-84cb-4c95-9973-de54b30a6815
+  implementation: 3
+4ffc6135-e0c5-4c73-839a-2f604d062aca:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 8af6fd23-27a8-4f8f-9480-993182390f7b
+    name: Suspended 2
+    source: Ongoing Effect
+    behavior: suspended
+    guid: 04c93d8d-80d8-4251-b1f7-eb9a9c918ad9
+    altitude: 5
+    description: You are suspended in the air 2 squares while you are restrained.
+  source: Ongoing Effect
+  guid: 8af6fd23-27a8-4f8f-9480-993182390f7b
+  id: 4ffc6135-e0c5-4c73-839a-2f604d062aca
+  ctime: 1771519862708
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  name: Suspended 5
+  description: You are suspended in the air 5 squares while you are restrained.
+  mtime: 1771519862708
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+  implementation: 3
+f424560a-6b95-4be5-ba3e-76e55b64c1f1:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: bc900185-b5dc-4999-a200-b01579b1d74e
+      repeatTargets: false
+      abilityType: none
+      trigger: beginturn
+      targetType: self
+      numTargets: "1"
+      name: 3 Acid Damage
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        titleText: Grab Damage
+        roll: "3"
+        damageType: acid
+        chatMessage: Acid damage while grabbed.
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Ongoing Effect
+    behavior: trigger
+    guid: cbf461b3-bce7-4d55-80bf-66aa1ea763ad
+    name: 3 Acid Damage
+    sourceguid: f424560a-6b95-4be5-ba3e-76e55b64c1f1
+  source: Ongoing Effect
+  guid: f424560a-6b95-4be5-ba3e-76e55b64c1f1
+  id: f424560a-6b95-4be5-ba3e-76e55b64c1f1
+  ctime: 1756407514963
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: 3 Acid Damage
+  description: ""
+  mtime: 1756407514963
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+1e874976-0a90-4d84-86c5-b8b9f71f99be:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    conditionid: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+    sourceguid: 1e874976-0a90-4d84-86c5-b8b9f71f99be
+    source: Ongoing Effect
+    guid: 1b8bebfc-1de7-4bee-9030-128a17c0425f
+    description: ""
+    behavior: bestowcondition
+    name: and Bleeding
+  source: Ongoing Effect
+  guid: 1e874976-0a90-4d84-86c5-b8b9f71f99be
+  id: 1e874976-0a90-4d84-86c5-b8b9f71f99be
+  ctime: 1772711028582
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: and Bleeding
+  description: ""
+  mtime: 1772711028582
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+760cf637-4f7c-42e5-9153-835111c9d87c:
+  __typeName: ConditionRider
+  association: []
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 08302814-dac1-4334-95df-3b2b6db6c5a3
+    sourceguid: 760cf637-4f7c-42e5-9153-835111c9d87c
+    value: 1
+    source: Ongoing Effect
+    name: Cannot Stand
+    behavior: attribute
+    description: This creature cannot stand up.
+    attribute: 207ef4f5-948b-44b1-b3c8-feae6b14e5ce
+  source: Ongoing Effect
+  guid: 760cf637-4f7c-42e5-9153-835111c9d87c
+  id: 760cf637-4f7c-42e5-9153-835111c9d87c
+  ctime: 1742700631107
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 1.00208115577698
+      v: 1.00238573551178
+      a: 1
+  removeThisInsteadOfCondition: true
+  showAsMenuOption: true
+  name: Cannot Stand
+  condition: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+  description: This creature cannot stand up.
+  mtime: 1753047884177
+  iconid: 4ed2da23-daf5-416c-bbc2-4e826483a00a
+f6fb9666-5ec0-4ba0-84a5-0f61696b8745:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: ally
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: "2"
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 68beb97b-dbd6-4c21-86ab-f14d75de8bb9
+      persistence: []
+      abilityType: none
+      conditionFormula: ConditionCaster("Weakened") = Subject
+      trigger: endturn
+      whenActive: combat
+      name: and Excommunication
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: Subject.Presence*2
+        damageType: holy
+        chatMessage: Excommunication damage
+      description: ""
+      subject: other
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 1fe419a3-ea91-440a-ae67-f162e4f8f34e
+    name: and Excommunication
+    sourceguid: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+  source: Ongoing Effect
+  guid: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+  id: f6fb9666-5ec0-4ba0-84a5-0f61696b8745
+  ctime: 1768177097104
+  condition: 567a3454-ead6-4416-b338-ed73d64b7805
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.672959685325623
+      v: 0.958149790763855
+      a: 1
+  name: and Excommunication
+  description: ""
+  mtime: 1768177319584
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+4e8ac4a8-fb9f-4edd-a8ae-f5c73bcbf559:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    description: Cannot search for hidden creatures while Slowed this way.
+    sourceguid: 4e8ac4a8-fb9f-4edd-a8ae-f5c73bcbf559
+    abilityFilter: not Ability.name = "Search for Hidden Creatures"
+    source: Ongoing Effect
+    behavior: suppressabilities
+    guid: 752adc51-b3c5-481f-a26a-eaead8061f33
+    explanation: You cannot search for hidden creatures while slowed this way.
+    name: Can't Search for Hidden
+  source: Ongoing Effect
+  guid: 4e8ac4a8-fb9f-4edd-a8ae-f5c73bcbf559
+  id: 4e8ac4a8-fb9f-4edd-a8ae-f5c73bcbf559
+  ctime: 1768803883163
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 68f455f5-135f-495c-822d-40d809d2b15f
+  name: Can't Search for Hidden
+  description: Cannot search for hidden creatures while Slowed this way.
+  mtime: 1768804249975
+  iconid: c97f2b52-07a3-43ac-8e5b-f10944132412
+  implementation: 3
+e4aa5b34-065d-49fc-8e16-3ae0632e68b0:
+  __typeName: ConditionRider
+  modifiers: []
+  source: Ongoing Effect
+  guid: 3086abf0-a9ff-4be4-a3e3-46a8b966e5b1
+  id: e4aa5b34-065d-49fc-8e16-3ae0632e68b0
+  ctime: 1768807849954
+  condition: 567a3454-ead6-4416-b338-ed73d64b7805
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.672959685325623
+      v: 0.958149790763855
+      a: 1
+  name: Covered in Lichen
+  description: While Weakened this way, the target is covered in lichen.
+  mtime: 1768807883080
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+151356cb-4497-4917-a281-80c182c8e88f:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 6906316a-26fe-4101-9a4b-60192b77c270
+    displayCondition: ability.name = "Escape Grab"
+    source: Ongoing Effect
+    modtype: double_bane
+    keywords: []
+    activationCondition: ability.name = "Escape Grab"
+    rollType: ability_power_roll
+    guid: 822471a2-8df7-40bb-ae94-ecdc4a0665dc
+    description: This creature has a double bane on the Escape Grab maneuver.
+    behavior: power
+    name: Bane on Escape Grab
+  source: Ongoing Effect
+  guid: 6906316a-26fe-4101-9a4b-60192b77c270
+  id: 151356cb-4497-4917-a281-80c182c8e88f
+  ctime: 1771184621938
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  name: Double Bane on Escape Grab
+  description: This creature has a double bane on the Escape Grab maneuver.
+  mtime: 1771184685870
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+  implementation: 3
+f3f37a75-d325-4d2e-9505-857e399a284e:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 8489e1aa-46dd-4b10-841a-b87b6ea5588c
+      repeatTargets: false
+      abilityType: none
+      trigger: beginturn
+      targetType: self
+      numTargets: "1"
+      name: 2 Corruption Damage
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        titleText: Grab Damage
+        roll: "2"
+        damageType: corruption
+        chatMessage: Corruption damage while grabbed
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 52036eca-e008-4308-bf1e-ced5701a5bb7
+    name: 2 corruption damage
+    sourceguid: b996a5ca-d7b9-4410-8ee5-85fcddef5ec0
+  source: Ongoing Effect
+  guid: f3f37a75-d325-4d2e-9505-857e399a284e
+  id: f3f37a75-d325-4d2e-9505-857e399a284e
+  ctime: 1756151231408
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  name: 2 corruption damage
+  description: ""
+  mtime: 1756151294253
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+  implementation: 3
+7a38f33c-231c-49b0-a7b1-714f1f8344c3:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: b95ca0bd-7a54-4de4-ad7b-318cf9184bcc
+      repeatTargets: false
+      trigger: finishmove
+      conditionFormula: ""
+      targetType: self
+      persistence: []
+      name: Damage for every square moved
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: path.squares
+        chatMessage: Slowed Rider Damage
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: While slowed this way you take 1 damage for every square moved
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 9063e2eb-375f-4d1d-9ec1-3bfda0986389
+    name: Damage for every square moved
+    sourceguid: 7a38f33c-231c-49b0-a7b1-714f1f8344c3
+  source: Ongoing Effect
+  guid: 7a38f33c-231c-49b0-a7b1-714f1f8344c3
+  id: 7a38f33c-231c-49b0-a7b1-714f1f8344c3
+  ctime: 1765896254868
+  condition: 68f455f5-135f-495c-822d-40d809d2b15f
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: Damage for every square moved
+  description: While slowed this way you take 1 damage for every square moved
+  mtime: 1765896254868
+  iconid: c97f2b52-07a3-43ac-8e5b-f10944132412
+cd28e555-16ea-4bc9-8a1e-46f432ffb799:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: cd28e555-16ea-4bc9-8a1e-46f432ffb799
+    behavior: resistance
+    source: Ongoing Effect
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "-2"
+      damageType: all
+      apply: Damage Reduction
+    description: A target restrained this way has damage weakness 2.
+    name: Damage Weakness 2
+    guid: f4f1855d-5ba5-4eae-9127-d7b765dc70ee
+  source: Ongoing Effect
+  guid: cd28e555-16ea-4bc9-8a1e-46f432ffb799
+  id: cd28e555-16ea-4bc9-8a1e-46f432ffb799
+  ctime: 1758663226785
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  name: Damage Weakness 2
+  description: A target restrained this way has damage weakness 2.
+  mtime: 1758663281078
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+  implementation: 3
+6c139306-a3ec-4162-8444-13e889127b77:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 2bedc05e-d997-464b-8156-d739f1321b23
+      repeatTargets: false
+      trigger: finishmove
+      conditionFormula: not Path.Forced
+      targetType: self
+      persistence: []
+      name: 3 psychic damage
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "5"
+        damageType: psychic
+        chatMessage: Mind Snare Movement Damage
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: You take three psychic damage for each square you willing move.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: bef0f8bf-71c8-48f7-acea-61f2a984e49a
+    name: 5 psychic damage
+    sourceguid: b972882c-fb7b-426d-bae3-b90ed7c3a702
+  - __typeName: CharacterModifier
+    sourceguid: 6c139306-a3ec-4162-8444-13e889127b77
+    displayCondition: Caster = ConditionCaster("slowed")
+    source: Ongoing Effect
+    modtype: double_bane
+    keywords: []
+    activationCondition: "1"
+    rollType: enemy_ability_power_roll
+    guid: 4024d3e9-1631-4e95-979f-61c6c7a072eb
+    description: You take three psychic damage for each square you willing move.
+    behavior: power
+    name: 5 psychic damage
+  source: Ongoing Effect
+  guid: 6c139306-a3ec-4162-8444-13e889127b77
+  id: 6c139306-a3ec-4162-8444-13e889127b77
+  ctime: 1765944030676
+  condition: 68f455f5-135f-495c-822d-40d809d2b15f
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: 5 psychic damage
+  description: You take three psychic damage for each square you willing move.
+  mtime: 1765944230811
+  iconid: c97f2b52-07a3-43ac-8e5b-f10944132412
+8af6fd23-27a8-4f8f-9480-993182390f7b:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 8af6fd23-27a8-4f8f-9480-993182390f7b
+    name: Suspended 2
+    source: Ongoing Effect
+    behavior: suspended
+    guid: 04c93d8d-80d8-4251-b1f7-eb9a9c918ad9
+    altitude: 2
+    description: You are suspended in the air 2 squares while you are restrained.
+  source: Ongoing Effect
+  guid: 8af6fd23-27a8-4f8f-9480-993182390f7b
+  id: 8af6fd23-27a8-4f8f-9480-993182390f7b
+  ctime: 1764874949629
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  name: Suspended 2
+  description: You are suspended in the air 2 squares while you are restrained.
+  mtime: 1764874949629
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+  implementation: 3
+ca3c579a-295f-41c0-9e8a-80f06008a640:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ca3c579a-295f-41c0-9e8a-80f06008a640
+    source: Ongoing Effect
+    behavior: power
+    keywords: []
+    activationCondition: true
+    name: Double Edge on Ability Rolls v Us
+    guid: 1eaeaa78-6ddc-4ee7-afd6-87b5cb62a851
+    description: Ability Rolls against the target do have a double edge.
+    modtype: double_edge
+    rollType: enemy_ability_power_roll
+  source: Ongoing Effect
+  guid: ca3c579a-295f-41c0-9e8a-80f06008a640
+  id: ca3c579a-295f-41c0-9e8a-80f06008a640
+  ctime: 1770049158507
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  name: Double Edge on Ability Rolls v Us
+  description: Ability Rolls against the target have a double edge.
+  mtime: 1770228135239
+  iconid: bd44e33a-fb70-490c-acac-882da0d34642
+  implementation: 3
+b996a5ca-d7b9-4410-8ee5-85fcddef5ec0:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 8489e1aa-46dd-4b10-841a-b87b6ea5588c
+      repeatTargets: false
+      abilityType: none
+      trigger: beginturn
+      targetType: self
+      numTargets: "1"
+      name: 2 Lightning Damage
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        titleText: Grab Damage
+        roll: "2"
+        damageType: lightning
+        chatMessage: Lightning damage while grabbed
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: A creature grabbed this way takes 2 lightning damage at the start of each of their turns.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: b8df3ba5-4ac8-4eaa-983c-ad2ba0fa81a2
+    name: 2 Lightning Damage
+    sourceguid: b996a5ca-d7b9-4410-8ee5-85fcddef5ec0
+  source: Ongoing Effect
+  guid: b996a5ca-d7b9-4410-8ee5-85fcddef5ec0
+  id: b996a5ca-d7b9-4410-8ee5-85fcddef5ec0
+  ctime: 1754541045926
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  name: 2 Lightning Damage
+  description: A creature grabbed this way takes 2 lightning damage at the start of each of their turns.
+  mtime: 1754541045926
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+  implementation: 3
+10f0f43b-1185-4228-a5d4-9ed0f9905a7b:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: path.squares * 1
+        chatMessage: "Wingbane: Damaged from Flying Movement"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 76958f31-d217-4be1-a5cd-8dad2fb6a8fb
+      persistence: []
+      conditionFormula: Movement Type = "Fly"
+      targetType: self
+      castImmediately: true
+      trigger: finishmove
+      name: Wingbane
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: While bleeding in this way, the creature takes 1 damage per square they fly. If the creature starts and ends their turn on the same solid surface, the bleeding condition ends.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: cacd45ef-82f8-4681-b270-2935ec0545d8
+    name: Wingbane
+    sourceguid: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 7496ebbc-834b-43fb-8bf1-9c9d72829054
+        duration: endround
+        ongoingEffectCustom: 7496ebbc-834b-43fb-8bf1-9c9d72829054
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 3e3bf19a-c32a-403d-9179-3601a8e9858d
+      persistence: []
+      conditionFormula: Movement Type = "Walk"
+      targetType: self
+      castImmediately: true
+      trigger: beginturn
+      name: Wingbane
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: While bleeding in this way, the creature takes 1 damage per square they fly. If the creature starts and ends their turn on the same solid surface, the bleeding condition ends.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 7dea05f7-4c99-4c97-8887-61f1f74bfdde
+    name: Wingbane
+    sourceguid: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        ongoingEffect: b0b8b9a7-35da-40d7-802c-db33de0d4d36
+        mode: conditions
+        conditions:
+        - 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 17a47ff9-b21e-49e8-8265-dfce50cfae69
+      persistence: []
+      conditionFormula: Ongoing Effects has "Wingbane - Grounded" and Movement Type = "Walk"
+      targetType: self
+      castImmediately: true
+      trigger: endturn
+      name: Wingbane
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: While bleeding in this way, the creature takes 1 damage per square they fly. If the creature starts and ends their turn on the same solid surface, the bleeding condition ends.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 90a683dd-ddf0-472d-903a-9055b7fc33d5
+    name: Wingbane
+    sourceguid: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+  source: Ongoing Effect
+  guid: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+  id: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+  ctime: 1774577486217
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  name: Wingbane
+  description: While bleeding in this way, the creature takes 1 damage per square they fly. If the creature starts and ends their turn on the same solid surface, the bleeding condition ends.
+  mtime: 1774578282280
+  iconid: bd44e33a-fb70-490c-acac-882da0d34642
+  implementation: 4
+c77e1440-ab4a-4cea-9330-452f241a8a7d:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 8489e1aa-46dd-4b10-841a-b87b6ea5588c
+      repeatTargets: false
+      abilityType: none
+      trigger: beginturn
+      targetType: self
+      numTargets: "1"
+      name: 2 Corruption Damage
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        titleText: Grab Damage
+        roll: "2"
+        damageType: corruption
+        chatMessage: Corruption damage while grabbed
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 18a4f0d3-f9c3-4e44-ad3e-350001008f6d
+        stacks: "+2"
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 5cf5ebd4-7048-4875-80af-ac78e42fb769
+        filterTarget: Stacks("Hungry For Flesh") > 4
+        ongoingEffectCustom: false
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: "Zombie's Clobber & Clutch. \vA Target who starts their turn grabbed by the zombie takes 2 corruption damage. A creature who takes 5 or more corruption damage this way becomes insatiably hungry for flesh. "
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 52036eca-e008-4308-bf1e-ced5701a5bb7
+    name: 2 corruption damage (C&C)
+    sourceguid: b996a5ca-d7b9-4410-8ee5-85fcddef5ec0
+  source: Ongoing Effect
+  guid: f3f37a75-d325-4d2e-9505-857e399a284e
+  id: c77e1440-ab4a-4cea-9330-452f241a8a7d
+  ctime: 1757253566761
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  name: 2 corruption damage (C&C)
+  description: "Zombie's Clobber & Clutch. \vA Target who starts their turn grabbed by the zombie takes 2 corruption damage. A creature who takes 5 or more corruption damage this way becomes insatiably hungry for flesh. "
+  mtime: 1757257825179
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+  implementation: 3
+4e40de4d-302e-4b65-96a1-59199ee6bae9:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 3869c994-0a4a-41fa-b5c7-9bee5fc1acd9
+      repeatTargets: false
+      trigger: useability
+      conditionFormula: Used Ability.main action
+      targetType: self
+      persistence: []
+      name: with Synaptic Anchor
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: ConditionCaster("Dazed").Intuition
+        damageType: psychic
+        chatMessage: Synaptic Anchor Damage
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: You take psychic damage whenever using a main action
+    source: Ongoing Effect
+    behavior: trigger
+    guid: f2052c72-ddd9-48c3-92e3-6de405d2a5ed
+    name: with Synaptic Anchor
+    sourceguid: 4e40de4d-302e-4b65-96a1-59199ee6bae9
+  source: Ongoing Effect
+  guid: 4e40de4d-302e-4b65-96a1-59199ee6bae9
+  id: 4e40de4d-302e-4b65-96a1-59199ee6bae9
+  ctime: 1772309318376
+  condition: c27e0b16-291a-45ad-8406-973e26576a44
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: with Synaptic Anchor
+  description: You take psychic damage whenever using a main action
+  mtime: 1772309601753
+  iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335
+c6547942-2294-438c-817a-8dde1188162d:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: cc764a53-6036-4972-8732-441e99038324
+      repeatTargets: false
+      abilityType: none
+      trigger: beginturn
+      targetType: self
+      numTargets: "1"
+      name: and Poisoned
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        titleText: Weakened and Poisoned
+        roll: "2"
+        damageType: poison
+        chatMessage: Weakened and Poisoned
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: You take 2 poison damage at the start of each of your turns.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: bb9ab555-6fe8-4105-9a6b-6a2655df1881
+    name: and Poisoned
+    sourceguid: c6547942-2294-438c-817a-8dde1188162d
+  source: Ongoing Effect
+  guid: c6547942-2294-438c-817a-8dde1188162d
+  id: c6547942-2294-438c-817a-8dde1188162d
+  ctime: 1754541419063
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.672959685325623
+      v: 0.958149790763855
+      a: 1
+  condition: 567a3454-ead6-4416-b338-ed73d64b7805
+  name: and Poisoned
+  description: You take 2 poison damage at the start of each of your turns.
+  mtime: 1754541555855
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+  implementation: 3
+8834c2e6-5efc-4d8f-8850-7d06cf01f7ef:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 9b2eaec0-5c16-4cee-8957-5b1455cd5d19
+      repeatTargets: false
+      abilityType: none
+      trigger: beginturn
+      targetType: self
+      numTargets: "1"
+      name: The Grasping, the Hungry
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: 1d6
+        titleText: Damage from The Grasping, The Hungry
+        chatMessage: The Grasping, The Hungry
+      description: ""
+      range: 1
+      iconid: 4d1a68ab-0260-448c-a2da-c6747044169f
+    description: 'While restrained this way a creature takes 1d6 damage at the start of each of their turns. '
+    source: Ongoing Effect
+    behavior: trigger
+    guid: a8b6c068-b342-49c9-9cd2-8f8f8d8f872a
+    name: The Grasping, the Hungry
+    sourceguid: 8834c2e6-5efc-4d8f-8850-7d06cf01f7ef
+  source: Ongoing Effect
+  guid: 8834c2e6-5efc-4d8f-8850-7d06cf01f7ef
+  id: 8834c2e6-5efc-4d8f-8850-7d06cf01f7ef
+  ctime: 1757259324851
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  name: The Grasping, the Hungry
+  description: 'While restrained this way a creature takes 1d6 damage at the start of each of their turns. '
+  mtime: 1766651826192
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+  implementation: 3
+fdfe282b-1d1a-478d-a8ae-9a2bfeb0ec48:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: Subject.Might *2
+        chatMessage: Stormwight Pounce Damage
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: e87d7020-c45c-4004-a6a7-bb605574a7c1
+      persistence: []
+      conditionFormula: Subject = ConditionCaster("grabbed")
+      subject: other
+      targetType: self
+      trigger: beginturn
+      name: Pounce Damage
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: A creature grabbed this way takes 2 times the Fury's might damage at the start of the Fury's turn
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 1d5bd029-750d-409a-a0ca-e0baef40382c
+    name: Pounce Damage
+    sourceguid: fdfe282b-1d1a-478d-a8ae-9a2bfeb0ec48
+  source: Ongoing Effect
+  guid: fdfe282b-1d1a-478d-a8ae-9a2bfeb0ec48
+  id: fdfe282b-1d1a-478d-a8ae-9a2bfeb0ec48
+  ctime: 1765906707523
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: Pounce Damage
+  description: A creature grabbed this way takes 2 times the Fury's might damage at the start of the Fury's turn
+  mtime: 1765906909798
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+57eef735-8e00-4717-861c-0350de8061ee:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 0e4eeeea-2e4f-47b6-a130-e049be412b62
+      repeatTargets: false
+      abilityType: none
+      trigger: attack
+      targetType: self
+      numTargets: "1"
+      name: and Warped Perceptions
+      behaviors:
+      - __typeName: ActivatedAbilityFloatTextBehavior
+        applyto: caster
+        text: Warped Perceptions
+        color: "#ffffffff"
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: "If the target makes a strike while weakened this way, the bendrak can choose a second target within distance for the strike.\v\vThe first target takes half of any damage from the strike and the second target takes any remaining damage."
+    source: Ongoing Effect
+    behavior: trigger
+    guid: d29652a3-9b04-4971-9560-829340efff36
+    name: and Warped Perceptions
+    sourceguid: 57eef735-8e00-4717-861c-0350de8061ee
+  source: Ongoing Effect
+  guid: 57eef735-8e00-4717-861c-0350de8061ee
+  id: 57eef735-8e00-4717-861c-0350de8061ee
+  ctime: 1760533794784
+  condition: 567a3454-ead6-4416-b338-ed73d64b7805
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.672959685325623
+      v: 0.958149790763855
+      a: 1
+  name: and Warped Perceptions
+  description: "If the target makes a strike while weakened this way, the bendrak can choose a second target within distance for the strike.\v\vThe first target takes half of any damage from the strike and the second target takes any remaining damage."
+  mtime: 1760533794784
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+815fddfe-f657-42a9-b38a-b48adc97384e:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 815fddfe-f657-42a9-b38a-b48adc97384e
+    behavior: resistance
+    source: Ongoing Effect
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "-10"
+      damageType: all
+      apply: Damage Reduction
+    description: While weakened this way, the target has damage weakness 10.
+    name: and Damage Weakness 10
+    guid: cf2c2931-685c-4806-9dd6-cc4b44076d50
+  source: Ongoing Effect
+  guid: 815fddfe-f657-42a9-b38a-b48adc97384e
+  id: 815fddfe-f657-42a9-b38a-b48adc97384e
+  ctime: 1770267989374
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.672959685325623
+      v: 0.958149790763855
+      a: 1
+  condition: 567a3454-ead6-4416-b338-ed73d64b7805
+  name: and Damage Weakness 10
+  description: While weakened this way, the target has damage weakness 10.
+  mtime: 1770267989374
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+  implementation: 3
+c98cfba7-2a7c-480b-83e1-dd7368e41798:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: c98cfba7-2a7c-480b-83e1-dd7368e41798
+    source: Ongoing Effect
+    value: -1
+    filterCondition: ConditionCaster("Restrained").Type = Dwarf
+    name: By Dwarf
+    guid: d457ac14-19ae-409c-a531-71ae977b4e2c
+    description: This creature was restrained by a dwarf
+    behavior: attribute
+    attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+  source: Ongoing Effect
+  guid: c98cfba7-2a7c-480b-83e1-dd7368e41798
+  id: c98cfba7-2a7c-480b-83e1-dd7368e41798
+  ctime: 1772099117082
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: By Dwarf
+  description: This creature was restrained by a dwarf
+  mtime: 1772111231992
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+c0a419ef-7034-4c57-ae8d-f27ea494c2c0:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      triggerPrompt: due to weakend at end of combat, you cannot take a respite activity at your next respite.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 7520ce45-9638-43e7-8a43-ee4b46f73162
+      numTargets: "1"
+      whenActive: combat
+      characterConditionRequired: 567a3454-ead6-4416-b338-ed73d64b7805
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 306edb40-a97b-4c2e-aae8-5ec199693fb7
+        duration: until_rest
+        ongoingEffectCustom: false
+      trigger: endcombat
+      name: "Condition Rider: Cannot Take Respite Activity"
+      description: If this ongoing effect remains active at the end of combat, a new ongoing effect is added to remind the player they cannot take a respite activity during their next respite.
+      abilityType: none
+      iconid: 006e8403-6056-46d1-bd48-db8804433d39
+    description: If the target is weakened this way at the end of the encounter, they can't take a respite activity during their next respite.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: b375bb39-289a-43be-b4c9-77bb66cadeff
+    name: Cannot Take Respite Activity
+    sourceguid: c0a419ef-7034-4c57-ae8d-f27ea494c2c0
+  source: Ongoing Effect
+  guid: c0a419ef-7034-4c57-ae8d-f27ea494c2c0
+  id: c0a419ef-7034-4c57-ae8d-f27ea494c2c0
+  ctime: 1770106539117
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.672959685325623
+      v: 0.958149790763855
+      a: 1
+  condition: 567a3454-ead6-4416-b338-ed73d64b7805
+  name: Cannot Take Respite Activity
+  description: If the target is weakened this way at the end of the encounter, they can't take a respite activity during their next respite.
+  mtime: 1770108650319
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+  implementation: 3
+12ac7510-c349-4ddb-a252-6834d39792cf:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ca3c579a-295f-41c0-9e8a-80f06008a640
+    source: Ongoing Effect
+    behavior: power
+    keywords:
+      Strike: true
+    activationCondition: true
+    name: Double Edge on Ability Rolls v Us
+    guid: 1eaeaa78-6ddc-4ee7-afd6-87b5cb62a851
+    description: The target has a double bane on strikes.
+    modtype: double_bane
+    rollType: ability_power_roll
+  source: Ongoing Effect
+  guid: ca3c579a-295f-41c0-9e8a-80f06008a640
+  id: 12ac7510-c349-4ddb-a252-6834d39792cf
+  ctime: 1770228187575
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  name: Double Bane on Strikes
+  description: The target has a double bane on strikes.
+  mtime: 1770228187575
+  iconid: bd44e33a-fb70-490c-acac-882da0d34642
+  implementation: 3
+05dd3b3b-5b12-4ee4-aaa8-9fd5347241b6:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: f17f375e-ccf1-4627-aba2-8c41a9f62e83
+      repeatTargets: false
+      trigger: custom
+      conditionFormula: Trigger Name is madesaverestrained and (Trigger Value < Save Ends)
+      targetType: self
+      persistence: []
+      name: become Petrified
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: be5fe90d-6ecd-4cb1-89d6-c523f82a23b6
+        ongoingEffectCustom: false
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: On a failed save to end Restrained, you become petrified
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 0e5be7b3-ac52-4201-a7d2-de25907470ea
+    name: become Petrified
+    sourceguid: 05dd3b3b-5b12-4ee4-aaa8-9fd5347241b6
+  source: Ongoing Effect
+  guid: 05dd3b3b-5b12-4ee4-aaa8-9fd5347241b6
+  id: 05dd3b3b-5b12-4ee4-aaa8-9fd5347241b6
+  ctime: 1765900943828
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  name: become Petrified
+  mtime: 1765901217057
+  description: On a failed save to end Restrained, you become petrified
+  powerTableText: Restrained becomes Petrified
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+3086abf0-a9ff-4be4-a3e3-46a8b966e5b1:
+  __typeName: ConditionRider
+  modifiers: []
+  source: Ongoing Effect
+  guid: 3086abf0-a9ff-4be4-a3e3-46a8b966e5b1
+  id: 3086abf0-a9ff-4be4-a3e3-46a8b966e5b1
+  ctime: 1768807838847
+  condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Covered in Lichen
+  description: While Bleeding this way, the target is covered in lichen.
+  mtime: 1768807875248
+  iconid: bd44e33a-fb70-490c-acac-882da0d34642
+5e913196-5801-4e4f-be7a-d32bfe4e929e:
+  __typeName: ConditionRider
+  modifiers: []
+  source: Ongoing Effect
+  guid: 5e913196-5801-4e4f-be7a-d32bfe4e929e
+  id: 5e913196-5801-4e4f-be7a-d32bfe4e929e
+  ctime: 1748392289482
+  removeThisInsteadOfCondition: true
+  condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  name: Cannot use Escape Grab
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  mtime: 1748393656463
+  description: 'This grab can’t be escaped using the Escape Grab maneuver. '
+  iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65
+eedc77fd-1cd9-4d0e-8121-21fbe65890f2:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 8af6fd23-27a8-4f8f-9480-993182390f7b
+    name: Suspended 2
+    source: Ongoing Effect
+    behavior: suspended
+    guid: 04c93d8d-80d8-4251-b1f7-eb9a9c918ad9
+    altitude: 3
+    description: You are suspended in the air 2 squares while you are restrained.
+  source: Ongoing Effect
+  guid: 8af6fd23-27a8-4f8f-9480-993182390f7b
+  id: eedc77fd-1cd9-4d0e-8121-21fbe65890f2
+  ctime: 1771519810236
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  name: Suspended 3
+  description: You are suspended in the air 3 squares while you are restrained.
+  mtime: 1771519849110
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+  implementation: 3
+8c44db9c-0166-4752-ae57-883630579ed4:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 8c44db9c-0166-4752-ae57-883630579ed4
+    source: Ongoing Effect
+    behavior: power
+    keywords:
+      Strike: true
+    activationCondition: true
+    name: Gnoll Iron Jaws
+    guid: 94e7fa73-446a-4e24-b8a1-151b90c46869
+    description: While an enemy is bleeding this way, each gnoll in the encounter gains an edge on strikes made against them.
+    modtype: edge
+    rollType: enemy_ability_power_roll
+  source: Ongoing Effect
+  guid: 8c44db9c-0166-4752-ae57-883630579ed4
+  id: 8c44db9c-0166-4752-ae57-883630579ed4
+  ctime: 1755747916140
+  condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Gnoll Iron Jaws
+  description: While an enemy is bleeding this way, each gnoll in the encounter gains an edge on strikes made against them.
+  mtime: 1755747916140
+  iconid: bd44e33a-fb70-490c-acac-882da0d34642
+6ec68074-1cdc-4d2f-af33-b94d9eef77cb:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: d712003b-20e2-4ba1-835a-ba93e26f9ae3
+      repeatTargets: false
+      abilityType: none
+      trigger: beginturn
+      targetType: self
+      numTargets: "1"
+      name: With Net On Fire
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        damageType: fire
+        roll: "2"
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: The net restraining you is on fire, you take 2 fire damage at the start of each of your turns.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: d7577c4f-84fd-4bd2-9f2d-5f8335ff4c80
+    name: With Net On Fire
+    sourceguid: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+  source: Ongoing Effect
+  guid: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+  id: 6ec68074-1cdc-4d2f-af33-b94d9eef77cb
+  ctime: 1751604378650
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  description: The net restraining you is on fire, you take 2 fire damage at the start of each of your turns.
+  name: With Net On Fire
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+  mtime: 1751606439066
+  powerTableText: Restrained with net on fire
+  implementation: 3
+b972882c-fb7b-426d-bae3-b90ed7c3a702:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      numTargets: "1"
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 50f4ffcd-ede9-4042-b48b-0d8a5adaced4
+      repeatTargets: false
+      trigger: finishmove
+      conditionFormula: not Path.Forced
+      targetType: self
+      persistence: []
+      name: 3 psychic damage
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "3"
+        damageType: psychic
+        chatMessage: Mind Snare Movement Damage
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: You take three psychic damage for each square you willing move.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 253aeac5-8fdf-468f-b045-cac48b550bc2
+    name: 3 psychic damage
+    sourceguid: b972882c-fb7b-426d-bae3-b90ed7c3a702
+  source: Ongoing Effect
+  guid: b972882c-fb7b-426d-bae3-b90ed7c3a702
+  id: b972882c-fb7b-426d-bae3-b90ed7c3a702
+  ctime: 1765944016237
+  condition: 68f455f5-135f-495c-822d-40d809d2b15f
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: 3 psychic damage
+  description: You take three psychic damage for each square you willing move.
+  mtime: 1765944016237
+  iconid: c97f2b52-07a3-43ac-8e5b-f10944132412
+c57d30c6-80e1-4fce-a0f7-7fb9c85e54ed:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      whenActive: combat
+      name: Fury Does Might Damage
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: Subject.Might
+      conditionFormula: Subject = ConditionCaster("Bleeding")
+      subject: other
+      guid: fd23587a-0f4f-483f-af54-e6c62105fe81
+      trigger: endturn
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: At the end of each of the Fury's turns you take damage equal to their Might.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 1113658d-645b-48a2-b4e1-fb28bc3e6d5b
+    name: Fury Does Might Damage
+    sourceguid: c57d30c6-80e1-4fce-a0f7-7fb9c85e54ed
+  source: Ongoing Effect
+  guid: c57d30c6-80e1-4fce-a0f7-7fb9c85e54ed
+  id: c57d30c6-80e1-4fce-a0f7-7fb9c85e54ed
+  ctime: 1746864926293
+  condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: Fury Does Might Damage
+  description: At the end of each of the Fury's turns you take damage equal to their Might.
+  mtime: 1757244855922
+  iconid: bd44e33a-fb70-490c-acac-882da0d34642
+8c153b4a-4709-4257-b64c-d3c98d424773:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      subjectRange: "99"
+      strain: []
+      guid: 162275f2-b511-44de-8b27-39d6ea2edf14
+      name: and 10 damage at the start of caster's turn
+      abilityType: none
+      conditionFormula: Subject = ConditionCaster("Restrained")
+      castImmediately: true
+      numTargets: "1"
+      trigger: beginturn
+      behaviors:
+      - __typeName: ActivatedAbilityFloatTextBehavior
+        text: Thorn Cage!
+        filterTarget: ""
+        color:
+          __usertype: LuaColor
+          h: 0
+          s: 0.98535168170929
+          v: 0.978165149688721
+          a: 1
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: "10"
+        chatMessage: "Thorn Cage: Start of Caster's Turn."
+      description: ""
+      subject: other
+      iconid: ui-icons/skills/1.png
+    description: While restrained this way, the target takes 10 damage at the start of each of the caster's turns.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 94d1afcd-f1b4-46fb-abe3-c5dbf199a5de
+    name: and 10 damage at the start of caster's turn
+    sourceguid: 8c153b4a-4709-4257-b64c-d3c98d424773
+  source: Ongoing Effect
+  guid: 8c153b4a-4709-4257-b64c-d3c98d424773
+  id: 8c153b4a-4709-4257-b64c-d3c98d424773
+  ctime: 1770276715967
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  name: Thorn Cage
+  description: While restrained this way, the target takes 10 damage at the start of each of the caster's turns.
+  mtime: 1770277700939
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+41dc37e3-bacc-4c54-94de-207bc37d914c:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      whenActive: combat
+      repeatTargets: false
+      trigger: beginround
+      numTargets: "1"
+      targetType: self
+      guid: 632132f4-427a-49d1-9ef1-fb9bbf2c2bf1
+      name: and Suffocating
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 922b5228-61b5-4bb2-93bd-19e3045063df
+        ongoingEffectCustom: false
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: You can hold your breath for a number of combat rounds equal to your Might score (minimum 1 round). At the end of each combat round after that, you take 1d6 damage while holding your breath.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 3af202bb-d687-440e-a271-9d2ae9b3a608
+    name: and Suffocating
+    sourceguid: 41dc37e3-bacc-4c54-94de-207bc37d914c
+  source: Ongoing Effect
+  guid: 41dc37e3-bacc-4c54-94de-207bc37d914c
+  id: 41dc37e3-bacc-4c54-94de-207bc37d914c
+  ctime: 1759257611529
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0
+      s: 0.6721311211586
+      v: 0.95686274766922
+      a: 1
+  condition: 2989a051-204f-442e-967d-edafc2dd5e43
+  name: and Suffocating
+  description: You can hold your breath for a number of combat rounds equal to your Might score (minimum 1 round). At the end of each combat round after that, you take 1d6 damage while holding your breath.
+  mtime: 1759268601509
+  iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+  implementation: 1
+0cbf7ff1-8e66-469d-b051-f6021cfa36dd:
+  __typeName: ConditionRider
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      characterConditionInflictedBySelf: false
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      persistence: []
+      strain: []
+      guid: 8e9ead28-2d69-4af6-ae7a-0a29f3d1b370
+      abilityType: none
+      trigger: beginturn
+      castImmediately: true
+      whenActive: combat
+      behaviors:
+      - __typeName: ActivatedAbilityFloatTextBehavior
+        text: Realitas!
+        color:
+          __usertype: LuaColor
+          h: 0
+          s: 0.98925769329071
+          v: 0.9786496758461
+          a: 1
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll: 2*ConditionCaster("Dazed").Intuition
+        damageType: psychic
+        chatMessage: Realitas
+      name: Realitas
+      conditionFormula: Subject = ConditionCaster("Dazed")
+      description: While dazed this way, the target takes psychic damage equal to twice your Intuition score at the start of each of your turns.
+      subject: other
+      iconid: ui-icons/skills/1.png
+    description: While dazed this way, the target takes psychic damage equal to twice your Intuition score at the start of each of your turns.
+    source: Ongoing Effect
+    behavior: trigger
+    guid: 19b0542a-d9f0-4983-984b-8e77a09cf23a
+    name: Realitas
+    sourceguid: 0cbf7ff1-8e66-469d-b051-f6021cfa36dd
+  source: Ongoing Effect
+  guid: 0cbf7ff1-8e66-469d-b051-f6021cfa36dd
+  id: 0cbf7ff1-8e66-469d-b051-f6021cfa36dd
+  ctime: 1772675453309
+  condition: c27e0b16-291a-45ad-8406-973e26576a44
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  name: with Realitas
+  description: While dazed this way, the target takes psychic damage equal to twice your Intuition score at the start of each of your turns.
+  mtime: 1772677484542
+  iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335

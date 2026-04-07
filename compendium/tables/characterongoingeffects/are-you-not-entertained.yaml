@@ -1,0 +1,35 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 78f7e96b-4896-4a73-af4e-0b5f5e5352b0
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "2"
+    damageType: all
+    apply: Damage Reduction
+  description: The Centurion has damage immunity 2 for the remainder of the encounter.
+  name: Are you not entertained?
+  guid: 281eaede-0b04-4490-9c0e-45715990080c
+source: Ongoing Effect
+guid: 78f7e96b-4896-4a73-af4e-0b5f5e5352b0
+id: 78f7e96b-4896-4a73-af4e-0b5f5e5352b0
+ctime: 1751787252084
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.799499869346619
+    s: 0.843749523162842
+    v: 1.00238585472107
+    a: 1
+custom: true
+name: Are you not entertained?
+iconid: 20c26bc2-3c3b-498c-af59-f29874538b13
+description: The Centurion has damage immunity 2 for the remainder of the encounter.
+mtime: 1751787252084
+implementation: 3

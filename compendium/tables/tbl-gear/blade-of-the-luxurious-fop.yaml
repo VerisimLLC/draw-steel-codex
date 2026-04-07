@@ -1,0 +1,188 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: 1/2/3
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: ec93c3b3-1829-43b8-8535-eb9a43ac51a0
+    activationCondition: true
+    source: Item
+    behavior: power
+    damageTypeMappings: []
+    adjustments: []
+    keywords:
+      Melee: true
+      Weapon: true
+    hasCustomTrigger: true
+    customTrigger:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 1d49428a-2cbd-4e44-af94-ac78237306a9
+      repeatTargets: false
+      abilityType: none
+      trigger: d20roll
+      targetType: self
+      numTargets: "1"
+      name: Blade of the Luxurious Fop
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        applyto: caster
+        rule: Shift 1
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    description: Deals additional damage and you can shift one square.
+    name: Blade of the Luxurious Fop
+    guid: 88bea7b5-4c0c-4ddb-b5a6-1fe419aeaf8e
+    damageModifier:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "1"
+        threshold: 1
+      - script: "2"
+        threshold: 5
+      - script: "3"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    rollType: ability_power_roll
+    modtype: none
+  source: Item
+  name: Blade of the Luxurious Fop Extra Damage
+  addText: Add Magical Property
+  itemAttached: true
+  guid: eaf23aaa-2b16-4688-b2d8-961051e7eb9e
+- __typeName: CharacterFeature
+  description: Whenever you deal rolled damage with this weapon, you can immediately shift 1 square
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 74713289-e218-4585-aa5a-771e643ea3e2
+    modifyDescription: Whenever you deal rolled damage with the Blade of the Luxurious Fop, you can immediately shift 1 square
+    source: Item
+    filterAbility: Ability.Has Attack and Ability.doesdamage
+    behavior: modifyability
+    keywords:
+      Weapon: true
+    attributes: []
+    guid: bdb5b8a7-a843-410c-b68a-28a6f4cae05e
+    description: Whenever you deal rolled damage with this weapon, you can immediately shift 1 square
+    name: Blade of the Luxurious Fop
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 479f52bb-751c-49b1-a07c-47999d8aadea
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: db76fabb-d213-4717-9a11-38a06b8427ec
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        autoTarget: false
+        standardAbilityParams:
+          distance: "1"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Item
+  name: Blade of the Luxurious Fop
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 74713289-e218-4585-aa5a-771e643ea3e2
+- __typeName: CharacterFeature
+  description: You have a double edge on any test you make using a skill you have from the interpersonal skill group.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: affc13d2-a009-4f7a-a009-955afea97e1e
+    source: Item
+    guid: 5542ab18-51d6-4a7b-9c0e-6fc5c8e4b8af
+    keywords: []
+    activationCondition: true
+    filterCondition: Level >= 9
+    behavior: power
+    rollType: test_power_roll
+    name: Blade of the Luxurious Fop
+    description: You have a double edge on any test you make using a skill you have from the interpersonal skill group.
+    modtype: double_edge
+    skills:
+    - d533510d-0f1f-4ce3-a48c-cc21acadb6c6
+    - 47a38ee9-41ad-4173-a010-adf9e185e221
+    - 9f41a684-4b8c-4026-8175-df136fc5134f
+    - 81442e8b-10cb-41f5-8aa9-110a2256b663
+    - ff54a691-e0a0-4246-8ceb-7975b8826e92
+    - 4290580d-9e08-4bd2-859c-7ac147f108aa
+    - cb214a42-7f8c-4d02-b6ac-1399724a8b5f
+    - 27995005-8a25-435d-9f50-351c9d08a7b4
+    - 4f4b7168-8702-469d-b001-65d250fd4082
+    - d188b959-e993-4239-a350-5e7ad69d27b6
+    - bd66a379-6ea9-4ecc-ad82-c9a2b82750d4
+    - 28573ee3-e9df-47fe-98f1-2ac0bfee797a
+    - 30a30090-3699-48f1-b252-ce7d0445abee
+  source: Item
+  name: Blade of the Luxurious Fop
+  addText: Add Magical Property
+  itemAttached: true
+  guid: affc13d2-a009-4f7a-a009-955afea97e1e
+itemPrerequisite: A personal blessing from the greatest duelist in the land, six fake and extremely shiny gemstones
+keywords:
+  Magic: true
+  Light Weapon: true
+projectSource: Texts or lore in Caelian
+level5: The weapon’s damage bonus increases to +2. Additionally, when you make an opportunity attack against an enemy of your size or smaller, you can use fancy footwork to knock them prone. You also earn 1 Renown.
+level9: The weapon’s damage bonus increases to +3. Additionally, you have a double edge on any test you make using a skill you have from the interpersonal skill group.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+projectGoal: "450"
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+implementation: 2
+ctime: 1759276544007
+domains:
+  item:032b4fbf-3c0c-466d-a9a2-cd4860853acd: true
+description: Any weapon ability that deals rolled damage using this weapon gains a +1 damage bonus. Additionally, whenever you deal rolled damage with this weapon, you can immediately shift 1 square. As well, while you wield or carry the weapon and are present in a negotiation, if an NPC in the negotiation has the greed, legacy, power, or revelry motivation, their starting interest increases by 1 (to a maximum of 5).
+flavor: Despite sporting an outrageously ornate hilt adorned with far too many jewels, this blade remains perfectly balanced.
+name: Blade of the Luxurious Fop
+id: 032b4fbf-3c0c-466d-a9a2-cd4860853acd
+mtime: 1769474051901
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 925b4c62-0173-4853-af63-d5936c04985b

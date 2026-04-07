@@ -1,0 +1,433 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 867b4f0c-9514-4433-a2de-3635c045f51c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 6
+    import:
+      type: mcdm
+      data: |
+        Shadow Elf Nullstroke	Level 6 Leader
+        Fey, Shadow Elf	EV 80
+        <b>Stamina</b> 180
+        <b>Speed</b> 6 (climb)	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>Free Strike</b> 7
+        Might +4	Agility +3	Reason +2	Intuition +1	Presence +2
+        <b>Manifold Blade</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Three creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	11 damage; I<2 bleeding (save ends)
+        %E2%98%85	<b>12-16</b>	16 damage; I<3 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	19 damage; I<4 bleeding (save ends)
+        <b>2 Malice</b> The potency of this ability increases by 1.
+
+        <b>Grasping Shadow</b> (Maneuver) %E2%97%86 2d10 + 4 %E2%97%86 5 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 5	<b>Target</b> Three creatures or objects casting a shadow
+        %E2%9C%A6	<b>%E2%89%A411</b>	pull 5; I<2 slowed (save ends)
+        %E2%98%85	<b>12-16</b>	pull 7; I<3 slowed (save ends)
+        %E2%9C%B8	<b>17</b>	pull 10; I<4 slowed (save ends)
+        <b>Effect</b> The nullstroke makes a free strike against each target pulled into an adjacent square.
+
+        <b>PUT IT OUT!</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> Special
+        <b>Trigger</b> An enemy uses an ability that emits light, such as fire.
+        <b>Effect</b> The enemy has a double bane on the ability.
+
+        <b>End Effect</b>
+        At the end of their turn, the nullstroke can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Of the Umbra</b>
+        The nullstroke ignores concealment granted by darkness. While the nullstroke is in direct sunlight, they have damage weakness 3. While the nullstroke is concealed, they have damage immunity 3.
+
+        <b>From the Shadows</b> (Villain Action 1)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 5<b>	Target</b> All allies
+        <b>Effect</b> The nullstroke calls forth one <b>brush stalker</b> that appears within distance. Each target then shifts up to their speed and makes a free strike.
+
+        <b>Eraserhead </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        <b>Effect</b> The nullstroke removes all surges, edges, and bonuses granted by features and abilities affecting each target. If the effect is usually always on, it is disabled until the end of the target's next turn.
+
+        <b>Umbral Hunger</b> (Villain Action 3) %E2%97%86 2d10 + 4
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 5<b>	Target</b> All enemies in the cube
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 corruption damage
+        %E2%98%85	<b>12-16</b>	7 corruption damage
+        %E2%9C%B8	<b>17</b>	10 corruption damage
+        <b>EffectR<3</b> speed becomes zero (save ends). The affected area is shrouded in darkness and becomes concealment. When an enemy starts their turn in an affected square, they take 5 corruption damage.
+        Brush Stalker	Level 4 Mount
+        Animal, Fey	EV 22
+        <b>Stamina</b> 60
+        <b>Speed</b> 8	<b>Size</b> 2 /<b> Stability</b> 3
+        <b>Free Strike</b> 5
+        Might +3	Agility +2	Reason -1	Intuition +0	Presence +1
+        <b>Gore</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage
+        %E2%98%85	<b>12-16</b>	7 damage
+        %E2%9C%B8	<b>17</b>	9 damage
+
+        <b>Reclamation</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 2 Malice
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 corruption damage; M<1 weakened (save ends)
+        %E2%98%85	<b>12-16</b>	7 corruption damage; M<2 weakened (save ends)
+        %E2%9C%B8	<b>17</b>	9 corruption damage; M<3 weakened (save ends)
+
+        <b>Suneater</b>
+        The brush stalker sheds darkness like other creatures would shed light. Each square within 2 of the brush stalker is devoid of light and provides concealment.
+
+        <b>Wyrd Dyr</b>
+        Each non-brush stalker creature with the Animal keyword is frightened while they have line of effect to the brush stalker.
+
+
+        Retainer
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d789bc36-ab6d-42e7-8c85-a27abc31fdee: true
+      modifiers: []
+      name: End Effect
+      description: At the end of their turn, the nullstroke can take 10 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: d789bc36-ab6d-42e7-8c85-a27abc31fdee
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7a1a7a56-42ad-4685-bb99-2cb5ec70aba8: true
+      modifiers: []
+      name: Of the Umbra
+      description: The nullstroke ignores concealment granted by darkness. While the nullstroke is in direct sunlight, they have damage weakness 3. While the nullstroke is concealed, they have damage immunity 3.
+      guid: 7a1a7a56-42ad-4685-bb99-2cb5ec70aba8
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e3634a65-dd85-4483-8c37-f28eca57771f: true
+      modifiers: []
+      name: Suneater
+      description: The brush stalker sheds darkness like other creatures would shed light. Each square within 2 of the brush stalker is devoid of light and provides concealment.
+      guid: e3634a65-dd85-4483-8c37-f28eca57771f
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cbecf6b8-14ca-41d7-824d-a74f5425cbe1: true
+      modifiers: []
+      name: Wyrd Dyr
+      description: Each non-brush stalker creature with the Animal keyword is frightened while they have line of effect to the brush stalker.
+      guid: cbecf6b8-14ca-41d7-824d-a74f5425cbe1
+      source: Trait
+    role: Leader
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Elf: true
+      Shadow: true
+      Shadow Elf: true
+    max_hitpoints_roll: "180"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 7
+    monster_type: Shadow Elf Nullstroke
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 180
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 97858cc9-6f8e-4cc9-8ee7-a7dbe6d24608
+      implementation: 4
+      numTargets: 3
+      name: Manifold Blade
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 11 damage; I<2 bleeding (save ends)
+        - 16 damage; I<3 bleeding (save ends)
+        - 19 damage; I<4 bleeding (save ends)
+        roll: 2d10 + 4
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: dbeaae88-1884-448e-9bbb-17788c687268
+      abilityType: none
+      numTargets: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - pull 5; I<2 slowed (save ends)
+        - pull 7; I<3 slowed (save ends)
+        - pull 10; I<4 slowed (save ends)
+        roll: 2d10 + 4
+      name: Grasping Shadow
+      implementation: 3
+      description: The nullstroke makes a free strike against each target pulled into an adjacent square.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 35dd2839-0cb5-4130-8ac3-e03675d78be1
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: PUT IT OUT!
+      numTargets: "1"
+      description: The enemy has a double bane on the ability.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: baa5b6af-865e-4f65-9615-293d8fc138f4
+        multicharge: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 869ec840-6948-447f-9512-026c8b27f231
+      numTargets: "1"
+      targetType: self
+      implementation: 0
+      name: From the Shadows
+      effectImplemented: false
+      description: The nullstroke calls forth one brush stalker that appears within distance. Each target then shifts up to their speed and makes a free strike.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 2f2d065a-6088-4225-9b15-0ad9a85c14dd
+        multicharge: false
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a4cab8ea-b6a2-4b8d-a503-552b59c3e0b6
+      numTargets: 1
+      targetType: all
+      implementation: 0
+      name: 'Eraserhead '
+      effectImplemented: false
+      description: The nullstroke removes all surges, edges, and bonuses granted by features and abilities affecting each target. If the effect is usually always on, it is disabled until the end of the target's next turn.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: b2ab7a33-fbb2-4bb1-bf71-4038b2110458
+        multicharge: false
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 57ab9226-c986-46c1-901f-0ab8b51e2bee
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 7 damage
+        - 9 damage
+        roll: 2d10 + 4
+      iconid: ui-icons/skills/1.png
+      name: Umbral Hunger
+      numTargets: 2
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 corruption damage; M<1 weakened (save ends)
+        - 7 corruption damage; M<2 weakened (save ends)
+        - 9 corruption damage; M<3 weakened (save ends)
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d518857b-5a3f-47c8-b337-f5af4d0a94be
+      abilityType: none
+      implementation: 4
+      numTargets: 1
+      name: Reclamation
+      targetType: all
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 6
+    ev: 80
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 32af14f6-0d77-4509-a276-1a9af86cb3b3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962493328
+description: Shadow Elf Nullstroke
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590235830
+mtime: 1775201137032
+hidden: false

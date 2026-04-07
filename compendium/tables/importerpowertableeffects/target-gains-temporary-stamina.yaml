@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: 5f6357c3-9a60-4800-9e00-34884ea0b52e
+behaviors:
+- __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+  stamina: "<<amount>>"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: The target gains 5 temporary Stamina
+- text: You gain 20 temporary stamina
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 167ff63d-2e00-414e-b5a1-a3f16ddeb786
+importMatch: (The target|You) gain?s? <<amount>> temporary [Ss]tamina
+ctime: 1749803365785
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Target Gains Temporary Stamina
+targetType: self
+mtime: 1772545714945
+abilityType: none
+iconid: ui-icons/skills/1.png

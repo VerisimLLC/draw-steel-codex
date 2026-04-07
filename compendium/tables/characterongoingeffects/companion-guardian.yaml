@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: f8b5cc48-a19e-469a-a72c-85672150be77
+id: f8b5cc48-a19e-469a-a72c-85672150be77
+ctime: 1770382797050
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: ""
+name: Companion Guardian
+hiddenOnToken: true
+mtime: 1770382797050
+custom: true
+iconid: ui-icons/skills/1.png

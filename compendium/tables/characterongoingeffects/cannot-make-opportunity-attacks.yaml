@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: ef3d5ce5-7975-4df6-88f7-5406171453c0
+  sourceguid: 031c436d-0d8e-4032-bf04-c69586024596
+  value: angulotl
+  source: Ongoing Effect
+  name: Cannot make opportunity attacks
+  behavior: attribute
+  description: ""
+  attribute: d721a407-25c6-4519-92e1-ac0e8ed68e8c
+source: Ongoing Effect
+guid: 031c436d-0d8e-4032-bf04-c69586024596
+id: 031c436d-0d8e-4032-bf04-c69586024596
+ctime: 1763787011373
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Cannot make opportunity attacks
+description: ""
+custom: true
+mtime: 1763787011373
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,35 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ca6818c4-6a4d-4ebd-8dc9-b60b715fcafb
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:ca6818c4-6a4d-4ebd-8dc9-b60b715fcafb: true
+  name: Can't Regain Stamina
+  guid: f5d4c9d4-722d-48b5-b41f-2e8e2d57df9a
+  description: Cannot regain Stamina
+  behavior: attribute
+  attribute: 96b930c8-846a-4221-991a-5ded3c9e9b39
+source: Ongoing Effect
+guid: ca6818c4-6a4d-4ebd-8dc9-b60b715fcafb
+id: ca6818c4-6a4d-4ebd-8dc9-b60b715fcafb
+ctime: 1755612364078
+domains:
+  CharacterOngoingEffect:ca6818c4-6a4d-4ebd-8dc9-b60b715fcafb: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.980468690395355
+    v: 0.941715776920319
+    a: 1
+name: Can't Regain Stamina
+custom: true
+description: Cannot regain Stamina
+mtime: 1756710960919
+iconid: 836c2891-f901-4d4b-a401-652bc27cea39

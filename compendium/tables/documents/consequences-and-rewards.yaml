@@ -1,0 +1,52 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 9cee242f-a3ca-40fb-8a93-93b6e4b288c6
+ctime: 1761410832044
+textStorage:
+  __typeName: TextStorage
+  sections:
+    V: |+
+      * Consequence: The hero takes 1d6 damage which can’t be prevented in any way, or they deal this damage to an ally by accident.
+
+    h: |+
+      * Consequence: You gain an additional 1 Malice at the start of the next encounter.
+
+    F: |+
+      # Consequences and Rewards
+
+    n: |+
+      * Reward: The hero gains a hero token for the group.
+
+    K: |
+      Montage tests require you to come up with consequences and rewards for individual tests as they occur. 
+    t: |+
+      * Reward: The hero grants an edge to the next hero to make a test in the montage.
+
+    P: |+
+      You can absolutely create your own unique consequences and rewards, but here are some good standbys to use in a montage test:
+
+
+    b: |+
+      * Consequence: The hero’s actions impose a bane on the next hero to make a test in the montage.
+
+parentFolder: e6b4a7b2-2da3-43ab-8d33-d322af63ffc5
+updateid: 94e1bf11-e2dd-4bf1-aead-9c104f2364cd
+description: Consequences and Rewards
+content: |+
+  # Consequences and Rewards
+
+  Montage tests require you to come up with consequences and rewards for individual tests as they occur. 
+  You can absolutely create your own unique consequences and rewards, but here are some good standbys to use in a montage test:
+
+
+  * Consequence: The hero takes 1d6 damage which can’t be prevented in any way, or they deal this damage to an ally by accident.
+
+  * Consequence: The hero’s actions impose a bane on the next hero to make a test in the montage.
+
+  * Consequence: You gain an additional 1 Malice at the start of the next encounter.
+
+  * Reward: The hero gains a hero token for the group.
+
+  * Reward: The hero grants an edge to the next hero to make a test in the montage.
+
+mtime: 1766080354140

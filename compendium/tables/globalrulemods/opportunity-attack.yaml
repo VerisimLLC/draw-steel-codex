@@ -1,0 +1,98 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        targetFilter: Target = MovingCreature
+        repeatTargets: false
+        targetType: all
+        triggerPrompt: Free Strike against moving creature
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: "100"
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 96b1c440-f66f-4afb-82df-e3fe1e031c95
+        numTargets: "1"
+        conditionFormula: (not Friends(Moving Creature, Self)) and Moving Creature.Altitude <= (Self.Altitude + 1)
+        trigger: leaveadjacent
+        whenActive: combat
+        name: Opportunity Attack
+        behaviors:
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          namedAbility: Melee Free Strike
+          promptText: Choose Free Strike Against Target
+          targetingFormula: ""
+          applyto: caster
+          targeting: self
+          abilityType: standard
+          autoTarget: true
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: b882eecb-0926-4fc8-8d8f-7c0dc34dda91
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          standardAbilityParams:
+            targetid: "<<MovingCreature.id>>"
+          standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+        - __typeName: ActivatedAbilityCustomTriggerBehavior
+          applyto: caster
+          value: MovingCreature.id
+          triggerName: Make Opportunity Attack
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Opportunity Attacks Global Rule Mod Feature
+      behavior: trigger
+      guid: 079e9b71-fdb1-4ea3-8965-a0658bd0dd61
+      name: Opportunity Attack
+      sourceguid: 36d0d24d-f4b3-45c7-b4be-1d04550b1773
+    - __typeName: CharacterModifier
+      sourceguid: 36d0d24d-f4b3-45c7-b4be-1d04550b1773
+      guid: d5bc9d0b-944f-4c8a-8c5e-2dc1eea8725e
+      source: Opportunity Attacks Global Rule Mod Feature
+      behavior: triggerdisplay
+      description: ""
+      name: Opportunity Attack
+      ability:
+        __typeName: TriggeredAbilityDisplay
+        type: free
+        effect: You make a free strike against the target. You cannot have a bane on the attack.
+        target: One Enemy Creature
+        trigger: The creature moves away from you while not shifting.
+        name: Opportunity Attack
+        guid: 429ce0e8-0218-4eca-9617-a660cf159ba5
+        distance: Melee 1
+        keywords: []
+    name: Opportunity Attack
+    description: ""
+    guid: 026e44e4-4947-4fb3-a050-df3aec187c32
+    source: Opportunity Attacks Global Rule Mod Feature
+    implementation: 4
+name: Opportunity Attack
+mtime: 1775006109511
+id: 64a0b403-130d-4d7c-a6d6-769b49172322
+ctime: 1746957724303

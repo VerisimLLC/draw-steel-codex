@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 30c1329a-f11a-4519-9853-548786ae1a55
+  source: Ongoing Effect
+  value: "2	"
+  domains:
+    CharacterOngoingEffect:30c1329a-f11a-4519-9853-548786ae1a55: true
+  name: Bloodfire Rush
+  guid: 1b6b0161-3e43-49af-ae94-8e324c166cf9
+  description: When you take damage, your speed increases by 2 until the end of your next turn. You can only benefit from this feature once each round.
+  behavior: attribute
+  attribute: speed
+source: Ongoing Effect
+guid: 30c1329a-f11a-4519-9853-548786ae1a55
+id: 30c1329a-f11a-4519-9853-548786ae1a55
+ctime: 1711266240166
+domains:
+  CharacterOngoingEffect:30c1329a-f11a-4519-9853-548786ae1a55: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Bloodfire Rush
+iconid: 242eb406-3e1d-44d9-975c-b5fb6c3eb168
+description: When you take damage, your speed increases by 2 until the end of your next turn. You can only benefit from this feature once each round.
+mtime: 1737376364168
+implementation: 3

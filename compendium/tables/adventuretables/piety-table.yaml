@@ -1,0 +1,31 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 2259f638-bc6d-45a7-b0b1-1d4f1b7ba434
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start} Piety
+- __typeName: RollTableRow
+  id: a37d12aa-c4d7-41c4-a9e2-d1a3dc1d18da
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start + 1} Piety
+- __typeName: RollTableRow
+  id: 8020ec97-71d1-4f59-a5f5-e322a3dec0e7
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gain {Heroic Resource Gain at Start + 2} Piety
+name: Piety Table
+mtime: 1769642117266
+id: 2dd5cb43-f6de-4ec9-a388-e4a990c4b709
+ctime: 1741928234912

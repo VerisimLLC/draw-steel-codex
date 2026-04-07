@@ -1,0 +1,70 @@
+__typeName: ActivatedAbility
+id: 6b1d83d3-6e25-472e-a6a6-421be6a6db5c
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  guid: f1b1794c-5e4a-432b-9859-06500d5b74dc
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: (Ability.Free Strike)
+    behavior: modifyability
+    guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+    replaceBehaviors: before
+    attributes: []
+    cannotModifyAction: true
+    description: ""
+    name: Modify Attack
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors:
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 4f3aff2f-3ee4-4f1c-a4a2-4983741c32a1
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 4f3aff2f-3ee4-4f1c-a4a2-4983741c32a1
+          modtype: edge
+          keywords: []
+          activationCondition: true
+          guid: 2c5ce5d5-c078-41da-b1c9-8b2f17483085
+          rollType: ability_power_roll
+          domains: []
+          description: This Free Strike is being made with an Edge
+          name: Edge
+          behavior: power
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+ctime: 1746263861915
+description: ""
+documentation: Allows the target creature to make a free strike with an edge.
+repeatTargets: false
+name: Free Strike With Edge
+targetType: self
+mtime: 1746290400504
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,289 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b3b2bcc0-3c7c-4652-89bb-0050321c7c83
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    max_hitpoints: 15
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    opportunityAttack: 2
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Demon Bendrak	Level 2 Horde Hexer
+        Abyssal, Demon	EV 4
+        <b>Stamina</b> 15	<b>Weakness</b> Holy 3
+        <b>Speed</b> 5	<b>Size</b> 1L/<b> Stability</b> 0
+        	<b>Free Strike</b> 2
+        Might +0	Agility +1	Reason +0	Intuition +0	Presence +2
+        <b>Warp Perceptions</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature
+        %E2%9C%A6	%E2%89%A411	4 psychic damage
+        %E2%98%85	12%E2%80%9316	5 psychic damage; P<1 weakened (save ends)
+        %E2%9C%B8	17+	7 psychic damage; P<2 weakened (save ends)
+        <b>Effect </b>If the target makes a strike while weakened this way, the bendrak can choose a second target within distance for the strike, then evenly divides any damage from the strike between the two targets.
+
+        <b>Vanish</b> (Maneuver) %E2%97%86 1 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> Self or one ally
+        <b>Effect</b> The target immediately becomes hidden, regardless of whether they have cover or concealment.
+
+        <b>Lethe</b>
+        While winded, the bendrak has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the bendrak can't be hidden from them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+        CharacterFeature:1fc7513a-90eb-4da4-828d-81c151dbb996: true
+        CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+        CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: self.Winded = 1
+        guid: 3c13f2b2-0b4c-4ba3-8f9b-e61e34880bb4
+        name: Lethe
+        domains:
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:1fc7513a-90eb-4da4-828d-81c151dbb996: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the bendrak has an edge on strikes, and strikes have an edge against them.
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: Target.Winded = 1
+        guid: 95d96e71-26f1-4746-a05f-6a248138d998
+        name: Lethe
+        domains:
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:1fc7513a-90eb-4da4-828d-81c151dbb996: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the bendrak has an edge on strikes, and strikes have an edge against them.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: While winded, the bendrak has an edge on strikes, and strikes have an edge against them.
+      guid: 1fc7513a-90eb-4da4-828d-81c151dbb996
+      name: Lethe
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:efb8f3af-59d3-4500-9a35-14bb35496e07: true
+      modifiers: []
+      name: Soulsight
+      description: Any creature within 2 squares of the bendrak can't be hidden from them.
+      guid: efb8f3af-59d3-4500-9a35-14bb35496e07
+      source: Character Feature
+    role: Horde Hexer
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -3
+      damageType: holy
+      apply: Damage Reduction
+    damage_taken: 0
+    monster_type: Demon Bendrak
+    resources: []
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    minion: false
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: facf766a-9d1f-449d-815f-c8ffd6d508ca
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 psychic damage
+        - 5 psychic damage; P<1 weakened (save ends)
+        - 7 psychic damage; P<2 weakened (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 567a3454-ead6-4416-b338-ed73d64b7805
+        riderid: 57eef735-8e00-4717-861c-0350de8061ee
+        tiersSelected:
+        - 2
+        - 3
+      name: Warp Perceptions
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      description: If the target makes a strike while weakened this way, the bendrak can choose a second target within distance for the strike, then evenly divides any damage from the strike between the two targets.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 43c645e0-97fe-40f0-ba45-e6efdf46b6c9
+        ongoingEffectCustom: 43c645e0-97fe-40f0-ba45-e6efdf46b6c9
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        runOnController: true
+        standardAbility: bd9f9431-2ee2-41c1-81cb-c08570144cb9
+        standardAbilityParams:
+          distance: "3"
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 0ac66e84-fcdd-4e2b-a4ef-572d6da06a9b
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 6343e6e0-6a13-423d-a7a4-4de964619f05
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: target
+      numTargets: 1
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      name: Vanish
+      selfTarget: true
+      description: The target immediately becomes hidden, regardless of whether they have cover or concealment.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    walkingSpeed: 5
+    movementSpeeds: []
+    creatureSize: 1L
+    keywords:
+      Demon: true
+      Abyssal: true
+    notes:
+    - text: Bendraks (BEN-drax) appear as an amalgamation of flesh and the shards of broken mirrors, which they use to distract and confuse their foes. A bendrak can divert an enemy's attack to another enemy, and can hide themselves or allies behind dazzling reflections.
+      title: Monster Notes
+    notesRevision: ff15c44e-1da8-4d29-a97d-e10c6910b718
+  tokenType: null
+  bestiaryId: 7ae21825-f2b9-498d-b7c4-a279b0363b3d
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Demon Bendrak
+parentFolder: 003daf5c-52f0-4ea2-9283-a547f7b2422e
+artist: null
+ord: 4
+ctime: 1741590269937
+mtime: 1775201137032
+hidden: false

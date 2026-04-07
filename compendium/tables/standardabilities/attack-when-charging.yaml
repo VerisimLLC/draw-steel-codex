@@ -1,0 +1,62 @@
+__typeName: ActivatedAbility
+id: 923bf32c-4233-4fec-8895-7ce18da28744
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: |-
+      ((ability.Free Strike or ability.use as free strike) and (ability.keywords has "Melee")) or
+      ((Ability.keywords has "Charge") and not (Ability.keywords has "Ranged")) or
+      ((Heroic Abilities While Charging) and Ability.categorization = "Heroic Ability" and (Ability.keywords Has "Melee")) or
+      ((Signature Abilities While Charging) and Ability.categorization = "Signature Ability" and (Ability.keywords has "Melee"))
+    behavior: modifyability
+    guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+    cannotModifyAction: true
+    attributes: []
+    mustPayResourceCost: true
+    description: ""
+    name: Modify Attack
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: Used at the end of a Charge, allowing a melee free strike or an ability with the charge keyword.
+importMatch: ""
+ctime: 1742873163921
+targetType: self
+persistence: []
+description: ""
+name: Attack when Charging
+repeatTargets: false
+mtime: 1774569143136
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,39 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 9ae834fd-4be8-49e3-b5ce-46d26e72928e
+  description: Once per turn, you can move through 1 square of solid matter. If you end your turn inside solid matter, you are forced out into the space from which you entered it and you take 5 damage that can't be reduced in any way.
+  modifiers:
+  - __typeName: CharacterModifier
+    text: Once per turn, you can move through 1 square of solid matter. If you end your turn inside solid matter, you are forced out into the space from which you entered it and you take 5 damage that can't be reduced in any way.
+    sourceguid: 9ae834fd-4be8-49e3-b5ce-46d26e72928e
+    guid: 1938149a-c7fa-4a73-b173-41a59c26f1cb
+    source: Item
+    name: Phasing I
+    description: Once per turn, you can move through 1 square of solid matter. If you end your turn inside solid matter, you are forced out into the space from which you entered it and you take 5 damage that can't be reduced in any way.
+    behavior: movementtext
+    color: green
+  source: Item
+  name: Phasing I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+id: 395578bb-3a19-4a04-a598-281abc00694e
+imbuePrereq: none
+projectSource: Szetch
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770698928353
+type: Gear
+itemPrerequisite: Ichor from a destroyed wraith
+mtime: 1774485010626
+name: Phasing I
+imbueTargetType: armor
+description: Once per turn, you can move through 1 square of solid matter. If you end your turn inside solid matter, you are forced out into the space from which you entered it and you take 5 damage that can't be reduced in any way.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 2

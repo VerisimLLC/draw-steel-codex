@@ -1,0 +1,294 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 41d833ef-6bb5-4c07-ad26-75b3d3dd0b56
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 3
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Phrrygalax The Subduer	Level 6 Elite Brute
+        Draconian, Dragon, Humanoid	EV 32
+        <b>Stamina</b> 180	<b>Immunities</b> fire 6
+        <b>Speed</b> 5 (flying)	<b>Size</b> 1L /<b> Stability</b> 5
+        <b>Free Strike</b> 7
+        Might +3	Agility +2	Reason +0	Intuition +0	Presence +3
+        <b>Baneful Blade</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> Two creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 damage
+        %E2%98%85	<b>12-16</b>	16 damage; M<1 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	19 damage; M<2 3 damage, bleeding (save ends)
+
+        <b>Spinning Spit</b> (Action) %E2%97%86 2d10 + 4%E2%97%86 2 Malice
+        <b>Keywords</b> Area, Magic, Melee
+        <b>Distance</b> 1 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 fire damage
+        %E2%98%85	<b>12-16</b>	13 fire damage
+        %E2%9C%B8	<b>17</b>	16 fire damage
+
+        <b>Heavy Landing</b> (Maneuver)
+        <b>Keywords</b> Area
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> Phrrygalax flies up to his speed and lands in an unoccupied space on the ground. Each creature adjacent to where he lands is <b>A<2</b> knocked prone.
+
+        <b>Armor of the Ancients </b>(Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> Phrrygalax takes acid, cold, corruption, fire, lightning, or poison damage.
+        <b>Effect</b> Phrrygalax absorbs the damage instead, recovering Stamina equal to the damage dealt. Phrrygalax swaps his current immunity with the triggering damage type.
+
+        <b>STILL YOUR TONGUE! </b>(Free Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Trigger</b> Phrrygalax hears a creature within 5 reciting the oath of Good King Omund's Dragon Phalanx
+        <b>Effect</b> Phrrygalax shifts up to his speed and uses Baneful Blade against the enemy, dealing an additional 7 damage.
+
+        <b>Oathbreaker's Vengeance</b>
+        When Phrrygalax fails a saving throw, he deals an additional 7 damage on his next strike.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ce9f4c23-23b2-47e0-8f2c-8a781f8574a0: true
+      modifiers: []
+      name: Oathbreaker's Vengeance
+      description: When Phrrygalax fails a saving throw, he deals an additional 7 damage on his next strike.
+      guid: ce9f4c23-23b2-47e0-8f2c-8a781f8574a0
+      source: Trait
+    role: Elite Brute
+    inflictedConditions: []
+    keywords:
+      Dragon: true
+      Humanoid: true
+      Draconian: true
+    max_hitpoints_roll: "180"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 6
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 7
+    monster_type: Phrrygalax The Subduer
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 180
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 2c1ca6fc-6734-4fd6-af0e-d8c7d6189171
+      implementation: 4
+      numTargets: 2
+      name: Baneful Blade
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage
+        - 16 damage; M<1 bleeding (save ends)
+        - 19 damage; M<2 3 damage, bleeding (save ends)
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 fire damage
+        - 13 fire damage
+        - 16 fire damage
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 4b7807fc-f969-484d-8a09-68f34a0d49c0
+      abilityType: none
+      implementation: 4
+      numTargets: 1
+      name: Spinning Spit
+      targetType: all
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 9e2ed181-9f09-4197-9c30-79278cb8eb43
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Heavy Landing
+      numTargets: 1
+      description: Phrrygalax flies up to his speed and lands in an unoccupied space on the ground. Each creature adjacent to where he lands is A<2 knocked prone.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 43227afe-c715-497b-a8d3-747d0030e8ff
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: 'Armor of the Ancients '
+      implementation: 0
+      description: Phrrygalax absorbs the damage instead, recovering Stamina equal to the damage dealt. Phrrygalax swaps his current immunity with the triggering damage type.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 8e23128e-6bb1-496a-a286-915bd0b07df7
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: 'STILL YOUR TONGUE! '
+      numTargets: 1
+      description: Phrrygalax shifts up to his speed and uses Baneful Blade against the enemy, dealing an additional 7 damage.
+      abilityType: none
+      implementation: 0
+    groupid: 30f074ad-8a42-413f-a987-fb1a491e8ac7
+    movementSpeeds:
+      fly: 5
+    ev: 32
+    minion: false
+    levelChoices: []
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: d83b253b-11cd-41b5-bcd3-9567a6c213a8
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Phrrygalax The Subduer
+parentFolder: 9c6966f1-7896-4854-a485-664d5d643aee
+artist: null
+ord: 0
+ctime: 1741590315657
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,49 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: b6c7d8e9-f0a1-2345-bcde-456789012bcd
+  description: Whenever you use a magic or psionic ability to push or pull a creature, you can move that creature an additional 3 squares. This replaces the benefit of Forceful I.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: b6c7d8e9-f0a1-2345-bcde-456789012bcd
+    source: Forceful II Imbuement
+    behavior: power
+    adjustments:
+    - type: push
+      value: "3"
+    - type: pull
+      value: "3"
+    keywords: []
+    activationCondition: true
+    activationAfterRoll: false
+    name: Forceful II
+    rollType: ability_power_roll
+    description: Whenever you use a magic or psionic ability to push or pull a creature, you can move that creature an additional 3 squares. This replaces the benefit of Forceful I.
+    modtype: none
+    guid: 3b57dc5f-af84-4e3d-a47d-cfd1715dc797
+  source: Forceful II Imbuement
+  name: Forceful II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A marble stone giant's fingernail
+imbuePrereq: dd177ebb-98e9-49f7-bb20-3388768876c3
+projectSource: High Kuric
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+description: Whenever you use a magic or psionic ability to push or pull a creature, you can move that creature an additional 3 squares. This replaces the benefit of Forceful I.
+type: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+ctime: 1770699205313
+projectGoal: "150"
+implementation: 4
+id: 4e111c75-dd4f-4617-9868-dedb0eaae207
+name: Forceful II
+imbueTargetType: implement
+mtime: 1774013568003
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 99dc4db2-4c07-40b1-9502-dd514a324f18

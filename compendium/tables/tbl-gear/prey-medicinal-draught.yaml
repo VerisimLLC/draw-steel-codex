@@ -1,0 +1,50 @@
+__typeName: equipment
+id: 9a94df28-7a1d-4c89-b2aa-7b0477b8ced1
+category: Gear
+specialDescription: ""
+ctime: 1768915180854
+description: Grants a +1 bonus to speed and increases your Recoveries by 2. This benefit lasts until the end of your next respite.
+itemPrerequisite: Chosen the Prey benefit of the 'Saved for a Worse Fate' Title.
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+type: Gear
+hiddenFromPlayers: true
+name: Prey - Medicinal Draught
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  implementationDetails: ""
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: f73a9980-a8e2-4683-809c-3ae0ffeeb4d1
+    duration: until_rest
+    ongoingEffectCustom: f73a9980-a8e2-4683-809c-3ae0ffeeb4d1
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Ability
+  range: 5
+  consumables:
+    9a94df28-7a1d-4c89-b2aa-7b0477b8ced1: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 1a7150ba-18cd-4cbd-a00b-705488d13b5c
+  sourceReference:
+    __typeName: SourceReference
+    page: 342
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  numTargets: "1"
+  castImmediately: true
+  description: ""
+  iconid: 0c1fb104-d4ff-41ae-94a4-ed9d812e48e4
+  name: Prey - Medicinal Draught
+  targetType: self
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 3
+implementation: 3
+mtime: 1768915180854
+weight: 1
+iconid: 0c1fb104-d4ff-41ae-94a4-ed9d812e48e4

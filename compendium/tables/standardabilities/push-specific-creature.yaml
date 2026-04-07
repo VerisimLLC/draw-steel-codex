@@ -1,0 +1,51 @@
+__typeName: ActivatedAbility
+objectTarget: false
+targetFilter: target.id = <<targetid>>
+id: 75946ad2-cfe5-4d05-9e2a-5a70ed5173a6
+targetType: all
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "100"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 62916883-52e8-4fd6-bfc7-f1150bebd9be
+ctime: 1745776048959
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 51784137-ac73-4966-98f7-851f5cedad93
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  promptText: "<<prompt>>"
+  autoTarget: false
+  standardAbilityParams:
+    range: "<<distance>>"
+  abilityType: standard
+  standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+numTargets: "1"
+description: ""
+name: Push Specific Creature
+repeatTargets: false
+mtime: 1768991992521
+abilityType: none
+iconid: ui-icons/skills/1.png

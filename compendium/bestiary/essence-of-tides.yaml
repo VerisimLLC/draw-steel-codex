@@ -1,0 +1,270 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 01967e7b-a384-4ef8-bf8d-c23c546c9943
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 9f80cb45-f469-4d97-bc65-620e0ec4634d
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.6543769
+    frameSaturation: 0.6064554
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ea63eda3-562b-4efc-970e-6d53f9cb57ca
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Essence of Tides	Level 3 Elite Controller
+        Elemental	EV 20
+        <b>Stamina</b> 80	<b>Immunity</b> cold 5
+        <b>Speed</b> 7 (swim)	<b>Size</b> 1M /<b> Stability</b> 1
+        <b>	Free Strike</b> 5
+        Might +2	Agility 0	Reason +1	Intuition -1	Presence +2
+        <b>Water Wing</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike
+        <b>Distance</b> Melee 1<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; slide 1
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; slide 2
+        %E2%9C%B8	<b>17</b>	14 damage; slide 3
+        <b>EffectP<2</b> the target's stability is reduced to 0 and they move 2 additional squares whenever they are force moved (save ends)
+
+        <b>Convocation of Waves</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5<b>	Target</b> Self or 1 elemental
+        <b>Effect</b> The target receives cold immunity 5 until the start of the essence's next turn if they don't already have it.
+        <b>3 Malice</b> The target emits a 1 aura pool of water until the end of the encounter. The area beneath the aura becomes a river that trails behind the target as they move and is considered difficult terrain. An enemy that ends their turn standing in the river is <b>M<2</b> slowed (save ends).
+
+        <b>Sea Salted Wounds </b>(Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Malice 1	<b>Target</b> 1 creature
+        <b>Trigger</b> An ally deals damage to the target.
+        <b>Effect</b> The essence makes a free strike against the target.
+
+        <b>Water Glide</b>
+        When the essence starts their turn on a space containing water, they can add the flying keyword to their movement until the end of their turn. While flying, the essence doesn't provoke opportunity attacks.
+
+        <b>Fickle and Free</b>
+        The essence can't be restrained, slowed, or knocked prone, and they ignore difficult terrain.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6e4f46af-16bf-4edd-9719-624ba80ec70b: true
+      modifiers: []
+      name: Water Glide
+      description: When the essence starts their turn on a space containing water, they can add the flying keyword to their movement until the end of their turn. While flying, the essence doesn't provoke opportunity attacks.
+      guid: 6e4f46af-16bf-4edd-9719-624ba80ec70b
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f3281509-b425-433a-8bd7-86fefed831d7: true
+      modifiers: []
+      name: Fickle and Free
+      description: The essence can't be restrained, slowed, or knocked prone, and they ignore difficult terrain.
+      guid: f3281509-b425-433a-8bd7-86fefed831d7
+      source: Trait
+    role: Elite Controller
+    inflictedConditions: []
+    keywords:
+      Elemental: true
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: cold
+      apply: Damage Reduction
+    opportunityAttack: 5
+    monster_type: Essence of Tides
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 80
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Magic: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 688da97f-3a74-46e6-a197-11503c932327
+      implementation: 3
+      numTargets: 2
+      name: Water Wing
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; slide 1
+        - 11 damage; slide 2
+        - 14 damage; slide 3
+        roll: 2d10 + Might
+      description: If a target has P<2, their stability is reduced to 0 and they move 2 additional squares whenever they are force moved (save ends).
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 6c488caf-427e-4991-96d4-ea24249d6d37
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Convocation of Waves
+      numTargets: 1
+      description: The target receives cold immunity 5 until the start of the essence's next turn if they don't already have it.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 0d3c5cb9-9074-4e83-9977-048fa714bbe2
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: 'Sea Salted Wounds '
+      implementation: 0
+      description: The essence makes a free strike against the target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Melee: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 115
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 1006e24d-ac1d-461d-9daa-8a50501ac3c5
+      abilityType: none
+      categorization: Trigger
+      numTargets: 1
+      iconid: ui-icons/skills/1.png
+      name: Sea-Salted Wounds
+      targetType: target
+      description: |
+        The essence makes a free strike against the target.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    groupid: 49b3126a-b109-4534-95a4-925d621463aa
+    movementSpeeds:
+      swim: 7
+    ev: 20
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 3306b1ae-e63e-4bab-b85e-2ea884b94c75
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Essence of Tides
+parentFolder: 56d7eb0d-966a-478f-9cdf-a336d5fa9bb1
+artist: null
+ord: 0
+ctime: 1741590236031
+mtime: 1775201137032
+hidden: false

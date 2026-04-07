@@ -1,0 +1,69 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:349df454-c09c-4845-b983-fb1bab408911: true
+  sourceguid: 349df454-c09c-4845-b983-fb1bab408911
+  description: The target takes 3 damage if they start their next turn adjacent to 3 or more blitzers.
+  source: Ongoing Effect
+  name: Lugged Spear
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "3"
+      titleText: Lugged Spear
+      chatMessage: Start Turn Adjacent 3 Blitzers
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 0.952000021934509
+        v: 0.980392158031464
+        a: 1
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: cd090e70-fb94-4f16-b933-8d32897ad2d6
+    whenActive: combat
+    domains:
+      CharacterOngoingEffect:349df454-c09c-4845-b983-fb1bab408911: true
+    conditionFormula: Count Nearby Enemies(1, "enemy", "orc blitzer") >=3
+    targetType: self
+    numTargets: "1"
+    trigger: beginturn
+    name: Lugged Spear
+    description: The target takes 3 damage if they start their next turn adjacent to 3 or more blitzers.
+    abilityType: none
+    iconid: ad96f516-7694-4ed2-af7d-6c81f5fb2e03
+  guid: 37427164-e283-4e4e-b59c-060b30abe4da
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.953125
+    v: 0.98080450296402
+    a: 1
+guid: 349df454-c09c-4845-b983-fb1bab408911
+id: 349df454-c09c-4845-b983-fb1bab408911
+ctime: 1765870309353
+domains:
+  CharacterOngoingEffect:349df454-c09c-4845-b983-fb1bab408911: true
+description: The target takes 3 damage if they start their next turn adjacent to 3 or more blitzers.
+hiddenOnToken: false
+name: Lugged Spear
+custom: true
+mtime: 1769617695923
+iconid: 170fa23d-cb8f-4f7a-8608-1d281994f844
+implementation: 3

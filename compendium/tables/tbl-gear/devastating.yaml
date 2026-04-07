@@ -1,0 +1,40 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: b2c3d4e5-f6a7-8902-bcde-012345678bcd
+  description: Whenever you make an ability roll using this weapon, the number you need to roll to score a critical hit is reduced by 1.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: c3d4e5f6-a7b8-9013-cdef-123456789cde
+    sourceguid: b2c3d4e5-f6a7-8902-bcde-012345678bcd
+    value: -1
+    source: Devastating Imbuement
+    name: Devastating Critical Threshold
+    behavior: attribute
+    description: Whenever you make an ability roll using this weapon, the number you need to roll to score a critical hit is reduced by 1.
+    attribute: f383ffc8-817d-4965-ae92-2e839f27e063
+  source: Devastating Imbuement
+  name: Devastating
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A slaughter demon's horn
+imbuePrereq: none
+projectSource: High Kuric
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770699205313
+projectGoal: "150"
+id: 03d74e33-3d25-4e79-b573-a9ff6667ce26
+mtime: 1774014896457
+name: Devastating
+imbueTargetType: weapon
+description: Whenever you make an ability roll using this weapon, the number you need to roll to score a critical hit is reduced by 1.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 18a2c299-b567-4c1e-9ac9-00ab7543d3b9

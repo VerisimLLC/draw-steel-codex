@@ -1,0 +1,42 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 6a9e9471-df73-4f40-9d03-d9e23d2d28dd
+ctime: 1764024182748
+textStorage:
+  __typeName: TextStorage
+  sections:
+    O: |
+      The attack on Broadhurst happens right after the heroes finish their third respite in the village after they or the Jagged Edge obtain the [item:Cup of Iulius]. See [Respite Tracker].
+    p: |
+      ## Take the Cup!
+    k: |+
+      These encounters use the [Attack on Broadhurst Map].
+
+
+    W: |+
+      The attack on Broadhurst happens in three encounters that occur one right after the other. The time between encounters is just long enough for the heroes to spend Recoveries as they wish before the next begins.
+
+
+    H: |+
+      # Attack on Broadhurst
+
+    u: If the heroes are in possession of the [item:Cup of Iulius] and surrender it to the Jagged Edge, the goblins call off the attack … for now. They’ll return after the heroes finish another three respites to raze the village if the heroes don’t travel to [Castle Andreas] to stop the Jagged Edge.
+    f: |+
+      |Queen Bargnot has some large spiders are her disposal. If you or any of your players feel uncomfortable with the description of spiders, you can change these creatures to make them giant wolves carrying mechanical net-launchers or whatever other awesome giant animal you can dream up.|
+
+
+    S: |+
+      If the heroes have the cup, the goblins are attacking the village to obtain it. If the goblins have the cup, [Queen Bargnot] is here for revenge and to burn Broadhurst to the ground. (See [Goblin Replacements])
+
+    v: |2+
+
+
+
+    a: |
+      |**Content Warning: Spiders**|
+    x: "[[/setadventuredocument 21 \"Attack on Broadhurst\"|Track Attack on Broadhurst]][[/setadventuredocument off \"Attack on Broadhurst\"|Untrack Attack on Broadhurst]]"
+parentFolder: 3c68a98c-720a-433b-977c-dee19e9fcaf4
+updateid: 75ebad37-8c68-4b83-b369-5471ba3e34a6
+mtime: 1764275347158
+content: "# Room 1"
+description: Attack on Broadhurst

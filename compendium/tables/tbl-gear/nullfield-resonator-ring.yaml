@@ -1,0 +1,105 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 1c68020f-e248-4ac2-92df-f0a55b736f61
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 1c68020f-e248-4ac2-92df-f0a55b736f61
+    guid: ff14072c-8590-41a8-ab46-d52a1e198aa7
+    source: Item
+    behavior: activated
+    description: ""
+    name: Nullfield Resonator Ring
+    activatedAbility:
+      __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 psychic damage
+        - 5 psychic damage; I < average, slowed (save ends)
+        - 8 psychic damage; I < strong, slowed (save ends)
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 68f455f5-135f-495c-822d-40d809d2b15f
+        riderid: 8bb86a91-4188-4993-b92e-b2fe2111812a
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: Your punch delivers a devastating burst of psionic energy.
+      sourceReference:
+        __typeName: SourceReference
+        page: 3326
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 75d29fa5-382d-4de9-bef5-55128ba016b9
+      persistence: []
+      categorization: Ability
+      domains: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      implementation: 4
+      name: Nullring Strike
+      targetType: target
+      description: While slowed in this way, the target takes a bane on magic or psionic abilities.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  - __typeName: CharacterModifier
+    guid: aa945ee1-ef33-4514-93df-2f5aee86886f
+    sourceguid: 1c68020f-e248-4ac2-92df-f0a55b736f61
+    value: 1
+    source: Item
+    name: Nullfield Resonator Ring
+    behavior: attribute
+    description: ""
+    attribute: bd01a4c5-0758-4453-8d71-5d2257aa23fd
+  source: Item
+  name: Nullfield Resonator Ring
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: bf55cddf-54f6-4fe0-8b48-deb761a1cc49
+keywords:
+  Psionic: true
+  Ring: true
+projectSource: Texts or lore in Mindspeech
+flavor: This simple band of copper vibrates slightly when handled.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+projectGoal: "450"
+itemPrerequisite: A wafer of gallium arsenide
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+domains:
+  item:bf55cddf-54f6-4fe0-8b48-deb761a1cc49: true
+echelon: 3
+ctime: 1775047959854
+name: Nullfield Resonator Ring
+description: |-
+  You must be a null to wear this ring. While you do so, the area of your Null Field ability increases by 1.
+  Additionally, you have the following ability.Nullring Strike
+  Your punch delivers a devastating burst of psionic energy.
+  Melee, Psionic, Strike, Weapon Main action
+  o Melee 1 x One creature or object
+  Power Roll + Might or Agility:
+  á 3 psychic damage
+  é 5 psychic damage; I<v , slowed (save ends)
+  í 8 psychic damage; I<s , slowed (save ends)
+  Effect: While slowed in this way, the target takes a bane on magic or psionic abilities
+mtime: 1775048261547
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: 3b233b10-3cfe-4404-b9e5-1ef627ee5908

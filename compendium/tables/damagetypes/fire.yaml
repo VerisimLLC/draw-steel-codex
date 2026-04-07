@@ -1,0 +1,16 @@
+__typeName: DamageType
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00141143798828
+    v: 0.997754156589508
+    a: 1
+name: Fire
+ctime: 1699861634590
+mtime: 1704705274337
+id: 48a2c1ee-6092-4775-83c5-8dddfcfdd8e7
+iconid: 6be37af0-e113-46ca-aec3-e72d57abb185

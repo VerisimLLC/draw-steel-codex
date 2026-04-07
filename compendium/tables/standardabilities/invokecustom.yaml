@@ -1,0 +1,42 @@
+__typeName: ActivatedAbility
+id: 955f3446-7ae5-4d59-bff4-c9a40a7d01d4
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: caster
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: ef8a8709-4e6c-4fd8-9d4f-f410b753d854
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 5
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 5
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: b81ba345-5499-4dde-a110-f5b03d6d9b16
+ctime: 1711347307332
+targetType: self
+mtime: 1745902087066
+name: InvokeCustom
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

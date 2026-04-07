@@ -1,0 +1,391 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: be39d34b-8a84-4427-a2f6-fcef70d50e46
+    offtokenPortraitId: 437ed09e-5b81-4f0d-9be1-d73a09bf8d61
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 684d7009-c5e0-4902-8e1d-6da57092bbe2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.1893153
+    portraitOffset:
+      x: 0.1849852
+      y: 0.3092383
+    frameHueShift: 0.4326171
+    frameSaturation: 0.2826952
+    frameBrightness: 0.1671304
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: cad4b02d-3748-4b8e-b86d-e31426e458fd
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    keywords:
+      Undead: true
+      Soulless: true
+    max_hitpoints_roll: "10"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        8ac1873e-532f-4d87-8130-b2bd2a40e1f3:
+          refreshid: edecec63-9a6e-4230-bb33-8de991cd6c79-3
+          note: Bone Shards
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        4af4f1d0-56a8-4308-bb41-1fda676ab430:
+          refreshid: edecec63-9a6e-4230-bb33-8de991cd6c79-2
+          note: Bone Shards
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        6adc0433-02c5-45cc-8b12-a22ed8c4131d:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-1
+          note: Bone Shards
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        1b9e452d-f3be-4473-bd32-610448cb2dca:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-5
+          note: Bone Shards
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        d24fdab9-72e4-487e-9c72-a6ee910e26de:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-4
+          note: Bone Shards
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        b11604eb-dcf7-4a80-82aa-6bc12198f689:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-3
+          note: Bone Shards
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        5b2bba60-5c46-451f-b023-d34e0a336585:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-7
+          note: Bone Shards
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    creatureSize: 1M
+    levelChoices: []
+    moveDistance: 7
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage
+        - 7 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: ed520399-81ab-433e-9463-926c7ca9291b
+        durationUntilEndOfTurn: false
+        duration: 1
+        ongoingEffectCustom: c3a46b36-a213-4860-a1af-73e7436be9dc
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 2416247a-4e46-4ff8-8162-528c7b140d8a
+      meleeRange: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      implementation: 4
+      name: Bone Shards
+      persistence: []
+      description: Until the start of the skeleton's next turn, the target takes 2 damage the first time they move on their turn.
+      abilityType: none
+      iconid: 9e3c9ee3-7c93-43cb-b3b4-479f75f0a21f
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      objectTarget: false
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetAllegiance: enemy
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.15467095375061
+          v: 0.974025726318359
+          a: 1
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: true
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 8034dab6-cbba-40d2-bc5d-a6e4132a3b88
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1
+      implementation: 4
+      name: Bone Spur
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage; M<0 bleeding (save ends)
+        - 2 damage; M<1 bleeding (save ends)
+        - 3 damage; M<2 bleeding (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 08c87dfe-4f31-4ccb-8ba4-4d7024da9619
+        ongoingEffectCustom: false
+      description: Each target has a bane on their next strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: fff585a3-7541-4984-ae5b-26ee0c79f729
+    damageEntries:
+      d11421b5-9c42-42ff-9a9f-9c5073c590b6:
+        id: d11421b5-9c42-42ff-9a9f-9c5073c590b6
+        heal: 50
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        1a66da8b-8bf0-4b9f-8beb-abab6ac71736:
+          disposition: good
+          note: 50 Healing
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 10
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Skeleton	Level 1 Horde Artillery
+        Undead	EV 3
+        <b>Stamina</b> 10	<b>Immunity</b> corruption 1, poison 1
+        <b>Speed</b> 5	<b>Size</b> 1M/<b> Stability</b> 0
+        <b>Free Strike</b> 2
+        Might 0	Agility +2	Reason +1	Intuition 0	Presence -1
+        <b>Bone Shards</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 10	<b>Target</b> One creature or object
+        %E2%9C%A6	%E2%89%A411	4 damage
+        %E2%98%85	12%E2%80%9316	6 damage
+        %E2%9C%B8	17+	7 damage
+        <b>Effect</b> Until the start of the skeleton's next turn, the target takes 2 damage the first time they move on their turn.
+
+        <b>Bone Spur</b> (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 2 Malice
+        <b>Keywords</b> Area, Weapon
+        <b>Distance</b> 1 burst<b>	Target</b> Each enemy in the burst
+        %E2%9C%A6	%E2%89%A411	1 damage; M<0 bleeding (save ends)
+        %E2%98%85	12%E2%80%9316	2 damage; M<1 bleeding (save ends)
+        %E2%9C%B8	17+	3 damage; M<2 bleeding (save ends)
+        <b>Effect</b> Each target has a bane on their next strike.
+
+        <b>Arise</b>
+        The first time the skeleton is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, they regain half their Stamina and fall prone.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+        CharacterFeature:08f89b13-2bf8-4767-af17-c7ef8fe95091: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5dfcd239-8451-4760-b966-de47ace83f71
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+          CharacterFeature:08f89b13-2bf8-4767-af17-c7ef8fe95091: true
+        name: Arise
+        resourceRefreshType: encounter
+        description: The first time the skeleton is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, theyinstead have 1 Stamina and fall prone.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            applyto: caster
+            roll: (-Stamina) + 1
+          - __typeName: ActivatedAbilityFloatTextBehavior
+            applyto: caster
+            text: Arise!
+            color: "#ffffffff"
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            applyto: caster
+            rule: prone
+          - __typeName: ActivatedAbilityRaiseCorpseBehavior
+            applyto: caster
+            restoreStamina: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: b3ebebbe-7f14-4100-a2b9-636f20cb525d
+          targetType: self
+          domains:
+            CharacterFeature:5dfcd239-8451-4760-b966-de47ace83f71: true
+            CharacterFeature:08f89b13-2bf8-4767-af17-c7ef8fe95091: true
+          conditionFormula: Damage Type != "Fire" And Damage Type != "Holy"
+          numTargets: "1"
+          trigger: zerohitpoints
+          name: Arise
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f7f65245-2933-4a45-adf9-8cfb0f6093a5
+      name: Arise
+      description: The first time the skeleton is reduced to Stamina 0 by damage that isn't fire damage or holy damage and their body isn't destroyed, theyinstead have 1 Stamina and fall prone.
+      guid: 08f89b13-2bf8-4767-af17-c7ef8fe95091
+      source: Trait
+    role: Horde Artillery
+    equipment: []
+    titles: []
+    opportunityAttack: 2
+    moveDistanceRoundId: 0be1405a-c969-46a2-8513-30b883d6d126-2
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    notes:
+    - text: ""
+      title: Monster Notes
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 69291499-5650-475f-9f94-7a40db97528a-701
+    max_hitpoints: 10
+    initiativeGrouping: 3c774d8d-3f66-416a-8882-16acc4ed68d0
+    monster_category: Monster
+    availableTriggers: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        c99583dc-24d5-47a3-a9ec-7606a7262dd7:
+          refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-2
+          note: Bone Spur
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    damage_taken: 0
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: edecec63-9a6e-4230-bb33-8de991cd6c79-3
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: 0be1405a-c969-46a2-8513-30b883d6d126-2
+        used: 1
+    deathSavingThrowFailures: 0
+    walkingSpeed: 5
+    traitNames: []
+    innateAttacks: []
+    movementSpeeds: []
+    equipmentMeta:
+      offhand0: []
+    skillRatings: []
+    monster_type: Skeleton
+    ev: 3
+  tokenType: null
+  bestiaryId: 602ac1db-482d-47f1-998a-59e6da0c0128
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Skeleton
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 7
+ctime: 1741590257954
+mtime: 1775201137032
+hidden: false

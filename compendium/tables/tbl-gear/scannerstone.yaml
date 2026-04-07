@@ -1,0 +1,23 @@
+__typeName: equipment
+id: 9091462b-42e3-4c7c-b1a3-28f01a8d62f1
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Variac
+flavor: This flat, palm-sized triangular stone is decorated with a starfield of tiny gems.
+weight: 1
+echelon: 2
+specialDescription: ""
+type: Gear
+ctime: 1774872663789
+iconid: a819f0c6-8de4-40ed-8713-d3d6c6917082
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+projectGoal: "300"
+category: Gear
+mtime: 1774872663789
+name: Scannerstone
+itemPrerequisite: piece of polished obsidian, seven flawless pea-sized diamonds
+description: When held against a wall or other solid surface 1 square thick or less, the Scannerstone creates an image floating in the air beside it that shows a rough miniature approximation of the space on the other side of the surface. The image displays floors, walls, and other barriers but doesn’t show other objects. It shows representations of any moving creatures on the other side, but not creatures who are still.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 0

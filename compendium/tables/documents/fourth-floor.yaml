@@ -1,0 +1,337 @@
+__typeName: MarkdownDocument
+annotations:
+  Party:Available Players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  image:montageimage:
+    __typeName: RichImage
+  Party:Acted Players:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Smart Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Irritable Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Smart Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Irritable Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Smart Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Irritable Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Smart Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Irritable Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Smart Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Irritable Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Smart Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Irritable Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Lonely Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Surprised Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Smart Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Irritable Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        minHeroes: 3
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 12,-14,1
+        - __usertype: LuaLoc
+          loc: 11,-12,1
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 2
+      - appearances:
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Obsessed Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Obsessed Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Obsessed Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Obsessed Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Obsessed Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Alert Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Eager Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Stout Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Obsessed Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 9,-16,1
+        - __usertype: LuaLoc
+          loc: 10,-16,1
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 2
+      - appearances:
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Bored Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Wicked Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Bored Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Wicked Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Bored Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Wicked Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Enraged Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Thoughtful Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Bored Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Wicked Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 9,-13,1
+        - __usertype: LuaLoc
+          loc: 8,-14,1
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 2
+      - appearances:
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Wretched Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"c43bb7fd-c3ba-416c-9181-447d2a363680\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Alert Zombie\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 13,-16,1
+        - __usertype: LuaLoc
+          loc: 12,-11,1
+        monsters:
+          0c566b64-d70c-4f40-b1d9-64523154e15e: 2
+  Party:Current Player:
+    __typeName: RichParty
+    partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+    state: []
+    tokensRemoved: []
+    tokensAdded: []
+id: 7eb4fa28-a6f2-431c-89bf-b3fe47634835
+ctime: 1761034793082
+textStorage:
+  __typeName: TextStorage
+  sections:
+    y: |
+      |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+    w: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+    x: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls.
+    u: |+
+      If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+    v: |
+      |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+    s: |
+      |Patience decreases by 1
+    t: |
+      |Interest increases by 1, Patience decreases by 1
+    q: |
+      |No Motivation or Pitfall: Reason, Intuition, or Presence
+    r: |
+      |Interest decreases by 1, Patience decreases by 1
+    o: |
+      |Interest increases by 1, Patience decreases by 1
+    p: |+
+      |Interest increases by 1, Patience does not change.
+
+    m: |
+      |Appeal to Motivation: Reason, Intuition, or Presence
+    n: |
+      |Patience decreases by 1
+    k: |
+      #### Pitfall Used: Automatic failure:
+    l: |2+
+       **Both Interest and Patience decrease by 1.**
+
+    i: |+
+      |Interest 0 | [Vurkor] attacks the heroes. See Mage Tower [Fourth Floor Combat]|
+
+
+    j: |+
+      [[/awardvp 1|Award Heroes 1 Victory]]
+
+
+      }
+
+
+    g: |
+      |Interest 2 | [Vurkor] agrees to let the humans in the tower go if the heroes give him a treasure that isn’t a consumable, but he refuses to let the dwarves go—their knowledge of stone work is too valuable.| 
+    h: |
+      |Interest 1 | [Vurkor] refuses to release any captives.|
+    e: |
+      |Interest 4 | [Vurkor] agrees to release the prisoners and not commit further crimes.|
+    f: |
+      |Interest 3 | [Vurkor] agrees to release the prisoners and not commit further crimes, provided the heroes give him a treasure that isn’t a consumable to help him restore the tower.|
+    c: |2+
+       If the heroes end the negotiation with Vurkor’s interest at 3 or higher, they earn 1 Victory each.
+
+
+    d: |
+      |Interest 5 | [Vurkor] agrees to release the prisoners and not commit further crimes. To prove he’s serious about the deal, Vurkor gives the heroes a recipe he found in the tower that serves as source material for crafting Mirror Tokens ([item:Mirror Token Recipe]) |
+    a: |
+      **Pitfalls**
+    b: |
+      {**Benevolence**} 
+      {
+    TZ: |
+      All Motivations & Pitfalls:
+    P: |2
+       **Interest**: 1 • **Patience**: 2 • **Impression**: 3
+    J: |
+      ## More Malevolent Magic
+    NZ: |+
+      *(see Negotiation on page 283 in [pdf:Draw Steel Heroes:283])*
+
+    TM: |+
+      PATIENCE:  [[##---]]
+      }
+
+    Y: |
+      {**Power**}
+      { 
+    Z: |+
+      Vurkor believes that magic and knowledge are power. If the heroes offer that Vurkor keep the tower in exchange for the prisoners, they appeal to this motivation. 
+      }
+
+    W: |
+      { 
+    X: "Vurkor wants to discover more secrets of the tower. While having captives could increase the rate of restoration, keeping them here is just going to draw a target on his back that keeps interrupting his work and could actually slow the discovery of secrets. Arguing that keeping captives is detrimental to his goal appeals to this motivation.\n}\n\n \n"
+    U: |2
+       **Motivations**
+    V: |
+      {**Discovery**}
+    S: |
+      {!
+    T: |
+      INTEREST:  [[#----]] 
+    Q: |2
+       Native Language: Kalliak
+      }
+    R: |2
+
+    O: |
+      **Vurkor Negotiation Stats**
+      {
+    Tm: |+
+      *Benevolence, Discovery, Freedom, Greed, Higher Authority, Justice, Legacy, Peace, Power, Protection, Revelry, Vengeance*
+
+
+    M: |
+      ## Vurkor Negotiation
+    N: |+
+      If the heroes want to negotiate for the release of the prisoners, Vurkor is willing to hear them out—though his trust and patience for these intruders is low.
+
+    K: |+
+      The floor above this has been sealed off because a malevolent magic— that kills people and turns them into zombies—has been plaguing the area. The corpses on the floor were workers who got too close to the ceiling while building the stairs. Bassa has some rudimentary skill with earth magic and with great effort and time was able to seal off the opening with stones from a distance to stem the immediate problem.
+
+    L: |
+      # Vurkor
+    I: |+
+      **Secret:** The bodies at their feet are actually six **zombies**.
+
+    bZ: "Vurkor cares little for the captives and their loved ones. If the heroes try to appeal to his empathic side (he doesn’t have one), they invoke this pitfall.\n}\n \n{\n"
+    G: |
+      {
+    H: |
+      **Vurkor** is here talking with Bassa, a **civilian** and dwarf merchant.
+    E: |
+      > * “A dwarf and an orc sit at one of the tables here, urgently discussing something.”
+    F: |+
+      > * “Six corpses lie on the floor.”
+
+    C: |
+      > * “The curving stairs leading up from this floor end before reaching the ceiling, and the opening in the ceiling that would lead to another floor has been sealed off with hastily applied stonework. The higher section of the stairs appears to have been built recently.”
+    D: |
+      > * “This chamber contains more tools and stone for mason work. It also has a living area with a bed, desk, wardrobe, and other furniture. Laboratory equipment and books are in a separate area.”
+    LZ: |2+
+       Vurkor cares nothing for the lives that have been lost as he reconstructs the tower, but he’s also no fool. He believes that he can defeat the heroes with the help of his zombies, but he’s aware the heroes must be capable combatants to have made it this far.
+      }
+
+    B: |+
+      # Fourth Floor
+
+
+parentFolder: 7cb5c634-6ed3-43bd-970d-7877c47b4772
+updateid: 4ba6b70e-fdd4-4dea-9243-c054fc13ccdc
+description: Fourth Floor
+content: |-
+  # Room 4
+
+
+  > * “The curving stairs leading up from this floor end before reaching the ceiling, and the opening in the ceiling that would lead to another floor has been sealed off with hastily applied stonework. The higher section of the stairs appears to have been built recently.”
+  > * “This chamber contains more tools and stone for mason work. It also has a living area with a bed, desk, wardrobe, and other furniture. Laboratory equipment and books are in a separate area.”
+  > * “A dwarf and an orc sit at one of the tables here, urgently discussing something.”
+  > * “Six corpses lie on the floor.”
+
+  **Vurkor** is here talking with Bassa, a **civilian** and dwarf merchant.
+  **Secret:** The bodies at their feet are actually six **zombies**.
+
+  ## More Malevolent Magic
+  The floor above this has been sealed off because a malevolent magic— that kills people and turns them into zombies—has been plaguing the area. The corpses on the floor were workers who got too close to the ceiling while building the stairs. Bassa has some rudimentary skill with earth magic and with great effort and time was able to seal off the opening with stones from a distance to stem the immediate problem.
+
+  # Vurkor
+   Vurkor cares nothing for the lives that have been lost as he reconstructs the tower, but he’s also no fool. He believes that he can defeat the heroes with the help of his zombies, but he’s aware the heroes must be capable combatants to have made it this far.
+
+  ## Vurkor Negotiation
+  If the heroes want to negotiate for the release of the prisoners, Vurkor is willing to hear them out—though his trust and patience for these intruders is low.
+
+   ## Vurkor Negotiation Stats
+
+   **Interest**: 1 • **Patience**: 2 • **Impression**: 3
+   Native Language: Kalliak
+   **Motivations**
+   **Discovery**: Vurkor wants to discover more secrets of the tower. While having captives could increase the rate of restoration, keeping them here is just going to draw a target on his back that keeps interrupting his work and could actually slow the discovery of secrets. Arguing that keeping captives is detrimental to his goal appeals to this motivation.
+   **Pitfalls**
+   **Power**: Vurkor believes that magic and knowledge are power. If the heroes offer that Vurkor keep the tower in exchange for the prisoners, they appeal to this motivation. 
+  **Benevolence:** Vurkor cares little for the captives and their loved ones. If the heroes try to appeal to his empathic side (he doesn’t have one), they invoke this pitfall.
+
+   **Interest 5**: Vurkor agrees to release the prisoners and not commit further crimes. To prove he’s serious about the deal, Vurkor gives the heroes a recipe he found in the tower that serves as source material for crafting Mirror Tokens (see Treasure in Handouts).
+   **Interest 4:** Vurkor agrees to release the prisoners and not commit further crimes.
+   **Interest 3**: Vurkor agrees to release the prisoners and not commit further crimes, provided the heroes give him a treasure that isn’t a consumable to help him restore the tower.
+   **Interest 2**: Vurkor agrees to let the humans in the tower go if the heroes give him a treasure that isn’t a consumable, but he refuses to let the dwarves go—their knowledge of stone work is too valuable. 
+  **Interest 1**: Vurkor refuses to release any captives.
+   **Interest 0**: Vurkor attacks the heroes. See Mage Tower Fourth Level in the Encounters Book.
+   If the heroes end the negotiation with Vurkor’s interest at 3 or higher, they earn 1 Victory each.
+
+  # Combat
+
+   The heroes fight Vurkor in the top level of his tower.
+
+  ## Dangerous Compounds
+
+  The tables in Vurkor's laboratory area contain dangerous chemical compounds and alchemical mixtures. A creature who is force moved into a laboratory table takes 3 acid damage, or 5 acid damage if the table breaks.
+
+  ## Bassa
+
+  Bassa, a **civilian**, is the last to act during the round. She flees to the stairs. Vurkor lets her run, knowing she can't escape the tower.
+
+  ## Tactics
+
+  If the heroes fight Vurkor, he chooses a magic-wielder, preferably another elementalist, as the target of his Rivalry trait. At the start of the encounter, the zombies animate and attack under his command. Vurkor stays behind them, using ranged attacks to harm his foes.  
+  He's careful not to harm Bassa, since he believes the dwarf will be instrumental in restoring the tower. If he becomes winded, he flees for the stairs, using Glowing Recovery to heal himself.
+
+  ## Ending the Encounter
+
+  The encounter ends when Vurkor is reduced to 0 Stamina, which causes the zombies to fall down dead.
+
+  ## Combat
+
+  Allow easy adjustment of the number of heroes to balance for:
+
+  [[setting:Number of Heroes]]
+
+  [[encounter]]
+
+  When you are ready, [Draw Steel!]
+
+  ## Aftermath and Rewards
+
+  [End Combat] once the battle is over.
+
+  The heroes gain 1 VP if they win the battle.
+
+  [[/awardvp 1|Award Victories]]
+
+  ## Loot
+   Vurkor carries source material in Variac for crafting Mirror Tokens (see Treasure in Handouts) as well as six sheets of glass and enough sunbaked gold dust to make two tokens.
+
+  If a hero touches Vurkor’s amulet, they know the item allows them to create a door in the first level of the tower (no action required). However, if someone other than Vurkor touches the amulet after his death, it also causes the tower to collapse.
+mtime: 1765833676694

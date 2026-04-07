@@ -1,0 +1,18 @@
+__typeName: CultureAspect
+mtime: 1756163883767
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      interpersonal: true
+      exploration: true
+    name: Nomadic Culture Skill
+    guid: d056a32a-fe0d-46e7-9fc9-f0fe95005af4
+    description: One skill from the exploration or interpersonal skill groups. (*Quick Build:* Navigate)
+    source: Nomadic Culture Feature
+name: Nomadic
+category: environment
+description: A nomadic culture travels from place to place to survive. Members of a nomadic culture might follow animal migrations or the weather, travel to sell their wares or services, or simply enjoy a restless lifestyle full of new experiences and peoples. Those who grow up in nomadic cultures learn to navigate the wilderness and work closely with others to survive.
+id: 184b0626-5e2d-48bd-8877-2072df0f374f
+ctime: 1730707705291

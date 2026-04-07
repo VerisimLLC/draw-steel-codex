@@ -1,0 +1,17 @@
+__typeName: CultureAspect
+mtime: 1756162984367
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      lore: true
+    name: Academic Skill
+    guid: ed9d9ac6-9a6e-4ad3-a7b0-2ee1aa1bea6e
+    description: Choose one Skill from the lore skill group. (*Quick Build:* History)
+    source: Academic Culture Feature
+name: Academic
+category: upbringing
+description: Your hero was raised by people who collect, study, and share books and other records. Some academics focus on one area of study, such as a college for wizards dedicated to the study of magic, or a church that teaches the word of one deity. People in an academic culture learn how to wield the power that is knowledge.
+id: 788c28f1-06bb-4a18-94d9-b58ba8d9af88
+ctime: 1730729901180

@@ -1,0 +1,49 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: f014eb20-67b3-434f-89a0-ecee432a41ee
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ashley
+- __typeName: RollTableRow
+  id: 7237d6f2-c6e8-40b9-b407-7c87b83573d5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Bryn
+- __typeName: RollTableRow
+  id: ba0b67ec-7e7f-4d5a-8225-e7ef5dbb6b76
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Jennet
+- __typeName: RollTableRow
+  id: 8cf0e591-6698-4078-b650-6851c3851eec
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Morgan
+- __typeName: RollTableRow
+  id: 1f823484-558c-439e-abae-6aa0d4a5f7f0
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Taran
+id: 54ba997a-14af-450f-95fc-2ab3966b4782
+name: Human Gender Neutral Names
+subtable: true
+mtime: 1743455288875
+items: false
+ctime: 1743445273657

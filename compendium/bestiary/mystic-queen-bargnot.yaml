@@ -1,0 +1,789 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: a198158e-5603-4eb2-a11d-83e0ed784584
+    offtokenPortraitId: 4656385a-37d1-47cb-9cd7-457ea199ae16
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4224904
+    portraitOffset:
+      x: -0.06537583
+      y: 0.1979248
+    frameHueShift: 0.8776676
+    frameSaturation: 0.8480262
+    frameBrightness: 0.526319
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 53a0727f-97e3-4b9c-83f8-da0f94801fea
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    inventory: []
+    inflictedConditions: []
+    keywords:
+      Mystic Goblin: true
+      Goblin: true
+      Humanoid: true
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+        baseValue: 1
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+        baseValue: 3
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+        baseValue: 2
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+        baseValue: 2
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+        baseValue: 2
+    attackNames:
+    - Medium Melee
+    - Heavy Ranged
+    monster_category: Monster
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        1bcdd1af-8697-4e8f-85af-7f87d83ee828:
+          note: "Used triggered ability: Meat Shield"
+          refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-12
+          timestamp: 1746002872698
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        14ad0010-0730-449b-b17f-5168c173a30f:
+          note: "Used triggered ability: Meat Shield"
+          refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-14
+          timestamp: 1746003750835
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        b981dcaf-51cb-4991-beb5-81f76e892b6c:
+          note: "Used triggered ability: Meat Shield"
+          refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-13
+          timestamp: 1746003110234
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    levelChoices: []
+    pr: 2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Melee: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 96
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: e9b8af60-9ff8-4c24-a369-3c0f6013845a
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage; push 1
+        - 13 damage; push 2
+        - 16 damage; push 3 or A<2 prone
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 46751e62-c6ba-4fed-b00a-f9927cf154e4
+          repeatTargets: false
+          behaviors: []
+          targetType: self
+          range: 1
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          name: Invoked Ability
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Select ally to make a free strike
+        autoTarget: false
+        abilityType: standard
+        standardAbility: 7fe11a31-aa56-4479-abe3-06c7b51da51f
+        standardAbilityParams:
+          range: "10"
+          numcreatures: "1"
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 2
+      categorization: Signature Ability
+      name: Power Axe
+      meleeRange: 1
+      description: One ally within 10 squares of Queen Bargnot can make a free strike.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      objectTarget: false
+      targetTextOverride: One ally
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetAllegiance: ally
+      targetType: target
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 96
+      range: "1"
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 7fc3c066-b0a7-4b82-904c-3e234302df17
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 41224784-4c5e-4cf2-ac91-095b649eeb01
+          repeatTargets: false
+          behaviors: []
+          targetType: self
+          range: 1
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          name: Invoked Ability
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Throw Ally up to 5 squares
+        abilityType: standard
+        standardAbility: 8010820f-6bf3-422f-985b-2af02f620113
+        standardAbilityParams:
+          distance: "5"
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        promptText: Make a Melee Free Strike
+        abilityType: standard
+        standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 2ea8b5db-3fa1-4ead-addb-934a9f6d8aea
+          repeatTargets: false
+          behaviors: []
+          targetType: self
+          range: 1
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          name: Invoked Ability
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      iconid: ui-icons/skills/1.png
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      categorization: Signature Ability
+      name: Get Out There!
+      numTargets: "1"
+      description: Queen Bargnot throws the ally up to 5 squares. The ally takes no falling damage and can make a melee free strike when they land.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetFilter: Enemy
+      targetTextOverride: " Each enemy and object in the area"
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 96
+      range: "5"
+      effectImplemented: false
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 9769d545-1986-4e16-97d6-5e089a5d8789
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; push 3 or M < 1 prone
+        - 5 damage; push 4 or M < 2 prone
+        - 8 damage; push 5 or M < 3 prone
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 65d906ae-c83a-4b57-adaf-17dc3793b9c5
+        duration: 0
+        ongoingEffectCustom: false
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      iconid: ui-icons/skills/1.png
+      numTargets: 1
+      categorization: Villain Action
+      name: Oversurge
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        multicharge: false
+        resourceid: f04bb57a-3386-421c-b453-c050cee0b0db
+      description: Queen Bargnot is dazed until the end of her turn
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetFilter: enemy
+      targetTextOverride: One enemy or object
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 96
+      range: 10
+      effectImplemented: false
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: fbfffc86-ab01-4558-ac24-df805a64b51d
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          targetFilter: enemy
+          guid: cc159a24-10f2-410d-b96e-29e6e4b8b0cf
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            namedAbility: Move Speed
+            promptText: Move speed toward the target
+            autoTarget: false
+            filterTarget: Target != Invoker
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: d6477838-6287-42a1-bd82-f392ac865e1c
+              repeatTargets: false
+              behaviors: []
+              targetType: self
+              range: 1
+              display:
+                brightness: 1
+                bgcolor: "#ffffffff"
+                hueshift: 0
+                saturation: 1
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          targetType: all
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          name: Focus Fire
+          abilityType: none
+          description: ""
+          range: "10"
+          iconid: ui-icons/skills/1.png
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      iconid: ui-icons/skills/1.png
+      numTargets: 1
+      categorization: Villain Action
+      name: Focus Fire
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        multicharge: false
+        resourceid: bf939a61-03f1-49fe-b4e5-38f41177c836
+      description: Each ally within 10 squares of the target can move up to their speed toward the target.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: enemy
+      targetTextOverride: Special
+      repeatTargets: false
+      rangeTextOverride: Special
+      targetType: map
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 96
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        filterTarget: Target.Count Nearby Creature(1, "mystic goblin") < 1
+        roll: 2*Target.Count Nearby Creatures(1,"Goblin")
+        separateRolls: true
+        titleText: Kill Them All!
+        chatMessage: Kill Them All!
+      - __typeName: ActivatedAbilityDamageBehavior
+        filterTarget: Target.Count Nearby Creature(1, "mystic goblin") > 0
+        separateRolls: true
+        roll: 4*Target.Count Nearby Creature(1, "mystic goblin")
+        guid: 05af91a7-f6fd-44ad-94a0-32f3b2cb849e
+        titleText: Kill Them All!
+        chatMessage: Kill Them All!
+      strain: []
+      guid: f742e90b-fe14-4972-b2f4-40608b9c35e9
+      keywords: []
+      iconid: 7960d94e-8d18-4fa2-984d-126de8590736
+      numTargets: "1"
+      categorization: Villain Action
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      name: Kill Them All!
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        multicharge: false
+        resourceid: e3273cf8-648f-49c1-8fed-e8bcd93083d5
+      description: Each enemy in the encounter takes 2 damage for each goblin adjacent to them, or 4 damage for each mystic goblin adjacent to them.
+      abilityType: none
+      implementation: 3
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        264d1158-b234-4272-a716-20ca1128783f:
+          note: Purged condition
+          timestamp: 1742893132266
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          disposition: bad
+          set: 75
+    minion: false
+    stability: 1
+    ev: 20
+    import:
+      override: true
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    role: Leader
+    opportunityAttack: 5
+    equipment: []
+    classes: []
+    traitNames: []
+    resistances: []
+    skillRatings: []
+    notes:
+    - title: Monster Notes
+      text: ""
+    max_hitpoints: 120
+    titles: []
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    initiativeGrouping: fec0f2d5-203e-489d-a086-0920f2e70e87
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:9fc703ad-c01f-41fc-a8e0-232a8a5294a8: true
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 532ff28e-d824-49c4-b639-4093510df84c
+          repeatTargets: false
+          name: End Effect
+          trigger: endturn
+          targetType: self
+          numTargets: "1"
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            purgeType: one
+            damageToSelf: "5"
+            targetDuration: save
+          description: At the end of each of her turns, Queen Bargnot can take 5 damage to end one effect on her that can be ended by a saving throw. This damage can’t be reduced in any way.
+          range: 1
+          iconid: ui-icons/skills/1.png
+        behavior: trigger
+        source: Trait
+        name: End Effect
+        guid: 00ef491b-b682-4150-8d5a-dfda09a69f44
+        sourceguid: 9fc703ad-c01f-41fc-a8e0-232a8a5294a8
+        description: At the end of each of her turns, Queen Bargnot can take 5 damage to end one effect on her that can be ended by a saving throw. This damage can’t be reduced in any way.
+      source: Trait
+      description: At the end of each of her turns, Queen Bargnot can take 5 damage to end one effect on her that can be ended by a saving throw. This damage can’t be reduced in any way.
+      guid: 9fc703ad-c01f-41fc-a8e0-232a8a5294a8
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+        CharacterFeature:7b318888-9c8d-4973-ae38-fdcefaf746c5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        domains:
+          CharacterFeature:7b318888-9c8d-4973-ae38-fdcefaf746c5: true
+        name: Cunning
+        behavior: attribute
+        description: The Queen Bargnot doesn’t provoke opportunity attacks by moving. Whenever the Queen Bargnot is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the Queen Bargnot can use a triggered action to make an opportunity attack against the enemy.
+        value: 1
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+          CharacterFeature:7b318888-9c8d-4973-ae38-fdcefaf746c5: true
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          mandatory: false
+          range: 1
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 415e5fe2-a956-4f74-a0ac-619d0cba684c
+              repeatTargets: false
+              behaviors: []
+              targetType: self
+              range: 1
+              display:
+                brightness: 1
+                bgcolor: "#ffffffff"
+                hueshift: 0
+                saturation: 1
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+            abilityType: standard
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: bbaa0031-bfe4-4a85-a9a5-6de2f8bdf92f
+          name: Cunning
+          abilityType: none
+          conditionFormula: 0 {Should this always be manual?}
+          numTargets: "1"
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          trigger: finishmove
+          domains:
+            CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+            CharacterFeature:7b318888-9c8d-4973-ae38-fdcefaf746c5: true
+          description: The Queen Bargnot doesn’t provoke opportunity attacks by moving. Whenever the Queen Bargnot is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the Queen Bargnot can use a triggered action to make an opportunity attack against the enemy.
+          subject: self
+          iconid: ui-icons/skills/1.png
+        behavior: trigger
+        source: Trait
+        name: Cunning
+        guid: 24eaa045-059a-4a39-8482-d2c22e47175e
+        sourceguid: e89248a7-dfeb-4824-96c0-b3e10bb9baf9
+        description: The Queen Bargnot doesn’t provoke opportunity attacks by moving. Whenever the Queen Bargnot is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the Queen Bargnot can use a triggered action to make an opportunity attack against the enemy.
+      source: Trait
+      description: The Queen Bargnot doesn’t provoke opportunity attacks by moving. Whenever the Queen Bargnot is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the Queen Bargnot can use a triggered action to make an opportunity attack against the enemy.
+      guid: 7b318888-9c8d-4973-ae38-fdcefaf746c5
+      name: Cunning
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:461b7e30-8305-47e2-a699-f7d91989a7ff: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:461b7e30-8305-47e2-a699-f7d91989a7ff: true
+        sourceguid: 461b7e30-8305-47e2-a699-f7d91989a7ff
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Show Them Your Might!
+        description: ""
+        guid: a7a673cc-42f1-45f3-8ec4-2bf627db1aad
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One ally
+          effect: The target of this ability becomes the target of the triggering strike, and Queen Bargnot can shift 1 square.
+          trigger: A creature targets Queen Bargnot with a strike
+          name: Show Them Your Might!
+          guid: a0f0f95f-4439-4434-ad7e-e3d4d6323c14
+          distance: Melee 1
+          keywords:
+            Melee: true
+      - __typeName: CharacterModifier
+        sourceguid: 461b7e30-8305-47e2-a699-f7d91989a7ff
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          behavior: power
+          source: Trigger
+          name: Show Them Your Might!
+          guid: d482acbd-54b0-4f81-b9cf-d10b68e32d57
+          modtype: none
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 1a2ed8d3-f576-4edf-a7af-3b4c69120750
+            repeatTargets: false
+            name: New Ability
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            display:
+              brightness: 1
+              bgcolor: "#ffffffff"
+              hueshift: 0
+              saturation: 1
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 8e4c8eec-065f-401c-b003-68efcb901d74
+                repeatTargets: false
+                behaviors: []
+                targetType: self
+                range: 1
+                display:
+                  brightness: 1
+                  bgcolor: "#ffffffff"
+                  hueshift: 0
+                  saturation: 1
+                name: Invoked Ability
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                distance: "1"
+              abilityType: standard
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          activationCondition: false
+          rollType: ability_power_roll
+          rules: ""
+          description: The target of this ability becomes the target of the triggering strike, and Queen Bargnot can shift 1 square.
+          changeTargetFilter: Friends(Trigger, Target)
+          changeTarget: true
+        guid: 15c87db5-bd68-4d6e-aede-3b795f7bbd06
+        behavior: powertabletrigger
+        domains:
+          CharacterFeature:461b7e30-8305-47e2-a699-f7d91989a7ff: true
+        targetType: self
+        name: Show Them Your Might!
+        trigger: strike
+        rules: The target of this ability becomes the target of the triggering strike, and Queen Bargnot can shift 1 square.
+        description: ""
+        range: 10
+        type: trigger
+      source: Character Feature
+      description: ""
+      guid: 461b7e30-8305-47e2-a699-f7d91989a7ff
+      name: Show Them Your Might!
+      implementation: 3
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      offhand0: []
+      trinket10: []
+      trinket6: []
+      leveled4: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      trinket9: []
+      trinket3: []
+      trinket7: []
+      leveled3: []
+      trinket1: []
+      trinket8: []
+    monster_type: Mystic Queen Bargnot
+    damage_taken: 0
+    damage_entry:
+      damage: 5
+      id: fd22df73-d385-463a-a74d-4e6e683268b8
+    walkingSpeed: 7
+    animations:
+      anim:
+      - animType: consumeResource
+        resources:
+          b9bc06dd-80f1-4f33-bc55-25c114e3300c: 1
+      guid: cea63eb0-8159-44ce-8054-5884bd7f0646-1540
+    creatureSize: 1L
+    preferRanged: true
+    availableTriggers: []
+    movementSpeeds:
+      climb: 6
+    fmr: 1
+    resources:
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 91856064-631f-47f2-94b0-bedc0a59ae71-14
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 6b664e6a-dfec-43ff-84b8-a10ef513265a-1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        9c9cffd3-2a6b-4f9c-b34c-2dbbc40e32ba:
+          note: Get in Here!
+          refreshid: 6b664e6a-dfec-43ff-84b8-a10ef513265a-1
+          timestamp: 1741497869963
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries:
+        16ad3857-41ce-4a03-8211-a7eb8d4b9b5e:
+          note: Get in Here!
+          refreshid: ""
+          timestamp: 1741497869963
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0
+  tokenType: null
+  bestiaryId: 85809da7-eae3-4365-b388-f1f678e91ab3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1715748088616
+description: null
+parentFolder: 116486c1-2208-4bb6-a244-b13ffe9d7ead
+artist: null
+ord: 3
+ctime: 1763582299169
+mtime: 1763582373764
+hidden: false

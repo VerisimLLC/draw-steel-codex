@@ -1,0 +1,78 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: While you are winded. your head transforms into a dragon's head and you can breathe fire.
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: Self.Winded
+    sourceguid: 0711b47d-55bf-4cb4-b93e-7659a8458e87
+    description: While you are winded. your head transforms into a dragon's head and you can breathe fire.
+    source: Dragon Soul II Imbuement
+    name: Dragon Soul II
+    behavior: activated
+    guid: 1875e134-e3b8-4a18-9027-a74dc854d3fc
+    activatedAbility:
+      __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetAllegiance: enemy
+      targetType: line
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.104500293731689
+          s: 0.74511730670929
+          v: 0.865801990032196
+          a: 1
+      flavor: You open your maw and unleash hell.
+      range: "5"
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: 06d0178a-d85f-4a87-873a-808ba9ab56c4
+      radius: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 fire damage
+        - 8 fire damage
+        - 11 fire damage
+        roll: 2d10 + Highest Characteristic
+      domains: []
+      lineDistance: "1"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Dragon Soul II
+      persistence: []
+      description: ""
+      abilityType: none
+      iconid: 174384e2-ce22-49f3-b6ef-59269c491e1f
+  source: Dragon Soul II Imbuement
+  name: Dragon Soul II
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 0711b47d-55bf-4cb4-b93e-7659a8458e87
+id: fbee3c7d-1532-4f53-bd8b-c637186af501
+imbuePrereq: 41ed6a4a-0506-4f59-b625-9041d392d604
+projectSource: Vastariax
+imbueLevel: 9
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: An offering of gems, coins, and art stolen from a dragon’s hoard, sacrificed in ritual fire
+mtime: 1774269202097
+name: Dragon Soul II
+imbueTargetType: armor
+description: "While you are winded, your head transforms into a dragon's head and you have the following ability. Dragon's Fire: You open your maw and unleash hell. Area, Magic Main action o 5 %C3%97 1 line within 1 x Each enemy in the area Power Roll + Your Highest Characteristic Score: %C3%A1 5 fire damage %C3%A9 8 fire damage %C3%AD 11 fire damage"
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

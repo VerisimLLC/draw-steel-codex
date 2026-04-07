@@ -1,0 +1,196 @@
+__typeName: MarkdownDocument
+annotations:
+  "Encounter: D10":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 1,-6,1
+        - __usertype: LuaLoc
+          loc: 0,-6,1
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          e6d16a5e-4abb-40cf-8e9e-e1f730b919b3: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,-6,1"
+        - __usertype: LuaLoc
+          loc: "-4,-5,1"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          e6d16a5e-4abb-40cf-8e9e-e1f730b919b3: 2
+      - appearances:
+        - false
+        - false
+        monsters:
+          e6d16a5e-4abb-40cf-8e9e-e1f730b919b3: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 4,-3,1
+        - __usertype: LuaLoc
+          loc: 4,-5,1
+        invisibleToPlayers:
+        - false
+        - false
+        minHeroes: 4
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 6,-4,1
+        - __usertype: LuaLoc
+          loc: 6,-3,1
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          4427f474-b4e8-4b22-acd7-316f55ceb2e3: 2
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 1,-1,1
+        - __usertype: LuaLoc
+          loc: 2,-2,1
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          4427f474-b4e8-4b22-acd7-316f55ceb2e3: 2
+      - appearances: []
+        monsters:
+          4427f474-b4e8-4b22-acd7-316f55ceb2e3: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-3,-3,1"
+        - __usertype: LuaLoc
+          loc: "-2,-2,1"
+        invisibleToPlayers: []
+        minHeroes: 5
+      - appearances: []
+        monsters:
+          e6d16a5e-4abb-40cf-8e9e-e1f730b919b3: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-6,-3,1"
+        - __usertype: LuaLoc
+          loc: "-4,-1,1"
+        invisibleToPlayers: []
+        minHeroes: 6
+      name: Encounter D10
+id: a211cdd2-e4bc-4374-8c04-cf48151b37ba
+ctime: 1761751229815
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |
+      **Encounter Adjustments**
+    W: |+
+      |6|Two [imit putties](imit putty)|
+
+    U: |
+      |5|Two [imit putties](imit putty)|
+    w: |
+      [[/awardvp 1 |Award Heroes 1 Victory]]
+    S: |
+      |4|Two [imit putties](imit putty)|
+    t: |
+      When the heroes outnumber the oozes two to one, the remaining oozes flee and the heroes earn 1 Victory each.
+    Q: |
+      |3|Two [creeping sludge]s|
+    q: |+
+      ## Ending the Encounter
+
+    O: |
+      |2|Two [creeping sludge]s|
+    k: |+
+      The creeping sludges at the bottom of the pit can reach the top with their abilities. They try to pull any heroes who are hanging from the ledge down into the pit. Meanwhile, the other oozes fall from the ceiling and attack the nearest creature. If the pit is shut with just oozes inside, the creeping sludges inside climb the walls and try to break out of the pit when combat begins.
+
+    M: |
+      |1|Two [creeping sludge]s|
+    n: |+
+      The oozes spend Malice on the imit putty's Uncanny Impression ability to mimic powerful melee warriors. When positioned to target multiple creatures, the creeping sludges use Oozen Grasp.
+
+
+    K: |
+      |Group|Creatures|
+    i: |+
+      ## Tactics
+
+    I: |
+      **D10 Groups**
+    g: |+
+      * For three heroes, remove two creeping sludges from the ceiling and two imit putties.
+
+
+    G: |+
+      [[Encounter: D10]]
+
+    H: |+
+      [[/activateobjects E10_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects E10_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    E: |+
+      The heroes face oozes as they enter the third level of the Delian Tomb.
+
+    F: |+
+      [[setting:Number of Heroes]]
+
+    c: |
+      * For six heroes, add two creeping sludges.
+    e: |
+      * For four heroes, remove two imit putties.
+    a: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    C: |
+      # Encounter D10	
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 80cdf679-c607-49c0-8a8d-ae07a53ca705
+mtime: 1768853964375
+content: |
+  # Encounter D10	
+  The heroes face oozes as they enter the third level of the Delian Tomb.
+
+  [[Encounter: D10]]
+
+  **D10 Groups**
+  |Group|Creatures|
+  |1|Two creeping sludges|
+  |2|Two creeping sludges|
+  |3|Two creeping sludges|
+  |4|Two imit putties|
+  |5|Two imit putties|
+  |6|Two imit putties|
+
+  **Encounter Adjustments**
+  If this encounter has more or fewer than five heroes, make the following adjustments:
+  * For six heroes, add two creeping sludges.
+  * For four heroes, remove two imit putties.
+  * For three heroes, remove two creeping sludges from the ceiling and two imit putties.
+
+
+  ## Tactics
+
+  The creeping sludges at the bottom of the pit can reach the top with their abilities. They try to pull any heroes who are hanging from the ledge down into the pit. Meanwhile, the other oozes fall from the ceiling and attack the nearest creature. If the pit is shut with just oozes inside, the creeping sludges inside climb the walls and try to break out of the pit when combat begins.
+
+  The oozes spend Malice on the imit putty's Uncanny Impression ability to mimic powerful melee warriors. When positioned to target multiple creatures, the creeping sludges use Oozen Grasp.
+
+
+  ## Ending the Encounter
+
+  When the heroes outnumber the oozes two to one, the remaining oozes flee and the heroes earn 1 Victory each.
+  [[/awardvp 1 |Award Heroes 1 Victory]]
+description: Encounter D10

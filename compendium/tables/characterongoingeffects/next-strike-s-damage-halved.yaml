@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.358974367380142
+    s: 0.915492951869965
+    v: 0.835294127464294
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 89485ff3-5f84-41d0-9ef5-e737419874e9
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Strike: true
+  activationCondition: true
+  behavior: power
+  damageMultiplier: half
+  name: Next Strike's Damage Halved
+  domains:
+    CharacterOngoingEffect:89485ff3-5f84-41d0-9ef5-e737419874e9: true
+  description: The next strike from this creature will have any damage halved
+  rollType: ability_power_roll
+  guid: 916aa656-61d9-4294-8c30-09589373bab7
+source: Ongoing Effect
+iconid: e50fb78c-962f-489f-a7bb-287db3d5b640
+guid: 89485ff3-5f84-41d0-9ef5-e737419874e9
+id: 89485ff3-5f84-41d0-9ef5-e737419874e9
+ctime: 1763629486378
+domains:
+  CharacterOngoingEffect:89485ff3-5f84-41d0-9ef5-e737419874e9: true
+description: The next strike from this creature will have any damage halved
+sustainFormula: not Ability.Keywords has "strike"
+endTrigger: attack
+name: Next Strike's Damage Halved
+custom: true
+mtime: 1763629871213
+implementation: 3

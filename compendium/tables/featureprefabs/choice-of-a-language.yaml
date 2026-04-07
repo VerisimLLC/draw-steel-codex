@@ -1,0 +1,11 @@
+__typeName: CharacterFeaturePrefabs
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterLanguageChoice
+    guid: dd4749a1-f74e-4196-8485-f4409ca954f7
+    source: Character Feature
+name: Choice of a Language
+mtime: 1737350562971
+id: 0f4764a1-4eb3-4106-9e9f-2ba69ef72352
+ctime: 1737350562971

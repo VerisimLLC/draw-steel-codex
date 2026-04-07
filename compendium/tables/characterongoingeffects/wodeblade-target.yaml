@@ -1,0 +1,25 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: set
+guid: 7f39357e-8f7d-4304-a3fd-8c5c954fb768
+id: 7f39357e-8f7d-4304-a3fd-8c5c954fb768
+ctime: 1769606683263
+domains:
+  CharacterOngoingEffect:7f39357e-8f7d-4304-a3fd-8c5c954fb768: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00101006031036
+    v: 1.00115871429443
+    a: 1
+name: Wodeblade Target
+custom: true
+description: This will be a target of the Wode Elf Warleader Wodeblade ability later in the turn.
+mtime: 1769608912243
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce

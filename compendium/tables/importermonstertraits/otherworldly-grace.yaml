@@ -1,0 +1,10 @@
+__typeName: CharacterFeature
+modifiers: []
+source: Monster
+guid: ff5dfcec-2faa-4faf-b1b8-d5b55cf9df28
+importMatch: At the start of each of their turns, the weatherwise can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+ctime: 1771874802557
+name: Otherworldly Grace
+description: ""
+id: ea23971f-272d-473d-ba99-375653d385a2
+mtime: 1774923627758

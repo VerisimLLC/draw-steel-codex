@@ -1,0 +1,195 @@
+__typeName: MarkdownDocument
+annotations:
+  scene:
+    __typeName: RichScene
+    identifier: false
+    image: 813d5637-6cd2-47b1-b9b9-9e52375e61b0
+id: 8a7a271f-2e0a-4734-9d33-c4680f84861b
+ctime: 1757238048643
+textStorage:
+  __typeName: TextStorage
+  sections:
+    YW: |
+      > * “Every test has three possible outcomes. A total of an 11 or less is the worst possible total you can get on test. A total of 12 to 16 is the second-best outcome. A total of 17 or more is pretty much the best.”
+    jh: |
+      *When all the player characters have been moved over and you are ready to continue, you may hide the scene again*
+    FD: |
+      *Make sure Ashleigh is here too.*
+    HF: |+
+      After chatting with [Ashleigh] as she leads them into the Silver Wood, give the heroes the following information:
+
+    US: |
+      > * “One more thing—check out your skills. If you have the Alertness skill, you get to add an additional +2 bonus to the test result.”
+    SQ: |
+      > * “Whenever you make a test or any other kind of power roll, you also get to add one of your characteristic scores based on the test you’re making. For example, you use Might to attempt Might-based tasks, such as climbing a wall or leaping over a chasm, and Presence to influence other people with your force of personality.”
+    lj: |+
+      ## Player Starting Area
+
+    hf: |
+      |##### Tests After Part 1|
+    db: |
+      |{#The goblins notice the heroes before the heroes notice them, and the goblins act first during the Goblin Guards Encounter.} 
+    wo: |+
+      [[//slowstartlevel 1; setvar slowstart 1|Slow Start: Set Heroes to Encounter 1]] [[//slowstartlevel 2; slowstartlevel 3;slowstartlevel 4;slowstartlevel 5;setvar slowstart 0|Fast Start: Set Heroes to Level 1]]
+
+
+    OM: |
+      ## Searching for Goblins
+    MK: |
+      |##### Do We Know This Place?|
+    QO: |
+      > * “Ashleigh’s warning is enough to make you all alert for danger as you head toward the tomb. It’s time to make your first test.”
+    aY: |+
+      > * “You won’t always make tests as a group like this. It depends on who is tackling a task. In this case, the hero with the highest total determines the outcome for the group.”
+
+    qn: |+
+      |The “Hero Start” zone on each map is meant to help you start combat quickly and in a place that provides a fun but not impossible challenge for the heroes to win the day. However, feel free to have one or more heroes start outside that zone if you think their actions before combat begins warrant it.|
+
+
+    XV: |
+      After each player gives you their total, continue with this explanation:
+    EC: |+
+      ***Codex Note:** When you're ready to bring the players to this map, right-click on the location you want to bring them to and select **Move Character Here**. You probably want to put them in the starting area (see below).*
+
+    IG: |
+      > * “After about an hour of travel through the birch trees of the Silver Wood north of Broadhurst, Ashleigh leads you off the road and down a small, overgrown footpath. She stops you just ahead of where the path opens into a clearing.”
+    ge: |+
+      *[Explaining Combat]*
+
+
+    ZX: |
+      > * “The severity of each outcome is determined by the test’s overall difficulty. Sometimes getting an 11 or less will still result in you accomplishing what you set out to do, but it may cost you. Other times the result is a failure. It all depends on the task at hand.”
+    VT: |
+      > * “Whenever you make a test if you have a skill that you think applies, let me know. For example, if you’re climbing a wall, the Climb skill definitely applies. You can only apply one skill per test and when you do, that test gains a +2 bonus. Skills are only applied to tests, not ability power rolls, which we’ll learn about shortly.”
+    WU: |+
+      > * “Add it all up. The total of the two ten-sided dice plus your Intuition score plus another 2 if you have the Alertness skill. What did you all get?”
+
+    ec: |
+      |{#The heroes and goblins notice each other at the same time. }{The heroes must roll to see which side acts first (see Draw Steel! in Explaining Combat).}
+    om: |
+      |##### Hero Start … More a Guideline|
+    TR: |
+      > * “In this case you’re going to add your Intuition score to the roll. Intuition represents your worldly experience, instincts, and senses.”
+    so: |+
+      ## Slow Start?
+
+    ki: |+
+      :<>[[scene]]
+
+
+    NL: |+
+      |If the players ask if their heroes know anything about the tomb, ask if any of them have the History skill, which can be found on their hero’s character sheet under Skills. Heroes who have the skill can tell that the tomb was built long ago during the Caelian Empire, a dead civilization that stretched across the land that is now Dalrath, and that Delius is a proper name, likely the name of someone interred in the crypt.|
+
+
+    ca: |
+      |Notice the Goblin Guards: Intuition Test (Alertness)
+    mk: |+
+      The players start in the marked region. You can adjust this as necessary depending on how they approached the situation.
+
+    GE: |+
+      :<>[[/spawn Ashleigh 0 -12;showtoken Ashleigh;| Spawn Ashleigh]]
+
+    ig: |+
+      |In parts 2 and 3 of this adventure, there may be times that you wish to call for a test that isn’t detailed in text because it’s not something we (the authors) thought the heroes would do. After part 1, you can find guidance about tests in the Starter Rules, including when to call for a test and how to create and interpret the results of a test on the fly.|
+
+
+    KI: |+
+      > * “Ashleigh points to the door and whispers, ‘That’s where they took her.’”
+
+    RP: |
+      > * “To make a test, roll 2d10 and add the results together. The higher the total, the better your hero is at accomplishing the task!”
+    LJ: |+
+      {**Secret:** When there’s information about an area that you should know but the players should not, it says “Secret:” in front of it. What the heroes don’t know is that there are six goblin warriors hiding outside the tomb entrance, ready to attack intruders.}
+
+
+    nl: |+
+      [[/activateobjects zone.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects zone.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    bZ: |+
+      Use the highest total to interpret the results.
+
+    CA: |2
+
+    PN: |
+      Before the heroes head into the clearing, you’re going to ask them each to make a test by providing the following information:
+    JH: |
+      > * “A mossy, stone doorway opens to stairs leading down into the earth. Deep carved letters at the top of the doorway announce the name ‘Delius.’”
+    yp: |+
+      Once you have made a selection, proceed to the [Goblin Guards Combat], by clicking on the tab on the right, the Info Bubble (2) on the map, or the highlighted text, to run the encounter.
+
+
+    DB: |+
+      This part of the adventure takes place on the [Goblin Guardians] Map.
+
+    uo: |+
+      This adventure assumes that you are playing for the first time with the pregenerated characters. They are built in such a way as to slowly give the players one set of features at a time. If your group is experienced with *Draw Steel* already, then you may choose to forgo the Encounter based leveling and simply start at Level 1. Note that the first few encounters were designed with the Starter Heroes in mind. 
+
+    fd: |
+      |{#The heroes notice the goblins before the goblins notice them, and the heroes act first.} 
+    B: |
+      # Part 1: Into the Tomb
+parentFolder: 05ac910d-c832-46cc-8ca6-449bde0d4969
+updateid: 7e551139-6314-4d04-9e28-f39e01d69444
+mtime: 1764192145059
+content: |+
+  # Part 1: Into the Tomb
+
+  **Codex Note:** When you're ready to bring the players to this map, right-click on the location you want to bring them to and select **Move Character Here**. You probably want to put them in the starting area (see below).
+
+  After chatting with [Ashleigh] as she leads them into the Silver Wood, give the heroes the following information:
+
+  > * “After about an hour of travel through the birch trees of the Silver Wood north of Broadhurst, Ashleigh leads you off the road and down a small, overgrown footpath. She stops you just ahead of where the path opens into a clearing.”
+  > * “A mossy, stone doorway opens to stairs leading down into the earth. Deep carved letters at the top of the doorway announce the name ‘Delius.’”
+  > * “Ashleigh points to the door and whispers, ‘That’s where they took her.’”
+
+  {**Secret:** When there’s information about an area that you should know but the players should not, it says “Secret:” in front of it. What the heroes don’t know is that there are six goblin warriors hiding outside the tomb entrance, ready to attack intruders.}
+
+
+  |##### Do We Know This Place?|
+  |If the players ask if their heroes know anything about the tomb, ask if any of them have the History skill, which can be found on their hero’s character sheet under Skills. Heroes who have the skill can tell that the tomb was built long ago during the Caelian Empire, a dead civilization that stretched across the land that is now Dalrath, and that Delius is a proper name, likely the name of someone interred in the crypt.|
+
+
+  ## Searching for Goblins
+  Before the heroes head into the clearing, you’re going to ask them each to make a test by providing the following information:
+  > * “Ashleigh’s warning is enough to make you all alert for danger as you head toward the tomb. It’s time to make your first test.”
+  > * “To make a test, roll 2d10 and add the results together. The higher the total, the better your hero is at accomplishing the task!”
+  > * “Whenever you make a test or any other kind of power roll, you also get to add one of your characteristic scores based on the test you’re making. For example, you use Might to attempt Might-based tasks, such as climbing a wall or leaping over a chasm, and Presence to influence other people with your force of personality.”
+  > * “In this case you’re going to add your Intuition score to the roll. Intuition represents your worldly experience, instincts, and senses.”
+  > * “One more thing—check out your skills. If you have the Alertness skill, you get to add an additional +2 bonus to the test result.”
+  > * “Whenever you make a test if you have a skill that you think applies, let me know. For example, if you’re climbing a wall, the Climb skill definitely applies. You can only apply one skill per test and when you do, that test gains a +2 bonus. Skills are only applied to tests, not ability power rolls, which we’ll learn about shortly.”
+  > * “Add it all up. The total of the two ten-sided dice plus your Intuition score plus another 2 if you have the Alertness skill. What did you all get?”
+
+  After each player gives you their total, continue with this explanation:
+  > * “Every test has three possible outcomes. A total of an 11 or less is the worst possible total you can get on test. A total of 12 to 16 is the second-best outcome. A total of 17 or more is pretty much the best.”
+  > * “The severity of each outcome is determined by the test’s overall difficulty. Sometimes getting an 11 or less will still result in you accomplishing what you set out to do, but it may cost you. Other times the result is a failure. It all depends on the task at hand.”
+  > * “You won’t always make tests as a group like this. It depends on who is tackling a task. In this case, the hero with the highest total determines the outcome for the group.”
+
+  Use the highest total to interpret the results.
+
+  |Notice the Goblin Guards: Intuition Test (Alertness)
+  |{#The goblins notice the heroes before the heroes notice them, and the goblins act first during the Goblin Guards Encounter.} 
+  |{#The heroes and goblins notice each other at the same time. }{The heroes must roll to see which side acts first (see Draw Steel! in Explaining Combat).}
+  |{#The heroes notice the goblins before the goblins notice them, and the heroes act first.} 
+  *[Explaining Combat]*
+
+
+  |##### Tests After Part 1|
+  |In parts 2 and 3 of this adventure, there may be times that you wish to call for a test that isn’t detailed in text because it’s not something we (the authors) thought the heroes would do. After part 1, you can find guidance about tests in the Starter Rules, including when to call for a test and how to create and interpret the results of a test on the fly.|
+
+
+  ## Player Starting Area
+
+  The players start in the marked region. You can adjust this as necessary depending on how they approached the situation.
+
+  [[/activateobjects zone.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects zone.AreaTemplate deactivate|Hide Hero Start Area]]
+
+  |##### Hero Start … More a Guideline|
+  |The “Hero Start” zone on each map is meant to help you start combat quickly and in a place that provides a fun but not impossible challenge for the heroes to win the day. However, feel free to have one or more heroes start outside that zone if you think their actions before combat begins warrant it.|
+
+
+  Proceed to the [Goblin Guards Combat] to run the encounter.
+
+
+
+
+description: Arrival

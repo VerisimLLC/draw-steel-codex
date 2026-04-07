@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: Whenever you make a test in combat and incur a consequence, you ignore that consequence. Instead, you and each ally adjacent to you fall prone.
+mtime: 1755624051728
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Curse of Misfortune
+ctime: 1755513612455
+description: You should have never pissed off that mage! Maybe they deserved your ire, or maybe you were just being a bully. But whatever the case, they cursed you before skipping town. Now, in moments of pressure that require great skill, you have a tendency to choke, falling and flailing in such a dramatic fashion that you take everyone else with you.
+id: 79382c35-8523-42de-ad4c-f616ff3cfb48
+benefit: Whenever you make a test in combat and incur a consequence, you ignore that consequence. Instead, you and each ally adjacent to you fall prone.

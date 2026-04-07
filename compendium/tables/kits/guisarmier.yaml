@@ -1,0 +1,64 @@
+__typeName: Kit
+stability: 1
+armor: Medium
+health: 6
+id: 4e35cff7-1a22-4364-ae56-b2664574bf44
+weapons:
+  Polearm: true
+reach: 1
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Guisarmier
+description: The Guisarmier kit is for those who want to use a polearm for extended reach and still gain the extra protection of armor. This is the kit that allows you to become the ultimate halberd, longspear, or glaive fighter.
+type: martial
+kitManeuver: false
+imported: 8584aa2d-f32d-4f2e-9d5f-01d77504387d
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 4 damage
+    - 7 damage
+    - 9 damage
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  flavor: In your hands, the haft is as good as the head.
+  sourceReference:
+    __typeName: SourceReference
+    page: 220
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 2
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 1c137292-5823-46aa-8a6c-03fd1937f1bd
+  categorization: Signature Ability
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  targetType: target
+  implementation: 4
+  name: Forward Thrust, Backward Smash
+  numTargets: 2
+  description: ""
+  abilityType: none
+  iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9
+mtime: 1770985455025
+equipmentDescription: You wear medium armor and wield a polearm.
+portraitid: "-MDmHMtUE1H_p4JJEGU3"

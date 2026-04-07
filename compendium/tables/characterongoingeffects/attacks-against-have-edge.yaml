@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 2e1612bc-c652-4aae-a060-36a557ca20c3
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Attacks against have edge
+  guid: b3b8d444-a7d8-40e0-8759-85cb66e25841
+  description: ""
+  modtype: edge
+  rollType: enemy_ability_power_roll
+source: Ongoing Effect
+guid: 2e1612bc-c652-4aae-a060-36a557ca20c3
+id: 2e1612bc-c652-4aae-a060-36a557ca20c3
+ctime: 1767505775362
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Attacks against have edge
+description: ""
+custom: true
+mtime: 1767505775362
+iconid: ui-icons/skills/1.png

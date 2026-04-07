@@ -1,0 +1,32 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 3c98cb9b-ebad-4fb2-ae2b-a05a6300567f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Do Not Pray
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: adventureTables
+      key: 2dd5cb43-f6de-4ec9-a388-e4a990c4b709
+- __typeName: RollTableRow
+  id: 4ab0ab5d-1d8c-43d6-bcf2-c02a851dab56
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Pray
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: adventureTables
+      key: 2fb998b9-5924-46b5-927a-c97d8a66d391
+rollType: namedChoice
+name: Conduit Prayer Choice
+mtime: 1741928283230
+id: bec51cc1-df56-4913-9785-45bde55e672f
+ctime: 1741928283230

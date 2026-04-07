@@ -1,0 +1,82 @@
+__typeName: CharacterOngoingEffect
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 7cdb18c7-4069-41b8-8a37-abe396d985da
+    repeatTargets: false
+    range: 5
+    conditionFormula: Conditions Has "Restrained"
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "5"
+    targetType: self
+    name: Net On Fire
+    trigger: beginround
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: Take ongoing 5 fire damage while restrained.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 59a80ef1-1f0b-49fa-9dce-2697a6749b2b
+  name: Net On Fire
+  sourceguid: fa8d1c5a-b760-43a4-82f5-60bd35d02f6c
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    numTargets: "1"
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: cf762280-2993-4eb2-b3f3-f3382c8b0ad2
+    repeatTargets: false
+    range: 5
+    conditionFormula: not (Conditions Has "Restrained")
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: fa8d1c5a-b760-43a4-82f5-60bd35d02f6c
+      mode: effect
+      conditions: []
+    targetType: self
+    name: Net On Fire
+    trigger: beginround
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: Take ongoing 5 fire damage while restrained.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 1beb3640-7fe5-453a-8ee7-02e870b9047e
+  name: Net On Fire
+  sourceguid: fa8d1c5a-b760-43a4-82f5-60bd35d02f6c
+source: Ongoing Effect
+guid: fa8d1c5a-b760-43a4-82f5-60bd35d02f6c
+id: fa8d1c5a-b760-43a4-82f5-60bd35d02f6c
+ctime: 1704768023491
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.08336341381073
+    s: 1.00141131877899
+    v: 1.00161910057068
+    a: 1
+description: Take ongoing 5 fire damage while restrained.
+name: Net On Fire
+iconid: 3617c071-3c3d-4348-bcaf-f90a35e4ff62
+custom: true
+mtime: 1704768023491
+implementation: 3

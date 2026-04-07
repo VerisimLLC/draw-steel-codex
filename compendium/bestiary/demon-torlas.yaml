@@ -1,0 +1,277 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 990bc32e-8240-46e6-9e04-9107b9a0bcdf
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7000014
+    portraitOffset:
+      x: -0.04687488
+      y: 0.1982639
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.43
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: dc3ab1b9-5683-41c2-b4a7-984ed438974f
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Demon Torlas	Level 1 Horde Controller
+        Abyssal, Demon	EV 3
+        <b>Stamina</b> 10	<b>Weakness</b> Holy 3
+        <b>Speed</b> 5	<b>Size</b> 1S/<b> Stability</b> 0
+        	<b>Free Strike</b> 1
+        Might +0	Agility +1	Reason +0	Intuition +0	Presence +2
+        <b>Floor to Flesh</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Area, Magic, Ranged
+        <b>Distance</b> 3 cube within 10	<b>Target</b> Each enemy in the cube
+        %E2%9C%A6	%E2%89%A411	Slide 3
+        %E2%98%85	12%E2%80%9316	Slide 4
+        %E2%9C%B8	17+	Slide 5
+        <b>Effect</b> The area turns into a morass of spongy flesh before the targets are force moved. Until the start of the torlas's next turn, the area is difficult terrain, and each creature who moves within the area takes 1 damage for each square moved.
+
+        <b>Grasping Tendons</b> (Maneuver)
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 10	<b>Target</b> Three creatures
+        <b>Effect</b> The torlas pulls each target 3 squares.
+
+        <b>Lethe</b>
+        While winded, the torlas has an edge on strikes, and strikes have an edge against them.
+
+        <b>Soulsight</b>
+        Each creature within 2 of the torlas can't be hidden from them.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:26b35101-d3b0-4e58-a197-a521636a0459: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the torlas can't be hidden from them.
+      guid: 26b35101-d3b0-4e58-a197-a521636a0459
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+        CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+        CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: self.Winded = 1
+        guid: 1ea9e80a-3602-4e39-8768-eb373ae61251
+        name: Lethe
+        domains:
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the torlas has an edge on strikes, and strikes have an edge against them.
+        rollType: ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 23264442-8abf-42bb-8867-c855deca0a10
+        source: Trait
+        modtype: edge
+        keywords: []
+        activationCondition: Target.Winded = 1
+        guid: fe284ab6-73cc-483f-b50e-f093c166adeb
+        name: Lethe
+        domains:
+          CharacterFeature:23264442-8abf-42bb-8867-c855deca0a10: true
+          CharacterFeature:74ffacce-971e-45e9-b44a-e4196727278d: true
+          CharacterFeature:063d33f3-86e9-4ad5-ac99-8594db5f487f: true
+        description: While winded, the torlas has an edge on strikes, and strikes have an edge against them.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      source: Trait
+      description: While winded, the torlas has an edge on strikes, and strikes have an edge against them.
+      guid: 74ffacce-971e-45e9-b44a-e4196727278d
+      name: Lethe
+      implementation: 3
+    role: Horde Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -3
+      damageType: holy
+      apply: Damage Reduction
+    damage_taken: 0
+    opportunityAttack: 1
+    resources: []
+    monster_type: Demon Torlas
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetTextOverride: Each Enemy in the area
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        duration: nextturn
+        aura:
+          __typeName: Aura
+          damage: 1
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          movedamage: untyped
+          guid: 6eaa3622-345c-4ad0-872b-a1b96a08b3ed
+          applyto: enemies
+          objectid: 52a45dff-52a3-4be3-99d8-1d2c874cba43
+      - __typeName: ActivatedAbilityDelayBehavior
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - Slide 3
+        - Slide 4
+        - Slide 5
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: "10"
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 108885c0-b32f-4a11-bf3a-c1c18989cfee
+      rangeTextOverride: 3 Cube within 10
+      radius: "3"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "1"
+      targetType: cube
+      name: Floor to Flesh
+      implementation: 4
+      description: The area turns into a morass of spongy flesh before the targets are force moved. Until the start of the torlas's next turn, the area is difficult terrain, and each creature who moves within the area takes 1 damage for each square moved.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: true
+      numTargets: 3
+      modifiers: []
+      strain: []
+      guid: dd119961-b168-4b15-be4c-3e8d13f17f38
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      persistence: []
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: pull 3
+      name: Grasping Tendons
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      description: The torlas pulls each target 3 squares.
+      abilityType: none
+      implementation: 3
+    walkingSpeed: 5
+    movementSpeeds: []
+    creatureSize: 1S
+    keywords:
+      Demon: true
+      Abyssal: true
+    notes:
+    - text: Torlases (TORR-lahs-iz) are piecemeal abominations whose physical forms don't obey the mundane laws of geometry. They control the battlefield by using living flesh and whipping allies and enemies alike into advantageous position.
+      title: Monster Notes
+    notesRevision: 821013aa-5380-41cc-a32d-4071fd2d3520
+  tokenType: null
+  bestiaryId: 1279110d-621a-4743-b41e-e9ca3ce21dea
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Demon Torlas
+parentFolder: 003daf5c-52f0-4ea2-9283-a547f7b2422e
+artist: null
+ord: 8
+ctime: 1741590220269
+mtime: 1775201137032
+hidden: false

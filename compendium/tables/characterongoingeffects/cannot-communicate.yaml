@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: afdc62e8-1d22-4c9f-9c81-274ac07c9218
+id: afdc62e8-1d22-4c9f-9c81-274ac07c9218
+ctime: 1771975913567
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Cannot Communicate
+description: ""
+custom: true
+mtime: 1771975913567
+iconid: c93d4996-8e27-4bee-82fe-61ec49eda3ae

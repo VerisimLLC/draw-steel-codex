@@ -1,0 +1,152 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 1a73aefb-8738-4267-990c-5d2bd09cc8c8
+ctime: 1761687912427
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: |+
+      [[/objectcommand secret Start; objectcommand secret playsound; broadcast screenshake 4 0.2 8 5 | Reveal Secret Passages]]  [[/objectcommand secret Reset | Hide Secret Passages]]
+
+    u: |+
+      The sarcophagus has no body inside. It contains only a small jar with an [item:Imp's Tongue] inside, and a lever. Pulling the lever causes the “Triumph” and “Regret” burial niches to open, each revealing a narrow passage—one to the east and one to the west— leading onward.
+
+    s: |
+      ## Inside the Sarcophagus
+    q: |+
+      [[/objectcommand sarcophagus imageswap | Open/Close Sarcophagus]]
+
+    o: |+
+      |{#The creature takes 3 fire damage.}
+
+    p: |+
+      The trap can trigger three times before it runs out of oil, at which point it is rendered useless. A creature aware of the trap can manually trigger it as a maneuver while adjacent to the sarcophagus. If they do, they have a double edge on the Agility test to avoid it.
+
+    m: |
+      |{#The creature takes 5 fire damage.}
+    k: |
+      |{#The creature takes 7 fire damage.}
+    i: |
+      |Avoid the Sarcophagus Trap: Agility Test 
+    g: |+
+      If a creature opens the hinged lid of the sarcophagus without disarming the trap or otherwise triggers it, the sarcophagus sprays hot oil within 1 burst and ignites it. Each creature in the area must make a hard Agility test.
+
+    LZ: |+
+      [[/objectcommand d5_secret_door_north Start; objectcommand d5_secret_door_north playsound; broadcast screenshake 4 0.2 8 5 | Reveal Secret Door - North]]  [[/objectcommand d5_secret_door_north Reset | Hide Secret Door - North]]
+
+
+    e: |+
+      |{#The hero disarms the trap.}
+
+    c: |
+      |{#The hero fails to disarm the trap, but doesn’t trigger it.}
+    b: |
+      |{#The hero triggers the trap.}
+    Z: |
+      |Disarm the Sarcophagus Trap: Agility Test
+    X: |+
+      If a hero notices the trap, they can attempt to disarm it by prying the flint striker aside and jamming the nozzle. The hero doing this must make a hard Agility test.
+
+    V: |+
+      |{#The hero finds the trap mechanism and jams it, preventing it from triggering so long as they’re adjacent to it.}
+
+    T: |
+      |{#The hero notices a small metal tube in the helmet on the sarcophagus, with a flint striker connected to it.}
+    R: |
+      |{#While examining the sarcophagus, the hero accidentally triggers the trap, but it targets only the creature who triggered it and that creature gains an edge to resist its consequences, as they were approaching carefully.}
+    P: |
+      |Find the Sarcophagus Trap: Reason or Intuition Test
+    M: |
+      ## Trap: False Sarcophagus
+    N: |+
+      The sarcophagus is a fake and hides a dangerous, fire-spewing trap that triggers upon opening. A hero who inspects the sarcophagus can make an easy Reason or Intuition test.
+
+    K: |
+      ## North Wall
+    L: |+
+      If both halves of the Delian Shield (see [D6. Hall of Triumph] and [D7. Hall of Regret]) are placed in the recess on the northernmost wall, it opens to reveal a path north. When the wall opens, something deep below stirs and rumbles, shaking dirt from the walls of the tomb.
+
+    I: |+
+      ## Readable Plaques
+
+    J: |+
+      Two of the burial niche plaques have readable inscriptions. One to the northeast reads “Triumph,” while one to the northwest reads “Regret.” One to the north is blank but has a shield-shaped recess in it.
+
+
+    G: |+
+      {Secret: An ambush has been set here. Five armored soulwights wait in the suits of armor, and five spindlegoths cling to the ceiling overhead.}
+
+    H: |+
+      **See [Encounter D5] for the Combat Encounter.**
+
+
+    E: |
+      > * “A large sarcophagus stands at the center of the room. Its carved lid depicts a knight wielding a feathered sword and wearing a bird-like helmet.”
+    F: |+
+      > * “Other than the stairs up to the first level of the tomb, there seems to be no way to exit this chamber.”
+
+    C: |
+      > * “This octagonal chamber is dry, stagnant, and carpeted with ages of dust. Its walls are lined with burial niches, and memorial plaques too worn to read.”
+    D: |
+      > * “Five suits of armor stand vigil against the walls of this room.”
+    B: |+
+      # D5. Sarcophagus Chamber
+
+
+parentFolder: 07bc5999-4c5b-4aec-9a9d-f4f8b12142bd
+updateid: abb60fc2-b1d6-4360-9888-8183852cbb81
+description: D5. Sarcophagus Chamber
+content: |+
+  # D5. Sarcophagus Chamber
+
+
+  > * “This octagonal chamber is dry, stagnant, and carpeted with ages of dust. Its walls are lined with burial niches, and memorial plaques too worn to read.”
+  > * “Five suits of armor stand vigil against the walls of this room.”
+  > * “A large sarcophagus stands at the center of the room. Its carved lid depicts a knight wielding a feathered sword and wearing a bird-like helmet.”
+  > * “Other than the stairs up to the first level of the tomb, there seems to be no way to exit this chamber.”
+
+  {Secret: An ambush has been set here. Five armored soulwights wait in the suits of armor, and five spindlegoths cling to the ceiling overhead.}
+
+  **See [Encounter D5] for the Combat Encounter.**
+
+
+  ## Readable Plaques
+
+  Two of the burial niche plaques have readable inscriptions. One to the northeast reads “Triumph,” while one to the northwest reads “Regret.” One to the north is blank but has a shield-shaped recess in it.
+
+
+  ## North Wall
+  If both halves of the Delian Shield (see [D6. Hall of Triumph] and [D7. Hall of Regret]) are placed in the recess on the northernmost wall, it opens to reveal a path north. When the wall opens, something deep below stirs and rumbles, shaking dirt from the walls of the tomb.
+
+
+  ## Trap: False Sarcophagus
+  The sarcophagus is a fake and hides a dangerous, fire-spewing trap that triggers upon opening. A hero who inspects the sarcophagus can make an easy Reason or Intuition test.
+
+  |Find the Sarcophagus Trap: Reason or Intuition Test
+  |{#While examining the sarcophagus, the hero accidentally triggers the trap, but it targets only the creature who triggered it and that creature gains an edge to resist its consequences, as they were approaching carefully.}
+  |{#The hero notices a small metal tube in the helmet on the sarcophagus, with a flint striker connected to it.}
+  |{#The hero finds the trap mechanism and jams it, preventing it from triggering so long as they’re adjacent to it.}
+
+  If a hero notices the trap, they can attempt to disarm it by prying the flint striker aside and jamming the nozzle. The hero doing this must make a hard Agility test.
+
+  |Disarm the Sarcophagus Trap: Agility Test
+  |{#The hero triggers the trap.}
+  |{#The hero fails to disarm the trap, but doesn’t trigger it.}
+  |{#The hero disarms the trap.}
+
+  If a creature opens the hinged lid of the sarcophagus without disarming the trap or otherwise triggers it, the sarcophagus sprays hot oil within 1 burst and ignites it. Each creature in the area must make a hard Agility test.
+
+  |Avoid the Sarcophagus Trap: Agility Test 
+  |{#The creature takes 7 fire damage.}
+  |{#The creature takes 5 fire damage.}
+  |{#The creature takes 3 fire damage.}
+
+  The trap can trigger three times before it runs out of oil, at which point it is rendered useless. A creature aware of the trap can manually trigger it as a maneuver while adjacent to the sarcophagus. If they do, they have a double edge on the Agility test to avoid it.
+
+
+  ## Inside the Sarcophagus
+  The sarcophagus has no body inside. It contains only a small jar with an [Imp’s Tongue] (see Treasure in Handouts) inside, and a lever. Pulling the lever causes the “Triumph” and “Regret” burial niches to open, each revealing a narrow passage—one to the east and one to the west— leading onward.
+
+  [[/objectcommand secret Start; objectcommand secret playsound; broadcast screenshake 4 0.2 8 5 | Reveal Secret Passages]]  [[/objectcommand secret Reset | Hide Secret Passages]]
+
+mtime: 1765897157471

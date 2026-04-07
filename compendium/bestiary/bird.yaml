@@ -1,0 +1,135 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: DEFAULT_MONSTER_AVATAR
+    offtokenPortraitId: null
+    portraitFrameId: ""
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.308432
+    portraitOffset:
+      x: 0.05078101
+      y: -0.01171875
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: ""
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ba1636f9-a671-4409-a175-3c5371b6da2b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1cb6dea7-3ad3-491f-a61b-d8d7ccb44407: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 1cb6dea7-3ad3-491f-a61b-d8d7ccb44407
+        source: Character Feature
+        value: 5
+        domains:
+          CharacterFeature:1cb6dea7-3ad3-491f-a61b-d8d7ccb44407: true
+        name: Fly Speed
+        guid: 10648dc8-a6e6-41f3-bddc-494328fddc91
+        description: 5 is added to your Fly Speed
+        behavior: attribute
+        attribute: fly
+      name: Fly Speed
+      guid: 1cb6dea7-3ad3-491f-a61b-d8d7ccb44407
+      description: 5 is added to your Fly Speed
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a195cba9-b2da-49ea-9a4f-860f708d9349: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: a195cba9-b2da-49ea-9a4f-860f708d9349
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:a195cba9-b2da-49ea-9a4f-860f708d9349: true
+        name: Size
+        guid: 7e09aa5a-4d06-4d62-bb1e-86f46c2e252c
+        description: Your Creature Size is 1T.
+        behavior: attribute
+        attribute: creatureSize
+      source: Character Feature
+      description: Your Creature Size is 1T.
+      guid: a195cba9-b2da-49ea-9a4f-860f708d9349
+      name: Size
+      implementation: 3
+    max_hitpoints: 10
+    inflictedConditions: []
+    keywords:
+      Green Animal Forms: true
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Canine
+    damage_taken: 0
+    resources: []
+    titles: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    equipment: []
+    levelChoices: []
+    walkingSpeed: 5
+    monster_type: Bird
+    groupid: eab02bc2-fd64-44cc-a27e-51df24fe02f7
+  tokenType: null
+  bestiaryId: 49b92c47-5878-4ece-b5ee-704da077be3f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1753882566431
+description: null
+parentFolder: e88c4842-3ea1-49c0-ad20-dd7d6ba773ba
+artist: null
+ord: 1
+ctime: 1759687288604
+mtime: 1775167457611
+hidden: false

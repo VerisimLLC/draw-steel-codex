@@ -1,0 +1,88 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: a1eec888-d6af-49e0-a8cf-03b4e230bd91
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ayabaskha
+- __typeName: RollTableRow
+  id: 5185d3b6-4db4-40b9-9ce5-82fbe9daff7c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dhamayana
+- __typeName: RollTableRow
+  id: b698959d-c92a-4fb4-9f68-e63c8b15c7ae
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Divarsotto
+- __typeName: RollTableRow
+  id: e54ee039-570e-47a7-bf81-f92960ebdb14
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Duruvatta
+- __typeName: RollTableRow
+  id: ec1bf153-0fb5-4815-a6d5-f7ab295637c5
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ghaurdamatta
+- __typeName: RollTableRow
+  id: ddc6ffdc-3208-40df-98ad-0fa021127f1e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Harakshathra
+- __typeName: RollTableRow
+  id: 50017c58-d888-499f-94a2-0b4d1739c888
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Khasimandru
+- __typeName: RollTableRow
+  id: 34d9a76a-d9c0-4bea-a09e-df62f3509cf4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Khavettra
+- __typeName: RollTableRow
+  id: 2a60538c-0490-4c6d-82ac-3d44b97b993d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Virabanu
+- __typeName: RollTableRow
+  id: a210c210-c607-4d77-ba2c-c732424a2bc9
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vittarkoya
+name: Memonek Masculine Names
+id: 9d5b2cee-55cc-4140-aa28-7c482e938306
+mtime: 1743445455266
+items: false
+ctime: 1743445348305

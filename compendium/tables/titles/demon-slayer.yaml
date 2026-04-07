@@ -1,0 +1,102 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Demon Slayer Benefit
+    numChoices: 1
+    guid: 39833ee6-d9bd-4b3e-827a-5b0f1add517e
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      description: You know the Proto-Ctholl language. Additionally, when you deal damage using a magic ability, you can change the ability’s damage type to holy
+      modifiers:
+      - __typeName: CharacterModifier
+        subtype: language
+        source: Feat
+        behavior: proficiency
+        description: You know the Proto-Ctholl language. Additionally, when you deal damage using a magic ability, you can change the ability’s damage type to holy
+        equate: false
+        name: Demonic Lore
+        sourceguid: c3ae1d45-43fd-4c34-bc3b-2c31ff3725db
+        proficiency: proficient
+        guid: 0f7efe6a-4559-4eea-8d19-9f06d4cd9697
+        skills:
+          9275a711-ae6a-4d5f-a23c-8e218622a57f: true
+      - __typeName: CharacterModifier
+        sourceguid: c3ae1d45-43fd-4c34-bc3b-2c31ff3725db
+        displayCondition: ""
+        source: Feat
+        guid: a20a0682-5db0-4aa5-ae70-ef992c568c73
+        keywords:
+          Magic: true
+        activationCondition: false
+        damageTypeMappings:
+          all: holy
+        activationAfterRoll: false
+        name: Demonic Lore
+        modtype: none
+        description: You know the Proto-Ctholl language. Additionally, when you deal damage using a magic ability, you can change the ability’s damage type to holy
+        behavior: power
+        rollType: ability_power_roll
+      source: Feat
+      canHavePrerequisites: true
+      guid: c3ae1d45-43fd-4c34-bc3b-2c31ff3725db
+      name: Demonic Lore
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: While you are winded, your strikes gain a +5 damage bonus.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6baebb5f-9c10-477f-85fe-b225cd00f839
+        displayCondition: self.winded
+        source: Feat
+        modtype: none
+        keywords:
+          Strike: true
+        activationCondition: "1"
+        behavior: power
+        activationAfterRoll: false
+        name: Lethe
+        description: While you are winded, your strikes gain a +5 damage bonus.
+        damageModifier: "5"
+        rollType: ability_power_roll
+        guid: 0a5d830b-6204-4f45-ab8d-5c6f794d5dec
+      source: Feat
+      canHavePrerequisites: true
+      guid: 6baebb5f-9c10-477f-85fe-b225cd00f839
+      name: Lethe
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Made of Teeth
+      description: Your body can sprout teeth in unusual places. Whenever a creature makes physical contact with you or starts their turn touching you, you can deal 5 damage to them (no action required).
+      guid: 7dcc1394-b09b-42f9-9460-97b874fdf717
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Soulsight
+      description: Any creature within 2 squares can’t be hidden from you.
+      guid: 0b95be0f-efa7-4782-9a8b-58a6a6131d0e
+      canHavePrerequisites: true
+      source: Feat
+  - __typeName: CharacterFeature
+    description: When you make a Presence test and roll a natural 5 or lower, you are cursed to communicate in only Proto-Ctholl for 1 minute, whether you know that language or not.
+    modifiers: []
+    source: Feat
+    canHavePrerequisites: true
+    guid: 562883b9-ab05-4843-894f-b630ac069a8b
+    name: Demon Slayer
+    implementation: 0
+id: 9f330984-8ae7-4a38-8817-83100bde8549
+ctime: 1762351878792
+name: Demon Slayer
+description: F’lath v’korr en zaratha g’rrack.
+mtime: 1775135151485
+echelon: "3"
+prerequisite: |-
+  You defeat a leader or solo creature with the
+  Demon keyword, such as a soulraker hivequeen, or you are possessed by a demon.

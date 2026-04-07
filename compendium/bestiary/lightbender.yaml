@@ -1,0 +1,319 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: b7d642cb-4a50-4c7f-9f73-22e0956da7be
+    offtokenPortraitId: 098a856b-a264-4160-8778-dba265b86b21
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2379007
+    portraitOffset:
+      x: 0.1103919
+      y: 0.1700774
+    frameHueShift: 0.7012274
+    frameSaturation: 0.3732731
+    frameBrightness: 1
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5221861a-bf19-472b-8314-3fb05c03a8fb
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 1
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Lightbender	Level 3 Elite Ambusher
+        Beast, Lightbender	EV 20
+        <b>Stamina</b> 100
+        <b>Speed</b> 10	<b>Size</b> 2 / <b>Stability</b> 1
+        <b>	Free Strike</b> 6
+        Might +2	Agility +1	Reason -3	Intuition +1	Presence -1
+        <b>Flash Swipe</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	14 damage
+        %E2%9C%B8	<b>17</b>	18 damage
+        <b>Effect</b> The lightbender deals an additional 4 damage if they have an edge.
+
+        <b>Piercing Tails </b>(Action) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	12 damage; M<1 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	15 damage; M<2 bleeding (save ends)
+        <b>Effect</b> A creature who is bleeding from this ability has a bane on tests to search for the lightbender until the condition ends.
+
+        <b>Hypnotic Mane </b>(Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 5 Malice
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst<b>Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	I<0 dazed (save ends)
+        %E2%98%85	<b>12-16</b>	I<1 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	I<2 dazed (save ends)
+        <b>Effect</b> 	Targets dazed by this ability have a speed of 0 while dazed. If a dazed target takes damage or if someone else spends an action to shake the creature out of their stupor, the condition ends.
+
+        <b>Stalker's Afterimage</b> (Triggered Action)
+        <b>Keywords</b> Magic
+        <b>Trigger</b> The lightbender takes damage from a strike.
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect</b> The lightbender halves the damage, doesn't suffer any effect associated with it, and teleports 5 squares. The lightbender immediately hides if they teleport into cover or concealment.
+
+        <b>Avoidance</b>
+        The lightbender always treats a save ends effect as an EoT effect.
+
+
+
+    skillProficiencies: []
+    role: Elite Ambusher
+    inflictedConditions: []
+    ev: 20
+    max_hitpoints_roll: "100"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 6
+    walkingSpeed: 10
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -3
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Lightbender
+    equipment: []
+    initiativeGrouping: 2aa634d0-fa91-4318-b53a-5e8184ea4305
+    levelChoices: []
+    damage_taken: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:01e1773d-15f2-40bf-847d-7d91af3b5c85: true
+      modifiers: []
+      name: Avoidance
+      description: The lightbender always treats a save ends effect as an EoT effect.
+      guid: 01e1773d-15f2-40bf-847d-7d91af3b5c85
+      source: Trait
+    resources: []
+    max_hitpoints: 100
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 14 damage
+        - 18 damage
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: d4b2e8a5-6f93-4ac4-b7e1-8a2f3c9d05b6
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: d4b2e8a5-6f93-4ac4-b7e1-8a2f3c9d05b6
+          modtype: none
+          behavior: power
+          keywords: []
+          rollRequirement: edge
+          domains: []
+          description: The lightbender deals an additional 4 damage if they have an edge.
+          name: Bonus Edge Damage
+          rollType: ability_power_roll
+          damageModifier: "4"
+          guid: c3a1d7f4-5e82-49b3-a6d0-7f1e2b8c94a5
+          activationCondition: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: true
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c8d86625-1d2d-431a-8792-bef951ecbf17
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Flash Swipe
+      numTargets: 1
+      description: The lightbender deals an additional 4 damage if they have an edge.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage
+        - 12 damage; M<1 bleeding (save ends)
+        - 15 damage; M<2 bleeding (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c53976fc-873e-44ed-9bf5-8f2630fe231c
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: 'Piercing Tails '
+      numTargets: 2
+      description: A creature who is bleeding from this ability has a bane on tests to search for the lightbender until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 0bde6daa-946a-4c60-9716-45167e19e95a
+      abilityType: none
+      numTargets: 1
+      implementation: 3
+      name: 'Hypnotic Mane '
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - I<0 dazed (save ends)
+        - I<1 dazed (save ends)
+        - I<2 dazed (save ends)
+        roll: 2d10 + Might
+      description: Targets dazed by this ability have a speed of 0 while dazed. If a dazed target takes damage or if someone else spends an action to shake the creature out of their stupor, the condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 57c593da-15a9-4296-bd23-c9c2b3562cb0
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Stalker's Afterimage
+      numTargets: 1
+      description: The lightbender halves the damage, doesn't suffer any effect associated with it, and teleports 5 squares. The lightbender immediately hides if they teleport into cover or concealment.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: 441477d2-b498-4736-8923-c04de0a69c96
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Silent Prow
+      sourceReference:
+        __typeName: SourceReference
+        page: 196
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        Each lightbender acting this turn can teleport up to their speed as a move action and attempt to hide as a free maneuver, all until the start of their next turn.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 0
+    keywords:
+      Lightbender: true
+      Beast: true
+    movementSpeeds: []
+    groupid: 52f9b162-a295-441c-abbe-7c90fe140d40
+    minion: false
+    monster_category: Monster
+    creatureSize: "2"
+  tokenType: null
+  bestiaryId: 36647633-4fa4-40bf-ac9e-fea29fe5aea0
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Lightbender
+parentFolder: 882ff1bd-d2b4-4311-afa2-280c30d51b58
+artist: null
+ord: 0
+ctime: 1741590237839
+mtime: 1775201137032
+hidden: false

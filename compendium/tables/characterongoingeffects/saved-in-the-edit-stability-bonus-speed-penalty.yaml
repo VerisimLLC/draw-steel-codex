@@ -1,0 +1,38 @@
+__typeName: CharacterOngoingEffect
+association: []
+clearStacksWhenApplying: true
+modifiers:
+- __typeName: CharacterModifier
+  guid: 2c6ad87d-d2d4-446b-b2d9-7317972882e6
+  sourceguid: 711e567a-0bd8-4609-86c0-96887fcdaa68
+  value: Stacks
+  source: Ongoing Effect
+  name: Saved in the Edit - Stability increase, speed decrease
+  behavior: attribute
+  description: ""
+  attribute: forcedmoveresistance
+- __typeName: CharacterModifier
+  guid: 67dda72c-413f-404b-b985-e8991efaff57
+  sourceguid: 711e567a-0bd8-4609-86c0-96887fcdaa68
+  value: "-Stacks"
+  source: Ongoing Effect
+  name: Saved in the Edit - Stability increase, speed decrease
+  behavior: attribute
+  description: ""
+  attribute: speed
+source: Ongoing Effect
+stackable: true
+id: 711e567a-0bd8-4609-86c0-96887fcdaa68
+ctime: 1772952470786
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+custom: true
+name: Saved in the Edit - Stability bonus, speed penalty
+description: ""
+mtime: 1772953613847
+guid: 711e567a-0bd8-4609-86c0-96887fcdaa68
+iconid: ui-icons/skills/1.png

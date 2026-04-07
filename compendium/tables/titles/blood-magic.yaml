@@ -1,0 +1,54 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: "Blood Magic Benefit:"
+    numChoices: 1
+    guid: 251c156f-9d46-419f-9cb6-d4883dcbc1a5
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Blood Mage
+      description: When you use an area ability with the Magic or Psionic keyword, you can take damage equal to your level to increase the ability’s area by 1 until the end of the encounter. If the area is a line, you increase the size of one dimension, not both. This damage can’t be reduced in any way. You can use this benefit only once per use of an ability.
+      guid: fd2ee468-4632-4e8f-aa5c-37895e521042
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Bloody Murder
+      description: When you deal rolled damage to a creature with a strike, you can take damage equal to your level to deal twice that much corruption damage to the creature. The damage you take from this title can’t be reduced in any way. You can use this benefit only once per ability. If the creature is reduced to 0 Stamina by this corruption damage, the creature explodes in a shower of blood and you regain the Stamina you lost. You can’t use this benefit on creatures without blood, such as constructs, elementals, or undead.
+      guid: 8553dc95-f13e-4ce1-9e0f-20e489164afe
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 8e8bde52-de23-4dce-8a19-575b782b7dc9
+        behavior: resistance
+        source: Title
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Level
+          damageType: corruption
+          apply: Damage Reduction
+        description: You gain corruption immunity equal to your level
+        name: I Reject This Evil Power!
+        guid: c759e821-b436-4b47-bb09-e46d2ed4a490
+      name: I Reject This Evil Power!
+      description: You gain corruption immunity equal to your level
+      guid: 8e8bde52-de23-4dce-8a19-575b782b7dc9
+      canHavePrerequisites: true
+      source: Title
+id: 39351feb-caab-462b-b608-516bb730ccd8
+ctime: 1762351421681
+name: Blood Magic
+description: Flow, blood, thou fiend’s libation, and catch my foes in conflagration!
+mtime: 1775088951163
+echelon: "2"
+prerequisite: |-
+  You participate in a Discover Lore project to learn
+  forbidden knowledge.

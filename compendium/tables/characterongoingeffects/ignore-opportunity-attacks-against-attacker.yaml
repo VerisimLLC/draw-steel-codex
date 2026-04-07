@@ -1,0 +1,43 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 255df50b-55ff-4fbf-9c6f-e5028359a846
+  source: Ongoing Effect
+  filter: not (target is "Soot Crow")
+  domains:
+    CharacterOngoingEffect:255df50b-55ff-4fbf-9c6f-e5028359a846: true
+  filterid: opportunityattack
+  guid: 340b9633-e618-44f5-9a43-ccbed54293a5
+  description: This creature ignores opportunity attacks from the creature who attacked them.
+  behavior: filter
+  name: Ignore Opportunity Attacks agaomst Attacker
+- __typeName: CharacterModifier
+  text: Ignore Opportunity Attacks
+  sourceguid: 255df50b-55ff-4fbf-9c6f-e5028359a846
+  source: Ongoing Effect
+  guid: c05af090-ecd3-4ece-a6bb-144763c53929
+  domains:
+    CharacterOngoingEffect:255df50b-55ff-4fbf-9c6f-e5028359a846: true
+  name: Ignore Opportunity Attacks against Attacker
+  description: This creature ignores opportunity attacks from the creature who attacked them.
+  behavior: movementtext
+  color: white
+source: Ongoing Effect
+casterTracking: one
+guid: 255df50b-55ff-4fbf-9c6f-e5028359a846
+id: 255df50b-55ff-4fbf-9c6f-e5028359a846
+ctime: 1770040780199
+domains:
+  CharacterOngoingEffect:255df50b-55ff-4fbf-9c6f-e5028359a846: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1770809293443
+name: Ignore Opportunity Attacks against Attacker
+statusEffect: false
+custom: true
+description: This creature ignores opportunity attacks from the creature who attacked them.
+iconid: ui-icons/skills/1.png

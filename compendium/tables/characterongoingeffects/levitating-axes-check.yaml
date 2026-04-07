@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: d5c1f7ac-e052-40c3-8c41-af52c1455f24
+id: d5c1f7ac-e052-40c3-8c41-af52c1455f24
+ctime: 1772534199847
+domains:
+  CharacterOngoingEffect:d5c1f7ac-e052-40c3-8c41-af52c1455f24: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Levitating Axes Check
+statusEffect: false
+description: This effect helps to check if there is an ally of the Dwarf marauder lord adjacent to the target after the Levitating Axes ability has been applied.
+mtime: 1772546104275
+iconid: 2f82413b-b4d9-476c-a168-9fc22fef6cca

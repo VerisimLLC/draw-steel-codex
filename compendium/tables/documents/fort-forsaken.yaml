@@ -1,0 +1,65 @@
+__typeName: MarkdownDocument
+annotations: []
+id: f76b6a48-168c-4670-bea5-ec886431481a
+ctime: 1761391320645
+textStorage:
+  __typeName: TextStorage
+  sections:
+    M: |2
+
+    n: |+
+      * Several months ago, the Forsaken Wraiths discovered one of their members, [Saera], was cursed with lycanthropy and had become a werewolf. Aldiva banished Saera, hoping the werewolf would haunt the woods outside of Broadhurst and stir up chaos and confusion in the village, making them more vulnerable to raids.(see [Wolf Den])
+
+
+    k: |+
+      * [Thurston], an older human, has seemed unhappy with [Aldiva]’s leadership recently. He’s got some supporters, and they’re whispering of a mutiny.
+
+    Y: |+
+      ## What Do the Forsaken Wraiths Know?
+
+    g: |+
+      * [Aldiva] leads the Forsaken Wraiths. She is a brutal, effective leader.
+
+    Q: |+
+      The heroes can learn the location of Fort Forsaken from [Brune] the Butcher (see [B8. Butcher]) or by questioning a bandit after they raid the village (see [Wraith Raid] in [Events]).
+
+    E: |+
+      # Fort Forsaken
+
+    u: |
+      [[/activateobject fort_forsaken_region activate|Hide Fort Forsaken]] [[/activateobject fort_forsaken_region deactivate|Show Fort Forsaken]]
+    c: |+
+      If the heroes capture or question a Forsaken Wraith, the bandit provides the following information in exchange for their life. No test is required to gain this information from a bandit who knows they’ve been beaten:
+
+    I: |
+      The Forsaken Wraiths are a bandit crew stealing food from Broadhurst and planning a violent raid. The bandits have established a stronghold, which they call Fort Forsaken, on an island at the center of a lake in the Silver Wood. The heroes must get to the island and infiltrate the fort to end the bandits’ mayhem. A head-on assault is very dangerous, but sneaking or bluffing their way into the fort can pay dividends. A power struggle between two bandit leaders gives the heroes an opportunity to end the bandits’ reign of terror with minimal bloodshed.
+    q: |+
+      ## Region Map
+
+    U: |+
+      This quest uses the [Fort Forsaken Map].
+
+
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 55ddd7d1-b4fb-4668-8a2e-142e8f1040b0
+mtime: 1764267105515
+content: |
+  # Fort Forsaken
+
+  The Forsaken Wraiths are a bandit crew stealing food from Broadhurst and planning a violent raid. The bandits have established a stronghold, which they call Fort Forsaken, on an island at the center of a lake in the Silver Wood. The heroes must get to the island and infiltrate the fort to end the bandits’ mayhem. A head-on assault is very dangerous, but sneaking or bluffing their way into the fort can pay dividends. A power struggle between two bandit leaders gives the heroes an opportunity to end the bandits’ reign of terror with minimal bloodshed.
+
+  The heroes can learn the location of Fort Forsaken from [Brune] the Butcher (see [B8. Butcher]) or by questioning a bandit after they raid the village (see [Wraith Raid] in [Events]).
+
+  This quest uses the [Fort Forsaken Map].
+
+
+  ## What Do the Forsaken Wraiths Know?
+
+  If the heroes capture or question a Forsaken Wraith, the bandit provides the following information in exchange for their life. No test is required to gain this information from a bandit who knows they’ve been beaten:
+
+  * [Aldiva] leads the Forsaken Wraiths. She is a brutal, effective leader.
+
+  * [Thurston], an older human, has seemed unhappy with [Aldiva]’s leadership recently. He’s got some supporters, and they’re whispering of a mutiny.
+
+  * Several months ago, the Forsaken Wraiths discovered one of their members, [Saera], was cursed with lycanthropy and had become a werewolf. Aldiva banished Saera, hoping the werewolf would haunt the woods outside of Broadhurst and stir up chaos and confusion in the village, making them more vulnerable to raids.(see [Wolf Den])
+description: Fort Forsaken

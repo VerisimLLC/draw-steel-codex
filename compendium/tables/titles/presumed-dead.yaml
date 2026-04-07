@@ -1,0 +1,25 @@
+__typeName: Title
+effect: |-
+  While it might appear that you died, you did not. Instead, you regain 1 Stamina and can spend 1 or more Recoveries. Additionally, you gain a 1st-echelon trinket of the Director’s choice (see Treasures earlier in this chapter).
+
+  At a dramatic moment determined by the Director, you rejoin your party with an explanation for your narrow escape, and how you found your new trinket along the way.
+prerequisite: You die in a way that prevents your body from being recovered or examined (for instance, by falling off a cliff).
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers: []
+    name: Presumed Dead
+    description: |-
+      While it might appear that you died, you did not. Instead, you regain 1 Stamina and can spend 1 or more Recoveries. Additionally, you gain a 1st-echelon trinket of the Director’s choice.
+
+      At a dramatic moment determined by the Director, you rejoin your party with an explanation for your narrow escape, and how you found your new trinket along the way.**DIRECTOR INSTRUCTIONS**
+      For this title benefit you will need to manually give your player a trinket of your choice. Click on their token and press 'I' to open their inventory. Click 'Add Item' and use the Filter arrows to Filter the treasures by Trinkets. Select the Trinket you wish to give and drag it into the player's inventory.
+    guid: 78c5d52f-e30e-4e3f-b5a3-096a80e2fa31
+    canHavePrerequisites: true
+    source: Feat
+name: Presumed Dead
+mtime: 1768909518792
+description: But… you’re dead. We went to your funeral.
+id: af5b41d8-c854-48e0-9b40-d0325bfb9539
+ctime: 1762349883310

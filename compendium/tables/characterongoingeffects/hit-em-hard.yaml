@@ -1,0 +1,54 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 910aa293-29ca-4b60-950d-b310e9bd7515
+  source: Ongoing Effect
+  seq: 63b6a683-3862-46ed-b1f6-37394be44bfe
+  aura:
+    __typeName: Aura
+    applyto: enemies
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 8ebbc00c-ae1d-403d-b4b7-b147d0a0de16
+      displayCondition: (Target has "Mark") and ability.DoesDamage
+      source: Aura
+      modtype: none
+      keywords: []
+      surges: "2"
+      surgesCanBeKept: true
+      activationCondition: "1"
+      name: Hit 'Em Hard
+      rollType: enemy_ability_power_roll
+      description: Whenever the Tactician or an Ally does damage to a marked target they gain 2 surges which may be used immediately.
+      guid: ea4110ca-e5ef-4a30-b44d-097c04c84798
+      behavior: power
+    name: Hit 'Em Hard
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    guid: 8ebbc00c-ae1d-403d-b4b7-b147d0a0de16
+    creatureFilter: (Conditions has "Mark") and ConditionCaster("Mark") = caster
+    implementation: 3
+  radius: "50"
+  guid: 5c7cdf46-8623-4b37-a29c-d631a8a134dd
+  description: 'Whenever you or any ally deals damage to a target marked by you, that creature gains 2 surges, which they can use immediately. '
+  behavior: aura
+  name: Hit 'Em Hard!
+source: Ongoing Effect
+guid: 910aa293-29ca-4b60-950d-b310e9bd7515
+id: 910aa293-29ca-4b60-950d-b310e9bd7515
+ctime: 1753426176007
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Hit 'Em Hard!
+iconid: 2f82413b-b4d9-476c-a168-9fc22fef6cca
+description: 'Whenever you or any ally deals damage to a target marked by you, that creature gains 2 surges, which they can use immediately. '
+mtime: 1753426669454
+implementation: 3

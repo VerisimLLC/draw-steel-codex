@@ -1,0 +1,330 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a7bf0ca-5f51-4ddf-9cb8-62ae737d40be
+    offtokenPortraitId: 48391082-675e-484b-9713-a40f0a83ad9c
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3253504
+    portraitOffset:
+      x: -0.04779659
+      y: 0.2530423
+    frameHueShift: 0.415408
+    frameSaturation: 0.09841621
+    frameBrightness: 0.2639551
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 193ee769-f1ef-4ced-b078-18fdef843850
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    91a78ee3-31d5-43bc-be05-1b765bee9979_history:
+      __typeName: StatHistory
+      entries:
+        c403b106-0777-45e9-9a58-a6a29ca2f588:
+          refreshid: edecec63-9a6e-4230-bb33-8de991cd6c79-3
+          note: Shadow Phasing
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: "-1/0"
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: -5
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    damage_taken_minion_count: 4
+    creatureSize: 1M
+    levelChoices: []
+    damage_taken_seq: 1
+    traitNames: []
+    damageEntries:
+      fbf1d787-5d84-4ee6-95d7-a24adcf8fae0:
+        damage: 1
+        attackerid: 274df070-d36b-4e46-8e32-7f6443076b53
+        id: fbf1d787-5d84-4ee6-95d7-a24adcf8fae0
+        damage_type: collide
+    minion: true
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Shade	Level 1 Minion Ambusher
+        Undead	EV 3 for four minions
+        <b>Stamina</b> 4	<b>Immunity</b> corruption 1, poison 1
+        <b>Speed</b> 5 (fly, hover)	<b>Size</b> 1M/<b> Stability</b> 1
+        <b>With Captain</b> Speed +2	<b>Free Strike</b> 2
+        Might -5	Agility +1	Reason 0	Intuition 0	Presence +2
+        <b>Life Drain</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 corruption damage
+        %E2%98%85	12%E2%80%9316	4 corruption damage
+        %E2%9C%B8	17+	5 corruption damage; the target moves up to their speed away from all shades
+
+        <b>Shadow Phasing</b>
+        The shade can move through other creatures and objects at normal speed. The first time in a round that the shade passes through a creature, that creature takes 1 corruption damage. The shade doesn't take damage from being force moved into objects.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        guid: 550fa599-1539-4f97-af0d-aa97264d0476
+        domains:
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Shadow Phasing
+        value: 1
+        description: The shade can move through other creatures and objects at normal speed. The first time in a round that the shade passes through a creature, that creature takes 1 corruption damage. The shade doesn't take damage from being force moved into objects.
+        behavior: attribute
+        attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+      - __typeName: CharacterModifier
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        value: 1
+        domains:
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Shadow Phasing
+        guid: d28a3667-bad4-4c2e-88e9-6f40ed7a4ec8
+        description: The shade can move through other creatures and objects at normal speed. The first time in a round that the shade passes through a creature, that creature takes 1 corruption damage. The shade doesn't take damage from being force moved into objects.
+        behavior: attribute
+        attribute: 9148519f-9fb4-4b2b-9d3e-98f88c56bab8
+      - __typeName: CharacterModifier
+        sourceguid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:2a43fffb-7e1a-4a09-a162-230cc8b6ff27: true
+        name: Shadow Phasing
+        resourceRefreshType: round
+        description: The shade can move through other creatures and objects at normal speed. The first time in a round that the shade passes through a creature, that creature takes 1 corruption damage. The shade doesn't take damage from being force moved into objects.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          repeatTargets: false
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 91a78ee3-31d5-43bc-be05-1b765bee9979
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a189f7a6-044c-43fd-a66a-29e2b5a46d1b
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "1"
+            damageType: corruption
+            chatMessage: Phased Through
+          name: Shadow Phasing
+          trigger: movethrough
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 91a78ee3-31d5-43bc-be05-1b765bee9979
+      source: Trait
+      description: The shade can move through other creatures and objects at normal speed. The first time in a round that the shade passes through a creature, that creature takes 1 corruption damage. The shade doesn't take damage from being force moved into objects.
+      guid: 2a43fffb-7e1a-4a09-a162-230cc8b6ff27
+      name: Shadow Phasing
+      implementation: 3
+    role: Minion Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 1
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    notes:
+    - text: ""
+      title: Monster Notes
+    animations:
+      anim:
+      - resources:
+          91a78ee3-31d5-43bc-be05-1b765bee9979: 1
+        animType: consumeResource
+      guid: 7dcc81a8-8c33-4100-905a-b17d24382a37-302
+    availableTriggers: []
+    initiativeGrouping: bdb07cdf-a192-48de-92ba-ba832b023d36
+    damage_taken: 0
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    walkingSpeed: 5
+    resources:
+      91a78ee3-31d5-43bc-be05-1b765bee9979:
+        __typeName: CharacterResource
+        refreshid: edecec63-9a6e-4230-bb33-8de991cd6c79-3
+        used: 1
+    minionSquad: Shade Squad 2
+    withCaptain: +2 bonus to speed
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 5a820cdb-0cf4-4309-84b6-e8834d10b2c7
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Life Drain
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage
+        - 4 corruption damage
+        - 5 corruption damage; the target must move up to their speed and can't end that movement closer to any shade
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        runOnController: false
+        promptText: You must move up to your speed and can't end that movement closer to any shade.
+        standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: bad4c639-2667-4866-8e82-37e7bcf7596c
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        tiersSelected:
+        - 3
+      description: ""
+      abilityType: none
+      iconid: 6fb55862-4058-48ee-9915-ba03ddf5ec28
+    movementSpeeds:
+      fly: 5
+    monster_category: Monster
+    equipmentMeta:
+      offhand0: []
+    monster_type: Shade
+    keywords:
+      Undead: true
+  tokenType: null
+  bestiaryId: c5c8667e-322f-46e2-b50c-4603960c20f7
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Shade
+parentFolder: 3060d052-424f-414c-969f-12c5a80bd2f7
+artist: null
+ord: 6
+ctime: 1741590305350
+mtime: 1775201137032
+hidden: false

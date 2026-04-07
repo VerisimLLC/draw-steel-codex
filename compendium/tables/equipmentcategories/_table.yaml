@@ -1,0 +1,57 @@
+1121b8c9-1f4a-443e-83b2-485fbd0310e1:
+  __typeName: EquipmentCategory
+  isTreasure: false
+  name: Artifact
+  isArtifact: true
+  mtime: 1775098262937
+  id: 1121b8c9-1f4a-443e-83b2-485fbd0310e1
+  ctime: 1775098262937
+f8795dac-fda0-48a7-ba63-c2618c812d76:
+  __typeName: EquipmentCategory
+  isTreasure: true
+  name: Imbuement
+  mtime: 1770667509614
+  id: f8795dac-fda0-48a7-ba63-c2618c812d76
+  ctime: 1770665561556
+4c9fc2bb-1c17-4072-babe-c2e3a55faa65:
+  __typeName: EquipmentCategory
+  isLightSource: true
+  name: Light Source
+  mtime: 1757912381257
+  id: 4c9fc2bb-1c17-4072-babe-c2e3a55faa65
+  ctime: 1738460946250
+46e550be-a8b6-4839-8215-cf5e7cc9f9b3:
+  __typeName: EquipmentCategory
+  ctime: 1759021909640
+  mtime: 1759021909640
+  id: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+  name: Crafting Ingredient
+659f34f2-14d6-4e71-99c1-89d703d5ba48:
+  __typeName: EquipmentCategory
+  isTreasure: true
+  name: Trinket
+  mtime: 1757895203240
+  id: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+  ctime: 1757894969571
+e036b288-416c-4a2e-ac33-95c6a528ed87:
+  __typeName: EquipmentCategory
+  isTreasure: true
+  name: Leveled Treasure
+  mtime: 1757895201051
+  id: e036b288-416c-4a2e-ac33-95c6a528ed87
+  ctime: 1757894975620
+95125d91-fe41-4310-8f7b-44386651b0a7:
+  __typeName: EquipmentCategory
+  isTreasure: true
+  name: Consumable
+  mtime: 1757895198424
+  id: 95125d91-fe41-4310-8f7b-44386651b0a7
+  ctime: 1757894953293
+1e10f43f-ad2d-478c-8de2-53ca33ed1416:
+  __typeName: EquipmentCategory
+  mtime: 1738460936447
+  name: Projectiles
+  ctime: 1738460936447
+  isAmmo: true
+  id: 1e10f43f-ad2d-478c-8de2-53ca33ed1416
+  isQuantity: true

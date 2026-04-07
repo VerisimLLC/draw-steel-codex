@@ -1,0 +1,59 @@
+__typeName: Background
+characteristics:
+- __typeName: BackgroundCharacteristic
+  tableid: 7fdce810-0dce-4209-b392-ac164b80c441
+projectpoints: "120"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Criminal Career Feature
+      behavior: proficiency
+      description: You have the Criminal Underworld skill.
+      equate: false
+      name: Criminal Underworld Skill
+      sourceguid: 72220b8a-f175-4d4f-a481-e4fc50fd2f9e
+      proficiency: proficient
+      guid: b2c9274c-f2b1-4d35-b59e-eaaeb4a93843
+      skills:
+        80526c1a-3cfd-40dc-9065-eb840df8601d: true
+    name: Criminal Underworld Skill
+    description: You have the Criminal Underworld skill.
+    guid: 72220b8a-f175-4d4f-a481-e4fc50fd2f9e
+    source: Criminal Career Feature
+    implementation: 3
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+    name: Criminal Intrigue Skills
+    numChoices: 2
+    guid: f34c5551-9ab8-4ec0-8e40-5bc5812fa793
+    description: "Choose two skills from the intrigue skill group. (Quick Build: Pick Lock, Pick Pocket)"
+    source: Criminal Career Feature
+  - __typeName: CharacterLanguageChoice
+    description: choose one language
+    guid: ac124dd7-7445-4fa7-9f8d-3f6ead074476
+    source: Criminal Career Feature
+    name: Criminal Language
+  - __typeName: CharacterFeatChoice
+    guid: 971fd3ad-db05-45fd-a560-a42006c737b4
+    description: "Choose one intrigue perk type. (Quick Build: Criminal Contacts)"
+    tag: intrigue perk
+    name: Criminal Intrigue Perk
+name: Criminal
+mtime: 1767841773741
+description: |-
+  You once worked as a bandit, insurgent, smuggler, outlaw, or even as an assassin. In defining your career, think about the following questions: 
+
+  What crimes did you commit, and why? 
+
+  Did anyone help you perform your illicit activities? 
+
+  What is one crime you botched? 
+
+  Who was your nemesis while you were a criminal?
+id: a35ed182-3a29-404c-935e-7d2afbd263f9
+ctime: 1730557808351

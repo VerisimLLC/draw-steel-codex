@@ -1,0 +1,12 @@
+__typeName: Culture
+id: fcfa527d-f9c2-4382-8ed1-5369ac748de3
+description: ""
+group: Ancestry Cultures
+languageid: 5287d30a-3dff-404b-8e84-0087508a801b
+name: Devil
+mtime: 1769349206388
+aspects:
+  upbringing: 788c28f1-06bb-4a18-94d9-b58ba8d9af88
+  environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768795967924

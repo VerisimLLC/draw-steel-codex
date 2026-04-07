@@ -1,0 +1,88 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 18dde301-842d-4cb1-9c8f-ed04e20e428e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Sun Reflected In A Lover's Tear
+- __typeName: RollTableRow
+  id: ff2b7585-78b1-4dc5-9a39-cbe88ef7d7aa
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Every Flake Of Snow A Memory
+- __typeName: RollTableRow
+  id: 408735df-c301-4360-a083-a60db5e20c20
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Echoes of Autumn Heat
+- __typeName: RollTableRow
+  id: 7f3fcc40-1fd2-4caa-87bd-e0dc92107525
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Edges Of A Leaf Torn By The Wind
+- __typeName: RollTableRow
+  id: c73c4a01-b8aa-453d-9223-9ffc05180e0f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: A Heart That Will Not Yield The Stars
+- __typeName: RollTableRow
+  id: 432980a4-dfce-4776-a9a7-95af7115f532
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: A Rain of Glass Over A Sea of Dreams
+- __typeName: RollTableRow
+  id: 985284e7-8c39-4708-a3b1-0628ba120a2d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Earth Cries The Skies Divide
+- __typeName: RollTableRow
+  id: 43ad71a5-823b-4731-b078-d3dafd96a7a8
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Last Star Fading With Morning
+- __typeName: RollTableRow
+  id: 74a589ee-b4cc-4283-b3c9-83f27cfe811c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: A Crown of Starlight on Winter Snow
+- __typeName: RollTableRow
+  id: a973c292-a0a2-4f5f-9b11-fbde280ed10e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: The Anticipation of a Sigh Upon His Lips
+name: High Elves
+id: 5c795256-54b6-4c23-9b15-9b238872ee5b
+mtime: 1743444681004
+items: false
+ctime: 1743444681004

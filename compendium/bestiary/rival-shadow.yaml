@@ -1,0 +1,477 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8e5dec78-1c97-423c-91a6-c3d238dbf35c
+    offtokenPortraitId: fb315fc4-c05e-44f6-bcd6-ad1c44f8f9a8
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.6731163
+    frameSaturation: 0.4357406
+    frameBrightness: 0.3982601
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 917290b7-81be-4a35-89d9-559a9c10a9c2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 240
+    inflictedConditions: []
+    ev: 48
+    max_hitpoints_roll: "240"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 4
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    monster_type: Rival Shadow
+    levelChoices: []
+    traitNames: []
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      casterInfo:
+        abilityName: Rivalry
+        tokenid: 6ae9290a-c583-42d2-94b3-592521a72903
+      ongoingEffectid: e349e64f-4422-4fa9-995b-130c492a473a
+      seq: 1
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.56740617752075
+        queueguid: faffac4f-6b29-4eb1-9fcd-bfbf13e9f69b
+        initiativeid: 37d4e993-ae26-4dc5-bc9e-6cf1b0ecc505
+        round: 1
+      sourceDescription: Applied by Tired Rival Shadow's <b>Rivalry</b> ability
+      stacks: 1
+      id: c88e3866-9d14-4cbc-84e8-2713875632f0
+      removeOnEoE: true
+    minion: false
+    stability: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+        CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+          CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+        sourceguid: 3146422c-eb42-4160-ae0e-642168383dc6
+        behavior: trigger
+        source: Trait
+        name: Rivalry
+        description: The Shadow selects one creature within line of effect at the start of an encounter. Both the Shadow and the creature can add a 1d3 to all power rolls made against each other.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetTextOverride: Choose another magic-wielder as the target for your Rivalry
+              repeatTargets: false
+              targetAllegiance: enemy
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+                duration: eoe
+                ongoingEffectCustom: e349e64f-4422-4fa9-995b-130c492a473a
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 240
+                docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+              range: "50"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: c4193d77-d471-4d84-8d0b-925f72f62cac
+              targetType: target
+              iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              implementation: 3
+            promptText: Choose a player Hero as the target for your Rivalry.
+            autoTarget: false
+            abilityType: custom
+            applyto: caster
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+            duration: eoe
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          guid: c171ef5c-50db-42ed-93a9-9c72ad7ea4bc
+          numTargets: "1"
+          domains:
+            CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+            CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+          description: ""
+          targetType: self
+          trigger: rollinitiative
+          name: Rivalry
+          abilityFilters: []
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 6fc99f50-afce-47f7-b90f-464a3b25089f
+      source: Trait
+      description: The Shadow selects one creature within line of effect at the start of an encounter. Both the Shadow and the creature can add a 1d3 to all power rolls made against each other.
+      guid: 03d6d373-36c8-4559-b50f-0166af9ad568
+      name: Rivalry
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c03b2fd4-5bea-40b4-bae9-16df2387a34e: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c03b2fd4-5bea-40b4-bae9-16df2387a34e
+        source: Character Feature
+        modtype: edge
+        adjustments: []
+        keywords: []
+        activationCondition: Ability.keywords has "strike"
+        domains:
+          CharacterFeature:c03b2fd4-5bea-40b4-bae9-16df2387a34e: true
+        description: The shadow coats their weapon with poison. They gain an edge on their next strike, and any potency for that strike increases by 1.
+        name: Poison the Blade
+        rollType: ability_power_roll
+        potencymod: "1"
+        behavior: power
+        guid: d6b1e66e-493c-42fd-b061-2eb7877d247c
+      source: Character Feature
+      description: The shadow coats their weapon with poison. They gain an edge on their next strike, and any potency for that strike increases by 1.
+      guid: c03b2fd4-5bea-40b4-bae9-16df2387a34e
+      name: Poison the Blade
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:696485a6-ee4b-49a6-92bb-95f822425885: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 696485a6-ee4b-49a6-92bb-95f822425885
+        source: Character Feature
+        guid: bef0a76b-f9c2-4037-87ae-3d3f6f96d74e
+        keywords: []
+        activationCondition: Target.Conditions has "bleeding"
+        domains:
+          CharacterFeature:696485a6-ee4b-49a6-92bb-95f822425885: true
+        rollType: ability_power_roll
+        name: Exploit Opening
+        modtype: none
+        description: The shadow deals an extra 5 damage to any bleeding target.
+        damageModifier: "5"
+        behavior: power
+      source: Character Feature
+      description: The shadow deals an extra 5 damage to any bleeding target.
+      guid: 696485a6-ee4b-49a6-92bb-95f822425885
+      name: Exploit Opening
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:30f154d3-9934-46b1-b6bb-c2441f0613a8: true
+      modifiers: []
+      name: Exploit Weakness
+      description: The shadow deals an extra 10 damage to any target affected by a condition.
+      guid: 30f154d3-9934-46b1-b6bb-c2441f0613a8
+      source: Trait
+    role: Elite Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: a460f417-768e-46a5-8519-1972633b705b
+    damage_taken: 0
+    resources: []
+    opportunityAttack: 10
+    keywords:
+      Humanoid: true
+      Rival: true
+    groupid: 5163b6cd-991f-4277-b81c-8e42a53d328e
+    walkingSpeed: 7
+    movementSpeeds: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: eb032f71-381f-4147-abf6-b9c943b698eb
+      iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+      numTargets: "1"
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Poison the Blade
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: fab3c9a5-f7c1-488c-98a7-79dc269a5e3b
+        duration: eoe
+        ongoingEffectCustom: false
+      description: "Effect: The shadow coats their weapon with poison. They gain an edge on their next strike, and any potency for that strike increases by 1."
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 6b3c0563-56cf-4098-bce3-763318c2f491
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+        invokeOnCaster: true
+        standardAbilityParams:
+          range: "5"
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+        abilityType: standard
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 11 damage
+        - 14 damage; a<2 bleeding (save ends)
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 847fcfe8-e8f6-49ba-9ef8-2157fc5409e6
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 3
+        promptText: Teleport within 5 and then you may attempt to hide (player discretion).
+        invokeOnCaster: true
+        standardAbilityParams:
+          range: "5"
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+        abilityType: standard
+      - __typeName: ActivatedAbilityReplenishBehavior
+        applyto: caster
+        mode: expend
+        modesSelected:
+        - 2
+        - 3
+        quantity: "2"
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 235
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      temporaryClone: true
+      persistence: []
+      modifiers: []
+      guid: 618b2d37-6f69-459f-aee6-30e4ca1793bb
+      strain: []
+      modeList:
+      - text: No Malice
+      - text: "Malice: Teleport *before* roll"
+      - text: "Malice: Teleport *after* roll"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      categorization: Signature Ability
+      numTargets: "2"
+      implementation: 3
+      name: Swift Serration
+      preDescription: ""
+      description: "**1 Malice:** The shadow can teleport up to 5 squares, then can attempt to hide."
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 1 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 245
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: 2
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: The shadow can teleport up to 10 squares, then can attempt to hide.
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; A<3 bleeding (save ends)
+        - 21 damage; A<4 bleeding (save ends)
+        - 25 damage; A<5 bleeding (save ends)
+        roll: 2d10 + Agility
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: A Hush of Ash
+      guid: b2d0c338-7a2b-4123-b29e-6e8ab7fae638
+      description: |2-
+
+        **1 Malice**: The shadow can teleport up to 10 squares, then can attempt to hide.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 29310c9e-1677-408f-94cb-b02d8229bb9c
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Envenomed Steel
+      sourceReference:
+        __typeName: SourceReference
+        page: 245
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The shadow coats their weapon with poison. They have a double edge on their next strike, any potency for that strike increases by 2, and if the target has M<4, they are weakened (save ends).
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    creatureSize: 1M
+    monster_category: Monster
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: d1f2f12e-8e36-413a-a76a-f897944a577f
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961969981
+description: Rival Shadow
+parentFolder: 62dde676-136f-4d24-9390-903417c9a726
+artist: null
+ord: 0
+ctime: 1762867013748
+mtime: 1775201137032
+hidden: false

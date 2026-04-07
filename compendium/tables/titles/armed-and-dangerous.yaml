@@ -1,0 +1,30 @@
+__typeName: Title
+effect: You can use and gain the benefits of kits.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: You can use and gain the benefits of kits.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 786ff6b1-b93a-4d3d-b6ce-8b29949e399f
+      guid: 119a3094-79bb-4647-ac2a-9758cfcc5804
+      source: Feat
+      behavior: kitaccess
+      description: You can use and gain the benefits of kits.
+      kitType: martial
+      name: Armed and Dangerous
+    source: Feat
+    canHavePrerequisites: true
+    guid: 786ff6b1-b93a-4d3d-b6ce-8b29949e399f
+    name: Armed and Dangerous
+    implementation: 4
+id: 6b767548-8926-4884-882a-9fe12aea123d
+ctime: 1762351834535
+name: Armed and Dangerous
+description: I’m not picky. Any tool will suffice. A sword seems a most appropriate tool for this job.
+mtime: 1775133795854
+echelon: "3"
+prerequisite: |-
+  You can’t use kits, and you defeat five non-minion
+  enemies using weapon abilities that don’t have the Magic or Psionic keyword.

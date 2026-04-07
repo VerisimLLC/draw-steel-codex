@@ -1,0 +1,39 @@
+__typeName: CharacterOngoingEffect
+association: []
+id: d39102f7-8044-4ad7-86e6-76a68d32b936
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.33010721206665
+    s: 0.936636567115784
+    v: 0.983554601669312
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d39102f7-8044-4ad7-86e6-76a68d32b936
+  source: Ongoing Effect
+  value: Stacks
+  domains:
+    CharacterOngoingEffect:d39102f7-8044-4ad7-86e6-76a68d32b936: true
+  name: Bloodrunner Shield Bash Movement
+  guid: 9ee7d126-69f4-458b-b1f4-b584cb944a02
+  description: An ally targeted by this ability can move equal to the number of squres the bloodrunner moved on their turn before using this ability.
+  behavior: attribute
+  attribute: speed
+source: Ongoing Effect
+implementation: 3
+guid: d39102f7-8044-4ad7-86e6-76a68d32b936
+hiddenFromEnemies: true
+ctime: 1765969065914
+domains:
+  CharacterOngoingEffect:d39102f7-8044-4ad7-86e6-76a68d32b936: true
+mtime: 1768228576889
+custom: true
+name: Bloodrunner Shield Bash Movement
+statusEffect: false
+description: An ally targeted by this ability can move equal to the number of squres the bloodrunner moved on their turn before using this ability.
+hiddenOnToken: false
+iconid: 595c51ea-d1fd-4c95-9500-aab9a78e5022

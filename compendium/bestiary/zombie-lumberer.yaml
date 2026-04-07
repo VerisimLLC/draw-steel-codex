@@ -1,0 +1,203 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Zombie Lumberer
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b3c03e85-7b70-480f-9cc0-c568b19ddb6d
+  properties:
+    __typeName: monster
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    cr: 1
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:87523419-8068-476c-a410-35e09879f1ff: true
+        CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:87523419-8068-476c-a410-35e09879f1ff: true
+          CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+        sourceguid: 75924d49-b4ef-40a9-b484-fc878d6eaf4c
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: corruption
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: poison
+          apply: Damage Reduction
+        guid: cb78119f-6013-4e1a-9301-6d3a74d6c01e
+        name: Summoner Buffs
+        description: ""
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 87523419-8068-476c-a410-35e09879f1ff
+        source: Character Feature
+        value: summoner.reason
+        domains:
+          CharacterFeature:87523419-8068-476c-a410-35e09879f1ff: true
+          CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+        name: Summoner Buffs
+        guid: 3ee47553-c2db-4c66-b987-c98a6f53243b
+        description: ""
+        behavior: attribute
+        attribute: forcedmoveresistance
+      name: Summoner Buffs
+      guid: 87523419-8068-476c-a410-35e09879f1ff
+      description: ""
+      source: Character Feature
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0a62fe94-9d31-408d-8a05-add5f88919ea
+        source: Custom
+        value: 5
+        domains:
+          CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+        name: Custom Modification
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: ""
+        behavior: attribute
+        attribute: creatureSize
+      source: Custom
+      guid: 0a62fe94-9d31-408d-8a05-add5f88919ea
+      id: 6450780b-d70f-4bf2-ae23-9620e047e693
+      ctime: 1756099470349
+      domains:
+        CharacterFeature:6450780b-d70f-4bf2-ae23-9620e047e693: true
+      name: Custom Modification
+      description: ""
+      mtime: 1756099470349
+      implementation: 3
+    role: Minion Defender
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    innateAttacks: []
+    skillRatings: []
+    monster_category: Monster
+    levelChoices: []
+    opportunityAttack: 4
+    walkingSpeed: 5
+    keywords:
+      Summoner: true
+      Heroic: true
+      Undead: true
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage; a<v grabbed
+        - 4 damage; a<v grabbed
+        - 4 damage; a<v grabbed
+        roll: "12"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+        riderid: c77e1440-ab4a-4cea-9330-452f241a8a7d
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: |
+        Zombie Clutch	
+        The lumberer’s melee free strikes inflict a<v grabbed. A creature or object that starts their turn grabbed by the lumberer takes corruption damage equal to your Reason.
+      abilityType: none
+      iconid: a393d50b-bef4-4a90-a1bf-767971ef2117
+    damage_taken: 0
+    resources: []
+    monster_type: Zombie Lumberer
+    minion: true
+    savingThrowRatings: []
+    max_hitpoints: 8
+  tokenType: null
+  bestiaryId: edf6be40-04f5-4b65-8120-d936df9370c2
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1759618052389
+description: null
+parentFolder: c6766a48-8a7b-4417-987f-757cb10088bf
+artist: null
+ord: 3
+ctime: 1759618052389
+mtime: 1775167537386
+hidden: false

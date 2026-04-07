@@ -1,0 +1,29 @@
+__typeName: MarkdownDocument
+description: Mara
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: e813b2f2-2d2c-46f5-b6d3-d1347cbfe3a9
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.5
+    halign: center
+    image: b968ffda-1d87-47c0-8193-a09539bc8fd8
+id: 26b7c8e7-c6d0-4ac5-a6f6-3ee5bd96fe02
+mtime: 1761427755084
+content: |-
+  # Mara
+
+  [[image]]
+
+  *A human elementalist in her fifties, Mara is an expert in magic and Caelian history. She doesn’t reveal much to any hero who speaks to her, but she does ask lots of questions about their adventures in the tomb, playing the part of a merely curious scholar.*
+  {
+  Secret: see [Gilded Hand]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761427276644

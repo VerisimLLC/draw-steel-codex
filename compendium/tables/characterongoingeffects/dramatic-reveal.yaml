@@ -1,0 +1,247 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:ff70cc2e-f0d6-4109-b495-75b7aa8d1c75: true
+  sourceguid: ff70cc2e-f0d6-4109-b495-75b7aa8d1c75
+  description: Until the end of the encounter, whenever you reduce a creature to 0 Stamina with an ability, you can use a free triggered action to teleport an ally within distance of the ability into the creature's space in a plume of rose petals. You or the teleported ally can then make a melee free strike.
+  source: Character Feature
+  name: Test Trigger
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: true
+    targetFilter: ""
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: Teleport an ally within distance into the creature's space in a plume of rose petals
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: "10"
+    persistence: []
+    modifiers: []
+    despawnBehavior: remove
+    strain: []
+    guid: f6d91c63-eea9-45f5-93cc-a8692c8fc348
+    trigger: dealdamage
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        objectTarget: false
+        repeatTargets: false
+        targetAllegiance: ally
+        targetType: target
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Hidden
+        range: "<<targetrange>>"
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: d5b50531-5f11-4540-a44e-dac8e24b4ab0
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 7c9f52be-3491-4ad7-8f7c-d16fb33801ab
+          duration: 0
+          ongoingEffectCustom: 7c9f52be-3491-4ad7-8f7c-d16fb33801ab
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          customAbility:
+            __typeName: ActivatedAbility
+            numTargets: "1"
+            modifiers: []
+            guid: f3488c14-e052-4279-ad8b-0b986ce944a4
+            repeatTargets: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            behaviors: []
+            range: 1
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          promptText: Teleport your ally to the dead creature's space
+          abilityType: standard
+          standardAbilityParams:
+            range: "100"
+            targetid: "{Target.ID}"
+          standardAbility: 86145a1e-29cd-4658-8561-81705fa48c62
+        - __typeName: ActivatedAbilityInvokeAbilityBehavior
+          invokeOnCaster: true
+          customAbility:
+            __typeName: ActivatedAbility
+            repeatTargets: false
+            behaviors: []
+            multipleModes: variations
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            categorization: Hidden
+            range: 1
+            persistence: []
+            modifiers: []
+            strain: []
+            modeList:
+            - variation:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                numTargets: "1"
+                modifiers: []
+                targetType: self
+                strain: []
+                guid: f6eb5ff6-f51b-4edb-ba70-606664ecb8c5
+                repeatTargets: false
+                abilityType: none
+                domains: []
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  invokeOnCaster: true
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: ad4ab8f0-fa2f-44d2-b1f4-3222ee9fdeab
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  standardAbility: 9b123334-6d7c-4848-8b17-db3255c4012c
+                  abilityType: standard
+                persistence: []
+                name: Invoked Ability
+                categorization: Hidden
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              hasAbility: true
+              text: Self makes Melee Free Strike
+            - variation:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                targetFilter: Target.Ongoing Effects has "Dramatic Reveal Target"
+                repeatTargets: false
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: da50e3b3-a822-4c57-aeb2-20408eb40796
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  runOnController: true
+                  standardAbility: 9b123334-6d7c-4848-8b17-db3255c4012c
+                  abilityType: standard
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "100"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 74224256-3811-4be6-a156-7e2d157012c4
+                domains: []
+                targetType: all
+                numTargets: "1"
+                selfTarget: false
+                name: Invoked Ability
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              hasAbility: true
+              text: Ally makes Melee Free Strike
+            numTargets: "1"
+            guid: 00911c5d-795c-4a40-b23a-ba119425858f
+            name: Invoked Ability
+            targetType: self
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          abilityType: custom
+          filterTarget: ""
+          guid: 2c79a49d-ed64-47af-a28c-d6acddd9c52a
+          standardAbilityParams:
+            targetid: "{Target.ID}"
+          applyto: targets
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 7c9f52be-3491-4ad7-8f7c-d16fb33801ab
+          mode: effect
+          conditions: []
+        name: Invoked Ability
+        numTargets: "1"
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      standardAbilityParams:
+        range: ""
+        targetrange: "<<Used Ability.Range>>"
+      invokeOnCaster: false
+    domains:
+      CharacterOngoingEffect:ff70cc2e-f0d6-4109-b495-75b7aa8d1c75: true
+    numTargets: "1"
+    actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+    name: Dramatic Reveal
+    conditionFormula: (Target.Stamina <= 0) and ((Target.Stamina + Damage) > 0)
+    description: Until the end of the encounter, whenever you reduce a creature to 0 Stamina with an ability, you can use a free triggered action to teleport an ally within distance of the ability into the creature's space in a plume of rose petals. You or the teleported ally can then make a melee free strike.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: b743a374-25dd-4cf3-a4e9-e6498ba4061b
+source: Ongoing Effect
+guid: ff70cc2e-f0d6-4109-b495-75b7aa8d1c75
+id: ff70cc2e-f0d6-4109-b495-75b7aa8d1c75
+ctime: 1772426136250
+domains:
+  CharacterOngoingEffect:ff70cc2e-f0d6-4109-b495-75b7aa8d1c75: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+name: Dramatic Reveal
+custom: true
+description: Until the end of the encounter, whenever you reduce a creature to 0 Stamina with an ability, you can use a free triggered action to teleport an ally within distance of the ability into the creature's space in a plume of rose petals. You or the teleported ally can then make a melee free strike.
+mtime: 1772974343566
+iconid: ui-icons/skills/1.png

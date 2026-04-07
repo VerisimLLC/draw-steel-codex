@@ -1,0 +1,107 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: f0be14dc-ca9e-4264-b196-4249e5cf090e
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: not (Ongoing Effects has "Blue Cloak")
+    sourceguid: f0be14dc-ca9e-4264-b196-4249e5cf090e
+    name: Color Cloak (Blue)
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: Level
+      damageType: cold
+      apply: Damage Reduction
+    description: ""
+    behavior: resistance
+    guid: e993037a-2528-41a8-a839-2df31c024520
+  - __typeName: CharacterModifier
+    filterCondition: not (Ongoing Effects has "Blue Cloak")
+    sourceguid: f0be14dc-ca9e-4264-b196-4249e5cf090e
+    description: ""
+    source: Item
+    name: Color Cloak (Blue)
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      hasManualVersion: true
+      strain: []
+      guid: 5a5d6619-b2c1-4a24-b557-8bb76ca737ea
+      numTargets: "1"
+      castImmediately: true
+      conditionFormula: HasAbility and (ability.damagetypes has "Cold") and not (ongoing Effects has "Blue Cloak")
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: Shift {Level}
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: bde74ca5-7978-4b34-901d-6e5e19a065f9
+        durationUntilEndOfTurn: true
+        duration: endnextround
+        ongoingEffectCustom: bde74ca5-7978-4b34-901d-6e5e19a065f9
+      trigger: losehitpoints
+      name: Color Cloak (Blue)
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: 18860925-b091-4a29-9b51-8c7d547d1951
+  - __typeName: CharacterModifier
+    sourceguid: f0be14dc-ca9e-4264-b196-4249e5cf090e
+    guid: 2f19694f-edcb-4abd-8182-81c2c80b3154
+    source: Item
+    behavior: triggerdisplay
+    description: ""
+    name: Color Cloak (Blue)
+    ability:
+      __typeName: TriggeredAbilityDisplay
+      target: Self
+      effect: You shift a number of squares equal to your level. The cold immunity granted by the cloak becomes cold weakness with the same value until the end of the next round. You can't use this triggered action against until the cold weakness ends.
+      trigger: You are targeted by an effect that deals cold damage.
+      name: Color Cloak (Blue)
+      guid: b6120cf1-785f-424a-b85e-5f3266057727
+      distance: Self
+      keywords: []
+  source: Item
+  name: Color Cloak (Blue)
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: A pint of blue ichor, soul chalk
+keywords:
+  Magic: true
+  Neck: true
+projectSource: Licensing agreements in Anjali
+flavor: This silky-blue hooded cloak is emblazoned with a golden Anjali sigil  meaning “ice.”
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+description: |-
+  While worn, a blue Color Cloak grants you cold immunity equal to your level. 
+
+  Additionally, when you are targeted by any effect that deals cold damage, you can use a triggered action to shift a number of squares equal to your level. If you do so, the cold immunity granted by the cloak becomes cold weakness with the same value until the end of the next round. You can’t use this triggered action again until this weakness ends.
+implementation: 3
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+domains:
+  item:7e31c6c9-18ff-4f44-bf68-f8032d08adb1: true
+id: 7e31c6c9-18ff-4f44-bf68-f8032d08adb1
+projectGoal: "150"
+name: Color Cloak - Blue
+ctime: 1757919413917
+mtime: 1763106953799
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: aab619fb-c105-46aa-8e94-cff19b10ec8b

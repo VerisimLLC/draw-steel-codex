@@ -1,0 +1,207 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 6e3058d2-878c-4307-a678-c9874a900122
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |
+        Human Warrior	Level 1 Defender Retainer
+        Human, Humanoid	EV 15
+        <b>Stamina</b> 40
+        <b>Speed</b> 5	<b>Size</b> 1M/<b>Stability</b> 0
+        <b>Free Strike</b> 2
+        Might +2	Agility 0	Reason 0	Intuition 0	Presence +1
+        <b>Chop</b> (Action) - 2d10 + highest characteristic - Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1 	<b>Target </b>One creature or object
+        %E2%9C%A6	%E2%89%A411		3 damage
+        %E2%98%85	12%E2%80%9316	5 damage
+        %E2%9C%B8	17+		7 damage
+        <b>Effect </b>The attack gains an edge if the warrior is adjacent to their mentor.
+
+        <b>Supernatural Insight</b>
+        The warrior ignores concealment if it's granted by a supernatural effect, or if the target is supernatural.
+
+        Level 4 Retainer Advancement Ability
+        <b>'Scuse Me, Boss</b> (Triggered Action, Encounter)
+        <b>Keywords</b> %E2%80%93
+        <b>Distance</b> Melee 1	<b>Target</b> The warrior's mentor
+        <b>Trigger</b> The warrior's mentor is targeted with an attack.
+        <b>Effect</b> The warrior and the mentor switch places. The warrior becomes the attack's new target and gains 2 shields against the attack.
+
+        Level 7 Retainer Advancement Ability
+        <b>Defensive Fighting</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> 1 creature
+        %E2%9C%A6	%E2%89%A411		7 damage
+        %E2%98%85	12%E2%80%9316		11 damage
+        %E2%9C%B8	17+		16 damage
+        <b>Effect</b> Until the start of the warrior's next turn, the warrior and allies within 1 gain 1 shield.
+
+        Level 10 Retainer Advancement Ability
+        <b>Whirlwind of Steel</b> (Action, Encounter) - 2d10 + highest characteristic
+        <b>Keywords</b> Area, Charge, Weapon
+        <b>Distance</b> 1 burst	<b>Target</b> All enemies
+        %E2%9C%A6	%E2%89%A411		12 damage
+        %E2%98%85	12%E2%80%9316		18 damage
+        %E2%9C%B8	17+		24 damage
+
+        Kingfissure Worm
+        Named for their infamous hunting technique, kingfissure worms terraform the earth as they move, building tunnels and crevasses to accommodate their enormous form. They then lie in wait deep underground. When they sense the vibrations of their prey above, they shoot their serpentine tongues through the crevasses, dragging prey from the surface into the worm's cavernous maw. Seasoned adventurers know to be wary when traveling past even the smallest crack in the earth.
+        Intestine Inventory
+        The worm eats indiscriminately, swallowing creatures, structures, and precious gems alike. The wealth inside a kingfissure worm would put any dragon's hoard to shame, though the worm cares nothing for treasure and knows nothing of the spoils lodged in their labyrinthine intestines. Few are those who have managed to get a hold of treasure lost to the inside of a kingfissure worm, but stories enough have spread to draw scavengers, bandits, and even armies to the corpses of recently slain kingfissure worms, all hoping to come away with a king's ransom in spoils.
+        Home Renovators
+        Most worms build a den of tunnels and fissures, remaining in it for as long as the pickings on the surface are good and they aren't disturbed. When a kingfissure worm seeks a new home, they target areas with abundant food-occasionally leading to villagers waking up to find their surrounding lands have been terraformed overnight. Residents of such lands generally have two choices: pack up and leave or prepare for battle. If a worm is somehow defeated, all manner of creatures and communities try to lay claim to the worm's underground structures. These empty dens make wonderful war bunkers, isolated workshops, and even highly defensible villages.
+        Unstoppable Force
+        The kingfissure worm is a species determined to outrun, outlast, and out-eat every other living creature. Though the monster might be slowed by a display of great power, only death stops them. Once they have set their sights on their prey, they single-mindedly pursue it regardless of terrain or circumstance; the only thing that seems to give kingfissure worms pause are attacks on their tongues, which are left vulnerable only when they are dragging creatures to their impending doom.
+        Unclear Origins
+        Kingfissure worms have no identifiable sexual characteristics and are extremely territorial; should two kingfissure worms encounter each other, the result is always a cataclysmic duel that ends in one devouring the other. Because of this, most scholars theorize that these creatures reproduce asexually and that when a kingfissure worm dies, their tongues detach and grow into full-fledged worms. While this has yet to be confirmed, juvenile kingfissure worms have been seen in the wild, most often spotted following animal herds or traveling communities, feeding off of stragglers, refuse, remains, and vermin.
+        The Swallowed Survivors
+        Kingfissure worms never stop growing and the oldest are truly immense, easily mistaken in the distance for a strangely mobile mountain range. Deep within the bowels of these behemoths, unusual biomes and oversized gut fauna may flourish, and in fact some people who have survived their trip down the gargantuan gullet of one of the great worms have been able to eek out a life and-in extremely rare but not unheard of circumstances-form thriving communities safe inside the spacious lower abdomen of their living quarters.
+        Sensitive Giant
+        For all their might and vitality, kingfissure worms are primarily ambush hunters, and like any ambush hunter need delicate and precise senses to detect and target their prey when it approaches. As burrowing creatures, they have a finely-tuned sense of touch able to detect even the most minute vibrations while in direct contact with earth and stone. As this fills the role of their primary sense, their eyesight is somewhat rudimentary, and the worms are dreadfully nearsighted. In combination, their poor vision and reliance on ground-conducted vibrations mean that they have almost no way of pinpointing flying creatures, and many species of birds find kingfissure worm territory exceptionally safe and free from predators.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f1ee6090-26c6-4844-9688-663474c49d02: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:f1ee6090-26c6-4844-9688-663474c49d02: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The warrior ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+        behavior: power
+      source: Trait
+      description: The warrior ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+      guid: f1ee6090-26c6-4844-9688-663474c49d02
+      name: Supernatural Insight
+      implementation: 3
+    role: Defender Retainer
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Human: true
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    creatureSize: 1M
+    monster_type: Human Warrior
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    max_hitpoints: 40
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    minion: false
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 741b7894-b46c-49c3-ab0b-c9e54941d365
+      numTargets: 1
+      name: Chop
+      behaviors: []
+      description: The attack gains an edge if the warrior is adjacent to their mentor.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds: []
+    ev: 15
+    opportunityAttack: 2
+    levelChoices: []
+    walkingSpeed: 5
+  tokenType: null
+  bestiaryId: 6c709471-dc1d-4481-bcb0-534ae2839e15
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961968408
+description: Human Warrior
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590262960
+mtime: 1775167474989
+hidden: false

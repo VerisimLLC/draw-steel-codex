@@ -1,0 +1,230 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 37aad305-377b-4b0e-b57f-7e7b5fd98dcd
+    offtokenPortraitId: null
+    portraitFrameId: 332770d5-bdfb-40bb-92c0-f8476e7e80f2
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.05648202
+      y: 0.1451861
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions:
+    - x: -0.3167185
+      y: 0.3864062
+    - x: 0.18
+      y: -0.18
+    - x: 0.18
+      y: 0.18
+    - x: -0.18
+      y: 0.18
+    - x: -0.3
+      y: 0
+    - x: 0.3
+      y: 0
+    - x: 0
+      y: 0.3
+    - x: 0
+      y: -0.3
+    - x: -0.42
+      y: -0.42
+    - x: 0.42
+      y: -0.42
+    - x: 0.42
+      y: 0.42
+    - x: -0.42
+      y: 0.42
+    - x: -0.48
+      y: 0
+    - x: 0.48
+      y: 0
+    - x: 0
+      y: 0.48
+    - x: 0
+      y: -0.48
+    - x: 0
+      y: -0.6
+    saddles: 1
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d858f7ec-2b1e-4bc9-9620-fb365c07691c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 30
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: -3
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8d22bbaa-6965-4cd6-9710-247e451a72b1: true
+      modifiers: []
+      name: Mounted Platform
+      description: Any creature riding the hawk can make a free strike during or after the hawk's movement.
+      guid: 8d22bbaa-6965-4cd6-9710-247e451a72b1
+      source: Trait
+    role: Platoon Mount
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    equipmentMeta:
+      offhand0: []
+    damage_taken: 0
+    opportunityAttack: 3
+    resources: []
+    walkingSpeed: 5
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 8cc27b81-9a56-4238-83af-ef39c2e040f7
+      numTargets: 1
+      implementation: 3
+      persistence: []
+      name: Talons
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 7 damage
+        - 9 damage; grabbed
+        roll: 2d10 + Agility
+      description: |2-
+
+        **2 Malice**: If this ability gains an edge or has a double edge, it deals an  extra 2 damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: b1443033-8719-49a1-a19d-c42721ff7652
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Dive
+      persistence: []
+      description: The hawk moves up to their speed.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    creatureSize: "2"
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    movementSpeeds:
+      fly: 5
+    initiativeGrouping: b506aca1-b989-4fb8-8ed9-b21a5e20a437
+    keywords:
+      Animal: true
+      Human: true
+    monster_type: Giant Hawk
+    notes:
+    - text: Summoned by Vex Test Censor
+      title: Summoned
+  tokenType: null
+  bestiaryId: d018bbd5-4571-4ea5-bf17-46c653c33774
+  summonerid: b506aca1-b989-4fb8-8ed9-b21a5e20a437
+  ownerId: PARTY
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Giant Hawk
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1741590309360
+mtime: 1775201137032
+hidden: false

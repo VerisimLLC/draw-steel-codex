@@ -1,0 +1,187 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Statue of Power
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fcfce560-aa88-4512-81a8-2dd9ff783fc7
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    max_stamina_history:
+      __typeName: StatHistory
+      entries:
+        62b92435-d0ed-40a0-a7a4-012e10a0b33e:
+          timestamp: 1746691612782
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 20
+    cr: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b9b7f04e-6489-4d77-a9fe-3b9314812dad: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b9b7f04e-6489-4d77-a9fe-3b9314812dad
+        source: Character Feature
+        seq: d17f2831-1e48-4881-81cc-e670cc1892b7
+        aura:
+          __typeName: Aura
+          modifiers:
+          - __typeName: CharacterModifier
+            triggeredAbility:
+              __typeName: TriggeredAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              guid: 6ed14b9e-59ad-42ca-bdc5-fd1dbb7fbd30
+              repeatTargets: false
+              range: 1
+              targetType: self
+              behaviors:
+              - __typeName: ActivatedAbilityReplenishBehavior
+                resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+                chatMessage: Statue of Power Aura
+              trigger: beginturn
+              name: Aura
+              whenActive: combat
+              description: While within 3 squares of the statue, you and your allies each gains a surge at the start of their turns.
+              abilityType: none
+              iconid: aabe466f-588b-4938-858d-fb943aaa0173
+            description: ""
+            source: Aura
+            behavior: trigger
+            guid: a677e081-f6cf-4419-ae31-2616ec33c1ae
+            name: Aura
+            sourceguid: 483d721d-d021-452b-90c0-32a179fe23a0
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          guid: 483d721d-d021-452b-90c0-32a179fe23a0
+          iconid: aabe466f-588b-4938-858d-fb943aaa0173
+          implementation: 3
+        domains:
+          CharacterFeature:b9b7f04e-6489-4d77-a9fe-3b9314812dad: true
+        radius: "3"
+        guid: d4fad353-c407-4620-a6c2-d8fc082b2ee9
+        description: While within 3 squares of the statue, you and your allies each gains a surge at the start of their turns.
+        behavior: aura
+        name: Statue of Power Surge Aura
+      source: Character Feature
+      description: While within 3 squares of the statue, you and your allies each gains a surge at the start of their turns.
+      guid: b9b7f04e-6489-4d77-a9fe-3b9314812dad
+      name: Statue of Power Surge Aura
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:24d2d567-2119-4288-9bcc-71a1bb5b1752: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:24d2d567-2119-4288-9bcc-71a1bb5b1752: true
+        sourceguid: 24d2d567-2119-4288-9bcc-71a1bb5b1752
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "999"
+          damageType: poison
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: "999"
+          damageType: psychic
+          apply: Damage Reduction
+        guid: 4d0551a5-0265-47f7-940b-d70de2d04c24
+        name: Poison and Psychic Immunity
+        description: The statue is immune to poison and psychic damage.
+      source: Character Feature
+      description: The statue is immune to poison and psychic damage.
+      guid: 24d2d567-2119-4288-9bcc-71a1bb5b1752
+      name: Poison and Psychic Immunity
+      implementation: 3
+    max_hitpoints: 20
+    inflictedConditions: []
+    equipment: []
+    max_hitpoints_roll: "20"
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Statue
+    damage_taken: 0
+    resources: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    levelChoices: []
+    walkingSpeed: 30
+    creatureSize: "2"
+    monster_type: Statue of Power
+  tokenType: null
+  bestiaryId: 06673a24-d1b0-4bc3-a52d-c308ac4c920b
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1730876709768
+description: null
+parentFolder: 79a93387-4cb0-465f-9085-31c8eec6e3f7
+artist: null
+ord: 11
+ctime: 1741590216417
+mtime: 1775167540546
+hidden: false

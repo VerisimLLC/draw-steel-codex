@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: b41b3a46-0dda-4d93-8559-8c8bf36fc8a0
+id: b41b3a46-0dda-4d93-8559-8c8bf36fc8a0
+ctime: 1773027892063
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Nature's Bounty - Temp Stamina
+description: ""
+custom: true
+mtime: 1773027947172
+iconid: 4f91c8ee-3b30-4fcf-836b-b6c4fa000d03

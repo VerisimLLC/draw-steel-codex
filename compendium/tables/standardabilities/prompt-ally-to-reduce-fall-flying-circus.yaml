@@ -1,0 +1,129 @@
+__typeName: ActivatedAbility
+repeatTargets: false
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    implementationDetails: "This ability is tied to the Flying Circus benefit of Troupe Leading Player. \v\vIt presents two options, to fall the full heifht of the fall or spend a manuever to reduce the effective height of the fall. The player selects the option and the fall occurs."
+    targetType: self
+    multipleModes: variations
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Ability
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    modeList:
+    - variation:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 110acfa9-741e-42fc-acdf-af43513aa556
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityDelayBehavior
+          delay: "0.5"
+        - __typeName: ActivatedAbilityFallBehavior
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        categorization: Ability
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 50e0741d-ae2d-474b-9b85-5f8daa53cbc0
+        castImmediately: false
+        targetType: self
+        numTargets: "1"
+        name: Reduce Fall
+        domains: []
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      text: Full Fall
+      hasAbility: true
+      rules: The full fall of the height applies.
+    - text: Reduce Fall by 2
+      hasAbility: true
+      condition: Resources.Maneuver > 0
+      rules: Use your maneuver to reduce the effective height of your fall by 2 squares.
+      variation:
+        __typeName: ActivatedAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        targetType: self
+        strain: []
+        guid: 151286a2-d97d-4f5c-af1f-59dbdeb81dd4
+        repeatTargets: false
+        abilityType: none
+        domains: []
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+          stacks: "2"
+          ongoingEffectCustom: false
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: 110acfa9-741e-42fc-acdf-af43513aa556
+          mode: effect
+          conditions: []
+        - __typeName: ActivatedAbilityDelayBehavior
+          delay: "0.5"
+        - __typeName: ActivatedAbilityFallBehavior
+        - __typeName: ActivatedAbilityDelayBehavior
+          delay: "2"
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+          mode: effect
+          conditions: []
+        persistence: []
+        name: Reduce Fall
+        categorization: Ability
+        description: Use your maneuver to reduce the effective height of your fall by 2 squares
+        range: 1
+        iconid: ui-icons/skills/1.png
+    guid: 3d952225-21dc-4910-a004-191c6cde5a3a
+    behaviors: []
+    castImmediately: false
+    iconid: ui-icons/skills/1.png
+    actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+    name: Reduce Fall
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    implementation: 3
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: f434c7e6-5ab0-4e92-a5b7-a23b0f819b54
+numTargets: "1"
+ctime: 1769515384016
+castImmediately: true
+id: d0e195e1-8b49-47fa-9805-0580eac0505f
+mtime: 1769517001246
+name: Prompt Ally to Reduce Fall - Flying Circus
+targetType: self
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

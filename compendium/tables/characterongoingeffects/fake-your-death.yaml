@@ -1,0 +1,117 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ebd3535c-e108-4b42-a7e6-1f2b734ed843
+  source: Ongoing Effect
+  value: 3
+  domains:
+    CharacterOngoingEffect:ebd3535c-e108-4b42-a7e6-1f2b734ed843: true
+  name: Fake Your Death
+  guid: 73574e87-008f-4d9c-b8c3-7bd55213d16b
+  description: You turn invisible and create a magical illusion of your corpse falling in your space. While you are invisible, you gain a +3 bonus to speed and you ignore difficult terrain. The illusion melts into the ground and your invisibility ends at the end of your next turn, or earlier if the illusion is interacted with, if you take damage, or if you use an action or a maneuver.
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  operation: set
+  sourceguid: ebd3535c-e108-4b42-a7e6-1f2b734ed843
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:ebd3535c-e108-4b42-a7e6-1f2b734ed843: true
+  name: Fake Your Death
+  guid: 6a44721b-e6e1-4378-bc4b-ba362969e0ba
+  description: You turn invisible and create a magical illusion of your corpse falling in your space. While you are invisible, you gain a +3 bonus to speed and you ignore difficult terrain. The illusion melts into the ground and your invisibility ends at the end of your next turn, or earlier if the illusion is interacted with, if you take damage, or if you use an action or a maneuver.
+  behavior: attribute
+  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:ebd3535c-e108-4b42-a7e6-1f2b734ed843: true
+  sourceguid: ebd3535c-e108-4b42-a7e6-1f2b734ed843
+  description: You turn invisible and create a magical illusion of your corpse falling in your space. While you are invisible, you gain a +3 bonus to speed and you ignore difficult terrain. The illusion melts into the ground and your invisibility ends at the end of your next turn, or earlier if the illusion is interacted with, if you take damage, or if you use an action or a maneuver.
+  source: Ongoing Effect
+  name: Fake Your Death
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: losehitpoints
+    strain: []
+    guid: 0ebe584c-37f7-410c-97be-12e35c805bd5
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:ebd3535c-e108-4b42-a7e6-1f2b734ed843: true
+    targetType: self
+    persistence: []
+    name: Fake Your Death
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: ebd3535c-e108-4b42-a7e6-1f2b734ed843
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: 143d63eb-8928-4c66-af90-4b3acd06d308
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:ebd3535c-e108-4b42-a7e6-1f2b734ed843: true
+  sourceguid: ebd3535c-e108-4b42-a7e6-1f2b734ed843
+  description: You turn invisible and create a magical illusion of your corpse falling in your space. While you are invisible, you gain a +3 bonus to speed and you ignore difficult terrain. The illusion melts into the ground and your invisibility ends at the end of your next turn, or earlier if the illusion is interacted with, if you take damage, or if you use an action or a maneuver.
+  source: Ongoing Effect
+  name: Fake Your Death
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: ebd3535c-e108-4b42-a7e6-1f2b734ed843
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 0ebe584c-37f7-410c-97be-12e35c805bd5
+    persistence: []
+    domains:
+      CharacterOngoingEffect:ebd3535c-e108-4b42-a7e6-1f2b734ed843: true
+    conditionFormula: resource = "Main Action" or resource = "Maneuver"
+    targetType: self
+    trigger: useresource
+    name: Fake Your Death
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 6c314193-8e4f-46cf-98a2-f18d0bc7c617
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: ebd3535c-e108-4b42-a7e6-1f2b734ed843
+id: ebd3535c-e108-4b42-a7e6-1f2b734ed843
+ctime: 1746291360723
+domains:
+  CharacterOngoingEffect:ebd3535c-e108-4b42-a7e6-1f2b734ed843: true
+condition: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+description: You turn invisible and create a magical illusion of your corpse falling in your space. While you are invisible, you gain a +3 bonus to speed and you ignore difficult terrain. The illusion melts into the ground and your invisibility ends at the end of your next turn, or earlier if the illusion is interacted with, if you take damage, or if you use an action or a maneuver.
+name: Fake Your Death
+custom: true
+mtime: 1760057075036
+iconid: 6cda6156-84cb-4c95-9973-de54b30a6815
+implementation: 3

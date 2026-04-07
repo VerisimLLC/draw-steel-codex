@@ -1,0 +1,300 @@
+cc759bf2-9dfa-4399-8d9d-6bede4f08fb6:
+  __typeName: Culture
+  id: cc759bf2-9dfa-4399-8d9d-6bede4f08fb6
+  group: Ancestry Cultures
+  name: Dwarf
+  languageid: e110c3b1-3799-4179-b542-f842079b77f1
+  mtime: 1769349215554
+  aspects:
+    upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+    environment: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796038984
+c6465a85-e733-4eb4-a7e0-aeeae23ba469:
+  __typeName: Culture
+  id: c6465a85-e733-4eb4-a7e0-aeeae23ba469
+  group: Ancestry Cultures
+  name: Hakaan
+  languageid: b9f2674c-953b-457b-9b42-00b892ba2488
+  mtime: 1769349219745
+  aspects:
+    upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+    environment: bc083000-3543-41ff-ad8d-332f73cd92aa
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796118938
+f127cd26-5f31-4409-b827-0b6ffe63abb4:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Telepathic Hive
+  id: f127cd26-5f31-4409-b827-0b6ffe63abb4
+  mtime: 1769349274054
+  aspects:
+    upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+    environment: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796497798
+d367478d-2016-436d-816f-10752190e79f:
+  __typeName: Culture
+  id: d367478d-2016-436d-816f-10752190e79f
+  description: ""
+  group: Ancestry Cultures
+  languageid: ba97f286-6412-461e-b954-ae8fba88d0df
+  name: Dragon Knight
+  mtime: 1769349213129
+  aspects:
+    upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+    environment: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796016891
+d0cb07bd-b8ec-4e89-b315-0dd7a8dfc176:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: College Conclave
+  id: d0cb07bd-b8ec-4e89-b315-0dd7a8dfc176
+  mtime: 1769349247346
+  aspects:
+    upbringing: 788c28f1-06bb-4a18-94d9-b58ba8d9af88
+    environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796305109
+2952fd47-e7ac-44a3-822d-3b48dcb98491:
+  __typeName: Culture
+  id: 2952fd47-e7ac-44a3-822d-3b48dcb98491
+  group: Ancestry Cultures
+  name: Polder
+  languageid: d2821847-466a-4320-85d8-cabeb7835429
+  mtime: 1769349234770
+  aspects:
+    upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+    environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796213381
+b6641ead-0c38-412d-b2b6-1b486a60e5b8:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Pirate Crew
+  id: b6641ead-0c38-412d-b2b6-1b486a60e5b8
+  mtime: 1769349271655
+  aspects:
+    upbringing: b791f023-6852-426e-aeef-7eac5d04aa7b
+    environment: 184b0626-5e2d-48bd-8877-2072df0f374f
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796480256
+7727fae7-d88e-4bf5-9d93-4fd24356b043:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Outlaw Band
+  id: 7727fae7-d88e-4bf5-9d93-4fd24356b043
+  mtime: 1769349269297
+  aspects:
+    upbringing: b791f023-6852-426e-aeef-7eac5d04aa7b
+    environment: 4dbf32ef-46d1-48ec-be9e-1783e7b36f07
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796463797
+9da9e077-b9e2-406a-9539-eb027d71ba6c:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Borderland Homestead
+  id: 9da9e077-b9e2-406a-9539-eb027d71ba6c
+  mtime: 1769349244579
+  aspects:
+    upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+    environment: 4dbf32ef-46d1-48ec-be9e-1783e7b36f07
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796286949
+83bc21fa-4da3-4596-bae9-20b016678d63:
+  __typeName: Culture
+  id: 83bc21fa-4da3-4596-bae9-20b016678d63
+  group: Ancestry Cultures
+  name: Time Raider
+  languageid: 86a6b7cc-6569-48cc-8867-b184204ebfd2
+  mtime: 1769349236796
+  aspects:
+    upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+    environment: 184b0626-5e2d-48bd-8877-2072df0f374f
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796235506
+88b2d25f-7308-4cfd-9ebc-12b89024ac20:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Artisan Guild
+  id: 88b2d25f-7308-4cfd-9ebc-12b89024ac20
+  mtime: 1769349242145
+  aspects:
+    upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+    environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796269958
+99a58a8a-db60-4db6-b6df-df45fe4b6046:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Mercenary Band
+  id: 99a58a8a-db60-4db6-b6df-df45fe4b6046
+  mtime: 1769349260272
+  aspects:
+    upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+    environment: 184b0626-5e2d-48bd-8877-2072df0f374f
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796395603
+542c875c-4444-4eea-909d-b69323bb3b61:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Merchant Caravan
+  id: 542c875c-4444-4eea-909d-b69323bb3b61
+  mtime: 1769349262540
+  aspects:
+    upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+    environment: 184b0626-5e2d-48bd-8877-2072df0f374f
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796414055
+477bceb2-94c8-4035-9bcc-701b68263c67:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Criminal Gang
+  id: 477bceb2-94c8-4035-9bcc-701b68263c67
+  mtime: 1769349249562
+  aspects:
+    upbringing: b791f023-6852-426e-aeef-7eac5d04aa7b
+    environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796323734
+dfde45d4-0ce1-42c5-80e6-614180be3186:
+  __typeName: Culture
+  id: dfde45d4-0ce1-42c5-80e6-614180be3186
+  group: Ancestry Cultures
+  name: Human
+  languageid: 7e7efb1d-4627-44ab-9407-11daff1a15cf
+  mtime: 1769349224412
+  aspects:
+    upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+    environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796142013
+0b28ef83-1458-4832-b146-eec6268578ff:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Farming Village
+  id: 0b28ef83-1458-4832-b146-eec6268578ff
+  mtime: 1769349251612
+  aspects:
+    upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+    environment: bc083000-3543-41ff-ad8d-332f73cd92aa
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796338835
+fcfa527d-f9c2-4382-8ed1-5369ac748de3:
+  __typeName: Culture
+  id: fcfa527d-f9c2-4382-8ed1-5369ac748de3
+  description: ""
+  group: Ancestry Cultures
+  languageid: 5287d30a-3dff-404b-8e84-0087508a801b
+  name: Devil
+  mtime: 1769349206388
+  aspects:
+    upbringing: 788c28f1-06bb-4a18-94d9-b58ba8d9af88
+    environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768795967924
+759af0cd-7108-4f09-95af-6d0a5ebb0480:
+  __typeName: Culture
+  id: 759af0cd-7108-4f09-95af-6d0a5ebb0480
+  group: Ancestry Cultures
+  name: High Elf
+  languageid: f3951673-4de6-42ad-be86-d3158c40365c
+  mtime: 1769349221830
+  aspects:
+    upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+    environment: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796092718
+7cde3202-46d1-414a-963b-8fc59795e886:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Laborer Neighborhood
+  id: 7cde3202-46d1-414a-963b-8fc59795e886
+  mtime: 1769349256604
+  aspects:
+    upbringing: 2ef328d9-8635-4f45-9d61-3d4296d847e0
+    environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796373920
+ceaabc30-0e4e-4c70-b8f6-82a3e2931d88:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Traveling Entertainers
+  id: ceaabc30-0e4e-4c70-b8f6-82a3e2931d88
+  mtime: 1769349276288
+  aspects:
+    upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+    environment: 184b0626-5e2d-48bd-8877-2072df0f374f
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796514290
+1ad45296-22a9-4e03-aa5d-f3233766c16b:
+  __typeName: Culture
+  id: 1ad45296-22a9-4e03-aa5d-f3233766c16b
+  description: ""
+  group: Ancestry Cultures
+  languageid: 5961c0ed-6a39-48fa-ad94-0a4fb4d98b58
+  name: Orc
+  mtime: 1769349232470
+  aspects:
+    upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+    environment: 4dbf32ef-46d1-48ec-be9e-1783e7b36f07
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796188897
+399c4f6c-ec75-460c-8a64-e645924c721f:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Monastic Order
+  id: 399c4f6c-ec75-460c-8a64-e645924c721f
+  mtime: 1769349265078
+  aspects:
+    upbringing: 788c28f1-06bb-4a18-94d9-b58ba8d9af88
+    environment: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796431014
+a3027139-00a7-4c2b-af81-d6af2471bc61:
+  __typeName: Culture
+  id: a3027139-00a7-4c2b-af81-d6af2471bc61
+  group: Ancestry Cultures
+  name: Memonek
+  languageid: 648e3016-4c43-484d-8cc7-f63877cb9a80
+  mtime: 1769349230171
+  aspects:
+    upbringing: 788c28f1-06bb-4a18-94d9-b58ba8d9af88
+    environment: 184b0626-5e2d-48bd-8877-2072df0f374f
+    organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+  ctime: 1768796164470
+8ab414a3-b599-4f14-ab79-a24aab86531b:
+  __typeName: Culture
+  id: 8ab414a3-b599-4f14-ab79-a24aab86531b
+  group: Ancestry Cultures
+  name: Wode Elf
+  languageid: 7022a370-503a-4cfd-a711-4b6af889f3af
+  mtime: 1769349239579
+  aspects:
+    upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+    environment: 4dbf32ef-46d1-48ec-be9e-1783e7b36f07
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796064309
+a25caa55-1272-42f8-b5ee-1685239110d9:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Knightly Order
+  id: a25caa55-1272-42f8-b5ee-1685239110d9
+  mtime: 1769349253720
+  aspects:
+    upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+    environment: a9b1b9dd-ca6e-48b2-ae4d-2729da664804
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796354260
+13f3273f-eac0-4c72-8c56-d17f620e4b28:
+  __typeName: Culture
+  group: Archetypical Cultures
+  name: Noble House
+  id: 13f3273f-eac0-4c72-8c56-d17f620e4b28
+  mtime: 1769349267314
+  aspects:
+    upbringing: b778e944-2650-464c-9773-305f65cca665
+    environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+    organization: 023d4580-acbc-4955-b623-518308dd3890
+  ctime: 1768796447713

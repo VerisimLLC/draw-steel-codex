@@ -1,0 +1,174 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 30859148-132a-4890-897e-60df267b40b0
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Hobgoblin Brandbearer	Level 4 Minion Hexer
+        Goblin, Hobgoblin, Humanoid, Infernal	EV 6 for four minions
+        <b>Stamina</b> 7	<b>Immunity</b> fire 2
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Edge on strikes<b>Free Strike</b> 2
+        Might 0	Agility +1	Reason +2	Intuition 0	Presence +3
+        <b>Searing Grasp</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 fire damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 fire damage; M<2 fire weakness 5 (save ends)
+        %E2%9C%B8	<b>17</b>	6 fire damage; M<3 fire weakness 5 (save ends)
+
+        <b>Open Furnace</b>
+        An enemy that takes fire damage receives 1 additional fire damage for each adjacent brandbearer.
+
+        <b>Infernal Ichor</b>
+        If the brandbearer's Stamina drops to 0, they spray burning blood. Each creature within 1 of the brandbearer takes 2 fire damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d50aab81-a0d9-4ad5-a5e7-bcdae650bdd7: true
+      modifiers: []
+      name: Open Furnace
+      description: An enemy that takes fire damage receives 1 additional fire damage for each adjacent brandbearer.
+      guid: d50aab81-a0d9-4ad5-a5e7-bcdae650bdd7
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:92b1922f-a900-43d8-aeee-9fa76dc8bfb8: true
+      modifiers: []
+      name: Infernal Ichor
+      description: If the brandbearer's Stamina drops to 0, they spray burning blood. Each creature within 1 of the brandbearer takes 2 fire damage.
+      guid: 92b1922f-a900-43d8-aeee-9fa76dc8bfb8
+      source: Trait
+    role: Minion Hexer
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "7"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 2
+    groupid: 640fe403-2a42-4777-9bf3-2216561dde19
+    monster_type: Hobgoblin Brandbearer
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    withCaptain: Gain an edge on strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 7
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Magic: true
+        Melee: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 52cfa3c0-8b6f-4771-87e5-05583f8d1f86
+      implementation: 4
+      numTargets: 1
+      name: Searing Grasp
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 fire damage
+        - 4 fire damage; M<2 fire weakness 5 (save ends)
+        - 6 fire damage; M<3 fire weakness 5 (save ends)
+        roll: 2d10 + Presence
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Humanoid: true
+      Hobgoblin: true
+      Goblin: true
+      Infernal: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 8fcfb8c5-a19b-4496-a19a-38b1ee0374b0
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Hobgoblin Brandbearer
+parentFolder: ae0ffd42-2d5c-4de1-a94b-282a9cf676f0
+artist: null
+ord: 0
+ctime: 1741590281774
+mtime: 1775201137032
+hidden: false

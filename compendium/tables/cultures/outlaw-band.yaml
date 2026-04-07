@@ -1,0 +1,10 @@
+__typeName: Culture
+group: Archetypical Cultures
+name: Outlaw Band
+id: 7727fae7-d88e-4bf5-9d93-4fd24356b043
+mtime: 1769349269297
+aspects:
+  upbringing: b791f023-6852-426e-aeef-7eac5d04aa7b
+  environment: 4dbf32ef-46d1-48ec-be9e-1783e7b36f07
+  organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+ctime: 1768796463797

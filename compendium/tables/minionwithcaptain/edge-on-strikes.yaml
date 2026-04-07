@@ -1,0 +1,24 @@
+__typeName: CharacterFeature
+testCases: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 16eee231-b940-4107-be14-ed173449069c
+  source: Monster
+  behavior: power
+  keywords:
+    Strike: true
+  activationCondition: true
+  name: Edge on strikes
+  guid: b34abbcd-cdfe-4546-975d-b5d7700f2e25
+  description: ""
+  modtype: edge
+  rollType: ability_power_roll
+source: Monster
+guid: 16eee231-b940-4107-be14-ed173449069c
+importMatch: Edge on strikes
+ctime: 1738317402462
+name: Edge on strikes
+id: b736ed74-8b47-43ba-ac49-2a15e522ddfd
+description: ""
+mtime: 1738318857585
+implementation: 3

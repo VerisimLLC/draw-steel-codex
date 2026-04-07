@@ -1,0 +1,23 @@
+__typeName: ActivatedAbility
+id: 15b60481-fddc-4039-8893-952d50963b7c
+behaviors: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: a646e0d0-3892-49a9-b981-e068ba32f170
+ctime: 1728911626053
+targetType: self
+numTargets: "1"
+mtime: 1759805815297
+name: ""
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

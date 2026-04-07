@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 333bd717-500a-4a65-8620-0a9a1b7f7321
+id: 333bd717-500a-4a65-8620-0a9a1b7f7321
+ctime: 1771687480339
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Death Rattle target
+statusEffect: false
+mtime: 1771687480339
+description: ""
+iconid: ui-icons/skills/1.png

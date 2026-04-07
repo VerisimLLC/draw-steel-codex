@@ -1,0 +1,54 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 9b2eaec0-5c16-4cee-8957-5b1455cd5d19
+    repeatTargets: false
+    abilityType: none
+    trigger: beginturn
+    targetType: self
+    numTargets: "1"
+    name: The Grasping, the Hungry
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: 1d6
+      titleText: Damage from The Grasping, The Hungry
+      chatMessage: The Grasping, The Hungry
+    description: ""
+    range: 1
+    iconid: 4d1a68ab-0260-448c-a2da-c6747044169f
+  description: 'While restrained this way a creature takes 1d6 damage at the start of each of their turns. '
+  source: Ongoing Effect
+  behavior: trigger
+  guid: a8b6c068-b342-49c9-9cd2-8f8f8d8f872a
+  name: The Grasping, the Hungry
+  sourceguid: 8834c2e6-5efc-4d8f-8850-7d06cf01f7ef
+source: Ongoing Effect
+guid: 8834c2e6-5efc-4d8f-8850-7d06cf01f7ef
+id: 8834c2e6-5efc-4d8f-8850-7d06cf01f7ef
+ctime: 1757259324851
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+name: The Grasping, the Hungry
+description: 'While restrained this way a creature takes 1d6 damage at the start of each of their turns. '
+mtime: 1766651826192
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+implementation: 3

@@ -1,0 +1,141 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: df20f40c-5575-42d0-860c-1a9a1e2d79bc
+  source: Ongoing Effect
+  seq: 06bcf097-2f9a-47b5-8a90-09f511c6255a
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        persistence: []
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        strain: []
+        guid: c3bc2113-0626-4ba6-9b80-ef7ea97ac564
+        repeatTargets: false
+        abilityType: none
+        trigger: beginturn
+        targetType: self
+        numTargets: "1"
+        name: Riders on the Storm
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 3ea7e1a7-0d4d-43c0-9417-937f2424bf54
+          durationUntilEndOfTurn: false
+          duration: 1
+          ongoingEffectCustom: 3ea7e1a7-0d4d-43c0-9417-937f2424bf54
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: 83b7daa0-e2e7-448b-befa-79ecd66ad57d
+      name: Riders on the Storm
+      sourceguid: 171add5f-b455-4a01-a1dc-838e456ad8ab
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        numTargets: "1"
+        modifiers: []
+        abilityType: none
+        strain: []
+        guid: 9ed7d3d2-0da2-4c8a-93bb-8409aa10b476
+        repeatTargets: false
+        trigger: endturn
+        conditionFormula: Not Ongoing Effects has "Riders on the Storm fly"
+        targetType: self
+        persistence: []
+        name: Riders on the Storm
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 3ea7e1a7-0d4d-43c0-9417-937f2424bf54
+          durationUntilEndOfTurn: false
+          duration: 1
+          ongoingEffectCustom: false
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: 2d106d4f-32d8-4f0e-ac71-19aa4fb7f936
+      name: Riders on the Storm
+      sourceguid: 171add5f-b455-4a01-a1dc-838e456ad8ab
+    name: Riders on the Storm
+    blocks_line_of_effect: false
+    guid: 171add5f-b455-4a01-a1dc-838e456ad8ab
+    difficult_terrain: false
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+  radius: "3"
+  guid: 98a88f66-5232-43ba-a95d-d445e4b52aa6
+  description: ""
+  behavior: aura
+  name: Riders on the Storm
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    repeatTargets: false
+    targetAllegiance: enemy
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: Might *2
+      chatMessage: Riders on the Storm Damage
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 27fbc00b-584d-487b-b798-959c055df635
+    numTargets: "1"
+    name: Riders on the Storm
+    trigger: endturn
+    targetType: all
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: b52633a3-d58e-4d13-8661-57d30a4cdc5b
+  name: Riders on the Storm
+  sourceguid: df20f40c-5575-42d0-860c-1a9a1e2d79bc
+source: Ongoing Effect
+guid: df20f40c-5575-42d0-860c-1a9a1e2d79bc
+id: df20f40c-5575-42d0-860c-1a9a1e2d79bc
+ctime: 1765907262368
+sustainFormula: ""
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Riders on the Storm
+description: ""
+mtime: 1770348610898
+custom: true
+iconid: ui-icons/skills/1.png

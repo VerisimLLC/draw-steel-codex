@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: da566836-9c24-48df-b255-1db55683f7b7
+  sourceguid: f6219229-4365-4aba-80cb-8b30b092d8e5
+  value: 1
+  source: Ongoing Effect
+  name: Speed +1
+  behavior: attribute
+  description: You have +1 to speed.
+  attribute: speed
+source: Ongoing Effect
+guid: f6219229-4365-4aba-80cb-8b30b092d8e5
+id: f6219229-4365-4aba-80cb-8b30b092d8e5
+ctime: 1774874016435
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+buffType: buff
+name: Speed +1
+custom: true
+description: You have +1 to speed.
+mtime: 1774874016435
+iconid: ui-icons/skills/1.png

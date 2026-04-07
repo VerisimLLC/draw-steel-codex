@@ -1,0 +1,68 @@
+__typeName: CharacterOngoingEffect
+association: []
+id: e234f1f4-9953-43bd-894c-d96adbb63f84
+endTrigger: attacked
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e234f1f4-9953-43bd-894c-d96adbb63f84
+  source: Ongoing Effect
+  guid: 9eb9df72-3a46-46c3-abdc-8630831261be
+  behavior: power
+  keywords: []
+  hasCustomTrigger: false
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 994317c2-aec2-488b-bdaf-e5ea930b7824
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: e234f1f4-9953-43bd-894c-d96adbb63f84
+      mode: effect
+      conditions: []
+      applyto: targets
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  domains:
+    CharacterOngoingEffect:e234f1f4-9953-43bd-894c-d96adbb63f84: true
+  rollType: enemy_ability_power_roll
+  activationCondition: target.ConditionCaster("Aid Attack") != self
+  description: 'The next ability power roll made against you before the start of the casters next turn has an edge. '
+  modtype: edge
+  name: Aid Attack
+source: Ongoing Effect
+casterTracking: one
+guid: e234f1f4-9953-43bd-894c-d96adbb63f84
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.0182502269744873
+    s: 0.968127489089966
+    v: 0.984313726425171
+    a: 1
+ctime: 1742655752146
+domains:
+  CharacterOngoingEffect:e234f1f4-9953-43bd-894c-d96adbb63f84: true
+implementation: 3
+custom: true
+name: Aid Attack
+statusEffect: true
+description: 'The next ability power roll made against you before the start of the casters next turn has an edge. '
+mtime: 1750132828463
+iconid: 5e60c5cb-d09d-41bb-b7e6-e15b745e5757

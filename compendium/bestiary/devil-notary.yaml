@@ -1,0 +1,180 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 4954839f-4ea6-4561-88e7-60d9e6361f15
+    offtokenPortraitId: 79784822-c21c-4ae1-8d36-72d85219de7c
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.37
+    portraitOffset:
+      x: -0.03166687
+      y: 0.2696345
+    frameHueShift: 0.7808437
+    frameSaturation: 0.8011753
+    frameBrightness: 0.6668703
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 87c6546e-93a2-43ac-a7e0-5f555297191c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 5
+    skillProficiencies: []
+    max_hitpoints: 8
+    inflictedConditions: []
+    ev: 7
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 fire damage
+        - 5 fire damage; R<2 the target takes a bane on their next strike
+        - 6 fire damage; R<3 the target takes a bane on their next strike
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c9af0e51-62ce-406e-901b-bcc9adedc2eb
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Importunity
+      numTargets: 1
+      description: A non-minion devil within 5 has an edge on their next strike.
+      abilityType: none
+      implementation: 3
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Devil Notary	Level 5 Minion Hexer
+        Devil, Infernal	EV 7 for four minions
+        <b>Stamina</b> 8	<b>Immunity</b> Fire 5
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Ranged distance +5<b>Free Strike</b> 3
+        Might 0	Agility +1	Reason +3	Intuition +1	Presence +2
+        <b>Importunity</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	%E2%89%A411	3 fire damage
+        %E2%98%85	12%E2%80%9316	5 fire damage; R<2 target has a bane on their next strike
+        %E2%9C%B8	17	6 fire damage; R<3 target has a bane on their next strike
+        <b>Effect</b> A non-minion devil within 5 has an edge on their next strike.
+
+        <b>True Name</b>
+        If a creature within 10 squares of the notary speaks the notary's true name aloud, the notary loses their fire immunity and the additional effects on their signature action.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8c002e07-bf5c-487b-a677-935a970ebcbe: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 38864cdb-b509-4f1b-a1d7-8da114911a67
+        behavior: resistance
+        source: Trait
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "5"
+          damageType: fire
+          apply: Damage Reduction
+        description: ""
+        name: Fire Immunity
+        guid: 6c047d23-3490-4db5-8a14-2a0f0207b964
+      name: True Name
+      description: If a creature within 10 squares speaks the notary's true name, the notary loses their fire immunity and any nondamaging effects of their signature ability until the end of the encounter.
+      guid: 8c002e07-bf5c-487b-a677-935a970ebcbe
+      source: Trait
+    role: Minion Hexer
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    withCaptain: +5 bonus to ranged distance
+    opportunityAttack: 3
+    damage_taken: 0
+    groupid: 2c4ebcaf-087b-4f0d-a94a-61e9b67fb70f
+    resources: []
+    walkingSpeed: 6
+    minionSquad: Devil Notary Squad 4
+    creatureSize: 1M
+    traitNames: []
+    movementSpeeds: []
+    availableTriggers: []
+    initiativeGrouping: 8b88841b-f5f3-4541-8ba4-9c7d3520fc28
+    monster_type: Devil Notary
+    keywords:
+      Infernal: true
+      Devil: true
+  tokenType: null
+  bestiaryId: f3b6d3bd-7018-4f41-a298-2238ba79412c
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222946034
+description: Devil Notary
+parentFolder: f202e578-675b-4891-ad36-09c24f35518b
+artist: null
+ord: 0
+ctime: 1741590327447
+mtime: 1775201137032
+hidden: false

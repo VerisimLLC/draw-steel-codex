@@ -1,0 +1,233 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c28b7906-ba11-46e7-a08f-3d0d1cce40a5
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Yeoman	Level 1 Minion Artillery
+        Fey, Humanoid, Wode Elf	EV 3 for four minions
+        <b>Stamina</b> 3
+        <b>Speed </b>7	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Strike damage +1	<b>Free Strike</b> 2
+        Might +2	Agility +1	Reason 0	Intuition 0	Presence +1
+        <b>Heavy Longbow</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 12<b>Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage; push 1
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage; push 2
+        %E2%9C%B8	<b>17</b>	5 damage; push 3
+
+        <b>Masking Glamor</b>
+        The yeoman immediately hides at the end of their turn while in cover or concealment, even if they are observed.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c0672940-6078-44fa-8097-e45268210ba7: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: ff5dfcec-2faa-4faf-b1b8-d5b55cf9df28
+        displayCondition: "1"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: (Target.Has Cover or (Line of Sight(self, Target) < 1)) and Self.Ignore Cover <= 0
+        activationAfterRoll: false
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the {shortname} that would take a bane from cover or concealment have a double bane instead.
+        behavior: power
+        guid: e4bce2fa-0f28-4d62-8f39-5069fa08fa45
+      - __typeName: CharacterModifier
+        sourceguid: ff5dfcec-2faa-4faf-b1b8-d5b55cf9df28
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Target.Conditions has "concealment"
+        activationAfterRoll: false
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the {shortname} that would take a bane from cover or concealment have a double bane instead.
+        behavior: power
+        guid: 9138d0e6-ed52-42d9-8a7a-294811779c14
+      source: Trait
+      description: Abilities targeting the yeoman that would take a bane from cover or concealment have a double bane instead.
+      guid: c0672940-6078-44fa-8097-e45268210ba7
+      name: Masking Glamor
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+        CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+        CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 43114623-44ec-4a74-bcb9-ffe3440c88da
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1)) and Self.Ignore Cover <= 0 '
+        guid: ae26d305-84dd-49f6-9e92-59715d2aab6c
+        name: Masking Glamor
+        domains:
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        description: Abilities targeting the yeoman that would take a bane from cover have a double bane instead.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 43114623-44ec-4a74-bcb9-ffe3440c88da
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Target.Conditions has "concealment"
+        domains:
+          CharacterFeature:43114623-44ec-4a74-bcb9-ffe3440c88da: true
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the yeoman that would take a bane from concealment have a double bane instead.
+        behavior: power
+        guid: 9d705665-bc0c-452d-8bbb-7f2f4b353723
+      source: Trait
+      description: Abilities targeting the yeoman that would take a bane from cover or concealment have a double bane instead.
+      guid: 43114623-44ec-4a74-bcb9-ffe3440c88da
+      name: Masking Glamor
+      implementation: 3
+    role: Minion Artillery
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Wode Elf: true
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        id: rea
+      inu:
+        id: inu
+      mgt:
+        id: mgt
+    monster_type: Wode Elf Yeoman
+    equipment: []
+    withCaptain: +1 damage bonus to strikes
+    max_hitpoints: 3
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    levelChoices: []
+    walkingSpeed: 7
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      implementationDetails: RAW
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; push 1
+        - 4 damage; push 2
+        - 5 damage; push 3
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 137
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 12
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 6080812e-62e7-4296-befb-c388d2ac2694
+      targetType: target
+      numTargets: 1
+      categorization: Signature Ability
+      implementation: 4
+      name: Heavy Longbow
+      persistence: []
+      description: ""
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    opportunityAttack: 2
+  tokenType: null
+  bestiaryId: 5450de53-e7bd-40e0-a507-b0bc0016ae7f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Wode Elf Yeoman
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590251635
+mtime: 1775201137032
+hidden: false

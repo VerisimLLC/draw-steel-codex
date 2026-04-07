@@ -1,0 +1,86 @@
+__typeName: CharacterComplication
+drawback: 'Many people blame you for the evils you caused. They might be unfriendly or hostile to you—and you can understand their point of view. You take a bane on any test made to interact with those who know what you did, and on strikes made against such creatures. '
+mtime: 1765923520348
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityHealBehavior
+          roll: Subject.Recovery Value
+        - __typeName: ActivatedAbilityReplenishBehavior
+          resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+          mode: expend
+        triggerPrompt: Your Stamina has reached the negative of your winded value, use a free triggered action to spend a Recovery.
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        mandatory: false
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 24380611-70bc-46e5-b49c-950c4971312a
+        castImmediately: true
+        conditionFormula: Recoveries Available to Spend > 0
+        numTargets: "1"
+        targetType: self
+        trigger: zerohitpoints
+        name: Guilty Conscience - Benefit
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Feat
+      behavior: trigger
+      guid: c2f9707a-230f-4649-8857-a77767a150d6
+      name: Guilty Conscience - Benefit
+      sourceguid: 3c610962-f180-4e10-873a-19df642711e2
+    source: Feat
+    canHavePrerequisites: true
+    guid: 3c610962-f180-4e10-873a-19df642711e2
+    name: Guilty Conscience - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: Many people blame you for the evils you caused. They might be unfriendly or hostile to you—and you can understand their point of view. You take a bane on any test made to interact with those who know what you did, and on strikes made against such creatures.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 84fc9f7b-61f3-476b-a69d-7a8e7fb4cafc
+      source: Complication
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: Guilty Conscience - Drawback
+      guid: 770ab32c-bfc2-4a45-90d9-6244d047fe11
+      description: Many people blame you for the evils you caused. They might be unfriendly or hostile to you—and you can understand their point of view. You take a bane on any test made to interact with those who know what you did, and on strikes made against such creatures.
+      modtype: bane
+      rollType: test_power_roll
+    - __typeName: CharacterModifier
+      sourceguid: 84fc9f7b-61f3-476b-a69d-7a8e7fb4cafc
+      source: Complication
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: Guilty Conscience - Drawback
+      guid: 7f0a9013-d6fa-4692-86bd-f1932730fa8a
+      description: Many people blame you for the evils you caused. They might be unfriendly or hostile to you—and you can understand their point of view. You take a bane on any test made to interact with those who know what you did, and on strikes made against such creatures.
+      modtype: bane
+      rollType: ability_power_roll
+    source: Complication
+    canHavePrerequisites: true
+    guid: 84fc9f7b-61f3-476b-a69d-7a8e7fb4cafc
+    name: Guilty Conscience - Drawback
+    implementation: 3
+name: Guilty Conscience
+ctime: 1755515146736
+description: The world is in trouble—and it’s partly your fault. Maybe you helped a villain rise to power or inadvertently released a demon from imprisonment. Now it’s your mission to repair the damage you caused.
+id: 707dd4a3-72b3-4852-b5e7-54932e6141b9
+benefit: You’re determined to stay alive so you can set things right. When your Stamina reaches the negative of your winded value, you can use a free triggered action to spend a Recovery.

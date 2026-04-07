@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 3d1a4e3b-116b-4a53-a52e-6bd3890e341a
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "100"
+    damageType: cold
+    apply: Damage Reduction
+  description: You have immunity all to Cold damage
+  name: Cold Immunity
+  guid: 53839fb5-7c8e-481a-9aed-19cc2e601552
+source: Ongoing Effect
+guid: 3d1a4e3b-116b-4a53-a52e-6bd3890e341a
+id: 3d1a4e3b-116b-4a53-a52e-6bd3890e341a
+ctime: 1772836496595
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Cold Immunity
+description: You have immunity all to Cold damage
+custom: true
+mtime: 1772836496595
+iconid: 23d764ac-bf69-4d44-b0c7-3769c6b02ac7

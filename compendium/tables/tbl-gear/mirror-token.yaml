@@ -1,0 +1,118 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: bff86806-bc3a-4312-abaf-503ef8c22166
+  description: While the Mirror Token is on your person and you are targeted by a ranged strike, you can use a triggered action to crush the token and ignore the strike. Half the damage you would have taken and any effects of the triggering strike are imposed on the creature making the strike.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: bff86806-bc3a-4312-abaf-503ef8c22166
+    forceReroll: false
+    source: Item
+    powerRollModifier:
+      __typeName: CharacterModifier
+      displayCondition: Ability.Keywords has "ranged"
+      changeTargetRange: ability
+      modtype: none
+      keywords:
+        Ranged: true
+      activationCondition: Ability.Keywords has "ranged"
+      changeTargetDistance: 0
+      rollType: ability_power_roll
+      changeTarget: true
+      source: Trigger
+      guid: ab6aff7f-8d05-42aa-abcd-afb4c32d7232
+      hasCustomTrigger: true
+      customTrigger:
+        __typeName: TriggeredAbility
+        persistence: []
+        modifiers: []
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        strain: []
+        guid: 3517c748-d872-4d8e-a060-4293b2457f85
+        repeatTargets: false
+        abilityType: none
+        trigger: d20roll
+        targetType: self
+        numTargets: "1"
+        name: New Ability
+        behaviors:
+        - __typeName: ActivatedAbilityDropItemsBehavior
+          filterTarget: ""
+          conditions: []
+          number: one
+          slotTarget: hands_or_belt
+          discardBehavior: destroy
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      damageMultiplier: half
+      name: Mirror Token
+      rules: ""
+      description: While the Mirror Token is on your person and you are targeted by a ranged strike, you can use a triggered action to crush the token and ignore the strike. Half the damage you would have taken and any effects of the triggering strike are imposed on the creature making the strike.
+      changeTargetFilter: Target = Caster
+      behavior: power
+    guid: 17190f73-c341-4aeb-9def-a081f85772b7
+    type: trigger
+    targetType: self
+    behavior: powertabletrigger
+    name: Mirror Token
+    rules: While the Mirror Token is on your person and you are targeted by a ranged strike, you can use a triggered action to crush the token and ignore the strike. Half the damage you would have taken and any effects of the triggering strike are imposed on the creature making the strike.
+    description: While the Mirror Token is on your person and you are targeted by a ranged strike, you can use a triggered action to crush the token and ignore the strike. Half the damage you would have taken and any effects of the triggering strike are imposed on the creature making the strike.
+    range: 10
+    trigger: strike
+  source: Item
+  name: Mirror Token
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+itemPrerequisite: Three sheets of glass, sunbaked gold dust
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Variac
+flavor: A gold-rimmed, mirror-faced coin trembles in the hand as if it were repelled by your touch.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+projectGoal: "45"
+id: a6d7f43e-fb4d-488c-b588-2aaa58c54a28
+implementation: 2
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+domains:
+  item:a6d7f43e-fb4d-488c-b588-2aaa58c54a28: true
+ctime: 1759150952927
+description: While the Mirror Token is on your person and you are targeted by a ranged strike, you can use a triggered action to crush the token and ignore the strike. Half the damage you would have taken and any effects of the triggering strike are imposed on the creature making the strike.
+name: Mirror Token
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  consumables:
+    a6d7f43e-fb4d-488c-b588-2aaa58c54a28: 1
+  actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+  modifiers: []
+  strain: []
+  guid: aa9b9459-49a8-4efa-baad-b5d7436a0fc5
+  persistence: []
+  description: ""
+  behaviors: []
+  name: Mirror Token
+  numTargets: "1"
+  attributeOverride: no_attribute
+  abilityType: none
+  iconid: b08d7d49-e610-423b-b728-fbeda167a415
+mtime: 1762393525090
+projectRollCharacteristic:
+  rea: true
+  inu: true
+iconid: b08d7d49-e610-423b-b728-fbeda167a415

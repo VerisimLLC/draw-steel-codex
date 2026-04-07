@@ -1,0 +1,166 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e8922b57-931c-4561-b022-fcadb6f64805
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        War Dog Sweeper	Level 4 Minion Harrier
+        Humanoid, War Dog	EV 6 for four minions
+        <b>Stamina</b> 8
+        <b>Speed</b> 6	<b>Size</b> 1M /<b>Stability</b> 0
+        <b>With Captain</b> Edge on strikes	<b>Free Strike</b> 2
+        Might +0	Agility +3	Reason +0	Intuition +2	Presence +0
+        <b>Shrikegun Shot</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 3<b>Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12-16</b>	4 damage; push 1
+        %E2%9C%B8	<b>17</b>	6 damage; push 3
+        <b>Effect</b> This ability deals an additional 3 damage if the target is within 2 squares of the sweeper.
+
+        <b>Shrapnel-Laced Loyalty Collar</b>
+        When the sweeper dies, they explode, dealing 1d6 damage to each enemy within 2 squares of them.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:9e62a626-a064-4d41-8cdc-24825996e2d5: true
+      modifiers: []
+      name: Shrapnel-Laced Loyalty Collar
+      description: When the sweeper dies, they explode, dealing 1d6 damage to each enemy within 2 squares of them.
+      guid: 9e62a626-a064-4d41-8cdc-24825996e2d5
+      source: Trait
+    role: Minion Harrier
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    monster_type: War Dog Sweeper
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 0
+        id: mgt
+    withCaptain: Gain an edge on strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 8
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      guid: 43b15ac8-e48e-43d1-abf6-7911623ce206
+      meleeRange: 1
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage; push 1
+        - 6 damage; push 3
+        roll: 2d10 + Agility
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Shrikegun Shot
+      iconid: ui-icons/skills/1.png
+      description: This ability deals an additional 3 damage if the target is within 2 squares of the sweeper.
+      abilityType: none
+      implementation: 3
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 7f939d39-1ec9-4785-8fa5-73f4d43992b3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: War Dog Sweeper
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 2
+ctime: 1749972311183
+mtime: 1775201137032
+hidden: false

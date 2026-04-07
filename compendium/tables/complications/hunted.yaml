@@ -1,0 +1,18 @@
+__typeName: CharacterComplication
+drawback: Each time you earn Renown, your pursuer learns your location. Unless you lay low or move to a new location, you’ll be visited by agents of the pursuer within 1d10 days. If you linger after that, your pursuer finds you.
+mtime: 1765962352982
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    categories:
+      intrigue: true
+    name: Hunted - Benefit
+    guid: 090f3244-52e6-4bc3-b21a-ff55b8f2e703
+    description: Choose a Skill from the Intrigue Skill Group
+    source: Feat
+name: Hunted
+ctime: 1755515362318
+description: You have long stayed one step ahead of a pursuer—perhaps a bounty hunter determined to bring you to justice, a revenant, or an assassin intent on your death. Someday, you’ll be strong enough to face your pursuer. But for now, you live your life on the run.
+id: 629aa40a-0c24-4bc8-ab78-afb5c0f17ef0
+benefit: You have one skill of your choice from the intrigue skill group. Additionally, whenever one or more creatures are pursuing you, you can lay low as a respite activity. When you do so, anyone pursuing you loses track of your and your party’s location and must start their search again.

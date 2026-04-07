@@ -1,0 +1,42 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 66368d24-75e9-4a30-bcbb-d8bac1256710
+  description: While you wear this necklace, you can breathe underwater, you can automatically swim at full speed while moving, and you ignore difficult terrain created by water or in marsh and similar terrain.
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 54f14273-144b-45fb-b285-8de645068a12
+    sourceguid: 66368d24-75e9-4a30-bcbb-d8bac1256710
+    value: 1
+    source: Item
+    name: Necklace of the Bayou
+    behavior: attribute
+    description: While you wear this necklace, you can breathe underwater, you can automatically swim at full speed while moving, and you ignore difficult terrain created by water or in marsh and similar terrain.
+    attribute: swim
+  source: Item
+  name: Necklace of the Bayou
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+id: 28bc0c28-247f-40ba-9cdf-5c9891d6825b
+keywords:
+  Magic: true
+  Neck: true
+projectSource: Texts or lore in Yllyric
+flavor: A worn leather circlet bears a lizard-shaped pendant of rotting wood.
+weight: 1
+echelon: 2
+specialDescription: ""
+type: Gear
+category: Gear
+ctime: 1774872092007
+projectGoal: "300"
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+description: While you wear this necklace, you can breathe underwater, you can automatically swim at full speed while moving, and you ignore difficult terrain created by water or in marsh and similar terrain.
+name: Necklace of the Bayou
+itemPrerequisite: A gallon of swamp water, the limbs of four different newts
+mtime: 1774872092007
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 2

@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 65d906ae-c83a-4b57-adaf-17dc3793b9c5
+id: 65d906ae-c83a-4b57-adaf-17dc3793b9c5
+ctime: 1711436572716
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+condition: c27e0b16-291a-45ad-8406-973e26576a44
+name: Dazed
+description: ""
+mtime: 1768299279837
+custom: true
+iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335

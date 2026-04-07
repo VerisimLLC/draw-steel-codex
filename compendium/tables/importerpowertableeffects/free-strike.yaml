@@ -1,0 +1,48 @@
+__typeName: ActivatedAbility
+id: ad3610ad-7692-488a-8d4d-761df6e72f3c
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 93ec59a0-edd9-4e23-a4f7-7ab934f3703d
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    behaviors: []
+    categorization: Basic Attack
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Basic Attack
+range: 1
+description: ""
+actionResourceId: none
+modifiers: []
+source: Monster
+strain: []
+guid: 4b704bec-143e-4b6e-8ba5-f07b249ab58f
+importMatch: ally adjacent to target can make a free strike against them	
+ctime: 1740526570060
+numTargets: "1"
+persistence: []
+targetType: target
+name: Free Strike
+repeatTargets: false
+mtime: 1770658387284
+abilityType: none
+iconid: ui-icons/skills/1.png

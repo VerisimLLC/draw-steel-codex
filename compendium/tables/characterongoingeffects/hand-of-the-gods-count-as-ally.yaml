@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: c8a9b5a3-67c2-4702-98a6-e2512f1e17c1
+  sourceguid: a7684320-6a30-4eb5-a9bd-8f678a3de313
+  value: 1
+  source: Ongoing Effect
+  name: Hand of the Gods - Count as Ally
+  behavior: attribute
+  description: ""
+  attribute: armorClass
+source: Ongoing Effect
+guid: a7684320-6a30-4eb5-a9bd-8f678a3de313
+id: a7684320-6a30-4eb5-a9bd-8f678a3de313
+ctime: 1768356035980
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Hand of the Gods - Count as Ally
+description: ""
+custom: true
+mtime: 1768356035980
+iconid: ui-icons/skills/1.png

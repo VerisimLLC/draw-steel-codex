@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 08d6e8e7-5209-43e9-9eba-cd124aa81d51
+id: 08d6e8e7-5209-43e9-9eba-cd124aa81d51
+ctime: 1746172902595
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+name: Bleeding
+iconid: bd44e33a-fb70-490c-acac-882da0d34642
+description: 'While a creature is bleeding, whenever they make a test using Might or Agility, make a strike, or use an action, a maneuver, or a triggered action, they lose Stamina equal to 1d6 + their level after the test, strike, action, maneuver, or triggered action is resolved. This Stamina loss can’t be prevented in any way. '
+mtime: 1746172922481
+implementation: 3

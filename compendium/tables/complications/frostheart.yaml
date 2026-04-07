@@ -1,0 +1,66 @@
+__typeName: CharacterComplication
+drawback: You have fire weakness 5.
+mtime: 1765197503265
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 47960c70-da4f-4156-9846-02773e039b80
+      behavior: resistance
+      source: Complication
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "5"
+        damageType: cold
+        apply: Damage Reduction
+      description: ""
+      name: Frostheart - Benefit
+      guid: b53f6af3-555d-4212-a2c2-fb9c95e1a4fd
+    - __typeName: CharacterModifier
+      sourceguid: 47960c70-da4f-4156-9846-02773e039b80
+      displayCondition: ability.damagetypes has "untyped"
+      source: Complication
+      guid: dcc6df57-69df-42b8-8a8c-e2dcf154e485
+      keywords:
+        Strike: true
+      activationCondition: ""
+      damageTypeMappings:
+        untyped: cold
+      rollType: ability_power_roll
+      modtype: none
+      description: Change untyped damage to Cold damage - Frostheart Complication
+      behavior: power
+      name: Frostheart
+    source: Complication
+    canHavePrerequisites: true
+    guid: 47960c70-da4f-4156-9846-02773e039b80
+    name: Frostheart - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 573a8a28-ee22-4601-9688-a5061bef60b3
+      behavior: resistance
+      source: Complication
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "-5"
+        damageType: fire
+        apply: Damage Reduction
+      description: ""
+      name: Frostheart - Drawback
+      guid: 8cf8e135-119d-479f-b191-4606028e2c94
+    source: Complication
+    canHavePrerequisites: true
+    guid: 573a8a28-ee22-4601-9688-a5061bef60b3
+    name: Frostheart - Drawback
+    implementation: 3
+name: Frostheart
+ctime: 1755514436136
+description: At the edge of the world, you were lost in a winter storm and presumed dead. But an unknown fate or power kept you alive, bringing you back with frosty skin and pale eyes.
+id: 2d8ccc17-b5fd-47f6-bdf4-8cfd5e59837c
+benefit: You have cold immunity 5. Additionally, whenever you make a strike that deals untyped damage, that strike can deal cold damage instead.

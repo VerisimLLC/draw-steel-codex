@@ -1,0 +1,322 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: ee3deab3-f7af-4c0b-b845-92bed1705e89
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 2
+    import:
+      type: mcdm
+      data: |+
+        Bugbear Shadow Sneak	Level 2 Elite Ambusher
+        Bugbear, Goblin, Humanoid, Fey	EV 16
+        <b>Stamina</b> 80
+        <b>Speed</b> 7	<b>Size</b> 1L /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +2	Agility +2	Reason 0	Intuition 0	Presence 0
+        <b>Suckerpunch</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; A<1 grabbed
+        %E2%98%85	<b>12%E2%80%9316</b>	13 damage; A<2 grabbed
+        %E2%9C%B8	<b>17</b>	16 damage; grabbed
+        <b>Effect</b> The target can't use triggered actions until the start of the next round. This ability deals an additional 4 damage if the sneak started their turn hidden from the target.
+
+        <b>Shadow Cloak</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 2 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage; I<0 sneak is concealed from the target (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	3 damage; I<1 sneak is concealed from the target (save ends)
+        %E2%9C%B8	<b>17</b>	4 damage; I<2 sneak is concealed from the target (save ends)
+        <b>Effect</b> The sneak shifts up to their speed and hides after using this ability.
+
+        <b>Carving Dagger</b> (Action)%E2%97%86 2d10 + 2
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 8<b>Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; M<0 bleeding (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; M<1 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	14 damage; M<2 bleeding (save ends)
+        <b>Effect</b> The target can't hide from the sneak or their allies while bleeding from this ability.
+
+        <b>Throw</b> (Maneuver)
+        <b>Keywords</b> Attack, Melee
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object grabbed by the sneak
+        <b>Effect</b> Vertical push 4. An ally target doesn't take damage from being force moved.
+
+        <b>Catcher</b> (Free Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> 1 size 1 creature or object
+        <b>Trigger</b> The target is force moved into a square adjacent to the sneak.
+        <b>Effect</b> The target is grabbed by the sneak.
+
+        <b>Clever Trick</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Special<b>	Target</b> 1 enemy
+        <b>Trigger</b> A target attacks the sneak.
+        <b>Effect</b> The sneak chooses an enemy within distance of the attack. The attack targets that enemy instead.
+
+
+
+    characterFeatures: []
+    role: Elite Ambusher
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Goblin: true
+      Bugbear: true
+      Humanoid: true
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    monster_type: Bugbear Shadow Sneak
+    levelChoices: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    groupid: ad734f83-9fbe-4f7d-b0f9-7a6b67917513
+    resources: []
+    max_hitpoints: 80
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 19bf1569-22f5-4b01-b719-f5a6884c07c1
+      iconid: ui-icons/skills/1.png
+      numTargets: 1
+      name: Suckerpunch
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; A<1 grabbed
+        - 13 damage; A<2 grabbed
+        - 16 damage; grabbed
+        roll: 2d10 + 2
+      description: The target can't use triggered actions until the start of the next round. This ability deals an additional 4 damage if the sneak started their turn hidden from the target.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 33a8c2fd-77c9-4df0-a09d-80cd802fb6cd
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; I<0 sneak is concealed from the target (save ends)
+        - 3 damage; I<1 sneak is concealed from the target (save ends)
+        - 4 damage; I<2 sneak is concealed from the target (save ends)
+        roll: 2d10 + 2
+      numTargets: 1
+      name: Shadow Cloak
+      implementation: 3
+      description: The sneak shifts up to their speed and hides after using this ability.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 8
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: cf67bb04-65a5-4c62-b2ae-bbcd95dfa10f
+      iconid: ui-icons/skills/1.png
+      numTargets: 2
+      name: Carving Dagger
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; M<0 bleeding (save ends)
+        - 11 damage; M<1 bleeding (save ends)
+        - 14 damage; M<2 bleeding (save ends)
+        roll: 2d10 + 2
+      description: The target can't hide from the sneak or their allies while bleeding from this ability.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: fc97ff8d-d651-4c2f-b1ee-c80b6b91d487
+      iconid: ui-icons/skills/1.png
+      numTargets: 1
+      name: Throw
+      behaviors: []
+      description: Vertical push 4. An ally target doesn't take damage from being force moved.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      guid: 939eb182-98c2-49c8-892c-b5cf260edf7d
+      iconid: ui-icons/skills/1.png
+      name: Catcher
+      behaviors: []
+      description: The target is grabbed by the sneak.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 92fc3ad0-3d89-4ade-9592-9845a24017ca
+      abilityType: none
+      behaviors: []
+      numTargets: 1
+      name: Clever Trick
+      implementation: 0
+      description: The sneak chooses an enemy within distance of the attack. The attack targets that enemy instead.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds: []
+    ev: 16
+    minion: false
+    walkingSpeed: 7
+    creatureSize: 1L
+  tokenType: null
+  bestiaryId: a97dec09-0707-4cd3-acf6-0f0fb23209c2
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Bugbear Shadow Sneak
+parentFolder: 48e8f60e-8ed1-400a-83c2-e4170481f4b4
+artist: null
+ord: 0
+ctime: 1741590293814
+mtime: 1775184966994
+hidden: false

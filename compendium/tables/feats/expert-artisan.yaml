@@ -1,0 +1,11 @@
+__typeName: CharacterFeat
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+tag: Crafting Perk
+name: Expert Artisan
+description: |
+  Whenever you make a test as part of a crafting or research project that uses a skill you already have from the crafting skill group, you can make the power roll twice and use either roll.
+mtime: 1755373327830
+id: 5d2e4c37-0cde-4b28-8fb2-7b0ba704bab3
+ctime: 1730700379354

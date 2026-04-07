@@ -1,0 +1,74 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Fleet Admiral Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: c56c29b3-4aee-45f6-95f3-4270b12f04bd
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: First Mate
+      description: "You have a pirate retainer, such as a human warrior, chosen by the Director from Draw Steel: Monsters. This retainer’s level increases to your level."
+      guid: db226c55-f2fc-4fb6-ac40-3ab6f6b95846
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      description: You can automatically climb at full speed while moving.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: b063bb26-03bf-4fb7-beff-1cf61f3eb732
+        sourceguid: b2672628-4075-4f17-943a-5ddd5ee2d22f
+        behavior: attribute
+        source: Feat
+        name: Swashbuckler
+        description: You can automatically climb at full speed while moving.
+        value: 1
+        attribute: climb
+      source: Feat
+      canHavePrerequisites: true
+      guid: b2672628-4075-4f17-943a-5ddd5ee2d22f
+      name: Swashbuckler
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: You earn 1 Wealth.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 85ccbb9e-6902-401f-a27a-5dacbb823dc8
+        sourceguid: 707f2e2e-19b8-48f3-8f90-ccdcf30069cc
+        behavior: attribute
+        source: Feat
+        name: Treasure Keeper
+        description: You earn 1 Wealth.
+        value: 1
+        attribute: 036da4db-4406-4038-ae7d-cf0b37890f5f
+      source: Feat
+      canHavePrerequisites: true
+      guid: 707f2e2e-19b8-48f3-8f90-ccdcf30069cc
+      name: Treasure Keeper
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: |-
+        Once per day, you can spend 10 uninterrupted minutes to magically alter mundane weather in a 5-mile radius around you. The weather moves with you and persists for 6 hours or until you dismiss it as a free maneuver. Choose from one of the following weather types:
+        **Calm:** Wind-powered vessels and technology cease working.
+        **Fog:** Visibility is reduced to 6 squares.
+        **High Winds:** The speed of wind-powered vessels is doubled.
+        **Light Winds:** No effects due to weather.
+        **Storm:** The crew of an unsheltered wind-powered vessel must make a medium group Reason test. On a failure, the vessel needs repairs and moves at half speed until those repairs are made.
+      modifiers: []
+      source: Feat
+      canHavePrerequisites: true
+      guid: 1ea41a80-9da6-4ed5-af70-afcc9a78bd41
+      name: Weather Wizard
+      implementation: 0
+id: 23ef14da-3384-412c-afd4-31c0e1b034da
+ctime: 1762351947144
+name: Fleet Admiral
+description: All hail the Pirate Queen!
+mtime: 1775215065393
+echelon: "3"
+prerequisite: You have the Corsair title, and you lead a fleet of at least three ships.

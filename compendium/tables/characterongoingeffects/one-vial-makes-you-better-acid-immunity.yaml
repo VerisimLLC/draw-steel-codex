@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 8624b5ad-68ae-41ab-ad80-5441c5d13365
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: Level
+    damageType: acid
+    apply: Damage Reduction
+  description: ""
+  name: One Vial Makes You Better - Acid Immunity
+  guid: fdad8b48-c4e8-4a1a-83b4-d59d74f79a2e
+source: Ongoing Effect
+guid: 8624b5ad-68ae-41ab-ad80-5441c5d13365
+id: 8624b5ad-68ae-41ab-ad80-5441c5d13365
+ctime: 1767504508754
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: One Vial Makes You Better - Acid Immunity
+description: ""
+custom: true
+mtime: 1767504589531
+iconid: ui-icons/skills/1.png

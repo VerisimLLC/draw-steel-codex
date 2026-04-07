@@ -1,0 +1,78 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  follower:
+    __typeName: RichFollower
+    identifier: false
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 29581a9f-51a6-4089-bbc0-a9cda4f77b7b
+      assignedTo: []
+      skills: []
+id: 98956b54-d7ba-4ab7-8794-52fe5e052133
+ctime: 1761480868858
+textStorage:
+  __typeName: TextStorage
+  sections:
+    Y: |+
+      [[//link "Draw Steel!"|Draw Steel!]]
+
+
+    x: "### <color=orange> Bronze </color>"
+    tQ: |+
+      [[/objectcommand light.Light turnlighton; |Lights On]][[/objectcommand light.Light turnlightoff; |Lights Off]]
+
+
+    v: |
+      ### <color=grey> Silver </color>
+    s: |2+
+
+
+    t: |
+      * Used to access object commands, for example turning lights on or off
+    r: "[[/awardvp 1|Award 1 Victory]]"
+    P: |
+      * Shows and hides an area template set up with the keyword 'start'
+    M: |+
+      [[/elevationcircle  0 0 1.5 -4 | Drop Elevation]] [[/elevationcircle  0 0 1.5 4 | Raise Elevation]]
+
+    n: |+
+      [[encounter]]
+
+    ti: |
+      * Color codes used for implementation status journals
+    V: |
+      * A button to start combat 
+    j: |
+      * Used to set up an encounter
+    G: |+
+      Typing the /macro in the chat followed by "help" provides information on how to use it. 
+
+    p: |
+      * Used to award the heroes a victory
+    J: |
+      * Drops or raises the elevation in a specific area
+    f: |+
+      [[/spawn "Name" 2 1;| Spawn Censor]]
+
+
+    u: |
+      ### <color=yellow> Gold </color>
+    D: |
+      Some useful macros to use in your journals.
+    S: |+
+      [[/activateobjects start.AreaTemplate activate|Show Hero Start Area]][[/activateobjects start.AreaTemplate deactivate|Hide Hero Start Area]] 
+
+
+    b: |
+      * Spawns a named NPC
+parentFolder: private
+updateid: fba9d717-a621-4620-812c-b9af17b260a8
+mtime: 1774566411776
+content: ""
+description: Useful Macros

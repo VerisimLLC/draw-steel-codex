@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 73c0edb3-fbfe-4642-a266-1199039b5b76
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ampeth
+- __typeName: RollTableRow
+  id: 81440ab5-233b-420a-9317-9e07f0ec7173
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Arrian
+- __typeName: RollTableRow
+  id: f63b412b-7c9b-4db9-aad2-1272b41e329a
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cyrrik
+- __typeName: RollTableRow
+  id: 628f7632-a99e-4ee9-80b2-ebe6964d121b
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Frissia
+- __typeName: RollTableRow
+  id: 99736878-db80-4a85-ae65-c7cf2569e616
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Illya
+- __typeName: RollTableRow
+  id: 84913c02-31ba-4d15-9ef0-d4dc86fe1265
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Oreth
+- __typeName: RollTableRow
+  id: 85fc35d3-a78a-4e50-9838-3058e64c125e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Quallo
+- __typeName: RollTableRow
+  id: 8b44f4f0-f0f1-4090-865f-f46cf80e8edd
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Uryalia
+- __typeName: RollTableRow
+  id: ebcf6f95-6b91-4afc-98b3-aa126d32e833
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Yllioth
+- __typeName: RollTableRow
+  id: 9027b21b-9eb2-4952-b288-90f8f5d95a8e
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Zorri
+id: c061713f-fd0c-4589-9335-deb924ab4d75
+name: Devil Feminine Names
+subtable: true
+mtime: 1743448567489
+items: false
+ctime: 1743443862437

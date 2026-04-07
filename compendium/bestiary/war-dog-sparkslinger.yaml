@@ -1,0 +1,196 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5fe9ec7f-338b-406d-b9dc-457d8607c3cc
+    offtokenPortraitId: null
+    portraitFrameId: 54430698-e8ff-45f3-b871-da3bb5b929c4
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.8563247
+    portraitOffset:
+      x: 0.01658517
+      y: 0.1742246
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c41b4560-02b8-467c-90fd-5ea18fd9cd7b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        War Dog Sparkslinger	Level 4 Minion Artillery
+        Humanoid, War Dog	EV 6 for four minions
+        <b>Stamina</b> 7	<b>Immunity </b>lightning 4
+        <b>Speed</b> 5	<b>Size</b> 1M /<b>Stability</b> 0
+        <b>With Captain</b> Spread +1	<b>Free Strike</b> 3
+        Might +0	Agility +0	Reason +3	Intuition +0	Presence +2
+        <b>Galvanic Arc</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Magic, Strike, Ranged
+        <b>Distance</b> Ranged 7<b>Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 lightning damage
+        %E2%98%85	<b>12-16</b>	5 lightning damage; spread 1
+        %E2%9C%B8	<b>17</b>	7 lightning damage; spread 2
+        <b>Effect</b> The lightning arcs to nearby targets, dealing 2 damage to each enemy within a number of squares of the target equal to the result's spread value.
+
+        <b>Loyalty Collar</b>
+        When the sparkslinger dies, they explode, dealing 1d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7199c2b3-e3fc-4380-b28d-46c3531ddc80: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 1d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the sparkslinger is reduced to 0 Stamina, their loyalty collar explodes, dealing 1d6 damage to each adjacent enemy and object.
+      guid: 7199c2b3-e3fc-4380-b28d-46c3531ddc80
+      name: Loyalty Collar
+      implementation: 3
+    role: Minion Artillery
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "7"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: lightning
+      apply: Damage Reduction
+    opportunityAttack: 3
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    monster_type: War Dog Sparkslinger
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    withCaptain: Lightning spread increases by 1 square
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 7
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 lightning damage
+        - 5 lightning damage; the lightning spreads 1 square
+        - 7 lightning damage; the lightning spreads 2 squares
+        roll: 2d10 + Reason
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 7
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 181edcd6-3402-41bc-9139-efeb9f3688d8
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Galvanic Arc
+      numTargets: 1
+      description: The lightning arcs to nearby targets, dealing 2 damage to each enemy within a number of squares of the target equal to the result's spread value.
+      abilityType: none
+      implementation: 3
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 34b42fd1-edb1-408c-864c-f049c4aa2b89
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: War Dog Sparkslinger
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 1
+ctime: 1749972308906
+mtime: 1775201137032
+hidden: false

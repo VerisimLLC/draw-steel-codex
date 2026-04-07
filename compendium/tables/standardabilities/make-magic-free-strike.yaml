@@ -1,0 +1,59 @@
+__typeName: ActivatedAbility
+id: 301e33dd-7aef-4b4f-ac36-4feeb8add669
+keywords:
+  Magic: true
+behaviors:
+- __typeName: ActivatedAbilityAugmentedAbilityBehavior
+  modifier:
+    __typeName: CharacterModifier
+    modifyDescription: ""
+    source: ""
+    filterAbility: Ability.Usable as Free Strike
+    behavior: modifyability
+    guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+    cannotModifyAction: true
+    attributes: []
+    mustPayResourceCost: true
+    description: ""
+    name: Modify Attack
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+targetType: self
+ctime: 1770807075416
+documentation: Allows the target creature to make a free strike.
+numTargets: "1"
+description: ""
+name: Make Magic Free Strike
+repeatTargets: false
+mtime: 1770807075416
+abilityType: none
+iconid: ui-icons/skills/1.png

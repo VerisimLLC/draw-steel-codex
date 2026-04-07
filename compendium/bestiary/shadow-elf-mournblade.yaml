@@ -1,0 +1,190 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0b095a30-b570-48d7-9008-33bc3eb634ae
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Mournblade	Level 6 Platoon Ambusher
+        Fey, Humanoid, Shadow Elf	EV 16
+        <b>Stamina</b> 80
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 7
+        Might +2	Agility +3	Reason +1	Intuition +2	Presence +0
+        <b>Knife in the Dark</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 damage
+        %E2%98%85	<b>12-16</b>	15 damage
+        %E2%9C%B8	<b>17</b>	18 damage
+        <b>Effect</b> The mournblade is invisible to the target until the start of their next turn.
+
+        <b>Shadow Step</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Special
+        <b>Effect</b> If the mournblade is concealed, they can teleport to another square in concealment granted by darkness within 10.
+
+        <b>Of the Umbra</b>
+        The mournblade ignores concealment granted by darkness. While the mournblade is in direct sunlight, they have damage weakness 3. While the mournblade is concealed, they have damage immunity 3.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:59a47fad-a5f9-45db-8659-78818f3608e3: true
+      modifiers: []
+      name: Of the Umbra
+      description: The mournblade ignores concealment granted by darkness. While the mournblade is in direct sunlight, they have damage weakness 3. While the mournblade is concealed, they have damage immunity 3.
+      guid: 59a47fad-a5f9-45db-8659-78818f3608e3
+      source: Trait
+    role: Platoon Ambusher
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Shadow Elf: true
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 7
+    monster_type: Shadow Elf Mournblade
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 80
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage
+        - 15 damage
+        - 18 damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 22a11029-e89e-4a8f-8c16-880050edb2fc
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Knife in the Dark
+      numTargets: 1
+      description: The mournblade is invisible to the target until the start of their next turn.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: d9e12e53-1626-406e-881f-fdfc3465feb2
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Shadow Step
+      numTargets: 1
+      description: If the mournblade is concealed, they can teleport to another square in concealment granted by darkness within 10.
+      abilityType: none
+      implementation: 0
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 5
+    ev: 16
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: aafb31ac-a276-4d92-a5c0-853fd81cff74
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Shadow Elf Mournblade
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590294117
+mtime: 1775201137032
+hidden: false

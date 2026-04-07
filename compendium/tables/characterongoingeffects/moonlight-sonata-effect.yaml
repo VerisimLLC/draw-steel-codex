@@ -1,0 +1,95 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: ca316862-c2a0-4440-822e-c17d515184a7
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      mode: expend
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      mode: expend
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: cc4e2d7e-1949-48b7-8cb4-a12fd745cdec
+      ongoingEffectCustom: cc4e2d7e-1949-48b7-8cb4-a12fd745cdec
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+      mode: expend
+      quantity: Resources.Recovery
+    castImmediately: true
+    whenActive: combat
+    numTargets: "1"
+    trigger: useability
+    name: Moonlight Sonata Effect
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: While this performance is active, each target who is dead can choose to continue taking turns after death. On each of their turns, a target can move and use either a main action or a maneuver, but can’t spend Recoveries or use triggered actions. At the end of the encounter, each target who chose to take turns this way turns to dust and blows away.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 3add94e6-81e0-4944-851e-fa13762e1185
+  name: Moonlight Sonata Effect
+  sourceguid: d1e6f397-c091-4866-bb05-420020171023
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    hasManualVersion: false
+    strain: []
+    whenActive: combat
+    name: Moonlight Sonata Effect
+    numTargets: "1"
+    castImmediately: true
+    guid: 49550f1d-9efd-44d5-bd5a-cb62d3e84786
+    actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+    trigger: beginround
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      mode: expend
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: While this performance is active, each target who is dead can choose to continue taking turns after death. On each of their turns, a target can move and use either a main action or a maneuver, but can’t spend Recoveries or use triggered actions. At the end of the encounter, each target who chose to take turns this way turns to dust and blows away.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 90fa923e-db09-49ab-b32c-f40b320703ad
+  name: Moonlight Sonata Effect
+  sourceguid: d1e6f397-c091-4866-bb05-420020171023
+source: Ongoing Effect
+guid: d1e6f397-c091-4866-bb05-420020171023
+id: d1e6f397-c091-4866-bb05-420020171023
+ctime: 1773656731352
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Moonlight Sonata Effect
+description: While this performance is active, each target who is dead can choose to continue taking turns after death. On each of their turns, a target can move and use either a main action or a maneuver, but can’t spend Recoveries or use triggered actions. At the end of the encounter, each target who chose to take turns this way turns to dust and blows away.
+custom: true
+mtime: 1773657177535
+iconid: ui-icons/skills/1.png

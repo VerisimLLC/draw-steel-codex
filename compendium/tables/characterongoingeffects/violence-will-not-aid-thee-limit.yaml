@@ -1,0 +1,73 @@
+__typeName: CharacterOngoingEffect
+association: []
+sustainFormula: ""
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1a5597af-5f16-461e-b03c-afd237291065
+  source: Ongoing Effect
+  numCharges: ""
+  guid: fac8a069-5ae1-4986-b2fc-498ea0459f09
+  domains:
+    CharacterOngoingEffect:1a5597af-5f16-461e-b03c-afd237291065: true
+    CharacterOngoingEffect:d464e794-8371-4ba0-97ea-a2daa2703348: true
+  name: Violence will not Aid Thee (Limit)
+  resourceRefreshType: none
+  description: The first time on a turn you deal damage to another creature, you take 1d10 lightning damage (save ends).
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: d464e794-8371-4ba0-97ea-a2daa2703348
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    usageLimitOptions:
+      resourceRefreshType: none
+      charges: ""
+      resourceid: fac8a069-5ae1-4986-b2fc-498ea0459f09
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    guid: 3e7cfe0c-b3e6-4b8c-8ff4-c184ef2e83a5
+    domains:
+      CharacterOngoingEffect:1a5597af-5f16-461e-b03c-afd237291065: true
+      CharacterOngoingEffect:d464e794-8371-4ba0-97ea-a2daa2703348: true
+    numTargets: "1"
+    name: Violence will not Aid Thee
+    trigger: endturn
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+iconid: 00a89db6-da4a-47fc-98aa-303a1e6b5226
+guid: 1a5597af-5f16-461e-b03c-afd237291065
+id: d464e794-8371-4ba0-97ea-a2daa2703348
+ctime: 1757063083626
+domains:
+  CharacterOngoingEffect:1a5597af-5f16-461e-b03c-afd237291065: true
+  CharacterOngoingEffect:d464e794-8371-4ba0-97ea-a2daa2703348: true
+description: The first time on a turn you deal damage to another creature, you take 1d10 lightning damage (save ends).
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.831999838352203
+    s: 0.94873058795929
+    v: 0.820455849170685
+    a: 1
+name: Violence will not Aid Thee (Limit)
+statusEffect: false
+custom: true
+mtime: 1757064886395
+implementation: 3

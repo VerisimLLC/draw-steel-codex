@@ -1,0 +1,13 @@
+__typeName: equipment
+category: Gear
+specialDescription: ""
+id: f972f8a2-0c39-42e7-a9be-57643ae5a631
+equipmentCategory: 46e550be-a8b6-4839-8215-cf5e7cc9f9b3
+type: Gear
+mtime: 1765469067003
+ctime: 1765469067003
+name: Mask of the Many Recipe
+flavor: Text or lore in Caelian
+description: The project source necessary to craft a Mask of the Many
+weight: 1
+iconid: 57406688-521f-48ba-b069-d566dd5ce41c

@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: df45212b-c158-4fce-aca0-c5af8b9c18af
+id: df45212b-c158-4fce-aca0-c5af8b9c18af
+ctime: 1748702883437
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Flamebelcher
+description: Allies in area when created
+custom: true
+mtime: 1748703233330
+iconid: ui-icons/skills/1.png

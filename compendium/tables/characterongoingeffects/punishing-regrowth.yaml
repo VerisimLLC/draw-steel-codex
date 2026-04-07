@@ -1,0 +1,90 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: e7c1ccbb-8c55-4e48-96bf-0cc4c0bc7c07
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Punishing Regrowth
+  guid: a5303e7f-cf5f-4ded-9328-34c9c98d390e
+  description: Until the end of the round, each wode elf gains an edge on abilities, and their strikes can slide a target up to 2 squares in addition to their usual effects. If a strike already imposes forced movement, this slide happens after that forced movement. A creature force moved by a wode elf’s strike who ends this forced movement in difficult terrain is restrained until the end of their next turn.
+  modtype: edge
+  rollType: ability_power_roll
+- __typeName: CharacterModifier
+  sourceguid: e7c1ccbb-8c55-4e48-96bf-0cc4c0bc7c07
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Strike: true
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    triggerPrompt: "Punishing Regrowth Malice Ability: You may slide the target an additional 2 squares."
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: false
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 2adbf1a1-48b7-496f-95f6-cb4d177f20b1
+    numTargets: "1"
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: targets
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 5956c484-b36a-43c5-9593-d1e073871639
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      autoTarget: false
+      standardAbilityParams:
+        range: "2"
+      standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+      abilityType: standard
+    trigger: d20roll
+    name: Punishing Regrowth
+    description: Wode Elf strikes can slide a target up to 2 squares in addition to their usual effects. If a strike already imposes forced movement, this slide happens after that forced movement. A creature force moved by a wode elf’s strike who ends this forced movement in difficult terrain is restrained until the end of their next turn.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  activationCondition: true
+  name: Punishing Regrowth
+  rollType: ability_power_roll
+  description: Until the end of the round, each wode elf gains an edge on abilities, and their strikes can slide a target up to 2 squares in addition to their usual effects. If a strike already imposes forced movement, this slide happens after that forced movement. A creature force moved by a wode elf’s strike who ends this forced movement in difficult terrain is restrained until the end of their next turn.
+  guid: bc900737-8582-48d8-ae90-d526906ca097
+  behavior: power
+source: Ongoing Effect
+guid: e7c1ccbb-8c55-4e48-96bf-0cc4c0bc7c07
+id: e7c1ccbb-8c55-4e48-96bf-0cc4c0bc7c07
+ctime: 1768743119984
+hiddenFromEnemies: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Punishing Regrowth
+custom: true
+description: Until the end of the round, each wode elf gains an edge on abilities, and their strikes can slide a target up to 2 squares in addition to their usual effects. If a strike already imposes forced movement, this slide happens after that forced movement. A creature force moved by a wode elf’s strike who ends this forced movement in difficult terrain is restrained until the end of their next turn.
+mtime: 1769685436677
+iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e

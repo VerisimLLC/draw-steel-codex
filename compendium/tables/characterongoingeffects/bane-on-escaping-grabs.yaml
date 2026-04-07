@@ -1,0 +1,33 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 5f7b76c5-efde-4312-9e62-e35c2e286279
+  displayCondition: Ability.name is Escape Grab
+  source: Ongoing Effect
+  modtype: bane
+  keywords: []
+  activationCondition: Ability.name is Escape Grab
+  domains:
+    CharacterOngoingEffect:5f7b76c5-efde-4312-9e62-e35c2e286279: true
+  name: Bane on Escaping Grabs
+  rollType: ability_power_roll
+  description: ""
+  guid: 32dccb41-ebd6-4a09-8d60-7c21a7327269
+  behavior: power
+source: Ongoing Effect
+guid: 5f7b76c5-efde-4312-9e62-e35c2e286279
+id: 5f7b76c5-efde-4312-9e62-e35c2e286279
+ctime: 1748617447725
+domains:
+  CharacterOngoingEffect:5f7b76c5-efde-4312-9e62-e35c2e286279: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Bane on Escaping Grabs
+custom: true
+description: ""
+mtime: 1748989160417
+iconid: ui-icons/skills/1.png

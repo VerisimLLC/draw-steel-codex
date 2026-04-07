@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f52ed831-e02b-4800-8b7b-bc57a58d0343
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "100"
+    damageType: sonic
+    apply: Damage Reduction
+  description: You have immunity all to sonic damage
+  name: Sonic Immunity
+  guid: d8388f7d-c96b-4ca0-b484-113639788533
+source: Ongoing Effect
+guid: f52ed831-e02b-4800-8b7b-bc57a58d0343
+id: f52ed831-e02b-4800-8b7b-bc57a58d0343
+ctime: 1772837701670
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Sonic Immunity
+description: You have immunity all to sonic damage
+custom: true
+mtime: 1772837701670
+iconid: 68eecff7-6407-4fde-adbe-ee829a72b1ad

@@ -1,0 +1,27 @@
+__typeName: GlobalRuleMod
+id: 4eaeb66a-7f42-4145-b096-a21ef63aeb33
+applyMonsters: false
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      resourceType: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+      sourceguid: b71e44f8-166e-425e-b84b-f2525a58c1b9
+      behavior: resource
+      source: Retainers Global Rule Mod Feature
+      name: Recoveries
+      num: 6
+      description: ""
+      guid: 406dc2b5-53c0-48db-8cae-b15e74ae850b
+    name: Recoveries
+    description: ""
+    guid: b71e44f8-166e-425e-b84b-f2525a58c1b9
+    source: Retainers Global Rule Mod Feature
+    implementation: 3
+applyRetainers: true
+name: Retainers
+mtime: 1748129759504
+applyCharacters: false
+ctime: 1748129759504

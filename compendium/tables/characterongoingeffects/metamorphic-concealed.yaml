@@ -1,0 +1,22 @@
+__typeName: CharacterOngoingEffect
+association: []
+description: The weapon shrinks to the size of a piece of jewelry and can be worn as an earring, necklace, or similar accessory. While in this form, the weapon can’t be used for weapon abilities.
+modifiers: []
+source: Ongoing Effect
+id: a5e549cf-fcee-495e-8941-916871eef6d5
+guid: a5e549cf-fcee-495e-8941-916871eef6d5
+hiddenOnToken: true
+ctime: 1774705564587
+domains:
+  CharacterOngoingEffect:a5e549cf-fcee-495e-8941-916871eef6d5: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+buffType: neutral
+name: Metamorphic - Concealed
+iconid: ui-icons/skills/1.png
+custom: true
+mtime: 1774706878029
+implementation: 0

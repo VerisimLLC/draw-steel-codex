@@ -1,0 +1,132 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; push 3
+        - 12 damage; push 4
+        - 15 damage; push 5
+        roll: 2d10 + Highest Characteristic
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.764500260353088
+          s: 0.75244152545929
+          v: 0.93534928560257
+          a: 1
+      mandatory: false
+      range: "99"
+      persistence: []
+      modifiers: []
+      hasManualVersion: true
+      strain: []
+      whenActive: combat
+      targetType: attacker
+      numTargets: "1"
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      guid: 1c4f83f6-97db-48e4-84c1-3f02d49a8fc4
+      trigger: winded
+      name: Dragon Soul (Winded)
+      description: ""
+      abilityType: none
+      iconid: f3ca1e31-fa85-4a4f-aa5d-36d4a551310f
+    description: ""
+    source: Dragon Soul Imbuement
+    behavior: trigger
+    guid: f28f20cc-1091-4417-8979-da7d943954c0
+    name: Dragon Soul
+    sourceguid: d7b62b80-340c-4773-b8ec-24a2ece8a2f6
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; push 3
+        - 12 damage; push 4
+        - 15 damage; push 5
+        roll: 2d10 + Highest Characteristic
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.763888895511627
+          s: 0.753138065338135
+          v: 0.937254905700684
+          a: 1
+      mandatory: false
+      range: "99"
+      persistence: []
+      modifiers: []
+      hasManualVersion: true
+      strain: []
+      whenActive: combat
+      targetType: attacker
+      numTargets: "1"
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      guid: c252783e-961c-46c8-9ca3-85d1bf5dc37c
+      trigger: dying
+      name: Dragon Soul (Dying)
+      description: ""
+      abilityType: none
+      iconid: f3ca1e31-fa85-4a4f-aa5d-36d4a551310f
+    description: ""
+    source: Dragon Soul Imbuement
+    behavior: trigger
+    guid: eaa16263-2245-499a-a835-93ae0d681fa6
+    name: Dragon Soul
+    sourceguid: d7b62b80-340c-4773-b8ec-24a2ece8a2f6
+  - __typeName: CharacterModifier
+    sourceguid: d7b62b80-340c-4773-b8ec-24a2ece8a2f6
+    guid: 84087fd8-4f31-4859-9a80-496fc7c8f8fc
+    source: Dragon Soul Imbuement
+    behavior: triggerdisplay
+    description: ""
+    name: Dragon Soul
+    ability:
+      __typeName: TriggeredAbilityDisplay
+      type: free
+      effect: You cause the soul of a dragon to emerge from your armor and hurtle toward the creature who attacked you. Make a power roll against the creature to damage and push it.
+      trigger: You become winded or dying
+      name: Dragon Soul
+      guid: 1c560806-72e1-4fff-96d8-6ce81f1945d0
+      distance: ""
+      keywords: []
+  source: Dragon Soul Imbuement
+  name: Dragon Soul
+  addText: Add Magical Property
+  itemAttached: true
+  guid: d7b62b80-340c-4773-b8ec-24a2ece8a2f6
+itemPrerequisite: A scale from a dead dragon
+imbuePrereq: none
+projectSource: Vastariax
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770698928353
+projectGoal: "150"
+id: 41ed6a4a-0506-4f59-b625-9041d392d604
+mtime: 1774269183420
+name: Dragon Soul
+imbueTargetType: armor
+description: "When another creature causes you to be winded or dying, you can use a free triggered action to cause the soul of a dragon to emerge from this armor and hurtle toward the creature. Make the following power roll against the creature. Power Roll + Your Highest Characteristic Score: %C3%A1 8 damage; push 3 %C3%A9 12 damage; push 4 %C3%AD 15 damage; push 5"
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 7251b937-bbdc-4e34-a1b8-c8b099b96dc0

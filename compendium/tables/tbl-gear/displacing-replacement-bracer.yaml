@@ -1,0 +1,21 @@
+__typeName: equipment
+itemPrerequisite: Petrified wood from a tree that has not been observed since falling
+keywords:
+  Arms: true
+  Psionic: true
+projectSource: Texts or lore in Zaliac
+flavor: A wooden bangle is etched with an ambigram sigil of the Zaliac word for “transfer.”
+weight: 1
+category: Gear
+specialDescription: ""
+id: 72b9d1e8-7a29-443e-b223-b17c4607c6a8
+ctime: 1759188772552
+type: Gear
+projectGoal: "150"
+mtime: 1759400227812
+name: Displacing Replacement Bracer
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+description: As a maneuver, you transfer an object of size 1S or 1T held in one hand with another object of the same size that is within 10 squares. The objects change locations instantaneously and without creating any auditory or visual disturbance. If another creature is wearing or holding the object you transfer to your hand and they have I<4 , they fail to notice the transfer.
+projectRollCharacteristic:
+  rea: true
+iconid: ccf5bc62-6a13-4c5c-baac-30b32c66491d

@@ -1,0 +1,126 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "4"
+  objectTarget: false
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Magic: true
+    Strike: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 6 damage; weakened (EoT)
+    - 10 damage; weakened (EoT)
+    - 12 damage; weakened (save ends)
+    roll: 2d10 + 4
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "10"
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  modifiers: []
+  strain: []
+  guid: 66afe80c-25a9-4674-ba30-5613acb32151
+  abilityType: none
+  persistence: []
+  numTargets: "1"
+  name: Weakening Glare
+  targetType: target
+  description: ""
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: 5a74ece0-3872-4708-a7af-3891e78a0936
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: ba692afc-0780-4b55-a8c4-ba3f97641252
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action
+  targetType: self
+  name: Solo Action
+  range: 1
+  description: The medusa takes an additional main action on their turn. They can use this feature even if they are dazed.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  objectTarget: false
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - I<2 the target is charmed
+    - I<3 the target is charmed
+    - I<4 the target is charmed
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "10"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 2e366ba4-bd92-4741-b6dd-cb1a94b96197
+  numTargets: "3"
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Ssstop and Lisssten
+  targetType: target
+  description: At a time of the medusa’s choosing, a charmed creature moves up to their speed and makes a free strike against an enemy of the medusa’s choice as a free triggered action. The creature is then no longer charmed.
+  abilityType: none
+  iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: mgt
+    roll: 2d10 + Might
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 12 damage; vertical push 3; bleeding (save ends)
+    - 10 damage; vertical push 3
+    - 6 damage
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "10"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 8608a0ee-22c1-4205-befe-8af9350626aa
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: cube
+  numTargets: "1"
+  radius: "2"
+  name: Shatter Victims
+  description: The medusa causes three stone statues within 10 squares of them to each shatter in a 2-cube explosion. Each enemy in one of those areas makes a Might test. An enemy restrained or slowed by the medusa’s Petrify ability has a double bane on the test.
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+mtime: 1762953651523
+name: Medusa
+traits: []
+attacks: []
+id: d2b6c00e-fdd9-4550-a7ef-fe8d2325f4bb
+ctime: 1758524894799

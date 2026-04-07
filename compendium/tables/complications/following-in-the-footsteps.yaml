@@ -1,0 +1,95 @@
+__typeName: CharacterComplication
+drawback: In your quest for advanced techniques, you have neglected the basics. Choose a heroic ability you already know. That ability’s Heroic Resource cost is permanently increased by 1.
+mtime: 1768741308326
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: "Choose a heroic ability for your class of a higher level than you currently are. When you take this ability in the future, its Heroic Resource cost is permanently reduced by 2 (to a minimum of 1).\v\vDirectors, copy this feature to your player's character sheet and in the Condition Box, replaced the text \"Enter Ability Name Here\" with the name of the ability. Example: Ability.Name = \"Beacon of Grace\""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: d37d44df-7f3c-4a87-8b6f-c64ac0035832
+      modifyDescription: ""
+      source: Complication
+      filterAbility: Ability.Name = "Enter Ability Name Here"
+      behavior: modifyability
+      attributes:
+      - operation: Add
+        value: "-2"
+        id: cost
+      guid: 664bc57a-3948-4d2a-b4ba-24974acf0dc3
+      description: "Choose a heroic ability for your class of a higher level than you currently are. When you take this ability in the future, its Heroic Resource cost is permanently reduced by 2 (to a minimum of 1).\v\vDirectors, copy this feature to your player's character sheet and in the Condition Box, replaced the text \"Enter Ability Name Here\" with the name of the ability. Example: Ability.Name = \"Beacon of Grace\""
+      name: Following in the Footsteps - Benefit
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: cf013195-b1a0-49f7-a46c-fea26dfd60d5
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+    source: Complication
+    canHavePrerequisites: true
+    guid: d37d44df-7f3c-4a87-8b6f-c64ac0035832
+    name: Following in the Footsteps - Benefit
+    implementation: 2
+  - __typeName: CharacterFeature
+    description: |-
+      In your quest for advanced techniques, you have neglected. the basics. Choose a heroic ability you already know. That ability’s Heroic Resource cost is permanently increased by 1.
+      Directors, copy this feature to your player's character sheet and in the Condition Box, replaced the text "Enter Ability Name Here" with the name of the ability. Example: Ability.Name = "Font of Wrath"
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: d37d44df-7f3c-4a87-8b6f-c64ac0035832
+      modifyDescription: ""
+      source: Complication
+      filterAbility: Ability.Name = "Enter Ability Name Here"
+      behavior: modifyability
+      attributes:
+      - operation: Add
+        value: "1"
+        id: cost
+      guid: 664bc57a-3948-4d2a-b4ba-24974acf0dc3
+      description: |-
+        In your quest for advanced techniques, you have neglected. the basics. Choose a heroic ability you already know. That ability’s Heroic Resource cost is permanently increased by 1.
+        Directors, copy this feature to your player's character sheet and in the Condition Box, replaced the text "Enter Ability Name Here" with the name of the ability. Example: Ability.Name = "Font of Wrath"
+      name: Following in the Footsteps - Drawback
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: cf013195-b1a0-49f7-a46c-fea26dfd60d5
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+    source: Complication
+    canHavePrerequisites: true
+    guid: ce57b50b-fe45-4c84-bdba-08af4ea5f8de
+    name: Following in the Footsteps - Drawback
+    implementation: 2
+name: Following in the Footsteps
+ctime: 1755514338441
+description: Your personal idol was a mighty hero, and you have modeled yourself after them. From studying the many heroic tales told of them, you hope to someday learn your idol’s most famous battle technique.
+id: 1b70bd83-1c68-4e9f-8b22-522bde230b56
+benefit: Choose a heroic ability for your class of a higher level than you currently are. When you take this ability in future, its Heroic Resource cost is permanently reduced by 2 (to a minimum of 1).

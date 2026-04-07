@@ -1,0 +1,12 @@
+__typeName: CharacterFeature
+modifiers: []
+source: Monster
+guid: 4d3e4f4d-1ec1-4b0d-b8ef-946f1d247f9c
+importMatch: |-
+  <<monster>> Stamina drops to <<stamina>> when they’re targeted with 
+  an <<attack>> attack that deals damage.
+ctime: 1711782981674
+name: Minion
+description: ""
+id: 34d6e463-7cd2-4f2f-b81c-855fc9177e3f
+mtime: 1711782981674

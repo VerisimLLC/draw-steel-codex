@@ -1,0 +1,73 @@
+__typeName: CharacterComplication
+drawback: |-
+  As a respite activity, you can study the notebook. Make a test using your highest characteristic score:
+
+  Tier 1:  You summon a hostile demon of your level or lower who attacks you at the end of the respite. The demon acts first in the combat, regardless of the traits or abilities of you or any other creature involved.
+  Tier 2:  You learn nothing and your time is wasted.
+  Tier 3:  You learn one bonus heroic ability from your class that you qualify for. You can use that ability until you finish your next respite.
+mtime: 1758393442596
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 762d44bb-682a-42bb-8578-65683373e9ae
+      guid: 99aa075c-17c4-4150-bc57-7694353becee
+      source: Feat
+      behavior: activated
+      description: ""
+      name: Study the Notebook
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPowerRollBehavior
+          isTest: true
+          roll: 2d10 + Might or Agility or Reason or Intuition or Presence
+          resistanceRoll: false
+          tiers:
+          - You summon a hostile demon of your level or lower who attacks you at the end of the respite. The demon acts first in the combat.
+          - You learn nothing and your time is wasted.
+          - You learn one bonus heroic ability from your class that you qualify for. You can use that ability until you finish your next respite.
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        flavor: You somehow obtained the notebook of a brilliant but eccentric member of your class. The knowledge held within those notes should help you unlock powerful new abilities—if you can ever figure out what the notes mean.
+        categorization: Skill
+        range: 1
+        persistence: []
+        modifiers: []
+        strain: []
+        guid: 830fb2cd-5185-4585-9c3f-c3d698a4e867
+        domains: []
+        actionResourceId: none
+        castImmediately: true
+        numTargets: "1"
+        preDescription: ""
+        name: Study the Notebook
+        targetType: self
+        description: "As a respite activity, you can study the notebook. Make a test using your highest characteristic score:"
+        abilityType: none
+        iconid: 4269c480-1afa-4b3a-848e-88ca2034f86a
+    name: Study the Notebook
+    description: ""
+    guid: 878b8c02-c00a-4da1-a779-0cf81cac225f
+    canHavePrerequisites: true
+    source: Feat
+name: Advanced Studies
+ctime: 1758393442596
+description: |-
+  You somehow obtained the notebook of a brilliant but eccentric
+  member of your class. The knowledge held within those notes should
+  help you unlock powerful new abilities—if you can ever figure out what
+  the notes mean.
+id: 8c39a7a1-01c4-43be-9ef4-331bb4fe810a
+benefit: |-
+  As a respite activity, you can study the notebook. Make a test using your highest characteristic score:
+
+  Tier 1:  You summon a hostile demon of your level or lower who attacks you at the end of the respite. The demon acts first in the combat, regardless of the traits or abilities of you or any other creature involved.
+  Tier 2:  You learn nothing and your time is wasted.
+  Tier 3:  You learn one bonus heroic ability from your class that you qualify for. You can use that ability until you finish your next respite.

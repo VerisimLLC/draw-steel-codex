@@ -1,0 +1,48 @@
+__typeName: equipment
+itemPrerequisite: One imp’s tongue
+keywords:
+  Magic: true
+projectSource: Texts or lore in Caelian
+flavor: The tongue of an imp has been dried and preserved. Yuck.
+weight: 1
+category: Gear
+specialDescription: ""
+type: Gear
+iconid: 61924b90-31e5-4fb0-adfc-504dbe858fc5
+id: b4ff06aa-75ae-4ed5-86e5-e6e22a29e09e
+ctime: 1759150464930
+projectGoal: "45"
+mtime: 1761692481476
+consumable:
+  __typeName: ActivatedAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  abilityType: none
+  strain: []
+  guid: 5bc31057-3486-4af8-a87e-3a23ff684e50
+  repeatTargets: false
+  persistence: []
+  consumables:
+    b4ff06aa-75ae-4ed5-86e5-e6e22a29e09e: 1
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 3ed0fe9d-1173-46f4-9249-abca883d1175
+    ongoingEffectCustom: 3ed0fe9d-1173-46f4-9249-abca883d1175
+  targetType: self
+  name: Imp's Tongue
+  description: ""
+  attributeOverride: no_attribute
+  range: 5
+  iconid: 61924b90-31e5-4fb0-adfc-504dbe858fc5
+name: Imp's Tongue
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+description: As a maneuver, you place the imp’s tongue on your own tongue, causing it to reconstitute and attach itself to your tongue. While attached, the Imp’s Tongue allows you to speak any language and understand any language spoken to you. This benefit ends after 1 hour, when the tongue is absorbed into your body.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+implementation: 3

@@ -1,0 +1,1505 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1728053737523
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: aa683cf1-acc6-4cef-97e1-bd992eb09583
+        description: ""
+        source: Mastermind Class Feature
+        name: Pincer Movement
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 2
+          targetFilter: not Enemy
+          repeatTargets: false
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            guid: 929119a2-48bf-4232-aa42-cf4384836d5d
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              targetAllegiance: ally
+              targetType: target
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: "100"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: a2dd9182-023c-4261-b200-bd12110b18c8
+              numTargets: "1"
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                applyto: targets
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: c0def9eb-ba15-4357-b7a5-06bd4fdd6945
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                promptText: Shift up to {Reason} squares
+                standardAbilityParams:
+                  distance: "{Reason}"
+                filterTarget: ""
+                standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+                runOnController: false
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                runOnController: false
+                promptText: Shift up to {Reason} squares
+                guid: cc561175-30d3-4daa-b800-1d5ddacc0dfe
+                applyto: caster
+                filterTarget: not Cast.Primary Target = Caster
+                standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: c0def9eb-ba15-4357-b7a5-06bd4fdd6945
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                standardAbilityParams:
+                  distance: "{Reason}"
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                applyto: caster
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: 0b8e3116-4433-407d-a4a7-11113e3fe647
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                promptText: Select Ally to Shift {Reason} Squares
+                filterTarget: Cast.Primary Target = Caster
+                standardAbilityParams:
+                  distance: "{Reason}"
+                  count: "1"
+                standardAbility: 090c096b-0841-45db-bb48-175f51a3bf75
+                abilityType: standard
+              selfTarget: true
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Target Creature making the strike to shift {Reason} squares before the strike.
+          triggerPrompt: Spend 2 focus to have the character making the strike shift up to {Reason} squares before the strike is resolved. If you didn’t make the strike, you can make this shift as well. If you did make the strike, one ally within 10 squares of you can make this shift as well.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          trigger: custom
+          range: "100"
+          conditionFormula: ""
+          hasManualVersion: true
+          persistence: []
+          modifiers: []
+          subjectRange: "100"
+          strain: []
+          guid: ba27d723-894e-48d5-b00d-b6c033606055
+          numTargets: "1"
+          name: "Mark: Pincer Movement"
+          domains:
+            class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          castImmediately: true
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          selfTarget: true
+          targetType: subject
+          description: When you or any ally makes a strike against a creature marked by you, you can spend 2 focus to have the character making the strike shift up to a number of squares equal to your Reason score before the strike is resolved. If you didn’t make the strike, you can make this shift as well. If you did make the strike, one ally within 10 squares of you can make this shift as well.
+          subject: selfandallies
+          iconid: ui-icons/skills/1.png
+        guid: 34fa10dc-2322-4939-81a5-729fd346da9e
+      - __typeName: CharacterModifier
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: aa683cf1-acc6-4cef-97e1-bd992eb09583
+        behavior: triggerdisplay
+        source: Mastermind Class Feature
+        name: Pincer Movement
+        description: ""
+        guid: ed7bf6f1-65da-44eb-bcbb-5ce3b739afd1
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: ""
+          effect: When you or any ally makes a strike against a creature marked by you, you can spend 2 focus to have the character making the strike shift up to a number of squares equal to your Reason score before the strike is resolved. If you didn’t make the strike, you can make this shift as well. If you did make the strike, one ally within 10 squares of you can make this shift as well.
+          type: passive
+          name: Pincer Movement
+          cost: 2 Focus
+          guid: 01cd755b-482e-4b27-8f27-37ba58580385
+          distance: ""
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: aa683cf1-acc6-4cef-97e1-bd992eb09583
+        filterCondition: Heroic Resources Available to Spend >= 2
+        source: Mastermind Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          triggerBeforeCondition: "1"
+          guid: 8af06b6a-776d-492e-a40f-a74d6170bb19
+          triggerBefore:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: b181f496-582d-4091-9f2d-0e2ea4c2d7de
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: Pincer Movement
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetAllegiance: ally
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "100"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: a2dd9182-023c-4261-b200-bd12110b18c8
+                numTargets: "1"
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  applyto: targets
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: c0def9eb-ba15-4357-b7a5-06bd4fdd6945
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  abilityType: standard
+                  promptText: Shift up to {Reason} squares
+                  standardAbilityParams:
+                    distance: "{Reason}"
+                  filterTarget: ""
+                  standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+                  runOnController: false
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  runOnController: false
+                  promptText: Shift up to {Reason} squares
+                  guid: cc561175-30d3-4daa-b800-1d5ddacc0dfe
+                  applyto: caster
+                  filterTarget: not Cast.Primary Target = Caster
+                  standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: c0def9eb-ba15-4357-b7a5-06bd4fdd6945
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  abilityType: standard
+                  standardAbilityParams:
+                    distance: "{Reason}"
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  applyto: caster
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 0b8e3116-4433-407d-a4a7-11113e3fe647
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  promptText: Select Ally to Shift {Reason} Squares
+                  filterTarget: Cast.Primary Target = Caster
+                  standardAbilityParams:
+                    distance: "{Reason}"
+                    count: "1"
+                  standardAbility: 090c096b-0841-45db-bb48-175f51a3bf75
+                  abilityType: standard
+                selfTarget: true
+                name: Invoked Ability
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Target Creature making the strike to shift {Reason} squares before the strike.
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+              mode: expend
+              quantity: "2"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          keywords: []
+          activationCondition: false
+          hasTriggerBefore: true
+          modtype: none
+          rollType: ability_power_roll
+          rules: ""
+          description: When you or any ally makes a strike against a creature marked by you, you can spend 2 focus to have the character making the strike shift up to a number of squares equal to your Reason score before the strike is resolved. If you didn’t make the strike, you can make this shift as well. If you did mak
+          behavior: power
+          name: Pincer Movement
+        guid: c9b80485-70ef-4cb0-88a2-76b2de06504e
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        targetFilter: (target has "Mark") and (target.ConditionCaster("Mark") = triggerer)
+        type: passive
+        targetType: enemy
+        trigger: strike
+        name: Pincer Movement
+        rules: Spend 2 focus to shift creature making the attack and self up to {Reason} squares
+        description: 'When you or any ally makes a strike against a creature marked by you, you can spend 2 focus to have the character making the strike shift up to a number of squares equal to your Reason score before the strike is resolved. If you didn’t make the strike, you can make this shift as well. If you did make the strike, one ally within 10 squares of you can make this shift as well. '
+        range: "100"
+        behavior: powertabletrigger
+      source: Mastermind Class Feature
+      guid: aa683cf1-acc6-4cef-97e1-bd992eb09583
+      domains:
+        class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      description: ""
+      name: Pincer Movement
+      implementation: 3
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      guid: 7c0aed07-0fd2-443f-b798-132729dbc7d5
+      modifiers: []
+      name: Studied Commander
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      description: "Your encyclopedic knowledge of the history of battle lets you apply that knowledge to current challenges. While you are with them, any hero treats the Discover Lore project related to a war or battle as one category cheaper. This makes projects seeking common lore free, but such projects still require a respite activity to complete. (See Downtime Projects for more information.) \n\nAdditionally, if you have a reasonable amount of time before a combat encounter or negotiation, and you have at least one clue or rumor regarding the encounter or negotiation, you can make a Reason test as a Respite activity. The following test results apply to a combat encounter: \n\n11 or lower: The Director tells you the number of creatures in the encounter. \n\n12–16: The Director tells you the number and level of the creatures in the encounter. \n\n17+: As 12–16, and when the encounter begins, all enemies are surprised. \n\nThe following test results apply to a negotiation: \n\n11 or lower: The Director tells you three different motivations, one of which is one of an NPC’s motivations, while the other two are not. \n\n12–16: The Director tells you one of an NPC’s motivations. \n\n17+: As 12–16, and you and each of your allies gains an edge on tests made to influence NPCs during the negotiation. \n\nYou can make this test only once for any encounter or negotiation. "
+      source: Mastermind Class Feature
+      implementation: 4
+    - __typeName: CharacterSkillChoice
+      categories:
+        lore: true
+      source: Mastermind Class Feature
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      guid: e2e0f3dc-8901-49f6-abda-f665e534748e
+      description: You gain a skill from the lore skill group.
+      name: Mastermind Lore Skill
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: add
+        sourceguid: 9824b5df-9c17-44bb-a4be-594cfeff59b1
+        source: Mastermind Class Feature
+        value: 2
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        name: Anticipation
+        guid: 8b409822-6ded-4c22-b864-2f1f79623d89
+        description: You have learned to be more preemptive on the battlefield, thinking more steps ahead than your opponents. You can target two creatures with your Mark ability.
+        behavior: attribute
+        attribute: 6c805124-f1c6-4aba-9251-1618e1d30fed
+      source: Mastermind Class Feature
+      guid: 9824b5df-9c17-44bb-a4be-594cfeff59b1
+      domains:
+        class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      description: You have learned to be more preemptive on the battlefield, thinking more steps ahead than your opponents. You can target two creatures with your Mark ability.
+      name: Anticipation
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d33b87bc-b6e4-473e-99fb-14c3168b7c18
+        source: Mastermind Class Feature
+        seq: 8c755036-dccb-4786-a6cb-9e01701f8df9
+        aura:
+          __typeName: Aura
+          applyto: selfandfriends
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: d832c549-4183-4c72-8b0c-0745014bf279
+            source: Aura
+            modtype: edge
+            keywords: []
+            activationCondition: true
+            guid: 301b90e7-4a6f-4098-a955-9e4d00af2183
+            name: I Predicted That
+            rollType: test_power_roll
+            description: Your expertise in history and lore allows you and your allies to outthink rivals in the present day. You and any ally within 10 squares of you gain an edge on Reason tests.
+            behavior: power
+            attribute: rea
+          name: I Predicted That
+          guid: d832c549-4183-4c72-8b0c-0745014bf279
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: Your expertise in history and lore allows you and your allies to outthink rivals in the present day. You and any ally within 10 squares of you gain an edge on Reason tests.
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        radius: "10"
+        guid: f110c5b2-a5af-45a3-ac67-d2c674b97443
+        description: Your expertise in history and lore allows you and your allies to outthink rivals in the present day. You and any ally within 10 squares of you gain an edge on Reason tests.
+        behavior: aura
+        name: I Predicted That
+      source: Mastermind Class Feature
+      guid: d33b87bc-b6e4-473e-99fb-14c3168b7c18
+      domains:
+        class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      description: Your expertise in history and lore allows you and your allies to outthink rivals in the present day. You and any ally within 10 squares of you gain an edge on Reason tests.
+      name: I Predicted That
+      implementation: 3
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2d915b40-3d93-49f3-94ee-0eb523368bcb
+        source: Mastermind Class Feature
+        guid: 7e50a68f-383c-4b07-a0b3-cfb447d1c0e0
+        keywords: []
+        activationCondition: false
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        behavior: power
+        rollType: test_power_roll
+        name: Grand Strategy
+        description: During a montage test or negotiation, you can obtain one automatic success on a test made using a skill from the lore skill group.
+        modtype: tier3
+        skills:
+        - 80526c1a-3cfd-40dc-9065-eb840df8601d
+        - 61709a09-1a95-4726-b722-c40639cae405
+        - 0df23459-ab2f-4659-8a2d-ae5820dc889f
+        - 57101165-410a-4734-98ee-d4e5b656d3df
+        - bfcd8bd5-af82-4e2e-bea9-2a1d6dfe558a
+        - f15f5445-666a-4ea9-bdf3-fbed284bae85
+        - 4dc7f5ed-c9f8-466a-81fb-b4abec2a0b45
+        - afd26a9a-22e2-4341-b171-f7e3182c8744
+        - f014760c-c987-4436-81ba-5e6acfdf6905
+        - 3bde0e06-2d96-4048-bc15-dea8815fb9b0
+        - 1c837bdc-17cc-4c7a-9814-f2f8b92cf55a
+        - 04c5099c-526b-4ebd-a2cc-6e59ff4e17ad
+      source: Mastermind Class Feature
+      guid: 2d915b40-3d93-49f3-94ee-0eb523368bcb
+      domains:
+        class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      description: You have grown your skills in strategy, wielding intricate battlefield tactics and plans. During a montage test or negotiation, you can obtain one automatic success on a test made using a skill from the lore skill group. Additionally, when you take a respite, you can make a project roll for a research project in addition to undertaking another respite activity.
+      name: Grand Strategy
+      implementation: 3
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: a40ee08f-b88b-4d58-8587-c12871f2d1ea
+          description: ""
+          source: Mastermind Class Feature
+          name: Battle Plan
+          behavior: activated
+          guid: 41789712-072e-4ac2-8343-ef6da80c32bf
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: With new understanding of your foes, you create the perfect plan to win the battle
+            sourceReference:
+              __typeName: SourceReference
+              page: 182
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: "10"
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 7701679f-00e5-4b7c-8de5-ec0abfe48465
+            numTargets: "3"
+            categorization: Heroic Ability
+            domains:
+              class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            rangeTextOverride: ""
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            name: Battle Plan
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: first_target
+              ongoingEffect: dbbf46a4-45da-47a7-8d85-51b150fe3d07
+              duration: eoe
+              ongoingEffectCustom: false
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: other_than_first_target
+              ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+              duration: eoe
+              ongoingEffectCustom: false
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: 95dc7e20-bd8d-42da-8e89-a47a36923f2f
+              duration: eoe
+              ongoingEffectCustom: 95dc7e20-bd8d-42da-8e89-a47a36923f2f
+            description: |-
+              Each target is marked by you. Immediately and until the end of the encounter, the Director tells you if any creatures marked by you have damage immunity or weakness and the value of that immunity or weakness. Additionally, you and each ally within 3 squares of you gains 2 surges.
+
+              **Mark Benefit:** Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to make the strike ignore damage immunity and deal extra damage equal to three times your Reason score.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Mastermind Class Feature
+        guid: a40ee08f-b88b-4d58-8587-c12871f2d1ea
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+        description: ""
+        name: Battle Plan
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: 5159aebc-3a73-4de0-96dd-7b050b361497
+          description: ""
+          source: Mastermind Class Feature
+          name: Hustle!
+          behavior: activated
+          guid: 28518242-0a9f-4dfd-a1c3-bd9b9474fc83
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: false
+            targetTextOverride: Self and each ally in the area
+            repeatTargets: false
+            keywords:
+              Area: true
+            targetAllegiance: ally
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 6e60659c-1e95-4e4a-aa53-e16e72cef153
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: 6e60659c-1e95-4e4a-aa53-e16e72cef153
+                  source: Ongoing Effect
+                  filterAbility: Ability.name is Tactician Apply Mark
+                  behavior: modifyability
+                  attributes:
+                  - operation: Set
+                    value: "2"
+                    id: numtargets
+                  name: Mark num target change
+                  description: ""
+                  guid: 7aa6aff3-dfe9-4e4d-b9c7-4df862ccfb04
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 2ee76bd2-eead-4b5d-9ec6-86df92be4aa3
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    behaviors: []
+                    abilityType: none
+                    name: New Ability
+                    targetType: self
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                source: Ongoing Effect
+                name: Mark num target change
+                description: ""
+                id: 6e60659c-1e95-4e4a-aa53-e16e72cef153
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                objectTarget: false
+                abilityType: none
+                strain: []
+                guid: 8de4f059-c12a-4c62-9cb0-6d36a1427316
+                repeatTargets: false
+                modifiers: []
+                numTargets: "2"
+                targetType: target
+                categorization: Hidden
+                name: Tactician Apply Mark
+                behaviors:
+                - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                  ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+                  duration: eoe
+                  ongoingEffectCustom: false
+                description: ""
+                range: "10"
+                iconid: ui-icons/skills/1.png
+              promptText: Apply Mark to 2 Targets
+              abilityType: custom
+              standardAbility: 436b4dd1-77f9-4d83-9665-4a42c301e464
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              runOnController: true
+              promptText: Shift up to your speed
+              standardAbilityParams:
+                distance: walking speed
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: c4ddf9ec-a7ed-4a07-b6ab-fb72127a4aa2
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              quantity: "2"
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You and your allies coordinate to form a new battle line
+            categorization: Heroic Ability
+            range: "2"
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modifiers: []
+            selfTarget: true
+            strain: []
+            guid: 8b4ec381-6d97-4fd9-a112-0d7179467d01
+            persistence: []
+            numTargets: "1"
+            domains:
+              class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: all
+            sourceReference:
+              __typeName: SourceReference
+              page: 182
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Hustle!
+            implementation: 3
+            description: |-
+              You mark two enemies within 10 squares of you. Each target
+              can shift up to their speed. You and each target gain 2 surges.
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        source: Mastermind Class Feature
+        guid: 5159aebc-3a73-4de0-96dd-7b050b361497
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+        description: ""
+        name: Hustle!
+        implementation: 3
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      guid: 3d04e686-6845-4b0e-b852-7eb339bdb51f
+      description: Choose one of the following abilities
+      name: 6th-Level Mastermind Abilities
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: c2b33a45-f653-4d88-8ea8-0ba8c6d529e8
+          description: ""
+          source: Mastermind Class Feature
+          name: I’ve Got Your Back
+          behavior: activated
+          guid: c6d91b2f-d4f0-4fd0-a974-9ec83921bf34
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 5 + R damage; Taunted (EoT)
+              - 9 + R damage; Taunted (EoT)
+              - 12 + R damage; Taunted (EoT)
+              roll: 2d10 + Reason
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                numTargets: "1"
+                modifiers: []
+                targetFilter: |-
+                  Friends(Invoker, Target) and Invoker != Target
+
+                  {We target friends of the invoker of the original ability, but can't choose the invoker themselves. Make sure the target has recoveries to spend.}
+                strain: []
+                guid: 62366682-f1fc-4ca4-8948-14313ecbe1c8
+                repeatTargets: false
+                reasonedFilters:
+                - formula: not (Friends(Invoker, Target) and Invoker != Target and target.resources.Recovery = 0)
+                  reason: This creature has no Recoveries available
+                abilityType: none
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  targeting: self
+                  autoTarget: true
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: c5f575ed-b3ba-4099-8e13-5c1b5bd3a200
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  abilityType: standard
+                  standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+                persistence: []
+                name: Spend Recovery
+                targetType: target
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptText: Choose ally to spend a Recovery
+              autoTarget: false
+              abilityType: custom
+              inheritRange: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your enemy will think twice about attacking your friend.
+            sourceReference:
+              __typeName: SourceReference
+              page: 180
+              docid: cf5452e1-bebd-4e70-b02f-217b3364cb69
+            range: "5"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 6ed8def1-54ba-4ae8-a3d8-b1ae48175607
+            numTargets: "1"
+            categorization: Heroic Ability
+            domains:
+              class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            implementation: 3
+            persistence: []
+            name: I’ve Got Your Back
+            targetType: target
+            description: "Effect: One ally adjacent to the target can spend a Recovery."
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Mastermind Class Feature
+        guid: c2b33a45-f653-4d88-8ea8-0ba8c6d529e8
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+        description: ""
+        name: I’ve Got Your Back
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: 24fb86ad-5fe4-4dee-b918-f6d846f133ff
+          description: "Effect: Each target is marked by you. You gain two surges. \n\nMark Benefit: For the rest of the encounter whenever you or an ally attacks a marked target with a strike, you can spend 2 focus to add one additional target to the strike within the attack’s range. "
+          source: Mastermind Class Feature
+          name: Targets of Opportunity
+          behavior: activated
+          guid: 084ca143-3699-4860-a50c-e38627230734
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              applyto: caster
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              quantity: "2"
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: dbbf46a4-45da-47a7-8d85-51b150fe3d07
+              stacks: "1"
+              ongoingEffectCustom: false
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: 6cc65c9c-e228-4ce6-b3b4-c31658018cc5
+              duration: eoe
+              ongoingEffectCustom: 6cc65c9c-e228-4ce6-b3b4-c31658018cc5
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.632499933242798
+                s: 0.856646060943604
+                v: 1.00191068649292
+                a: 1
+            flavor: 'All that time you spent studying ancient battles paid off! '
+            sourceReference:
+              __typeName: SourceReference
+              page: 194
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "5"
+            numTargets: "2"
+            modifiers: []
+            strain: []
+            guid: c9a08624-e94c-47d2-8830-7d9f52848ebc
+            abilityType: none
+            targetType: target
+            domains:
+              class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            persistence: []
+            name: Targets of Opportunity
+            categorization: Heroic Ability
+            description: "Each target is marked by you. You gain two surges. \n\n**Mark Benefit:** For the rest of the encounter whenever you or an ally attacks a marked target with a strike, you can spend 2 focus to add one additional target to the strike within the attack’s range. "
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: b5db9101-7d79-4166-b119-21a12922ffcd
+        source: Mastermind Class Feature
+        guid: 24fb86ad-5fe4-4dee-b918-f6d846f133ff
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+        description: "Effect: Each target is marked by you. You gain two surges. \n\nMark Benefit: For the rest of the encounter whenever you or an ally attacks a marked target with a strike, you can spend 2 focus to add one additional target to the strike within the attack’s range. "
+        name: Targets of Opportunity
+        implementation: 2
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      guid: eb3304ff-b8f2-4767-bc70-14dd926ab1fe
+      description: 'Choose one of the following abilities. '
+      name: '2nd-Level Mastermind Ability '
+    - __typeName: CharacterFeature
+      domains:
+        class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      guid: c722c565-4cd7-4817-a84b-1c5293c33f16
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 007ce2c3-c009-46f3-8786-d578fc974219
+        source: Mastermind Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          changeTargetRange: ability
+          behavior: power
+          guid: 5b60019b-0bf8-44a1-8e28-2f609664b5a8
+          keywords:
+            Strike: true
+          activationCondition: false
+          changeTargetFilter: Friends(target, triggerer)
+          modtype: none
+          rollType: ability_power_roll
+          rules: ""
+          resourceCostType: none
+          name: Goaded
+          changeTarget: true
+        guid: 31864f03-5b5b-406f-8d9c-761be36d0406
+        type: free
+        targetFilter: (Caster.Ongoing effects has "Mark") And (Caster.ConditionCaster("Mark") = triggerer)
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        targetType: selforally
+        trigger: strike
+        name: Goaded
+        rules: Choose a new target for the strike.
+        description: |
+          You have learned to leverage your marked foes’ psychology and goad them into acting before they’re tactically ready. Whenever a creature marked by you uses a strike that targets you or any ally within your line of effect, you can use a free triggered action to change the target of the strike to you or another ally within your line of effect. 
+        range: "100"
+        behavior: powertabletrigger
+      - __typeName: CharacterModifier
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: c722c565-4cd7-4817-a84b-1c5293c33f16
+        behavior: triggerdisplay
+        source: Mastermind Class Feature
+        name: Goaded
+        description: |
+          You have learned to leverage your marked foes’ psychology and goad them into acting before they’re tactically ready. Whenever a creature marked by you uses a strike that targets you or any ally within your line of effect, you can use a free triggered action to change the target of the strike to you or another ally within your line of effect. 
+        guid: c91148f1-e6e8-4a60-b19c-8f384003c9c7
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          type: free
+          effect: Choose yourself or an ally. The creature you choose becomes the target of the strike.
+          target: Self or an ally
+          trigger: The target is targeted by a strike from a creature you have marked.
+          name: Goaded
+          guid: 24b17631-cc87-491e-9b0e-5e4ca6ddaa15
+          distance: Line of Sight
+          keywords: []
+      name: Goaded
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      description: |
+        You have learned to leverage your marked foes’ psychology and goad them into acting before they’re tactically ready. Whenever a creature marked by you uses a strike that targets you or any ally within your line of effect, you can use a free triggered action to change the target of the strike to you or another ally within your line of effect. 
+      source: Mastermind Class Feature
+      implementation: 3
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      guid: 9e690f97-6208-4c6d-b24b-4fef765a3a94
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: f722fdf1-2791-4e8c-8f6f-5d285761ebf7
+        description: Under your direction, an ally waits for just the right moment to strike.
+        source: Mastermind Class Feature
+        name: Overwatch
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          abilityType: none
+          guid: 8f2b4b5a-9969-48fa-bd0e-96fb7e93e00b
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            promptText: Select Ally to Make Free Strike
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              targetFilter: not enemy
+              strain: []
+              guid: cdb1e5c8-f85a-4d9f-bace-1c734bed353b
+              repeatTargets: false
+              abilityType: none
+              persistence: []
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: a15245d8-baf0-443a-ac4f-c93c3eb78024
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  behaviors: []
+                  range: 1
+                  name: Invoked Ability
+                  targetType: self
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                promptText: Free Strike Against Target
+                autoTarget: false
+                standardAbilityParams:
+                  targetid: "<<targetid>>"
+                standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+                runOnController: true
+              targetType: target
+              selfTarget: false
+              name: Invoked Ability
+              description: ""
+              range: "100"
+              iconid: ui-icons/skills/1.png
+            standardAbility: 9eb2b74c-bf41-48db-a7a4-d0ebb62201f8
+            autoTarget: false
+            targeting: prompt
+            abilityType: custom
+            standardAbilityParams:
+              targetid: "<<subject.id>>"
+              range: "100"
+              targets: "1"
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: R < average, slowed (EoT)
+            modesSelected:
+            - 2
+            filterTarget: ""
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            filterTarget: "Cast.Primary Target.Reason < average {Implement the rule where we only charge heroic resources if a resistance gated effect actually does something. TODO: work out if there is a more general/better way to do this.}"
+            modesSelected:
+            - 2
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            mode: expend
+          triggerPrompt: One ally makes a free strike against the target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          multipleModes: true
+          range: "10"
+          trigger: move
+          hasManualVersion: true
+          persistence: []
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          numTargets: "1"
+          domains:
+            class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          conditionFormula: not path.forced
+          modeList:
+          - text: Activate
+            condition: ""
+          - text: Spend 1 Focus
+            rules: If the target has R<{average}, they are also slowed (EoT)
+            condition: resources.Heroic Resource > 0
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          name: Overwatch
+          targetType: subject
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: bc7c79aa-66bf-46c8-bc88-e8e12b559f1f
+      - __typeName: CharacterModifier
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: f722fdf1-2791-4e8c-8f6f-5d285761ebf7
+        behavior: triggerdisplay
+        source: Mastermind Class Feature
+        name: Overwatch
+        description: Under your direction, an ally waits for just the right moment to strike.
+        guid: b0b3c56e-e154-42ea-af55-8bba6ca1be4e
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One enemy
+          effect: |
+            At any point during the target’s movement, one ally can make a free strike against them. 
+            **Spend 1 Focus:** If the target has R < {average}, they are also slowed (EoT).
+          trigger: The target moves.
+          flavor: Under your direction, an ally waits for just the right moment to strike.
+          guid: b3cbf290-4365-4cd1-85ff-01e2743a25a9
+          name: Overwatch
+          keywords:
+            Ranged: true
+      name: Overwatch
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      description: Under your direction, an ally waits for just the right moment to strike.
+      source: Mastermind Class Feature
+      implementation: 3
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th-Level Mastermind Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: 229234cb-587e-4a07-90dd-e98495f421d1
+          source: Mastermind Class Feature
+          guid: 398cb99d-af3b-41ec-a514-78a836587485
+          domains:
+            class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          name: Blot Out the Sun!
+          behavior: activated
+          description: ""
+          suppressOthers: false
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: Self and each ally in the area
+            repeatTargets: false
+            keywords:
+              Area: true
+            implementationDetails: ""
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 81be8bb9-5059-4e24-a5f8-05e7349d4ba8
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: 81be8bb9-5059-4e24-a5f8-05e7349d4ba8
+                  source: Ongoing Effect
+                  behavior: power
+                  keywords: []
+                  activationCondition: Target.Conditions has "Mark"
+                  name: Blot Out the Sun!
+                  guid: 8d4ec86f-623b-4902-8fbf-0b047579cc7e
+                  description: Each target can make a ranged free strike that gains an edge against any enemy marked by you within distance of their ranged free strike.
+                  modtype: edge
+                  rollType: ability_power_roll
+                - __typeName: CharacterModifier
+                  sourceguid: 81be8bb9-5059-4e24-a5f8-05e7349d4ba8
+                  source: Ongoing Effect
+                  behavior: power
+                  keywords: []
+                  activationCondition: Target.Conditions has "Mark"
+                  name: Ignore Banes
+                  guid: 88d3fef9-1351-4f1c-ad4c-762264d09b1a
+                  description: Each target can make a ranged free strike that gains an edge against any enemy marked by you within distance of their ranged free strike.
+                  modtype: ignore_banes
+                  rollType: ability_power_roll
+                source: Ongoing Effect
+                name: Blot Out the Sun!
+                description: Each target can make a ranged free strike that gains an edge against any enemy marked by you within distance of their ranged free strike.
+                id: 81be8bb9-5059-4e24-a5f8-05e7349d4ba8
+                iconid: 3ba95686-6af5-4436-8e2f-41c94714ff40
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              runOnController: true
+              promptText: Select Marked Target for Ranged Free Strike
+              targetingFormula: Target.ConditionCaster("Mark") = Caster
+              applyto: targets
+              targeting: prompt
+              abilityType: custom
+              standardAbility: 0ca5fc04-6068-4f47-b5c6-936d3a595f24
+              autoTarget: true
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                targetFilter: Target.ConditionCaster("Mark").id = <<casterid>>
+                repeatTargets: false
+                keywords:
+                  Ranged: true
+                  Strike: true
+                  Weapon: true
+                targetAllegiance: enemy
+                behaviors:
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  namedAbility: Ranged Free Strike
+                  promptText: ""
+                  targetingFormula: Target.ConditionCaster("Mark").id = <<casterid>>
+                  applyto: caster
+                  targeting: inherit
+                  autoTarget: true
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 3ec94560-20a5-4ab0-9218-87086ef37036
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  abilityType: standard
+                  standardAbility: aba67409-be3e-4ba9-8a99-0c01df37a34b
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: "5"
+                numTargets: "1"
+                modifiers: []
+                strain: []
+                guid: 9e2984e3-0ea6-4dae-a7b2-f334e8664dc0
+                castImmediately: false
+                targetType: target
+                name: Ranged Free Strike
+                persistence: []
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              standardAbilityParams:
+                casterid: "<<caster.id>>"
+              namedAbility: Ranged Free Strike
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'What makes a good soldier? The ability to fire four shots a minute in any weather. '
+            categorization: Heroic Ability
+            range: "3"
+            targetAllegiance: ally
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            persistence: []
+            modifiers: []
+            rangeTextOverride: 3 burst
+            strain: []
+            guid: a5bfccaf-ad38-4c89-9534-67d7ded49b2d
+            sourceReference:
+              __typeName: SourceReference
+              page: 185
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Blot Out the Sun!
+            domains:
+              class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            targetType: all
+            implementation: 4
+            selfTarget: true
+            numTargets: "1"
+            description: Each target can make a ranged free strike that gains an edge against any enemy marked by you within distance of their ranged free strike. A target ignores banes and double banes when making this strike.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 3ba95686-6af5-4436-8e2f-41c94714ff40
+        source: Mastermind Class Feature
+        guid: 229234cb-587e-4a07-90dd-e98495f421d1
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+        description: ""
+        name: Blot Out the Sun!
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: 887ef986-023b-4734-8df3-97bc3899117e
+          description: You gain 6 surges. Until the end of the encounter or until you are dying, whenever the Director spends Malice, choose yourself or one ally within 10 squares. The chosen character gains 2 of their Heroic Resource.
+          source: Mastermind Class Feature
+          name: Counterstrategy
+          behavior: activated
+          guid: 9bddc2db-7730-439c-b73d-e413f203e1ae
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            targetTextOverride: Self
+            repeatTargets: false
+            rangeTextOverride: Self
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              quantity: "6"
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: f1a35227-d720-4f04-8818-af3939be2684
+              duration: eoe_or_dying
+              ongoingEffectCustom: f1a35227-d720-4f04-8818-af3939be2684
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: I’ve identified a way to negate their strengths.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            numTargets: "1"
+            modifiers: []
+            castImmediately: true
+            strain: []
+            guid: ece9656b-1829-4bc7-98d2-5d656d573198
+            targetType: self
+            sourceReference:
+              __typeName: SourceReference
+              page: 185
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            iconid: 2742eef6-4b53-4a5b-a547-c41ce376c66a
+            channeledResource: none
+            name: Counterstrategy
+            persistence: []
+            description: You gain 6 surges. Until the end of the encounter or until you are dying, whenever the Director spends Malice, choose yourself or one ally within 10 squares. The chosen character gains 2 of their Heroic Resource.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Mastermind Class Feature
+        guid: 887ef986-023b-4734-8df3-97bc3899117e
+        domains:
+          class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+        description: You gain 6 surges. Until the end of the encounter or until you are dying, whenever the Director spends Malice, choose yourself or one ally within 10 squares. The chosen character gains 2 of their Heroic Resource.
+        name: Counterstrategy
+        implementation: 4
+      classid: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+      guid: f2ccd833-f9a0-460b-9497-75f4eb0656e0
+      source: Mastermind Class Feature
+      description: Choose one of the following abilities
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56180917-b5c2-4030-9fc8-9a00113d5ad4: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+details: "<B>Mastermind (Grand Strategy):</B> You have an encyclopedic knowledge of warfare, viewing the battlefield as a game board, and seeking victory by thinking multiple steps ahead of your opponents. You gain a skill from the lore skill group."
+name: Mastermind
+mtime: 1771185912619
+id: 56180917-b5c2-4030-9fc8-9a00113d5ad4
+primaryClassId: 506d41b6-816b-45c5-8f28-765f29d6f8ae

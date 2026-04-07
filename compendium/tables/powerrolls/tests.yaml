@@ -1,0 +1,24 @@
+__typeName: PowerRollTableGroup
+name: Tests
+tables:
+- __typeName: PowerRollTable
+  tiers:
+  - You succeed on the task and incur a consequence.
+  - You succeed on the task.
+  - You succeed on the task with a reward.
+  name: Easy Test
+- __typeName: PowerRollTable
+  tiers:
+  - You fail the task.
+  - You succeed on the task and incur a consequence.
+  - You succeed on the task.
+  name: Medium Test
+- __typeName: PowerRollTable
+  tiers:
+  - You fail the task and incur a consequence.
+  - You fail the task.
+  - You succeed on the task.
+  name: Hard Test
+mtime: 1752390466886
+id: 2d3e4c06-077f-40b8-b1e6-53c1e3f71493
+ctime: 1727843907848

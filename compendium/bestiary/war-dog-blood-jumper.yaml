@@ -1,0 +1,205 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fac3b29a-954b-42f6-b040-235fa96266ce
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        War Dog Blood Jumper	Level 10 Minion Harrier
+        Humanoid, War Dog	EV 12 for four minions
+        <b>Stamina</b> 15
+        <b>Speed</b> 7 (fly)	<b>Size</b> 1M /<b> Stability</b> 2
+        <b>With Captain</b> Speed +3<b>Free Strike</b> 4
+        Might +5	Agility +4	Reason +2	Intuition +3	Presence +2
+        <b>Jumplance</b> (Action) %E2%97%86 2d10 + 5%E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12-16</b>	7 damage
+        %E2%9C%B8	<b>17</b>	9 damage
+        <b>Effect</b> This ability has a double edge if the blood jumper moved 10 or more squares on the turn it's used.
+
+        <b>Drop Troop</b>
+        The blood jumper must end their turn on solid ground or they immediately fall prone.
+
+        <b>Loyalty Collar</b>
+        When the blood jumper dies, they explode, dealing 3d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5b7ed3fa-951a-4bd7-939c-5122eaf79b82: true
+      modifiers: []
+      name: Drop Troop
+      description: The blood jumper must end their turn on solid ground or they immediately fall prone.
+      guid: 5b7ed3fa-951a-4bd7-939c-5122eaf79b82
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c2f0e9ef-3d8a-4c58-a3ba-46af7a0806f5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 3d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the jumper is reduced to 0 Stamina, their loyalty collar explodes, dealing 3d6 damage to each adjacent enemy and object.
+      guid: c2f0e9ef-3d8a-4c58-a3ba-46af7a0806f5
+      name: Loyalty Collar
+      implementation: 3
+    role: Minion Harrier
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    monster_type: War Dog Blood Jumper
+    attributes:
+      agl:
+        baseValue: 4
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    withCaptain: +3 bonus to speed
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 15
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage
+        - 9 damage; A<4 bleeding (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 9ce36be0-b567-4acb-996e-cccf50c26bd6
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Jumplance
+      numTargets: 1
+      description: This ability has a double edge if the blood jumper moved 10 or more squares on the turn it's used.
+      abilityType: none
+      implementation: 3
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    movementSpeeds:
+      fly: 7
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: ad1e228e-2143-4632-a621-8f717589c08f
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Blood Jumper
+parentFolder: e0fe4628-5728-4664-a543-30bf2efaf46e
+artist: null
+ord: 1
+ctime: 1749972313472
+mtime: 1775201137032
+hidden: false

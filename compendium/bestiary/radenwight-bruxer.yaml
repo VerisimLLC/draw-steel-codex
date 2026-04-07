@@ -1,0 +1,342 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e2c79bc6-f8de-4f96-8776-82d45bb098a9
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 1
+    import:
+      override: true
+      data: |+
+        Radenwight Bruxer    Level 1 Platoon Brute
+        Humanoid, Radenwight    EV 6
+        <b>Stamina</b> 40
+        <b>Speed</b> 5 (climb)    <b>Size</b> 1L / <b>Stability</b> 2
+        <b>Free Strike</b> 4
+        Might +2    Agility +1    Reason -1    Intuition +0    Presence +0
+        <b>Lockjaw</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1    <b>Target</b> One creature or object
+        %E2%9C%A6    %E2%89%A411    6 damage
+        %E2%98%85    12%E2%80%9316    9 damage
+        %E2%9C%B8    17+    12 damage; grabbed
+        <b>Effect</b> While the target is grabbed, they take 2 damage at the start of each of the bruxer's turns.
+
+        <b>Flurry of Bites</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 burst    <b>Target</b> All enemies in the burst
+        %E2%9C%A6    %E2%89%A411    3 damage; A<0 bleeding (save ends)
+        %E2%98%85    12%E2%80%9316    5 damage; A<1 bleeding (save ends)
+        %E2%9C%B8    17+    8 damage; A<2 bleeding (save ends)
+
+        <b>Ready Rodent </b>(Triggered Action)
+        <b>Keywords</b> Melee, Weapon
+        <b>Distance</b> Melee 1    <b>Target</b> One creature
+        <b>Trigger</b> An ally deals damage to the target.
+        <b>Effect</b> The bruxer makes a free strike against the target.
+
+        <b>Lockdown</b>
+        An enemy can't shift while adjacent to the bruxer.
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8749f454-92f6-4b8b-9ebc-b1fc41860d5a: true
+      modifiers: []
+      name: Lockdown
+      description: An enemy can't shift while adjacent to the bruxer.
+      guid: 8749f454-92f6-4b8b-9ebc-b1fc41860d5a
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+        CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+        CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+        CharacterFeature:5badda5d-805c-41fb-be55-34b4e99e5694: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+          CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+          CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+          CharacterFeature:5badda5d-805c-41fb-be55-34b4e99e5694: true
+        sourceguid: 5badda5d-805c-41fb-be55-34b4e99e5694
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Ready Rodent
+        description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+        guid: 6fb742b8-0e7d-4f18-ae71-aa65f3e3a5a4
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The bruxer makes a free strike against the target.
+          name: Ready Rodent
+          trigger: An ally deals damage to the target.
+          guid: 1f8547ac-7fcd-4879-8883-b61fc069ff3a
+          distance: Melee 1
+          keywords:
+            Melee: true
+            Weapon: true
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+          CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+          CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+          CharacterFeature:5badda5d-805c-41fb-be55-34b4e99e5694: true
+        sourceguid: 5badda5d-805c-41fb-be55-34b4e99e5694
+        behavior: trigger
+        source: Character Feature
+        name: Ready Rodent
+        description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Make a free strike aganst the target.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          trigger: losehitpoints
+          persistence: []
+          modifiers: []
+          subjectRange: "1"
+          strain: []
+          whenActive: combat
+          conditionFormula: HasAttacker and Friends(self, Attacker) and Attacker != self
+          numTargets: "1"
+          domains:
+            CharacterFeature:a1a86407-b328-4c3c-9c3a-8f46cbdedca4: true
+            CharacterFeature:c8f8bea1-a2d8-41f6-ab6e-0d4865ddd674: true
+            CharacterFeature:85862380-8332-41d2-a7c3-6471b40e2a79: true
+            CharacterFeature:5badda5d-805c-41fb-be55-34b4e99e5694: true
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          guid: abef7bad-bbe8-4a1e-9172-24a902c65fcb
+          name: Ready Rodent
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: be273f15-0fb1-495a-967a-89022ab8ef0b
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            autoTarget: true
+            abilityType: standard
+            standardAbilityParams:
+              targetid: "<<subject.id>>"
+            standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: b15e2dae-efea-40b0-bb1f-1d5ffb8383a2
+      source: Character Feature
+      description: 'An ally deals damage to an adjacent target, the radenwight makes a free strike against the target. '
+      guid: 5badda5d-805c-41fb-be55-34b4e99e5694
+      name: Ready Rodent
+      implementation: 3
+    role: Platoon Brute
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "40"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    walkingSpeed: 5
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Radenwight Bruxer
+    equipment: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 40
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    keywords:
+      Humanoid: true
+      Radenwight: true
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 9 damage
+        - 12 damage; grabbed
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 0cfde17a-95c1-493c-b809-ff9261341a8b
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Lockjaw
+      numTargets: 1
+      description: While the target is grabbed, they take 2 damage at the start of each of the bruxer's turns.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; A<0 bleeding (save ends)
+        - 5 damage; A<1 bleeding (save ends)
+        - 8 damage; A<2 bleeding (save ends)
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 827928bb-7093-4bb8-93e0-c101367aab1e
+      abilityType: none
+      implementation: 4
+      numTargets: 1
+      name: Flurry of Bites
+      targetType: all
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 5ee3699a-4a06-40a3-b2d4-09799082a760
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: 'Ready Rodent '
+      numTargets: 1
+      description: The bruxer makes a free strike against the target.
+      abilityType: none
+      implementation: 0
+    groupid: 763027dd-bc4d-485c-9bfc-6888f41a1b35
+    movementSpeeds:
+      climb: 5
+    monster_category: Monster
+    minion: false
+    creatureSize: 1L
+    opportunityAttack: 4
+  tokenType: null
+  bestiaryId: baf0dfd9-fd12-472b-b99d-179f4f502124
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Radenwight Bruxer
+parentFolder: 17706a52-3552-4044-86fe-e77c1e5f00dd
+artist: null
+ord: 0
+ctime: 1741590300473
+mtime: 1775201137032
+hidden: false

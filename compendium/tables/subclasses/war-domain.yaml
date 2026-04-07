@@ -1,0 +1,223 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 9187bac7-5326-4cc5-9318-7b91efcd0d69
+  details: "You gain 2 piety the first time in an encounter that you or a creature within 10 squares of deals  damage in an amount equal to or greater than 10 + your level.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: Damage Dealt
+isSubclass: true
+ctime: 1728003852006
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: 16f80065-c92b-4875-a730-75ce4ccc6ce4
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: b2a56463-90ce-4561-b8f9-799af621f4c0
+        description: "You gain 2 piety the first time in an encounter that you or a creature within 10 squares of deals damage in an amount equal to or greater than 10 + your level.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+        source: War Domain Class Feature
+        name: War Domain Piety
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "High Damage: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          abilityType: none
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          trigger: dealdamage
+          conditionFormula: damage >= (10 + Level)
+          domains:
+            class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          persistence: []
+          guid: 041ebd83-cc4b-40f8-a7fb-41258d780487
+          name: War Domain Piety
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            quantity: 2 + 1 when level >= 4
+            checklistid: 9187bac7-5326-4cc5-9318-7b91efcd0d69
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            chatMessage: War Domain Piety
+          description: |-
+            War Domain: You gain 2 piety the first time in an encounter that you or a creature within 10 squares of deals damage in an amount equal to or greater than 10 + your level.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: any
+          iconid: ui-icons/skills/1.png
+        guid: 49b44e67-97d9-4c0e-894f-f601d45ac2cc
+      name: War Domain Piety
+      classid: 5ee1261d-f023-4b5b-9cef-c06331eb7daf
+      description: "You gain 2 piety the first time in an encounter that you or a creature within 10 squares of deals damage in an amount equal to or greater than 10 + your level.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+      source: War Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      guid: a3648456-b554-4db6-ba83-a969485224f9
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: 'Three allies of your choice within 10 squares of you, including yourself, gain two surges. '
+        source: War Domain Class Feature
+        name: War Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.15624988079071
+              s: 0.860253870487213
+              v: 0.937453269958496
+              a: 1
+          numTargets: "3"
+          modifiers: []
+          categorization: Trigger
+          targetFilter: not enemy
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          repeatTargets: false
+          abilityType: none
+          domains:
+            class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: "2"
+          targetType: target
+          selfTarget: true
+          name: War Domain Effect
+          description: 'Three allies of your choice within 10 squares of you, including yourself, gain two surges. '
+          range: "10"
+          iconid: a068e145-df2a-4664-9993-98e4bd189a3f
+      name: War Domain Effect
+      classid: 5ee1261d-f023-4b5b-9cef-c06331eb7daf
+      description: 'Three allies of your choice within 10 squares of you, including yourself, gain two surges. '
+      source: War Domain Class Feature
+      implementation: 3
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:5ee1261d-f023-4b5b-9cef-c06331eb7daf: true
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+name: War Domain
+prerequisite: Deity.Domains has "War"
+mtime: 1768291593002
+id: 5ee1261d-f023-4b5b-9cef-c06331eb7daf
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

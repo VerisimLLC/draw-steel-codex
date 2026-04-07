@@ -1,0 +1,69 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 4c854689-0c8b-4bb7-9c63-9077e4ec9c58
+  description: "As a maneuver, you infuse this armor with the essence of a storm. The first time an adjacent creature deals damage to you before the end of your next turn, they take lightning damage equal to your highest characteristic score and you can push them 1 square.\v\vWhen you use the armor's Tempest I enhancement, the affected creature takes 8 lightning damage and you push them up to 3 squares."
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 4c854689-0c8b-4bb7-9c63-9077e4ec9c58
+    guid: 684eb630-fcca-4f00-8545-e9158d40df53
+    source: Item
+    behavior: activated
+    description: "As a maneuver, you infuse this armor with the essence of a storm. The first time an adjacent creature deals damage to you before the end of your next turn, they take lightning damage equal to your highest characteristic score and you can push them 1 square.\v\vWhen you use the armor's Tempest I enhancement, the affected creature takes 8 lightning damage and you push them up to 3 squares."
+    name: Tempest II
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        durationUntilEndOfTurn: true
+        duration: 1
+        ongoingEffectCustom: 3be83144-3153-48c0-995e-8da136042a2f
+        ongoingEffect: 380ada99-9e9c-47af-945d-2ccebc320899
+        ongoingEffectSource: specific
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 2753cdfc-b6cf-4572-baf0-67cb31a39bac
+      targetType: self
+      castImmediately: true
+      domains: []
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Tempest II
+      numTargets: "1"
+      description: As a maneuver, you infuse this armor with the essence of a storm. The first time an adjacent creature deals damage to you before the end of your next turn, they take lightning damage equal to your highest characteristic score and you can push them 1 square.
+      abilityType: none
+      implementation: 4
+  source: Item
+  name: Tempest II
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: d995720a-7593-462c-a542-bd5396553710
+imbuePrereq: 2d28e946-c80f-49c1-bdde-3cfffd204a99
+projectSource: Ullorvic
+imbueLevel: 5
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1774699809041
+type: Gear
+ctime: 1770699205313
+projectGoal: "150"
+itemPrerequisite: The armor must be laid out under a clear sky as a comet passes over
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Tempest II
+imbueTargetType: armor
+description: When you use the armor's Tempest I enhancement, the affected creature takes 8 lightning damage and you push them up to 3 squares.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 2

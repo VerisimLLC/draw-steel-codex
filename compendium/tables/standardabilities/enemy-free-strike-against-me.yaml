@@ -1,0 +1,50 @@
+__typeName: ActivatedAbility
+targetFilter: enemy
+id: 9eb2b74c-bf41-48db-a7a4-d0ebb62201f8
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  runOnController: true
+  standardAbilityParams:
+    targetid: "<<caster.id>>"
+  autoTarget: false
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 53680cf1-8eaa-4760-a01a-42f745403579
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 8830d7a3-af05-4ee1-b9f3-fa254922a16c
+ctime: 1745700668435
+targetType: target
+numTargets: "<<targets>>"
+description: ""
+name: Enemy Free Strike Against Me
+repeatTargets: false
+mtime: 1771155214418
+abilityType: none
+iconid: e7d55d80-630d-432d-8d3d-33051478bcd9

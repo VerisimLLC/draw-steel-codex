@@ -1,0 +1,1353 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1728053062636
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 3a5cdd0c-d67c-4412-9d6c-e8358d4aec32
+        description: ""
+        source: Insurgent Class Feature
+        name: Mark
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 2
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            promptText: Choose where to shift.
+            standardAbilityParams:
+              distance: "<<Self.Reason>>"
+              numrecoveries: "1"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: a2544378-33a0-4248-b729-0b3462504bd2
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: bd9f9431-2ee2-41c1-81cb-c08570144cb9
+          characterConditionRequired: 5c54050a-de9c-410f-94a7-f31b8f57daf3
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          characterConditionInflictedBySelf: true
+          abilityType: none
+          range: 1
+          trigger: losehitpoints
+          conditionFormula: (HasAbility and Ability.doesdamage) and (ability.Keywords has "Strike") and (not Attacker.Ongoing Effects has "Used Bait and Ambush")
+          persistence:
+            enabled: true
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          guid: fba55ae0-eb8b-499a-8a7f-78c7a63e02fd
+          numTargets: "1"
+          targetType: attacker
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          triggerPrompt: Attacker may shift {Reason} and use the hide maneuver during the shift.
+          name: "Mark: Bait and Ambush"
+          mandatory: false
+          description: ""
+          subject: enemy
+          iconid: ui-icons/skills/1.png
+        guid: 4dad62a8-e60a-4082-b98e-f5953724dee8
+      - __typeName: CharacterModifier
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 0f8454a5-62dd-43b4-aee1-0d88923b3922
+        description: ""
+        source: Insurgent Class Feature
+        name: Bait and Ambush
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 2
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Mark: Spend 2 focus to let the character making a strike against a marked target shift a number of squares up to your reason score before the Strike."
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          trigger: custom
+          persistence: []
+          modifiers: []
+          subjectRange: "100"
+          strain: []
+          guid: 1310647f-896b-4041-a31e-5c1174780fea
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          hasManualVersion: true
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          numTargets: "1"
+          castImmediately: true
+          name: "Mark: Bait and Ambush"
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            filterTarget: not Enemy
+            standardAbilityParams:
+              distance: "{Triggerer.Reason}"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 41964ac6-ba78-4b5c-b8ca-f78188ed602f
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: bd9f9431-2ee2-41c1-81cb-c08570144cb9
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: 23e6b92e-f2ba-478f-9e07-028c077dcffb
+            duration: 0
+            ongoingEffectCustom: false
+          description: "Mark: Spend 2 focus to let the character making a strike against a marked target shift a number of squares up to your reason score before the Strike."
+          subject: any
+          iconid: ui-icons/skills/1.png
+        guid: b5f16c3e-1a83-4ee9-9355-c1148d04a90b
+      - __typeName: CharacterModifier
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 0f8454a5-62dd-43b4-aee1-0d88923b3922
+        behavior: triggerdisplay
+        source: Insurgent Class Feature
+        name: Bait and Ambush
+        description: ""
+        guid: c66d682c-7ffd-49d1-bbde-caa30106dfab
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: ""
+          effect: When you or any ally makes a strike against a creature marked by you, you can spend 2 focus to let the character making the strike shift up to a number of squares equal to your Reason score and use the Hide maneuver as a free maneuver once during the shift. The creature can shift before or after the strike is resolved.
+          type: passive
+          name: Bait and Ambush
+          cost: 2 Focus
+          guid: 91a55e32-dfcf-4581-aaf9-7ac6e789879c
+          distance: ""
+          keywords: []
+      source: Insurgent Class Feature
+      guid: 0f8454a5-62dd-43b4-aee1-0d88923b3922
+      domains:
+        class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      description: ""
+      name: Bait and Ambush
+      implementation: 3
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        intrigue: true
+      source: Insurgent Class Feature
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      guid: f0d556b3-ec7f-4a5a-a954-bbf600e668a0
+      description: You gain a skill from the intrigue skill group.
+      name: Insurgent Intrigue Skill
+    - __typeName: CharacterFeature
+      domains:
+        class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      guid: 17c33948-7cec-4004-be5b-2885d1a31865
+      modifiers: []
+      name: Covert Operations
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      description: While in your presence or working according to your plans, each of your allies gains an edge on tests with any skill from the intrigue skill group. Additionally, you can use the Lead skill to assist on any test made with a skill from the intrigue skill group. At the Director’s discretion, you and your allies can use skills from the intrigue skill group to attempt research or reconnaissance during a negotiation instead of outside of negotiation.
+      source: Insurgent Class Feature
+      implementation: 4
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2363f57b-c620-41d8-acea-6f044d49f65c
+        modifyDescription: You have mastered the ability to distract your foes, allowing you and your allies to take advantage of their gaps in attention. Whenever you or any ally attempts to hide, any creature marked by you doesn’t count as an observer. Additionally, you and your allies can use other allies as cover for the purpose of hiding.
+        source: Insurgent Class Feature
+        filterAbility: Ability.name is Hide
+        behavior: modifyability
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        attributes: []
+        guid: 57348d40-6cff-46eb-a5e2-54f3dd3ab088
+        description: You have mastered the ability to distract your foes, allowing you and your allies to take advantage of their gaps in attention. Whenever you or any ally attempts to hide, any creature marked by you doesn’t count as an observer. Additionally, you and your allies can use other allies as cover for the purpose of hiding.
+        name: Distracted
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 9834ac78-43e4-44d6-aa55-6aacd9e1bcef
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          abilityModification: true
+          behaviors: []
+          abilityType: none
+          name: New Ability
+          targetType: self
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Insurgent Class Feature
+      guid: 2363f57b-c620-41d8-acea-6f044d49f65c
+      domains:
+        class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      description: You have mastered the ability to distract your foes, allowing you and your allies to take advantage of their gaps in attention. Whenever you or any ally attempts to hide, any creature marked by you doesn’t count as an observer. Additionally, you and your allies can use other allies as cover for the purpose of hiding.
+      name: Distracted
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2c41d5a9-7afe-4415-9bcb-1b6f073f505e
+        source: Insurgent Class Feature
+        seq: 8bfc6f76-344f-42e2-b116-ddba26a51bfd
+        aura:
+          __typeName: Aura
+          applyto: selfandfriends
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 7a4acd8b-2a0c-4626-af4e-73ed391e6a96
+            displayCondition: Ability.name is Search for Hidden Creature	
+            source: Aura
+            modtype: bane
+            keywords: []
+            activationCondition: "1"
+            rollType: enemy_ability_power_roll
+            guid: 47a4a4d6-9fc5-48c5-81da-c97415d7dbe6
+            description: You and any ally within 10 squares of you can move at full speed while sneaking. Additionally, enemies within 10 squares of you take a bane on tests made to search for you or your allies while any of you are hidden.
+            behavior: power
+            name: Leave No Trace
+          name: Leave No Trace
+          guid: 7a4acd8b-2a0c-4626-af4e-73ed391e6a96
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: You and any ally within 10 squares of you can move at full speed while sneaking. Additionally, enemies within 10 squares of you take a bane on tests made to search for you or your allies while any of you are hidden.
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        radius: "10"
+        guid: 2b7114d6-c9a4-4f77-bae3-497b6ac358ff
+        description: You and any ally within 10 squares of you can move at full speed while sneaking. Additionally, enemies within 10 squares of you take a bane on tests made to search for you or your allies while any of you are hidden.
+        behavior: aura
+        name: Leave No Trace
+      source: Insurgent Class Feature
+      guid: 2c41d5a9-7afe-4415-9bcb-1b6f073f505e
+      domains:
+        class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      description: You and any ally within 10 squares of you can move at full speed while sneaking. Additionally, enemies within 10 squares of you take a bane on tests made to search for you or your allies while any of you are hidden.
+      name: Leave No Trace
+      implementation: 3
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-7:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 91508b0b-49ff-46fe-b5bf-9e2c528e9486
+        source: Insurgent Class Feature
+        guid: acf7cdd4-e6ac-4caf-9b5a-7ae3be08192c
+        keywords: []
+        activationCondition: false
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        behavior: power
+        rollType: test_power_roll
+        name: Asymmetric Warfare
+        description: You have advanced your skills in subterfuge, now directing full battlefield strategy and logistics. During a montage test or negotiation, you can obtain one automatic success on a test made using a skill from the intrigue skill group. Additionally, you can use skills from the intrigue skill group to conceal large groups of people, such as escaping civilians and groups of guerilla warriors.
+        modtype: tier3
+        skills:
+        - db532974-aa0a-41a9-aacf-4adc1e6121d3
+        - 54c39860-b658-4563-9ae1-66d36f26e50f
+        - b0bf2f97-6776-4a9e-b691-4845275df2f8
+        - c9eb14a5-e283-448a-80f1-7ea071e0d883
+        - 772f0953-2cee-4aad-a2ed-de9af9fa9b47
+        - fdd43bde-6062-484d-aea6-3803d396ea8e
+        - fc095c29-84cd-4e3f-8f65-03cd7a7736ad
+        - 978652ee-5553-40ee-97d8-44c607ecdf15
+        - cab282ce-2063-4ce3-b94c-209e81b22e0b
+        - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+        - ae13b5cf-718a-42a4-ab5e-18d46b289ac6
+        - a27ca113-bc01-49d0-9864-3316e6f525f4
+      source: Insurgent Class Feature
+      guid: 91508b0b-49ff-46fe-b5bf-9e2c528e9486
+      domains:
+        class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      canHavePrerequisites: true
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      description: You have advanced your skills in subterfuge, now directing full battlefield strategy and logistics. During a montage test or negotiation, you can obtain one automatic success on a test made using a skill from the intrigue skill group. Additionally, you can use skills from the intrigue skill group to conceal large groups of people, such as escaping civilians and groups of guerilla warriors.
+      name: Asymmetric Warfare
+      implementation: 3
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: 81bed480-9ef9-4619-aa15-bf4e068e733d
+          behavior: triggerdisplay
+          source: Insurgent Class Feature
+          name: Coordinated Execution
+          description: ""
+          guid: 2ac12e3d-1844-4c80-85f1-40726761ea8a
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: " If the target of the triggering ability is not a leader or solo creature, they are reduced to 0 Stamina. If the target of the triggering ability is a minion, the entire squad is killed. If the target of the triggering ability is a leader or solo creature, the triggering ability’s power roll automatically obtains a tier 3 outcome."
+            guid: 4d8e9a0b-2e63-4005-bd0f-0e89ccd8f8f8
+            keywords: []
+            target: One ally
+            trigger: The target uses an ability to deal rolled damage to a creature while hidden.
+            cost: "9"
+            flavor: You direct your ally to make a killing blow
+            name: Coordinated Execution
+            type: free
+        - __typeName: CharacterModifier
+          sourceguid: 81bed480-9ef9-4619-aa15-bf4e068e733d
+          source: Insurgent Class Feature
+          powerRollModifier:
+            __typeName: CharacterModifier
+            source: Trigger
+            modtype: tier3
+            resourceCostAmount: "9"
+            activationCondition: true
+            resourceCostType: cost
+            behavior: power
+            name: Coordinated Execution
+            rules: ""
+            rollType: ability_power_roll
+            keywords: []
+            guid: d0e9c81d-7776-485e-8c09-b292639e9300
+          guid: 0ebee844-af89-4f50-b270-2c6f3090f49a
+          type: free
+          targetFilter: Triggerer.Hidden This Turn
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          targetType: ally
+          trigger: powerroll
+          name: Coordinated Execution
+          rules: If the target of the triggering ability is not a leader or solo creature, they are reduced to 0 Stamina. If the target of the triggering ability is a minion, the entire squad is killed. If the target of the triggering ability is a leader or solo creature, the triggering ability’s power roll automat
+          description: ""
+          range: 10
+          behavior: powertabletrigger
+        source: Insurgent Class Feature
+        guid: 81bed480-9ef9-4619-aa15-bf4e068e733d
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+        description: ""
+        name: Coordinated Execution
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: 53d5bf21-6739-4c0e-86a1-bb3a737d8d75
+          description: ""
+          source: Insurgent Class Feature
+          name: Panic in Their Lines
+          behavior: activated
+          guid: e01a955f-163b-4f9b-ac08-a6e7992bcf8f
+          activatedAbility:
+            __typeName: ActivatedAbility
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: target
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You confuse your foes, causing them to turn on each other
+            sourceReference:
+              __typeName: SourceReference
+              page: 182
+              docid: cc66844a-04d0-49a0-8687-65ef83b15363
+            range: "5"
+            actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+            modifiers: []
+            strain: []
+            guid: cf39c24a-40e2-4db4-bc85-24636026385f
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              lingerTime: 2
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 6393fd02-01e0-4491-a0c3-56597f434d92
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    numTargets: "1"
+                    modifiers: []
+                    abilityType: none
+                    strain: []
+                    guid: 5e2c1240-6f33-49b1-8fad-ba590060ab0b
+                    repeatTargets: false
+                    trigger: collide
+                    conditionFormula: With Creature
+                    targetType: self
+                    persistence: []
+                    name: Free strike against collison
+                    behaviors:
+                    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                      abilityType: standard
+                      customAbility:
+                        __typeName: ActivatedAbility
+                        numTargets: "1"
+                        modifiers: []
+                        guid: 895a50b0-1846-4f85-9af5-73f3ec2a1d63
+                        repeatTargets: false
+                        display:
+                          brightness: 1
+                          saturation: 1
+                          hueshift: 0
+                          bgcolor: "#ffffffff"
+                        behaviors: []
+                        range: 1
+                        name: Invoked Ability
+                        targetType: self
+                        description: ""
+                        abilityType: none
+                        iconid: ui-icons/skills/1.png
+                      standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+                      promptText: You must make a free strike against the creature you were force moved into.
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+                  description: ""
+                  source: Ongoing Effect
+                  behavior: trigger
+                  guid: b8a9bab6-8837-426a-9305-3ad48fd67770
+                  name: Free strike against collison
+                  sourceguid: 6393fd02-01e0-4491-a0c3-56597f434d92
+                source: Ongoing Effect
+                name: Free strike against collison
+                description: ""
+                id: 6393fd02-01e0-4491-a0c3-56597f434d92
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 6 + M damage; slide 1
+              - 9 + M damage; slide 3
+              - 13 + M damage; slide 5
+              roll: 2d10 + Might
+            domains:
+              class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            persistence: []
+            numTargets: "2"
+            name: Panic in Their Lines
+            categorization: Heroic Ability
+            description: If a target is force moved into another creature, they must make a free strike against that creature.
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+        source: Insurgent Class Feature
+        guid: 53d5bf21-6739-4c0e-86a1-bb3a737d8d75
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+        description: ""
+        name: Panic in Their Lines
+        implementation: 3
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      guid: 7c3106a9-795b-4ab0-b4aa-d401d86ee9cc
+      description: Choose one of the following abilities.
+      name: 6th-Level Insurgent Ability
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      guid: 62f6ace0-12f5-484b-9ef9-55fa3f30f329
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 62f6ace0-12f5-484b-9ef9-55fa3f30f329
+        description: You have trained your squad to work together and benefit from staying silent and waiting for the opportune time to strike. When you or any of your allies within 10 squares of you becomes hidden, they gain a surge.
+        source: Insurgent Class Feature
+        name: Infiltration Tactics
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: ""
+          repeatTargets: false
+          targetType: subject
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          abilityType: none
+          trigger: inflictcondition
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: always
+          conditionFormula: condition = "Hidden"
+          persistence: []
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            chatMessage: Insurgent Infiltration Tactics
+          selfTarget: true
+          name: Infiltration Tactics
+          guid: c0170ebb-7a9f-458d-a70f-40b5b8041108
+          description: You have trained your squad to work together and benefit from staying silent and waiting for the opportune time to strike. When you or any of your allies within 10 squares of you becomes hidden, they gain a surge.
+          subject: selfandallies
+          iconid: ui-icons/skills/1.png
+        guid: 7bf8179c-386b-4661-8425-c11c747e96fb
+      name: Infiltration Tactics
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      description: You have trained your squad to work together and benefit from staying silent and waiting for the opportune time to strike. When you or any of your allies within 10 squares of you becomes hidden, they gain a surge.
+      source: Insurgent Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: 30edebc8-7178-465f-85de-624f534b0769
+          description: "Effect: Each target is marked by you. You immediately force each targeted creature to make a free strike against a creature of your choice within 5 squares of the targeted creature. \n\nMark Benefit: For the rest of the encounter whenever you or an ally attacks a marked target, you can spend 2 focus to make the marked target free strike a creature of your choice within 5 squares of the marked target. "
+          source: Insurgent Class Feature
+          name: Fog of War
+          behavior: activated
+          guid: b2ec1491-0ddf-4666-b9d2-8a30628fc28c
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: false
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+              ongoingEffectCustom: false
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: aa899faa-27ce-4a93-ad26-d6ee707d29f9
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: "Fog of War: Make a Free Strike against a creature within 5 squares."
+              autoTarget: false
+              abilityType: standard
+              standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              applyto: caster
+              ongoingEffect: d5641333-e694-448a-9956-81ae5041cdde
+              ongoingEffectCustom: d5641333-e694-448a-9956-81ae5041cdde
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            categorization: Heroic Ability
+            range: "10"
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 140756df-fb04-499f-96b2-4b887718854b
+            abilityType: none
+            targetType: target
+            domains:
+              class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            reasonedFilters: []
+            numTargets: "2"
+            name: Fog of War
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            description: |-
+              Each target is marked by you, and must immediately make a free strike against a creature of your choice within 5 squares of them.
+
+              **Mark Benefit:** Until the end of the encounter, whenever you or any ally makes a strike against a creature marked by you, you can spend 2 focus to force that target to make a free strike against a creature of your choice within 5 squares of them.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Insurgent Class Feature
+        guid: 30edebc8-7178-465f-85de-624f534b0769
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+        description: "Effect: Each target is marked by you. You immediately force each targeted creature to make a free strike against a creature of your choice within 5 squares of the targeted creature. \n\nMark Benefit: For the rest of the encounter whenever you or an ally attacks a marked target, you can spend 2 focus to make the marked target free strike a creature of your choice within 5 squares of the marked target. "
+        name: Fog of War
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: 7cebc2aa-e67a-43db-9fd3-71332d2bcd11
+          description: 'You shift your speed directly toward an ally, then swap locations with the ally as long as you can each fit into the other’s space. The ally can spend a Recovery, and you can make the following weapon strike with a distance of melee 1 against a creature. '
+          source: Insurgent Class Feature
+          name: Try Me Instead
+          behavior: activated
+          guid: 12faadf4-a460-4753-ab6f-ac18461fe45b
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            targetType: emptyspace
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: “Try picking on someone my size.”
+            categorization: Heroic Ability
+            range: Walking Speed
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: e4d53b02-7c81-42e5-8f71-a8176f5a7acb
+            domains:
+              class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              applyto: none
+              filterTarget: 0 {This behavior is unused. It's present so we show the power table in the ability description}
+              roll: 2d10 + Reason
+              tiers:
+              - 2 + R damage; R < Weak, frightened (save ends)
+              - 3 + R damage; R < Average, frightened (save ends)
+              - 4 + R damage; R < Strong, frightened (save ends)
+            - __typeName: ActivatedAbilityRelocateCreatureBehavior
+              movementType: shift
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                objectTarget: false
+                abilityType: none
+                strain: []
+                guid: 91422812-b576-4477-93cd-fc0d1f5a8a07
+                repeatTargets: false
+                modifiers: []
+                targetAllegiance: ally
+                targetType: target
+                numTargets: "1"
+                name: Swap With Ally
+                behaviors:
+                - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                  movementType: shift
+                  swapCreatures: true
+                - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                  customAbility:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: adaf452f-b4ea-4593-8ae3-efdf25c3dd37
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    behaviors: []
+                    range: 1
+                    name: Invoked Ability
+                    targetType: self
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  autoTarget: true
+                  abilityType: standard
+                  standardAbilityParams:
+                    numrecoveries: "1"
+                  standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              autoTarget: false
+              promptText: Choose adjacent ally to swap places with
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                persistence: []
+                objectTarget: false
+                abilityType: none
+                strain: []
+                guid: 01663fbf-c620-44d2-a9b5-bb547521003b
+                repeatTargets: false
+                keywords:
+                  Strike: true
+                  Melee: true
+                  Weapon: true
+                targetType: target
+                behaviors:
+                - __typeName: ActivatedAbilityPowerRollBehavior
+                  tiers:
+                  - 2 + R damage; R < weak, frightened (save ends)
+                  - 3 + R damage; R < average, frightened (save ends)
+                  - 4 + R damage; R < strong, frightened (save ends)
+                  roll: 2d10 + Reason
+                modifiers: []
+                name: Try Me Instead
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptText: Strike a creature
+              autoTarget: false
+              invokeOnCaster: true
+            castImmediately: true
+            targeting: pathfind
+            numTargets: "1"
+            name: Try Me Instead
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: You shift your speed directly toward an ally, then swap locations with the ally as long as you can each fit into the other’s space. The ally can spend a Recovery, and you can make the following weapon strike with a distance of melee 1 against a creature.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Insurgent Class Feature
+        guid: 7cebc2aa-e67a-43db-9fd3-71332d2bcd11
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+        description: 'You shift your speed directly toward an ally, then swap locations with the ally as long as you can each fit into the other’s space. The ally can spend a Recovery, and you can make the following weapon strike with a distance of melee 1 against a creature. '
+        name: Try Me Instead
+        implementation: 2
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      guid: 67c3bff5-784b-4672-a9ab-56d20d881be4
+      description: Choose one of the following abilities.
+      name: 2nd-Level Insurgent Ability
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+        class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+      guid: 7042b724-33eb-45ad-b4bd-4458b597fdaa
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 9e3a56b1-ba8c-4088-a513-fbc509bb19f5
+        source: Insurgent Class Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          keywords: []
+          surges: "2"
+          guid: 63462217-8520-40e5-8a34-319b856ef09b
+          rollType: ability_power_roll
+          rules: ""
+          name: Advanced Tactics
+          modtype: none
+          activationCondition: false
+        guid: 32c52bb8-35ee-4950-9050-45d808213acf
+        behavior: powertabletrigger
+        type: trigger
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        targetType: ally
+        trigger: dealdamage
+        name: Advanced Tactics
+        rules: Attacker gains two surges
+        description: ""
+        range: 10
+        additionalCostModifiers:
+        - __typeName: CharacterModifier
+          source: Trigger
+          guid: 3014d656-2b18-46ff-b001-429a6fad4069
+          behavior: power
+          keywords: []
+          activationCondition: false
+          rollType: ability_power_roll
+          resourceCostType: cost
+          name: Advanced Tactics+
+          rules: ""
+          potencymod: "1"
+          modtype: none
+          rulesText: Potency increased by 1
+      - __typeName: CharacterModifier
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        sourceguid: 9e3a56b1-ba8c-4088-a513-fbc509bb19f5
+        behavior: triggerdisplay
+        source: Insurgent Class Feature
+        name: Advanced Tactics
+        description: ""
+        guid: 42b60ed6-104c-419f-8373-f7597b216e0d
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: One Ally
+          effect: |
+            The target gains two surges, which they can use on the triggering damage.
+            **Spend 1 Focus:** If any effect of the damage has a potency effect, you increase the potency by 1.
+          trigger: The target deals damage to another creature.
+          flavor: Your leadership aids an ally.
+          guid: 9ab37bf3-36d6-45bd-bb66-3bc22e1727a9
+          name: Advanced Tactics
+          keywords: []
+      name: Advanced Tactics
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      description: ""
+      source: Insurgent Class Feature
+      implementation: 3
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th-Level Insurgent Ability
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: f92c6ed0-ea71-4549-8714-d1b43ff5f549
+          description: ""
+          source: Insurgent Class Feature
+          name: 'Squad! Hit and Run! '
+          behavior: activated
+          guid: 5abf1de1-ba53-4700-8890-c5a5d2a2f97e
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: Self and two allies
+            repeatTargets: false
+            keywords:
+              Ranged: true
+            implementationDetails: Ability allows 3 targets, one of these must be the Tactician.
+            behaviors:
+            - __typeName: ActivatedAbilityReplenishBehavior
+              resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+              chatMessage: Squad! Hit and Run!
+              quantity: "2"
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              filterTarget: ""
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: faa355ca-4884-4c1f-bfc7-4e3810374087
+                  source: Ongoing Effect
+                  behavior: power
+                  keywords: []
+                  activationCondition: true
+                  name: Squad! Hit and Run!
+                  guid: 6a810d83-0d74-4854-a610-c706bc545aaa
+                  description: Each target gains 2 surges, and can use a free triggered action to use a signature ability that gains an edge.
+                  modtype: edge
+                  rollType: ability_power_roll
+                source: Ongoing Effect
+                guid: faa355ca-4884-4c1f-bfc7-4e3810374087
+                id: faa355ca-4884-4c1f-bfc7-4e3810374087
+                name: Squad! Hit and Run!
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                description: Each target gains 2 surges, and can use a free triggered action to use a signature ability that gains an edge.
+                implementation: 4
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              promptWhenResolving: true
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: d9d9bc07-26ad-4739-868d-39ae1311cc56
+                repeatTargets: false
+                abilityType: none
+                castImmediately: true
+                targetType: self
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    source: ""
+                    filterAbility: Ability.Usable as Signature Ability
+                    behavior: modifyability
+                    guid: 96645276-5fb3-4266-8815-7b892fead4b7
+                    replaceBehaviors: after
+                    attributes: []
+                    cannotModifyAction: true
+                    description: ""
+                    name: Modify Attack
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      strain: []
+                      guid: 24609376-650b-4914-ae87-a9c48bb06c88
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors:
+                      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                        applyto: caster
+                        runOnController: true
+                        standardAbility: bd9f9431-2ee2-41c1-81cb-c08570144cb9
+                        standardAbilityParams:
+                          distance: "2"
+                          targetfilter: ""
+                        abilityType: standard
+                        customAbility:
+                          __typeName: ActivatedAbility
+                          numTargets: "1"
+                          modifiers: []
+                          guid: 32e3140d-167e-437d-a79d-3f8f49b1c497
+                          repeatTargets: false
+                          display:
+                            brightness: 1
+                            saturation: 1
+                            hueshift: 0
+                            bgcolor: "#ffffffff"
+                          behaviors: []
+                          range: 1
+                          name: Invoked Ability
+                          targetType: self
+                          description: ""
+                          abilityType: none
+                          iconid: ui-icons/skills/1.png
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptWhenResolvingText: Select which hero will use their Signature Ability and Shift
+              promptText: ""
+            abilityType: none
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: I had to pry this secret from the shadow colleges.
+            categorization: Heroic Ability
+            range: "10"
+            targetAllegiance: ally
+            numTargets: "3"
+            persistence: []
+            modifiers: []
+            castImmediately: false
+            strain: []
+            guid: 1c119227-76c4-4460-8011-0468009cf8bd
+            rangeTextOverride: Ranged 10
+            targetType: target
+            domains:
+              class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            name: 'Squad! Hit and Run! '
+            implementation: 3
+            selfTarget: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: Each target gains 2 surges, and can use a free triggered action to use a signature ability that gains an edge. After resolving their ability, each target can shift up to 2 squares and become hidden even if they have no cover or concealment, or if they are observed.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Insurgent Class Feature
+        guid: f92c6ed0-ea71-4549-8714-d1b43ff5f549
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+        description: ""
+        name: 'Squad! Hit and Run! '
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+            class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+          sourceguid: 2de71e41-a6fc-4802-ad9c-dee04e5e7fd7
+          description: ""
+          source: Insurgent Class Feature
+          name: Their Lack of Focus is Their Undoing
+          behavior: activated
+          guid: 8c61c9ab-b1c4-4d0a-a5ba-107701a0428a
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: ""
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+              Weapon: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              filterTarget: ""
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 88d1218c-0ad1-460f-b7a9-eb129830db5c
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  sourceguid: 88d1218c-0ad1-460f-b7a9-eb129830db5c
+                  source: Ongoing Effect
+                  behavior: power
+                  keywords: []
+                  activationCondition: true
+                  name: Their Lack of Focus is Their Undoing
+                  guid: 55568d56-d94d-4764-a398-155f1fc3bda4
+                  description: Each target uses a signature ability against one or more targets of your choosing, with each ability automatically obtaining a tier 3 outcome on the power roll.
+                  modtype: tier3
+                  rollType: ability_power_roll
+                source: Ongoing Effect
+                name: Their Lack of Focus is Their Undoing
+                description: Each target uses a signature ability against one or more targets of your choosing, with each ability automatically obtaining a tier 3 outcome on the power roll.
+                id: 88d1218c-0ad1-460f-b7a9-eb129830db5c
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              invokeOnCaster: false
+              targeting: prompt
+              promptWhenResolvingText: Choose Target
+              customAbility:
+                __typeName: ActivatedAbility
+                persistence: []
+                modifiers: []
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                strain: []
+                guid: 8b99ca60-d623-4b25-b07a-2db89e68e4e2
+                repeatTargets: false
+                abilityType: none
+                castImmediately: true
+                targetType: self
+                behaviors:
+                - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                  modifier:
+                    __typeName: CharacterModifier
+                    source: ""
+                    filterAbility: Ability.Usable as Signature Ability
+                    behavior: modifyability
+                    guid: 65ab7b55-5f68-4cd0-bea7-ce968882ea65
+                    replaceBehaviors: before
+                    attributes: []
+                    cannotModifyAction: true
+                    description: ""
+                    name: Modify Attack
+                    ability:
+                      __typeName: ActivatedAbility
+                      numTargets: "1"
+                      modifiers: []
+                      strain: []
+                      guid: ca19e60a-ec87-48f4-ae0d-3149eeaf0a5d
+                      repeatTargets: false
+                      display:
+                        brightness: 1
+                        saturation: 1
+                        hueshift: 0
+                        bgcolor: "#ffffffff"
+                      abilityModification: true
+                      behaviors: []
+                      abilityType: none
+                      name: New Ability
+                      targetType: self
+                      description: ""
+                      range: 1
+                      iconid: ui-icons/skills/1.png
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - R<WEAK, dazed (save ends)
+              - R<AVERAGE, dazed (save ends)
+              - R<STRONG, dazed (save ends)
+              roll: '2d10 + Might '
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: |-
+              You trick your enemies into attacking each other and leave them confused
+              by the aftermath.
+            categorization: Heroic Ability
+            range: "10"
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+            numTargets: "3"
+            modifiers: []
+            rangeTextOverride: ""
+            strain: []
+            guid: bebe8d07-dbea-4434-a5ce-630fd652a286
+            targetType: target
+            sourceReference:
+              __typeName: SourceReference
+              page: 185
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+              class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+            persistence:
+              enabled: false
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Their Lack of Focus is Their Undoing
+            preDescription: Each target uses a signature ability against one or more targets of your choosing, with each ability automatically obtaining a tier 3 outcome on the power roll. After resolving the targets’ abilities, you make a power roll against each original target.
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 4
+        source: Insurgent Class Feature
+        guid: 2de71e41-a6fc-4802-ad9c-dee04e5e7fd7
+        domains:
+          class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+          class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+        canHavePrerequisites: true
+        classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+        description: ""
+        name: Their Lack of Focus is Their Undoing
+        implementation: 4
+      classid: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+      guid: cff0d48f-fad4-4f4f-b54d-6e5c1ffe6971
+      source: Insurgent Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:56cb58e9-5dbb-44fd-86b5-b20b0c2e2130: true
+      class:506d41b6-816b-45c5-8f28-765f29d6f8ae: true
+details: |
+  <B>Insurgent (Asymmetric Warfare):</B> Doing your duty, playing fair, and dying honorably in battle is your opponent’s job. By contrast, you’ll do whatever it takes to keep your allies alive. You gain a skill from the intrigue skill group.
+name: Insurgent
+mtime: 1771236321566
+id: 56cb58e9-5dbb-44fd-86b5-b20b0c2e2130
+primaryClassId: 506d41b6-816b-45c5-8f28-765f29d6f8ae

@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+insertAtStart: false
+invokeSurroundingAbility: false
+id: 72ca460c-9d7a-49c9-943e-b8bf270e1141
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 1
+testCases:
+- text: Each target regains 5 Stamina.
+numTargets: "1"
+modifiers: []
+source: Monster
+guid: bafbbf42-027c-450a-99b6-37475942d930
+importMatch: Each target regains <<amount>> Stamina.
+ctime: 1731825276151
+repeatTargets: false
+behaviors:
+- __typeName: ActivatedAbilityHealBehavior
+  roll: "<<amount>>"
+name: Heal
+mtime: 1743392539354
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

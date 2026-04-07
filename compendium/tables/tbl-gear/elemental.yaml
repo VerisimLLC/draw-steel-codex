@@ -1,0 +1,147 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: Whenever you use an ability with the Air, Earth, Fire, Green, Rot, Void, or Water keyword, you can attune this implement to that element until the end of the encounter. While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: self
+      triggerPrompt: 'Attune your implement with the Elemental keyword of the ability you just used. You gan an edge on power rolls with that keyword. Only one element can be attuned at a time. '
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      persistence: []
+      modifiers: []
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          targetType: self
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          modeList:
+          - text: Air
+          - text: Earth
+            condition: ""
+          - text: Fire
+          - text: Green
+          - text: Rot
+          - text: Void
+          - text: Water
+          castImmediately: false
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            duration: eoe
+            ongoingEffectCustom: false
+            ongoingEffect: 00c339a7-3881-4895-88e2-f99c49dfb7d2
+            ongoingEffectSource: specific
+            modesSelected:
+            - 1
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            duration: eoe
+            ongoingEffectCustom: false
+            ongoingEffect: 3d7feac7-35f6-4f4b-8e5f-b5d81969b094
+            ongoingEffectSource: specific
+            modesSelected:
+            - 2
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            duration: eoe
+            ongoingEffectCustom: 51dfe7fd-75da-47f9-88ee-49d353ea27dc
+            ongoingEffect: 34de73c8-9c33-4547-93cd-f6580a1666ca
+            ongoingEffectSource: specific
+            modesSelected:
+            - 3
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            duration: eoe
+            ongoingEffectCustom: false
+            ongoingEffect: 999ad3ef-a691-4ac9-81c2-69083978f824
+            ongoingEffectSource: specific
+            modesSelected:
+            - 4
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            duration: eoe
+            ongoingEffectCustom: false
+            ongoingEffect: 807b5053-8058-461a-be3a-b8c3d3738a6c
+            ongoingEffectSource: specific
+            modesSelected:
+            - 5
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            duration: eoe
+            ongoingEffectCustom: false
+            ongoingEffect: 308d91c4-559d-4bae-85fd-f5ca74c497e1
+            ongoingEffectSource: specific
+            modesSelected:
+            - 6
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            duration: eoe
+            ongoingEffectCustom: 00a0e0b7-44aa-4947-8d7b-aa71c7ce304d
+            ongoingEffect: 6c60e973-1d10-4e3e-8709-c7e1ff5326a7
+            ongoingEffectSource: specific
+            modesSelected:
+            - 7
+          name: Elemental Attunement
+          guid: bc3c18a7-80cc-4a63-bbae-6809967868b3
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Select the elemental keyword from your used ability that you wish to attune to.
+      strain: []
+      modeList: []
+      conditionFormula: Used Ability.Keywords has "air" or Used Ability.Keywords has "earth" or Used Ability.Keywords has "fire" or Used Ability.Keywords has "green" or Used Ability.Keywords has "rot" or Used Ability.Keywords has "void" or Used Ability.Keywords has "water"
+      multipleModes: variations
+      castImmediately: true
+      trigger: useability
+      numTargets: "1"
+      name: Elemental
+      guid: 88ebdea0-c687-4618-b0c3-81bbb26bbf79
+      description: Whenever you use an ability with the Air, Earth, Fire, Green, Rot, Void, or Water keyword, you can attune this implement to that element until the end of the encounter. While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you use an ability with the Air, Earth, Fire, Green, Rot, Void, or Water keyword, you can attune this implement to that element until the end of the encounter. While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+    source: Item
+    behavior: trigger
+    guid: 8d2d510c-fa8a-4bb5-b71b-5dbb462da92c
+    name: Elemental
+    sourceguid: 2cf13459-5ad9-47de-9c73-fcd73ca366a6
+  source: Item
+  name: Elemental
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 2cf13459-5ad9-47de-9c73-fcd73ca366a6
+itemPrerequisite: Ashes or other leavings from a natural disaster
+imbuePrereq: none
+projectSource: The First Language
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 2
+ctime: 1770699205313
+projectGoal: "150"
+id: 02a10623-89f2-472b-9b7f-928fd7628082
+mtime: 1774442949950
+name: Elemental
+imbueTargetType: implement
+description: Whenever you use an ability with the Air, Earth, Fire, Green, Rot, Void, or Water keyword, you can attune this implement to that element until the end of the encounter. While the implement is attuned, you gain an edge on power rolls with that elemental keyword. The implement can be attuned to only one element at a time.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 3b596a1f-bfef-4022-9f02-5e504b0a29fa

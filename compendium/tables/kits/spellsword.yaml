@@ -1,0 +1,97 @@
+__typeName: Kit
+stability: 1
+armor: Light
+health: 6
+id: eb79fd24-ffa6-47bf-a819-2a346be45326
+weapons:
+  Medium: true
+  Shield: true
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Spellsword
+description: The Spellsword kit combines melee attacks and a little bit of magic for warriors who don't want to have to choose between the incantation and the blade.
+mtime: 1770565532178
+type: martial
+speed: 1
+imported: 7dcd9907-f8b7-4ff6-bf09-e701a2f1e90a
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Magic: true
+    Weapon: true
+    Kit: true
+    Strike: true
+    Melee: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 + M, R, I or P lightning damage
+    - 8 + M, R, I or P lightning damage
+    - 11 + M, R, I or P lightning damage
+    roll: 2d10 + Might or Reason or Intuition or Presence
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    autoTarget: false
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      targetFilter: target != invoker
+      guid: 092057ba-b46f-4b8b-b19f-ef0f99a43bbf
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        damageType: lightning
+        roll: invoker.Might or invoker.Reason or invoker.Intuition or invoker.Presence
+      abilityType: none
+      name: Invoked Ability
+      targetType: target
+      description: ""
+      range: "2"
+      iconid: ui-icons/skills/1.png
+    promptText: Choose target to take {Might or Reason or Intuition or Presence} lightning damage
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.181249693036079
+      s: 0.450585603713989
+      v: 1.00191068649292
+      a: 1
+  flavor: 'Lightning jumps from your weapon as you strike to harm a nearby foe. '
+  sourceReference:
+    __typeName: SourceReference
+    page: 223
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  effectImplemented: false
+  numTargets: 1
+  modifiers: []
+  strain: []
+  guid: a8597e34-22d3-475c-8d68-421bed50a4f0
+  implementation: 4
+  persistence: []
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  targetType: target
+  name: Leaping Lightning
+  categorization: Signature Ability
+  description: A creature or object within 2 squares of your target takes lightning damage equal to the characteristic you used for this ability's power roll.
+  abilityType: none
+  iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+kitManeuver: false
+equipmentDescription: You wear light armor and wield a shield and a medium weapon.
+portraitid: ""

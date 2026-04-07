@@ -1,0 +1,28 @@
+__typeName: MarkdownDocument
+description: Gorek
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 17bd71f9-bddb-42c8-b222-a1406f900bff
+annotations:
+  image:
+    __typeName: RichImage
+    uiscale: 0.500000915527344
+    halign: center
+    image: c3b23ad9-9b9d-495f-9762-3f192415f748
+id: c1cdc20a-4aea-4eef-8496-ce349b9c819a
+mtime: 1761427759614
+content: |-
+  # Gorek
+  [[image]]
+
+  *A dwarf fury, Gorek makes no pretense about why he’s in the Gilded Hand. He likes to fight. He likes to make money. Everything else is boring to him*
+  {
+  Secret: see [Gilded Hand]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761427716588

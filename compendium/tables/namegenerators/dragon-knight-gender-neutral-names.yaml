@@ -1,0 +1,49 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 70ad9b34-6992-45f8-9161-15b93ca67287
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Baiqadrazaar
+- __typeName: RollTableRow
+  id: b457aa9e-ba16-4e45-ba45-0b8d2a891952
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Ciniceziar
+- __typeName: RollTableRow
+  id: 9c60ea63-8743-45d7-9511-8cb4f9a864a3
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Lorikorivox
+- __typeName: RollTableRow
+  id: cee7f5f6-de36-4f73-97ec-70dd0c7644b9
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Vinkarijaan
+- __typeName: RollTableRow
+  id: a2422330-9735-4171-9365-2d5efbb5638c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Zaikorojax
+id: 088ee59f-6e89-4f99-a665-2b6c4d9b4d77
+name: Dragon Knight Gender Neutral Names
+subtable: true
+mtime: 1743454954183
+items: false
+ctime: 1743443960392

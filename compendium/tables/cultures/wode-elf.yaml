@@ -1,0 +1,11 @@
+__typeName: Culture
+id: 8ab414a3-b599-4f14-ab79-a24aab86531b
+group: Ancestry Cultures
+name: Wode Elf
+languageid: 7022a370-503a-4cfd-a711-4b6af889f3af
+mtime: 1769349239579
+aspects:
+  upbringing: afc08d55-ddae-4863-8fcd-d09e053f90bf
+  environment: 4dbf32ef-46d1-48ec-be9e-1783e7b36f07
+  organization: 023d4580-acbc-4955-b623-518308dd3890
+ctime: 1768796064309

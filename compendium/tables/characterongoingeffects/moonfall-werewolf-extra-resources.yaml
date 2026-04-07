@@ -1,0 +1,40 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 85f356e6-a07b-486c-a001-eca594fd6e8e
+  source: Ongoing Effect
+  guid: ef8db57c-9583-4d53-8182-864dfa5ab83d
+  domains:
+    CharacterOngoingEffect:85f356e6-a07b-486c-a001-eca594fd6e8e: true
+  name: Moonfall Werewolf Extra Resources
+  description: ""
+  num: 1
+  resourceType: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  behavior: resource
+- __typeName: CharacterModifier
+  sourceguid: 85f356e6-a07b-486c-a001-eca594fd6e8e
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:85f356e6-a07b-486c-a001-eca594fd6e8e: true
+  name: Moonfall Werewolf Extra Resources
+  guid: eccd6f47-9740-4f1d-b6b5-5e1e018056ef
+  description: ""
+  behavior: attribute
+  attribute: 9ee45115-de41-4698-952f-ae7eb42ad17f
+source: Ongoing Effect
+guid: 327bde95-9b44-4781-ba79-64e80a1f0cff
+id: 327bde95-9b44-4781-ba79-64e80a1f0cff
+ctime: 1760364135638
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Moonfall Werewolf Extra Resources
+statusEffect: false
+mtime: 1760364186184
+description: ""
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,51 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: 38aa81f3-051f-45e2-bdca-129bdedbd2f1
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: bd08d273-526b-4a99-8879-928e33ba6716
+  choiceName: Time Raider Masculine
+  id: 1c2aae3c-07b3-4cda-877c-e4f24b1aa844
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: eb35301e-c22a-4555-9e00-8a7fa0b8f89f
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: bd08d273-526b-4a99-8879-928e33ba6716
+  choiceName: Time Raider Gender Neutral
+  id: f6039641-ee6b-4424-9b14-dee9a0c03b2d
+- __typeName: RollTableRow
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: ab71663c-7b83-4796-953c-423665d11387
+    - __typeName: Variant
+      type: tableRoll
+      dataTable: nameGenerators
+      key: bd08d273-526b-4a99-8879-928e33ba6716
+  choiceName: Time Raider Feminine
+  id: d8da1a8b-a11f-4302-83c4-a4bd38d42d91
+id: 74fa53c8-12fb-478a-bca3-d8bc0915180c
+rollType: namedChoice
+name: Time Raiders Full Name
+mtime: 1743456096973
+items: false
+ctime: 1743456096973

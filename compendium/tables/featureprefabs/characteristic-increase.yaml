@@ -1,0 +1,61 @@
+__typeName: CharacterFeaturePrefabs
+details: Each of your characteristic scores increases by 1, to a maximum of 4.
+name: Characteristic Increase
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: 533eae82-769a-4411-9ef4-acbe1e53b588
+      sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+      value: 1
+      source: Character Feature
+      name: Characteristic Increase
+      behavior: attribute
+      description: Each of your characteristic scores increases by 1, to a maximum of 4.
+      attribute: agl
+    - __typeName: CharacterModifier
+      guid: e0cb4c41-d2f3-4d60-9cfe-10e789c09957
+      sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+      value: 1
+      source: Character Feature
+      name: Characteristic Increase
+      behavior: attribute
+      description: Each of your characteristic scores increases by 1, to a maximum of 4.
+      attribute: inu
+    - __typeName: CharacterModifier
+      guid: 36c4fc4c-23e3-4d8a-acda-d5df5edb8c35
+      sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+      value: 1
+      source: Character Feature
+      name: Characteristic Increase
+      behavior: attribute
+      description: Each of your characteristic scores increases by 1, to a maximum of 4.
+      attribute: mgt
+    - __typeName: CharacterModifier
+      guid: d2a96586-9502-46a0-a68d-952a3c28176c
+      sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+      value: 1
+      source: Character Feature
+      name: Characteristic Increase
+      behavior: attribute
+      description: Each of your characteristic scores increases by 1, to a maximum of 4.
+      attribute: prs
+    - __typeName: CharacterModifier
+      guid: bc3d4913-16f1-4e6e-a780-f15632c8085c
+      sourceguid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+      value: 1
+      source: Character Feature
+      name: Characteristic Increase
+      behavior: attribute
+      description: Each of your characteristic scores increases by 1, to a maximum of 4.
+      attribute: rea
+    name: Characteristic Increase
+    description: Each of your characteristic scores increases by 1, to a maximum of 4.
+    guid: 7f0cc0ef-f118-4d7a-b8d1-902d49821f55
+    source: Character Feature
+    implementation: 2
+mtime: 1751205278386
+id: dc09f55e-c78d-4a31-ada2-21f9ac837f55
+ctime: 1751205278386

@@ -1,0 +1,66 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 2bedc05e-d997-464b-8156-d739f1321b23
+    repeatTargets: false
+    trigger: finishmove
+    conditionFormula: not Path.Forced
+    targetType: self
+    persistence: []
+    name: 3 psychic damage
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "5"
+      damageType: psychic
+      chatMessage: Mind Snare Movement Damage
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: You take three psychic damage for each square you willing move.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: bef0f8bf-71c8-48f7-acea-61f2a984e49a
+  name: 5 psychic damage
+  sourceguid: b972882c-fb7b-426d-bae3-b90ed7c3a702
+- __typeName: CharacterModifier
+  sourceguid: 6c139306-a3ec-4162-8444-13e889127b77
+  displayCondition: Caster = ConditionCaster("slowed")
+  source: Ongoing Effect
+  modtype: double_bane
+  keywords: []
+  activationCondition: "1"
+  rollType: enemy_ability_power_roll
+  guid: 4024d3e9-1631-4e95-979f-61c6c7a072eb
+  description: You take three psychic damage for each square you willing move.
+  behavior: power
+  name: 5 psychic damage
+source: Ongoing Effect
+guid: 6c139306-a3ec-4162-8444-13e889127b77
+id: 6c139306-a3ec-4162-8444-13e889127b77
+ctime: 1765944030676
+condition: 68f455f5-135f-495c-822d-40d809d2b15f
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: 5 psychic damage
+description: You take three psychic damage for each square you willing move.
+mtime: 1765944230811
+iconid: c97f2b52-07a3-43ac-8e5b-f10944132412

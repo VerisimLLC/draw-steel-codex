@@ -1,0 +1,31 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 275eef5f-67b5-4bf8-bc01-3c42337d502f
+  source: Ongoing Effect
+  modtype: none
+  keywords:
+    Strike: true
+  activationCondition: true
+  description: Each other ally in the encounter deals an extra 3 damage with strikes until the end of the round
+  name: Bully The Weak
+  behavior: power
+  damageModifier: "3"
+  rollType: ability_power_roll
+  guid: 7a2ea665-4425-4c15-89fb-2716eae7e550
+source: Ongoing Effect
+guid: 275eef5f-67b5-4bf8-bc01-3c42337d502f
+id: 275eef5f-67b5-4bf8-bc01-3c42337d502f
+ctime: 1771081094196
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1771081094196
+name: Bully The Weak
+custom: true
+description: Each other ally in the encounter deals an extra 3 damage with strikes until the end of the round
+endTrigger: beginround
+iconid: 11d94f0a-d2cb-4f82-a64e-b36bc75e8670

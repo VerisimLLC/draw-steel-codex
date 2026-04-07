@@ -1,0 +1,86 @@
+__typeName: CharacterFeature
+testCases:
+- text: Whenever an adjacent enemy grabs the cleaver or uses a melee ability against them, that enemy takes 2 poison damage.
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetTextOverride: 1 square
+    repeatTargets: false
+    rangeTextOverride: "1"
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Toxiferous
+      roll: "<<number>>"
+      damageType: poison
+      chatMessage: Melee Ability Vs. Toxic Creature
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 0569f005-2683-4adc-92ff-2bc18f9c1c80
+    persistence: []
+    conditionFormula: target = self and (Used Ability.Keywords has "Melee")	
+    abilityType: none
+    targetType: subject
+    trigger: targetwithability
+    name: Toxiferous
+    description: ""
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Monster
+  behavior: trigger
+  guid: b23da00d-6901-42f3-a9af-c18a93b6e496
+  name: Toxiferous
+  sourceguid: 899d7be5-9c24-4936-b4a7-1133b5ee6fd5
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    targetTextOverride: 1 square
+    repeatTargets: false
+    rangeTextOverride: "1"
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      titleText: Toxiferous
+      roll: "<<number>>	"
+      damageType: poison
+      chatMessage: Grabbed by a Toxiferous Creature
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: bd4cc27c-afe1-45e6-9932-edbc03d52580
+    conditionFormula: Condition = "Grabbed" and (Has Attacker)
+    targetType: attacker
+    name: Toxiferous
+    trigger: inflictcondition
+    numTargets: "1"
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Monster
+  behavior: trigger
+  guid: f202e506-f5e0-425a-a09c-858ef3681bb1
+  name: Toxiferous
+  sourceguid: 899d7be5-9c24-4936-b4a7-1133b5ee6fd5
+source: Monster
+guid: 899d7be5-9c24-4936-b4a7-1133b5ee6fd5
+importMatch: Whenever an adjacent enemy grabs <<monster>> or uses a melee ability against them, that enemy takes <<number>> poison damage.
+ctime: 1771874044626
+name: Toxiferous
+id: 8c02f175-35fb-442d-a33a-75d38b75195b
+description: ""
+mtime: 1771875784453
+implementation: 4

@@ -1,0 +1,1630 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Wode Hag
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0de7ad10-9cc7-48d4-9b4b-498ec77fa00c
+  properties:
+    __typeName: monster
+    groupid: fe51d262-f292-486b-a689-8e73c181fb8e
+    cr: 3
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 60
+    max_hitpoints_roll: "300"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        8019fc21-1ed6-4130-9841-98a31f0e83b1:
+          refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-12
+          note: Soul Steal
+          userid: steam-76561198767161997
+          set: 0/1
+        977190cf-bf62-4d9b-b302-a8e2ec8ea1d7:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-1-96c5aa09-e05b-40d0-a862-0f4ca7f233a2
+          note: Corrosive Claws
+          userid: steam-76561198767161997
+          set: 0/1
+    58d16250-730b-42d1-bfa8-ec210556a94a_history:
+      __typeName: StatHistory
+      entries:
+        df228f8b-5701-4d05-94ee-c705202f8891:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7
+          note: Open the Oven
+          userid: steam-76561198767161997
+          set: "-1/0"
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 3
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: 1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    creatureSize: 1L
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 corruption damage; A<1 weakened (save ends)
+        - 13 corruption damage; A<2 weakened (save ends)
+        - 16 corruption damage; A<3 weakened (save ends)
+        roll: 2d10 + Intuition
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 170
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      targetAdditionalCriteria: or objects
+      guid: 179cc56e-efd7-4ecf-87b5-8eb9e719ab85
+      categorization: Signature Ability
+      implementation: 4
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      strain: []
+      targetType: target
+      name: Corrosive Claws
+      numTargets: 2
+      description: ""
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 7
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 170
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 743ed41b-5d3b-449a-8f2f-7f9fb4dae75e
+      categorization: Malice
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      numTargets: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: mgt
+        roll: 2d10 + Intuition
+        tiers:
+        - 5 corruption damage; P<1 4 corruption damage
+        - 8 corruption damage; P<2 5 corruption damage
+        - 10 corruption damage; P<3 6 corruption damage
+        resistanceRoll: false
+        isTest: false
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        promptText: "Spend 3 Malice: The hag regains Stamina equal to half the damage dealt"
+        promptWhenResolving: false
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "3"
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityHealBehavior
+            roll: "<<damagedealt>>/2"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 170
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 35271e51-8a56-4461-88a7-c866172c0daf
+          iconid: ui-icons/skills/1.png
+          resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          targetType: self
+          name: 3 Malice regain stamina
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          implementation: 4
+        autoTarget: false
+        filterTarget: Caster.Heroic Resources Available to Spend >=3 and Caster.stamina <= Caster.Maximum Stamina
+        standardAbilityParams:
+          damagedealt: "<<cast.damage dealt>>"
+        targeting: prompt
+      name: Soul Steal
+      radius: "4"
+      description: |-
+        This ability gains an edge against a target who has a soul.
+        **3 Malice**: The hag regains Stamina equal to half the damage dealt.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      targetFilter: ""
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 170
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - rules: The hag alters their body to become any size 1 creature, from a house cat to a humanoid. If the hag uses this ability while outside of any enemy’s line of effect, they can choose to be automatically hidden.
+        text: Size 1 creature
+      - rules: The hag becomes a size 2 creature instead, from a bear to an ogre. While in this form, the hag’s melee abilities gain a +1 bonus to distance and deal an extra 4 damage.
+        text: "5 Malice: Size 2 creature"
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 14d217ec-2f49-431d-acea-95072b80880c
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: |-
+          If the hag uses this ability while outside of any enemy’s line of effect, they can choose to be automatically hidden.
+
+          Click Confirm to hide, or skip.
+        autoTarget: false
+        filterTarget: ""
+        standardAbility: 003a1b5e-0b14-4c99-b948-0f0fc715bbf2
+        abilityType: standard
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 4f835472-60a6-4be5-9c4f-4ea86752ec28
+        modesSelected:
+        - 1
+        ongoingEffectCustom: 4f835472-60a6-4be5-9c4f-4ea86752ec28
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 402241f6-ce1d-4b30-8d57-52e66c2b11e8
+        ongoingEffectCustom: false
+      categorization: Signature Ability
+      numTargets: 1
+      implementation: 3
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: 'Shapeshifter '
+      guid: fcf19833-9144-4775-9746-8d518b770155
+      description: |-
+        The hag alters their body to become any size 1 creature, from a house cat to a humanoid. If the hag uses this ability while outside of any enemy's line of effect, they can choose to be automatically hidden. The hag can return to their original form as a free maneuver.
+        **5 Malice**: The hag becomes a size 2 creature instead, from a bear to an ogre. While in this form, the hag's melee abilities gain a +1 bonus to distance and deal an extra 4 damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 1e2bde2c-9ec6-4eee-8667-bc08086ff396
+        duration: eoe
+        ongoingEffectCustom: 1e2bde2c-9ec6-4eee-8667-bc08086ff396
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 8076d92f-7483-492f-aa03-781d3641b38e
+        duration: endnextround
+        ongoingEffectCustom: 8076d92f-7483-492f-aa03-781d3641b38e
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 170
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '83de0c7e-06b7-4579-b97"
+      villainAction: Villain Action 1
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 5be48e7d-43ba-4040-bcd6-3e34007d5462
+      persistence: []
+      implementation: 3
+      targetType: all
+      categorization: Villain Action
+      name: Snackies for Sweeties
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      description: The hag attaches an ornate explosive pastry to each target who has a<2]. At the end of the round, the hag makes one power roll against each creature with a pastry attached to them.
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 1
+      effectImplemented: true
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: cd3e6cea-22df-47c5-ba5c-d61b08610ece
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '7ba7279c-9195-4e9c-8cb"
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 170
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Predator's Alacrity
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 9a48a72f-f09e-4416-9a36-0ef9a47944f8
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: First, the hag shifts up to their speed.
+        invokeOnCaster: true
+        standardAbilityParams:
+          distance: move speed
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          targetAllegiance: enemy
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 170
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5de2a9e6-8e59-47d2-bc7b-4d67cfa24e10
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 9 corruption damage; a<1 weakened (save ends)
+            - 13 corruption damage; a<2 weakened (save ends)
+            - 16 corruption damage; a<3 weakened (save ends)
+            roll: 2d10 + 3
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 3bf0ebad-59fd-445b-8573-13ceff1ceaa0
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: The hag pushes each target up to 2 squares.
+            abilityType: standard
+            standardAbilityParams:
+              range: "2"
+            standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+          name: Invoked Ability
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Then the hag uses Corrosive Claws against each target within 1 burst.
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 2ecb76a6-e4b4-4081-907e-0668cfe2d1f1
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Finally, the hag shifts up to their speed again
+        abilityType: standard
+        standardAbilityParams:
+          distance: move speed
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      description: Make a corrosive claws attack against each target and push 2 them. Shtriga Nonna can then shift twice her speed.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 fire damage; A<1 weakened (save ends)
+        - 10 fire damage; A<2 weakened (save ends)
+        - 13 fire damage; A<3 weakened (save ends)
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityAuraBehavior
+        duration: eoe
+        aura:
+          __typeName: Aura
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 681dc15e-7d81-4e3d-a893-1606fad71694
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Aura Trigger
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: ddda3600-7a3b-4af4-b5c2-3b2a103f2e00
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: ddda3600-7a3b-4af4-b5c2-3b2a103f2e00
+            source: Aura
+            modtype: none
+            keywords: []
+            activationCondition: true
+            description: Any creature in area takes an extra 5 damage from the hag’s damage-dealing abilities.
+            name: Open the Oven 5 Damage Aura
+            behavior: power
+            damageModifier: "5"
+            rollType: enemy_ability_power_roll
+            guid: 52f6222f-e9ad-4bbd-a59f-430863815483
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 170
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '58d16250-730b-42d1-bfa"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 9bd31079-9a78-4c19-847f-29b35c80b28e
+      radius: 5
+      categorization: Villain Action
+      targetType: cube
+      numTargets: 1
+      implementation: 4
+      name: Open the Oven
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      description: The hag turns the area into a roiling oven until the end of the encounter. Any creature in area takes an extra 5 damage from the hag's damage-dealing abilities.
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - Slide 2; R<1 the slide is vertical
+        - Slide 3; R<2 the slide is vertical, and the target is restrained (EoT)
+        - Vertical slide 5; R<3 restrained (EoT)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 1
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: b99b65a1-bc0d-4e32-91c5-408aea95ad24
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: Target.reason >=1
+        promptText: Select target to Slide
+        standardAbilityParams:
+          range: "2"
+        abilityType: standard
+        standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+        promptWhenResolving: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 1
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 1d0c2f8c-d5f3-4a0f-884b-5590aa6d1f03
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: Target.Reason < 1
+        promptText: Select target to vertical slide
+        standardAbilityParams:
+          range: "2"
+        abilityType: standard
+        standardAbility: 82863cf6-ec8f-4035-952b-60c319a12b75
+        promptWhenResolving: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 2
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 01714236-946d-446f-abfe-4db7e0802b8a
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: Target.reason >=2
+        promptText: Select target to Slide
+        standardAbilityParams:
+          range: "3"
+        abilityType: standard
+        standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+        promptWhenResolving: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 2
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 03a54bc4-919b-47ab-9871-7a1965ed9229
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Select target to vertical slide.
+        filterTarget: Target.Reason < 2
+        promptWhenResolving: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 3
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 56bb9f91-9c56-44c5-91f2-33c47c7106a9
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: Target.reason >=3
+        promptText: select target to slide
+        standardAbilityParams:
+          range: "5"
+        abilityType: standard
+        standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+        promptWhenResolving: true
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        tiersSelected:
+        - 3
+        filterTarget: Target.Reason < 3
+        standardAbilityParams:
+          range: "5"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 2612a7d3-8fac-41f7-a410-fd317fd314d8
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 82863cf6-ec8f-4035-952b-60c319a12b75
+        promptWhenResolving: true
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        tiersSelected:
+        - 2
+        filterTarget: Target.Reason < 2
+        duration: 0
+        ongoingEffectCustom: false
+        ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        tiersSelected:
+        - 3
+        filterTarget: Target.Reason < 3
+        duration: 0
+        ongoingEffectCustom: false
+        ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+        filterTarget: Target.Reason < 2
+        riderid: eedc77fd-1cd9-4d0e-8121-21fbe65890f2
+        tiersSelected:
+        - 2
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+        filterTarget: Target.Reason < 3
+        riderid: 4ffc6135-e0c5-4c73-839a-2f604d062aca
+        tiersSelected:
+        - 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 169
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: fe52d7ef-b6d2-4aa6-a14c-fd5cf7f6ec52
+      abilityType: none
+      targetType: all
+      implementation: 4
+      numTargets: 1
+      name: Turned Upside Down
+      categorization: Trigger
+      description: While restrained this way, a creature who is vertical force moved is suspended in midair. The creature falls when the condition ends.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    damageEntries:
+      8d214b79-22a5-485a-8da5-bf5a828a1c6a:
+        seq: 78
+        id: 8d214b79-22a5-485a-8da5-bf5a828a1c6a
+        heal: 21
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        8b266c39-8ba1-4123-a022-592062728443:
+          disposition: good
+          note: Wode Hag's 3 Malice regain stamina
+          userid: steam-76561198767161997
+          set: 300
+        c550358c-47bf-42a6-ad67-2a29e93e23c1:
+          disposition: good
+          note: Wode Hag's 3 Malice regain stamina
+          userid: steam-76561198767161997
+          set: 300
+        26f07a4e-e655-4a70-861b-4af40972bd88:
+          userid: steam-76561198767161997
+          set: 300
+        e0a1ea58-fb61-4071-901c-3074760c8179:
+          disposition: good
+          note: Wode Hag's 3 Malice regain stamina
+          userid: steam-76561198767161997
+          set: 300
+        7d316811-7b30-4da8-bcd0-71667aa1a684:
+          disposition: good
+          note: Wode Hag's 3 Malice regain stamina
+          userid: steam-76561198767161997
+          set: 300
+        fd6bfec5-05e9-4479-af86-645b9b035ebd:
+          disposition: bad
+          note: 1 Damage
+          userid: steam-76561198767161997
+          set: 299
+        405dcc0f-3623-4b64-b9cb-fe1263fb67cb:
+          disposition: bad
+          note: 1 Damage
+          userid: steam-76561198767161997
+          set: 299
+        72609d33-b90e-4b04-ae78-97ef9df40acb:
+          disposition: good
+          note: Wode Hag's 3 Malice regain stamina
+          userid: steam-76561198767161997
+          set: 300
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Shtriga Nonna	Level 3 Solo
+        Fey, Hag	EV 88
+        <b>Stamina</b> 240
+        <b>Speed</b> 5 flying	<b>Size</b> 1 <b>Stability</b> 1
+        <b>Free Strike</b> 6
+        Might +2	Agility +1	Reason +1	Intuition +2	Presence +2
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> Shtriga Nona takes 2 turns each round. She can use two actions on each of her turns and can take each turn after an enemy turn they choose. While dazed, Shtriga Nona can take one action and one maneuver per turn.
+        <b>Villain Points</b> At the start of each round of combat, the Director gains VP equal to three times the number of heroes in battle instead of twice.
+        <b>End Effect</b> Shtriga Nonna takes 5 damage and ends one EoE effect affecting her at the end of her turn.
+
+        <b>Supernatural Resistance</b>
+        Magic or Psionic attacks against Shtriga Nonna have a bane.
+
+        <b>Corrosive Claws</b> (Action) %E2%97%86 2d10 + 2%E2%97%86 Signature
+        <b>Keywords</b> Attack, Melee, Weapon
+        <b>Distance</b> Reach 1
+        <b>Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 acid damage
+        %E2%98%85	<b>12-16</b>	10 acid damage; weakened (EoT)
+        %E2%9C%B8	<b>17</b>	13 acid damage; weakened (AGL ends)
+        <b>Effect</b> A weakened target takes 6 acid damage at the start of their turn.
+
+        <b>Soul Steal</b> (Action) %E2%97%86 MGT RR %E2%97%86 <b>7 VP</b>
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 cube within 1
+        <b>Target</b> All enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 corruption damage; Shtriga Nonna regains 10 Stamina
+        %E2%98%85	<b>12-16</b>	7 corruption damage; Shtriga Nonna regains 5 Stamina
+        %E2%9C%B8	<b>17</b>	4 corruption damage
+
+        <b>Shapeshifter </b>(Maneuver)
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self
+        <b>Target</b> Self
+        <b>Effect:</b>  Shtriga Nonna can alter her body to become any size 1 creature. Cats are one of her favored shapes.
+        <b>8 VP</b>: Shtriga Nonna becomes a size 2 creature. Her reach increases by 1 and she has an edge on melee attack rolls.
+
+        <b>Turned Upside Down</b> (Triggered Action)%E2%97%86 MGT RR %E2%97%86 <b>3 VP</b>
+        <b>Keywords</b> Area, Magic
+        <b>Trigger</b> A creature hits Shtriga Nona with a melee attack.
+        <b>Distance</b> 1 Burst
+        <b>Target</b> All enemies
+        <b>%E2%89%A411</b>	toss 5; restrained (EoT)
+        %E2%98%85	<b>12-16</b>	toss 3; slowed (EoT)
+        %E2%9C%B8	<b>17</b>	toss 1
+        Effect	Restrained creatures are suspended in midair. When the effect ends they fall.
+
+        <b>Snackies for Sweeties</b> (Villain Action 1) %E2%97%86 INU RR
+        <b>Keywords</b> Area, Magic, Resistance
+        <b>Distance</b> 5 Burst
+        <b>Target</b> All creatures
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 poison damage; bleeding (INU ends)
+        %E2%98%85	<b>12-16</b>	6 poison damage; bleeding (EoT)
+        %E2%9C%B8	<b>17</b>	4 poison damage
+
+        <b>Feline Felicity </b>(Villain Action 2)
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 Burst
+        <b>Target</b> All enemies
+        <b>Effect</b> Make a corrosive claws attack against each target and push 2 them. Shtriga Nonna can then shift twice her speed.
+
+        <b>Open the Oven</b> (Villain Action 3) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 5 cube within 1
+        <b>Target</b> All creatures
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 fire damage
+        %E2%98%85	<b>12-16</b>	10 fire damage; weakened (EoT)
+        %E2%9C%B8	<b>17</b>	13 fire damage; weakened (MGT ends)
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ca55e157-7b6c-4103-b566-a867e37003a2: true
+      modifiers: []
+      name: Supernatural Resistance
+      guid: ca55e157-7b6c-4103-b566-a867e37003a2
+      description: Magic or Psionic attacks against the Wode Hag have a bane.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+        CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+        CharacterFeature:f151511e-afbf-401d-b4e6-0c5d94971057: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+          CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+          CharacterFeature:f151511e-afbf-401d-b4e6-0c5d94971057: true
+        sourceguid: 58bdd65e-5a1b-4448-8a61-1b18d5171e7b
+        description: At the end of their turn, the hag can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        source: Trait
+        name: End Effect
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: End one save ends effect on self, take 5 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: 44aba8e4-9b72-4381-bb6c-d667a310dfa3
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "5"
+            conditions: []
+            purgeType: one
+            targetDuration: save
+          trigger: endturn
+          domains:
+            CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+            CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+            CharacterFeature:f151511e-afbf-401d-b4e6-0c5d94971057: true
+          conditionFormula: SaveEndsEffects
+          persistence: []
+          name: End Effect
+          castImmediately: true
+          description: |
+            At the end of each of their turns, the hag can take 5 damage to end one effect on them that can be ended by a saving throw. 
+
+            This damage can’t be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 6a8294bb-8fd4-48c8-bc13-b3b8552d1567
+      source: Trait
+      description: At the end of their turn, the hag can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: f151511e-afbf-401d-b4e6-0c5d94971057
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+        CharacterFeature:7fcf1072-aa1d-449f-a921-ae01eee2d540: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7fcf1072-aa1d-449f-a921-ae01eee2d540
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:cafd4a84-1bbe-4907-8be5-6382cdd5c948: true
+          CharacterFeature:7fcf1072-aa1d-449f-a921-ae01eee2d540: true
+        name: Solo Turn
+        guid: 9d29710e-8a7b-420b-b472-20e84f7f584d
+        description: The hag can take two turns each round. They can’t take turns consecutively.
+        behavior: attribute
+        attribute: extraturns
+      source: Character Feature
+      description: The hag can take two turns each round. They can’t take turns consecutively.
+      guid: 7fcf1072-aa1d-449f-a921-ae01eee2d540
+      name: Solo Turn
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e4f61ff9-aee5-4cc8-a540-2b75e730966d: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e4f61ff9-aee5-4cc8-a540-2b75e730966d
+        source: Character Feature
+        modtype: bane
+        keywords:
+          Magic: true
+          Psionic: true
+        activationCondition: false
+        guid: 1d021963-4c90-44bf-8b8c-18e3d20e95cb
+        rollType: enemy_ability_power_roll
+        domains:
+          CharacterFeature:e4f61ff9-aee5-4cc8-a540-2b75e730966d: true
+        description: Magic and psionic abilities used against the hag take a bane.
+        behavior: power
+        name: Supernatural Resistance
+      source: Character Feature
+      description: Magic and psionic abilities used against the hag take a bane.
+      guid: e4f61ff9-aee5-4cc8-a540-2b75e730966d
+      name: Supernatural Resistance
+      implementation: 4
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c8cb21f4-405e-4e75-ad91-5e845d9e17e4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: c8cb21f4-405e-4e75-ad91-5e845d9e17e4
+        displayCondition: Ability.name is "Soul Steal"
+        source: Character Feature
+        modtype: edge
+        keywords: []
+        activationCondition: ""
+        behavior: power
+        name: Soul Steal
+        domains:
+          CharacterFeature:c8cb21f4-405e-4e75-ad91-5e845d9e17e4: true
+        description: This ability gains an edge against a target who has a soul.
+        rollType: ability_power_roll
+        guid: 4804cbca-70f0-4ae8-9e79-2ab1e6f59289
+      name: Soul Steal
+      guid: c8cb21f4-405e-4e75-ad91-5e845d9e17e4
+      description: This ability gains an edge against a target who has a soul.
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f9de37c3-a108-4f6a-9572-0dd876f7a46b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:f9de37c3-a108-4f6a-9572-0dd876f7a46b: true
+        sourceguid: f9de37c3-a108-4f6a-9572-0dd876f7a46b
+        description: ""
+        source: Character Feature
+        name: Turned Upside Down
+        behavior: triggerdisplay
+        guid: 025ea855-1eab-4010-8754-8bd81223b16a
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Each enemy in the area
+          effect: While restrained this way, a creature who is vertical force moved is suspended in midair. The creature falls when the condition ends.
+          trigger: A creature targets the hag with a melee strike.
+          cost: 2 Malice
+          guid: 98f44b3d-24fe-4d50-b3b6-4dca93234a5e
+          name: Turned Upside Down
+          keywords: []
+      - __typeName: CharacterModifier
+        sourceguid: f9de37c3-a108-4f6a-9572-0dd876f7a46b
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          resourceCostType: cost
+          modtype: none
+          guid: 98fdfec9-19f1-42db-a327-526b9fba37c4
+          keywords: []
+          resourceCostAmount: "2"
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 9bfdfbe6-3955-48ab-8e82-7b9097a5acd7
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: all
+            numTargets: "1"
+            name: Turned Upside Down
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - Slide 2; R<1 the slide is vertical
+              - Slide 3; R<2 the slide is vertical, and the target is restrained (EoT)
+              - Vertical slide 5; R<3 restrained (EoT)
+              roll: 2d10 + 3
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 1
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: b99b65a1-bc0d-4e32-91c5-408aea95ad24
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: Target.reason >=1
+              promptText: Select target to Slide
+              standardAbilityParams:
+                range: "2"
+              abilityType: standard
+              standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 1
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 1d0c2f8c-d5f3-4a0f-884b-5590aa6d1f03
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: Target.Reason < 1
+              promptText: Select target to vertical slide
+              standardAbilityParams:
+                range: "2"
+              abilityType: standard
+              standardAbility: 82863cf6-ec8f-4035-952b-60c319a12b75
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 2
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 01714236-946d-446f-abfe-4db7e0802b8a
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: Target.reason >=2
+              promptText: Select target to Slide
+              standardAbilityParams:
+                range: "3"
+              abilityType: standard
+              standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 2
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 03a54bc4-919b-47ab-9871-7a1965ed9229
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Select target to vertical slide.
+              filterTarget: Target.Reason < 2
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 3
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 56bb9f91-9c56-44c5-91f2-33c47c7106a9
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              filterTarget: Target.reason >=3
+              promptText: select target to slide
+              standardAbilityParams:
+                range: "5"
+              abilityType: standard
+              standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              tiersSelected:
+              - 3
+              filterTarget: Target.Reason < 3
+              standardAbilityParams:
+                range: "5"
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: 2612a7d3-8fac-41f7-a410-fd317fd314d8
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              abilityType: standard
+              standardAbility: 82863cf6-ec8f-4035-952b-60c319a12b75
+              promptWhenResolving: true
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 2
+              filterTarget: Target.Reason < 2
+              duration: 0
+              ongoingEffectCustom: false
+              ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 3
+              filterTarget: Target.Reason < 3
+              duration: 0
+              ongoingEffectCustom: false
+              ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+              filterTarget: Target.Reason < 2
+              riderid: eedc77fd-1cd9-4d0e-8121-21fbe65890f2
+              tiersSelected:
+              - 2
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+              filterTarget: Target.Reason < 3
+              riderid: 4ffc6135-e0c5-4c73-839a-2f604d062aca
+              tiersSelected:
+              - 3
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          rollType: ability_power_roll
+          name: Triggered Modifier
+          rules: ""
+          activationCondition: false
+          source: Trigger
+          behavior: power
+        guid: 8a46dbdd-d9f5-456a-9795-9c534aa713c3
+        domains:
+          CharacterFeature:f9de37c3-a108-4f6a-9572-0dd876f7a46b: true
+        type: trigger
+        targetType: self
+        trigger: strike
+        name: Turned Upside Down
+        rules: ""
+        description: ""
+        range: 10
+        behavior: powertabletrigger
+      name: Turned Upside Down
+      guid: f9de37c3-a108-4f6a-9572-0dd876f7a46b
+      description: ""
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:023a8483-deda-4f6c-869b-caf03625c89c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 023a8483-deda-4f6c-869b-caf03625c89c
+        source: Character Feature
+        behavior: activated
+        filterCondition: Self.Ongoing Effects has "Snackies for Sweeties"
+        name: Snackies for Sweeties Detonator
+        guid: 600e6304-b1a3-4371-ae9f-645ab8c7d52b
+        description: ""
+        domains:
+          CharacterFeature:023a8483-deda-4f6c-869b-caf03625c89c: true
+        activatedAbility:
+          __typeName: ActivatedAbility
+          targetFilter: target.Ongoing Effects has "ornate pastry"
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 6 poison damage
+            - 10 poison damage
+            - 13 poison damage
+            roll: 2d10 + Might or Agility
+            promptWhenResolving: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 170
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: "99"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 5efd1688-b517-4167-8738-d9b0da90244c
+          domains:
+            CharacterFeature:023a8483-deda-4f6c-869b-caf03625c89c: true
+          numTargets: "1"
+          categorization: Villain Action
+          name: New Feature
+          targetType: map
+          description: ""
+          abilityType: none
+          iconid: 4ffdbf18-c0a0-41a4-a4d1-6978c7ce0ab3
+      - __typeName: CharacterModifier
+        sourceguid: 023a8483-deda-4f6c-869b-caf03625c89c
+        source: Character Feature
+        guid: 8250fb19-6b4e-48e6-8ab6-89029a84bfd9
+        domains:
+          CharacterFeature:023a8483-deda-4f6c-869b-caf03625c89c: true
+        name: Snackies for Sweeties Detonator
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Target.Ongoing Effects has "ornate pastry"
+          strain: []
+          guid: 8250cfbd-fe0f-458a-a3a0-e972136f0efb
+          repeatTargets: false
+          abilityType: none
+          trigger: beginround
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 6 poison damage
+            - 10 poison damage
+            - 13 poison damage
+            roll: 2d10 + 3
+          targetType: all
+          name: New Feature
+          numTargets: "1"
+          description: ""
+          range: "50"
+          iconid: ui-icons/skills/1.png
+        description: ""
+        behavior: trigger
+        filterCondition: Self.Ongoing Effects has "Snackies for Sweeties"
+      source: Character Feature
+      description: ""
+      guid: 023a8483-deda-4f6c-869b-caf03625c89c
+      name: Snackies for Sweeties Detonator
+      implementation: 1
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:592d55f5-1d0f-41c7-972a-df7433714e80: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: End effect for 5
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "5"
+            purgeType: one
+          castImmediately: true
+          numTargets: "1"
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        source: Trait
+        behavior: trigger
+        description: ""
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the hag can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.The hag can take two turns each round. They can't take turns consecutively.
+      guid: 592d55f5-1d0f-41c7-972a-df7433714e80
+      name: Solo Monster
+      implementation: 3
+    role: Solo
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 6
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        0d8a6413-554d-43a1-b4cb-8a987ce11cc5:
+          refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-12
+          note: 'Shapeshifter '
+          userid: steam-76561198767161997
+          set: 0/1
+    notes:
+    - text: ""
+      title: Monster Notes
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 19ba5a81-f531-4ab7-8aef-1875d48c2ef1-1028
+    max_hitpoints: 300
+    equipmentMeta:
+      offhand0: []
+    initiativeGrouping: f094198f-98de-44b2-af2e-61d98d86d8b8
+    damage_taken: 0
+    deathSavingThrowFailures: 0
+    walkingSpeed: 5
+    savingThrowRatings: []
+    auras:
+    - __typeName: AuraInstance
+      casterid: 25a8b1d7-dca3-4447-9b1f-4bcbb704030d
+      duration: eoe
+      time:
+        __typeName: TimePoint
+        time: 2.60907284418742
+        initiativeord: 0
+        queueguid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7
+        initiativeid: 96c5aa09-e05b-40d0-a862-0f4ca7f233a2
+        round: 1
+      aura:
+        __typeName: Aura
+        triggers:
+        - ability:
+            __typeName: TriggeredAbility
+            repeatTargets: false
+            behaviors: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            silent: true
+            range: 5
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: 681dc15e-7d81-4e3d-a893-1606fad71694
+            trigger: onenter
+            numTargets: "1"
+            targetType: self
+            name: Aura Trigger
+            radius: 0
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          trigger: onenter
+        guid: ddda3600-7a3b-4af4-b5c2-3b2a103f2e00
+        modifiers:
+        - __typeName: CharacterModifier
+          sourceguid: ddda3600-7a3b-4af4-b5c2-3b2a103f2e00
+          source: Aura
+          modtype: none
+          keywords: []
+          activationCondition: ability.name is "corrosive claws" or ability.name is "soul steal" or ability.name is "snackies for sweeties" or Ability.name is "Predator's Alacrity" or ability.name is "Open the Oven"
+          description: Any creature in area takes an extra 5 damage from the hag’s damage-dealing abilities.
+          name: Open the Oven 5 Damage Aura
+          behavior: power
+          damageModifier: "5"
+          rollType: enemy_ability_power_roll
+          guid: 52f6222f-e9ad-4bbd-a59f-430863815483
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+      area:
+        __usertype: LuaShape
+        data: "{\"shape\": 1,\"originCreature\": [[17, -4, 1]],\"areaTemplateObject\": null,\"targetPoint\": {\"x\": 12.10837,\"y\": 0.1532683,\"z\": 0},\"range\": 1,\"radius\": 5,\"checklos\": true,\"locations\": null}"
+      name: Open the Oven
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      symbols:
+        mode: 1
+        castid: 430782f7-96ca-43bf-bd80-19d290245cf8
+        charges: 1
+        numberoftargets: 1
+        range: 1
+        spellname: Open the Oven
+      guid: 806d0061-5080-46eb-aad0-c5a3bb77c2d7
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    traitNames: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-1-96c5aa09-e05b-40d0-a862-0f4ca7f233a2
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-12
+      58d16250-730b-42d1-bfa8-ec210556a94a:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7
+    movementSpeeds:
+      fly: 5
+    monster_category: Monster
+    monster_type: Wode Hag
+    keywords:
+      Fey: true
+      Hag: true
+    innateAttacks: []
+  tokenType: null
+  bestiaryId: 59073612-3c69-4275-888a-294fa0d52d10
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Wode Hag
+parentFolder: 5648f5ad-a5c2-4e83-a398-705e92c75020
+artist: null
+ord: 3
+ctime: 1741590253105
+mtime: 1775184669617
+hidden: false

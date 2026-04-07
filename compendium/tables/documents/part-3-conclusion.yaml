@@ -1,0 +1,56 @@
+__typeName: MarkdownDocument
+annotations: []
+id: 6633a1ae-b4c5-4b8c-ac2d-a463d5fafbc0
+ctime: 1763578643307
+textStorage:
+  __typeName: TextStorage
+  sections:
+    P: |+
+      ## Part 3 Rewards
+
+    m: |+
+      ### Title: Voice of Peace
+
+    w: "|If you liked this adventure and want to play more Draw Steel, head to drawsteel.com to pick up the game's core rulebooks and more adventures!|"
+    W: |+
+      ### Renown
+
+    i: |+
+      If the heroes fight Queen Bargnot and are victorious, the hero who reduces Queen Bargnot to 0 Stamina gains the [title:Queen Slayer] title.
+
+
+    J: |+
+      If the heroes fail to stop the Jagged Edge from destroying the village, [Queen Bargnot] takes over the region. It’s likely that most or all of the heroes gave their life attempting to stop her … and new heroes might have to rise to stop her before she takes over more of [Dalrath]!
+
+    G: |+
+      If the heroes stop the Jagged Edge from destroying Broadhurst, they are hailed as heroes by the villagers and gain the appropriate titles and rewards as outlined in **Part 3 Rewards**. If they have more quests to complete from part 2, they are free to continue to help the people of the village.
+
+    D: |+
+      # Part 3 Conclusion
+
+    e: |+
+      ### Title: Queen Slayer
+
+    q: |+
+      If the heroes negotiate with Queen Bargnot and end the negotiation with her interest at a 5, each hero who successfully made an argument during that negotiation earns the [title:Voice of Peace] title.
+
+
+    S: |+
+      The heroes can earn the following rewards for completing this part of the adventure.
+
+
+    t: |
+      |**Continue the Adventure**|
+    a: |+
+      If the heroes stop Queen Bargnot, legend of their deeds spreads through Broadhurst. They gain 1 Renown each.
+
+
+    M: |+
+      In any case, you can continue the story by writing your own adventures with [Draw Steel Heroes] and [Draw Steel Monsters] or pick up more adventures for Draw Steel over at our shop: **mcdm.gg/shop**.
+
+
+parentFolder: 67c70371-8ca6-4d14-bef4-13eaf5753bc6
+updateid: d32a6855-a1a9-4d54-ad94-852619699310
+mtime: 1764141239738
+content: ""
+description: Part 3 Conclusion

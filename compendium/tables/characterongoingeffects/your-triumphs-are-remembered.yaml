@@ -1,0 +1,27 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: b2833a12-eae4-4f35-98a3-fdbdd7f28497
+  sourceguid: 1e93fb0f-5ca7-4446-943d-a24c2151924e
+  value: 1
+  source: Ongoing Effect
+  name: Your Triumphs Are Remembered
+  behavior: attribute
+  description: You have a +1 bonus to victories
+  attribute: 9d85895a-9fe5-4df2-b2e3-b53e2772da4b
+source: Ongoing Effect
+guid: 1e93fb0f-5ca7-4446-943d-a24c2151924e
+id: 1e93fb0f-5ca7-4446-943d-a24c2151924e
+ctime: 1773529749092
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+description: You have a +1 bonus to victories
+name: Your Triumphs Are Remembered
+hiddenOnToken: true
+mtime: 1773529749092
+custom: true
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,128 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  description: ""
+  sourceguid: 8bf760b6-d0c2-4b5e-8d41-d19de8b75c35
+  behavior: modifyability
+  source: Ongoing Effect
+  name: Primordial Rage - Acid
+  guid: a90d41d7-2dde-469f-a474-eb3a25697ab1
+  attributes: []
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 0502ddbb-5a7d-4294-9522-7f31cd6e9d04
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        persistence: []
+        objectTarget: false
+        abilityType: none
+        strain: []
+        guid: 31961645-e8bc-4362-a432-8898f0fab537
+        repeatTargets: false
+        modifiers: []
+        numTargets: "1"
+        targetType: target
+        categorization: Hidden
+        name: Invoked Ability
+        behaviors:
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          rule: 15 Fire damage
+        description: ""
+        range: "100"
+        iconid: ui-icons/skills/1.png
+      promptText: Select Target of Ability to take additional damage
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: 8bf760b6-d0c2-4b5e-8d41-d19de8b75c35
+  source: Ongoing Effect
+  behavior: modifytrigger
+  triggerCondition: Trigger.Name = "Ferocity"
+  attributes: []
+  name: Primordial Rage - Acid
+  description: ""
+  guid: a4ad52bc-eb86-4d01-8fc5-006a5727a4f1
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 4ffab904-e524-4f00-bca6-acba56418a96
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      applyto: caster
+      customAbility:
+        __typeName: ActivatedAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        persistence: []
+        objectTarget: false
+        abilityType: none
+        strain: []
+        guid: 6d240556-ace3-4fac-8383-c426aec89a85
+        repeatTargets: false
+        modifiers: []
+        numTargets: "1"
+        targetType: target
+        categorization: Hidden
+        name: Invoked Ability
+        behaviors:
+        - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+          rule: 5 fire damage
+        description: ""
+        range: "100"
+        iconid: ui-icons/skills/1.png
+      promptText: Deal damage to creature that damaged you
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+guid: 8bf760b6-d0c2-4b5e-8d41-d19de8b75c35
+id: 26df3bf2-3d2e-4f84-8d07-e40b953d14eb
+ctime: 1773532903876
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Primordial Rage - Fire
+description: ""
+custom: true
+mtime: 1773532929393
+iconid: ui-icons/skills/1.png

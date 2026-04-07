@@ -1,0 +1,41 @@
+__typeName: MarkdownDocument
+description: Events
+parentFolder: 423b20dc-f04b-44af-849e-7a7e01636bf4
+updateid: f30ce472-2c33-4067-8691-798e43a37be5
+annotations: []
+id: 55f50d8b-2ee1-4802-881c-02bcc73337c5
+mtime: 1764268218993
+content: |
+  The following events can occur when they are triggered by the hero’s action or inaction as defined in the adventure. ( Check the [Respite Tracker] )
+
+  # [Tavern Brawl]
+  Dwarf merchants cause a scene in the tavern of the Feather Bed Inn (see [Dwarf Merchants] in [B1. Feather Bed Inn]). 
+  * This event can occur for any of the following reasons:
+
+  * The heroes negotiate with Murkik for his stone on Dunquat’s behalf and his interest reaches 0.
+
+  * The heroes get caught stealing the merchants’ stone from the stables (see B14. Stables and Carriage House). 
+
+  * The heroes don’t solve the dispute with Dunquat and the merchants and finish five respites during the adventure. 
+
+
+  # [Wraith Raid]
+  The Forsaken Wraiths, a group of bandits, attempts to raid Broadhurst in the night to obtain supplies for their camp. This event can occur for any of the following reasons:
+
+  * [Brune] (see [B8. Butcher]) warns the Forsaken Wraiths that the heroes are onto them.
+
+  * The heroes don’t deal with the Forsaken Wraiths (see [Fort Forsaken]) and finish seven respites during the adventure.
+
+
+  # [Full Moon]
+  Mikael the carpenter doesn’t know it, but he’s been cursed with lycanthropy and is about to turn into a werewolf. If the heroes don’t end his curse by the time they finish their tenth respite in town, this event occurs the following evening.
+
+  # [Gilded Showdown]
+  If the heroes get on the wrong side of the Gilded Hand (see [Gilded Hand] in [B1. Feather Bed Inn]), then they might fight some of their members in the streets of Broadhurst. This event can occur for any of the following reasons:
+
+  * The heroes get caught eavesdropping on the [Gilded Hand] by [Targon] (see Learning the Hand’s Plot).
+
+  * The heroes get caught stealing the Delian Knight Commander’s Ring from [Illwyth] or successfully steal it and then finish a respite (see Grabbing the Ring).
+
+  * The heroes try to negotiate for the Delian Knight Commander’s Ring and [Illwyth]’s interest reaches 0 or 5 (see Negotiating for the Ring).
+ctime: 1761425509502

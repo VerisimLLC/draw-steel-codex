@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: ca5244b0-e38e-436c-a51b-9b4b7234bae2
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  stacks: "1"
+  ongoingEffectCustom: 670039ad-0248-4931-8be6-2e08de2deab9
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+testCases:
+- text: the next attack against the target has a +1
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 7915999b-5555-4fb2-b566-64ea9650e65c
+importMatch: the next attack against the target has a \+1
+ctime: 1711337590443
+targetType: self
+repeatTargets: false
+description: ""
+name: Priest
+numTargets: "1"
+mtime: 1770658399895
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,30 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 8af6fd23-27a8-4f8f-9480-993182390f7b
+  name: Suspended 2
+  source: Ongoing Effect
+  behavior: suspended
+  guid: 04c93d8d-80d8-4251-b1f7-eb9a9c918ad9
+  altitude: 5
+  description: You are suspended in the air 2 squares while you are restrained.
+source: Ongoing Effect
+guid: 8af6fd23-27a8-4f8f-9480-993182390f7b
+id: 4ffc6135-e0c5-4c73-839a-2f604d062aca
+ctime: 1771519862708
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+name: Suspended 5
+description: You are suspended in the air 5 squares while you are restrained.
+mtime: 1771519862708
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db
+implementation: 3

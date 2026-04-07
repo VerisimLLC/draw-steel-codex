@@ -1,0 +1,36 @@
+Artists:
+  __typeName: CompendiumPermission
+  visible: true
+  mtime: 1759942270788
+  id: Artists
+  ctime: 1743063618438
+Token_Frames:
+  __typeName: CompendiumPermission
+  visible: true
+  mtime: 1768252343945
+  id: Token_Frames
+  ctime: 1760226774143
+Parties:
+  __typeName: CompendiumPermission
+  visible: true
+  mtime: 1753244540940
+  id: Parties
+  ctime: 1752349787145
+Inventory:
+  __typeName: CompendiumPermission
+  visible: true
+  mtime: 1772712334758
+  id: Inventory
+  ctime: 1730269408818
+Careers:
+  __typeName: CompendiumPermission
+  visible: true
+  mtime: 1730714244094
+  id: Careers
+  ctime: 1730714243532
+Damage_Types:
+  __typeName: CompendiumPermission
+  visible: true
+  mtime: 1759942265290
+  id: Damage_Types
+  ctime: 1759350944803

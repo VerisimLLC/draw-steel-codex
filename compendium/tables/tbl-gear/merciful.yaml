@@ -1,0 +1,103 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: dbc3b6cb-d628-4eae-abb8-c760dd118967
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        applyto: targets
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          guid: b1e914e1-63fb-4969-9a7f-b4461bc5def3
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: 0c23b3ff-efee-43ce-9e60-c16837cf5f78
+            sourceguid: b1e914e1-63fb-4969-9a7f-b4461bc5def3
+            value: 1
+            source: Ongoing Effect
+            name: Merciful
+            behavior: attribute
+            description: ""
+            attribute: 7565750e-2376-4809-abc2-47eed82153d1
+          - __typeName: CharacterModifier
+            guid: 40500145-98c0-4674-8cb0-bf98f68eaaf5
+            sourceguid: b1e914e1-63fb-4969-9a7f-b4461bc5def3
+            value: 1
+            source: Ongoing Effect
+            name: Merciful
+            behavior: attribute
+            description: ""
+            attribute: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+          source: Ongoing Effect
+          name: Merciful
+          description: ""
+          id: b1e914e1-63fb-4969-9a7f-b4461bc5def3
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilitySetStaminaBehavior
+        roll: "1"
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: a0f9734f-6b9a-42b8-b224-bf008d8a2645
+        ongoingEffectSource: specific
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      subjectRange: "100"
+      strain: []
+      guid: 7bb5de0f-0476-4393-9d19-4dc0d42c2489
+      persistence: []
+      conditionFormula: not subject.type = "undead"
+      targetType: subject
+      name: Merciful
+      trigger: zerohitpoints
+      subject: other
+      description: Whenever you reduce a non-undead creature to 0 Stamina using this weapon, the creature falls unconscious and wakes up 1d6 hours later. A creature with the Heal skill can wake the unconscious creature early with 1 uninterrupted minute of medical treatment. Whenever the creature wakes, they regain 1 Stamina.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: ""
+    source: Item
+    behavior: trigger
+    guid: 51f12d88-fb8b-4ebd-9b06-1e3b8f3c9025
+    name: Merciful
+    sourceguid: dbc3b6cb-d628-4eae-abb8-c760dd118967
+  source: Item
+  name: Merciful
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: A sprig of dockwart, a rare plant with natural anesthetic properties
+imbuePrereq: none
+projectSource: Yllyric
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 3
+ctime: 1770699205313
+projectGoal: "150"
+id: a5a1f377-89de-4bdd-8a6b-93288f5733c8
+mtime: 1774575767434
+name: Merciful
+imbueTargetType: weapon
+description: Whenever you reduce a non-undead creature to 0 Stamina using this weapon, the creature falls unconscious and wakes up 1d6 hours later. A creature with the Heal skill can wake the unconscious creature early with 1 uninterrupted minute of medical treatment. Whenever the creature wakes, they regain 1 Stamina.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: 1aac701d-c7c4-49d3-aedb-6e23cae42eea

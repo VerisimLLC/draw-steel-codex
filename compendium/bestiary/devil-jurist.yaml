@@ -1,0 +1,342 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 45ba0073-64c1-4a37-8efd-ffdbe5d45a00
+    offtokenPortraitId: 069d7c67-52fa-445b-bb85-aef75c7a9407
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.2941184
+    portraitOffset:
+      x: -0.03156114
+      y: 0.2198563
+    frameHueShift: 0.8308171
+    frameSaturation: 0.7293378
+    frameBrightness: 0.4669745
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 44320d4b-f110-43d0-97fd-69b776a45e6e
+  properties:
+    __typeName: monster
+    groupid: 2c4ebcaf-087b-4f0d-a94a-61e9b67fb70f
+    cr: 5
+    skillProficiencies: []
+    max_hitpoints: 120
+    inflictedConditions: []
+    ev: 28
+    max_hitpoints_roll: "120"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    creatureSize: 1M
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Devil Jurist	Level 5 Elite Artillery
+        Devil, Infernal	EV 28
+        <b>Stamina</b> 120	<b>Immunity</b> Fire 5
+        <b>Speed</b> 6 (fly)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 7
+        Might 0	Agility +2	Reason +1	Intuition +1	Presence +3
+        <b>Fire and Brimstone</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 12<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	%E2%89%A411	10 fire damage
+        %E2%98%85	12%E2%80%9316	15 fire damage; A<2 burning (save ends)
+        %E2%9C%B8	17	18 fire damage; A<3 burning (save ends)
+        <b>Effect</b> A burning creature or object takes 1d6 fire damage at the start of each of their turns until the condition ends.
+        <b>1+ Malice </b>The jurist can target one additional creature or object for each malice spent.
+
+        <b>Dismissal with Prejudice</b> (Action) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 2 burst<b>	Target</b> Each enemy in the burst
+        %E2%9C%A6	%E2%89%A411	6 damage; slide 1
+        %E2%98%85	12%E2%80%9316	10 damage; slide 3
+        %E2%9C%B8	17	12 damage; slide 5
+        <b>EffectM<2</b> the target slides an additional 3 squares.
+
+        <b>Ashes to Ashes</b> (Maneuver)
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 12<b>	Target</b> 1 burning creature
+        <b>Effect</b> The target takes 6 fire damage.
+
+        <b>Devilish Charm</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Ranged 5<b>	Target</b> Triggering creature
+        <b>Trigger</b> A creature targets the jurist with a strike.
+        <b>Effect</b> The target makes a <b>Presence test.</b>
+        %E2%9C%B8	%E2%89%A411	The jurist chooses a new target for the strike
+        %E2%98%85	12%E2%80%9316	The jurist halves the incoming damage
+        %E2%9C%A6	17	The target has a bane on the strike
+
+        <b>Hellfire</b>
+        Fire damage dealt by the jurist ignores immunity.
+
+        <b>True Name</b>
+        If a creature within 10 squares of the jurist speaks the jurist's true name aloud, the jurist loses their immunities, the additional effects on their signature action, and their Devilish Charm ability.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8aca48e6-9734-41a3-b808-7008cca594a7: true
+      modifiers: []
+      name: Hellfire
+      description: Fire damage dealt by the jurist ignores immunity.
+      guid: 8aca48e6-9734-41a3-b808-7008cca594a7
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2132ee52-3855-471e-830b-23ab30153567: true
+      modifiers: []
+      name: True Name
+      description: If a creature within 10 squares of the jurist speaks the jurist's true name aloud, the jurist loses their immunities, the additional effects on their signature action, and their Devilish Charm ability.
+      guid: 2132ee52-3855-471e-830b-23ab30153567
+      source: Trait
+    role: Elite Artillery
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    initLight: true
+    availableTriggers: []
+    opportunityAttack: 7
+    damage_taken: 0
+    keywords:
+      Infernal: true
+      Devil: true
+    resources: []
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 fire damage
+        - 15 fire damage; A<2 burning (save ends)
+        - 18 fire damage; A<3 burning (save ends)
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 12
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 83bfd745-d4ce-4d9f-ba99-189aa2a6832d
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Fire and Brimstone
+      numTargets: 2
+      description: A burning creature or object takes 1d6 fire damage at the start of each of their turns until the condition ends.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b654a785-72c0-4282-973f-2e0177b14e71
+      implementation: 3
+      numTargets: 1
+      name: Dismissal with Prejudice
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; slide 1
+        - 10 damage; slide 3
+        - 12 damage; slide 5
+        roll: 2d10 + Presence
+      description: If the target has M<2, the forced distance movement gains a +3 bonus.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: ce834f4e-970b-418b-b69d-0604c5ad4a2d
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Ashes to Ashes
+      numTargets: 1
+      description: The target takes 6 fire damage.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 2d11d306-0c61-447f-aad0-6bb28e0c7d02
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Devilish Charm
+      implementation: 0
+      description: The target makes a Presence test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 fire damage
+        - 15 fire damage; A<2 burning (save ends)
+        - 18 fire damage; A<3 burning (save ends)
+        roll: 2d10 + Presence
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 12
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 14946ba9-6617-444e-86fc-f14e8e3b59f7
+      targetType: target
+      implementation: 3
+      numTargets: 2
+      name: Fire & Brimstone
+      sourceReference:
+        __typeName: SourceReference
+        page: 79
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |-
+        A burning creature takes 1d6 fire damage at the start of each of their turns. A burning object takes 1d6 fire damage at the end of each round.
+        **Spend Malice**: The jurist can target one additional creature or object for each Malice spent.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    walkingSpeed: 6
+    monster_category: Monster
+    movementSpeeds:
+      fly: 6
+    monster_type: Devil Jurist
+    initiativeGrouping: e36db3ff-ad91-45da-9b3e-f506f9c0d98f
+    notes:
+    - text: ""
+      title: Monster Notes
+    selectedLoadout: 1
+  tokenType: null
+  bestiaryId: 2001b04f-57cc-463e-a6fe-6397dc0430c9
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222235594
+description: Devil Jurist
+parentFolder: f202e578-675b-4891-ad36-09c24f35518b
+artist: null
+ord: 0
+ctime: 1741590228452
+mtime: 1775201137032
+hidden: false

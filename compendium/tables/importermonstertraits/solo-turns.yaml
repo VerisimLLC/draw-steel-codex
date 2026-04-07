@@ -1,0 +1,33 @@
+__typeName: CharacterFeature
+testCases:
+- text: Uraxxinoth takes 2 turns each round. They can use two actions on each of their turns and can take each turn after an enemy turn they choose. While dazed, Uraxxinoth can take one action and one maneuver per turn.
+- text: The ankheg takes 2 turns each round. They can use two actions on each of their turns and can take each turn after an enemy turn they choose. While dazed, the aknheg can take one action and one maneuver per turn.
+modifiers:
+- __typeName: CharacterModifier
+  resourceType: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  sourceguid: ab649a0a-65ef-4a57-8780-c77f7bacea98
+  behavior: resource
+  source: Monster
+  name: Solo Turns
+  num: 1
+  description: ""
+  guid: 46f7bc68-cd5b-4625-b5b1-d8219a66face
+- __typeName: CharacterModifier
+  guid: 1ca07220-2a79-461b-888d-b011ed235893
+  sourceguid: ab649a0a-65ef-4a57-8780-c77f7bacea98
+  value: 1
+  source: Monster
+  name: Solo Turns
+  behavior: attribute
+  description: ""
+  attribute: armorClass
+source: Monster
+importMatchType: rules
+importMatch: "<<monster>> takes 2 turns each round. They can use two actions on each of their turns and can take each turn after an enemy turn they choose. While dazed, <<monster>> can take one action and one maneuver per turn."
+ctime: 1709486866108
+id: 3355aee3-51e0-4a35-9216-6e029c2da392
+name: Solo Turns
+guid: ab649a0a-65ef-4a57-8780-c77f7bacea98
+mtime: 1774923694322
+description: ""
+implementation: 3

@@ -1,0 +1,106 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  targetFilter: target.keywords has "Wode"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 032738de-fb1d-44e3-90dd-9cd11578508a
+    duration: endround
+    ongoingEffectCustom: 032738de-fb1d-44e3-90dd-9cd11578508a
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 136
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 10175b92-a730-4363-aff7-18f2a9b3104c
+  abilityType: none
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+  numTargets: "1"
+  name: Forest Network
+  targetType: map
+  description: Each wode elf who ends this turn hidden can shift up to their speed while remaining hidden.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 3
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  targetFilter: Target.Keywords has "wode"
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 136
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 94a75636-7727-410a-b9c7-c69606c1dcd8
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    applyto: targets
+    ongoingEffect: e7c1ccbb-8c55-4e48-96bf-0cc4c0bc7c07
+    duration: endround
+    ongoingEffectCustom: e7c1ccbb-8c55-4e48-96bf-0cc4c0bc7c07
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Punishing Regrowth
+  numTargets: "1"
+  description: Until the end of the round, each wode elf gains an edge on abilities, and their strikes can slide a target up to 2 squares in addition to their usual effects. If a strike already imposes forced movement, this slide happens after that forced movement. A creature force moved by a wode elf’s strike who ends this forced movement in difficult terrain is restrained until the end of their next turn.
+  abilityType: none
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  targetFilter: Enemy
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 136
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 183f27e3-7ff1-4fa8-abed-63d913aae274
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    resistanceAttr: agl
+    filterTarget: ""
+    tiers:
+    - 8 damage; restrained (save ends)
+    - Restrained (EoT)
+    - No effect.
+    roll: 2d10 + Might or Agility
+    resistanceRoll: true
+    isTest: false
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Vines Everywhere
+  numTargets: "1"
+  description: Vines rapidly grow across the entire encounter map. Each enemy in the encounter makes an Agility test.
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+mtime: 1770215266443
+name: Wode Elf
+traits: []
+attacks: []
+id: 03509ce6-9c98-422b-8426-8bf45773c256
+ctime: 1758524685525

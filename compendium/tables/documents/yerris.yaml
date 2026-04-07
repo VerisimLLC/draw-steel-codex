@@ -1,0 +1,27 @@
+__typeName: MarkdownDocument
+description: Yerris
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 67f8f9ca-7e1b-4dae-bd52-60e5bb3fbf68
+annotations:
+  image:
+    __typeName: RichImage
+id: 69b71001-7eab-453e-a78c-2fdd53faf6c6
+mtime: 1762867991176
+content: |-
+  # Yerris
+
+  [[image]]
+
+  *An itinerant shepherd and civilian, he follows his sheep and lives off the land with his brother, Oleq. 
+  He has a crook and no sign of combat proficiency*
+  {
+  Secret: See [Wolf Den]
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1762867543534

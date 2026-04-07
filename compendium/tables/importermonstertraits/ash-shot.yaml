@@ -1,0 +1,50 @@
+__typeName: CharacterFeature
+testCases:
+- text: "An enemy adjacent to the drangolin has :shield: on attacks and can't be hidden."
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 9a32c9e3-dd75-4001-9b82-8548e6809358
+  source: Monster
+  seq: 2cb942bc-db34-45a9-a545-3f234334a66a
+  aura:
+    __typeName: Aura
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: ff632439-9e34-4bf8-aa20-93203a67afdc
+      source: Ash Shot
+      modtype: none
+      keywords:
+        Attack: true
+      activationCondition: true
+      guid: a747aacf-76fc-455b-835d-d1205d3c47a0
+      rollType: ability_power_roll
+      shields: "1"
+      description: "A :shield: applies to your attacks while you are next to the Dragonlin"
+      behavior: power
+      name: Ash Shot
+    source: Ash Shot
+    guid: ff632439-9e34-4bf8-aa20-93203a67afdc
+    applyto: enemies
+    name: Ash Shot
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: "A :shield: applies to your attacks while you are next to the Dragonlin"
+    iconid: 0f752761-edea-4202-9ac1-f1861afe97e4
+    implementation: 2
+  radius: "1"
+  guid: 7bdaf11c-165e-456b-9d27-f5e418bc0421
+  description: ""
+  behavior: aura
+  name: Ash Shot
+source: Monster
+guid: 9a32c9e3-dd75-4001-9b82-8548e6809358
+importMatch: "An enemy adjacent to <<monster>> has :shield: on attacks and can't be hidden."
+ctime: 1731828158850
+name: Ash Shot
+id: 54e14264-5773-45d2-bdc5-067c98f8165c
+description: ""
+mtime: 1731828354990
+implementation: 2

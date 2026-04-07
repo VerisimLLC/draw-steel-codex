@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 5e6b4fd9-fc40-4e26-994b-43d1f3a16c1f
+id: 5e6b4fd9-fc40-4e26-994b-43d1f3a16c1f
+ctime: 1770136767062
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Sweeping Blade
+description: If both creatures hit by Sweeping Blade have A<2, they are both prone.
+custom: true
+mtime: 1770136869153
+iconid: ui-icons/skills/1.png

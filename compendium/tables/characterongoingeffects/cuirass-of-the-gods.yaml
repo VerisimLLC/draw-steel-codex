@@ -1,0 +1,29 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f5bc1d65-1f27-4daf-ae03-8c7ce5f7206d
+  behavior: resistance
+  source: Ongoing Effect
+  resistances:
+  - __typeName: ResistanceEntry
+    dr: "5"
+    damageType: all
+    apply: Damage Reduction
+  description: You have damage immunity 5
+  name: Cuirass of the Gods
+  guid: 5e4d16ad-39b3-4518-8daa-84b4aa85fbf8
+source: Ongoing Effect
+guid: f5bc1d65-1f27-4daf-ae03-8c7ce5f7206d
+id: f5bc1d65-1f27-4daf-ae03-8c7ce5f7206d
+ctime: 1765426564275
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Cuirass of the Gods
+description: You have damage immunity 5
+custom: true
+mtime: 1765426564275
+iconid: ui-icons/skills/1.png

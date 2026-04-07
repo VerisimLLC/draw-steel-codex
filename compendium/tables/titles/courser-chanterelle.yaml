@@ -1,0 +1,143 @@
+__typeName: Title
+effect: |-
+  Choose one of the following benefits:
+
+  Always in Twos: A creature who benefits from your Aid Attack maneuver also gains a surge.
+
+  Nature Guide: When you make a Reason test to identify an animal or plant and get a tier 1 or 2 result, you can reroll the rest and must use the new result.
+
+  One with the Wilderness: While you are outdoors and not in a settlement, you can’t be surprised.
+prerequisite: You were invited to join the Coursers and accepted.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Benefit
+    options:
+    - __typeName: CharacterFeature
+      source: Feat
+      modifiers:
+      - __typeName: CharacterModifier
+        suppressOthers: true
+        sourceguid: 3f8f2a02-4e73-463f-9d6d-0bbdefab1678
+        source: Feat
+        name: Aid Attack
+        behavior: activated
+        guid: af479669-3482-4fca-bb16-9fc6395e807c
+        description: "Choose an enemy adjacent to you.\n\nThe next ability power roll an ally who makes against that creature before the start of your next turn has an edge. "
+        activatedAbility:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: f564f656-b599-4d5f-b588-a778a91b5d2b
+            durationUntilEndOfTurn: false
+            duration: 1
+            ongoingEffectCustom: e234f1f4-9953-43bd-894c-d96adbb63f84
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.0185185205191374
+              s: 0.968127489089966
+              v: 0.984313726425171
+              a: 1
+          sourceReference:
+            __typeName: SourceReference
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            page: 273
+          range: 1
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          modifiers: []
+          strain: []
+          guid: f5dbc30d-14d2-4d0b-9285-5b83790a5475
+          targetType: target
+          domains: []
+          iconid: 5e60c5cb-d09d-41bb-b7e6-e15b745e5757
+          numTargets: "1"
+          name: Aid Attack
+          persistence: []
+          description: "Choose an enemy adjacent to you.\n\nThe next ability power roll an ally who makes against that creature before the start of your next turn has an edge. "
+          abilityType: none
+          implementation: 3
+      canHavePrerequisites: true
+      name: Always in Twos
+      description: A creature who benefits from your Aid Attack maneuver also gains a surge.
+      guid: 6fb50ddd-d1a5-4055-bea6-3327ab9dee22
+      implementation: 3
+    - __typeName: CharacterFeature
+      source: Feat
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: e2323cfd-6901-46d7-b9db-fec77701c609
+        source: Feat
+        modtype: none
+        keywords: []
+        activationCondition: false
+        rollType: test_power_roll
+        name: Nature Guide
+        guid: fca3a781-b596-4985-8bfb-b27cc3231b68
+        description: 'When you make a Reason test to identify an animal or plant and get a tier 1 or 2 result, you can reroll the rest and must use the new result. '
+        behavior: power
+        attribute: rea
+      canHavePrerequisites: true
+      name: Nature Guide
+      description: 'When you make a Reason test to identify an animal or plant and get a tier 1 or 2 result, you can reroll the rest and must use the new result. '
+      guid: e2323cfd-6901-46d7-b9db-fec77701c609
+      implementation: 2
+    - __typeName: CharacterFeature
+      source: Feat
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6431f5e4-7ba8-4499-b2b1-f10ae5cfa408
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions:
+            - ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+            mode: conditions
+            chatMessage: One with the Wilderness
+          triggerPrompt: While you are outdoors and not in a settlement, you can’t be surprised.
+          display:
+            saturation: 1
+            brightness: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 85d1ed7f-aec3-4f44-b0ac-40df1eafdbff
+          trigger: inflictcondition
+          castImmediately: true
+          targetType: self
+          persistence: []
+          name: One with the Wilderness
+          conditionFormula: Condition is "Surprised"
+          description: While you are outdoors and not in a settlement, you can’t be surprised.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        name: One with the Wilderness
+        source: Feat
+        behavior: trigger
+        guid: 784b8386-5451-44f6-8caa-a130958d5a11
+        description: While you are outdoors and not in a settlement, you can’t be surprised.
+      canHavePrerequisites: true
+      name: One with the Wilderness
+      description: While you are outdoors and not in a settlement, you can’t be surprised.
+      guid: 6431f5e4-7ba8-4499-b2b1-f10ae5cfa408
+      implementation: 2
+    description: "Choose one of the following benefits:"
+    numChoices: 1
+    guid: 255e5b28-b54a-45f6-8267-20e79e7f9088
+name: Courser Chanterelle
+mtime: 1770129456724
+description: Even being a Courser at this level is an honor most heroes dream of.
+id: 354ce6fe-bb27-4040-9379-2ead7b540f92
+ctime: 1764025408558

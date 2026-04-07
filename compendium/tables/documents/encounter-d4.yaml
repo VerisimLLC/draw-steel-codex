@@ -1,0 +1,302 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:d4:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        balancing:
+        - stamina: 66
+        - stamina: 66
+        - stamina: 66
+        - stamina: 66
+        - stamina: 66
+        - []
+        - []
+        monsters:
+          26bf65f9-f313-4e28-a2ac-ff6bf252ebf3: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 11,-3,1
+      - appearances:
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "11,3,1"
+        - __usertype: LuaLoc
+          loc: "10,3,1"
+        invisibleToPlayers:
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+      - appearances: []
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "13,3,1"
+        - __usertype: LuaLoc
+          loc: "14,3,1"
+        invisibleToPlayers: []
+        minHeroes: 5
+      - appearances: []
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: 7,-1,1
+        - __usertype: LuaLoc
+          loc: 17,-1,1
+        invisibleToPlayers: []
+        minHeroes: 6
+      - appearances: []
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "14,0,1"
+        - __usertype: LuaLoc
+          loc: 14,-2,1
+        - __usertype: LuaLoc
+          loc: "14,1,1"
+        - __usertype: LuaLoc
+          loc: "14,2,1"
+        - __usertype: LuaLoc
+          loc: 14,-1,1
+        invisibleToPlayers: []
+        minHeroes: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "10,0,1"
+        - __usertype: LuaLoc
+          loc: 10,-2,1
+        - __usertype: LuaLoc
+          loc: 10,-1,1
+        - __usertype: LuaLoc
+          loc: "10,1,1"
+        - __usertype: LuaLoc
+          loc: "10,2,1"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          fea3f38a-e49c-4dfc-9f5d-1004e9871a76: 1
+          3fe52476-756f-4fdf-8ec3-79bb23a3b732: 4
+      saveAppearances: true
+      name: D4 Encounter
+id: e3b3c012-157c-4e8e-89b1-aadd0e7a363d
+ctime: 1759462381629
+textStorage:
+  __typeName: TextStorage
+  sections:
+    yT: |
+      ???query slowstart = 0
+    y: |
+      [[//slowstartlevel 5; awardvp 1|Give Heroes 1 Victory and Level to Level 1]]
+    w: |+
+      Vorgosh wears a [item:Bloodbound Band] and carries a second [item:Bloodbound Band] in her robes that she planned to give to a worthy apprentice (once she found one). She also carries [two clear lenses carved from volcanic glass](item:Lenses carved from Volcanic Glass) and a recipe in Caelian that describes how to make [item:Foesense Lenses] and counts as a project source for that item ([item:Foesense Lenses Recipe]) . 
+
+    x: |
+      ???query slowstart = 1
+    u: |+
+      ## Rewards
+
+    v: |
+      **Loot**
+    s: |+
+      ## Ending the Encounter
+
+    t: |+
+      The goblins fight until the channeler falls and then flee—at which point encounter is over. If the heroes save Violet, they earn 1 Victory each.
+
+
+    q: |+
+      Each warrior attacks a different target to prevent the heroes from reaching Violet or Vorgosh.
+
+    r: |2
+
+    CZ: |+
+      [[/spawn Violet 12 -3; showtoken Violet|Spawn Violet]] [[/hidetoken Violet|Hide Violet]]
+
+    m: |+
+      tries to free Violet.
+
+    k: |
+      As the heroes engage, Vorgosh the channeler bellows, “The Cup of Iulius shall make the legions of Queen Bargnot strong!” and resumes chanting. On her turn, she uses Blistering Element if the heroes are clustered or Shadow Drag if they're spread apart to pull targets toward her or onto the ward. If she's grabbing someone, she throws them onto the ward. She uses Twist Shape on any creature who approaches or 
+    i: |+
+      Depending on how the heroes approach from area D3, they might catch the goblins surprised.
+
+    g: |+
+      ## Tactics
+
+    e: |+
+      The goblins avoid harming [Violet], since they want the ritual to kill her. While under the effect of the ritual, she is considered a goblin and their ally for the purposes of the goblins' abilities and Malice features.
+
+
+    c: |+
+      *You can apply 'slowed' or another condition to any creature by selecting it and then clicking the 'Add a Condition' button in the character panel.* 
+
+    a: |+
+      While [Violet], a civilian, is in the room and the channeler is alive and performing the ritual, [Violet] can't regain Stamina, her speed is 0, and she loses 2 Stamina at the end of each round once combat starts. If her Stamina drops to 0 in this way, she dies and the ward to the stairs is destroyed in a brilliant crackle of lighting.
+
+    b: |+
+      A hero who can reach [Violet] can free her as a maneuver. A hero carrying [Violet] who has a Might score of 1 or lower is slowed while they carry her. Removing [Violet] from the room or defeating the channeler ends the effects on her.
+
+    SZ: |+
+      *When the combat dialog appears, you can set a side as surprised, as well as having them automatically win initiative.*
+
+    yp: |+
+      ???
+
+
+
+
+
+    ye: |
+      [[//awardvp 1|Give Heroes 1 Victory]]
+    Y: |+
+      ## Violet
+
+    yJ: |
+      ???
+    W: |+
+      The ward can be overcome with the [item:Amulet of the Delian Order]. If the ward is lifted, the heroes can enter the second level of the Delian Tomb.
+
+    o: |+
+      The spinecleavers run into the fray and attempt to push the heroes onto the ward or toward the channeler.
+
+    U: |+
+      The magic ward that covers the stairs makes the floor in this room immune to all damage and indestructible.
+
+    V: |+
+      When a creature touches the ward, any forced movement currently affecting them ends as if they had hit a wall, they take 3 lightning damage, and they are teleported up to 5 squares away into an unoccupied space of your choice that doesn't include the ward (typically a place that is far from where the creature would like to be).
+
+    S: |
+      When you are ready, [Draw Steel!]
+    T: |+
+      ## Stair Ward
+
+    Q: |
+      * For four heroes, remove one group of two **goblin warriors**.
+    R: |+
+      * For three heroes, remove one group of two **goblin warriors** and one **goblin warrior** and the four **spinecleavers** captained by the goblin warrior.
+
+    O: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    P: |
+      * For six heroes, add two **goblin warriors** as their own group.
+    M: |+
+      |5|One [goblin warrior] (captain), Four [goblin spinecleaver]s (minion squad)|
+
+    N: |
+      **Encounter Adjustments**
+    K: |
+      |3|Two [goblin warrior]s|
+    L: |
+      |4|One [goblin warrior] (captain), Four [goblin spinecleaver]s (minion squad)|
+    I: |
+      |1|One [bugbear channeler] (Vorgosh)|
+    J: |
+      |2|Two [goblin warrior]s|
+    G: |
+      **D4 Groups**
+    H: |
+      |**Group**|**Creatures**|
+    E: |+
+      [[setting:Number of Heroes]]
+
+    F: |+
+      [[encounter:d4]]
+
+    C: |
+      The heroes must save [Violet] from a profane ritual in the Delian Tomb.
+    D: |+
+      [[/activateobjects d4zone.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects d4zone.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    Cm: |+
+      *The Violet token should spawn in a 'captured' state, if her token art seems wrong, change it with your full stop or comma key.*
+
+    B: |+
+      # Encounter D4
+
+parentFolder: 8e307759-fe9b-408a-bb88-34f90e1fe01b
+updateid: 66d2c71b-1e2c-4944-80f1-288f2d5f9590
+mtime: 1768510109197
+content: |+
+  # Encounter D4
+
+  The heroes must save [Violet] from a profane ritual in the Delian Tomb.
+
+  [[setting:Number of Heroes]]
+
+  [[encounter:d4]]
+
+  [[/activateobjects d4zone.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects d4zone.AreaTemplate deactivate|Hide Hero Start Area]]
+
+
+  **D4 Groups**
+  |**Group**|**Creatures**|
+  |1|One [bugbear channeler] (Vorgosh)|
+  |2|Two [goblin warrior]s|
+  |3|Two [goblin warrior]s|
+  |4|One [goblin warrior] (captain), Four [goblin spinecleaver]s (minion squad)|
+  |5|One [goblin warrior] (captain), Four [goblin spinecleaver]s (minion squad)|
+
+  **Encounter Adjustments**
+  If this encounter has more or fewer than five heroes, make the following adjustments:
+  * For six heroes, add two goblin warriors as their own group.
+  * For four heroes, remove one group of two goblin warriors.
+  * For three heroes, remove one group of two goblin warriors and one goblin warrior and the four spinecleavers captained by the goblin warrior.
+
+
+  ## Stair Ward
+
+  The magic ward that covers the stairs makes the floor in this room immune to all damage and indestructible.
+
+  When a creature touches the ward, any forced movement currently affecting them ends as if they had hit a wall, they take 3 lightning damage, and they are teleported up to 5 squares away into an unoccupied space of your choice that doesn't include the ward (typically a place that is far from where the creature would like to be).
+
+  The ward can be overcome with the [Amulet of the Delian Order]. If the ward is lifted, the heroes can enter the second level of the Delian Tomb.
+
+  ## Violet
+
+  While Violet, a civilian, is in the room and the channeler is alive and performing the ritual, Violet canʼt regain Stamina, her speed is 0, and she loses 2 Stamina at the end of each round once combat starts. If her Stamina drops to 0 in this way, she dies and the ward to the stairs is destroyed in a brilliant crackle of lighting.
+
+  A hero who can reach Violet can free her as a maneuver. A hero carrying Violet who has a Might score of 1 or lower is slowed while they carry her. Removing Violet from the room or defeating the channeler ends the effects on her.
+
+  The goblins avoid harming Violet, since they want the ritual to kill her. While under the effect of the ritual, she is considered a goblin and their ally for the purposes of the goblins' abilities and Malice features.
+
+
+  ## Tactics
+
+  Depending on how the heroes approach from area D3, they might catch the goblins surprised.
+
+  As the heroes engage, Vorgosh the channeler bellows, “The Cup of Iulius shall make the legions of Queen Bargnot strong!” and resumes chanting. On her turn, she uses Blistering Element if the heroes are clustered or Shadow Drag if they're spread apart to pull targets toward her or onto the ward. If she's grabbing someone, she throws them onto the ward. She uses Twist Shape on any creature who approaches or 
+  tries to free Violet.
+
+  The spinecleavers run into the fray and attempt to push the heroes onto the ward or toward the channeler.
+
+  Each warrior attacks a different target to prevent the heroes from reaching Violet or Vorgosh.
+
+  ## Ending the Encounter
+
+  The goblins fight until the channeler falls and then flee—at which point encounter is over. If the heroes save Violet, they earn 1 Victory each.
+
+  [[/awardvp 1|Award Heroes 1 Victory]]
+
+description: Encounter D4

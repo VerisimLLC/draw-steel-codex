@@ -1,0 +1,279 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 6862f7b7-fa54-4ad2-b2c4-5d5fef1efbf7
+    offtokenPortraitId: b8c98e96-2a0a-4556-9aa1-b58f322f202b
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3128597
+    portraitOffset:
+      x: -0.0829643
+      y: 0.0499187
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: Goblin Sniper
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 173ceb76-7158-4552-a8ae-7b51836c9624
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 3
+    inflictedConditions: []
+    keywords:
+      Goblin: true
+      Humanoid: true
+    max_hitpoints_roll: "3"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    monster_type: Goblin Sniper
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 2d272106-85a6-4fb7-b331-ef88db7b2efe
+      numTargets: 1
+      implementation: 4
+      persistence: []
+      name: Bow
+      behaviors:
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: cb2886c5-eb0e-4153-8ff6-b13b3c8cf102
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: cb2886c5-eb0e-4153-8ff6-b13b3c8cf102
+          modtype: edge
+          domains: []
+          keywords: []
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 2d38c1b3-cc48-44fe-881d-cf761fdb8492
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 98bff601-1581-451e-96db-be88e063afaf
+              duration: 0
+              ongoingEffectCustom: false
+            targetType: self
+            name: Steady Aim
+            numTargets: "1"
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          guid: 2f0032f5-2514-42bb-91da-1484c136ef9d
+          name: Steady Aim
+          rollType: ability_power_roll
+          description: If the sniper doesn't use a move action this turn, the ability has an edge.
+          behavior: power
+          activationCondition: Moved This Turn = 0
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + 2
+      description: If the sniper doesn't use a move action this turn, the ability has an edge.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Goblin Sniper	Level 1 Minion Artillery
+        Goblin, Humanoid	EV 3 for four minions
+        <b>Stamina</b> 3
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1S / <b>Stability</b> 0
+        <b>With Captain</b> Ranged distance +5	<b>Free Strike</b> 2
+        Might -2	Agility +2	Reason +0	Intuition +0	Presence -1
+        <b>Bow</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage
+        <b>Effect</b> If the sniper doesn't use a move action this turn, the ability has an edge.
+
+        <b>Crafty</b>
+        The sniper doesn't provoke opportunity attacks by moving.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1e5263f7-ff8e-4595-9e79-75a9c0da9e88: true
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        behavior: attribute
+        source: Trait
+        name: Crafty
+        value: 1
+        description: The sniper doesn't provoke opportunity attacks by moving.
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        text: "Crafty: you do not provoke opportunity attacks while moving."
+        sourceguid: eae4d953-c53f-41d8-aae3-cc9de122b1f8
+        source: Trait
+        behavior: movementtext
+        domains:
+          CharacterFeature:82fec27e-bc65-4a2e-b0da-fea53f1c6082: true
+          CharacterFeature:eae4d953-c53f-41d8-aae3-cc9de122b1f8: true
+        name: Crafty
+        description: The sniper doesn't provoke opportunity attacks by moving.
+        guid: c0d845c9-7107-4215-9fed-d78847809413
+        color: green
+      source: Trait
+      description: The sniper doesn't provoke opportunity attacks by moving.
+      guid: 1e5263f7-ff8e-4595-9e79-75a9c0da9e88
+      name: Crafty
+      implementation: 3
+    role: Minion Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 2594791d-235b-4efd-8398-ef3065703702
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    damage_taken: 0
+    traitNames: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: fc96f071-2167-40f9-a8c6-d6b6e05b2a88-2
+        used: 1
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        aa45dfe3-9a67-4672-95ae-f0358aa4925e:
+          refreshid: fc96f071-2167-40f9-a8c6-d6b6e05b2a88-1
+          note: Bow
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+        e55e54ca-4fe4-4510-a4a3-2a85867750fa:
+          refreshid: fc96f071-2167-40f9-a8c6-d6b6e05b2a88-2
+          note: Bow
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    minionSquad: Goblin Sniper Squad 1
+    creatureSize: 1S
+    walkingSpeed: 5
+    movementSpeeds:
+      climb: 5
+    ev: 3
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 9d9fc2d2-21ca-49d7-a2f0-e817c5eaef10-69
+    withCaptain: +5 bonus to ranged distance
+    monster_category: Monster
+  tokenType: null
+  bestiaryId: cd5f724b-4707-46d5-821e-a8d172c986f6
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Goblin Sniper
+parentFolder: 6f09b340-9297-4990-a05f-d6a32b2c4e81
+artist: null
+ord: 0
+ctime: 1741590308552
+mtime: 1775201137032
+hidden: false

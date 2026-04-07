@@ -1,0 +1,74 @@
+__typeName: Kit
+armor: Medium
+health: 6
+id: 54baee77-3f8c-4b91-96ca-55ca55ff3149
+weapons:
+  Medium: true
+  Bow: true
+range: 5
+disengage: 1
+name: Ranger
+portraitid: 00350a01-834d-4230-b097-9fd3fdf1331f
+kitManeuver: false
+description: The Ranger kit outfits you with light armor and several weapons, letting you easily switch between using a melee weapon and a bow. This kit provides a good balance of bonuses to Stamina, speed, damage, and range to create a hero who is a jack-of-all-trades.
+type: martial
+speed: 1
+imported: e640ecf4-f165-4465-8d3c-7d62d226d0ae
+damageBonuses:
+  ranged:
+  - 1
+  - 1
+  - 1
+  melee:
+  - 1
+  - 1
+  - 1
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Kit: true
+    Strike: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 3 + M or A damage; A < weak, slowed (save ends)
+    - 5 + M or A damage; A < average, slowed (save ends)
+    - 7 + M or A damage; A < strong, slowed (save ends)
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: A well-placed shot leaves your enemy struggling to move.
+  sourceReference:
+    __typeName: SourceReference
+    page: 221
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 10
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  modifiers: []
+  strain: []
+  guid: 59232ceb-dfac-4bb9-bb72-f3ec668b6f4b
+  categorization: Signature Ability
+  numTargets: 1
+  implementation: 4
+  persistence: []
+  name: Hamstring Shot
+  targetType: target
+  description: ""
+  abilityType: none
+  iconid: dd46eb66-c14b-40bd-8494-34b1fd531da0
+mtime: 1770565413466
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+equipmentDescription: You wear medium armor and wield a medium weapon and a bow.

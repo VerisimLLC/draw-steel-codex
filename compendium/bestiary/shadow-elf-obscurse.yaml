@@ -1,0 +1,201 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: c86ad713-e00e-4740-ba23-f8326d47e833
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Obscurse	Level 6 Hexer
+        Fey, Humanoid, Shadow Elf	EV 26
+        <b>Stamina</b> 70
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 6
+        Might +0	Agility +2	Reason +3	Intuition +1	Presence +1
+        <b>Blotting Bolt</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 5<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 damage
+        %E2%98%85	<b>12-16</b>	14 damage
+        %E2%9C%B8	<b>17</b>	17 damage
+        <b>Effect The target has a bane on their next strike.</b>
+        <b>3 Malice</b> The target has a double bane on the next signature action they use.
+
+        <b>Shadows Make Strangers</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 2 Malice
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Melee 1<b>	Target</b> Two enemies
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; R<1 the target makes a free strike against an enemy of the obscurse's choice.
+        %E2%98%85	<b>12-16</b>	10 damage; R<2 the target makes a free strike against an enemy of the obscurse's choice.
+        %E2%9C%B8	<b>17</b>	13 damage; R<3 the target uses a signature action against an enemy of the obscurse's choice.
+
+        <b>Of the Umbra</b>
+        The obscurse ignores concealment granted by darkness. While the obscurse is in direct sunlight, they have damage weakness 3. While the obscurse is concealed, they have damage immunity 3.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:28966343-cadb-4cae-9902-9863be811a20: true
+      modifiers: []
+      name: Of the Umbra
+      description: The obscurse ignores concealment granted by darkness. While the obscurse is in direct sunlight, they have damage weakness 3. While the obscurse is concealed, they have damage immunity 3.
+      guid: 28966343-cadb-4cae-9902-9863be811a20
+      source: Trait
+    role: Hexer
+    keywords:
+      Humanoid: true
+      Shadow: true
+      Shadow Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    monster_type: Shadow Elf Obscurse
+    opportunityAttack: 6
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 3
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    levelChoices: []
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    walkingSpeed: 5
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: f83049ef-dd2d-4d47-b69e-50da1f1184ec
+      implementation: 4
+      numTargets: 1
+      name: Blotting Bolt
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage
+        - 14 damage
+        - 17 damage
+        roll: 2d10 + 3
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; R<1 the target makes a free strike against an enemy of the obscurse's choice.
+        - 10 damage; R<2 the target makes a free strike against an enemy of the obscurse's choice.
+        - 13 damage; R<3 the target uses a signature action against an enemy of the obscurse's choice.
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 421b0f1f-5e69-469f-8ede-ef6d7b577ec7
+      abilityType: none
+      implementation: 4
+      numTargets: 2
+      name: Shadows Make Strangers
+      targetType: target
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds:
+      climb: 5
+    damage_taken: 0
+    minion: false
+    ev: 26
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 206889cb-6122-45f0-922f-2504f86d0efe
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962492552
+description: Shadow Elf Obscurse
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590228986
+mtime: 1775201137032
+hidden: false

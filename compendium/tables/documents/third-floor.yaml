@@ -1,0 +1,363 @@
+__typeName: MarkdownDocument
+annotations:
+  "encounter: Third Floor":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances: []
+        monsters:
+          05776427-5468-499a-a004-e45885734801: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-19,-17,1"
+        invisibleToPlayers: []
+        minHeroes: 4
+      - appearances:
+        - "{\"portraitId\": \"224a13b7-001c-4ecb-a818-038f88b27285\",\"offtokenPortraitId\": \"7c104da9-563a-4b50-95af-b76e8e04eb01\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Gruul\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-19,-13,1"
+        invisibleToPlayers:
+        - false
+        monsters:
+          86fa5590-b74b-43c5-ac55-ebc906241611: 1
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-12,-18,1"
+        - __usertype: LuaLoc
+          loc: "-12,-22,1"
+        - __usertype: LuaLoc
+          loc: "-11,-18,1"
+        - __usertype: LuaLoc
+          loc: "-11,-22,1"
+        invisibleToPlayers:
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          4870c075-8467-444b-96f3-6041bf09fa58: 4
+      - appearances: []
+        monsters:
+          4870c075-8467-444b-96f3-6041bf09fa58: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,-13,1"
+        - __usertype: LuaLoc
+          loc: "-9,-12,1"
+        - __usertype: LuaLoc
+          loc: "-11,-15,1"
+        - __usertype: LuaLoc
+          loc: "-11,-14,1"
+        invisibleToPlayers: []
+        minHeroes: 5
+      - appearances: []
+        monsters:
+          4870c075-8467-444b-96f3-6041bf09fa58: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-16,-20,1"
+        - __usertype: LuaLoc
+          loc: "-17,-19,1"
+        - __usertype: LuaLoc
+          loc: "-13,-21,1"
+        - __usertype: LuaLoc
+          loc: "-14,-21,1"
+        invisibleToPlayers: []
+        minHeroes: 5
+      - appearances: []
+        monsters:
+          4870c075-8467-444b-96f3-6041bf09fa58: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-17,-12,1"
+        - __usertype: LuaLoc
+          loc: "-15,-11,1"
+        - __usertype: LuaLoc
+          loc: "-17,-13,1"
+        - __usertype: LuaLoc
+          loc: "-18,-14,1"
+        invisibleToPlayers: []
+        minHeroes: 6
+      saveAppearances: true
+      name: Third Floor
+  "encounter: ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      name: New Encounter
+  "encounter: Forg":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"c719d598-07db-4b62-993d-93049f59d215\",\"offtokenPortraitId\": \"c3823160-ba4e-43c5-9930-f561812c1f02\",\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": \"85adae29-5cdc-410b-bde5-6dfce50f5102\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"popoutScale\": 0.99,\"characterName\": \"Forg\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-19,-17,1"
+        invisibleToPlayers:
+        - false
+        monsters:
+          05776427-5468-499a-a004-e45885734801: 1
+      saveAppearances: true
+      name: Forg
+    identifier: " Forg"
+id: d5aadc52-96cd-4d08-9f3a-7fb6bee92b56
+ctime: 1760776231267
+textStorage:
+  __typeName: TextStorage
+  sections:
+    jVu: |+
+      When you are ready, [[/rollinitiative -22 -28 0 5 |Draw Steel!]]
+
+    pb: |+
+      trained not to harm any captives.
+
+    cO: |+
+      ## Enemies
+
+    tf: |+
+      [[//awardvp 1|Award Victories]]
+
+    xhi: |
+      > * A recipe in Caelian that serves a project source for a **[item:Growth Potion]** (**[item:Growth Potion Recipe]**)
+    xhQ: |
+      > * Three ounces of **[item:costmary leaves]**, good for making **[item:Healing Potion]s**.
+    xh: |
+      > * **[item:A cup of rainwater from a sacred fey grove]** and a recipe in Caelian that serves as a project source for a **[item:Portable Cloud]** (**[item:Portable Cloud Recipe]**).
+    wh: |+
+      *The players or director can click on one of the piles near the ogres' stools to access the following loot and add it to their inventory*:
+
+
+    XJ: |+
+      ## Captives
+
+    UG: |
+      |{#The door doesn't open.}
+    ug: |+
+      ## Loot
+
+    EZ: |
+      > * “As before, a set of curving stairs leads up along the outer wall, going through the ceiling above the floor.”
+    yi: "> * Vurkor’s Journal, written in Kalliak"
+    rd: |+
+      [End Combat] When the heroes defeat the ogres, the mohlers stop attacking and return to their cages, cowering. 
+
+    eQ: |+
+      ## Combat
+
+    kW: |
+      ## Tactics
+    QC: |+
+      |{#The creature can move and is immune to the hole's effects for the next 24 hours. If the creature enters a square adjacent to the hole after this time, they must make the test again.}
+
+    se: |+
+      If at least half the civilians survived the ordeal, the heroes earn 1 Victory each.
+
+    YK: |2+
+       The four civilians here are terrified. Unless the heroes intervene,they take the Defend action at the end of each round. If a hero uses a maneuver to shout out at a civilian within 5 squares, that civilian instead uses their turn to head toward the second floor.The people here know the same information as the people on the second floor, with the following additions:
+
+    lX: |+
+      The ogres have straight forward tactics. They attempt to force move the heroes into cages, the hole in the wall, or each other. They don't care if they harm civilians, but as long as both ogres are alive, they focus on harming the heroes. Forg uses **Grabby Hand** each turn and **People Bowling** when he has a creature grabbed and sufficient Malice to spend.
+
+    OA: |
+      |{#The creature's speed becomes 0 until the start of their next turn. If they fail this test three rounds in a row, they turn to stone for as long as they remain adjacent to the hole. While stone, a creature has damage immunity 10 and they are unconscious. If left this way for 24 hours, a creature becomes stone permanently.}
+    iUJ: |
+      ???query numheroes < 4
+    nZ: |+
+      When one ogre is dead, the other uses **Rampage** and targets the nearest creatures, including any civilians.
+
+    mY: |+
+      Gruul uses **Pitchfork Catapult** or **Earth-Breaking Jump**, and **Horrible Bellow** as often as possible. When the ogres have plenty of Malice, they use **Bully**.
+
+    qc: |+
+      ## Objective
+
+    hT: |+
+      [[/activateobjects M3_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects M3_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    iUe: |
+      [[encounter: Forg]]
+    iUT: |
+      When Gruul, the Ogre Juggernaut, is defeated Forg returns to the tower and enters combat.
+    oa: |
+      The mohlers spread out to harm as many heroes as possible. They're
+    iU: |+
+      [[encounter: Third Floor]]
+
+    iUp: |+
+      ???
+
+    bN: |+
+      > * Strange magic, such as the hole in the wall here, affects the top floors of this tower.
+
+    gS: |+
+      [[setting:Number of Heroes]]
+
+    aM: |+
+      > * They explain the danger of the magic hole in the wall.
+
+    F: |
+      > * “Several large cages with open doors and exterior locking bars dot the room. The cages hold strange pig-like creatures with sharp claws.”
+    dP: |+
+      Gruul, an **ogre juggernaut**, and Forg, an **ogre goon**, attack as soon as they notice the intruders. When they do, their twelve **mohlers** attack as well. The mohlers can’t burrow through the walls or floors of the tower.
+
+    WI: |+
+      |{#The door opens, and creatures inside can exit. Future attempts to open the latch from the inside have a double edge.}
+
+
+    SE: |2+
+       If a creature is force moved into one of the mohler cages, the door can be shut and the creature trapped inside. Each cage has 25 Stamina and is immune to poison and psychic damage. If a creature is inside a cage A when it is destroyed, they take 2 damage. A creature outside the cage who can reach it can unlock it as a maneuver.
+
+    M: |+
+      The hole cannot be entered, as it is drawing energy from a different dimension. The first time on a turn that a creature enters a square adjacent to the hole or starts their turn there, they must make a moderate Might test:
+
+    L: |+
+      ## Magical Hole
+
+    H: |
+      > * “Four people standing near a hole in the outer wall hold masonry equipment and discuss something among themselves.”
+    I: |
+      > * “Several statues also dot the room. Most of them are of people, but a few of them are of the strange pig-like creatures.” 
+    J: |+
+      > * “A dark energy emerges from the hole. Where you there should be a view to the outside of the tower, there is only darkness.”
+
+    TF: |
+      |Unlatch Cage Door: Agility Test
+    N: |
+      |Magic Hole: Moderate Might Test
+    K: |+
+      **Secret:** Getting too close to the hole in the wall can petrify a creature.
+
+    fR: |+
+      Allow easy adjustment of the number of heroes to balance for:
+
+    VH: |
+      |{#The door opens, but the lock is destroyed. The door can't be locked again.}
+    RD: |+
+      ## Mohler Cage
+
+    G: |
+      > * “Two ogres rest on enormous stools, drinking deeply from equally a large mugs. They ignore a collection of books and bags at their feet
+    ZL: |+
+      > * Bassa the stonemason is upstairs with an orc elementalist.
+
+    E: |+
+      ---
+
+
+    PB: |
+      |{#At the end of this turn, the creature is slowed (save ends).}
+    C: |2
+       One **ogre goon**, one **ogre juggernaut**, and twelve **mohlers** live on this floor and six **civilian** captives are working here. The mohlers are used to dig around and look for stones to use in repairing the tower.
+    D: |2+
+
+
+    vh: |+
+      Vurkor moved some of his books and crafting ingredients found in the tower to this level while construction continues on the floor above. 
+
+    B: |+
+      # Third Floor
+
+parentFolder: 7cb5c634-6ed3-43bd-970d-7877c47b4772
+updateid: e574d841-7ebd-4627-baac-3c5671269aef
+mtime: 1774524596929
+content: |-
+  # Third Floor
+
+   One **ogre goon**, one **ogre juggernaut**, and twelve **mohlers** live on this floor and six **civilian** captives are working here. The mohlers are used to dig around and look for stones to use in repairing the tower.
+  ---
+  > * “As before, a set of curving stairs leads up along the outer wall, going through the ceiling above the floor.”
+
+  > * “Several large cages with open doors and exterior locking bars dot the room. The cages hold strange pig-like creatures with sharp claws.”
+  > * “Two ogres rest on enormous stools, drinking deeply from equally a large mugs. They ignore a collection of books and bags at their feet
+  > * “Four people standing near a hole in the outer wall hold masonry equipment and discuss something among themselves.”
+  > * “Several statues also dot the room. Most of them are of people, but a few of them are of the strange pig-like creatures.” 
+  > * “A dark energy emerges from the hole. Where you there should be a view to the outside of the tower, there is only darkness.”
+
+  **Secret:** Getting too close to the hole in the wall can petrify a creature.
+
+  ## Magical Hole
+
+  The hole cannot be entered, as it is drawing energy from a different dimension. The first time on a turn that a creature enters a square adjacent to the hole or starts their turn there, they must make a moderate Might test:
+
+  |Magic Hole: Moderate Might Test
+  | The creature's speed becomes 0 until the start of their next turn. If they fail this test three rounds in a row, they turn to stone for as long as they remain adjacent to the hole. While stone, a creature has damage immunity 10 and they are unconscious. If left this way for 24 hours, a creature becomes stone permanently.
+  |At the end of this turn, the creature is slowed (save ends).
+  | The creature can move and is immune to the hole's effects for the next 24 hours. If the creature enters a square adjacent to the hole after this time, they must make the test again
+
+  ## Mohler Cage
+
+   If a creature is force moved into one of the mohler cages, the door can be shut and the creature trapped inside. Each cage has 25 Stamina and is immune to poison and psychic damage. If a creature is inside a cage A when it is destroyed, they take 2 damage. A creature outside the cage who can reach it can unlock it as a maneuver.
+
+  |Unlatch Cage Door: Agility Test
+  |The door doesn't open.
+  |The door opens, but the lock is destroyed. The door can't be locked again.
+  |The door opens, and creatures inside can exit. Future attempts to open the latch from the inside have a double edge.
+
+
+  ## Captives
+
+   The four civilians here are terrified. Unless the heroes intervene,they take the Defend action at the end of each round. If a hero uses a maneuver to shout out at a civilian within 5 squares, that civilian instead uses their turn to head toward the second floor.The people here know the same information as the people on the second floor, with the following additions:
+
+  > * Bassa the stonemason is upstairs with an orc elementalist.
+
+  > * They explain the danger of the magic hole in the wall.
+
+  > * Strange magic, such as the hole in the wall here, affects the top floors of this tower.
+
+  ## Enemies
+
+  Gruul, an **ogre juggernaut**, and Forg, an **ogre goon**, attack as soon as they notice the intruders. When they do, their twelve **mohlers** attack as well. The mohlers can’t burrow through the walls or floors of the tower.
+
+  ## Combat
+
+  Allow easy adjustment of the number of heroes to balance for:
+
+  [[setting:Number of Heroes]]
+
+  [[encounter: Third Floor]]
+
+  When you are ready, [Draw Steel!]
+
+  ## Tactics
+  The ogres have straight forward tactics. They attempt to force move the heroes into cages, the hole in the wall, or each other. They don't care if they harm civilians, but as long as both ogres are alive, they focus on harming the heroes. Forg uses **Grabby Hand** each turn and **People Bowling** when he has a creature grabbed and sufficient Malice to spend.
+
+  Gruul uses **Pitchfork Catapult** or **Earth-Breaking Jump**, and **Horrible Bellow** as often as possible. When the ogres have plenty of Malice, they use **Bully**.
+
+  When one ogre is dead, the other uses **Rampage** and targets the nearest creatures, including any civilians.
+
+  The mohlers spread out to harm as many heroes as possible. They're
+  trained not to harm any captives.
+
+  ## Objective
+
+  [End Combat] When the heroes defeat the ogres, the mohlers stop attacking and return to their cages, cowering. 
+
+  If at least half the civilians survived the ordeal, the heroes earn 1 Victory each.
+
+  [[/awardvp 1|Award Victories]]
+
+  ## Loot
+
+  Vurkor moved some of his books and crafting ingredients found in the tower to this level while construction continues on the floor above. 
+
+  *The players or director can click on one of the piles near the ogres' stools to access the following loot and add it to their inventory*:
+
+
+  > * A **cup of rainwater from a sacred fey grove** and a recipe in Caelian that serves as a project source for a **Portable Cloud** (see Treasure in Handouts)
+  > * Three ounces of **costmary leaves**, good for making Healing Potions (see Treasure in Handouts)
+  > * A recipe in Caelian that serves a project source for a Growth Potion (see Treasure in Handouts)
+  > * Vurkor’s Journal, written in Kalliak
+description: Third Floor

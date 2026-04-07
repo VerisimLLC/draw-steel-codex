@@ -1,0 +1,298 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: fc23a2c2-1ab6-44a2-9d28-d9b2cffce506
+    offtokenPortraitId: d54f4c75-f5bb-4c49-a6d2-da797a599b68
+    portraitFrameId: 9242a1db-25ff-403c-908c-010ef15dc821
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.383499
+    portraitOffset:
+      x: -0.1645456
+      y: 0.1874072
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.86
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fd290e5a-ca92-41b4-b771-14ed753f887b
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      Angulotl: true
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Angulotl
+    levelChoices: []
+    traitNames:
+    - With Captain Strike damage +2
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        1748e2ae-38ea-4c43-afe5-c6704aef72f5:
+          timestamp: 1755376258037
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 6
+    minion: true
+    stability: 0
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4dcfe47a-9fe2-4a16-afea-8e9ca6bc81db: true
+        CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+        CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+        CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+        CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:4dcfe47a-9fe2-4a16-afea-8e9ca6bc81db: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+        sourceguid: ec4426d5-b894-4154-a4ee-acf74c5a231c
+        description: Whenever an adjacent enemy grabs the cleaver or uses a melee ability against them, that enemy takes 2 poison damage.
+        source: Character Feature
+        name: Toxiferous
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: ed251af3-9419-4d6e-a41f-19f222a92c97
+          conditionFormula: target = self and (UsedAbility.Keywords has "Melee")
+          subject: enemy
+          domains:
+            CharacterFeature:4dcfe47a-9fe2-4a16-afea-8e9ca6bc81db: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            titleText: Toxiferous
+            roll: "2"
+            damageType: poison
+            chatMessage: Melee ability vs toxic creature
+          trigger: targetwithability
+          name: Toxiferous
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 2906e974-d74d-4b22-8adc-dcdfc54e2206
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:4dcfe47a-9fe2-4a16-afea-8e9ca6bc81db: true
+          CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+          CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+          CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+          CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+        sourceguid: 014e497d-86b9-4eeb-9958-db7261fe30f8
+        description: Whenever an adjacent enemy grabs the cleaver or uses a melee ability against them, that enemy takes 2 poison damage.
+        source: Character Feature
+        name: Toxiferous
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "2"
+            damageType: poison
+            guid: b4c2a549-8193-4ab1-a658-57e68e757edc
+            titleText: Toxiferous
+            chatMessage: Grabbed a Toxiferous Creature
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: d8e215c6-458e-49da-9eab-1cefb8bd36e2
+          persistence: []
+          domains:
+            CharacterFeature:4dcfe47a-9fe2-4a16-afea-8e9ca6bc81db: true
+            CharacterFeature:a27fbdca-d8e0-4667-839a-c24db797b2a6: true
+            CharacterFeature:014e497d-86b9-4eeb-9958-db7261fe30f8: true
+            CharacterFeature:ec4426d5-b894-4154-a4ee-acf74c5a231c: true
+            CharacterFeature:37850676-df57-4b42-b97b-89ce9a28640f: true
+          conditionFormula: condition = "Grabbed" and (HasAttacker)
+          targetType: attacker
+          trigger: inflictcondition
+          name: Toxiferous
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f6736940-d898-4c45-bd8e-61d1f87c474b
+      source: Character Feature
+      description: Whenever an adjacent enemy grabs the cleaver or uses a melee ability against them, that enemy takes 2 poison damage.
+      guid: 4dcfe47a-9fe2-4a16-afea-8e9ca6bc81db
+      name: Toxiferous
+      implementation: 3
+    role: Minion Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 2
+    innateLanguages:
+      e14c1512-fc48-4cb6-945c-18b3eb0b808d: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    ev: 3
+    initiativeGrouping: 31d27b44-4790-47ac-aac7-0c3287be2a4e
+    groupid: 7202c8eb-5cb6-4adf-8bdc-29d0862fe7a8
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    deathSavingThrowFailures: 0
+    minionSquad: Angulotl Cleaver Squad 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b75e6d1d-6903-442b-b8b5-0989c8edeb11
+      numTargets: 1
+      name: Hop & Chop
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage
+        roll: 2d10 + 2
+      description: The blade jumps 4 squares before or after attacking.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    deathSavingThrowSuccesses: 0
+    movementSpeeds:
+      climb: 6
+      swim: 6
+    inventory: []
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket9: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      leveled4: []
+      trinket3: []
+      trinket6: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    creatureSize: 1S
+    monster_type: Angulotl Cleaver
+  tokenType: null
+  bestiaryId: 5e24b500-babc-428b-907f-cd590872a5db
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 1
+  createdTimestamp: 1726301040866
+description: Angulotl Cleaver duplicate
+parentFolder: b4d6a13f-3431-4ade-b564-2cc17bcde303
+artist: null
+ord: 0
+ctime: 1771265857960
+mtime: 1775167428567
+hidden: false

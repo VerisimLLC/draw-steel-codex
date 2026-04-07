@@ -1,0 +1,129 @@
+__typeName: Kit
+stability: 1
+health: 6
+id: b0cedbc1-3830-448b-a2ee-172104e90e9e
+portraitid: 02b4e3e3-3dc5-4a87-b96f-89ae716e4160
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+equipmentDescription: You wear no armor and wield a heavy weapon.
+name: Panther
+mtime: 1771763415679
+type: martial
+speed: 1
+imported: 8ed540c5-822a-4fa0-b4be-1edfa8a5e4c7
+damageBonuses:
+  melee:
+  - 0
+  - 0
+  - 4
+signatureAbility:
+  __typeName: ActivatedAbility
+  insertAtStart: true
+  invokeSurroundingAbility: true
+  numTargets: "1"
+  targetTextOverride: 1 creature or object
+  id: dabe24bd-75ed-467c-94cc-2e61e8af8e6a
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  targetType: emptyspace
+  sourceReference:
+    __typeName: SourceReference
+    page: 221
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: The faster you move, the harder you hit.
+  categorization: Signature Ability
+  range: "3"
+  implementation: 3
+  testCases:
+  - text: You can move up to 3 squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 70b08a6d-3a34-4efb-b31b-051de40f8997
+  importMatch: You can move up to 3 squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+  ctime: 1711337404474
+  repeatTargets: false
+  targeting: straightpath
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 3 + M or A damage
+    - 6 + M or A damage
+    - 13 + M or A damage
+    filterTarget: 0 {Tooltip Information}
+    roll: 2d10 + Might or Agility
+    guid: 68a865f6-36d3-40ab-9230-67cec625ed04
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  - __typeName: ActivatedAbilityModifyCastBehavior
+    applyto: caster
+    name: Rush Bonus Damage
+    description: You gain one extra damage for each space you rushed toward your enemy.
+    paramid: ability_damage
+    value: cast.Spaces Moved
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 + M or A damage
+        - 6 + M or A damage
+        - 13 + M or A damage
+        roll: 2d10 + Might or Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.498148173093796
+          s: 0.86956524848938
+          v: 0.811764717102051
+          a: 1
+      flavor: The faster you move, the harder you hit.
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 793e0e36-58c1-434b-b0de-6c29af5fd06a
+      targetType: target
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Devastating Rush
+      numTargets: 1
+      description: You can move up to 3 squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+      abilityType: none
+      iconid: 5d4af519-5d82-4ada-8f2a-46f441d3470d
+  name: Devastating Rush
+  description: You can move up to 3 squares straight toward the target before this strike. You deal extra damage equal to the distance moved this way.
+  mtime: 1742838129871
+  abilityType: none
+  iconid: 5d4af519-5d82-4ada-8f2a-46f441d3470d
+description: If you want a good balance of protection, speed, and damage, the Panther kit is for you. This kit increases your Stamina not by wearing armor, but through the focused battle preparation of body and mind, letting you be fast and mobile while swinging a heavy weapon at your foes.
+weapons:
+  Heavy: true
+kitManeuver: false

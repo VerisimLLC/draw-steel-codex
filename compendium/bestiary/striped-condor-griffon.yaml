@@ -1,0 +1,890 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: true
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2a10092a-b389-495d-a0a0-6df9249f183d
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 100
+    inflictedConditions: []
+    ev: 16
+    max_hitpoints_roll: "100"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Striped Condor Griffon
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; push 1
+        - 11 damage; one target is pushed 2; the other target is vertical pushed up to 2 squares
+        - 14 damage; one target is pushed 2 and knocked prone; the other target is vertical pushed up to 3
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 5d346701-ddd8-47a2-8a8e-0df7c46adeb6
+        tiersSelected:
+        - 2
+        - 3
+        duration: 0
+        ongoingEffectCustom: 5d346701-ddd8-47a2-8a8e-0df7c46adeb6
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        promptText: First, choose a target to be pushed up 2 squares
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          targetFilter: target.Ongoing Effects has "Targeted This Ability"
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 51c88eef-9a8b-4d23-9e38-becbcd10e648
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: First, choose a target to be pushed up 2 squares
+            abilityType: standard
+            standardAbilityParams:
+              range: "2"
+            standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 5d346701-ddd8-47a2-8a8e-0df7c46adeb6
+            mode: effect
+            purgeType: all
+            conditions: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 168
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 038494be-d065-47cb-b6c3-16e30d47a349
+          iconid: ui-icons/skills/1.png
+          targetType: target
+          name: Violent Thrashing Push Effect
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          implementation: 4
+        standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+        standardAbilityParams:
+          range: "2"
+        inheritRange: true
+        abilityType: custom
+        tiersSelected:
+        - 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          targetFilter: target.Ongoing Effects has "Targeted This Ability"
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 932c1611-2749-4963-8769-77f81d517dae
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Now choose a target to be vertically pushed up to 2 squares
+            inheritRange: false
+            standardAbilityParams:
+              range: "2"
+            abilityType: standard
+            standardAbility: 6c340696-278d-45ed-9ff0-2f317313b8af
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 5d346701-ddd8-47a2-8a8e-0df7c46adeb6
+            mode: effect
+            conditions: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 167
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 2d669d30-c215-4cb2-84ad-bb5da686662e
+          iconid: ui-icons/skills/1.png
+          targetType: target
+          name: Violent Thrashing Vertical Push
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          implementation: 4
+        promptText: Now choose a target to be vertically pushed up to 2 squares
+        inheritRange: true
+        tiersSelected:
+        - 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          targetFilter: target.Ongoing Effects has "Targeted This Ability"
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: c19cb824-1ab5-4e18-afd9-a79df375efb0
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: First, choose the target to be pushed up to 2 squares and knocked prone
+            abilityType: standard
+            standardAbilityParams:
+              range: "2"
+            standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: c885a4ba-bb51-4676-977d-95df9aa19d85
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 5d346701-ddd8-47a2-8a8e-0df7c46adeb6
+            mode: effect
+            purgeType: all
+            conditions: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a1af7a20-f8d6-41a7-bcc3-23a72ee8560f
+          numTargets: "1"
+          iconid: ui-icons/skills/1.png
+          targetType: target
+          name: Violent Thrashing Tier 3 Push
+          displayOrder: 167
+          description: ""
+          abilityType: none
+          implementation: 4
+        promptText: |-
+          First, choose the target to be pushed up to 2 squares and knocked prone.
+
+          Next you will be prompted to vertical push the other target.
+        inheritRange: true
+        tiersSelected:
+        - 3
+        applyto: caster
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 4db6964e-7171-4949-95f8-8018a084eb36
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Now choose the target to be vertical pushed up to 3 squares.
+            abilityType: standard
+            standardAbilityParams:
+              range: "3"
+            standardAbility: 6c340696-278d-45ed-9ff0-2f317313b8af
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 5d346701-ddd8-47a2-8a8e-0df7c46adeb6
+            mode: effect
+            purgeType: all
+            conditions: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            page: 167
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 79032e6f-fb44-46b5-99a9-a2f6a072b4a1
+          iconid: ui-icons/skills/1.png
+          targetType: target
+          name: Violent Thrashing Tier 3 Vertical Push 3 Squares
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          implementation: 4
+        promptText: Now choose the target to be vertical pushed up to 3 squares.
+        inheritRange: true
+        tiersSelected:
+        - 3
+        applyto: caster
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 167
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 486df3e2-f3eb-49e5-91be-eaf016a297b6
+      targetType: target
+      numTargets: 2
+      categorization: Signature Ability
+      implementation: 4
+      name: Violent Thrashing
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: ""
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      targetTextOverride: Self
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+        targetMoveVicinity: true
+        vicinity: 1
+        movementType: shift
+        vicinityFilter: enemy
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 8e7e6bd0-9eca-4c46-84de-56466f66b515
+        ongoingEffectCustom: 8e7e6bd0-9eca-4c46-84de-56466f66b515
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: targets
+        filterTarget: Target.Ongoing Effects has "bound ahead"
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          strain: []
+          targetFilter: target.Ongoing Effects has "Bound Ahead"
+          guid: 5d83797c-39a1-4a12-b735-afd5a3359801
+          repeatTargets: false
+          abilityType: none
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              repeatTargets: false
+              targetType: self
+              multipleModes: variations
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 168
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              range: 1
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 86cff822-dabb-4692-b244-c5fe3ad26790
+              modeList:
+              - text: Take 5 Damage
+              - text: Knocked Prone
+                condition: Self.Conditions has not "prone"
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: "5"
+                modesSelected:
+                - 1
+                chatMessage: Bound Ahead Take 5 Damage
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: c885a4ba-bb51-4676-977d-95df9aa19d85
+                modesSelected:
+                - 2
+                ongoingEffectCustom: false
+              name: Bound Ahead Player Choice
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+          numTargets: "1"
+          name: Invoked Ability
+          description: ""
+          sourceReference:
+            __typeName: SourceReference
+            page: 167
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: "25"
+          iconid: ui-icons/skills/1.png
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Malice
+      range: Movement Speed
+      effectImplemented: false
+      abilityType: none
+      persistence: []
+      modifiers: []
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      strain: []
+      guid: 0ddea4c4-245f-4549-820d-2caf55a6afe7
+      rangeTextOverride: Self; see below
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 167
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: emptyspace
+      preDescription: The griffon shifts up to their speed along the ground in a straight line. Each enemy who comes adjacent to the griffon during this shift can choose to either take 5 damage or be knocked prone.
+      name: Bound Ahead
+      iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+      description: |
+        The griffon shifts up to their speed along the ground in straight line. Each enemy who comes adjacent to the griffon during this shift can choose to either take 5 damage or be knocked prone.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 0ffcccd7-b243-49c6-840b-c928afc29be4
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Circle and Strike
+      numTargets: "1"
+      description: The griffon falls down upon the target, taking no damage from falling. The target takes 3 damage for each square the griffon fell and is A<2 prone or grabbed.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Melee: true
+        Area: true
+      targetType: line
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 168
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 5
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: a3693597-64e0-43fc-82ae-3487cf8e18ef
+      categorization: Heroic Ability
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - push 2; M<0 the forced movement is vertical
+        - push 4; M<1 the forced movement is vertical
+        - push 6; M<2 the forced movement is vertical
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptWhenResolvingText: Choose Target to Vertically Push
+        promptText: Choose Target to Vertically Push 2
+        promptWhenResolving: true
+        tiersSelected:
+        - 1
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 36194d01-1ae9-4eb6-9d1f-62b81bc29369
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          range: "2"
+        filterTarget: 'Target.Might <0 '
+        standardAbility: 6c340696-278d-45ed-9ff0-2f317313b8af
+        abilityType: standard
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptWhenResolvingText: Now choose targets to push
+        promptText: Push the target up to 2 squares
+        promptWhenResolving: true
+        tiersSelected:
+        - 1
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 5ca82064-d28b-4d0b-bcab-3aac12d82a98
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          range: "2"
+        filterTarget: Target.Might >= 0
+        standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+        abilityType: standard
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptWhenResolvingText: Choose targets to vertically push
+        promptText: Choose Target to Vertically Push 4
+        promptWhenResolving: true
+        tiersSelected:
+        - 2
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 7c081345-c262-42cc-97bc-6bd8e94943e7
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          range: "4"
+        filterTarget: Target.Might <1
+        standardAbility: 6c340696-278d-45ed-9ff0-2f317313b8af
+        abilityType: standard
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptWhenResolvingText: Now choose targets to push
+        promptText: Push the target up to 4 squares
+        promptWhenResolving: true
+        tiersSelected:
+        - 2
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 4e77d005-afdc-43e4-94a5-7344c59fc226
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          range: "4"
+        filterTarget: Target.Might >= 1
+        standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+        abilityType: standard
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: false
+        promptWhenResolvingText: Choose Targets to vertically push
+        promptText: Choose Target to Vertically Push 6
+        promptWhenResolving: true
+        tiersSelected:
+        - 3
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 92231ff8-0459-4acd-b1c5-39c3872a7664
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        filterTarget: Target.Might <2
+        standardAbility: 6c340696-278d-45ed-9ff0-2f317313b8af
+        abilityType: standard
+        standardAbilityParams:
+          range: "6"
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        promptWhenResolvingText: now choose targets to push
+        promptText: Push the target up to 6 squares
+        promptWhenResolving: true
+        tiersSelected:
+        - 3
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 49477a2d-4d80-4d59-92a3-37b1003e758f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbilityParams:
+          range: "6"
+        filterTarget: Target.Might >= 2
+        standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+        abilityType: standard
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1
+      implementation: 4
+      name: Power Wing Buffet
+      radius: "3"
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 5
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: f14b5a65-3f49-4cc9-b8bd-d023ac9bdcff
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Circle & Strike
+      sourceReference:
+        __typeName: SourceReference
+        page: 167
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The griffon dives down onto the target, taking no damage from falling if they reach the ground. The target takes 3 damage for each square the griffon dove, and if they have A<2 they are grabbed or knocked prone.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: false
+    stability: 3
+    import:
+      type: mcdm
+      data: |
+        Striped Condor Griffon	Level 2 Elite Brute
+        Beast, Griffon	EV 16
+        <b>Stamina</b> 100
+        <b>Speed</b> 7 (fly)	<b>Size</b> 3 /<b>Stability</b> 3
+        <b>Free Strike</b> 5
+        Might +2	Agility +2	Reason -1	Intuition +2	Presence +1
+        <b>Violent Thrashing</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; push 1
+        %E2%98%85	<b>12-16</b>	11 damage; one target is pushed 2; the other target is vertically pushed 2
+        %E2%9C%B8	<b>17</b>	14 damage; one target is pushed 2 and prone; the other target is vertically pushed 3
+
+        <b>Bound Ahead</b> (Action)%E2%97%86 5 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self (while grounded)	<b>Target</b> Self
+        <b>Effect</b> The griffon shifts up to their speed in a straight line. Each enemy who comes within 1 of the griffon during the move can choose to either take 5 damage or be knocked prone.
+
+        <b>Power Wing Buffet</b> (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Melee
+        <b>Distance</b> 5 x 3 line within 1<b>Target</b> All creatures and objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	Push 2; M<0 forced movement is vertical
+        %E2%98%85	<b>12-16</b>	Push 4; M<1 forced movement is vertical
+        %E2%9C%B8	<b>17</b>	Push 6; M<2 forced movement is vertical
+
+        <b>Circle and Strike</b> (Triggered Action) %E2%97%86 2d10 +2
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Triggering creature
+        <b>Trigger</b> The griffon flies above a creature on the ground within 5.
+        <b>Effect</b> The griffon falls down upon the target, taking no damage from falling. The target takes 3 damage for each square the griffon fell and is <b>A<2</b> prone or grabbed.
+
+        <b>Beast of Prey</b>
+        Creatures have a double bane on escaping the griffon's grab.
+
+        <b>Steady</b>
+        Creatures have a bane on power rolls that could knock the griffon prone.
+
+        <b>Banded Predator</b>
+        The griffon is hidden whenever they have cover or concealment.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a892bd55-8aa7-418f-979c-a090b179ec5b: true
+      modifiers: []
+      name: Beast of Prey
+      description: Creatures have a double bane on escaping the griffon's grab.
+      guid: a892bd55-8aa7-418f-979c-a090b179ec5b
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a5abba3a-2418-43b3-97f5-ce646836d9a9: true
+      modifiers: []
+      name: Steady
+      description: Creatures have a bane on power rolls that could knock the griffon prone.
+      guid: a5abba3a-2418-43b3-97f5-ce646836d9a9
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:7be1aba1-9362-4ed2-a880-477848382c5e: true
+      modifiers: []
+      name: Banded Predator
+      description: The griffon is hidden whenever they have cover or concealment.
+      guid: 7be1aba1-9362-4ed2-a880-477848382c5e
+      source: Trait
+    role: Elite Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    initiativeGrouping: d0fe1fc4-1133-4b7c-8bd5-bf2107a32774
+    opportunityAttack: 5
+    damage_taken: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        f28c3bb6-45c0-43e3-8472-b42284aea727:
+          refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-2
+          note: Violent Thrashing
+          userid: steam-76561198767161997
+          set: 0/1
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 4ea39469-4e70-4e77-8822-68428b639cc7-2
+        used: 1
+    groupid: cd4b3117-654e-4293-be42-bbf547b2a6fa
+    walkingSpeed: 7
+    creatureSize: "3"
+    traitNames: []
+    movementSpeeds:
+      fly: 7
+    monster_category: Monster
+    keywords:
+      Griffon: true
+      Beast: true
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: f4883ad3-8135-432e-9c87-881a326c710c-471
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: f8f8d10a-433c-4c50-8129-a5b6b38ef738
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 5
+  createdTimestamp: 1726301040866
+description: Striped Condor Griffon
+parentFolder: f7ab9ad0-44d0-4780-96de-36a39f555b3a
+artist: null
+ord: 0
+ctime: 1741590329760
+mtime: 1775201137032
+hidden: false

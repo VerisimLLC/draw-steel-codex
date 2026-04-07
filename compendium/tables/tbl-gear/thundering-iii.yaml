@@ -1,0 +1,22 @@
+__typeName: equipment
+features: []
+id: 12dd1b1e-cea0-4881-8e4b-9caa72d112b4
+imbuePrereq: 1c0b6dd0-5712-47d7-91f1-9384de1e48a2
+projectSource: Low Kuric
+imbueLevel: 9
+imbueReplacesPrereq: true
+category: Gear
+mtime: 1773927588596
+type: Gear
+ctime: 1770699205313
+projectGoal: "150"
+itemPrerequisite: An oracle of storms must willingly bless the weapon with lightning while it is being wielded, and its wielder must survive this trial
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+name: Thundering III
+imbueTargetType: weapon
+description: Whenever you deal rolled damage to a creature using this weapon, you can vertical push that creature up to 5 squares and knock them prone after the other effects of the ability resolve. If the creature takes or deals damage as a result of this movement, they also take 5 thunder damage. This replaces the benefit of Thundering II.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 2

@@ -1,0 +1,64 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 79beaad5-e71b-4583-82b0-aa73b8d541a8
+  description: Your ranged magic or psionic abilities gain a +2 distance bonus. Additionally, if you think the name of a specific creature, place, or object to the implement, the implement points toward that target, provided you are on the same world.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 79beaad5-e71b-4583-82b0-aa73b8d541a8
+    modifyDescription: Range increased by Seeking Imbuement
+    source: Seeking Imbuement
+    filterAbility: Ability.Keywords has "Ranged" and (Ability.Keywords has "Magic" or Ability.Keywords has "Psionic")
+    behavior: modifyability
+    keywords: []
+    attributes:
+    - operation: Add
+      value: "2"
+      id: range
+    guid: a1d190ed-02de-4962-b489-d03b402b9e03
+    description: Your ranged magic or psionic abilities gain a +2 distance bonus. Additionally, if you think the name of a specific creature, place, or object to the implement, the implement points toward that target, provided you are on the same world.
+    name: Seeking
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 8fa71303-31fc-41b3-a484-3aa5bad124de
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Seeking Imbuement
+  name: Seeking
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: An inch-long needle carved from a diamond
+imbuePrereq: none
+projectSource: Caelian
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 3
+ctime: 1770699205313
+projectGoal: "150"
+id: 507095b4-dbfb-4f51-8b52-5f77d1c9fc48
+mtime: 1774489898357
+name: Seeking
+imbueTargetType: implement
+description: Your ranged magic or psionic abilities gain a +2 distance bonus. Additionally, if you think the name of a specific creature, place, or object to the implement, the implement points toward that target, provided you are on the same world.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+iconid: e24530fb-a937-425d-a7b1-f36ef27df623

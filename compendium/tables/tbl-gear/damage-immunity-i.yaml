@@ -1,0 +1,69 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 7481b2b9-df86-436b-b28f-86fed2bdd4c8
+  description: "When you start this project, select three damage types. You have immunity 5 to those damage types.\v\v**DIRECTOR INSTRUCTIONS**\vWhen this imbuement is added, we cannot know the combination of immunities you choose. You will need to Edit the Item after it is crafted and change the dropdown from 'all damage' to the chosen damage type for all three damage immunities."
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 7481b2b9-df86-436b-b28f-86fed2bdd4c8
+    behavior: resistance
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "5"
+      damageType: all
+      apply: Damage Reduction
+    description: "When you start this project, select three damage types. You have immunity 5 to those damage types.\v\v**DIRECTOR INSTRUCTIONS**\vWhen this imbuement is added, we cannot know the combination of immunities you choose. You will need to Edit the Item after it is crafted and change the dropdown from 'all damage' to the chosen damage type for all three damage immunities."
+    name: Damage Immunity I
+    guid: 1ec01ea2-ef1b-4f59-9a4f-c574acf17f11
+  - __typeName: CharacterModifier
+    sourceguid: 7481b2b9-df86-436b-b28f-86fed2bdd4c8
+    behavior: resistance
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "5"
+      damageType: all
+      apply: Damage Reduction
+    description: "When you start this project, select three damage types. You have immunity 5 to those damage types.\v\v**DIRECTOR INSTRUCTIONS**\vWhen this imbuement is added, we cannot know the combination of immunities you choose. You will need to Edit the Item after it is crafted and change the dropdown from 'all damage' to the chosen damage type for all three damage immunities."
+    name: Damage Immunity I
+    guid: 1b908b2c-c542-4677-8dcf-40c97b2ffa2b
+  - __typeName: CharacterModifier
+    sourceguid: 7481b2b9-df86-436b-b28f-86fed2bdd4c8
+    behavior: resistance
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: "5"
+      damageType: all
+      apply: Damage Reduction
+    description: "When you start this project, select three damage types. You have immunity 5 to those damage types.\v\v**DIRECTOR INSTRUCTIONS**\vWhen this imbuement is added, we cannot know the combination of immunities you choose. You will need to Edit the Item after it is crafted and change the dropdown from 'all damage' to the chosen damage type for all three damage immunities."
+    name: Damage Immunity I
+    guid: df4c7b18-0f24-4c64-9166-72c56a8111ae
+  source: Item
+  name: Damage Immunity I
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+itemPrerequisite: Elemental sand left behind when an elemental enters Orden from Quintessence
+imbuePrereq: none
+projectSource: Zaliac
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 2
+ctime: 1770698928353
+projectGoal: "150"
+id: 0f59699e-79b7-40b2-b600-d01357756b8e
+mtime: 1774485661696
+name: Damage Immunity I
+imbueTargetType: armor
+description: |-
+  When you start this project, select three damage types. You have immunity 5 to those damage types.**DIRECTOR INSTRUCTIONS**
+  As there are many possible combinations and we can't know the choice of the player ahead of time, the item will imbue with 3  damage immunity modifiers, currently all set to 'all' damage. When the item is in the inventory, you can right click on it and click 'Edit Item' Then Edit the feature that says 'Damage Immunity I' and the damage immunity behaviours will display. Click the dropwdown where it displays 'all damage' and change it to the required damage type.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 3b596a1f-bfef-4022-9f02-5e504b0a29fa

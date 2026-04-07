@@ -1,0 +1,21 @@
+__typeName: CharacterCondition
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+maxInstancesFormula: "1"
+showInMenus: false
+iconid: 47dfb08a-7a22-4856-86a4-57502f236f4e
+guid: 2ff75f15-2f1a-47ec-a205-9c6706e6c2e6
+id: 5d091cca-ecb7-4cd0-a2b5-6081de20332a
+ctime: 1727830301884
+domains:
+  CharacterCondition:5d091cca-ecb7-4cd0-a2b5-6081de20332a: true
+powertable: false
+modifiers: []
+name: Judged
+mtime: 1768208563732
+description: If a judged creature uses an action and you have line of effect to them, you can use a free triggered action to deal holy damage equal to twice your Presence score to them.
+trackCaster: true
+implementation: 3

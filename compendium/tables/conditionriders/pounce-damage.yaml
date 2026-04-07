@@ -1,0 +1,54 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: Subject.Might *2
+      chatMessage: Stormwight Pounce Damage
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: e87d7020-c45c-4004-a6a7-bb605574a7c1
+    persistence: []
+    conditionFormula: Subject = ConditionCaster("grabbed")
+    subject: other
+    targetType: self
+    trigger: beginturn
+    name: Pounce Damage
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: A creature grabbed this way takes 2 times the Fury's might damage at the start of the Fury's turn
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 1d5bd029-750d-409a-a0ca-e0baef40382c
+  name: Pounce Damage
+  sourceguid: fdfe282b-1d1a-478d-a8ae-9a2bfeb0ec48
+source: Ongoing Effect
+guid: fdfe282b-1d1a-478d-a8ae-9a2bfeb0ec48
+id: fdfe282b-1d1a-478d-a8ae-9a2bfeb0ec48
+ctime: 1765906707523
+condition: 70504ebe-3899-41d3-9f60-74b52ce35e39
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: Pounce Damage
+description: A creature grabbed this way takes 2 times the Fury's might damage at the start of the Fury's turn
+mtime: 1765906909798
+iconid: b97ea207-70b7-4c5e-982f-a5fba3314e65

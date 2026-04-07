@@ -1,0 +1,19 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+stackable: true
+id: e37d11eb-e5e4-4d8f-a6f5-b7fe0f89b1d0
+ctime: 1759621311343
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: e37d11eb-e5e4-4d8f-a6f5-b7fe0f89b1d0
+custom: true
+name: Essence Transfer Charges
+statusEffect: false
+description: ""
+mtime: 1759621311343
+iconid: ui-icons/skills/1.png

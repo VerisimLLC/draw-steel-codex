@@ -1,0 +1,227 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: "-MSvwH7fPat1X5FdKrvr"
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4294125
+    portraitOffset:
+      x: 0.1250004
+      y: 0.2901782
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: dd7bef0a-0f4f-4758-b9ee-bd21c425f591
+  properties:
+    __typeName: AnimalCompanion
+    savingThrowRatings: []
+    cr: 1
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2cba6714-f8aa-4257-8f15-f2fb9a2ac44b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: 2cba6714-f8aa-4257-8f15-f2fb9a2ac44b
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:2cba6714-f8aa-4257-8f15-f2fb9a2ac44b: true
+        name: Attributes
+        guid: 0bf8cf9a-bc9c-41b8-a843-7c0ba7d2fe24
+        description: You have 1 stability.
+        behavior: attribute
+        attribute: forcedmoveresistance
+      source: Character Feature
+      description: You have 1 stability.
+      guid: 2cba6714-f8aa-4257-8f15-f2fb9a2ac44b
+      name: Attributes
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6b6e6b67-cdf2-4c28-b3d8-cd5ec3fa06e1: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6b6e6b67-cdf2-4c28-b3d8-cd5ec3fa06e1
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:6b6e6b67-cdf2-4c28-b3d8-cd5ec3fa06e1: true
+        name: Retriever
+        guid: 83b71823-5265-4787-a44a-32b10cff1e6c
+        description: The wolf can move at full speed while they have a creature grabbed, no matter the grabbed creature’s size.
+        behavior: attribute
+        attribute: 3da3f2c5-4937-4781-998c-b2cfabd11919
+      source: Character Feature
+      description: The wolf can move at full speed while they have a creature grabbed, no matter the grabbed creature’s size.
+      guid: 6b6e6b67-cdf2-4c28-b3d8-cd5ec3fa06e1
+      name: Retriever
+      implementation: 3
+    max_hitpoints: 13
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: cb982d8f-aa7a-40a1-952b-b70d52e50b34-863
+    equipment: []
+    max_hitpoints_roll: 2d8+2
+    innateAttacks: []
+    skillRatings:
+      a27ca113-bc01-49d0-9864-3316e6f525f4: true
+    notes:
+    - text: ""
+      title: Backstory
+    monster_type: Wolf
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        c74c2ffc-e583-48c6-9e6f-4fc37c718255:
+          note: Grab
+          abilityid: adc7542e-9f0f-488e-b8dc-47247339044d
+          timestamp: 1752459189491
+          refreshid: 8fad02f4-4832-42e8-b52e-5063e3550b06-9
+          userid: 4V4KWXdW7ScFIiEyuknO4bqmQSc2
+          set: 0/1
+    damage_taken: 0
+    resources:
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 8fad02f4-4832-42e8-b52e-5063e3550b06-9
+    titles: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        modesSelected:
+        - 1
+        rule: 2 + M damage; M<[Average] Grabbed
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: 2 + M damage; M<[Strong] Grabbed
+        modesSelected:
+        - 2
+        guid: ff297ed1-0451-40ad-870c-7c5f77fc96cb
+      - __typeName: ActivatedAbilityReplenishBehavior
+        applyto: caster
+        mode: expend
+        modesSelected:
+        - 2
+        resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a74455fb-8cec-487f-ae34-bece53e67659
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modeList:
+      - rules: "{2 + Might} damage; M < {Average} grabbed"
+        text: No Ferocity
+      - text: Spend 1 Ferocity
+        rules: "{2 + Might} damage; M < {Strong} grabbed"
+        condition: Heroic Resources Available to Spend >= 1
+      numTargets: "1"
+      name: Clamping Jaws
+      targetType: target
+      description: |-
+        2 + M damage; M<[average] grabbed
+
+        **Spend 1 Ferocity:** M<[strong] grabbed
+      abilityType: none
+      iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd
+    classes: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -1
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    levelChoices: []
+    inflictedConditions: []
+    walkingSpeed: 8
+    monster_category: Animal
+  tokenType: null
+  bestiaryId: c765c19d-4cca-4078-93b5-fd98ed10e713
+  summonerid: null
+  ownerId: ""
+  partyid: 0339ff3e-f288-4a85-a02c-a458c091684f
+  size: -1
+  createdTimestamp: 1752458492853
+description: null
+parentFolder: 175fcd4e-a788-4f12-912d-e35d93395e3e
+artist: null
+ord: 1
+ctime: 1752465246138
+mtime: 1775167441305
+hidden: false

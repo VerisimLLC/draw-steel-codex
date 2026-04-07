@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+id: 8e60dba6-f049-4e58-93a0-d969cfb387af
+behaviors:
+- __typeName: ActivatedAbilityPowerRollBehavior
+  tiers:
+  - You fail the task.
+  - You succeed in the task.
+  - You succeed in the task with a reward.
+  roll: 2d10 + <<attribute>>
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 5
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 26c7607a-380c-47c3-8c4d-861603a6487a
+ctime: 1717568380563
+targetType: self
+numTargets: "1"
+mtime: 1760884296463
+name: Easy Test
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

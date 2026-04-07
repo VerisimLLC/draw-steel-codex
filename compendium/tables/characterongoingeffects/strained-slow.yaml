@@ -1,0 +1,125 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+canEndWithAction: false
+source: Ongoing Effect
+endActionType: none
+guid: e33bca30-c928-4634-9a08-46206bdf60af
+id: e33bca30-c928-4634-9a08-46206bdf60af
+ctime: 1757778386953
+domains:
+  CharacterOngoingEffect:e33bca30-c928-4634-9a08-46206bdf60af: true
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:e33bca30-c928-4634-9a08-46206bdf60af: true
+  sourceguid: e33bca30-c928-4634-9a08-46206bdf60af
+  description: At the start of each combat round while any target is affected by this ability, you take 1d6 damage. You can end the effect on all affected targets at any time (no action required).
+  source: Ongoing Effect
+  name: Strained Slow
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    targetFilter: ""
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityCreatureSetBehavior
+      listName: TrackTalentSlow
+      filterTarget: ConditionCaster("slowed") = Caster or ConditionCaster("slow") = Caster
+      expression: Self
+      refresh: round
+    - __typeName: ActivatedAbilityDamageBehavior
+      applyto: caster
+      filterTarget: Cast.Creature List Size > 0
+      roll: 1d6
+      titleText: Strained Slow
+      chatMessage: Strained Slow
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      applyto: caster
+      filterTarget: Cast.Creature List Size < 1
+      ongoingEffect: e33bca30-c928-4634-9a08-46206bdf60af
+      conditions: []
+      mode: effect
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "100"
+    persistence: []
+    modifiers: []
+    strain: []
+    whenActive: combat
+    guid: f6d0d0e7-6142-42fe-98c9-01938280c395
+    domains:
+      CharacterOngoingEffect:e33bca30-c928-4634-9a08-46206bdf60af: true
+    numTargets: "1"
+    name: Strained Slow
+    trigger: beginround
+    targetType: all
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 5dc2fddd-86ae-4eb8-a23c-a7b008bef729
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:e33bca30-c928-4634-9a08-46206bdf60af: true
+  sourceguid: e33bca30-c928-4634-9a08-46206bdf60af
+  description: At the start of each combat round while any target is affected by this ability, you take 1d6 damage. You can end the effect on all affected targets at any time (no action required).
+  source: Ongoing Effect
+  name: Strained Slow
+  behavior: activated
+  guid: 2087cbef-6b56-47f8-be9a-e57cab217dd3
+  activatedAbility:
+    __typeName: ActivatedAbility
+    targetTextOverride: Special
+    repeatTargets: false
+    targetType: map
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    categorization: Heroic Ability
+    range: "100"
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: e33859f0-f39a-41e2-81d7-09f7431e8eb3
+    domains:
+      CharacterOngoingEffect:e33bca30-c928-4634-9a08-46206bdf60af: true
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions:
+      - 68f455f5-135f-495c-822d-40d809d2b15f
+      mode: conditions
+      filterTarget: ConditionCaster("slowed") = Caster
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      filterTarget: ConditionCaster("slow") = Caster
+      ongoingEffect: a270f4cf-5613-4844-9aa3-a7b70ffff8ba
+      guid: 55ba125e-319a-49d6-9d23-7d5eca339a23
+      conditions: []
+      mode: effect
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      applyto: caster
+      filterTarget: ""
+      ongoingEffect: e33bca30-c928-4634-9a08-46206bdf60af
+      guid: f79977a9-6432-4162-9ca4-8798b12c6025
+      mode: effect
+      conditions: []
+    name: Remove Slow
+    numTargets: "1"
+    description: You can end the effect on all affected targets at any time (no action required).
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+description: At the start of each combat round while any target is affected by this ability, you take 1d6 damage. You can end the effect on all affected targets at any time (no action required).
+name: Strained Slow
+statusEffect: true
+custom: true
+mtime: 1757779831937
+iconid: ui-icons/skills/1.png

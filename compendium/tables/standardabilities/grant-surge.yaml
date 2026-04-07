@@ -1,0 +1,30 @@
+__typeName: ActivatedAbility
+targetFilter: Friends(target, Caster)
+id: 15079d42-f9af-4e1c-a739-2078a9e22a07
+behaviors:
+- __typeName: ActivatedAbilityReplenishBehavior
+  resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+  filterTarget: ""
+  chatMessage: "<<message>>"
+  quantity: "<<quantity>>"
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: a60d0769-52cc-45ed-993a-ead3058dfaff
+ctime: 1741143673868
+targetType: target
+numTargets: "<<targets>>"
+description: ""
+name: Grant Surge
+repeatTargets: false
+mtime: 1759019070398
+abilityType: none
+iconid: ui-icons/skills/1.png

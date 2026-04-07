@@ -1,0 +1,68 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d058e659-f7bb-4e6f-a0d6-f985d2c61ded
+  source: Ongoing Effect
+  seq: 5598082f-3971-48e3-940b-792b0c838c56
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers:
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        persistence: []
+        modifiers: []
+        abilityType: none
+        strain: []
+        whenActive: combat
+        repeatTargets: false
+        trigger: beginturn
+        numTargets: "1"
+        targetType: self
+        guid: 35189d4d-127b-45df-b28f-4206389fe33e
+        name: Edict of Unyielding Resolve
+        behaviors:
+        - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+          stamina: "10"
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: 43285a5b-ceae-4530-8fad-0e09dcacb5bb
+      name: Edict of Unyielding Resolve
+      sourceguid: 0f56b2f9-e96e-4b7e-bdec-78c38072a462
+    name: Edict of Unyielding Resolve
+    guid: 0f56b2f9-e96e-4b7e-bdec-78c38072a462
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+  radius: "2"
+  guid: 19b9524b-8ea6-40ff-8dfb-6c53be14f632
+  description: You and your allies are clad in shimmering armor.
+  behavior: aura
+  name: Edict of Unyielding Resolve
+source: Ongoing Effect
+guid: d058e659-f7bb-4e6f-a0d6-f985d2c61ded
+id: d058e659-f7bb-4e6f-a0d6-f985d2c61ded
+ctime: 1751761926846
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Edict of Unyielding Resolve
+description: You and your allies are clad in shimmering armor.
+custom: true
+mtime: 1751761926846
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,46 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: a27b6143-d4f5-49b5-b4a4-0253bd224d6d
+  source: Ongoing Effect
+  value: stacks
+  domains:
+    CharacterOngoingEffect:a27b6143-d4f5-49b5-b4a4-0253bd224d6d: true
+  name: Our Hearts, Your Strength (Child Effect)
+  guid: 76155df5-4792-43f5-a981-a0b63bc0bdc1
+  description: This Effect adds the movement attribute from the Our Hearts, Your Strength level 2 Love Domain Conduit feature.
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: a27b6143-d4f5-49b5-b4a4-0253bd224d6d
+  source: Ongoing Effect
+  guid: 6afb6cf2-787b-48e1-8643-1de65a038719
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:a27b6143-d4f5-49b5-b4a4-0253bd224d6d: true
+  rollType: ability_power_roll
+  name: Our Hearts, Your Strength (Child Effect)
+  modtype: none
+  description: This Effect adds the movement attribute from the Our Hearts, Your Strength level 2 Love Domain Conduit feature.
+  damageModifier: stacks
+  behavior: power
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: a27b6143-d4f5-49b5-b4a4-0253bd224d6d
+id: a27b6143-d4f5-49b5-b4a4-0253bd224d6d
+ctime: 1746680573655
+domains:
+  CharacterOngoingEffect:a27b6143-d4f5-49b5-b4a4-0253bd224d6d: true
+description: This Effect adds the movement attribute from the Our Hearts, Your Strength level 2 Love Domain Conduit feature.
+custom: true
+name: Our Hearts, Your Strength (Child Effect)
+statusEffect: false
+mtime: 1746681504626
+iconid: ui-icons/skills/1.png
+implementation: 2

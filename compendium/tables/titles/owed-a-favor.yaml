@@ -1,0 +1,59 @@
+__typeName: Title
+effect: The faction will perform one favor for the party, provided it doesn’t interfere with the faction’s goals.
+prerequisite: You successfully perform a service for a powerful faction.
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: |-
+      The faction will perform one favor for the party, provided it doesn’t interfere with the faction’s goals.
+
+      Additionally, the faction is a good source of information. The Director chooses a skill from the crafting or lore skill groups appropriate to the faction, such as the Criminal Underworld skill for an outlaw gang, the Blacksmithing skill for a blacksmith’s guild, or the Society skill for a noble house. While in a settlement where the faction has a presence, you gain this skill if you don’t already have it. If you already have the skill, you instead gain an edge on tests made using the skill.*DIRECTOR INSTRUCTIONS*
+      As this title's benefit is up to the Director and we have no way of knowing the choice beforehand we have provided two templates for you to edit depending on the choice.You will need to open the Codex Menu and click Compendium. Then navigate to Titles in the left menu bar and scroll to find the 'Owed a Favour' title. Then click the Cog to open the settings for this Title. 
+
+      There are templates for Grant Skill or Language & Modify Power Roll. You will need to right click on the title of the behaviour you want, click Copy and then open the player's Character sheet, click the Features tab and add a new Feature. When you Edit this feature, you click the Add Behaviour dropdown and scroll until you see 'Paste Owed a Favour'. Select this and then follow the instructions for the appropriate behaviour below. If you are granting a skill the player doesn't have, then select the Skill from the 'Grant Skill or Language' behaviour below, then click Confirm. This will give the player the chosen skill.If you choose a skill the player does have then within the 'Modify Power Roll' behaviour, click on the 'Add Skill' dropdown menu and select the appropriate skill, then click Confirm. This will give the player a Modifier when making a test roll which they can Activate to gain an Edge.
+    modifiers:
+    - __typeName: CharacterModifier
+      subtype: skill
+      source: Feat
+      behavior: proficiency
+      description: |-
+        The faction will perform one favor for the party, provided it doesn’t interfere with the faction’s goals.
+
+        Additionally, the faction is a good source of information. The Director chooses a skill from the crafting or lore skill groups appropriate to the faction, such as the Criminal Underworld skill for an outlaw gang, the Blacksmithing skill for a blacksmith’s guild, or the Society skill for a noble house. While in a settlement where the faction has a presence, you gain this skill if you don’t already have it. If you already have the skill, you instead gain an edge on tests made using the skill.*DIRECTOR INSTRUCTIONS*
+        As this title's benefit is up to the Director and we have no way of knowing the choice beforehand we have provided two templates for you to edit depending on the choice.You will need to open the Codex Menu and click Compendium. Then navigate to Titles in the left menu bar and scroll to find the 'Owed a Favour' title. Then click the Cog to open the settings for this Title. 
+
+        There are templates for Grant Skill or Language & Modify Power Roll. You will need to right click on the title of the behaviour you want, click Copy and then open the player's Character sheet, click the Features tab and add a new Feature. When you Edit this feature, you click the Add Behaviour dropdown and scroll until you see 'Paste Owed a Favour'. Select this and then follow the instructions for the appropriate behaviour below. If you are granting a skill the player doesn't have, then select the Skill from the 'Grant Skill or Language' behaviour below, then click Confirm. This will give the player the chosen skill.If you choose a skill the player does have then within the 'Modify Power Roll' behaviour, click on the 'Add Skill' dropdown menu and select the appropriate skill, then click Confirm. This will give the player a Modifier when making a test roll which they can Activate to gain an Edge.
+      equate: false
+      name: Owed a Favor
+      sourceguid: ea82ad85-849d-4630-9e38-1265dfd59dee
+      proficiency: proficient
+      guid: 8d19088c-4121-437a-8d6a-dd10b56c3ac7
+      skills: []
+    - __typeName: CharacterModifier
+      sourceguid: ea82ad85-849d-4630-9e38-1265dfd59dee
+      source: Feat
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: Owed a Favor
+      guid: f37b95df-29dd-431e-8555-152e82413109
+      description: |-
+        The faction will perform one favor for the party, provided it doesn’t interfere with the faction’s goals.
+
+        Additionally, the faction is a good source of information. The Director chooses a skill from the crafting or lore skill groups appropriate to the faction, such as the Criminal Underworld skill for an outlaw gang, the Blacksmithing skill for a blacksmith’s guild, or the Society skill for a noble house. While in a settlement where the faction has a presence, you gain this skill if you don’t already have it. If you already have the skill, you instead gain an edge on tests made using the skill.*DIRECTOR INSTRUCTIONS*
+        As this title's benefit is up to the Director and we have no way of knowing the choice beforehand we have provided two templates for you to edit depending on the choice.You will need to open the Codex Menu and click Compendium. Then navigate to Titles in the left menu bar and scroll to find the 'Owed a Favour' title. Then click the Cog to open the settings for this Title. 
+
+        There are templates for Grant Skill or Language & Modify Power Roll. You will need to right click on the title of the behaviour you want, click Copy and then open the player's Character sheet, click the Features tab and add a new Feature. When you Edit this feature, you click the Add Behaviour dropdown and scroll until you see 'Paste Owed a Favour'. Select this and then follow the instructions for the appropriate behaviour below. If you are granting a skill the player doesn't have, then select the Skill from the 'Grant Skill or Language' behaviour below, then click Confirm. This will give the player the chosen skill.If you choose a skill the player does have then within the 'Modify Power Roll' behaviour, click on the 'Add Skill' dropdown menu and select the appropriate skill, then click Confirm. This will give the player a Modifier when making a test roll which they can Activate to gain an Edge.
+      modtype: edge
+      rollType: test_power_roll
+    source: Feat
+    canHavePrerequisites: true
+    guid: ea82ad85-849d-4630-9e38-1265dfd59dee
+    name: Owed a Favor
+    implementation: 2
+name: Owed a Favor
+mtime: 1768908076796
+description: The Guild’s gratitude knows no bounds! We’ll repay you in any way we can… short of actually paying you.
+id: 5dd67f6d-2c39-4232-9ebc-8fe89fe2b535
+ctime: 1762349849078

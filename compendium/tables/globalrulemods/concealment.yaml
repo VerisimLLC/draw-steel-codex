@@ -1,0 +1,29 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: Strikes against creatures with concealment take a bane.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 74f38e0e-a14b-4be6-8b66-4dfed1e1686a
+      displayCondition: target.Concealed
+      source: Concealment Global Rule Mod Feature
+      modtype: bane
+      keywords:
+        Strike: true
+      activationCondition: target.Concealed and (not caster.Ignore Concealment) and (caster.ignore Concealment Within Range <= 0 or Distance(caster,target) > caster.Ignore Concealment Within Range)
+      rollType: ability_power_roll
+      guid: 578ae7e1-a2ec-435b-b52c-b804791f2e0a
+      description: Strikes against creatures with concealment take a bane.
+      behavior: power
+      name: Concealment
+    source: Concealment Global Rule Mod Feature
+    canHavePrerequisites: true
+    guid: 74f38e0e-a14b-4be6-8b66-4dfed1e1686a
+    name: Concealment
+    implementation: 3
+name: Concealment
+mtime: 1771247974487
+id: eef51635-752b-4181-968a-6b957302c470
+ctime: 1766652477875

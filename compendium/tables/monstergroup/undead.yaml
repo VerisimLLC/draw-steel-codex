@@ -1,0 +1,268 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "2"
+  targetFilter: target.hero and target.Count Nearby Enemies(1) = 0
+  repeatTargets: false
+  targetType: map
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 14344afb-0f38-4143-b9a8-e1e8e7067322
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  behaviors:
+  - __typeName: ActivatedAbilitySummonBehavior
+    numSummons: "2"
+    allCreaturesTheSame: true
+    groupInitiativeWithCaster: false
+    bestiaryFilter: ""
+    casterChoosesCreatures: false
+    monsterType: 1c272b6d-aae4-42b1-9c3e-0fee7218fb1f
+  name: Ravenous Horde
+  numTargets: "1"
+  description: At the end of this round, each hero not already adjacent to one or more undead is beset by two rotting zombies who burst up from the ground to appear in adjacent unoccupied spaces. Each zombie is winded. This feature can’t be used two rounds in a row.
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  objectTarget: true
+  targetFilter: not (target.keywords has "fixed")
+  repeatTargets: false
+  rangeTextOverride: Encounter Map
+  targetAllegiance: none
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 87a73f70-7899-4acf-beda-9d42bf17a8b3
+    duration: 0
+    ongoingEffectCustom: false
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: slide 5
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    ongoingEffect: 87a73f70-7899-4acf-beda-9d42bf17a8b3
+    mode: effect
+    conditions: []
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "100"
+  numTargets: "3"
+  modifiers: []
+  strain: []
+  guid: 4606fcb3-feba-4c3e-bf22-e288fee91c51
+  abilityType: none
+  persistence: []
+  name: Paranormal Fling
+  targetType: target
+  description: Up to three unattended objects on the encounter map rise to float 1 square off the ground. Each object is then pulled 5 squares toward the nearest enemy within 3 squares of the object.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ui-icons/skills/1.png
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  targetType: anyspace
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "100"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 766cdaaa-5323-4043-a84e-3e7736fcc175
+  behaviors:
+  - __typeName: ActivatedAbilityAuraBehavior
+    aura:
+      __typeName: Aura
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          whenActive: combat
+          repeatTargets: false
+          trigger: endturn
+          numTargets: "1"
+          targetType: self
+          guid: c90fbae2-e00f-45fa-840c-7de2837b2249
+          name: The Grasping, The Hungry
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            attrid: agl
+            roll: 2d10 + Agility
+            isTest: true
+            resistanceRoll: false
+            tiers:
+            - 5 damage; restrained (save ends)
+            - 5 damage; restrained (EoT)
+            - 5 damage
+          - __typeName: ActivatedAbilityApplyRidersBehavior
+            conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+            riderid: 8834c2e6-5efc-4d8f-8850-7d06cf01f7ef
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Aura
+        behavior: trigger
+        guid: 81fb4128-dfe0-47b0-a582-c4ceadf7cce6
+        name: The Grasping, The Hungry
+        sourceguid: c0fad419-c14f-40e7-96b2-ae0c4e75d5a7
+      guid: c0fad419-c14f-40e7-96b2-ae0c4e75d5a7
+      objectid: 3cb00bd7-8b17-4416-b979-2574f4887632
+      applyto: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      name: The Grasping, The Hungry
+      triggers: []
+      description: ""
+      implementation: 3
+      iconid: 4d1a68ab-0260-448c-a2da-c6747044169f
+    grow: 1
+    duration: none
+    aliveafterdeath: true
+  - __typeName: ActivatedAbilityCreateObjectBehavior
+    randomize: true
+    objectid: 1cbb1f46-1104-4244-a4e2-7dadca8b1613
+  targeting: contiguous
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: The Grasping, the Hungry
+  numTargets: "9"
+  description: |-
+    Ravenous and rotting undead arms burst forth from 9 connected squares of a vertical or horizontal surface. Any creature who ends their turn adjacent to an affected square makes an Agility test.
+    |Escape the Arms: Agility Test
+    |5 damage; restrained (save ends)
+    |5 damage; restrained (EoT)
+    |5 damage
+    **Effect:** While restrained this way, a creature takes 1d6 damage at the start of each of their turns.
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  objectTarget: false
+  targetFilter: target.keywords has "Undead"
+  repeatTargets: false
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "100"
+  numTargets: Charges + 4
+  modifiers: []
+  abilityType: none
+  strain: []
+  guid: c766f616-635f-4b9c-abda-82979f02067f
+  channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  maxChannel: "99"
+  persistence: []
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 57486b9f-3628-49d6-9544-9eb9a946ec60
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 571e5c59-9af4-423e-8401-299de4d144cd
+        duration: 0
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: afcc389e-d7df-4e04-a87b-af0988224660
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+        abilityType: standard
+        applyto: caster
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        runOnController: true
+        standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 402f6419-3f4a-4e9f-9f79-0c41e796d2d0
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        ongoingEffect: 571e5c59-9af4-423e-8401-299de4d144cd
+        mode: effect
+        conditions: []
+        applyto: caster
+      targetType: self
+      name: Invoked Ability
+      numTargets: "1"
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  channelDescription: The number of undead affected (Four) increases by 1 for each additional Malice spent on this feature.
+  selfTarget: true
+  name: Dread March
+  description: Up to four undead in the encounter move up to their speed and can make a free strike. The number of undead affected increases by 1 for each additional Malice spent on this feature. If an undead is reduced to 0 Stamina during this dread march, they don’t die until the march is resolved.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+mtime: 1772746469673
+name: Undead
+traits: []
+attacks: []
+id: 4896bd82-a3b2-4f45-854d-81c22431335a
+ctime: 1756839564949

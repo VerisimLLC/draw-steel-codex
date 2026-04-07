@@ -1,0 +1,242 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "3"
+  'encounter:3 ':
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "3 "
+  encounter-2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  encounter:4 heroes:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"0307fbe8-d706-48c6-bd05-dcf22b2c674e\",\"offtokenPortraitId\": \"775d308f-449f-4a78-9f70-a023cbc11004\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4815229,\"portraitOffset\": {\"x\": 0.109337,\"y\": 0.2198557},\"frameHueShift\": 0.6902654,\"frameSaturation\": 0.7719938,\"frameBrightness\": 0.2951888,\"popoutScale\": 0.99,\"characterName\": \"Werewolf (4)\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,7,2"
+        monsters:
+          b8162089-7559-41a5-a82c-85438d3282dd: 1
+      name: Werewolf 4 Heroes
+    identifier: 4 heroes
+  encounter:5+ heroes:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"0307fbe8-d706-48c6-bd05-dcf22b2c674e\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"db9489e4-8b35-41e9-afd2-69c5eddf6510\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.01237165,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Werewolf\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,7,2"
+        monsters:
+          a704249e-ef65-4805-a3e8-4537b31371be: 1
+      name: Werewolf 5+ Heroes
+    identifier: 5+ heroes
+  encounter:Farmers:
+    __typeName: RichEncounter
+    identifier: Farmers
+    spawns: []
+    encounter:
+      __typeName: Encounter
+  encounter-3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  encounter:5+:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: "5+"
+  encounter-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: false
+  encounter:3 heroes:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"0307fbe8-d706-48c6-bd05-dcf22b2c674e\",\"offtokenPortraitId\": \"775d308f-449f-4a78-9f70-a023cbc11004\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.4815229,\"portraitOffset\": {\"x\": 0.109337,\"y\": 0.2198557},\"frameHueShift\": 0.6902654,\"frameSaturation\": 0.7719938,\"frameBrightness\": 0.2951888,\"popoutScale\": 0.99,\"characterName\": \"Werewolf (3)\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,7,2"
+        monsters:
+          8075c6d4-1fa1-4085-a83d-2a1e61447c2d: 1
+      name: Werewolf 3 Heroes
+    identifier: 3 heroes
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"cdeb7123-ab25-4fb9-a125-b41a0a62948c\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1.218635,\"portraitOffset\": {\"x\": 0.02687663,\"y\": 0.03318596},\"frameHueShift\": 0.2717332,\"frameSaturation\": 0.6044022,\"frameBrightness\": 0.4419869,\"characterName\": \"Alert Civilian\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"cbb21817-ee45-4efd-952f-adbd71cba5fa\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1.218635,\"portraitOffset\": {\"x\": -0.04340452,\"y\": -0.03733325},\"frameHueShift\": 0,\"frameSaturation\": 0.94485,\"frameBrightness\": 0.7293375,\"characterName\": \"Irritable Civilian\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"3db8b91a-ff0f-4866-aebc-775545230466\",\"offtokenPortraitId\": \"3db8b91a-ff0f-4866-aebc-775545230466\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.6376896,\"portraitOffset\": {\"x\": -0.195715,\"y\": 0.05807507},\"frameHueShift\": 0.06871383,\"frameSaturation\": 0.6044022,\"frameBrightness\": 0.4419869,\"characterName\": \"Stupid Civilian\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"eedf529b-cbaa-458f-b666-dc48ae3a1bb4\",\"offtokenPortraitId\": \"eedf529b-cbaa-458f-b666-dc48ae3a1bb4\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1.062467,\"portraitOffset\": {\"x\": 0.03730764,\"y\": 0.04148254},\"frameHueShift\": 0.623142,\"frameSaturation\": 0.563799,\"frameBrightness\": 0.3108053,\"characterName\": \"Bored Civilian\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - "{\"portraitId\": \"612f8a21-42e7-44aa-9f6d-e6f36a5c3f3c\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.9901094,\"frameSaturation\": 0.7605713,\"frameBrightness\": 0.732461,\"characterName\": \"Devious Civilian\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-10,11,2"
+        - __usertype: LuaLoc
+          loc: "-8,13,2"
+        - __usertype: LuaLoc
+          loc: "-8,12,2"
+        - __usertype: LuaLoc
+          loc: "-10,13,2"
+        - __usertype: LuaLoc
+          loc: "-9,13,2"
+        - __usertype: LuaLoc
+          loc: "-9,14,2"
+        monsters:
+          50f884a7-8b66-4cf9-b7aa-f35cb3065cd8: 6
+      name: Civilians
+    identifier: false
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: ""
+id: 65b016e9-c4bb-49e6-8b21-066c6c3bb0f8
+ctime: 1764270262406
+textStorage:
+  __typeName: TextStorage
+  sections:
+    SY: |
+      ???
+    w: |+
+      If [Mikael] doesn’t survive the encounter, then Tansy (see [B11. Furrier]) comes to find the heroes and lets them know that Mikael told them he was attacked by a wolf near the same place where her traps were destroyed. Fearing that wolf could be the werewolf who cursed [Mikael], [Tansy] begs the heroes to find and hunt the creature (see [Wolf Den]).
+
+
+    t: |+
+      The werewolf fights until reduced to 0 Stamina, at which point he reverts to his human form of Mikael (see [B10. Carpenter]). If [Mikael] survives the encounter, he begs the heroes to lock him up until they can cure him and shares any information about the wolf who attacked him that he thinks would help them.
+
+    q: |+
+      [[/awardvp 1|Award Victories]]
+
+    r: |+
+      ## Aftermath
+
+    o: |+
+      ## Ending the Encounter
+
+    p: |2+
+       The werewolf fights until reduced to 0 Stamina, at which point he reverts to his human form of Mikael the carpenter. If the heroes save at least three villagers, they earn 1 Victory each.
+
+    n: |2+
+       The werewolf focuses on attacking the villagers at the start of combat, since they're the easiest prey. If a hero interposes themself between him and the villagers, he attacks that hero first. Once the werewolf takes a total of 25 damage, he focuses fully on attacking the heroes.
+
+    l: |+
+      ## Tactics
+
+    j: |2+
+       The well at the center of the town is 4 squares deep and has less than 1 square of water in it
+
+    Sf: |
+      ???query numheroes < 4
+    MZ: |+
+      *Use the slider in the **Time of Day/Lighting** panel to adjust the lightning to nighttime.* 
+
+    f: |2+
+       Once the werewolf is out of the alley, the villagers flee as soon as they're able. 
+
+    c: |+
+      ## Stargazers
+
+    d: |2
+       The stargazing villagers, six **civilians**, take their turn at the start of each round. The werewolf has the stargazers cornered in an alley. While the werewolf blocks their path, these terrified civilians do nothing more than take the Defend action.
+    a: |
+      * For four heroes, reduce the werewolf's Stamina to 150 and decrease the damage dealt by his abilities by 2 (minimum 1).
+    b: |+
+      *  For three heroes, reduce the werewolf's Stamina to 100 and decrease the damage dealt by his abilities by 3 (minimum 1).
+
+    P: |+
+      [[setting:Number of Heroes]]
+
+    h: |+
+      ## Well
+
+    O: |+
+      [[/activateobjects WE_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects WE_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    Sm: |
+      [[encounter:3 heroes]]
+    Y: |
+      **Encounter Adjustments**
+    Z: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    W: |
+      |1|[Werewolf] |
+    X: |+
+      |2|[Werewolf] |
+
+    U: |
+      **Full Moon Groups**
+    V: |
+      |**Group**|Creatures** |
+    S: |
+      [[encounter:5+ heroes]]
+    T: |+
+      When you are ready, [Draw Steel!]
+
+    Q: |
+      [[encounter]]
+    R: |
+      ???query numheroes > 4
+    St: |+
+      ???
+
+    SF: |
+      ???
+    M: |+
+      The stargazers are **six civilians**. They are confronted by one **werewolf**.
+
+    N: |+
+      ## Combat
+
+    SR: |
+      [[encounter:4 heroes]]
+    L: |+
+      > * "The monster howls, following them at alarming speed."
+
+    I: |
+      group of villagers are enjoying some stargazing after a hard day of farm work."
+    J: |
+      > * "The peaceful scene is interrupted with a snarl as a giant bipedal wolf-human hybrid leaps into the square, snapping teeth and growling at the suddenly shrieking villagers who run down an alley."
+    G: |
+      When the event begins, the heroes are passing through the village square. 
+    H: "> * \"The light of the full moon illuminates the village square where a "
+    E: |+
+      This encounter takes place on the [Broadhurst Town Square] Map.
+
+    F: |+
+      ## Setting the Scene
+
+    C: |
+      [Mikael] the carpenter doesn’t know it, but he’s been cursed with lycanthropy and is about to turn into a werewolf. If the heroes don’t end his curse by the time they finish their tenth respite in town, this event occurs the following evening. 
+    D: |
+      See [Respite Tracker] and [B10. Carpenter].
+    SL: |
+      ???query numheroes = 4
+    B: |
+      # Full Moon
+parentFolder: 12d14293-4c85-4f3d-8830-d3e1f9f15096
+updateid: 350644b6-df9a-4e1a-a28b-5744eca1f387
+description: Full Moon
+content: "# Room 1"
+mtime: 1774905964906

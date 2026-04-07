@@ -1,0 +1,11 @@
+__typeName: Culture
+id: 2952fd47-e7ac-44a3-822d-3b48dcb98491
+group: Ancestry Cultures
+name: Polder
+languageid: d2821847-466a-4320-85d8-cabeb7835429
+mtime: 1769349234770
+aspects:
+  upbringing: 96478e46-f39b-477b-9944-eb834b5955e7
+  environment: c54e61f2-fe01-4ccf-92a7-2e553700477e
+  organization: 8fb4c210-bbfb-4179-8218-26dc6fadc705
+ctime: 1768796213381

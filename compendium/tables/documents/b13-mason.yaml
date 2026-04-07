@@ -1,0 +1,137 @@
+__typeName: MarkdownDocument
+annotations:
+  Follower:Dunq:
+    __typeName: RichFollower
+    identifier: Dunq
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: e7190a2c-0e73-4aff-bfa2-8b957577c75b
+      skills: []
+  Follower:Dunquat:
+    __typeName: RichFollower
+    identifier: Dunquat
+    follower:
+      __typeName: Follower
+      languages:
+        9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+        a7eb4785-677f-442d-bb09-7f4f0e948f0a: true
+        e110c3b1-3799-4179-b542-f842079b77f1: true
+      ancestry: a9f3759d-be9f-4c40-b610-e7a656425303
+      portrait: 26af3473-5f10-4fb1-96b6-0519b9071fd7
+      name: Dunquat
+      guid: 9f4e0ce8-adae-42fb-9e32-8483e123dbf8
+      characteristic: mgt
+      skills:
+        cdae52cd-ef20-461d-ae18-253023cdb827: true
+        436ea6c1-6386-43b2-b074-020992cc73fd: true
+        078b501f-e549-4725-993f-7ed8d57fc2ae: true
+        ac718c6f-05e2-4301-997c-b1c54aad9250: true
+  Follower:
+    __typeName: RichFollower
+    identifier: false
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 28244df6-c753-4d25-acae-29c0c3a7f55d
+      skills: []
+  Follower:Dunquar:
+    __typeName: RichFollower
+    identifier: Dunquar
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 4ede95c6-e0e7-4ff0-9282-90fbc7adf303
+      skills: []
+  "Follower:":
+    __typeName: RichFollower
+    identifier: ""
+    follower:
+      __typeName: Follower
+      languages: []
+      guid: 7fc0f086-4cfb-4f24-9b72-0a6f2a9e9140
+      skills: []
+id: aa33164b-5337-424f-bc7e-5809e6788e6a
+ctime: 1761388606887
+textStorage:
+  __typeName: TextStorage
+  sections:
+    D: |+
+      # B13. Mason
+
+
+    P: |+
+      The weary mason considers herself an artist. She loves her work and only uses the finest stone from her home city of Kal Kalavar. After coming to the town to establish herself as a big fish in a small pond over 60 years ago, most stone structures in Broadhurst now use stone from the Granite Mountains. In her mind, using another type of stone to repair or build a new structure would cause a mismatch that is beyond offense.
+
+    M: |+
+      [Dunquat] the mason has run out of stone and is now being extorted by a group of dwarf merchants at the Feather Bed Inn (see [B1. Feather Bed Inn]). She’s stubborn but reaching the end of her will.
+
+    n: |+
+      > * “If there was some way I could get that stone from the stables and just leave him our original payment … bah. Probably a bad idea. So many ways that might go wrong.”
+
+
+
+    k: |
+      > * “I might be too close to it all. If you can talk to Murkik and convince him to take the original deal, I’d be grateful. I’m out of stone.”
+    G: |
+      > * “A large, fenced-in yard with sturdy tables covered in metal tools opens before a small house.”
+    Y: |+
+      If the heroes ask [Dunquat] about her situation with the merchants or if she needs help, she provides the following information:
+
+
+    J: |+
+      > * “A stone-skinned dwarf woman with an anxious expression mutters to herself as she putters about the yard putting tools into a large burlap sack.”
+
+
+    w: |
+      [[Follower:Dunquat]]
+    h: |
+      > * “I can’t work with other stone. I won’t. The stuff from the Granite Mountains is the best. After being here for nearly 60 years, most of the stone in this town is from those mountains and the idea of a mismatch is … unacceptable.”
+    e: |
+      > * “Not only does he want the original payment, he also wants my bag. I know it doesn’t look like much, but this thing is key to my work. It’s magic and helps me carry stone to my jobs without needing to get a cart and horse.”
+    V: |
+      ## Stone Shipment
+    S: |+
+      Dunquat’s burlap sack is a [item:Quantum Satchel] that has been in her family for generations and used by many fine masons to haul stone easily.
+
+
+    t: |+
+      If a hero has enough Renown to gain a follower and doesn’t have one, they can recruit [Dunquat] as an artisan. If they do, give them the Dunquat Follower.
+
+    q: |
+      ## Follower: Dunquat
+    b: |
+      > * “Murkik, a dwarf staying at the inn, hauled some stone all the way out from Kal Kalavar for me—but he changed the deal!”
+parentFolder: 506cad1a-578e-4662-ad33-7902ebd3e52c
+updateid: 442d74a2-46a5-48f5-b0ea-762274596351
+description: B13. Mason
+content: |
+  # B13. Mason
+
+
+  > * “A large, fenced-in yard with sturdy tables covered in metal tools opens before a small house.”
+  > * “A stone-skinned dwarf woman with an anxious expression mutters to herself as she putters about the yard putting tools into a large burlap sack.”
+
+
+  [Dunquat] the mason has run out of stone and is now being extorted by a group of dwarf merchants at the Feather Bed Inn (see [B1. Feather Bed Inn]). She’s stubborn but reaching the end of her will.
+
+  The weary mason considers herself an artist. She loves her work and only uses the finest stone from her home city of Kal Kalavar. After coming to the town to establish herself as a big fish in a small pond over 60 years ago, most stone structures in Broadhurst now use stone from the Granite Mountains. In her mind, using another type of stone to repair or build a new structure would cause a mismatch that is beyond offense.
+
+  Dunquat’s burlap sack is a [Quantum Satchel] that has been in her family for generations and used by many fine masons to haul stone easily.
+
+
+  ## Stone Shipment
+  If the heroes ask [Dunquat] about her situation with the merchants or if she needs help, she provides the following information:
+
+
+  > * “Murkik, a dwarf staying at the inn, hauled some stone all the way out from Kal Kalavar for me—but he changed the deal!”
+  > * “Not only does he want the original payment, he also wants my bag. I know it doesn’t look like much, but this thing is key to my work. It’s magic and helps me carry stone to my jobs without needing to get a cart and horse.”
+  > * “I can’t work with other stone. I won’t. The stuff from the Granite Mountains is the best. After being here for nearly 60 years, most of the stone in this town is from those mountains and the idea of a mismatch is … unacceptable.”
+  > * “I might be too close to it all. If you can talk to Murkik and convince him to take the original deal, I’d be grateful. I’m out of stone.”
+  > * “If there was some way I could get that stone from the stables and just leave him our original payment … bah. Probably a bad idea. So many ways that might go wrong.”
+
+
+
+  ## Follower: Dunquat
+  If a hero has enough Renown to gain a follower and doesn’t have one, they can recruit [Dunquat] as an artisan. If they do, give them the [Dunquat Follower Card].
+mtime: 1764323714396

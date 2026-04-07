@@ -1,0 +1,29 @@
+__typeName: GlobalRuleMod
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      resourceType: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      source: Villain Actions Global Rule Mod Feature
+      behavior: resource
+      name: Villain Actions
+      guid: 4e030a76-dde6-4155-be1a-fe73461b9c3b
+      num: 0
+      description: ""
+      sourceguid: c38dfba1-fe35-48c0-a1ed-30cb6c676686
+    source: Villain Actions Global Rule Mod Feature
+    canHavePrerequisites: true
+    guid: c38dfba1-fe35-48c0-a1ed-30cb6c676686
+    name: Villain Actions
+    implementation: 3
+applyRetainers: false
+applyMonsters: true
+ctime: 1754882458998
+name: Villain Actions
+id: f232412f-23a1-4d64-9173-10f6f3290ec9
+mtime: 1754882458998
+applyCharacters: false
+applyCompanions: false

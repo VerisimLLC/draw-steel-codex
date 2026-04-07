@@ -1,0 +1,37 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 5eb8eac8-772b-4bb1-8f04-82d392eef0f4
+  sourceguid: 5f404222-50d8-4777-8754-5e2eccd2d43a
+  value: 4
+  source: Ongoing Effect
+  name: Bull Rush
+  behavior: attribute
+  description: For each 3 Malice spent, one minotaur acting this turn gains a +4 bonus to speed and ignores difficult terrain until the start of their next turn.
+  attribute: speed
+- __typeName: CharacterModifier
+  operation: add
+  sourceguid: 5f404222-50d8-4777-8754-5e2eccd2d43a
+  source: Ongoing Effect
+  value: 1
+  name: Bull Rush
+  guid: eb26e246-2d6b-4d49-bb58-9dee3fc22e6a
+  description: For each 3 Malice spent, one minotaur acting this turn gains a +4 bonus to speed and ignores difficult terrain until the start of their next turn.
+  behavior: attribute
+  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+source: Ongoing Effect
+guid: 5f404222-50d8-4777-8754-5e2eccd2d43a
+id: 5f404222-50d8-4777-8754-5e2eccd2d43a
+ctime: 1765090416096
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Bull Rush
+iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+description: For each 3 Malice spent, one minotaur acting this turn gains a +4 bonus to speed and ignores difficult terrain until the start of their next turn.
+mtime: 1765190744752
+implementation: 3

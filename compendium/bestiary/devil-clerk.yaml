@@ -1,0 +1,199 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 4954839f-4ea6-4561-88e7-60d9e6361f15
+    offtokenPortraitId: 79784822-c21c-4ae1-8d36-72d85219de7c
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3315983
+    portraitOffset:
+      x: -0.0316655
+      y: 0.2654857
+    frameHueShift: 0.78
+    frameSaturation: 0.8
+    frameBrightness: 0.67
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 8158d54a-b8ff-4526-991b-0c6bc8e72541
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 5
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    ev: 7
+    max_hitpoints_roll: "10"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; push 1
+        - 6 damage; push 2
+        - 7 damage; push 3
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c3895999-a404-4b78-b9c2-32bca288074a
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Quill Pushing
+      numTargets: 1
+      description: A target adjacent to 2 or more clerks is taunted (EoT).
+      abilityType: none
+      implementation: 3
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Devil Clerk	Level 5 Minion Brute
+        Devil, Infernal	EV 7 for four minions
+        <b>Stamina</b> 10	<b>Immunity</b> Fire 5
+        <b>Speed</b> 6	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain </b>Strike damage +2<b>Free Strike</b> 3
+        Might +3	Agility 0	Reason +1	Intuition +1	Presence +2
+        <b>Quill Pushing</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	%E2%89%A411	3 damage; push 1
+        %E2%98%85	12%E2%80%9316	6 damage; push 2
+        %E2%9C%B8	17	7 damage; push 3
+        <b>Effect</b> A target adjacent to 2 or more clerks is taunted (EoT).
+
+        <b>True Name</b>
+        If a creature within 10 squares of the clerk speaks the clerk's true name aloud, the clerk loses their fire immunity and the additional effects on their signature action.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:018163da-f429-426c-81f2-0eec89c730c7: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 38864cdb-b509-4f1b-a1d7-8da114911a67
+        behavior: resistance
+        source: Trait
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "5"
+          damageType: fire
+          apply: Damage Reduction
+        description: ""
+        name: Fire Immunity
+        guid: 6c047d23-3490-4db5-8a14-2a0f0207b964
+      name: True Name
+      description: If a creature within 10 squares speaks the clerk's true name, the clerk loses their fire immunity and any nondamaging effects of their signature ability until the end of the encounter.
+      guid: 018163da-f429-426c-81f2-0eec89c730c7
+      source: Trait
+    role: Minion Brute
+    equipment: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 5
+      damageType: fire
+      apply: Damage Reduction
+    withCaptain: +2 damage bonus to strikes
+    opportunityAttack: 3
+    damage_taken: 0
+    groupid: 2c4ebcaf-087b-4f0d-a94a-61e9b67fb70f
+    resources: []
+    walkingSpeed: 6
+    minionSquad: Devil Clerk Squad 2
+    creatureSize: 1M
+    traitNames: []
+    movementSpeeds: []
+    availableTriggers: []
+    initiativeGrouping: c1c2c77b-bc35-4bd3-adac-54fc5948cd72
+    monster_type: Devil Clerk
+    keywords:
+      Infernal: true
+      Devil: true
+  tokenType: null
+  bestiaryId: e3607679-322e-46a5-9531-1e253e692572
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1738222946034
+description: Devil Clerk
+parentFolder: f202e578-675b-4891-ad36-09c24f35518b
+artist: null
+ord: 0
+ctime: 1741590320485
+mtime: 1775201137032
+hidden: false

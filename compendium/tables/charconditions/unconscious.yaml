@@ -1,0 +1,74 @@
+__typeName: CharacterCondition
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+  source: Condition
+  modtype: double_edge
+  keywords: []
+  activationCondition: false
+  guid: e37f22f9-57cf-40ab-808a-06f362525199
+  rollType: enemy_ability_power_roll
+  domains:
+    CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+  description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+  behavior: power
+  name: Unconscious
+- __typeName: CharacterModifier
+  operation: min
+  sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+  source: Condition
+  value: "0	"
+  domains:
+    CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+  name: Unconscious
+  guid: 1866de3c-6a5f-45b5-9249-6ae76705889b
+  description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+  behavior: attribute
+  attribute: speed
+- __typeName: CharacterModifier
+  sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+  source: Condition
+  guid: f962a591-2109-4b14-927f-70e5f6c8ea14
+  conditionid: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+  name: Unconscious
+  behavior: bestowcondition
+  description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+  explanation: You are prone because you are unconscious.
+  domains:
+    CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+- __typeName: CharacterModifier
+  sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+  source: Condition
+  guid: c0127449-46e4-4626-9680-091cfd706b28
+  domains:
+    CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+  abilityFilter: Ability.action and ability.Maneuver
+  name: Unconscious
+  description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+  explanation: While you are unconscious, you can’t take main actions, maneuvers, triggered actions, free triggered actions, or free maneuvers
+  behavior: suppressabilities
+- __typeName: CharacterModifier
+  sourceguid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+  source: Condition
+  value: 1
+  domains:
+    CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+  name: Unconscious
+  guid: b323107e-57a4-4859-b5bf-86518fdcb400
+  description: While you are unconscious, you can’t take actions, maneuvers, triggered actions, free triggered actions, free maneuvers, your speed is 0, you are unaware of your surroundings, and you are prone. Attacks against you have a double boon.
+  behavior: attribute
+  attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+guid: 7fc1cea3-8e63-4915-98ef-ea2f3902f55b
+id: bfe300f4-83f9-4303-9abb-951974025e88
+ctime: 1705262208139
+domains:
+  CharacterCondition:bfe300f4-83f9-4303-9abb-951974025e88: true
+powertable: false
+display:
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Unconscious
+description: While you are unconscious, you can’t take main actions, maneuvers, triggered actions, free triggered actions, or free maneuvers; your speed is 0; you are unaware of your surroundings; and you are prone. Ability rolls against you have a double edge. If you wake up from being unconscious, you can stand up from prone as a free maneuver.
+mtime: 1774575679558
+implementation: 2
+iconid: 144134df-02dc-44cd-9e2e-3d546b31a0f2

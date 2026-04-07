@@ -1,0 +1,6022 @@
+8a23dd83-d329-41b1-89d4-26b36912b6de:
+  __typeName: ActivatedAbility
+  id: 8a23dd83-d329-41b1-89d4-26b36912b6de
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.FreeStrike or (Ability.name = "Move Speed") or (ability.name = "Spark of Life")
+      behavior: modifyability
+      guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+      name: Modify Attack
+      attributes: []
+      description: ""
+      cannotModifyAction: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Allows the target creature to choose to either move their speed, or make a free strike.
+  repeatTargets: false
+  ctime: 1770803095435
+  guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+  numTargets: "1"
+  mtime: 1770807262293
+  name: Move Speed or Make Free Strike or Spark of Life
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+952ff59e-8467-4141-aae6-d9ce35094c25:
+  __typeName: ActivatedAbility
+  id: 952ff59e-8467-4141-aae6-d9ce35094c25
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    filterAbilityTargets: target.id = <<targetid>>
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: ability.Free Strike
+      behavior: modifyability
+      guid: e62929ba-ea86-4b33-95d2-1b72eda6f8a6
+      name: Modify Attack
+      attributes: []
+      description: ""
+      cannotModifyAction: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 39bc8e2c-8609-4bfe-9522-28daa9bd4dd3
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+  ctime: 1745700018429
+  targetType: self
+  numTargets: "1"
+  mtime: 1772113231154
+  name: Free Strike Against Specific Target
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+75946ad2-cfe5-4d05-9e2a-5a70ed5173a6:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  targetFilter: target.id = <<targetid>>
+  id: 75946ad2-cfe5-4d05-9e2a-5a70ed5173a6
+  targetType: all
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "100"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 62916883-52e8-4fd6-bfc7-f1150bebd9be
+  ctime: 1745776048959
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 51784137-ac73-4966-98f7-851f5cedad93
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: "<<prompt>>"
+    autoTarget: false
+    standardAbilityParams:
+      range: "<<distance>>"
+    abilityType: standard
+    standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+  numTargets: "1"
+  description: ""
+  name: Push Specific Creature
+  repeatTargets: false
+  mtime: 1768991992521
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+dd666b48-1f8c-41b7-8156-10022b92c023:
+  __typeName: ActivatedAbility
+  id: dd666b48-1f8c-41b7-8156-10022b92c023
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: Stacks("Bloodrunner Shield Bash Movement")
+  targetType: emptyspace
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: This allows a creature to move their speed.
+  description: ""
+  ctime: 1765968918135
+  numTargets: "1"
+  targeting: pathfind
+  guid: 4934ea16-25d4-41d2-aec0-081a0903a8ea
+  name: Move Orcbloodrunner Shield Bash
+  repeatTargets: false
+  mtime: 1774539213893
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+a0cde3eb-493e-41ac-bfe0-b0ec583431af:
+  __typeName: ActivatedAbility
+  id: a0cde3eb-493e-41ac-bfe0-b0ec583431af
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 06ba221f-4462-4a01-b92e-735ecca9de1a
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: "<<prompt>>"
+    autoTarget: false
+    abilityType: named
+    namedAbility: Disengage
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Allows the target creature to choose to either move their speed, or make a free strike.
+  repeatTargets: false
+  ctime: 1747030973907
+  castImmediately: true
+  persistence: []
+  description: ""
+  name: Disengage
+  targetType: self
+  mtime: 1770658380266
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+565c5395-13d3-458c-8adf-c8ba712d42ed:
+  __typeName: ActivatedAbility
+  targetFilter: Target.ID = <<casterid>>
+  id: 565c5395-13d3-458c-8adf-c8ba712d42ed
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+    filterTarget: ""
+    duration: eoe
+    ongoingEffectCustom: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+  - __typeName: ActivatedAbilityTransformBehavior
+    duration: eoe
+    ongoingEffectCustom: false
+    replaceCaster: false
+    filterTarget: ""
+    bestiaryFilter: Beast.Name = Self.name
+    ongoingEffect: f54bdc8b-7aac-4180-865b-7ca5c3a4ce51
+    ongoingEffectSource: specific
+    casterChoosesCreatures: false
+    monsterType: custom
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "100"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: ad2138ea-df3c-4636-b59b-89aa29ff469f
+  repeatTargets: false
+  ctime: 1772111376226
+  targetType: all
+  implementation: 3
+  description: ""
+  name: Apply I Am You
+  numTargets: "1"
+  mtime: 1773819807740
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+a478d5f1-fed3-4772-9930-c3e82dc23f12:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  id: a478d5f1-fed3-4772-9930-c3e82dc23f12
+  targetAllegiance: ally
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 7b7825ea-2ad7-40e5-b25b-800c6ad39543
+  ctime: 1746335565153
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 88d0fda3-29a3-4d76-ae54-e9253c73ccb1
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    promptText: ""
+    autoTarget: false
+    standardAbilityParams:
+      numrecoveries: "<<numrecoveries>>"
+    standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+    targeting: self
+  numTargets: "<<numtargets>>"
+  name: Ally May Spend Recovery
+  description: ""
+  mtime: 1761315911637
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+21f855e5-cef6-46a9-96aa-976d1ac35a6c:
+  __typeName: ActivatedAbility
+  targetFilter: "1"
+  id: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+  behaviors:
+  - __typeName: ActivatedAbilityRememberBehavior
+    applyto: caster
+    memoryName: spacesmoved
+    calculation: cast.Forced Movement Distance
+  - __typeName: ActivatedAbilityRememberBehavior
+    applyto: caster
+    memoryName: range
+    calculation: "<<range>>"
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 88392bd2-127a-4c57-a1f9-fdddb00979f8
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    promptText: Continue sliding
+    autoTarget: false
+    standardAbilityParams:
+      range: "<<Cast.memory(\"range\") - (cast.Forced Movement Distance - cast.memory(\"spacesmoved\"))>>"
+    standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+    filterTarget: |-
+      (not cast.forced movement collision) and
+
+      ((cast.Forced Movement Distance -cast.memory("spacesmoved")) < <<range>>)
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+  targetType: anyspace
+  ctime: 1741589821188
+  numTargets: "1"
+  targeting: straightline
+  description: ""
+  name: "Forced Movement: Slide"
+  repeatTargets: false
+  mtime: 1774179221521
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+64d1be94-fd92-4d0b-92f4-a6d638089f1a:
+  __typeName: ActivatedAbility
+  id: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Usable as Signature Ability and (Ability.keywords has "Strike")
+      behavior: modifyability
+      guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+      cannotModifyAction: true
+      attributes: []
+      mustPayResourceCost: true
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: 24da8f4f-7301-4684-aa46-70cc29cb969e
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: 24da8f4f-7301-4684-aa46-70cc29cb969e
+            displayCondition: "<<edges=0>> = 1"
+            modtype: edge
+            keywords: []
+            activationCondition: "<<edges=0>> = 1"
+            guid: e1bd4f29-1a1d-4f76-bd67-15036b48dc26
+            name: Added Edges
+            domains: []
+            description: These edge(s) were added as part of invoking this ability.
+            behavior: power
+            rollType: ability_power_roll
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: 8b467e22-c22c-4058-9f01-c19d5dd04c91
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: 24da8f4f-7301-4684-aa46-70cc29cb969e
+            displayCondition: "<<edges=0>> = 2"
+            modtype: double_edge
+            keywords: []
+            activationCondition: "<<edges=0>> = 2"
+            guid: e1bd4f29-1a1d-4f76-bd67-15036b48dc26
+            name: Added Edges
+            domains: []
+            description: These edge(s) were added as part of invoking this ability.
+            behavior: power
+            rollType: ability_power_roll
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  importMatch: ""
+  ctime: 1728091875221
+  repeatTargets: false
+  targetType: self
+  numTargets: "1"
+  name: Signature Strike
+  mtime: 1771813187243
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7cb2aa05-2a8d-42ed-acd0-e1086e87beb0:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  id: 7cb2aa05-2a8d-42ed-acd0-e1086e87beb0
+  targetAllegiance: ally
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 06cfc3f1-007d-4e79-97d2-376db6004579
+  ctime: 1768728087381
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 7fe80241-1ee1-4cab-b837-1b2ffed334a2
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    autoTarget: true
+    abilityType: standard
+    standardAbilityParams:
+      targetid: "<<targetid>>"
+    standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+  numTargets: "<<targetcount>>"
+  name: Ally Makes Free Strike Against Specific Target
+  description: ""
+  mtime: 1772033363565
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+64552cb4-9124-4932-805a-847f0a49b0a8:
+  __typeName: ActivatedAbility
+  id: 64552cb4-9124-4932-805a-847f0a49b0a8
+  behaviors:
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    conditions: []
+    targetDuration: save|eot
+    purgeType: one
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 345e16d2-18b7-495b-a4f4-60ac67aa56a1
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 990f2487-a588-47b6-bf44-a753f52732bd
+  ctime: 1746256520389
+  targetType: self
+  numTargets: "1"
+  mtime: 1759285869225
+  name: Purge Save Ends Effect and Recovery
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+3e18f2b2-893d-4945-9564-cf75a5e16849:
+  __typeName: ActivatedAbility
+  id: 3e18f2b2-893d-4945-9564-cf75a5e16849
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+  repeatTargets: false
+  ctime: 1741589852397
+  targetType: anyspace
+  targeting: straightline
+  numTargets: "1"
+  name: Slide Creature
+  description: ""
+  mtime: 1770287305844
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+510e436e-6f80-4716-bdf5-080f7b7d1208:
+  __typeName: ActivatedAbility
+  targetFilter: Target has "loyalty collar"
+  id: 510e436e-6f80-4716-bdf5-080f7b7d1208
+  behaviors:
+  - __typeName: ActivatedAbilityDestroyBehavior
+    applyto: target_proximity
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "10"
+  selfTarget: true
+  testCases:
+  - text: The target’s loyalty collar detonates, killing them instantly.
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 783682bc-799c-4525-8b76-366ad9c6b9b0
+  importMatch: The target’s loyalty collar detonates, killing them instantly
+  ctime: 1747670071285
+  numTargets: "1"
+  repeatTargets: false
+  mtime: 1755557036318
+  name: Detonate Loyalty Collar
+  targetType: target
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+ae1149c4-a8d0-4ed2-84c3-a1483ad5ab74:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  id: ae1149c4-a8d0-4ed2-84c3-a1483ad5ab74
+  targetAllegiance: ally
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  numTargets: "<<numtargets>>"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 4802fd31-f7cd-4b66-8a41-d554d0dea8ec
+  repeatTargets: true
+  ctime: 1753679697670
+  description: ""
+  persistence: []
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+  name: Heroic Resource Gain for Self or Allies
+  selfTarget: true
+  mtime: 1772113224866
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7275e820-13ec-4b60-89ab-c613effb1c12:
+  __typeName: ActivatedAbility
+  id: 7275e820-13ec-4b60-89ab-c613effb1c12
+  behaviors:
+  - __typeName: ActivatedAbilityRollBehavior
+    rollDescription: Saving Throw vs <<condition>>
+    roll: 1d10 + Save Bonus
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    ongoingEffect: 1a5597af-5f16-461e-b03c-afd237291065
+    filterTarget: cast.roll >= Save Ends
+    conditions: []
+    mode: effect
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: f8319362-df95-4904-bb08-99fd614c564e
+  ctime: 1757060854478
+  targetType: self
+  numTargets: "1"
+  mtime: 1772713502823
+  name: Save vs Violence Will Not Aid Thee
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+3c471682-6ffa-44bc-bdbc-1446b66bf051:
+  __typeName: ActivatedAbility
+  id: 3c471682-6ffa-44bc-bdbc-1446b66bf051
+  behaviors:
+  - __typeName: ActivatedAbilityRollBehavior
+    filterTarget: 'Target.Complications has "Coward" and  ("<<condition>>" = "Frightened") '
+    rollDescription: Saving Throw vs <<condition>>
+    roll: 2d10kl1 + Save Bonus
+  - __typeName: ActivatedAbilityRollBehavior
+    roll: 1d10 + Save Bonus
+    guid: 51270f30-8b88-450e-8ddd-11a30a5797d3
+    rollDescription: Saving Throw vs <<condition>>
+    filterTarget: not ((Target.Complications has "Coward") and ("<<condition>>" = "Frightened"))
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    filterTarget: cast.roll >= Save Ends
+    rule: "<<condition>> immediately ends"
+  - __typeName: ActivatedAbilityCustomTriggerBehavior
+    value: Cast.Roll
+    triggerName: madesave
+  - __typeName: ActivatedAbilityCustomTriggerBehavior
+    guid: b060d7eb-7056-4ff9-9f9a-263b747a8da7
+    value: Cast.Roll
+    triggerName: madesave<<condition>>
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: f8319362-df95-4904-bb08-99fd614c564e
+  ctime: 1710057818682
+  targetType: self
+  numTargets: "1"
+  mtime: 1772733645373
+  name: Save
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7d345683-87a2-436d-9816-981676c61d52:
+  __typeName: ActivatedAbility
+  targetFilter: not enemy
+  id: 7d345683-87a2-436d-9816-981676c61d52
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: b6904e5b-626e-40a3-b8d6-84ed24970495
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Choose ally to grant temporary stamina
+    filterTarget: ""
+    standardAbilityParams:
+      tempstamina: "<<tempstamina>>"
+    abilityType: standard
+    standardAbility: 60b012ab-dde8-4246-afc2-5a9b32e660ef
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  numTargets: "<<numtargets>>"
+  modifiers: []
+  source: Monster
+  guid: d90e72d2-f6ac-4fb2-a729-4411b6f09ebe
+  repeatTargets: false
+  ctime: 1746075409562
+  documentation: This will grant temporary stamina to an ally within range.
+  mtime: 1747379284918
+  name: Grant Temp Stamina to Ally
+  selfTarget: true
+  targetType: target
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+0cec8b9b-4a80-44aa-86b5-2e2a85e4be2c:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityFloatTextBehavior
+    text: "<<text>>"
+    color: "#ffffffff"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: e9538add-ad53-4e86-914b-86673a8e5251
+  numTargets: "1"
+  ctime: 1752043756821
+  castImmediately: true
+  id: 0cec8b9b-4a80-44aa-86b5-2e2a85e4be2c
+  mtime: 1765262106379
+  name: Float Text
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+362a8107-45f8-4698-92fd-194a55ae8d72:
+  __typeName: ActivatedAbility
+  id: 362a8107-45f8-4698-92fd-194a55ae8d72
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.FreeStrike or (Ability.name = "Move Speed")
+      behavior: modifyability
+      guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+      name: Modify Attack
+      attributes: []
+      description: ""
+      cannotModifyAction: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Allows the target creature to choose to either move their speed, or make a free strike.
+  repeatTargets: false
+  ctime: 1742766487961
+  guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+  numTargets: "1"
+  mtime: 1772552144985
+  name: Move Speed or Make Free Strike
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+95c5b028-a036-400c-93a5-9c7f36bcafe8:
+  __typeName: ActivatedAbility
+  id: 95c5b028-a036-400c-93a5-9c7f36bcafe8
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Usable as Signature Ability or (Ability.Categorization = "Heroic Ability" and Ability.HeroicResourceCost < 8)
+      behavior: modifyability
+      guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+      cannotModifyAction: true
+      attributes: []
+      mustPayResourceCost: false
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: The target uses an ability with a base Heroic Resource cost of 7 or lower that they’ve previously used this round, without needing to spend the base cost. Augmentations to the ability can be paid for as usual.
+  importMatch: ""
+  ctime: 1759510002573
+  targetType: self
+  persistence: []
+  description: the target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  name: Flashback
+  repeatTargets: false
+  mtime: 1767717711820
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+8010820f-6bf3-422f-985b-2af02f620113:
+  __typeName: ActivatedAbility
+  id: 8010820f-6bf3-422f-985b-2af02f620113
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: jump
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<distance>>"
+  targetType: emptyspace
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Allows a creature to jump a certain number of squares
+  description: ""
+  ctime: 1746929754557
+  numTargets: "1"
+  targeting: direct
+  guid: c7c40bf4-e8f8-4258-b2b0-185b7760e579
+  name: Jump
+  repeatTargets: false
+  mtime: 1764120510796
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+1d55d541-6a64-4717-9a0e-08babceab7ef:
+  __typeName: ActivatedAbility
+  id: 1d55d541-6a64-4717-9a0e-08babceab7ef
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    filterAbilityTargets: target.id = <<targetid>>
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: (ability.keywords has "Strike") and Ability.Usable as Signature Ability
+      behavior: modifyability
+      guid: e62929ba-ea86-4b33-95d2-1b72eda6f8a6
+      cannotModifyAction: true
+      attributes: []
+      mustPayResourceCost: true
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 39bc8e2c-8609-4bfe-9522-28daa9bd4dd3
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: 621a9ab8-9541-4040-9bc0-7da7a9081780
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: 621a9ab8-9541-4040-9bc0-7da7a9081780
+            modtype: edge
+            keywords: []
+            activationCondition: true
+            guid: 68e468db-3909-475d-a1d2-d65eb03c7212
+            filterCondition: "<<hasedge>>"
+            name: Edge
+            behavior: power
+            description: 'You have an edge on the strike '
+            rollType: ability_power_roll
+            domains: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+  ctime: 1746341758415
+  targetType: self
+  numTargets: "1"
+  mtime: 1765298002557
+  name: Signature Strike Against Specific Target
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+0a68f64c-67f7-4279-9741-38aedaab7029:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Strike: true
+    Melee: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Basic Attack
+  range: 1
+  id: 0a68f64c-67f7-4279-9741-38aedaab7029
+  numTargets: "1"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 3864e1cf-56fb-4bed-a200-de3bff3392ab
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  ctime: 1738219154119
+  castImmediately: false
+  implementation: 4
+  description: Monster Free Strike
+  name: Melee Free Strike
+  behaviors:
+  - __typeName: ActivatedAbilityDamageBehavior
+    roll: 2*charges
+  mtime: 1771254818415
+  abilityType: none
+  iconid: 391aec7f-87ba-4b36-9c2b-2b478ff823d8
+14c386b6-693c-4abf-aebe-3b5f5a017886:
+  __typeName: ActivatedAbility
+  targetFilter: "<<targetfilter>>"
+  id: 14c386b6-693c-4abf-aebe-3b5f5a017886
+  targetType: emptyspace
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<distance>>"
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: shift
+  testCases:
+  - text: An ally within 4 shifts 3 squares
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 12e9b308-313f-4688-87fb-a040094aaa63
+  importMatch: shifts <<distance>> squares
+  ctime: 1709449032024
+  numTargets: "1"
+  targeting: pathfind
+  repeatTargets: false
+  name: Shift
+  description: ""
+  mtime: 1774540069730
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+1de07d8e-11c3-4621-9055-bb8e26c9a40f:
+  __typeName: ActivatedAbility
+  targetFilter: ""
+  id: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+  targetType: emptyspace
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: fea09ebf-c4dd-46ef-b132-f28ead5e007c
+  importMatch: ""
+  ctime: 1709448928341
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+  numTargets: "1"
+  mtime: 1772947781732
+  name: Teleport
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+bd9f9431-2ee2-41c1-81cb-c08570144cb9:
+  __typeName: ActivatedAbility
+  targetFilter: "<<targetfilter>>"
+  id: bd9f9431-2ee2-41c1-81cb-c08570144cb9
+  targetType: emptyspace
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  mtime: 1774540081579
+  categorization: Hidden
+  range: "<<distance>>"
+  repeatTargets: false
+  testCases:
+  - text: ""
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 12e9b308-313f-4688-87fb-a040094aaa63
+  importMatch: ""
+  ctime: 1759254967533
+  importMatchType: rules
+  targeting: pathfind
+  numTargets: "1"
+  name: Shift and Hide
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: shift
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    invokeOnCaster: true
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 7acb3c73-de02-4257-a712-588a111494f5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    standardAbility: 9683c15c-de03-4129-869c-d4054928cf97
+    abilityType: standard
+    applyto: caster
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7fe11a31-aa56-4479-abe3-06c7b51da51f:
+  __typeName: ActivatedAbility
+  targetFilter: not enemy
+  id: 7fe11a31-aa56-4479-abe3-06c7b51da51f
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Allows a creature to delegate one of their allies within a certain range to make a free strike.
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    runOnController: true
+    autoTarget: false
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 63cbaa24-aa44-4a0f-b3bd-88358a9a44f3
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+  ctime: 1742768427138
+  numTargets: "<<numcreatures>>"
+  mtime: 1760485290638
+  repeatTargets: false
+  name: Delegate Free Strike
+  guid: 28fbc177-4007-49d2-9e89-198d7078aa4a
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+ff207e74-c97e-488c-a287-8fc8a2cbf32e:
+  __typeName: ActivatedAbility
+  id: ff207e74-c97e-488c-a287-8fc8a2cbf32e
+  behaviors:
+  - __typeName: ActivatedAbilityRollBehavior
+    rollDescription: Saving Throw vs <<condition>>
+    roll: 1d10 + Save Bonus
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    ongoingEffect: e234f1f4-9953-43bd-894c-d96adbb63f84
+    filterTarget: cast.roll >= Save Ends
+    conditions: []
+    mode: effect
+  - __typeName: ActivatedAbilityCustomTriggerBehavior
+    guid: 4ccb368b-ccba-4dcd-a85c-7d5363e42472
+    value: Cast.Roll
+    triggerName: madesave
+  - __typeName: ActivatedAbilityCustomTriggerBehavior
+    guid: f519bd20-dca7-496c-a13d-3233021be627
+    value: Cast.Roll
+    triggerName: madesave<<condition>>
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: f8319362-df95-4904-bb08-99fd614c564e
+  ctime: 1744994147674
+  targetType: self
+  numTargets: "1"
+  mtime: 1772713449581
+  name: Save vs Ongoing Effect
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+03737f6c-d015-4be0-8828-8e59371226ef:
+  __typeName: ActivatedAbility
+  id: 03737f6c-d015-4be0-8828-8e59371226ef
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - You fail the task with a consequence.
+    - You succeed in the task with a consequence.
+    - You succeed in the task.
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 23bc49c4-3466-4e20-a6d7-317c40a7ecc7
+  ctime: 1717568549818
+  targetType: self
+  numTargets: "1"
+  mtime: 1752390333543
+  name: Medium Test
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7261e5a7-864e-451d-a516-fcc6432053d5:
+  __typeName: ActivatedAbility
+  id: 7261e5a7-864e-451d-a516-fcc6432053d5
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 2 damage
+    - 4 damage
+    - 8 damage
+    roll: 2d6 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 1ab56d7f-f76a-47de-a909-e9f28f5b79a7
+  ctime: 1709448919477
+  targetType: target
+  numTargets: "1"
+  mtime: 1770264233269
+  name: Ability Power Roll
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+fe1648f3-9dac-4a52-9383-77648aca2f87:
+  __typeName: ActivatedAbility
+  id: fe1648f3-9dac-4a52-9383-77648aca2f87
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 0af5b375-fd1c-488c-bef6-8395edccc9fd
+  importMatch: ""
+  ctime: 1728024819749
+  numTargets: "1"
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: ability.name has "Domain Effect"
+      behavior: modifyability
+      guid: e5c251d7-37e5-4e94-a7ae-8bba61f94326
+      name: Modify Attack
+      attributes: []
+      description: ""
+      cannotModifyAction: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: e3bce988-47ed-4a7b-b966-7462653ca603
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  mtime: 1759254953642
+  name: Conduit Domain Effect
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42:
+  __typeName: ActivatedAbility
+  id: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      cannotModifyAction: true
+      filterAbility: Ability.Usable as Free Strike
+      behavior: modifyability
+      guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+      mustPayResourceCost: true
+      replaceBehaviors: before
+      name: Modify Attack
+      attributes: []
+      description: ""
+      source: ""
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityCustomTriggerBehavior
+          applyto: caster
+          value: ""
+          triggerName: makefreestrike
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Allows the target creature to make a free strike.
+  repeatTargets: false
+  ctime: 1742768318620
+  guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+  numTargets: "1"
+  mtime: 1771254529118
+  name: Make Free Strike
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+d0e195e1-8b49-47fa-9805-0580eac0505f:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      implementationDetails: "This ability is tied to the Flying Circus benefit of Troupe Leading Player. \v\vIt presents two options, to fall the full heifht of the fall or spend a manuever to reduce the effective height of the fall. The player selects the option and the fall occurs."
+      targetType: self
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - variation:
+          __typeName: ActivatedAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 110acfa9-741e-42fc-acdf-af43513aa556
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityDelayBehavior
+            delay: "0.5"
+          - __typeName: ActivatedAbilityFallBehavior
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Ability
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 50e0741d-ae2d-474b-9b85-5f8daa53cbc0
+          castImmediately: false
+          targetType: self
+          numTargets: "1"
+          name: Reduce Fall
+          domains: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        text: Full Fall
+        hasAbility: true
+        rules: The full fall of the height applies.
+      - text: Reduce Fall by 2
+        hasAbility: true
+        condition: Resources.Maneuver > 0
+        rules: Use your maneuver to reduce the effective height of your fall by 2 squares.
+        variation:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          targetType: self
+          strain: []
+          guid: 151286a2-d97d-4f5c-af1f-59dbdeb81dd4
+          repeatTargets: false
+          abilityType: none
+          domains: []
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+            stacks: "2"
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: 110acfa9-741e-42fc-acdf-af43513aa556
+            mode: effect
+            conditions: []
+          - __typeName: ActivatedAbilityDelayBehavior
+            delay: "0.5"
+          - __typeName: ActivatedAbilityFallBehavior
+          - __typeName: ActivatedAbilityDelayBehavior
+            delay: "2"
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+            mode: effect
+            conditions: []
+          persistence: []
+          name: Reduce Fall
+          categorization: Ability
+          description: Use your maneuver to reduce the effective height of your fall by 2 squares
+          range: 1
+          iconid: ui-icons/skills/1.png
+      guid: 3d952225-21dc-4910-a004-191c6cde5a3a
+      behaviors: []
+      castImmediately: false
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Reduce Fall
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      implementation: 3
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: f434c7e6-5ab0-4e92-a5b7-a23b0f819b54
+  numTargets: "1"
+  ctime: 1769515384016
+  castImmediately: true
+  id: d0e195e1-8b49-47fa-9805-0580eac0505f
+  mtime: 1769517001246
+  name: Prompt Ally to Reduce Fall - Flying Circus
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+4a993863-896f-47d0-8449-74c1fe2279b0:
+  __typeName: ActivatedAbility
+  targetFilter: "<<targetfilter>>"
+  id: 4a993863-896f-47d0-8449-74c1fe2279b0
+  targetType: emptyspace
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<distance>>"
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  testCases:
+  - text: An ally within 4 shifts 3 squares
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 12e9b308-313f-4688-87fb-a040094aaa63
+  importMatch: shifts <<distance>> squares
+  ctime: 1771170078308
+  numTargets: "1"
+  targeting: pathfind
+  repeatTargets: false
+  name: Move
+  description: ""
+  mtime: 1774876530290
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+8536b5a3-fe3e-4b7d-962b-a3d194bbcdd8:
+  __typeName: ActivatedAbility
+  id: 8536b5a3-fe3e-4b7d-962b-a3d194bbcdd8
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Categorization = "Heroic Ability"
+      behavior: modifyability
+      guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+      name: Modify Attack
+      attributes: []
+      description: ""
+      cannotModifyAction: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: The target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  importMatch: ""
+  ctime: 1746299059714
+  targetType: self
+  persistence: []
+  description: 'The target immediately uses an ability that costs 7 or fewer heroic resources that they’ve previously used this round without spending any heroic resources. '
+  name: Heroic Ability
+  repeatTargets: false
+  mtime: 1759510257566
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+4af4ccee-f664-43d2-b971-3abaec71aa42:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  id: 4af4ccee-f664-43d2-b971-3abaec71aa42
+  targetAllegiance: ally
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  numTargets: "<<numtargets>>"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 7b7825ea-2ad7-40e5-b25b-800c6ad39543
+  repeatTargets: false
+  ctime: 1755299100252
+  description: ""
+  persistence: []
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 88d0fda3-29a3-4d76-ae54-e9253c73ccb1
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    promptText: ""
+    autoTarget: false
+    standardAbilityParams:
+      numrecoveries: "<<numrecoveries>>"
+    standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+    targeting: self
+  name: Self Or Ally May Spend Recovery
+  selfTarget: true
+  mtime: 1759800527126
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+f629b9ed-26d2-446f-9963-47442d1db580:
+  __typeName: ActivatedAbility
+  id: f629b9ed-26d2-446f-9963-47442d1db580
+  behaviors:
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: Hidden (EoE)
+  - __typeName: ActivatedAbilityReplenishBehavior
+    resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+    chatMessage: Gain 1 Surge
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Used if a creature may hide while using an ability. e.g. Black Ash Teleport.
+  importMatch: ""
+  ctime: 1756681329531
+  targetType: self
+  persistence: []
+  description: ""
+  name: Caster May Hide And Gain A Surge
+  repeatTargets: false
+  mtime: 1771336740404
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+335645eb-46a4-4e93-948c-3f345b7300a3:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  targetFilter: ""
+  id: 335645eb-46a4-4e93-948c-3f345b7300a3
+  targetAllegiance: enemy
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    targeting: prompt
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    filterTarget: ""
+    namedAbility: ""
+    abilityType: named
+    standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+  - __typeName: ActivatedAbilityDamageBehavior
+    roll: "3"
+    chatMessage: Split Shot
+  testCases:
+  - text: One ally adjacent to the target can make a free strike against them.
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Used for Dwarf Gunner's Split Shot feature.
+  importMatch: creature or object adjacent to the target takes damage.
+  ctime: 1772113322969
+  description: ""
+  numTargets: "1"
+  guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+  name: Adjacent Enemy Takes Damage
+  repeatTargets: false
+  mtime: 1772113322969
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+debaff0b-bf70-4d47-8721-90d2909265f2:
+  __typeName: ActivatedAbility
+  id: debaff0b-bf70-4d47-8721-90d2909265f2
+  behaviors:
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    mode: conditions
+    targetDuration: all
+    conditions: []
+    purgeType: one
+    chatMessage: Fountains Roar, Now Free From the Earth
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    namedAbility: Move Speed
+    abilityType: named
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 3dd52195-ab40-4a4c-9bff-0ef4846a56ef
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 990f2487-a588-47b6-bf44-a753f52732bd
+  ctime: 1770290693852
+  targetType: self
+  numTargets: "1"
+  mtime: 1770290693852
+  name: Purge One Chosen Effect then Move Speed
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+2551c517-4599-4aaf-bdff-e4b678910e2d:
+  __typeName: ActivatedAbility
+  id: 2551c517-4599-4aaf-bdff-e4b678910e2d
+  behaviors:
+  - __typeName: ActivatedAbilityHealBehavior
+    roll: Recovery Value
+  - __typeName: ActivatedAbilityReplenishBehavior
+    resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+    mode: expend
+    chatMessage: "<<expendmessage>>"
+    quantity: "<<expendrecovery>>"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  resourceCost: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+  numTargets: "<<targets>>"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: d9e4b3a4-8e76-4e48-8506-00c2d43da77d
+  repeatTargets: false
+  ctime: 1745732480488
+  targetType: target
+  persistence: []
+  mtime: 1767500669862
+  selfTarget: true
+  name: Ally Heals Recovery Value
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8:
+  __typeName: ActivatedAbility
+  targetFilter: "<<targetfilter>>"
+  id: 4963b93d-cb3a-409b-a0df-4d8b9bdeeeb8
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 03a946fd-5989-4f32-bc45-f149a6f2873b
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    inheritRange: true
+    promptText: Choose teleport target
+    autoTarget: false
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: cc9bf794-a8d0-4c4f-a3e2-f8a976ac98c7
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+  ctime: 1746144875751
+  numTargets: "1"
+  mtime: 1772947001690
+  repeatTargets: false
+  selfTarget: true
+  name: Teleport a creature within range
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+eb6f2a60-eec0-4bce-853d-ea0a4c1b4260:
+  __typeName: ActivatedAbility
+  targetFilter: not enemy
+  id: eb6f2a60-eec0-4bce-853d-ea0a4c1b4260
+  targetType: all
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<radius>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: fdb306b9-8ac9-43a0-9190-a92df0b5dc34
+  importMatch: ""
+  ctime: 1727841239155
+  behaviors:
+  - __typeName: ActivatedAbilityDamageBehavior
+    roll: "<<damage>>"
+    filterTarget: ""
+  numTargets: "1"
+  mtime: 1756499661911
+  name: Damage Target and Proximity
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+9683c15c-de03-4129-869c-d4054928cf97:
+  __typeName: ActivatedAbility
+  id: 9683c15c-de03-4129-869c-d4054928cf97
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 13fbb977-7be0-4d9b-b3b8-9d22c35e0ba6
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6534dd12-d084-4533-9d7c-727d6d92f043
+  ctime: 1754546076439
+  targetType: self
+  numTargets: "1"
+  mtime: 1760189944722
+  name: Hide if in Cover or Concealment
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+3eb274a5-7c93-43fa-81a2-064b5b199894:
+  __typeName: ActivatedAbility
+  id: 3eb274a5-7c93-43fa-81a2-064b5b199894
+  keywords:
+    Strike: true
+    Melee: true
+    Weapon: true
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 2 damage
+    - 3 damage
+    - 5 damage
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 768fcc82-46c2-4a44-8366-861408e77f9e
+  targetType: target
+  ctime: 1751140104784
+  documentation: This is a generic opportunity attack used by the rules engine to validate whether a free strike is possible (if there would be a bane on it when used)
+  numTargets: "1"
+  description: ""
+  name: Generic Opportunity Attack
+  repeatTargets: false
+  mtime: 1751140104784
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7891188c-3bba-4649-b533-4c73127d0add:
+  __typeName: ActivatedAbility
+  id: 7891188c-3bba-4649-b533-4c73127d0add
+  behaviors:
+  - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+    instant: false
+    momentaryEffect:
+      __typeName: CharacterOngoingEffect
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: e74c1f88-6430-4e93-a9cd-28c607919709
+        source: Ongoing Effect
+        value: "<<targetid>>"
+        name: Compelled Movement
+        guid: 412285f2-5630-4562-9899-15aeb4376480
+        description: ""
+        behavior: attribute
+        attribute: 3b730c1c-2818-4876-b6d1-949969e04572
+      source: Ongoing Effect
+      guid: e74c1f88-6430-4e93-a9cd-28c607919709
+      id: e74c1f88-6430-4e93-a9cd-28c607919709
+      name: Compelled Movement
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      description: ""
+      implementation: 3
+      iconid: ui-icons/skills/1.png
+    name: Ability Duration Effect
+    lingerTime: 3
+    applyto: caster
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: da4e22fd-6861-4d19-95f8-395a71493df8
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Use this to compel movement adjacent to creature with a specific ID.
+  repeatTargets: false
+  ctime: 1760750465217
+  castImmediately: true
+  persistence: []
+  description: ""
+  name: Compel Movement Adjacent
+  targetType: self
+  mtime: 1772970568700
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+0ca5fc04-6068-4f47-b5c6-936d3a595f24:
+  __typeName: ActivatedAbility
+  objectTarget: true
+  repeatTargets: false
+  keywords:
+    Ranged: true
+    Strike: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Basic Attack
+  range: 5
+  description: ""
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 8c0c9118-1554-4b79-9bf6-64352c89f71a
+  id: 0ca5fc04-6068-4f47-b5c6-936d3a595f24
+  ctime: 1715748044543
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  numTargets: "1"
+  implementation: 4
+  name: Ranged Free Strike
+  behaviors:
+  - __typeName: ActivatedAbilityDamageBehavior
+    roll: 2*Charges
+    chatMessage: ""
+  mtime: 1771254822264
+  abilityType: none
+  iconid: 0a199b9f-d61f-4b6f-b07f-e46f26347fb9
+dfb59889-b651-40a6-80be-56d38bd34198:
+  __typeName: ActivatedAbility
+  id: dfb59889-b651-40a6-80be-56d38bd34198
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    namedAbility: Move Speed
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 9305ede6-0f2d-4988-9db6-4face06dbfa1
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: named
+    promptText: Move Speed and Make Melee Free Strike
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    abilityType: standard
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 0b5c7779-d0b0-464b-ae32-8eb15380f683
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+    promptText: Make Melee Free Strike
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: Movement Speed
+  targetType: self
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Creature can move up to their speed and make a melee free strike
+  description: ""
+  ctime: 1755089382027
+  numTargets: "1"
+  targeting: straightpath
+  guid: abe7e351-4175-4200-aeb6-aace3619d47d
+  name: Move Speed and Make Melee Free Strike
+  repeatTargets: false
+  mtime: 1774539096560
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+d850ed29-a923-4d94-ae76-1994ce2a7cb9:
+  __typeName: ActivatedAbility
+  id: d850ed29-a923-4d94-ae76-1994ce2a7cb9
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  targetType: emptyspace
+  forcedMovement: push
+  range: Stacks("Bloodrunner Shield Bash Movement")
+  categorization: Hidden
+  guid: 4934ea16-25d4-41d2-aec0-081a0903a8ea
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: This allows a creature to move their speed.
+  numTargets: "1"
+  ctime: 1765977462345
+  implementation: 3
+  targeting: straightline
+  mtime: 1765978046598
+  name: 'Force Move Orcbloodrunner Shield Bash '
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+090c096b-0841-45db-bb48-175f51a3bf75:
+  __typeName: ActivatedAbility
+  targetFilter: not enemy
+  id: 090c096b-0841-45db-bb48-175f51a3bf75
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  testCases:
+  - text: An ally within 4 shifts 5 squares
+  numTargets: "<<count>>"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: e56f905e-5669-4dea-ae8a-dd03c5042a06
+  importMatch: "<<count>> (ally|allies) within <<distance>> shifts? <<range>> squares?"
+  ctime: 1743559927444
+  repeatTargets: false
+  persistence: []
+  description: ""
+  name: Ally Shift
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: ac286ca0-1b21-46a1-8885-2ce015d18d50
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Choose where to shift
+    autoTarget: false
+    standardAbilityParams:
+      distance: "<<distance>>"
+      targetfilter: "<<locationfilter>>"
+    abilityType: standard
+    standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+  mtime: 1751515097216
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+dc7c2d16-098d-4966-bdf7-8c611da7be1f:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  targetFilter: ""
+  id: dc7c2d16-098d-4966-bdf7-8c611da7be1f
+  targetAllegiance: ally
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    runOnController: true
+    promptText: "<<prompt>>"
+    standardAbilityParams:
+      edges: "<<hasedge>>"
+      targetid: ""
+      hasedge: ""
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 0c693b9b-a1a3-40ef-89bd-ff4dce8db9bc
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: 64d1be94-fd92-4d0b-92f4-a6d638089f1a
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  numTargets: "<<targetcount>>"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6e0df17b-c32e-4c0a-8732-b35584fd21da
+  ctime: 1774734096665
+  targetType: target
+  description: ""
+  persistence: []
+  name: Ally Makes Signature Strike
+  repeatTargets: false
+  mtime: 1774734096665
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+a46508d1-6b6d-4d2a-94ad-7ac4446247f4:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  id: a46508d1-6b6d-4d2a-94ad-7ac4446247f4
+  behaviors:
+  - __typeName: ActivatedAbilityConditionSourceBehavior
+    mode: caster
+    conditionMode: caster
+    condid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "100"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 4d9088d1-3569-4de3-9e2a-7761957633ac
+  ctime: 1764487798411
+  targetType: target
+  repeatTargets: false
+  numTargets: "1"
+  name: SetConditionCaster
+  mtime: 1765298022794
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+e1d11d63-d396-4182-8e9b-d30f70689720:
+  __typeName: ActivatedAbility
+  guid: 501477b9-ea6e-4f11-9541-63fb68898644
+  id: e1d11d63-d396-4182-8e9b-d30f70689720
+  keywords: []
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityCharacterSpeechBehavior
+    applyto: caster
+    variations:
+    - I stand firm!
+    - You shall not move me.
+    - I will not be moved!
+    - I will not budge
+    - I shall not budge!
+    fallbackText: Too Much Stability
+  recordTargets: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  countsAsCast: true
+  categorization: Hidden
+  range: 1
+  description: ""
+  skippable: true
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: ""
+  notooltip: true
+  ctime: 1770949381028
+  castImmediately: true
+  invoker:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    max_hitpoints: 60
+    inflictedConditions: []
+    ev: 16
+    max_hitpoints_roll: "60"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 1
+        id: mgt
+      rea:
+        baseValue: 2
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      implementationDetails: 'Squares are not made to be difficult terrain cuurently. '
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 8
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: d093b007-9e60-4489-b48c-d182d7a79b8e
+      numTargets: 2
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; pull 2
+        - 10 damage; pull 3
+        - 13 damage; pull 4
+        roll: 2d10 + 2
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      name: Shadow Drag
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: Each target must be on the ground, and each square a target is pulled through is difficult terrain for enemies.
+      abilityType: none
+      implementation: 2
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      implementationDetails: 'Select the damage type after selecting the ability. '
+      targetType: all
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      preDescription: "The channeler chooses one of the following damage types: acid, cold, corruption, fire, or poison."
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Acid
+      - text: Cold
+      - text: Corruption
+      - text: Fire
+      - text: Poison
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 acid damage; M<0 bleeding (save ends)
+        - 3 acid damage; M<1 bleeding (save ends)
+        - 4 acid damage; M<2 bleeding (save ends)
+        roll: 2d10 + 2
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 cold damage; M<0 bleeding (save ends)
+        - 3 cold damage; M<1 bleeding (save ends)
+        - 4 cold damage; M<2 bleeding (save ends)
+        guid: deb02ff0-7b68-4e8c-b4ce-70beab962d10
+        modesSelected:
+        - 2
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage; M<0 bleeding (save ends)
+        - 3 corruption damage; M<1 bleeding (save ends)
+        - 4 corruption damage; M<2 bleeding (save ends)
+        guid: 319e5730-518e-4417-859a-e1e58cf7ef17
+        modesSelected:
+        - 3
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 fire damage; M<0 bleeding (save ends)
+        - 3 fire damage; M<1 bleeding (save ends)
+        - 4 fire damage; M<2 bleeding (save ends)
+        guid: 4ce93d98-6cb3-4b59-9685-9b94534d640f
+        modesSelected:
+        - 4
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 poison damage; M<0 bleeding (save ends)
+        - 3 poison damage; M<1 bleeding (save ends)
+        - 4 poison damage; M<2 bleeding (save ends)
+        guid: 38727b61-c654-4b86-88b3-20dc405b71e6
+        modesSelected:
+        - 5
+        roll: 2d10 + 2
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      range: 3
+      name: Blistering Element
+      guid: bbc6b6f4-6352-4784-91a1-5fb6cea19b88
+      description: ""
+      abilityType: none
+      implementation: 2
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      implementationDetails: ""
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 2f1f3167-ff79-4f70-b72a-4a4b5f0db8c6
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 corruption damage; P<0 slowed (save ends)
+        - 8 corruption damage; P<1 the target is shapechanged (save ends)
+        - 11 corruption damage; P<2 the target is shapechanged (save ends)
+        roll: 2d10 + 2
+      numTargets: 1
+      implementation: 2
+      name: Twist Shape
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: |-
+        A shapechanged creature is slowed and has fire
+        weakness 10 as their limbs stretch and their skin becomes
+        paper thin.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      targetFilter: Conditions has "grabbed"
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+      implementationDetails: 'It checks that the target is grabbed, but does not limit it to targets grabbed by the channeler. '
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: c2236f41-1036-4bac-a7ca-569003d6ad8b
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      persistence: []
+      implementation: 2
+      name: Throw
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Friends(caster,Target)
+        duration: 0
+        ongoingEffectCustom: false
+        ongoingEffect: b510f03a-75a6-465a-bbe6-8acb648bb9e5
+        stacks: "3"
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: vertical push 3
+      description: |-
+        Vertical push 3. An ally target doesn't take damage from being force moved.
+
+        **Special:** The target must be grabbed by you.
+      abilityType: none
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    ongoingEffects: []
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        dfdb03c5-15e5-44ee-8205-48c2ea910fd1:
+          note: 4 damage from VEX ELEMENTESTLIST's Burning Grounds
+          disposition: bad
+          timestamp: 1771247917834
+          attackerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 52
+        ca584e04-ca25-41bf-8980-a16544824dca:
+          note: 3 damage from Mumbling Bugbear Channeler's Collision
+          disposition: bad
+          timestamp: 1771842745369
+          attackerid: d4933371-4ce5-4de8-8d41-688c4e0d6193
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 45
+        375bc7e0-8a2a-42f0-99ea-ad9cd081f122:
+          note: 4 damage from VEX ELEMENTESTLIST's Burning Grounds
+          disposition: bad
+          timestamp: 1771247851239
+          attackerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 56
+        450498a1-349e-4f1e-9c7b-d17b3b2e44f6:
+          note: 4 damage from VEX ELEMENTESTLIST's Burning Grounds
+          disposition: bad
+          timestamp: 1771248049583
+          attackerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 48
+    minion: false
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Bugbear Channeler	Level 2 Elite Controller
+        Bugbear, Goblin, Humanoid, Fey	EV 16
+        <b>Stamina</b> 60
+        <b>Speed</b> 5	<b>Size</b> 1L /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +1	Agility +1	Reason +2	Intuition +2	Presence +2
+        <b>Shadow Drag</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Strike, Ranged
+        <b>Distance</b> Ranged 8<b>	Target</b> 2 creatures or objects on the ground
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; pull 2
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; pull 3
+        %E2%9C%B8	<b>17</b>	13 damage; pull 4
+        <b>Effect</b> Each square that a target is pulled through becomes difficult terrain for enemies.
+
+        <b>Blistering Element</b> (Action)%E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage; M<0 bleeding (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	3 damage; M<1 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	4 damage; M<2 bleeding (save ends)
+        <b>Effect</b> The channeler chooses one of the following damage types for the damage: acid, cold, corruption, fire, or poison.
+
+        <b>Twist Shape</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 5 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 corruption damage; P<0 slowed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	8 corruption damage; P<1 shapechanged (save ends)
+        %E2%9C%B8	<b>17</b>	11 corruption damage; P<2 shapechanged (save ends)
+        <b>Effect</b> A shapechanged creature has their limbs violently stretched and their skin becomes paper thin. They are slowed and have fire weakness 10 while they have this effect.
+
+        <b>Throw</b> (Maneuver)
+        <b>Keywords</b> Attack, Melee
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object grabbed by the channeler
+        <b>Effect</b> Vertical push 3. An ally target doesn't take damage from being force moved.
+
+        <b>Catcher</b> (Free Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Melee 1<b>	Target</b> 1 size 1 creature or object
+        <b>Trigger</b> The target is force moved into a square adjacent to the channeler.
+        <b>Effect</b> The target is grabbed by the channeler.
+
+        <b>Shadow Veil</b> (Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> Magic, Ranged
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 ally
+        <b>Trigger</b> The target takes damage.
+        <b>Effect</b> The channeler collapses the target into their shadow and halves the damage. The target can't be targeted by strikes until they reform from the shadows at the start of their next turn.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:46e1891f-8463-4676-978f-4685cb36d5ef: true
+        sourceguid: 46e1891f-8463-4676-978f-4685cb36d5ef
+        description: " "
+        source: Character Feature
+        name: Catcher
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: subject
+          triggerPrompt: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          hasManualVersion: true
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "20"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: finishmove
+          conditionFormula: ((Not Friends(self, Subject)) and Path.DistanceToCreature(Self) <= 1 and path.Forced) or (Friends(self, subject) and Path.DistanceToCreature(Self) <= 1)
+          persistence: []
+          guid: 2b11cf4f-6079-4cf1-abec-7776c0a0f170
+          name: Catcher
+          behaviors:
+          - __typeName: ActivatedAbilityRevertLocBehavior
+            distance: 1
+          - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+            rule: grabbed
+          description: |-
+            Trigger: A size 1 creature or object is force moved within distance, or a size 1 ally willingly moves within distance.
+            Effect: The target is grabbed by the channeler.
+          subject: other
+          iconid: ui-icons/skills/1.png
+        guid: 9fc4bb35-16f5-44ff-bea7-c2c247300f33
+      source: Character Feature
+      description: " "
+      guid: 46e1891f-8463-4676-978f-4685cb36d5ef
+      name: Catcher
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:498279d6-8f60-4e38-9675-09279f0ed8ed: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:498279d6-8f60-4e38-9675-09279f0ed8ed: true
+        sourceguid: 498279d6-8f60-4e38-9675-09279f0ed8ed
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Shadow Veil
+        description: ""
+        guid: 4c3eb1f5-6bab-400c-8dbf-d7f3f956f2d5
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The target is wrapped in shadow and halves the damage. The target can’t be targeted by strikes until the start of their next turn.
+          name: Shadow Veil
+          trigger: An ally within distance takes damage.
+          guid: 7f57dd49-47f3-43c5-bb7b-ceb909cbe4ac
+          distance: Ranged 5
+          keywords:
+            Ranged: true
+            Magic: true
+      - __typeName: CharacterModifier
+        sourceguid: 498279d6-8f60-4e38-9675-09279f0ed8ed
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          behavior: power
+          keywords: []
+          activationCondition: false
+          damageMultiplier: half
+          rollType: ability_power_roll
+          rules: ""
+          guid: be85179a-68ef-49ec-a108-25ccd642e7ad
+          modtype: none
+          name: Shadow Veil
+        guid: 7dda16f2-0a0f-4f58-8d78-7966c7ffdbde
+        type: trigger
+        domains:
+          CharacterFeature:498279d6-8f60-4e38-9675-09279f0ed8ed: true
+        targetType: ally
+        behavior: powertabletrigger
+        name: Shadow Veil
+        rules: ""
+        description: ""
+        range: "5"
+        trigger: takedamage
+      source: Character Feature
+      description: ""
+      guid: 498279d6-8f60-4e38-9675-09279f0ed8ed
+      name: Shadow Veil
+      implementation: 2
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: b3ccee8a-873d-427b-8e51-6b17b5a8fa92
+        source: Custom
+        value: 4
+        domains:
+          CharacterFeature:fa6dff80-34f8-4413-8ee9-25c37fe55aff: true
+        name: Custom Modification
+        guid: c0b5ea81-f356-4d3e-a027-1511bfa5c473
+        description: ""
+        behavior: attribute
+        attribute: forcedmoveresistance
+      source: Custom
+      guid: b3ccee8a-873d-427b-8e51-6b17b5a8fa92
+      id: fa6dff80-34f8-4413-8ee9-25c37fe55aff
+      ctime: 1756055028858
+      domains:
+        CharacterFeature:fa6dff80-34f8-4413-8ee9-25c37fe55aff: true
+      name: Custom Modification
+      description: ""
+      mtime: 1756055028858
+      implementation: 3
+    role: Elite Controller
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    keywords:
+      Fey: true
+      Goblin: true
+      Bugbear: true
+      Humanoid: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    animations:
+      anim:
+      - animType: floatlabel
+        text: Too Much Stability
+        color: white
+      guid: 66b97826-ea29-4ee9-ae23-4e0059a2c670-1439
+    initiativeGrouping: 42c028ca-27a7-4ce2-8e23-688787870038
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        d0330210-5077-4cb9-a661-7a973af84b26:
+          timestamp: 1759478877852
+          note: Throw
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        2c5c9754-74b2-400f-a44b-de2a6a67c957:
+          timestamp: 1759478873693
+          note: Grab
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        0e6ddef0-55a2-47ea-b863-577429fb79d9:
+          timestamp: 1759479121082
+          note: Grab
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 1/1
+        83c817b1-8a61-4fb8-87d9-cdeceb93f59a:
+          note: Throw
+          timestamp: 1758306910778
+          refreshid: 93444110-e2e9-483b-b681-b37606d62941-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    damage_taken: 15
+    groupid: ad734f83-9fbe-4f7d-b0f9-7a6b67917513
+    walkingSpeed: 5
+    equipmentMeta:
+      offhand0: []
+    damageEntries:
+      b344b37b-0164-47c9-a46b-260a0a27aafe:
+        damage: 3
+        seq: 19
+        timestamp: 1771842745369
+        attackerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+        id: b344b37b-0164-47c9-a46b-260a0a27aafe
+        damage_type: collide
+    traitNames: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: 93444110-e2e9-483b-b681-b37606d62941-1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+    movementSpeeds: []
+    availableTriggers: []
+    monster_type: Bugbear Channeler
+    creatureSize: 1L
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        24f5c9ad-fdd8-412e-80fd-ebc6dcf9c5c6:
+          note: Twist Shape
+          timestamp: 1758306046921
+          refreshid: 93444110-e2e9-483b-b681-b37606d62941-1
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+  numTargets: "1"
+  name: Too Much Stability
+  targetType: self
+  mtime: 1771983089828
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+62d8c42b-c4af-4941-aa73-658bdbe80c9d:
+  __typeName: ActivatedAbility
+  id: 62d8c42b-c4af-4941-aa73-658bdbe80c9d
+  behaviors:
+  - __typeName: ActivatedAbilitySaveBehavior
+    applyto: caster
+    conditionsMode: one
+    rollMode: purge
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 3e1a20e9-f5c8-4074-8389-f565d6bda3f3
+  ctime: 1711323781931
+  targetType: self
+  numTargets: "1"
+  mtime: 1772733608812
+  name: Remove Condition
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+3d8ddf2c-ec14-48ff-adaa-8fcc5794b7e9:
+  __typeName: ActivatedAbility
+  id: 3d8ddf2c-ec14-48ff-adaa-8fcc5794b7e9
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    guid: 71b2e187-bfa4-41bc-b516-2364aa52e09b
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      cannotModifyAction: true
+      filterAbility: Ability.Usable as Free Strike
+      guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+      keywords:
+        Melee: true
+      source: ""
+      attributes: []
+      name: Modify Attack
+      mustPayResourceCost: true
+      description: ""
+      behavior: modifyability
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+          ongoingEffect: 5e6b4fd9-fc40-4e26-994b-43d1f3a16c1f
+          filterTarget: target.Agility < 2
+          duration: 0
+          ongoingEffectCustom: false
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 97e0c343-4dfa-46f9-ac51-e3f0ff7a36ee
+  ctime: 1770137318961
+  targetType: self
+  numTargets: "1"
+  mtime: 1770212080178
+  name: Sweeping Blade Effect and Make Melee Free Strike
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7bd57fa0-1635-44e4-bf54-af1301ad8822:
+  __typeName: ActivatedAbility
+  id: 7bd57fa0-1635-44e4-bf54-af1301ad8822
+  behaviors:
+  - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+    instant: false
+    momentaryEffect:
+      __typeName: CharacterOngoingEffect
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: e74c1f88-6430-4e93-a9cd-28c607919709
+        source: Ongoing Effect
+        value: "<<targetid>>"
+        name: Compel Attacks Between
+        guid: 412285f2-5630-4562-9899-15aeb4376480
+        description: ""
+        behavior: attribute
+        attribute: 93833611-6bb5-4a2d-8913-86c6bc9a3bbf
+      source: Ongoing Effect
+      guid: e74c1f88-6430-4e93-a9cd-28c607919709
+      id: e74c1f88-6430-4e93-a9cd-28c607919709
+      name: Compel Attacks Between
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      description: ""
+      implementation: 3
+      iconid: ui-icons/skills/1.png
+    name: Ability Duration Effect
+    lingerTime: 3
+    applyto: caster
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: da4e22fd-6861-4d19-95f8-395a71493df8
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Use this to compel attacks to be between the caster and the primary target
+  repeatTargets: false
+  ctime: 1762306754779
+  castImmediately: true
+  persistence: []
+  description: ""
+  name: Compel Attacks Between
+  targetType: self
+  mtime: 1762306754779
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+25e9c9e7-bf7a-4950-ba7e-9c41b252e783:
+  __typeName: ActivatedAbility
+  targetFilter: Enemy
+  id: 25e9c9e7-bf7a-4950-ba7e-9c41b252e783
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: One ally adjacent to the target can make a free strike against them.
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+  importMatch: ally adjacent to the target can make a free strike against them
+  ctime: 1772033466715
+  repeatTargets: false
+  persistence: []
+  description: ""
+  name: Adjacent Enemy Free Strike Against Target
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    targeting: prompt
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    filterTarget: ""
+    namedAbility: Melee Free Strike
+    abilityType: named
+    standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+  mtime: 1772113095754
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+e11fbdc8-5d13-49ab-9c0f-acab39ffc044:
+  __typeName: ActivatedAbility
+  targetFilter: not enemy
+  id: e11fbdc8-5d13-49ab-9c0f-acab39ffc044
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    runOnController: true
+    promptText: "<<prompt>>"
+    standardAbilityParams:
+      hasedge: "<<hasedge>>"
+      targetid: "<<targetid>>"
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 0c693b9b-a1a3-40ef-89bd-ff4dce8db9bc
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: 1d55d541-6a64-4717-9a0e-08babceab7ef
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6e0df17b-c32e-4c0a-8732-b35584fd21da
+  ctime: 1746519008241
+  targetType: target
+  numTargets: "<<targetcount>>"
+  description: ""
+  name: Ally Makes Signature Strike Against Specific Target
+  repeatTargets: false
+  mtime: 1770264224848
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+003a1b5e-0b14-4c99-b948-0f0fc715bbf2:
+  __typeName: ActivatedAbility
+  id: 003a1b5e-0b14-4c99-b948-0f0fc715bbf2
+  behaviors:
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: Hidden (EoE)
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Used if a creature may hide while using an ability. e.g. Black Ash Teleport.
+  importMatch: ""
+  ctime: 1746894273854
+  targetType: self
+  persistence: []
+  description: ""
+  name: Caster May Hide
+  repeatTargets: false
+  mtime: 1771336902100
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+dfe93550-c4f1-47e6-abd2-3770a15dac2f:
+  __typeName: ActivatedAbility
+  id: dfe93550-c4f1-47e6-abd2-3770a15dac2f
+  behaviors:
+  - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+    applyto: caster
+    momentaryEffect:
+      __typeName: CharacterOngoingEffect
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 07af9d43-1926-45e9-81c6-5e42e002adc8
+        sourceguid: ec86b14c-727d-46c6-a16a-9449134baa92
+        value: 1
+        source: Ongoing Effect
+        name: Strained
+        behavior: attribute
+        description: ""
+        attribute: 62e6c0c2-f940-46e3-bbe2-1559d0b4a4aa
+      source: Ongoing Effect
+      guid: ec86b14c-727d-46c6-a16a-9449134baa92
+      id: ec86b14c-727d-46c6-a16a-9449134baa92
+      name: Strained
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.50797963142395
+          s: 0.806280136108398
+          v: 1.00306534767151
+          a: 1
+      description: ""
+      implementation: 3
+      iconid: 489e5e7e-4f0c-4a59-9ff1-97f6b104a9a8
+    name: Ability Duration Effect
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: a8269dfb-7538-4b1f-8072-cc3b56721253
+  ctime: 1748297734527
+  targetType: self
+  numTargets: "1"
+  mtime: 1748300600784
+  name: Strained During Ability
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+e4ffaca5-52ed-44e2-b880-da6f25e0c23c:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  repeatTargets: false
+  reasonedFilters:
+  - formula: |-
+      (Target.Knockback Target Size<= caster.Knockback Caster Size) or (Caster.Grab Characteristic >= 2 and (Target.Knockback Target Size-3) <= Caster.Grab Characteristic)
+
+      {Note that we must either be equal to or bigger than the target, or have a Might ("Grab Characteristic") greater than or equal to size. Since size 1L is equal to size '4', we subtract 3 from the Knockback Target Size when making this calculation}
+    reason: This creature is too large for you to knockback.
+  - formula: (Not (target.conditions has "Grabbed")) or (ConditionCaster("Grabbed") = Caster)
+    reason: Grabbed creatures cannot be force moved, except by the grabber.
+  behaviors:
+  - __typeName: ActivatedAbilityCustomTriggerBehavior
+    applyto: caster
+    value: ""
+    triggerName: BeginKnockback
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - Push 1
+    - Push 2
+    - Push 3
+    roll: 2d10 + Might
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Skill
+  range: 1
+  targetType: target
+  actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Used to invoke Knockback, without using the global rule
+  description: "You attempt to shove an adjacent creature using a power roll.\n\nYou can normally only target creatures and objects up to your size category. If your Might score is 2 or higher, you can target creatures and objects with a size equal to your Might score or lower. "
+  ctime: 1764120574740
+  numTargets: Knockback Targets
+  id: e4ffaca5-52ed-44e2-b880-da6f25e0c23c
+  keywords:
+    Melee: true
+    Weapon: true
+  name: Knockback
+  guid: 57395c4e-5b74-464c-addc-437e446126fa
+  mtime: 1771247864842
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+c987c375-efaf-4728-91aa-d705557c099a:
+  __typeName: ActivatedAbility
+  targetFilter: not enemy
+  id: c987c375-efaf-4728-91aa-d705557c099a
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: This will allow the caster to choose an ally to purge a save ends effect.
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    runOnController: true
+    promptText: ""
+    autoTarget: true
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 0dc8789a-59fa-4dc5-ae8c-1aec7b38048b
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: 0b1cc306-e0b8-4898-836a-c84b0ee7df47
+  ctime: 1745902434487
+  numTargets: "<<targetcount>>"
+  mtime: 1770290431566
+  repeatTargets: false
+  name: Purge Save Ends Effect on Ally
+  guid: aec09417-fab6-4955-b348-c52d29da505c
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+ce0faa6b-3dc2-40f3-8b95-657ad1aab873:
+  __typeName: ActivatedAbility
+  targetFilter: not enemy
+  id: ce0faa6b-3dc2-40f3-8b95-657ad1aab873
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    runOnController: true
+    promptText: ""
+    autoTarget: true
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 0dc8789a-59fa-4dc5-ae8c-1aec7b38048b
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: 64552cb4-9124-4932-805a-847f0a49b0a8
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  numTargets: "<<targetcount>>"
+  modifiers: []
+  source: Monster
+  documentation: This will allow the caster to choose an ally to purge a save ends effect, and also allows them to spend a recovery.
+  ctime: 1746256821297
+  repeatTargets: false
+  guid: aec09417-fab6-4955-b348-c52d29da505c
+  mtime: 1746258042443
+  name: Purge Save Ends Effect and Recovery on Ally
+  targetType: target
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+6b1d83d3-6e25-472e-a6a6-421be6a6db5c:
+  __typeName: ActivatedAbility
+  id: 6b1d83d3-6e25-472e-a6a6-421be6a6db5c
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    guid: f1b1794c-5e4a-432b-9859-06500d5b74dc
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: (Ability.Free Strike)
+      behavior: modifyability
+      guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+      replaceBehaviors: before
+      attributes: []
+      cannotModifyAction: true
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: 4f3aff2f-3ee4-4f1c-a4a2-4983741c32a1
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: 4f3aff2f-3ee4-4f1c-a4a2-4983741c32a1
+            modtype: edge
+            keywords: []
+            activationCondition: true
+            guid: 2c5ce5d5-c078-41da-b1c9-8b2f17483085
+            rollType: ability_power_roll
+            domains: []
+            description: This Free Strike is being made with an Edge
+            name: Edge
+            behavior: power
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+  ctime: 1746263861915
+  description: ""
+  documentation: Allows the target creature to make a free strike with an edge.
+  repeatTargets: false
+  name: Free Strike With Edge
+  targetType: self
+  mtime: 1746290400504
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+6fa3f578-a149-4bd1-b06e-80c4b24239f4:
+  __typeName: ActivatedAbility
+  id: 6fa3f578-a149-4bd1-b06e-80c4b24239f4
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 4 + Charges
+  targetType: emptyspace
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 4f1f5a49-578b-4beb-84af-ea1c525f3177
+  repeatTargets: false
+  ctime: 1754018120705
+  numTargets: "1"
+  mtime: 1754024400821
+  channelDescription: Spend insight to teleport further
+  name: In All This Confusion
+  description: ""
+  channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+9b123334-6d7c-4848-8b17-db3255c4012c:
+  __typeName: ActivatedAbility
+  id: 9b123334-6d7c-4848-8b17-db3255c4012c
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    guid: 71b2e187-bfa4-41bc-b516-2364aa52e09b
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      cannotModifyAction: true
+      filterAbility: Ability.Usable as Free Strike
+      guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+      keywords:
+        Melee: true
+      source: ""
+      attributes: []
+      replaceBehaviors: before
+      name: Modify Attack
+      mustPayResourceCost: true
+      description: ""
+      behavior: modifyability
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityCustomTriggerBehavior
+          applyto: caster
+          guid: 15bd7b39-a76d-48ac-9f4e-be19fe77eab1
+          value: ""
+          triggerName: makemeleefreestrike
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 97e0c343-4dfa-46f9-ac51-e3f0ff7a36ee
+  ctime: 1763092478205
+  targetType: self
+  numTargets: "1"
+  mtime: 1771254545340
+  name: Make Melee Free Strike
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+8e60dba6-f049-4e58-93a0-d969cfb387af:
+  __typeName: ActivatedAbility
+  id: 8e60dba6-f049-4e58-93a0-d969cfb387af
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - You fail the task.
+    - You succeed in the task.
+    - You succeed in the task with a reward.
+    roll: 2d10 + <<attribute>>
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 26c7607a-380c-47c3-8c4d-861603a6487a
+  ctime: 1717568380563
+  targetType: self
+  numTargets: "1"
+  mtime: 1760884296463
+  name: Easy Test
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+9b297e5d-46e9-44fd-a92e-3f567eb7cf8b:
+  __typeName: ActivatedAbility
+  targetFilter: enemy
+  id: 9b297e5d-46e9-44fd-a92e-3f567eb7cf8b
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    runOnController: true
+    promptText: ""
+    applyto: targets
+    targeting: self
+    standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+    autoTarget: false
+    standardAbilityParams:
+      numrecoveries: "<<numrecoveries>>"
+    abilityType: standard
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 88d0fda3-29a3-4d76-ae54-e9253c73ccb1
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 7b7825ea-2ad7-40e5-b25b-800c6ad39543
+  ctime: 1746807449768
+  targetType: all
+  numTargets: ""
+  description: ""
+  name: Multiple Allies May Spend Recovery
+  repeatTargets: false
+  mtime: 1768318322373
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+1c423f02-73e6-4c44-8341-17d854f15fc5:
+  __typeName: ActivatedAbility
+  id: 1c423f02-73e6-4c44-8341-17d854f15fc5
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    namedAbility: Move Speed
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 9305ede6-0f2d-4988-9db6-4face06dbfa1
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: named
+    promptText: Move Speed and Make Free Strike
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 0b5c7779-d0b0-464b-ae32-8eb15380f683
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: 6ff06550-b5f4-4259-8146-57f377d16dd9
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 092c32ff-758a-466f-9940-6542567409ba
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    namedAbility: move speed
+    abilityType: standard
+    standardAbilityParams:
+      distance: moved this turn - walking speed
+    standardAbility: 4a993863-896f-47d0-8449-74c1fe2279b0
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: Movement Speed
+  targetType: self
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Creature can move up to their speed and make a free strike
+  description: ""
+  ctime: 1748565668265
+  numTargets: "1"
+  targeting: straightpath
+  guid: abe7e351-4175-4200-aeb6-aace3619d47d
+  name: Move Speed and Make Free Strike
+  repeatTargets: false
+  mtime: 1774539212610
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+fc0a431a-f572-4fbc-b2cc-f5ad58c7a76c:
+  __typeName: ActivatedAbility
+  targetFilter: "<<targetfilter>>"
+  id: fc0a431a-f572-4fbc-b2cc-f5ad58c7a76c
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 03a946fd-5989-4f32-bc45-f149a6f2873b
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: cc9bf794-a8d0-4c4f-a3e2-f8a976ac98c7
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    promptText: Choose teleport target
+    autoTarget: false
+    inheritRange: true
+    standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+    runOnController: true
+  ctime: 1746593082306
+  numTargets: "1"
+  mtime: 1765298010127
+  repeatTargets: false
+  selfTarget: true
+  name: Teleport and Swap creatures within range
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+82eadc81-3bbc-42b7-8968-a257114e82f8:
+  __typeName: ActivatedAbility
+  id: 82eadc81-3bbc-42b7-8968-a257114e82f8
+  behaviors: []
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 231f6f2e-bc19-4686-9826-031848c692aa
+  ctime: 1770264221792
+  targetType: self
+  numTargets: "1"
+  mtime: 1770264221792
+  name: New Ability
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+ac78198e-06c6-4b1b-b47c-137bea47cc7b:
+  __typeName: ActivatedAbility
+  targetFilter: "<<filter>>"
+  id: ac78198e-06c6-4b1b-b47c-137bea47cc7b
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 8464a70b-f5d9-4649-8551-2f036d901179
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Push away from target
+    abilityType: standard
+    standardAbilityParams:
+      range: "<<distance>>"
+    standardAbility: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<burst>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: cfdfa5a6-6366-4e51-9ecc-1b9dc8af9cea
+  ctime: 1747374739566
+  targetType: all
+  numTargets: "1"
+  description: ""
+  name: "Forced Movement: Push Away From Creature"
+  repeatTargets: false
+  mtime: 1772113217618
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+49180e7f-0337-4a80-a98f-1543c67550bb:
+  __typeName: ActivatedAbility
+  targetFilter: ""
+  id: 49180e7f-0337-4a80-a98f-1543c67550bb
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    namedAbility: Ranged Free Strike
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 9959a5d2-9f4d-41a7-931a-e71fd56a92fa
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: named
+    targetingFormula: Target.id = <<targetid>>
+    targeting: formula
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+  ctime: 1747819619483
+  targetType: self
+  numTargets: "1"
+  description: ""
+  name: Ranged Free Strike Against Specific Target
+  repeatTargets: false
+  mtime: 1771184269364
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+60b012ab-dde8-4246-afc2-5a9b32e660ef:
+  __typeName: ActivatedAbility
+  id: 60b012ab-dde8-4246-afc2-5a9b32e660ef
+  behaviors:
+  - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+    stamina: "<<tempstamina>>"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  guid: 99c4d5b7-549c-4025-95a0-87c26ad18ba0
+  ctime: 1746024676869
+  targetType: self
+  mtime: 1746597507720
+  name: Grant Temporary Stamina
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+aba67409-be3e-4ba9-8a99-0c01df37a34b:
+  __typeName: ActivatedAbility
+  id: aba67409-be3e-4ba9-8a99-0c01df37a34b
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    guid: 71b2e187-bfa4-41bc-b516-2364aa52e09b
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      cannotModifyAction: true
+      filterAbility: Ability.Usable as Free Strike
+      guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+      keywords:
+        Ranged: true
+      source: ""
+      attributes: []
+      replaceBehaviors: before
+      name: Modify Attack
+      mustPayResourceCost: true
+      description: ""
+      behavior: modifyability
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityCustomTriggerBehavior
+          applyto: caster
+          guid: 2a55f350-716d-4720-9f41-5187e899185c
+          value: ""
+          triggerName: makerangedfreestrike
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 97e0c343-4dfa-46f9-ac51-e3f0ff7a36ee
+  ctime: 1771185386407
+  targetType: self
+  numTargets: "1"
+  mtime: 1771254568617
+  name: Make Ranged Free Strike
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+55bebbf8-d563-40a7-a432-cf6d45b4884f:
+  __typeName: ActivatedAbility
+  id: 55bebbf8-d563-40a7-a432-cf6d45b4884f
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "100"
+  targetType: emptyspace
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: If you force move an enemy you can use this ability to move into the tiles they vacate.
+  description: ""
+  ctime: 1746695548703
+  numTargets: "1"
+  targeting: vacated
+  guid: 960757c5-2c6d-42f4-9515-ba56aa83e179
+  name: Move Into Vacated Tiles
+  repeatTargets: false
+  mtime: 1754031061122
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+9c0bec24-4f6c-4ebf-a74d-948c578067b1:
+  __typeName: ActivatedAbility
+  id: 9c0bec24-4f6c-4ebf-a74d-948c578067b1
+  behaviors:
+  - __typeName: ActivatedAbilitySaveBehavior
+    applyto: caster
+    conditionsMode: one
+    rollMode: purge
+    includeProne: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 3e1a20e9-f5c8-4074-8389-f565d6bda3f3
+  ctime: 1756420983431
+  targetType: self
+  numTargets: "1"
+  mtime: 1772733612682
+  name: Remove Condition or Prone
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+a85bd0a5-1e4a-4a17-b3d6-eb55c9f24c66:
+  __typeName: ActivatedAbility
+  id: a85bd0a5-1e4a-4a17-b3d6-eb55c9f24c66
+  behaviors:
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    mode: conditions
+    targetDuration: all
+    conditions: []
+    purgeType: one
+    chatMessage: Fountains Roar, Now Free From the Earth
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 990f2487-a588-47b6-bf44-a753f52732bd
+  ctime: 1770290539164
+  targetType: self
+  numTargets: "1"
+  mtime: 1770290644183
+  name: Purge One Chosen Effect
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+9eb2b74c-bf41-48db-a7a4-d0ebb62201f8:
+  __typeName: ActivatedAbility
+  targetFilter: enemy
+  id: 9eb2b74c-bf41-48db-a7a4-d0ebb62201f8
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    runOnController: true
+    standardAbilityParams:
+      targetid: "<<caster.id>>"
+    autoTarget: false
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 53680cf1-8eaa-4760-a01a-42f745403579
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: 952ff59e-8467-4141-aae6-d9ce35094c25
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 8830d7a3-af05-4ee1-b9f3-fa254922a16c
+  ctime: 1745700668435
+  targetType: target
+  numTargets: "<<targets>>"
+  description: ""
+  name: Enemy Free Strike Against Me
+  repeatTargets: false
+  mtime: 1771155214418
+  abilityType: none
+  iconid: e7d55d80-630d-432d-8d3d-33051478bcd9
+436b4dd1-77f9-4d83-9665-4a42c301e464:
+  __typeName: ActivatedAbility
+  id: 436b4dd1-77f9-4d83-9665-4a42c301e464
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 319e19ac-4f15-4c16-be71-96d448241c10
+    ongoingEffectCustom: false
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "10"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 08b2c6a2-1105-4d80-9c77-3c13f90ad6f1
+  ctime: 1746382608782
+  targetType: target
+  numTargets: "1"
+  mtime: 1771155242123
+  name: Tactician Apply Mark
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+de95d093-f3d4-4d74-99fe-ab49aae8b167:
+  __typeName: ActivatedAbility
+  id: de95d093-f3d4-4d74-99fe-ab49aae8b167
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: Movement Speed
+  targetType: emptyspace
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: This allows a creature to move their speed.
+  description: ""
+  ctime: 1753243846720
+  numTargets: "1"
+  targeting: pathfind
+  guid: 4934ea16-25d4-41d2-aec0-081a0903a8ea
+  name: Move Speed
+  repeatTargets: false
+  mtime: 1774539229793
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+3ecc4aca-2df1-42d0-b535-8a943fa5f0e9:
+  __typeName: ActivatedAbility
+  targetFilter: "1"
+  id: 3ecc4aca-2df1-42d0-b535-8a943fa5f0e9
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  repeatTargets: false
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+  targetType: anyspace
+  ctime: 1742972340920
+  persistence: []
+  targeting: straightline
+  description: ""
+  name: "Forced Movement: Pull"
+  forcedMovement: pull
+  mtime: 1771782919920
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+92dee248-5564-4737-9b76-cab40f18bfb3:
+  __typeName: ActivatedAbility
+  id: 92dee248-5564-4737-9b76-cab40f18bfb3
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Categorization = "Signature Ability" or Ability.Categorization = "Heroic Ability" or Ability.Name is "knockback" or Ability.Name is "heal" or Ability.Name is "grab" or Ability.Name is "melee free strike" or Ability.Name is "ranged free strike"
+      behavior: modifyability
+      guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+      cannotModifyAction: true
+      attributes: []
+      mustPayResourceCost: false
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+            modtype: double_edge
+            keywords: []
+            activationCondition: true
+            guid: cd0fedaa-7048-4b2e-bcfd-22bfaf3fea8c
+            rollType: ability_power_roll
+            domains: []
+            description: ""
+            name: Power Roll Modifier
+            behavior: power
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: The target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  importMatch: ""
+  ctime: 1746594003713
+  targetType: self
+  persistence: []
+  description: the target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  name: Any Ability
+  repeatTargets: false
+  mtime: 1771247856940
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+491c36e6-a36b-47be-9134-788b071fa7ca:
+  __typeName: ActivatedAbility
+  targetFilter: ""
+  id: 491c36e6-a36b-47be-9134-788b071fa7ca
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    targeting: formula
+    namedAbility: Melee Free Strike
+    targetingFormula: Target.id = <<targetid>>
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 9959a5d2-9f4d-41a7-931a-e71fd56a92fa
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: standard
+    standardAbility: 9b123334-6d7c-4848-8b17-db3255c4012c
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+  targetType: self
+  ctime: 1745972523343
+  castImmediately: true
+  persistence: []
+  description: ""
+  name: Melee Free Strike Against Specific Target
+  repeatTargets: false
+  mtime: 1771184461166
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+6a8164e8-0492-47f2-8237-101af54e05c1:
+  __typeName: ActivatedAbility
+  id: 6a8164e8-0492-47f2-8237-101af54e05c1
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      behavior: modifyability
+      cannotModifyAction: true
+      name: Modify Attack
+      attributes: []
+      description: ""
+      guid: 9083ad34-0006-4565-b9ba-f7508777bfe8
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 2452be0e-7b44-4c6a-a894-b5e0de6a519d
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 1ebfb0cd-68af-46f3-bea7-c2ca2cd4925c
+  ctime: 1757242711716
+  targetType: self
+  numTargets: "1"
+  mtime: 1757242711716
+  name: Use a Move Action
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+8a91060c-da22-4160-b8c7-b826f96a2e2f:
+  __typeName: ActivatedAbility
+  id: 8a91060c-da22-4160-b8c7-b826f96a2e2f
+  behaviors: []
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 0a27a946-efd9-42c4-ad10-c03f62b66f0a
+  ctime: 1709448963341
+  targetType: target
+  numTargets: "1"
+  mtime: 1765298004927
+  name: Target
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+82863cf6-ec8f-4035-952b-60c319a12b75:
+  __typeName: ActivatedAbility
+  targetFilter: "1"
+  id: 82863cf6-ec8f-4035-952b-60c319a12b75
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  repeatTargets: false
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+  targetType: anyspace
+  ctime: 1747109697012
+  persistence: []
+  targeting: straightline
+  description: ""
+  name: "Forced Movement: Vertical Slide"
+  forcedMovement: vertical_slide
+  mtime: 1770264150149
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+5f1fa3fb-00a0-45dd-a524-fb6b0476e0eb:
+  __typeName: ActivatedAbility
+  id: 5f1fa3fb-00a0-45dd-a524-fb6b0476e0eb
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      cannotModifyAction: true
+      guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+      behavior: modifyability
+      mustPayResourceCost: true
+      attributes: []
+      source: ""
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+            modtype: double_edge
+            keywords: []
+            activationCondition: true
+            guid: cd0fedaa-7048-4b2e-bcfd-22bfaf3fea8c
+            rollType: ability_power_roll
+            domains: []
+            description: ""
+            name: Power Roll Modifier
+            behavior: power
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: The target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  importMatch: ""
+  ctime: 1770287318709
+  targetType: self
+  persistence: []
+  description: An Elemental Mote targeted by this ability may use their Spark of Life Trait
+  name: Spark of Life
+  repeatTargets: false
+  mtime: 1770287318709
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+14ad6263-3dce-414d-80af-bad3efd9ba93:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+    rule: "<<type>> <<distance>>, ignoring stability"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: f54691a6-3cdc-4d61-9420-30cac53388f1
+  numTargets: "1"
+  ctime: 1746033616490
+  castImmediately: true
+  id: 14ad6263-3dce-414d-80af-bad3efd9ba93
+  mtime: 1771843486044
+  name: Willing Forced Movement (ignores stability)
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+72cc1f37-0ba0-47e6-a9f1-20f3c9ad653c:
+  __typeName: ActivatedAbility
+  id: 72cc1f37-0ba0-47e6-a9f1-20f3c9ad653c
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Keywords Has "Attack" and Ability.Keywords Has "Weapon"
+      behavior: modifyability
+      guid: 0f520f77-3e34-494a-a946-58c51791bc7e
+      name: Modify Attack
+      attributes: []
+      description: ""
+      cannotModifyAction: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: f2c68698-5d85-4b90-9bc2-f75cf95d8401
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 5
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  guid: fdc40101-6ae1-4f9b-b2d1-2f2dab4f6486
+  ctime: 1716705572562
+  description: ""
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  repeatTargets: false
+  name: Weapon Attack
+  targetType: self
+  mtime: 1745902106872
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+8acf7d21-2e06-4439-bff0-bfaf72c24514:
+  __typeName: ActivatedAbility
+  targetFilter: "1"
+  id: 8acf7d21-2e06-4439-bff0-bfaf72c24514
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  repeatTargets: false
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+  targetType: anyspace
+  ctime: 1742972345030
+  persistence: []
+  targeting: straightline
+  description: ""
+  name: "Forced Movement: Push"
+  forcedMovement: push
+  mtime: 1772113243968
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+1d717024-b15f-4292-ad8e-e6d47fcdc0d9:
+  __typeName: ActivatedAbility
+  id: 1d717024-b15f-4292-ad8e-e6d47fcdc0d9
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    filterAbilityTargets: enemy
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Name is "Relentless Judgment"
+      behavior: modifyability
+      guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+      name: Modify Attack
+      attributes: []
+      description: ""
+      cannotModifyAction: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: The target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  importMatch: ""
+  ctime: 1746462351127
+  targetType: self
+  persistence: []
+  description: ""
+  name: Relentless Judgment
+  repeatTargets: false
+  mtime: 1756953540975
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+8a44cac4-f869-4d8d-8139-06c2d2926f0d:
+  __typeName: ActivatedAbility
+  targetFilter: "1"
+  id: 8a44cac4-f869-4d8d-8139-06c2d2926f0d
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  repeatTargets: false
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+  targetType: anyspace
+  ctime: 1747109710352
+  persistence: []
+  targeting: straightline
+  description: ""
+  name: "Forced Movement: Vertical Pull"
+  forcedMovement: vertical_pull
+  mtime: 1771655262946
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+2ed70c5e-6494-47e3-bf84-3dd30e9e8b9c:
+  __typeName: ActivatedAbility
+  id: 2ed70c5e-6494-47e3-bf84-3dd30e9e8b9c
+  behaviors:
+  - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+    instant: false
+    momentaryEffect:
+      __typeName: CharacterOngoingEffect
+      modifiers:
+      - __typeName: CharacterModifier
+        operation: set
+        sourceguid: e74c1f88-6430-4e93-a9cd-28c607919709
+        source: Ongoing Effect
+        value: "<<targetid>>"
+        name: Compelled Movement
+        guid: 412285f2-5630-4562-9899-15aeb4376480
+        description: ""
+        behavior: attribute
+        attribute: 983f5281-f0c1-420b-abb9-6257717bf59c
+      source: Ongoing Effect
+      guid: e74c1f88-6430-4e93-a9cd-28c607919709
+      id: e74c1f88-6430-4e93-a9cd-28c607919709
+      name: Compelled Movement
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      description: ""
+      implementation: 3
+      iconid: ui-icons/skills/1.png
+    name: Ability Duration Effect
+    lingerTime: 3
+    applyto: caster
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: da4e22fd-6861-4d19-95f8-395a71493df8
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Use this to compel movement toward a creature with a specific ID.
+  repeatTargets: false
+  ctime: 1756802921093
+  castImmediately: true
+  persistence: []
+  description: ""
+  name: Compel Movement Toward
+  targetType: self
+  mtime: 1762306850190
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+6c340696-278d-45ed-9ff0-2f317313b8af:
+  __typeName: ActivatedAbility
+  targetFilter: "1"
+  id: 6c340696-278d-45ed-9ff0-2f317313b8af
+  behaviors:
+  - __typeName: ActivatedAbilityRelocateCreatureBehavior
+    movementType: move
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  repeatTargets: false
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+  targetType: anyspace
+  ctime: 1747109702160
+  persistence: []
+  targeting: straightline
+  description: ""
+  name: "Forced Movement: Vertical Push"
+  forcedMovement: vertical_push
+  mtime: 1770957044295
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+ec2f012d-4594-4bc8-b32f-4e442718f670:
+  __typeName: ActivatedAbility
+  targetFilter: Enemy
+  id: ec2f012d-4594-4bc8-b32f-4e442718f670
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  testCases:
+  - text: One ally adjacent to the target can make a free strike against them.
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+  importMatch: ally adjacent to the target can make a free strike against them
+  ctime: 1772113105138
+  repeatTargets: false
+  persistence: []
+  description: ""
+  name: Adjacent Enemy takes damage test
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    targeting: prompt
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    filterTarget: ""
+    namedAbility: Melee Free Strike
+    abilityType: named
+    standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+  mtime: 1772113105138
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+0f897bf3-ac6d-4f83-ab2c-bf7496e07737:
+  __typeName: ActivatedAbility
+  id: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      cannotModifyAction: true
+      filterAbility: Ability.Categorization = "Basic Attack"
+      behavior: modifyability
+      guid: f3558a46-1d61-40eb-bfcb-9de703f734f4
+      attributes: []
+      source: ""
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: c039d40c-64a1-46d5-84f2-d685408abd0f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 5
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 5507c1c6-3c4b-44bd-af63-34b56f6be001
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  ctime: 1711425848964
+  repeatTargets: false
+  numTargets: "1"
+  mtime: 1763859539983
+  name: Opportunity Attack
+  targetType: self
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+0b1cc306-e0b8-4898-836a-c84b0ee7df47:
+  __typeName: ActivatedAbility
+  id: 0b1cc306-e0b8-4898-836a-c84b0ee7df47
+  behaviors:
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    conditions: []
+    targetDuration: save|eot
+    purgeType: one
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 990f2487-a588-47b6-bf44-a753f52732bd
+  ctime: 1745902242051
+  targetType: self
+  numTargets: "1"
+  mtime: 1770658377005
+  name: Purge Save Ends Effect
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+301e33dd-7aef-4b4f-ac36-4feeb8add669:
+  __typeName: ActivatedAbility
+  id: 301e33dd-7aef-4b4f-ac36-4feeb8add669
+  keywords:
+    Magic: true
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Usable as Free Strike
+      behavior: modifyability
+      guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+      cannotModifyAction: true
+      attributes: []
+      mustPayResourceCost: true
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+  targetType: self
+  ctime: 1770807075416
+  documentation: Allows the target creature to make a free strike.
+  numTargets: "1"
+  description: ""
+  name: Make Magic Free Strike
+  repeatTargets: false
+  mtime: 1770807075416
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+86145a1e-29cd-4658-8561-81705fa48c62:
+  __typeName: ActivatedAbility
+  targetFilter: "<<targetid>> = Target.ID"
+  id: 86145a1e-29cd-4658-8561-81705fa48c62
+  targetType: all
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "100"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 03a946fd-5989-4f32-bc45-f149a6f2873b
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 399bcfbb-771c-4cb2-8451-b50dfa9ef3e5
+      repeatTargets: false
+      abilityType: none
+      categorization: Hidden
+      behaviors:
+      - __typeName: ActivatedAbilityRelocateCreatureBehavior
+      numTargets: "1"
+      name: Invoked Ability
+      targetType: emptyspace
+      description: ""
+      range: "<<range>>"
+      iconid: ui-icons/skills/1.png
+  ctime: 1772947086071
+  numTargets: "1"
+  mtime: 1772947793469
+  repeatTargets: false
+  selfTarget: true
+  name: Teleport a specific creature within range
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+71c06fc7-7255-47ee-81c8-5b5b066c5d9e:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  targetFilter: ""
+  id: 71c06fc7-7255-47ee-81c8-5b5b066c5d9e
+  targetAllegiance: enemy
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    targeting: prompt
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    filterTarget: ""
+    namedAbility: Melee Free Strike
+    abilityType: named
+    standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+  testCases:
+  - text: One ally adjacent to the target can make a free strike against them.
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Used for Dwarf Axethrower Minion's Whistling Axes ability.
+  importMatch: ally adjacent to the target can make a free strike against them
+  ctime: 1772033658652
+  description: ""
+  numTargets: "1"
+  guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+  name: Adjacent Ally Free Strike Against Target
+  repeatTargets: false
+  mtime: 1772113099616
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+955f3446-7ae5-4d59-bff4-c9a40a7d01d4:
+  __typeName: ActivatedAbility
+  id: 955f3446-7ae5-4d59-bff4-c9a40a7d01d4
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: caster
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: ef8a8709-4e6c-4fd8-9d4f-f410b753d854
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 5
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 5
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  guid: b81ba345-5499-4dde-a110-f5b03d6d9b16
+  ctime: 1711347307332
+  targetType: self
+  mtime: 1745902087066
+  name: InvokeCustom
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+225040eb-d1bd-402b-ba3f-28421d164356:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Ranged: true
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Keywords has "ranged"
+      behavior: modifyability
+      guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+      cannotModifyAction: true
+      attributes: []
+      mustPayResourceCost: false
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: The target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  importMatch: ""
+  ctime: 1770305169419
+  targetType: self
+  description: the target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  persistence: []
+  name: Any Ranged Ability
+  id: 225040eb-d1bd-402b-ba3f-28421d164356
+  mtime: 1773667879352
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+47f8874f-b78d-4bdb-b423-23e43378ab8b:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  targetFilter: ""
+  id: 47f8874f-b78d-4bdb-b423-23e43378ab8b
+  targetAllegiance: enemy
+  targetType: all
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    namedAbility: Melee Free Strike
+    promptText: Free strike the target
+    applyto: targets
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    filterTarget: ""
+    abilityType: named
+    autoTarget: false
+    runOnController: true
+    standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+    targeting: prompt
+  testCases: []
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+  importMatch: ""
+  ctime: 1751781532661
+  description: ""
+  numTargets: "1"
+  implementation: 3
+  name: All Adjacent Enemies Free Strike Me
+  repeatTargets: false
+  mtime: 1772033377216
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+de8e56f5-508b-4bc8-a447-29c93d2c2c4e:
+  __typeName: ActivatedAbility
+  id: de8e56f5-508b-4bc8-a447-29c93d2c2c4e
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Usable as Signature Ability or Ability.Categorization = "Heroic Ability"
+      behavior: modifyability
+      guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+      cannotModifyAction: true
+      attributes: []
+      mustPayResourceCost: true
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        strain: []
+        guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors:
+        - __typeName: ActivatedAbilityModifyPowerRollBehavior
+          guid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+          modifier:
+            __typeName: CharacterModifier
+            sourceguid: be647147-c665-4f0e-9b1f-3076f1d6ab06
+            modtype: double_edge
+            keywords: []
+            activationCondition: true
+            guid: cd0fedaa-7048-4b2e-bcfd-22bfaf3fea8c
+            rollType: ability_power_roll
+            domains: []
+            description: ""
+            name: Power Roll Modifier
+            behavior: power
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: The target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  importMatch: ""
+  ctime: 1746109588964
+  targetType: self
+  persistence: []
+  description: the target can use a free triggered action to make a signature strike or a heroic ability that is a strike, and has a double edge on the power roll.
+  name: Signature Attack or Heroic (Strike) Ability
+  repeatTargets: false
+  mtime: 1770287124924
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+15079d42-f9af-4e1c-a739-2078a9e22a07:
+  __typeName: ActivatedAbility
+  targetFilter: Friends(target, Caster)
+  id: 15079d42-f9af-4e1c-a739-2078a9e22a07
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+    filterTarget: ""
+    chatMessage: "<<message>>"
+    quantity: "<<quantity>>"
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<range>>"
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: a60d0769-52cc-45ed-993a-ead3058dfaff
+  ctime: 1741143673868
+  targetType: target
+  numTargets: "<<targets>>"
+  description: ""
+  name: Grant Surge
+  repeatTargets: false
+  mtime: 1759019070398
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7302154f-2f3b-4f12-a717-42e11f1064e6:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  targetFilter: ""
+  id: 7302154f-2f3b-4f12-a717-42e11f1064e6
+  targetAllegiance: enemy
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    targeting: prompt
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    filterTarget: ""
+    namedAbility: Melee Free Strike
+    abilityType: named
+    standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+  testCases:
+  - text: One ally adjacent to the target can make a free strike against them.
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Used for Dwarf Axethrower Minion's Whistling Axes ability.
+  importMatch: ""
+  ctime: 1772113066586
+  description: ""
+  numTargets: "1"
+  guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+  name: Adjacent Ally Free Strike Against Target (1)
+  repeatTargets: false
+  mtime: 1772113066586
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+41a98a35-1ee2-461a-a4b4-3db87bb0699b:
+  __typeName: ActivatedAbility
+  id: 41a98a35-1ee2-461a-a4b4-3db87bb0699b
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Maneuver
+      behavior: modifyability
+      guid: 9083ad34-0006-4565-b9ba-f7508777bfe8
+      name: Modify Attack
+      attributes: []
+      description: ""
+      cannotModifyAction: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 2452be0e-7b44-4c6a-a894-b5e0de6a519d
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 1ebfb0cd-68af-46f3-bea7-c2ca2cd4925c
+  ctime: 1741213423494
+  targetType: self
+  numTargets: "1"
+  mtime: 1764124950300
+  name: Use a maneuver
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+f8036538-bbbf-4476-97ad-a2b4526200ad:
+  __typeName: ActivatedAbility
+  objectTarget: false
+  id: f8036538-bbbf-4476-97ad-a2b4526200ad
+  behaviors: []
+  multipleModes: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  modeList:
+  - text: Acid
+  - text: Cold
+  - text: Corruption
+  - text: Fire
+  - text: Lightning
+  - text: Poison
+  - text: Sonic
+  guid: 486cf6ef-a796-485b-a262-6635a7640567
+  ctime: 1773496262383
+  targetType: self
+  persistence: []
+  description: ""
+  name: Weakness to Specific Elemental Damage
+  repeatTargets: false
+  mtime: 1773496262383
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+923bf32c-4233-4fec-8895-7ce18da28744:
+  __typeName: ActivatedAbility
+  id: 923bf32c-4233-4fec-8895-7ce18da28744
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: |-
+        ((ability.Free Strike or ability.use as free strike) and (ability.keywords has "Melee")) or
+        ((Ability.keywords has "Charge") and not (Ability.keywords has "Ranged")) or
+        ((Heroic Abilities While Charging) and Ability.categorization = "Heroic Ability" and (Ability.keywords Has "Melee")) or
+        ((Signature Abilities While Charging) and Ability.categorization = "Signature Ability" and (Ability.keywords has "Melee"))
+      behavior: modifyability
+      guid: ed1756eb-df04-49e5-80e8-0da57e5ce453
+      cannotModifyAction: true
+      attributes: []
+      mustPayResourceCost: true
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 1982f569-33ea-473b-b64d-dc71792d7fb2
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  guid: 414166e5-f3c5-411e-b810-d82e2f9de4c8
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: Used at the end of a Charge, allowing a melee free strike or an ability with the charge keyword.
+  importMatch: ""
+  ctime: 1742873163921
+  targetType: self
+  persistence: []
+  description: ""
+  name: Attack when Charging
+  repeatTargets: false
+  mtime: 1774569143136
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+0c8d5438-22a9-41d1-97fa-0f35f7f01692:
+  __typeName: ActivatedAbility
+  id: 0c8d5438-22a9-41d1-97fa-0f35f7f01692
+  behaviors:
+  - __typeName: ActivatedAbilityCharacterSpeechBehavior
+    applyto: caster
+    variations:
+    - "<<text>>"
+    guid: 194e1f68-05d3-42a7-b6fe-61850f2bb6bd
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 60f535c5-37d0-4999-8463-436b31905bd5
+  ctime: 1767262591492
+  targetType: self
+  numTargets: "1"
+  mtime: 1767262591492
+  name: Speech
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+6ff06550-b5f4-4259-8146-57f377d16dd9:
+  __typeName: ActivatedAbility
+  id: 6ff06550-b5f4-4259-8146-57f377d16dd9
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    filterAbilityTargets: ""
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: ability.Free Strike
+      behavior: modifyability
+      guid: e62929ba-ea86-4b33-95d2-1b72eda6f8a6
+      name: Modify Attack
+      attributes: []
+      description: ""
+      cannotModifyAction: true
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 39bc8e2c-8609-4bfe-9522-28daa9bd4dd3
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+  ctime: 1746200218787
+  targetType: self
+  numTargets: "1"
+  mtime: 1771254487024
+  name: Free Strike
+  repeatTargets: false
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+7b19698f-5fe2-4eea-9ef8-7621a7974073:
+  __typeName: ActivatedAbility
+  id: 7b19698f-5fe2-4eea-9ef8-7621a7974073
+  behaviors:
+  - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+    modifier:
+      __typeName: CharacterModifier
+      modifyDescription: ""
+      source: ""
+      filterAbility: Ability.Usable as Signature Ability
+      behavior: modifyability
+      guid: 85a8796e-a798-4abc-b2fb-512dda4d3032
+      cannotModifyAction: true
+      attributes: []
+      mustPayResourceCost: true
+      description: ""
+      name: Modify Attack
+      ability:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 59e481ce-7a7a-49a7-865d-10a11ee0d27f
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        abilityModification: true
+        behaviors: []
+        abilityType: none
+        name: New Ability
+        targetType: self
+        description: ""
+        range: 1
+        iconid: ui-icons/skills/1.png
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  guid: 0a1d0383-a367-4c6d-b48b-2f094aef30a4
+  importMatch: ""
+  ctime: 1751061958408
+  repeatTargets: false
+  targetType: self
+  numTargets: "1"
+  name: Signature Ability
+  mtime: 1770287092125
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+1de59429-fcf1-4404-9d8e-671cb76dadc3:
+  __typeName: ActivatedAbility
+  targetFilter: ""
+  id: 1de59429-fcf1-4404-9d8e-671cb76dadc3
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    namedAbility: Melee Free Strike
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 9959a5d2-9f4d-41a7-931a-e71fd56a92fa
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    abilityType: named
+    targetingFormula: Target.id = <<targetid>>
+    targeting: formula
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    target_proximity_range: "5"
+    runOnController: true
+    abilityType: standard
+    standardAbilityParams:
+      targetid: "<<self.id>>"
+    filterTarget: target.id = <<targetid>>
+    applyto: proximity_only
+    standardAbility: 491c36e6-a36b-47be-9134-788b071fa7ca
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 8a22bdd2-1e89-477c-b5f2-9a2a735b50ec
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: This will invite a melee free strike against a specific target. If the free strike is made then the target gets to retaliate.
+  description: ""
+  ctime: 1754031058925
+  castImmediately: true
+  persistence: []
+  guid: d6a32c21-4397-4704-adce-e4c6a4c1fd89
+  name: Melee Free Strike Against Specific Target With Retaliation
+  repeatTargets: false
+  mtime: 1763079246408
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+f57cb6f7-13b9-4ebb-8e88-88ead0a9c203:
+  __typeName: ActivatedAbility
+  id: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+  behaviors:
+  - __typeName: ActivatedAbilityCustomTriggerBehavior
+    value: "<<numrecoveries>>"
+    triggerName: Spend Recovery
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: "<<distance>>"
+  resourceCost: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+  numTargets: "1"
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: This causes the creature to spend a recovery on itself.
+  guid: 027f97d9-030c-4521-aeda-76db705ccc6e
+  ctime: 1728967058499
+  targetType: self
+  persistence: []
+  description: ""
+  name: May Spend Recovery
+  repeatTargets: false
+  mtime: 1772901317302
+  abilityType: none
+  iconid: ui-icons/skills/1.png
+e19f1d97-6e44-4366-8f35-418bd5c5ab8e:
+  __typeName: ActivatedAbility
+  targetFilter: Enemy
+  id: e19f1d97-6e44-4366-8f35-418bd5c5ab8e
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    targeting: prompt
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: e6732139-8d6c-409f-ba3d-172fad4cb3f5
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    filterTarget: ""
+    namedAbility: Melee Free Strike
+    abilityType: named
+    standardAbility: 0a68f64c-67f7-4279-9741-38aedaab7029
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  categorization: Hidden
+  range: 1
+  targetType: target
+  testCases:
+  - text: One ally adjacent to the target can make a free strike against them.
+  persistence: []
+  modifiers: []
+  source: Monster
+  strain: []
+  documentation: ""
+  importMatch: ally adjacent to the target can make a free strike against them.
+  ctime: 1740887215498
+  numTargets: "1"
+  repeatTargets: false
+  mtime: 1773102882160
+  name: Adjacent Enemy Free Strike Me
+  guid: c5a91166-edf2-4784-9bab-5a9bd042731b
+  description: ""
+  abilityType: none
+  iconid: ui-icons/skills/1.png

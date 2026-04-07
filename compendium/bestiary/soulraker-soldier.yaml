@@ -1,0 +1,208 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: dcecd273-fe2a-45f4-bdb9-114fa74363f2
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 7
+    import:
+      type: mcdm
+      data: |+
+        Soulraker Soldier	Level 7 Minion Brute
+        Abyssal, Demon, Soulraker	EV 9 for four minions
+        <b>Stamina</b> 13	<b>Weakness</b> Holy 5
+        <b>Speed</b> 6	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>With Captain </b>Edge on strikes<b>Free Strike</b> 4
+        Might +4	Agility +2	Reason -1	Intuition -1	Presence -1
+        <b>Chiton Bash</b> (Action) %E2%97%86 2d10 + 4 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> One creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage; push 2
+        %E2%98%85	<b>12-16</b>	7 damage; push 2
+        %E2%9C%B8	<b>17</b>	8 damage; push 4
+
+        <b>Soulsight</b>
+        Each creature within 2 of the soldier can't be hidden from them.
+
+        <b>Abyssal Buzzing</b>
+        A creature who starts their turn with 2 or more soulraker minions adjacent to them takes 3 sonic damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b4f5906c-396f-4906-86de-2f1d129beded: true
+      modifiers: []
+      name: Soulsight
+      description: Each creature within 2 of the soldier can't be hidden from them.
+      guid: b4f5906c-396f-4906-86de-2f1d129beded
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:85e95659-f1d1-4ad2-a84b-506288f7eb6b: true
+      modifiers: []
+      name: Abyssal Buzzing
+      description: A creature who starts their turn with 2 or more soulraker minions adjacent to them takes 3 sonic damage.
+      guid: 85e95659-f1d1-4ad2-a84b-506288f7eb6b
+      source: Trait
+    role: Minion Brute
+    inflictedConditions: []
+    ev: 9
+    max_hitpoints_roll: "13"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -5
+      damageType: holy
+      apply: Damage Reduction
+    opportunityAttack: 4
+    groupid: 2975ac03-05e1-422f-945d-239c08336bf1
+    monster_type: Soulraker Soldier
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -1
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 4
+        id: mgt
+    withCaptain: Gain an edge on strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 6
+    resources: []
+    max_hitpoints: 13
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8d667f2d-4617-45fa-a443-fac779d52f64
+      implementation: 4
+      numTargets: 1
+      name: Chiton Bash
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage; push 2
+        - 7 damage; push 2
+        - 8 damage; push 4
+        roll: 2d10 + 4
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage; push 2
+        - 7 damage; push 2
+        - 8 damage; push 4
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ace9ac25-31c2-4114-bec9-a93edf60a705
+      targetType: target
+      implementation: 4
+      numTargets: 1
+      name: Chitin Bash
+      sourceReference:
+        __typeName: SourceReference
+        page: 69
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Abyssal: true
+      Soulraker: true
+      Demon: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: "2"
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 8ff88436-c689-4a1b-a27b-c1f1b3a31ad1
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961965990
+description: Soulraker Soldier
+parentFolder: d28dbebc-b729-459f-858a-44e596d131e0
+artist: null
+ord: 2
+ctime: 1741590282080
+mtime: 1775201137032
+hidden: false

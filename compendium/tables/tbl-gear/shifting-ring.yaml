@@ -1,0 +1,22 @@
+__typeName: equipment
+itemPrerequisite: One-third of a pound of diamond dust, one nugget of pure silver
+keywords:
+  Psionic: true
+  Ring: true
+projectSource: Texts or lore in Khelt
+flavor: This silvery metal ring seems to momentarily vanish when observed from certain angles.
+weight: 1
+echelon: 3
+specialDescription: ""
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+ctime: 1775049225188
+type: Gear
+projectGoal: "450"
+mtime: 1775049225188
+name: Shifting Ring
+category: Gear
+description: Once per turn, you can use a maneuver to teleport up to 3 squares. Additionally, when targeted by any other effect that causes you to teleport, you can teleport up to 3 additional squares.
+projectRollCharacteristic:
+  agl: true
+  inu: true
+id: ab2f1f60-87cb-44ed-85ed-e7c61cd3a3c6

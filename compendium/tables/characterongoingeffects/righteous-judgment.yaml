@@ -1,0 +1,54 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: attacker
+    characterConditionRequired: 5d091cca-ecb7-4cd0-a2b5-6081de20332a
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    characterConditionInflictedBySelf: true
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    hasManualVersion: true
+    strain: []
+    whenActive: combat
+    trigger: losehitpoints
+    abilityType: none
+    conditionFormula: Friends(Attacker, Caster)
+    persistence: []
+    guid: a78dbee9-14e1-4ba2-bb70-8ac51dc469f1
+    name: Righteous Judgment
+    behaviors:
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+      chatMessage: Gained Surge from Righteous Judgment
+    description: Until the end of the encounter, whenever any ally deals damage to a target judged by you, that ally gains 1 surge
+    subject: enemy
+    iconid: ui-icons/skills/1.png
+  description: Until the end of the encounter, whenever any ally deals damage to a target judged by you, that ally gains 1 surge
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 5f60f6ae-588a-476e-9b73-80abcbf6d299
+  name: Righteous Judgment
+  sourceguid: 81dc3bb9-8b4d-4d48-9b5b-6be507bcadb9
+source: Ongoing Effect
+guid: 81dc3bb9-8b4d-4d48-9b5b-6be507bcadb9
+id: 81dc3bb9-8b4d-4d48-9b5b-6be507bcadb9
+ctime: 1751137050075
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Righteous Judgment
+description: Until the end of the encounter, whenever any ally deals damage to a target judged by you, that ally gains 1 surge
+custom: true
+mtime: 1764528916740
+iconid: ui-icons/skills/1.png

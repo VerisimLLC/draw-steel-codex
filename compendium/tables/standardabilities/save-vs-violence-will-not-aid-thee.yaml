@@ -1,0 +1,32 @@
+__typeName: ActivatedAbility
+id: 7275e820-13ec-4b60-89ab-c613effb1c12
+behaviors:
+- __typeName: ActivatedAbilityRollBehavior
+  rollDescription: Saving Throw vs <<condition>>
+  roll: 1d10 + Save Bonus
+- __typeName: ActivatedAbilityPurgeEffectsBehavior
+  ongoingEffect: 1a5597af-5f16-461e-b03c-afd237291065
+  filterTarget: cast.roll >= Save Ends
+  conditions: []
+  mode: effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 5
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: f8319362-df95-4904-bb08-99fd614c564e
+ctime: 1757060854478
+targetType: self
+numTargets: "1"
+mtime: 1772713502823
+name: Save vs Violence Will Not Aid Thee
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

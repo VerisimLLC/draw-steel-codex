@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: ddc002a8-99d3-463a-bf44-26d34df5cf53
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Aimsley
+- __typeName: RollTableRow
+  id: 538d9ea6-ff32-4d7d-a514-3e00c9058e8f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Alderson
+- __typeName: RollTableRow
+  id: 6a5e3708-dd31-4033-91f8-0dd231c8991f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Bancroft
+- __typeName: RollTableRow
+  id: 36e9ec94-2228-4913-babc-052c309ff324
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Beechwood
+- __typeName: RollTableRow
+  id: 81c834ef-9d82-4088-a0f0-41cc4da3697d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Billingsworth
+- __typeName: RollTableRow
+  id: b8b3ef36-16c8-474d-8f54-486b7da77cd2
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Broderick
+- __typeName: RollTableRow
+  id: 46370965-8bbb-484a-afbd-7452f77ae1cd
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Langston
+- __typeName: RollTableRow
+  id: e307ea7b-add6-4873-9030-b298d740ed63
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Owlswick
+- __typeName: RollTableRow
+  id: 256a1087-1da8-4348-9361-5b58c0188322
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Patterson
+- __typeName: RollTableRow
+  id: 43926328-d831-4d92-961d-50200dc3ebb4
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Willoughby
+id: 366cb299-84e7-491c-b49d-099a05b6f144
+name: Polder Masculine Names
+subtable: true
+mtime: 1743455694967
+items: false
+ctime: 1743445937132

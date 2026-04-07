@@ -1,0 +1,591 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5be14657-fd5a-4eff-8bd8-64e56156c531
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 2
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Minotaur	Level 3 Elite Harrier
+        Accursed, Humanoid, Minotaur	EV 20
+        <b>Stamina</b> 100
+        <b>Speed</b> 8	<b>Size</b> 2 / <b>Stability</b> 2
+        <b>	Free Strike</b> 5
+        Might +2	Agility +2	Reason 0	Intuition +1	Presence -1
+        <b>Flail and Blade</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage; push 1
+        %E2%98%85	<b>12%E2%80%9316</b>	11 damage; push 2
+        %E2%9C%B8	<b>17</b>	14 damage; push 3
+        <b>	Effect</b> Shift 3.
+
+        <b>Primal Bay </b>(Action) %E2%97%86 3 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>Target</b> Self
+        <b>Effect</b> The minotaur has damage immunity 2 and deals an additional 5 damage with their strikes until the end of their next turn. On their next turn, they have access to an additional maneuver.
+
+        <b>Goring Horns </b>(Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 5 Malice
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; I<0 dazed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	8 damage; I<1 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	9 damage; I<2 dazed (save ends)
+        <b>Effect</b> The potency of this ability increases by 1 if it's used while charging.
+
+        <b>Retaliatory Gore</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Trigger</b> The minotaur takes damage from a creature within 8.
+        <b>Distance</b> Self	<b>Target</b> Triggering creature
+        <b>Effect</b> The minotaur charges the target using Flail and Blade or Goring Horns.
+
+        <b>Minotaur Sense</b>
+        The minotaur cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0c007c70-9f61-4985-b665-0842d59b4d82: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 0c007c70-9f61-4985-b665-0842d59b4d82
+        source: Trait
+        modtype: nottierone
+        keywords: []
+        activationCondition: false
+        guid: b9cfdcb4-27ad-4387-adab-e5b46531d0c6
+        domains:
+          CharacterFeature:0c007c70-9f61-4985-b665-0842d59b4d82: true
+        name: Minotaur Sense
+        rollType: test_power_roll
+        description: The minotaur cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+        behavior: power
+        skills:
+        - 0c7d0c53-2056-4579-8c83-1bec3098cc56
+        - 7f6d9375-0ab0-415c-8196-4d99e98aa12b
+      source: Trait
+      description: The minotaur cannot get a result lower than tier 2 when making Tests to navigate, search, or seek.
+      guid: 0c007c70-9f61-4985-b665-0842d59b4d82
+      name: Minotaur Sense
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8ef5814a-a1bb-40bc-bf9d-cfda559b63c4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:8ef5814a-a1bb-40bc-bf9d-cfda559b63c4: true
+        sourceguid: 8ef5814a-a1bb-40bc-bf9d-cfda559b63c4
+        behavior: trigger
+        source: Character Feature
+        name: Goring Horns Potency Modifier
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: 752a0a90-b1be-405a-a61a-ec4c8c1f8898
+            duration: 0
+            ongoingEffectCustom: 752a0a90-b1be-405a-a61a-ec4c8c1f8898
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: bdc7ae11-77ee-4a8f-809b-66ba360923ee
+          targetType: self
+          whenActive: combat
+          conditionFormula: Ability.Name is "charge"
+          numTargets: "1"
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          trigger: useability
+          name: Increase Potency if Charge
+          description: This trigger fires if the Minotaur uses their charge ability, and increases potency by 1 on the Goring Horns ability.
+          abilityType: none
+          iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+        guid: fdd612ae-a9e7-4d26-813a-cb3da4b8d1ab
+      source: Character Feature
+      description: ""
+      guid: 8ef5814a-a1bb-40bc-bf9d-cfda559b63c4
+      name: Goring Horns Potency Modifier
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:0e461184-1c47-464b-a900-c903667894f9: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:0e461184-1c47-464b-a900-c903667894f9: true
+        sourceguid: 0e461184-1c47-464b-a900-c903667894f9
+        behavior: trigger
+        source: Character Feature
+        name: Retaliatory Strike
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: bd84cecc-97b3-4d07-aebd-ec5b0fcbb3fc
+              repeatTargets: false
+              abilityType: none
+              persistence: []
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  modifyDescription: The minotaur uses the Charge main action and either Flail and Blade or Goring Horns against the attacker.
+                  source: ""
+                  filterAbility: ability.name is "charge"
+                  guid: eb66a0e5-6661-44f7-8b1a-e7b299b3838b
+                  name: Modify Attack
+                  attributes: []
+                  cannotModifyAction: true
+                  description: ""
+                  behavior: modifyability
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: b2cb8266-31dc-4140-9ab7-d56d695a759d
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              targetType: self
+              name: Invoked Ability
+              sourceReference:
+                __typeName: SourceReference
+                page: 208
+                docid: cc66844a-04d0-49a0-8687-65ef83b15363
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            abilityType: custom
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: "8"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 8dd4a1a3-d799-45e9-8a4b-a09175abfc1b
+          targetType: attacker
+          whenActive: combat
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          name: Retaliatory Strike
+          trigger: losehitpoints
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: f97a1e0f-b532-4126-addb-1c1085b80288
+      name: Retaliatory Strike
+      description: ""
+      guid: 0e461184-1c47-464b-a900-c903667894f9
+      source: Character Feature
+    role: Elite Harrier
+    inflictedConditions: []
+    ev: 20
+    max_hitpoints_roll: "100"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    titles: []
+    walkingSpeed: 8
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Minotaur
+    equipment: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 100
+    damage_taken: 0
+    traitNames: []
+    resources: []
+    keywords:
+      Minotaur: true
+      Accursed: true
+      Humanoid: true
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; push 1
+        - 11 damage; push 2
+        - 14 damage; push 3
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 1c7fb3c8-487d-48aa-8738-2f270759a65e
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 2
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 208
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Flail and Blade
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      description: The minotaur shifts up to 3 squares.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 37167b9d-f9ca-49d3-9ea1-001f720c56a2
+        duration: end_of_next_turn
+        ongoingEffectCustom: 37167b9d-f9ca-49d3-9ea1-001f720c56a2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 208
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 2250b772-7216-48ae-aee6-9f1fa9d3fa3f
+      abilityType: none
+      targetType: self
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      implementation: 3
+      name: Primal Bay
+      categorization: Heroic Ability
+      description: The minotaur has damage immunity 2 and deals an additional 5 damage with their strikes until the end of their next turn. On their next turn, they have access to an additional maneuver.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: e2345ee0-e8e3-412c-bebc-d0dddbafad93
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; I<0 dazed (save ends)
+        - 8 damage; I<1 dazed (save ends)
+        - 9 damage; I<2 dazed (save ends)
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        guid: 62c17f42-3c8b-42b6-9854-1c8a62d9c065
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 62c17f42-3c8b-42b6-9854-1c8a62d9c065
+          modtype: none
+          keywords: []
+          activationCondition: false
+          guid: 5523787b-1ccf-44e1-b837-a758bb3d6a0f
+          filterCondition: Ability.keywords has "charge"
+          rollType: ability_power_roll
+          domains: []
+          description: ""
+          behavior: power
+          name: Power Roll Modifier
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: true
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: aebaa6e6-f014-4766-b4db-bd4cbd1c03e4
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: 'Goring Horns '
+      persistence: []
+      description: The potency of this ability increases by 1 if it's used while charging.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: true
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      guid: eadd5bc3-1a2f-410b-b1f2-3cbd4025b843
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      persistence: []
+      behaviors: []
+      name: Retaliatory Gore
+      iconid: ui-icons/skills/1.png
+      description: The minotaur charges the target using Flail and Blade or Goring Horns.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; push 1
+        - 11 damage; push 2
+        - 14 damage; push 3
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 23380527-70c5-451e-948f-89aa4f685c2f
+      targetType: target
+      implementation: 3
+      numTargets: 2
+      name: Flail & Blade
+      sourceReference:
+        __typeName: SourceReference
+        page: 207
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: The minotaur shifts up to 3 squares
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: bd84cecc-97b3-4d07-aebd-ec5b0fcbb3fc
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              modifyDescription: The minotaur uses the Charge main action and either Flail and Blade or Goring Horns against the attacker.
+              source: ""
+              filterAbility: ability.name is "charge"
+              guid: eb66a0e5-6661-44f7-8b1a-e7b299b3838b
+              name: Modify Attack
+              attributes: []
+              cannotModifyAction: true
+              description: ""
+              behavior: modifyability
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: b2cb8266-31dc-4140-9ab7-d56d695a759d
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                targetType: self
+                abilityType: none
+                name: New Ability
+                behaviors: []
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          targetType: self
+          name: Invoked Ability
+          sourceReference:
+            __typeName: SourceReference
+            page: 208
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        abilityType: custom
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 8
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 6894901d-33c3-40ba-ad09-dca20dfd36ac
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Retaliatory Strike
+      sourceReference:
+        __typeName: SourceReference
+        page: 207
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The minotaur uses the Charge main action and either Flail and Blade or Goring Horns against the target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    groupid: 6efceb1a-994d-411b-a006-923df38066a7
+    movementSpeeds: []
+    monster_category: Monster
+    minion: false
+    creatureSize: "2"
+    opportunityAttack: 5
+  tokenType: null
+  bestiaryId: b4f1cb52-8dd6-4a33-ae78-f00b7d2d0227
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Minotaur
+parentFolder: 4e90b2cf-3242-46d6-9c01-ce1d199e1205
+artist: null
+ord: 0
+ctime: 1741590298049
+mtime: 1775201137032
+hidden: false

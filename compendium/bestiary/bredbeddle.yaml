@@ -1,0 +1,479 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: fbf7febe-c236-496b-9883-03aa4486e8da
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 4
+    cr: 3
+    import:
+      type: mcdm
+      data: |+
+        Bredbeddle	Level 3 Solo
+        Bredbeddle, Giant	EV 50
+        <b>Stamina</b> 300
+        <b>Speed</b> 5	<b>Size</b> 2 /<b> Stability</b> 4
+        <b>Free Strike</b> 6
+        Might +3	Agility 0	Reason -3	Intuition +1	Presence +2
+        <b>Solo Monster</b>
+        <b>Solo Turns</b> The bredbeddle takes up to two turns each round. They can't take turns consecutively.
+        <b>End Effect</b> At the end of their turn, the bredbeddle can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Resilient Form</b>
+        The bredbeddle can't be physically transformed in any way except by their Heady or Not trait.
+
+        <b>Heady or Not</b>
+        While headless, the bredbeddle can move into a space with a severed head and attach it to their neck as an action. Doing so physically transforms the bredbeddle, who takes on the size, weight, reach, and stability of the head's original owner. These effects last until the bredbeddle is killed or beheaded, or until the head falls off after 24 hours. A head that falls off this way can no longer be attached to the bredbeddle.
+        A creature must succeed on a <b>hard Might test</b> made as a maneuver to rip a head off the bredbeddle. If they fail, the bredbeddle makes a free strike against them.
+
+        <b>Executioner's Swing</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 2 burst	<b>Target</b> Each enemy in the burst
+        %E2%9C%A6	%E2%89%A411	2 damage; A<1 bleeding (save ends)
+        %E2%98%85	12%E2%80%9316	4 damage; A<2 bleeding (save ends)
+        %E2%9C%B8	17+	5 damage; A<3 bleeding (save ends); M<2 dazed (save ends)
+        <b>3 Malice</b> The bredbeddle shifts up to 2 squares and can target additional enemies who come within distance of this ability during the move.
+
+        <b>Lop</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 3 Malice
+        <b>Keywords</b> Magic, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> One creature
+        %E2%9C%A6	%E2%89%A411	9 damage; bleeding (save ends) or M<1 beheaded (see effect)
+        %E2%98%85	12%E2%80%9316	13 damage; bleeding (save ends) or M<2 beheaded (see effect)
+        %E2%9C%B8	17+	16 damage; bleeding (save ends) or M<3 beheaded (see effect)
+        <b>Effect</b> A beheaded target has their head fall into an unoccupied square adjacent to the bredbeddle, but they remain alive. While beheaded, the target is bleeding and can't establish line of effect beyond 1 square. The beheaded target can survive without their head for 24 hours, and can reattach their head with a maneuver by entering its square. A target who remains beheaded for 24 hours dies.
+
+        <b>Scramble</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self (while headless)	<b>Target</b> Self
+        <b>Effect</b> The bredbeddle shifts up to their speed, and can push each creature who comes within their reach during the movement 1 square. Each square the bredbeddle exits during the movement becomes difficult terrain.
+
+        <b>Headway</b> (Maneuver) %E2%97%86 2d10 + 3 %E2%97%86 5 Malice
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 20<b>	Target</b> One creature or object
+        <b>Effect</b> The bredbeddle must have a head in their possession (attached to them or not), which they throw at the target. If the head was attached, the bredbeddle becomes headless.
+        %E2%9C%A6	%E2%89%A411	9 damage; M<1 dazed (save ends)
+        %E2%98%85	12%E2%80%9316	13 damage; prone; M<2 dazed (save ends)
+        %E2%9C%B8	17+	16 damage; prone; M<3 dazed (save ends)
+
+        <b>Envious Imitation</b> (Triggered Action) %E2%97%86 2 Malice
+        <b>Keywords</b> Magic
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Trigger</b> A creature targets the bredbeddle with a ranged strike.
+        <b>Effect</b> The bredbeddle uses the same ability against the triggering creature, using that creature's bonus to any power rolls they have to make.
+
+        <b>Turn Green</b> (Villain Action 1) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 3 burst	<b>Target</b> Each enemy in the burst
+        %E2%9C%A6	%E2%89%A411	P<1 The target turns green (save ends)
+        %E2%98%85	12%E2%80%9316	P<2 The target turns green (save ends)
+        %E2%9C%B8	17+	P<3 The target turns green until the end of the encounter
+        <b>Effect</b> Green shadows crawl out from under the bredbeddle's feet and attempt to turn each target green. The bredbeddle has a double edge on attacks made against targets turned green until the condition ends.
+
+        <b>Challenge </b>(Villain Action 2)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 5<b>Target</b> One enemy
+        <b>Effect</b> The bredbeddle points at the target and issues them a challenge. If the target refuses, they turn green until the end of the encounter (see Turn Green).
+        If the target accepts, the bredbeddle shifts to a space adjacent to the target, who must make a <b>hard Might test</b> with no additional modifiers. On success, the target can choose to deal 40 damage to the bredbeddle or remove the bredbeddle's head. On failure, the target is beheaded (see Lop).
+
+        <b>Headlam Rampage</b> (Villain Action 3) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2	<b>Target</b> Four creatures
+        %E2%9C%A6	%E2%89%A411	6 damage; bleeding (save ends) or A<1 beheaded
+        %E2%98%85	12%E2%80%9316	7 damage; bleeding (save ends) or A<2 beheaded
+        %E2%9C%B8	17+	8 damage; bleeding (save ends) or A<3 beheaded (see Lop)
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:667f4e5b-66d3-4bd8-a5a4-0c825922bccf: true
+      modifiers: []
+      name: Resilient Form
+      description: The bredbeddle can't be physically transformed in any way except by their Heady or Not trait.
+      guid: 667f4e5b-66d3-4bd8-a5a4-0c825922bccf
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a91b9b36-7ef7-44f8-80b5-b9184919fce2: true
+      modifiers: []
+      name: Heady or Not
+      description: While headless, the bredbeddle can move into a space with a severed head and attach it to their neck as an action. Doing so physically transforms the bredbeddle, who takes on the size, weight, reach, and stability of the head's original owner. These effects last until the bredbeddle is killed or beheaded, or until the head falls off after 24 hours. A head that falls off this way can no longer be attached to the bredbeddle.
+      guid: a91b9b36-7ef7-44f8-80b5-b9184919fce2
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:c0cc2631-ddbf-4477-b248-83c94057652b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            targetDuration: save
+            damageToSelf: "5"
+            purgeType: one
+          triggerPrompt: End effect for 5
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d7fb95fc-a78f-457f-bad6-1283f029cc88
+          numTargets: "1"
+          castImmediately: true
+          whenActive: combat
+          targetType: self
+          trigger: endturn
+          name: End Effect
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 6bc30a1d-ef1b-4309-81c0-a92e384ce6b3
+        name: End Effect
+        sourceguid: d9e3b2d6-370d-4903-96ee-939f98190bc0
+      source: Trait
+      description: At the end of each of their turns, the bredbeddle can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.The bredbeddle can take two turns each round. They can't take turns consecutively.
+      guid: c0cc2631-ddbf-4477-b248-83c94057652b
+      name: Solo Monster
+      implementation: 3
+    role: Solo
+    keywords:
+      Giant: true
+      Bredbeddle: true
+    max_hitpoints_roll: "300"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 6
+    monster_type: Bredbeddle
+    attributes:
+      agl:
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: -3
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    equipment: []
+    groupid: fb3ba0c7-984c-43e1-8cdb-869d20843191
+    damage_taken: 0
+    max_hitpoints: 300
+    resources: []
+    traitNames: []
+    ev: 60
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 57d6856d-ebc0-4fe1-b661-26f166d39a29
+      implementation: 3
+      numTargets: 1
+      name: Executioner's Swing
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage; A<1 bleeding (save ends)
+        - 4 damage; A<2 bleeding (save ends)
+        - 5 damage; M<2 dazed (save ends); A<3 bleeding (save ends)
+        roll: 2d10 + Might
+      description: |2-
+
+        **3 Malice**: The bredbeddle shifts up to 2 squares, and can target additional enemies who come within distance of this ability during the shift.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Magic: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: a14b2e8f-c533-41c5-a875-a04ac1ad9018
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage; or if the target has M<1 they are beheaded; bleeding (save ends)
+        - 13 damage; or if the target has M<2 they are beheaded; bleeding (save ends)
+        - 16 damage; or if the target has M<3 they are beheaded; bleeding (save ends)
+        roll: 2d10 + Might
+      name: Lop
+      implementation: 3
+      description: A beheaded target has their head fall into an unoccupied square adjacent to the bredbeddle, but they remain alive. While beheaded, the target is bleeding and can't establish line of effect beyond 1 square. The beheaded target can survive without their head for 24 hours, and can reattach their head with a maneuver by entering its square. A target who remains beheaded for 24 hours dies.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 23f626d3-b6cf-462c-8f72-a733e0834f31
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Scramble
+      numTargets: 1
+      description: The bredbeddle shifts up to their speed, and can push each creature who comes within their reach during the movement 1 square. Each square the bredbeddle exits during the movement becomes difficult terrain.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 20
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 6b81b322-074a-4539-b88f-92a8da323dc5
+      abilityType: none
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 damage; M<1 dazed (save ends)
+        - 13 damage; prone; M<2 dazed (save ends)
+        - 16 damage; prone; M<3 dazed (save ends)
+        roll: 2d10 + Might
+      name: Headway
+      implementation: 3
+      description: The bredbeddle must have a head in their possession (attached to them or not), which they throw at the target. If the head was attached, the bredbeddle becomes headless.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 09d7c8f6-a781-4a44-b082-20a8c2a37760
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: Envious Imitation
+      implementation: 0
+      description: The bredbeddle uses the same ability against the triggering creature, using that creature's bonus to any power rolls they have to make.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      villainAction: Villain Action 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 78ea7f27-04ce-439f-b2ce-17502beb3758
+      usageLimitOptions: "{'multicharge': False, 'resourceid': 'c0d7da10-54c5-44b2-990"
+      implementation: 3
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - P<1 the target turns green (save ends)
+        - P<2 the target turns green (save ends)
+        - P<3 the target turns green until the end of the encounter
+        roll: 2d10 + Might
+      name: Turn Green
+      numTargets: 1
+      description: Green shadows crawl out from under the bredbeddle's feet and attempt to turn each target green. The bredbeddle has a double edge on attacks made against targets turned green until the condition ends.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '821747ce-f464-43dd-846"
+      villainAction: Villain Action 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 8bb441be-022a-4850-985f-cb0161c17018
+      numTargets: 1
+      targetType: target
+      implementation: 0
+      name: 'Challenge '
+      effectImplemented: false
+      description: The bredbeddle points at the target and issues them a challenge. If the target refuses, they turn green until the end of the encounter (see Turn Green).
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 2
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '7232bb5f-4724-450c-84b"
+      villainAction: Villain Action 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 06921ff8-9084-4740-a6bb-0160543f9d5c
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; bleeding (save ends); or if the target has A<1 they are beheaded (see Lop)
+        - 7 damage; bleeding (save ends); or if the target has A<2 they are beheaded (see Lop)
+        - 8 damage; bleeding (save ends); or if the target has A<3 they are beheaded (see Lop)
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      name: Headlam Rampage
+      numTargets: 4
+      description: ""
+      abilityType: none
+      implementation: 4
+    monster_category: Monster
+    movementSpeeds: []
+    levelChoices: []
+    minion: false
+    creatureSize: "2"
+    walkingSpeed: 5
+  tokenType: null
+  bestiaryId: 359ef90d-0a7b-46da-88dd-5b6c0cfd8791
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961964240
+description: Bredbeddle
+parentFolder: 3d6bd08f-6a79-4258-adf3-7cebe5cc1a06
+artist: null
+ord: 0
+ctime: 1741590237323
+mtime: 1775201137032
+hidden: false

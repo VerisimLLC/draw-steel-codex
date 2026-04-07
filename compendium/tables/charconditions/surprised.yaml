@@ -1,0 +1,82 @@
+__typeName: CharacterCondition
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: d7a4f118-54a2-42e3-8759-8d6b01bfc220
+  source: Condition
+  modtype: edge
+  keywords: []
+  activationCondition: true
+  guid: 670cac4f-38a7-4f28-8a2f-9f9dcf4ced43
+  rollType: enemy_ability_power_roll
+  domains:
+    CharacterCondition:ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355: true
+  description: 'A surprised creature can’t take triggered or free triggered actions and ability power rolls against them gain an edge. '
+  behavior: power
+  name: Surprised
+- __typeName: CharacterModifier
+  domains:
+    CharacterCondition:ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355: true
+  sourceguid: d7a4f118-54a2-42e3-8759-8d6b01bfc220
+  description: 'A surprised creature can’t take triggered or free triggered actions and ability power rolls against them gain an edge. '
+  source: Condition
+  name: Surprised
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: 06654ade-08ce-45a2-b2dd-6c5316fadf8c
+    repeatTargets: false
+    trigger: beginround
+    conditionFormula: Combat Round > 1
+    targetType: self
+    persistence: []
+    name: Surprised
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      conditions:
+      - ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: 9232896f-0341-4fb7-9095-6cb88bfa9be6
+- __typeName: CharacterModifier
+  sourceguid: d7a4f118-54a2-42e3-8759-8d6b01bfc220
+  source: Condition
+  value: 1
+  domains:
+    CharacterCondition:ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355: true
+  name: Surprised
+  guid: 08358dfd-6a5d-4b44-b769-ad523d1d2c6e
+  description: 'A surprised creature can’t take triggered or free triggered actions and ability power rolls against them gain an edge. '
+  behavior: attribute
+  attribute: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+guid: d7a4f118-54a2-42e3-8759-8d6b01bfc220
+id: ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355
+ctime: 1704299815224
+domains:
+  CharacterCondition:ff146aa3-9e91-4c33-b5d2-7f4ac2dc1355: true
+indefiniteDuration: true
+powertable: true
+name: Surprised
+iconid: 87c16b08-7f2e-46b2-9647-f9b092d836a0
+description: 'A surprised creature can’t take triggered or free triggered actions and ability power rolls against them gain an edge. '
+mtime: 1768208539549
+implementation: 2

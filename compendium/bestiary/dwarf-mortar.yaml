@@ -1,0 +1,223 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f0b48778-9706-4add-866c-2b5dfc531a03
+    offtokenPortraitId: f5e36fe5-4f75-400e-a1d0-3b21bc24c6de
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440918
+    portraitOffset:
+      x: 0.05908663
+      y: 0.1493358
+    frameHueShift: 0.7870896
+    frameSaturation: 0.6356357
+    frameBrightness: 0.8230387
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 6471d33a-c581-4187-849c-cadc18a5b6bf
+  properties:
+    __typeName: follower
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 10
+    inflictedConditions: []
+    keywords:
+      Dwarf: true
+      Humanoid: true
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        applyto: caster
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          guid: bac8623d-383d-44fc-a769-e364825f9ea2
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: 0457ca41-028e-46e7-bc6a-c90612e0c511
+            sourceguid: bac8623d-383d-44fc-a769-e364825f9ea2
+            value: 1
+            source: Ongoing Effect
+            name: ignore cover
+            behavior: attribute
+            description: ""
+            attribute: 33b6a265-6b89-4def-b86d-507d86061fe8
+          source: Ongoing Effect
+          name: ignore cover
+          description: ""
+          id: bac8623d-383d-44fc-a769-e364825f9ea2
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + Highest Characteristic
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 360
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "15"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 00daad8a-432c-4230-b28a-59c24247efe5
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Armor-Piercing Shell
+      persistence: []
+      description: This ability ignores cover and bypasses temporary Stamina
+      abilityType: none
+      implementation: 2
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    opportunityAttack: 3
+    followerType: retainer
+    stability: 3
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4d799ba4-2963-4598-8331-853cac186fc9: true
+      modifiers: []
+      source: Character Feature
+      description: The mortar can use a magical rune inscribed on their skin to talk to their mentor over any distance as long as both are in the same world
+      guid: 4d799ba4-2963-4598-8331-853cac186fc9
+      name: Voice Rune
+      implementation: 4
+    role: Follower Hexer
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    skillRatings: []
+    availableRolls: 0
+    availableTriggers: []
+    damage_taken: 0
+    walkingSpeed: 5
+    monster_type: Dwarf Mortar
+    savingThrowRatings: []
+    minion: false
+    resources:
+      2d3d5511-4b80-46d1-a8c6-4705b9aa45ca:
+        __typeName: CharacterResource
+        refreshid: ""
+        unbounded: 0
+        used: 0
+      5bd90f9b-46be-4cf2-8ca6-a96430d62949:
+        __typeName: CharacterResource
+        used: 0
+        refreshid: none
+    retainer: true
+    initiativeGrouping: 24a6fb8c-37e5-4d91-bbd6-837d4846da7f
+    animations:
+      anim:
+      - resources:
+          5bd90f9b-46be-4cf2-8ca6-a96430d62949: 0
+        animType: consumeResource
+      guid: 20ca3215-9e93-45b3-a9a5-9a35bd16e931-619
+    5bd90f9b-46be-4cf2-8ca6-a96430d62949_history:
+      __typeName: StatHistory
+      entries:
+        e63ac4d1-4179-4962-b179-6791fb79fa4a:
+          refreshid: none
+          note: Manually Set
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/0
+        a987468e-49ca-48a4-8c86-55c1e8c0337c:
+          refreshid: none
+          note: Manually Set
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/0
+        aec0751f-d7f8-4f1d-90b2-3c9efed03ff2:
+          refreshid: none
+          note: Manually Set
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/0
+        b48a428a-1139-4aa4-93c7-89a07d3fb663:
+          refreshid: none
+          note: Manually Set
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/0
+        2ccd5b2a-f13a-4b8a-9414-4b42fd9446cd:
+          refreshid: none
+          note: Manually Set
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/0
+  tokenType: null
+  bestiaryId: 10590611-0df9-4f71-8670-53337cd036a3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1763765512850
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 3
+ctime: 1763765512850
+mtime: 1775167449011
+hidden: false

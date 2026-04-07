@@ -1,0 +1,131 @@
+__typeName: CharacterFeaturePrefabs
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    options:
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 9f4444fe-3563-4592-90a3-6109a1609db0
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: 00ad0ba8-5af7-46dd-b760-1660b7de8c20
+        skill: b77f5fb6-ac84-47a4-9b9e-a26a6915f8b1
+      name: Creation Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: c9aa1dd4-429c-495f-85d0-adb02aec608d
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: a64fd353-fd1c-4560-9925-6269e931bdeb
+        skill: 2fb06067-80cc-4e97-ba16-a6aadaa19b05
+      name: Death Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 42809860-72ee-490f-8788-7edd0a576538
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: d4d239e6-e846-46ef-b12a-a69294b4bcd1
+        skill: 3b37f32a-52e5-40ff-ad5c-be45700b8e9c
+      name: Fate Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 41d94742-7a1b-43d4-96e0-81af1dfefdc2
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: 6d11c670-d146-4672-8c1b-ed2b6ee92c16
+        skill: f161a172-69a7-400a-a2bc-5b11dad6eddf
+      name: Knowledge Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 92bd7e8c-9d56-4459-b53b-b850a94ec635
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: e7a0c6a0-ea3c-4872-a02a-2dff1674af09
+        skill: 7a9d8961-3353-4c1f-9943-273c36f5f243
+      name: Life Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 5f56528b-2b01-49fd-80a2-ff574724f66b
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: 52c991b7-a1e7-49ce-9810-cdadca00399b
+        skill: defb6845-d9c3-4d31-8527-5bff55548072
+      name: Love Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 037621e5-d6e0-4a8c-a8ef-6a6ca2c26b01
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: 77317733-31ce-4484-8dc2-b88dc29596ba
+        skill: 9382788b-954d-41c1-a616-58a518b97b57
+      name: Nature Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 6bf54d4b-381e-49b3-9fe5-f67630e6b425
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: bfa70de3-18a5-4aa1-915b-55ce062aebbf
+        skill: ec4ea071-19a4-435c-8c55-50094988e4ef
+      name: Protection Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: b063d7bd-db95-4ea3-8043-8264320591d2
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: 4b096881-f2f9-417a-9faf-9849fe616a97
+        skill: 3bea86a2-5a42-4e4f-8759-06e7675e55e0
+      name: Storm Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 82b7bc0d-7252-46f6-b02c-1bbf8a7a369b
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: 2f21432c-512b-4221-b6ec-e8ed40df380e
+        skill: 3bea86a2-5a42-4e4f-8759-06e7675e55e0
+      name: Sun Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 8518506a-ee8c-4579-9d62-f4131e1b6c01
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: 0f3ed669-4256-40bd-98be-413b17605bef
+        skill: c16cad58-fa50-4223-ba55-97f56196c1bb
+      name: Sun Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 010a746f-a164-4a78-a9d6-0daa88dae48f
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: f06b60c0-d552-41fd-af9b-b0406976fd87
+        skill: a091ea75-1971-4c0e-953e-1d76af617395
+      name: Trickery Domain
+    - __typeName: CharacterFeatureList
+      features: []
+      guid: 43357c23-78fe-4f93-a427-02a9055a6f64
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: domain
+        guid: 1eb976bc-cb9d-4a5a-94e7-56c0d65ce8e1
+        skill: 9cfb8c84-118a-439c-a879-85b54e9278fa
+      name: War Domain
+    guid: c1e86fed-b08e-4709-af5d-95c03b64a797
+    numChoices: 1
+    name: Domain Feature
+name: Domain Features
+mtime: 1764518833013
+id: 57bcb8a7-e771-4735-8ea7-a06afea6c74b
+ctime: 1764518574736

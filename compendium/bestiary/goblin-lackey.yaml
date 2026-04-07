@@ -1,0 +1,100 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 12fd0a95-9075-4025-9e61-c7a80d7bdc3f
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: -0.0078125
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.85
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    groupid: 706bb3f2-091d-47f7-bdcb-476502bc66bd
+    cr: 1
+    role: Minion
+    inflictedConditions: []
+    ev: 1
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    skillRatings: []
+    attackNames:
+    - Minion Melee
+    monster_type: Goblin Lackey
+    damage_taken: 0
+    monster_category: Monster
+    levelChoices: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    walkingSpeed: 25
+    pr: 0
+    equipment: []
+    traitNames:
+    - Tiny Stabs
+    max_hitpoints: 4
+    movementSpeeds:
+      climb: 25
+    fmr: 0
+    opportunityAttack: 1
+    resources: []
+    savingThrowRatings: []
+  tokenType: null
+  bestiaryId: e7c528ee-35b5-4fa4-a37e-01d73570d5e7
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1715748088616
+description: Goblin Lackey
+parentFolder: 79a93387-4cb0-465f-9085-31c8eec6e3f7
+artist: null
+ord: 6
+ctime: 1741590322662
+mtime: 1775201137032
+hidden: false

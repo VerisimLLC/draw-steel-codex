@@ -1,0 +1,51 @@
+__typeName: ActivatedAbility
+id: bc5268d3-3a65-499c-aad7-595df3a6eac1
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+range: 5
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 5ae27943-389a-4914-9dce-62ab2f989152
+importMatch: An ally within <<range>> can spend a recovery
+ctime: 1711419701225
+numTargets: "1"
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: caster
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    targetFilter: not enemy
+    guid: 83fe7098-d374-4558-aaff-9e4a0fb08dbf
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors:
+    - __typeName: ActivatedAbilityHealBehavior
+      roll: Target.Maximum Hitpoints / 3
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+      mode: expend
+    abilityType: none
+    name: Invoked Ability
+    targetType: target
+    description: ""
+    range: 5*<<range>>
+    iconid: ui-icons/skills/1.png
+  promptText: Choose ally to spend a recovery
+mtime: 1766310980611
+name: Ally Recovery
+repeatTargets: false
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,66 @@
+__typeName: ActivatedAbility
+targetFilter: "1"
+id: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+behaviors:
+- __typeName: ActivatedAbilityRememberBehavior
+  applyto: caster
+  memoryName: spacesmoved
+  calculation: cast.Forced Movement Distance
+- __typeName: ActivatedAbilityRememberBehavior
+  applyto: caster
+  memoryName: range
+  calculation: "<<range>>"
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: move
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  applyto: caster
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 88392bd2-127a-4c57-a1f9-fdddb00979f8
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  promptText: Continue sliding
+  autoTarget: false
+  standardAbilityParams:
+    range: "<<Cast.memory(\"range\") - (cast.Forced Movement Distance - cast.memory(\"spacesmoved\"))>>"
+  standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+  filterTarget: |-
+    (not cast.forced movement collision) and
+
+    ((cast.Forced Movement Distance -cast.memory("spacesmoved")) < <<range>>)
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: 6a7f2780-7ddd-4e25-bd46-3faaa4dc0b68
+targetType: anyspace
+ctime: 1741589821188
+numTargets: "1"
+targeting: straightline
+description: ""
+name: "Forced Movement: Slide"
+repeatTargets: false
+mtime: 1774179221521
+abilityType: none
+iconid: ui-icons/skills/1.png

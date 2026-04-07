@@ -1,0 +1,29 @@
+__typeName: CharacterComplication
+drawback: All those who learn of you running out on your commitment think less of you and spread nasty rumors about you.Your Renown can’t ever be more than your level - 1.
+mtime: 1765793097976
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: All those who learn of you running out on your commitment think less of you and spread nasty rumors about you.Your Renown can’t ever be more than your level - 1.
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 7d86d527-34ca-41a2-8d8c-58b8f7624790
+      source: Feat
+      value: -1
+      filterCondition: Renown > 0
+      name: Betrothed - Drawback
+      guid: d0306364-ce13-4006-bf87-4566ebffe14a
+      description: All those who learn of you running out on your commitment think less of you and spread nasty rumors about you.Your Renown can’t ever be more than your level - 1.
+      behavior: attribute
+      attribute: d97c2794-cb70-420f-b078-e260b43e154b
+    source: Feat
+    canHavePrerequisites: true
+    guid: 7d86d527-34ca-41a2-8d8c-58b8f7624790
+    name: Betrothed - Drawback
+    implementation: 3
+name: Betrothed
+ctime: 1755511144600
+description: Your parents made a deal, and as part of that deal, you’re supposed to marry someone—or something—you didn’t choose. But no one is going to tell you what to do! They’ll all be sorry to find that you’ve run away to become a mighty adventurer.
+id: a904a4f8-5950-4133-8929-ea7e858cbc51
+benefit: "You escaped with a dowry present—a 1st-echelon trinket of your choice (see Treasures in Chapter 13: Rewards)."

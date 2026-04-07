@@ -1,0 +1,122 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 641e0df1-c24e-4510-81ab-40abc6b40415
+  source: Ongoing Effect
+  powerRollModifier:
+    __typeName: CharacterModifier
+    behavior: power
+    triggerBeforeCondition: "1"
+    guid: 09cf661d-f218-477d-a01d-fd3d39056231
+    changeTargetFilter: Target.ConditionCaster("Illusory Duplicates") = Self
+    hasTriggerBefore: false
+    modtype: none
+    triggerBefore:
+      __typeName: TriggeredAbility
+      persistence: []
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 573c0e78-1ca7-43ce-85e7-e4a8c0cfccfc
+      repeatTargets: false
+      abilityType: none
+      trigger: d20roll
+      targetType: self
+      numTargets: "1"
+      name: New Ability
+      behaviors:
+      - __typeName: ActivatedAbilityCharacterSpeechBehavior
+        fallbackText: Gosh
+        variations:
+        - Gosh
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+    keywords: []
+    activationCondition: false
+    customTrigger:
+      __typeName: TriggeredAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      persistence: []
+      modifiers: []
+      targetFilter: ""
+      strain: []
+      guid: f1b2330f-cc12-4d11-b442-58839a3aee4e
+      repeatTargets: false
+      abilityType: none
+      trigger: d20roll
+      behaviors:
+      - __typeName: ActivatedAbilityDelayBehavior
+        delay: "1"
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 942e4e5e-deb8-4cab-944f-d655efca9832
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Teleport to Duplicate's location
+        abilityType: standard
+        standardAbilityParams:
+          range: "100"
+        standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+      targetType: self
+      name: New Ability
+      numTargets: "1"
+      description: ""
+      range: "100"
+      iconid: ui-icons/skills/1.png
+    hasCustomTrigger: true
+    rollType: ability_power_roll
+    rules: ""
+    source: Trigger
+    name: Trinity of Trickery
+    changeTarget: true
+  guid: f5a0da38-3682-44a6-af55-2fc4fcbf1b78
+  type: free
+  domains:
+    CharacterOngoingEffect:641e0df1-c24e-4510-81ab-40abc6b40415: true
+  targetType: self
+  behavior: powertabletrigger
+  name: Trinity of Trickery
+  rules: Use a free triggered action to switch places with a duplicate and cause them to be the target of the ability.
+  description: ""
+  range: 10
+  trigger: strike
+source: Ongoing Effect
+guid: 641e0df1-c24e-4510-81ab-40abc6b40415
+id: 641e0df1-c24e-4510-81ab-40abc6b40415
+ctime: 1773609311142
+domains:
+  CharacterOngoingEffect:641e0df1-c24e-4510-81ab-40abc6b40415: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Trinity of Trickery
+custom: true
+description: ""
+mtime: 1773611420192
+iconid: ui-icons/skills/1.png

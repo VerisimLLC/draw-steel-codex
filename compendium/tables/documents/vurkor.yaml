@@ -1,0 +1,28 @@
+__typeName: MarkdownDocument
+description: Vurkor
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: b531af5e-3d86-4b2c-b882-e935e718c9ec
+annotations:
+  image:
+    __typeName: RichImage
+    halign: center
+    image: b1f2ec63-6201-4c4e-88cd-79b35bac5217
+id: d9878e27-f296-41a1-9946-e4f735e528ee
+mtime: 1761405930739
+content: |-
+  # Vurkor
+
+  [[image]]
+
+  *Description, Known Information*
+  {
+  Secret: Quests or hidden information
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761405716406

@@ -1,0 +1,71 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:3be83144-3153-48c0-995e-8da136042a2f: true
+  sourceguid: 3be83144-3153-48c0-995e-8da136042a2f
+  description: The first time an adjacent creature deals damage to you before the end of your next turn, they take lightning damage equal to your highest characteristic score and you can push them 1 square.
+  source: Ongoing Effect
+  name: Tempest I
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "8"
+      filterTarget: ""
+      damageType: lightning
+      chatMessage: Tempest II
+    - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+      rule: push 3
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 380ada99-9e9c-47af-945d-2ccebc320899
+      mode: effect
+      conditions: []
+      applyto: caster
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 405adf32-a145-4a7a-8d55-466c3d05fccc
+    domains:
+      CharacterOngoingEffect:3be83144-3153-48c0-995e-8da136042a2f: true
+    name: Tempest I
+    conditionFormula: Distance(Attacker) < 2
+    targetType: attacker
+    numTargets: "1"
+    trigger: losehitpoints
+    selfTarget: true
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 4ef057eb-afd6-4409-8373-6cbc3b823881
+source: Ongoing Effect
+guid: 3be83144-3153-48c0-995e-8da136042a2f
+id: 380ada99-9e9c-47af-945d-2ccebc320899
+ctime: 1774699737021
+domains:
+  CharacterOngoingEffect:3be83144-3153-48c0-995e-8da136042a2f: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.571999311447144
+    s: 0.953124403953552
+    v: 0.956735253334045
+    a: 1
+custom: true
+name: Tempest II
+iconid: 00a89db6-da4a-47fc-98aa-303a1e6b5226
+description: The first time an adjacent creature deals damage to you before the end of your next turn, they take 8 lightning damage  and you can push them 3 squares.
+mtime: 1774699782887
+implementation: 4

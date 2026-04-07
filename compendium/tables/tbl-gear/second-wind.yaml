@@ -1,0 +1,86 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  description: Whenever you become winded, you can use a free triggered action to spend a Recovery.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: subject
+        targeting: self
+        standardAbilityParams:
+          numrecoveries: "1"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: f47352e7-b46c-419c-be41-977004995884
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+      triggerPrompt: You may spend a recovery
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: true
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      whenActive: combat
+      guid: 177d0352-63f2-4e44-8313-727749c89ce5
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      targetType: self
+      numTargets: "1"
+      trigger: winded
+      name: Second Wind
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you become winded, you can use a free triggered action to spend a Recovery.
+    source: Second Wind Imbuement
+    behavior: trigger
+    guid: 6bec0a88-bfc2-45ea-a908-ec10e51bb758
+    name: Second Wind
+    sourceguid: 1526ce18-50d8-4698-9ccd-1eb9f536214d
+  source: Second Wind Imbuement
+  name: Second Wind
+  addText: Add Magical Property
+  itemAttached: true
+  guid: 1526ce18-50d8-4698-9ccd-1eb9f536214d
+id: 6dd46c64-1376-4e43-bdce-2ebfef727bcb
+imbuePrereq: none
+projectSource: Kalliak
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: The sweat of a troll
+mtime: 1774275777041
+name: Second Wind
+imbueTargetType: armor
+description: Whenever you become winded, you can use a free triggered action to spend a Recovery.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

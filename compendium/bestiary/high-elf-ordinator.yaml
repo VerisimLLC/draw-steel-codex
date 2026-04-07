@@ -1,0 +1,1187 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 90f05b31-afc6-4f08-adad-7858850c634a
+    offtokenPortraitId: 54e31c53-4adf-413c-abce-442c8716e54a
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.8620507
+    frameSaturation: 0.6949806
+    frameBrightness: 1
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 39c86da4-b904-46bd-bd41-89a50efcf59e
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 3
+    skillProficiencies: []
+    inventory: []
+    inflictedConditions: []
+    ev: 20
+    max_hitpoints_roll: "120"
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        9069069b-8cea-49d1-a7b6-46d3cbb783ed:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-4
+          note: Lightning Rod
+          userid: steam-76561198767161997
+          set: 0/1
+        719904d7-9c4d-46b2-b097-9ab725b5765f:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-5
+          note: Lightning Rod
+          userid: steam-76561198767161997
+          set: 0/1
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 2
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 3
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 3
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: High Elf Ordinator
+    b9bc06dd-80f1-4f33-bc55-25c114e3300c_history:
+      __typeName: StatHistory
+      entries:
+        b1c45d96-ccbb-4379-bb19-b3f7822686c2:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-4
+          note: Enough!
+          userid: steam-76561198767161997
+          set: 0/1
+        aa916e02-6808-4afb-ae3c-6ac8d8f7b700:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-5
+          note: Enough!
+          userid: steam-76561198767161997
+          set: 0/1
+    levelChoices: []
+    moveDistance: 7
+    traitNames: []
+    minion: false
+    42bd3dd6-cfee-4e1e-989d-d52e42bdf080_history:
+      __typeName: StatHistory
+      entries:
+        51d7001e-ce4e-46a3-95fc-cceed99201fb:
+          refreshid: 260697be-8d51-48f9-b36e-9172b41b8bf3
+          note: But We Will Change Her Mind.
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: "-1/0"
+    import:
+      type: mcdm
+      data: |
+        High Elf Ordinator	Level 3 Leader
+        Fey, High Elf, Humanoid	EV 20
+        <b>Stamina</b> 120
+        <b>Speed</b> 5 (fly)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might 0	Agility +2	Reason +3	Intuition +2	Presence +3
+        <b>Lightning Rod</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	9 lightning damage; R<1 dazed (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	14 lightning damage; R<2 dazed (save ends)
+        %E2%9C%B8	<b>17</b>	17 lightning damage; R<3 dazed (save ends)
+        <b>Effect</b> High elves have an edge on abilities used against the target until the start of the ordinator's next turn.
+
+        <b>Elemental Uproar</b> (Maneuver)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 10 Burst<b>	Target</b> Each elemental ally in the burst
+        <b>Effect</b> Each target moves up to their speed or makes a free strike. An elemental mote target can use their Spark of Life trait.
+
+        <b>Summon Elemental</b> (Free Maneuver)%E2%97%86 2+ Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> Special
+        <b>Effect</b> For every 2 malice spent, the ordinator summons 4 <b>elemental motes</b> or 4 <b>soot crows</b> into unoccupied squares
+        <b>5+ Malice</b> For every 5 malice spent, the Ordinator summons 1 <b>ceramic horse</b> or 1 winded <b>brambleguard</b> instead.
+
+        <b>Enough!</b> (Triggered Action)
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 10<b>	Target</b> Triggering enemy
+        <b>Trigger</b> An enemy targets the ordinator or an ally within distance with an ability.
+        <b>Effect</b> The ordinator uses Lightning Rod against the target.
+
+        <b>Otherworldly Grace</b>
+        At the start of their turn, the ordinator can turn the duration of one save ends effect they suffer from into EoT.
+
+        <b>Magic Beacon</b>
+        While using Chaincast, magic abilities that use the Ordinator's space have a double edge (see Chaincast).
+
+        <b>Fountains Roar, Now Free From The Earth</b> (Villain Action 1)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 10 burst<b>	Target</b> All allies in the burst
+        <b>Effect</b> Each target glows, ending one condition on themselves and then moving up to twice their speed.
+
+        <b>And The Sun Forsook Her Children </b>(Villain Action 2)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> 5 cube within 10<b>	Target</b> All enemies in the cube
+        <b>Effect</b> Each target makes a <b>Presence test</b>.
+        %E2%9C%B8	<b>%E2%89%A411</b>	12 corruption damage; pull 5 towards center of cube
+        %E2%98%85	<b>12%E2%80%9316</b>	9 corruption damage; pull 3 towards center of cube
+        %E2%9C%A6	<b>17</b>	Pull 1 towards center of cube
+        <b>Effect</b> The affected area is considered difficult terrain for enemies, becoming darkened and warping violently in every direction.
+
+        <b>But We Will Change Her Mind.</b> (Villain Action 3)
+        <b>Keywords</b> Area, Magic
+        <b>Distance</b> Self and 10 burst<b>	Target</b> Self and each ally in the burst
+        <b>Effect</b> All elves glow with magic. Each target makes a free strike that has the Magic keyword and deals an additional 3 damage.
+        Ceramic Horse	Level 1 Platoon Mount
+        Elemental, High Elf	EV 6
+        <b>Stamina</b> 30
+        <b>Speed</b> 10	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>Free Strike</b> 3
+        Might +2	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Elemental Charge</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	7 fire damage
+        %E2%9C%B8	<b>17</b>	9 lightning damage; M<2 prone
+
+        <b>Stomp</b> (Action) %E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 1 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	3 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	5 damage
+        %E2%9C%B8	<b>17</b>	7 damage
+        <b>Effect</b> This attack deals an additional 2 damage to prone targets.
+
+        <b>Buck</b> (Maneuver) %E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> The horse's rider
+        <b>Effect</b> Vertical slide 3; The rider can use a ranged ability at any point during the movement and then fall without taking damage.
+
+        <b>Shared Otherworldly Grace</b>
+        If the ceramic horse's rider has the Otherworldly Grace trait, it also gains the Otherworldly Grace trait.
+
+        Retainer
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:38736fe7-4c8f-4e91-aea4-5fce53af2346: true
+      modifiers: []
+      name: Magic Beacon
+      description: While using Chaincast, magic abilities that use the Ordinator's space have a double edge (see Chaincast).
+      guid: 38736fe7-4c8f-4e91-aea4-5fce53af2346
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cf33ae7e-6974-4532-99dc-a0652ec94a99: true
+        CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:cf33ae7e-6974-4532-99dc-a0652ec94a99: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: cf33ae7e-6974-4532-99dc-a0652ec94a99
+        behavior: trigger
+        source: Trait
+        name: Otherworldly Blessing
+        description: At the start of each of their turns, the ordinator can choose one or more effects on them that can be ended by a saving throw. The effects instead ends at the end of their turn.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            conditions: []
+            purgeType: chosen
+            targetDuration: save
+            chatMessage: Otherworldly Grace - Change One Save Ends to EoT
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          targetType: self
+          conditionFormula: Conditions has "Bleeding" or Conditions has "Dazed" or Conditions has "Frightened" or Conditions has "Prone" or Conditions has "Restrained" or Conditions has "Slowed" or Conditions has "Taunted" or Conditions has "Weakened"
+          domains:
+            CharacterFeature:cf33ae7e-6974-4532-99dc-a0652ec94a99: true
+            CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+          guid: 8a220eaf-fc35-4558-8cbc-39fa191f9d9c
+          numTargets: "1"
+          trigger: endturn
+          name: Otherworldly Grace
+          description: At the start of each of their turns, the ordinator can choose one effect on them that can be ended by a saving throw. That effect instead ends at the end of their turn.
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 0520711e-9e30-4c05-aaec-08065c41e048
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:cf33ae7e-6974-4532-99dc-a0652ec94a99: true
+          CharacterFeature:f2389745-fc05-4850-afa4-5f44dd78b271: true
+        sourceguid: cf33ae7e-6974-4532-99dc-a0652ec94a99
+        behavior: triggerdisplay
+        source: Trait
+        name: Otherworldly Blessing
+        description: At the start of each of their turns, the ordinator can choose one or more effects on them that can be ended by a saving throw. The effects instead ends at the end of their turn.
+        guid: be4c08f0-ff75-4999-af83-5f6e429ec40f
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: Choose one or more effects on them that can be ended by a saving throw. The effects instead ends at the end of their turn.
+          guid: aeffba37-61f9-48d8-a0c9-44da6a5a0591
+          keywords: []
+      source: Trait
+      description: At the start of each of their turns, the ordinator can choose one or more effects on them that can be ended by a saving throw. The effects instead ends at the end of their turn.
+      guid: cf33ae7e-6974-4532-99dc-a0652ec94a99
+      name: Otherworldly Blessing
+      implementation: 2
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:b8bb6605-eded-4a28-ba28-bfebde8a0f2b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b8bb6605-eded-4a28-ba28-bfebde8a0f2b: true
+        sourceguid: b8bb6605-eded-4a28-ba28-bfebde8a0f2b
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Enough!
+        description: |-
+          Trigger: An enemy within distance uses an ability against the ordinator or any ally within distance.
+
+          Effect: The ordinator uses Lightning Rod against the target after the ability is resolved.
+        guid: 280035a6-2752-47c1-97cf-37b0662f904b
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The ordinator uses Lightning Rod against the target after the ability is resolved.
+          guid: bf7364c3-7be3-4496-8ca8-e83e04cad9bd
+          keywords: []
+          trigger: An enemy within distance uses an ability against the ordinator or any ally within distance.
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:b8bb6605-eded-4a28-ba28-bfebde8a0f2b: true
+        sourceguid: b8bb6605-eded-4a28-ba28-bfebde8a0f2b
+        behavior: trigger
+        source: Character Feature
+        name: Enough!
+        description: |-
+          Trigger: An enemy within distance uses an ability against the ordinator or any ally within distance.
+
+          Effect: The ordinator uses Lightning Rod against the target after the ability is resolved.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: ""
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "An enemy uses an ability against the ordinator or ally within distance. Effect: The ordinator uses Lightning Rod against the target."
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          abilityType: none
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          trigger: losehitpoints
+          numTargets: "1"
+          subject: selfandallies
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: eee6a74d-61e4-44aa-9ad0-290c172b2109
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: The ordinator uses Lightning Rod against the enemy who targeted the Ordinator or an ally with an ability.
+            filterTarget: ""
+            namedAbility: Lightning Rod
+            abilityType: named
+            applyto: caster
+          name: Enough!
+          guid: c85a2f4c-874f-47ef-be30-fc6c67db1e26
+          description: |-
+            An enemy uses an ability against the ordinator or ally within distance.
+
+            Effect: The ordinator uses Lightning Rod against the target.
+          resourceCost: none
+          iconid: e7d55d80-630d-432d-8d3d-33051478bcd9
+        guid: 7024e11e-4dfd-4724-8702-423da2da1954
+      name: Enough!
+      description: |-
+        Trigger: An enemy within distance uses an ability against the ordinator or any ally within distance.
+
+        Effect: The ordinator uses Lightning Rod against the target after the ability is resolved.
+      guid: b8bb6605-eded-4a28-ba28-bfebde8a0f2b
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:81b95ca7-fce8-4798-b9a5-ad1d0860466e: true
+      modifiers: []
+      name: The Ordinator is a Magic Beacon
+      description: Whenever a high elf ordinator appears on an encounter map, the Chaincast Malice feature is improved and always active. When any elf uses a magic ability as if they were in the ordinator's space, that ability has a double edge.
+      guid: 81b95ca7-fce8-4798-b9a5-ad1d0860466e
+      source: Trait
+    role: Leader
+    opportunityAttack: 5
+    equipment: []
+    titles: []
+    stability: 0
+    animations:
+      anim:
+      - resources:
+          42bd3dd6-cfee-4e1e-989d-d52e42bdf080: 1
+        animType: consumeResource
+      guid: 882d7f4b-07bf-43f2-b7b6-156dcbea499c-1438
+    moveDistanceRoundId: 4fb4bb0f-582f-4688-98a0-30182c65e3df-7
+    2af12516-f3c2-423e-a45b-a02fb4f8698b_history:
+      __typeName: StatHistory
+      entries:
+        cbd7e3ea-54fe-4e42-b284-7d1a1c715417:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df
+          note: 'And The Sun Forsook Her Children '
+          userid: steam-76561198767161997
+          set: "-1/0"
+    max_hitpoints: 120
+    auras:
+    - __typeName: AuraInstance
+      casterid: f65fbf4a-8bda-4f21-a732-052ca02f61d9
+      duration: eoe
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.60907284418742
+        queueguid: 4fb4bb0f-582f-4688-98a0-30182c65e3df
+        initiativeid: 824cc0ed-52c3-4387-9cd8-a9c85e6a2490
+        round: 6
+      aura:
+        __typeName: Aura
+        applyto: enemies
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        modifiers: []
+        name: And the Sun Forsook Her Children
+        difficult_terrain: true
+        guid: 5b863377-0167-47f4-b335-25437b8dbe35
+        objectid: a4861b94-821f-4cf5-baa1-fd1b7e7cc4cc
+        iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      area:
+        __usertype: LuaShape
+        data: "{\"shape\": 1,\"originCreature\": [[19, -7, 1]],\"areaTemplateObject\": null,\"targetPoint\": {\"x\": 9.140682,\"y\": -5.870313,\"z\": 0},\"range\": 10,\"radius\": 5,\"checklos\": true,\"locations\": null}"
+      object:
+        objid: 6cdbfaeb-8756-48b5-97e3-9a95ed096115
+        floorid: 3d889462-2891-477f-bd85-47630eadb166
+      name: 'And The Sun Forsook Her Children '
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: bcd153c0-cb71-489b-b9fd-89d225df99ce
+      symbols:
+        mode: 1
+        castid: 213f7f8a-daff-4d4e-94ff-484bb58b9ec1
+        spellname: 'And The Sun Forsook Her Children '
+        numberoftargets: 4
+        range: 10
+        charges: 1
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: AuraInstance
+      casterid: f65fbf4a-8bda-4f21-a732-052ca02f61d9
+      duration: eoe
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.60907284418742
+        queueguid: 4fb4bb0f-582f-4688-98a0-30182c65e3df
+        initiativeid: 824cc0ed-52c3-4387-9cd8-a9c85e6a2490
+        round: 7
+      aura:
+        __typeName: Aura
+        applyto: enemies
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        modifiers: []
+        name: And the Sun Forsook Her Children
+        difficult_terrain: true
+        guid: 5b863377-0167-47f4-b335-25437b8dbe35
+        objectid: a4861b94-821f-4cf5-baa1-fd1b7e7cc4cc
+        iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      area:
+        __usertype: LuaShape
+        data: "{\"shape\": 1,\"originCreature\": [[12, -13, 1]],\"areaTemplateObject\": null,\"targetPoint\": {\"x\": 8.925627,\"y\": -12.15501,\"z\": 0},\"range\": 10,\"radius\": 5,\"checklos\": true,\"locations\": null}"
+      object:
+        objid: c6bfeeda-d776-486f-845a-c53a959dc30e
+        floorid: 3d889462-2891-477f-bd85-47630eadb166
+      name: 'And The Sun Forsook Her Children '
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      guid: 340a1220-ba78-461c-822d-8e394a446da8
+      symbols:
+        mode: 1
+        castid: 1f2d101e-3474-4df0-9661-e1bd6af8782a
+        spellname: 'And The Sun Forsook Her Children '
+        numberoftargets: 1
+        range: 10
+        charges: 1
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    initiativeGrouping: a6970461-a739-4269-88c9-c017c6ea9c2f
+    keywords:
+      Fey: true
+      Humanoid: true
+      High Elf: true
+    monster_category: Monster
+    availableTriggers: []
+    creatureSize: 1M
+    damage_taken: 0
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    walkingSpeed: 5
+    innateAttacks: []
+    89abccec-1d68-43e0-8999-734a584ef903_history:
+      __typeName: StatHistory
+      entries:
+        8026ef2c-9ff8-4ed4-8666-7b1b926dd1f6:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df
+          note: Fountains Roar, Now Free From The Earth
+          userid: steam-76561198767161997
+          set: "-1/0"
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-5
+        used: 1
+      42bd3dd6-cfee-4e1e-989d-d52e42bdf080:
+        __typeName: CharacterResource
+        refreshid: 260697be-8d51-48f9-b36e-9172b41b8bf3
+        used: 1
+      2af12516-f3c2-423e-a45b-a02fb4f8698b:
+        __typeName: CharacterResource
+        refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+      89abccec-1d68-43e0-8999-734a584ef903:
+        __typeName: CharacterResource
+        refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df
+        used: 1
+      b9bc06dd-80f1-4f33-bc55-25c114e3300c:
+        __typeName: CharacterResource
+        refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-5
+        used: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 9 lightning damage; R<1 dazed (save ends)
+        - 14 lightning damage; R<2 dazed (save ends)
+        - 17 lightning damage; R<3 dazed (save ends)
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: b7526f9f-aa4c-47f5-a10a-bc15f5caff34
+        durationUntilEndOfTurn: false
+        duration: 1
+        ongoingEffectCustom: b7526f9f-aa4c-47f5-a10a-bc15f5caff34
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: e2422ea1-bd1b-4ae6-bf33-b8344c77a63a
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 125
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Lightning Rod
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      description: High elves have an edge on abilities used against the target until the start of the ordinator's next turn.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      targetFilter: Target.Keywords has "Elemental"
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        abilityType: standard
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 35ab097b-0858-458f-b7c1-5211c4d4ab09
+          repeatTargets: false
+          numTargets: "1"
+          modeList:
+          - text: Move Speed
+          - text: Make a Free Strike
+          - text: Use Spark of Life
+            condition: Self.Type = "Elemental Mote"
+          targetType: self
+          multipleModes: true
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            namedAbility: move speed
+            modesSelected:
+            - 1
+            promptText: The target can move up to their speed.
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 9036ca98-9a72-4c09-a13c-9d656cffa8ef
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: named
+            promptWhenResolving: true
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 2b1358b1-6ebf-497a-a6b8-c516723556fd
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            modesSelected:
+            - 2
+            promptText: Make a Free Strike against a target.
+            standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+            abilityType: standard
+            promptWhenResolving: true
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            filterTarget: Target.Name is "Elemental Mote"
+            modesSelected:
+            - 3
+            promptText: An Elemental Mote creature can use their Spark of Life ability
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: ae935b70-39f0-46b7-b4c3-767615ecb1a0
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 92dee248-5564-4737-9b76-cab40f18bfb3
+            abilityType: standard
+            promptWhenResolving: true
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        standardAbility: 8a23dd83-d329-41b1-89d4-26b36912b6de
+        promptWhenResolving: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 125
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      effectImplemented: true
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 4f7d8c33-5849-4a26-9527-9540be359710
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      targetType: all
+      implementation: 3
+      persistence: []
+      name: Elemental Uproar
+      categorization: Signature Ability
+      description: Each target moves up to their speed or makes a free strike. An elemental mote target can use their Spark of Life trait.
+      abilityType: none
+      iconid: d38cfd57-01a7-4bae-bc92-74689ddc4e92
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: b6b25d8c-9447-4e7e-9b6d-43b438342b4b
+      sourceReference:
+        __typeName: SourceReference
+        page: 124
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: ui-icons/skills/1.png
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: eee6a74d-61e4-44aa-9ad0-290c172b2109
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: The ordinator uses Lightning Rod against the enemy who targeted the Ordinator or an ally with an ability.
+        filterTarget: ""
+        namedAbility: Lightning Rod
+        abilityType: named
+        applyto: caster
+      name: Enough!
+      numTargets: 1
+      description: |
+        The ordinator uses Lightning Rod against the target after the ability is resolved.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '89abccec-1d68-43e0-899"
+      villainAction: Villain Action 1
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: a95949c3-19a4-4fec-a2d6-3d913a01c076
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      targetType: all
+      effectImplemented: true
+      persistence: []
+      name: Fountains Roar, Now Free From The Earth
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      description: Each target glows, ending one condition on themselves and then moving up to twice their speed.
+      abilityType: none
+      implementation: 0
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Magic: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        duration: eoe
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers: []
+          name: And the Sun Forsook Her Children
+          difficult_terrain: true
+          guid: 5b863377-0167-47f4-b335-25437b8dbe35
+          objectid: a4861b94-821f-4cf5-baa1-fd1b7e7cc4cc
+          iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        filterTarget: ""
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 59cdfb5a-82cd-4686-b09f-d35bb2eef603
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            applyto: caster
+            roll: 2d10
+            tiers:
+            - 12 corruption damage; pull 5
+            - 9 corruption damage; pull 3
+            - Pull 1
+            isTest: true
+            resistanceRoll: false
+            attrid: prs
+          - __typeName: ActivatedAbilityAuraBehavior
+            duration: eoe
+          - __typeName: ActivatedAbilityForcedMovementLocBehavior
+            type: aura
+          targetType: self
+          name: And the Sun Forsook Her Children Presence Test
+          sourceReference:
+            __typeName: SourceReference
+            page: 125
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          description: ""
+          range: 1
+          iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+        promptText: Each enemy makes a presence test, and the area is difficult terain for them.
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '2af12516-f3c2-423e-a45"
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      implementation: 3
+      strain: []
+      guid: 2a203adc-8415-4a50-805a-f73c87f70f04
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      radius: "5"
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 131
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      targetType: cube
+      name: 'And The Sun Forsook Her Children '
+      effectImplemented: false
+      description: The affected area is considered difficult terrain for enemies, becoming darkened and warping violently in every direction.
+      abilityType: none
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 352973fb-d4bd-41de-81a5-3a57520029a7
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 7db8ea0b-148b-41b9-8a87-a92cce0c6435
+        duration: eoe
+        ongoingEffectCustom: 7db8ea0b-148b-41b9-8a87-a92cce0c6435
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: "10"
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: 42bd3dd6-cfee-4e1e-989d-d52e42bdf080
+        multicharge: false
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: d8ea4139-18af-4df2-8b80-ddee765ef8a8
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      numTargets: 1
+      targetType: all
+      name: But We Will Change Her Mind.
+      effectImplemented: false
+      description: |-
+        Each target's free strike now has the Magic keyword and can target two creatures or objects. 
+
+        Additionally, each target glows with magic.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage
+        - 5 damage
+        - 7 damage
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: true
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ffa00afc-4d39-4038-bf9a-b574c0eebb4e
+      numTargets: 1
+      targetType: all
+      name: Stomp
+      iconid: ui-icons/skills/1.png
+      description: This attack deals an additional 2 damage to prone targets.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+      behaviors:
+      - __typeName: ActivatedAbilitySummonBehavior
+        monsterType: ac08627e-4c78-4a9e-a787-3826c6691c44
+        numSummons: "1"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilitySummonBehavior
+        monsterType: 36f921de-9eb2-45c0-8ad1-865dd50bbcc2
+        numSummons: "1"
+        modesSelected:
+        - 2
+      - __typeName: ActivatedAbilitySummonBehavior
+        modesSelected:
+        - 3
+        monsterType: b73cb837-6856-4ce0-8af2-c55c431f7c29
+      - __typeName: ActivatedAbilitySummonBehavior
+        modesSelected:
+        - 4
+        monsterType: 93541a47-76c4-4c3b-84ed-c54bd40d1b9c
+      - __typeName: ActivatedAbilityDamageBehavior
+        modesSelected:
+        - 4
+        roll: "30"
+      - __typeName: ActivatedAbilityReplenishBehavior
+        applyto: caster
+        mode: expend
+        modesSelected:
+        - 3
+        - 4
+        quantity: "3"
+        resourceid: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+        chatMessage: Additional Malice Used
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 130
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      guid: 47d19315-6479-4315-bcc4-4e56c6f83048
+      categorization: Ability
+      targetType: target
+      numTargets: 1
+      implementation: 3
+      modeList:
+      - rules: The Ordinator summons 4 Elementals into an occupied space within distance.
+        text: Summon 4 Elementals
+      - rules: The Ordinator summons 4 Soot Crows into an occupied space within distance.
+        text: Summon 4 Soot Crows
+      - rules: The Ordinator summons 1 Ceramic Horse into an occupied space within distance.
+        text: Summon 1 Ceramic Horse
+        condition: Heroic Resources Available to Spend <= 5
+      - rules: The Ordinator summons 1 winded brambleguard into an occupied space within distance.
+        text: Summon 1 winded brambleguard
+        condition: Heroic Resources Available to Spend <= 5
+      name: Summon Elemental
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: |-
+        The ordinator summons four Elemental Motes or four Soot Crows into unoccupied space within distance.
+        **3 Malice**: The ordinator instead summons one ceramic horse or one  winded brambleguard into an unoccupied space within distance.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 124
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      usageLimitOptions:
+        resourceRefreshType: encounter
+        charges: "1"
+        resourceid: e192a430-b9cb-4417-8650-35b15b173b3c
+        multicharge: false
+      villainAction: Villain Action 3
+      numTargets: 1
+      modifiers: []
+      guid: 5d483677-cb0a-4c45-a66f-c80963256742
+      behaviors: []
+      iconid: ui-icons/skills/1.png
+      name: But We Will Change Her Mind
+      categorization: Villain Action
+      description: |
+        Each target's free strike now has the Magic keyword and can target two creatures or objects. Additionally, each target glows with magic.
+      abilityType: none
+      implementation: 0
+    movementSpeeds:
+      fly: 5
+    resistances: []
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket6: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      trinket9: []
+      trinket3: []
+      leveled4: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    skillRatings: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        f087420d-e3ec-430b-b39b-aab66409d35f:
+          note: Elemental Uproar
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 1/1
+        b4a19583-3f82-4c9b-9247-65f3489c437d:
+          note: Elemental Uproar
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 1/1
+        b87e4727-5a46-45cb-97f9-b06e8ac09c38:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-4
+          note: Summon Elemental
+          userid: steam-76561198767161997
+          set: 0/1
+        c5f34567-848d-4efa-9f94-a8eb44740e07:
+          note: Elemental Uproar
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 1/1
+  tokenType: null
+  bestiaryId: 230afe36-5098-431d-98f3-b95d8a875f04
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: High Elf Ordinator
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590230540
+mtime: 1775201137032
+hidden: false

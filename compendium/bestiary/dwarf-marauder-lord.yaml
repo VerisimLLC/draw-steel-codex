@@ -1,0 +1,828 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: df1417bc-7b16-49de-a11b-66211c726f38
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440925
+    portraitOffset:
+      x: -0.04977894
+      y: 0.09952153
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b5ee1056-7bbd-459a-b0da-29c198a8a414
+  properties:
+    __typeName: monster
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 132
+    inflictedConditions: []
+    keywords:
+      Dwarf: true
+      Humanoid: true
+    max_hitpoints_roll: "132"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 4
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Marauder Lord	Level 3 Leader
+        Dwarf, Humanoid	EV 20
+        <b>Stamina</b> 132
+        <b>Speed </b>5	<b>Size</b> 1M / <b>Stability</b> 4
+        <b>Free Strike</b> 5
+        Might +3	Agility 0	Reason +2	Intuition +1	Presence 0
+        <b>Levitating Axes</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Psionic, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 10<b>	Target</b> Two creature or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 damage; slide 1
+        %E2%98%85	<b>12%E2%80%9316</b>	12 damage; slide 3
+        %E2%9C%B8	<b>17</b>	15 damage; slide 5
+        <b>Effect</b> A target restrained by a dwarf can be slid by this ability.
+        <b>3 Malice</b> A target that is force moved adjacent to an ally with this ability is restrained (EoT).
+
+        <b>Magnetomancy</b> (Maneuver)
+        <b>Keywords</b> Psionic, Ranged
+        <b>Distance</b> Ranged 10<b>	Target</b> 1 creature or object
+        <b>Effect</b> Vertical slide 5. A target restrained by a dwarf can be slid by this ability.
+        <b>5 Malice</b> This ability gains the Area keyword, its distance becomes 10 burst, and it now targets restrained creatures<b>.</b>
+
+        <b>Your Weapon is Useless </b>(Triggered Action)
+        <b>Keywords</b> Psionic
+        <b>Distance</b> Self or ranged 10	<b>Target</b> Self or 1 ally
+        <b>Trigger</b> A creature makes a melee strike against the target.
+        <b>Effect</b> The target takes half damage from the attack. The attacker takes 4 damage.
+
+        <b>End Effect</b>
+        At the end of their turn, the marauder lord can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Ajax Will Pay Well for These Specimens </b>(Villain Action 1)
+        <b>Keywords</b> Area, Psionic, Weapon
+        <b>Distance</b> 5 cube within 10<b>	Target</b> All enemies in the cube
+        <b>Effect</b> The marauder lord uses Levitating Axes against each target. The marauder lord makes one power roll against all targets.
+
+        <b>Don't Let Them Escape!</b> (Villain Action 2)
+        <b>Keywords</b> Area
+        <b>Distance</b> 5 burst<b>	Target</b> All allies in the burst
+        <b>Effect </b>Each target shift up to their speed. The marauder lord then uses Levitating Axes.
+
+        <b>Test Your Metal!</b> (Villain Action 3)
+        <b>Keywords</b> Psionic
+        <b>Distance</b> Ranged 10<b>	Target</b> special
+        <b>Effect</b> The marauder lord creates three 2-square metal objects in unoccupied squares within distance. When the marauder lord uses Magnetomancy, they can additionally target one of these objects.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f6eb7fa0-fc8c-4749-88e9-e0ce6efa78f0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f6eb7fa0-fc8c-4749-88e9-e0ce6efa78f0
+        targetFilter: ""
+        source: Character Feature
+        powerRollModifier:
+          __typeName: CharacterModifier
+          source: Trigger
+          activationCondition: false
+          behavior: power
+          filterCondition: (Has attacker) and attacker.Distance(self) <= 10
+          keywords:
+            Melee: true
+          hasCustomTrigger: true
+          customTrigger:
+            __typeName: TriggeredAbility
+            persistence: []
+            modifiers: []
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            strain: []
+            guid: 565d7a89-1c18-4463-9ca4-970aa0100b70
+            repeatTargets: false
+            abilityType: none
+            trigger: d20roll
+            targetType: self
+            numTargets: "1"
+            name: New Ability
+            behaviors:
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                repeatTargets: false
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                sourceReference:
+                  __typeName: SourceReference
+                  page: 111
+                  docid: cc66844a-04d0-49a0-8687-65ef83b15363
+                range: "30"
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: f99c39fe-8c43-4035-9d2b-520f81bfc295
+                iconid: ui-icons/skills/1.png
+                behaviors:
+                - __typeName: ActivatedAbilityDamageBehavior
+                  roll: "4"
+                  chatMessage: Your Weapon Is Useless
+                name: Invoked Ability
+                numTargets: "1"
+                description: ""
+                abilityType: none
+                implementation: 3
+              promptText: Select the triggering creature to apply 4 damage to them.
+              abilityType: custom
+              invokeOnCaster: true
+            description: ""
+            range: 1
+            iconid: ui-icons/skills/1.png
+          damageMultiplier: half
+          rollType: ability_power_roll
+          rules: ""
+          modtype: none
+          guid: 0868e06e-bb76-460a-bc8f-18ef231eef28
+          name: Triggered Modifier
+        guid: 358dc9c5-10ea-425f-a100-c3e204ee2c6f
+        domains:
+          CharacterFeature:f6eb7fa0-fc8c-4749-88e9-e0ce6efa78f0: true
+        behavior: powertabletrigger
+        type: trigger
+        targetType: selforally
+        trigger: takedamage
+        name: Your Weapon Is Useless
+        rules: A creature makes a melee strike against the Marauder Lord or their ally.
+        description: |-
+          Trigger: A creature makes a melee strike against the target.
+
+          Effect: The target halves any damage from the strike and the triggering creature takes 4 damage.
+        range: 10
+        additionalCostModifiers: []
+      source: Character Feature
+      description: |-
+        Trigger: A creature makes a melee strike against the target.
+
+        Effect: The target halves any damage from the strike and the triggering creature takes 4 damage.
+      guid: f6eb7fa0-fc8c-4749-88e9-e0ce6efa78f0
+      name: Your Weapon Is Useless
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+        CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+        CharacterFeature:2a4bad66-0eca-49c1-b0ba-51eec2aa13ea: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+          CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+          CharacterFeature:2a4bad66-0eca-49c1-b0ba-51eec2aa13ea: true
+        sourceguid: 58bdd65e-5a1b-4448-8a61-1b18d5171e7b
+        description: At the end of their turn, the marauder lord can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+        source: Trait
+        name: End Effect
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: End one save ends effect on self, take 5 damage.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: fc4a5c00-3e82-43d1-9492-0f5583fa4f58
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "5"
+            conditions: []
+            purgeType: one
+            targetDuration: save
+          trigger: endturn
+          domains:
+            CharacterFeature:58bdd65e-5a1b-4448-8a61-1b18d5171e7b: true
+            CharacterFeature:ef38cf8f-1ce1-4963-8886-8ab0f0ff650b: true
+            CharacterFeature:2a4bad66-0eca-49c1-b0ba-51eec2aa13ea: true
+          conditionFormula: SaveEndsEffects
+          persistence: []
+          name: End Effect
+          castImmediately: true
+          description: |
+            At the end of each of their turns, the marauder lord can take 5 damage to end one effect on them that can be ended by a saving throw.
+
+            This damage can’t be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: cfe6243c-a24a-4a91-ba59-31058510f362
+      source: Trait
+      description: At the end of their turn, the marauder lord can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+      guid: 2a4bad66-0eca-49c1-b0ba-51eec2aa13ea
+      name: End Effect
+      implementation: 4
+    role: Leader
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    availableTriggers: []
+    damage_taken: 0
+    opportunityAttack: 5
+    resources: []
+    ev: 20
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 111
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      effectImplemented: false
+      numTargets: 2
+      modifiers: []
+      strain: []
+      guid: ef3cf400-ed6c-4184-b48f-c2d5d9df6488
+      meleeRange: 1
+      persistence: []
+      implementation: 4
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Levitating Axes
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: ConditionCaster("Restrained").type = "Dwarf"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: 71bdc9cc-0dc8-48a2-9619-b528b75591bd
+            sourceguid: 06c37705-5259-43c8-acc4-48661b319dcd
+            value: -1
+            source: Ongoing Effect
+            name: Can be Force Moved when Restrained by a Dwarf
+            description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          guid: 06c37705-5259-43c8-acc4-48661b319dcd
+          id: 06c37705-5259-43c8-acc4-48661b319dcd
+          name: Can be Force Moved when Restrained by a Dwarf
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+          implementation: 4
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; slide 1
+        - 12 damage; slide 3
+        - 15 damage; slide 5
+        roll: 2d10 + 3
+      description: A target restrained by a dwarf can be slid by this ability.
+      abilityType: none
+      iconid: d15fe212-5892-433b-869f-4778a5a9604d
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Psionic: true
+        Weapon: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: d5c1f7ac-e052-40c3-8c41-af52c1455f24
+        duration: 0
+        ongoingEffectCustom: d5c1f7ac-e052-40c3-8c41-af52c1455f24
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          guid: 16728e01-f6b8-49d9-b0ee-e81aad4167a7
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: 81a6d23a-705a-4a12-a253-6d800bc27392
+            sourceguid: 16728e01-f6b8-49d9-b0ee-e81aad4167a7
+            value: -1
+            source: Ongoing Effect
+            name: Can Be Force Moved When Restrained by a Dwarf
+            description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          name: Can Be Force Moved When Restrained by a Dwarf
+          description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+          id: 16728e01-f6b8-49d9-b0ee-e81aad4167a7
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; slide 1
+        - 12 damage; slide 3
+        - 15 damage; slide 5
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          targetFilter: target.Ongoing Effects has "Levitating Axes Check"
+          repeatTargets: false
+          targetType: target
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          sourceReference:
+            __typeName: SourceReference
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          range: "25"
+          persistence: []
+          modifiers: []
+          channelIncrement: 3
+          guid: 88c0bc57-8dfe-4b1f-a56c-86636e57a576
+          numTargets: ""
+          strain: []
+          description: ""
+          name: Invoked Ability
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+            duration: end_of_next_turn
+            ongoingEffectCustom: false
+          channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptWhenResolvingText: Spend 3 Malice per target to apply restrained
+        promptText: 'The marauder lord may restrain targets moved adjacent to an ally of the dwarf lord. 3 Malice cost per '
+        filterTarget: Target.Ongoing Effects has "Levitating Axes Check" and target.Count Nearby Enemies(1) >= 1
+        promptWhenResolving: true
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        ongoingEffect: d5c1f7ac-e052-40c3-8c41-af52c1455f24
+        mode: effect
+        purgeType: all
+        conditions: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 10
+      effectImplemented: false
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      strain: []
+      guid: f5eb2a6d-d643-40f4-a002-0259630088b2
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '69aad6e7-f2a8-41c7-b86"
+      actionResourceId: none
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 111
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      radius: "5"
+      name: 'Ajax Will Pay Well for These Specimens '
+      targetType: cube
+      description: The marauder lord uses Levitating Axes against each target. The marauder lord makes one power roll against all targets.
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Psionic: true
+      behaviors:
+      - __typeName: ActivatedAbilityCreateObjectBehavior
+        objectid: 97d5cd50-d949-4a6f-98a3-2a8215260e72
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 111
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '395fec2d-8e41-4749-ae3"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 1d8e3f26-2660-4c2c-a4e9-01a1188c1c34
+      actionResourceId: none
+      targetType: emptyspace
+      numTargets: 1
+      effectImplemented: true
+      categorization: Villain Action
+      name: Test Your Metal!
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      description: The marauder lord creates three 2-square metal objects in unoccupied squares within distance. When the marauder lord uses Magnetomancy, they can additionally target one of these objects.
+      abilityType: none
+      implementation: 2
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+      implementationDetails: Refer to Magnetomancy AoE ability for Malice variation.
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: "10"
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: 7e4e33df-333b-4756-8722-f19665be3cf7
+      sourceReference:
+        __typeName: SourceReference
+        page: 111
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: ConditionCaster("Restrained").type = "Dwarf"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: c9eee358-d5c9-4a6b-801a-618ba8c51338
+            sourceguid: 5b546a4f-2361-4314-a198-9ce505b6b71a
+            value: -1
+            source: Ongoing Effect
+            name: New Ongoing Effect
+            description: ""
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          guid: 5b546a4f-2361-4314-a198-9ce505b6b71a
+          id: 5b546a4f-2361-4314-a198-9ce505b6b71a
+          name: New Ongoing Effect
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          implementation: 3
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        standardAbilityParams:
+          range: "5"
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 2406093f-9b28-4516-9f9f-2ca287a8d1cb
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        standardAbility: 82863cf6-ec8f-4035-952b-60c319a12b75
+        abilityType: standard
+      persistence: []
+      name: Magnetomancy (Ranged)
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: "5"
+      objectTarget: true
+      targetFilter: Target.Conditions has "restrained"
+      repeatTargets: false
+      keywords:
+        Area: true
+        Psionic: true
+      implementationDetails: Refer to Magnetomancy ability for Ranged 10 variation.
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: ConditionCaster("Restrained").type = "Dwarf"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          modifiers:
+          - __typeName: CharacterModifier
+            guid: 3bd7219e-b62c-46eb-9a01-59014f2085a6
+            sourceguid: f3b564a9-f496-4c5c-8462-152c44fe6af5
+            value: -1
+            source: Ongoing Effect
+            name: New Ongoing Effect
+            description: ""
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          guid: f3b564a9-f496-4c5c-8462-152c44fe6af5
+          id: f3b564a9-f496-4c5c-8462-152c44fe6af5
+          name: New Ongoing Effect
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: ""
+          implementation: 3
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 4aaa2984-7609-447f-8ed9-14dffb8a0d8f
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Each creature in the area restrained by a Dwarf vertically slides up to 5 squares.
+        standardAbilityParams:
+          range: "5"
+        standardAbility: 82863cf6-ec8f-4035-952b-60c319a12b75
+        abilityType: standard
+        promptWhenResolving: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 111
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 919f6ce1-2266-446c-a778-91516186f12b
+      abilityType: none
+      targetType: all
+      categorization: Ability
+      numTargets: "1"
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      name: Magnetomancy (AoE)
+      implementation: 4
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 5
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '1ad934b1-8e55-4b8c-b8a"
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 5ba69997-0e59-4e38-9b43-a777ce8c32f3
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 1631f940-e30f-4611-ad9b-44f1045737b9
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          behaviors: []
+          range: 1
+          name: Invoked Ability
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Each target shifts up to their speed
+        abilityType: standard
+        standardAbilityParams:
+          distance: move speed
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      actionResourceId: none
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 111
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      effectImplemented: false
+      name: Don't Let Them Escape!
+      iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+      description: Each target shift up to their speed. The marauder lord then uses Levitating Axes.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 5 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 110
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      numTargets: 1
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - text: Malice
+        rules: This ability takes the Area keyword and loses the Ranged  keyword, its distance becomes a 10 burst, and it targets each restrained creature in the area
+        condition: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      guid: 2790c06f-a745-4f4e-95c4-e24a298b67ea
+      behaviors: []
+      name: Magnetomancy
+      categorization: Signature Ability
+      description: |-
+        The target vertical slides up to 5 squares. A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+
+        **5 Malice**: This ability takes the Area keyword and loses the Ranged  keyword, its distance becomes a 10 burst, and it targets each restrained creature in the area
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Psionic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 110
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: c4dfa020-bf73-41b5-ab6d-c4d183cca96a
+      categorization: Signature Ability
+      implementation: 0
+      numTargets: 1
+      name: Your Weapon Is Useless
+      behaviors: []
+      description: |
+        The target halves any damage from the strike and the triggering creature takes 4 damage.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    walkingSpeed: 5
+    movementSpeeds: []
+    monster_type: Dwarf Marauder Lord
+    creatureSize: 1M
+    initiativeGrouping: 6e2e47c5-99ad-4df5-9024-39071ca566e2
+    notes:
+    - text: ""
+      title: Monster Notes
+  tokenType: null
+  bestiaryId: 3e5495c8-9204-4da5-a158-8c6171899082
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Dwarf Marauder Lord
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590241635
+mtime: 1775184669617
+hidden: false

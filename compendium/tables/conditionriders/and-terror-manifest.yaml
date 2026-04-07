@@ -1,0 +1,51 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 17ebf7e0-a047-4efe-9371-2cd06dc7e2b6
+    repeatTargets: false
+    abilityType: none
+    trigger: winded
+    targetType: self
+    numTargets: "1"
+    name: and Terror Manifest
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "25"
+      filterTarget: Solo or Leader
+      damageType: psychic
+      chatMessage: Terror Manifest Damage
+    - __typeName: ActivatedAbilityDestroyBehavior
+      filterTarget: not solo or leader
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: d3ee5423-b611-4947-ad6f-a545fe1576ed
+  name: and Terror Manifest
+  sourceguid: c26f00e5-92a2-49ba-af30-fce0496d40fe
+source: Ongoing Effect
+guid: c26f00e5-92a2-49ba-af30-fce0496d40fe
+id: c26f00e5-92a2-49ba-af30-fce0496d40fe
+ctime: 1768522223130
+condition: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: and Terror Manifest
+description: ""
+mtime: 1768522223130
+iconid: 6cda6156-84cb-4c95-9973-de54b30a6815

@@ -1,0 +1,63 @@
+__typeName: CharacterComplication
+drawback: You are so obsessed with finding your quarry that you take a bane on any test made to track other creatures.
+mtime: 1765455553201
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterSkillChoice
+    guid: c2d3ab3d-4ff0-4c0a-9f09-f943303de045
+    source: Feat
+    individualSkills:
+      f014760c-c987-4436-81ba-5e6acfdf6905: true
+      3bde0e06-2d96-4048-bc15-dea8815fb9b0: true
+      c9eb14a5-e283-448a-80f1-7ea071e0d883: true
+      4290580d-9e08-4bd2-859c-7ac147f108aa: true
+      a27ca113-bc01-49d0-9864-3316e6f525f4: true
+      7f6d9375-0ab0-415c-8196-4d99e98aa12b: true
+      db532974-aa0a-41a9-aacf-4adc1e6121d3: true
+      80526c1a-3cfd-40dc-9065-eb840df8601d: true
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 6124a004-ee75-4d20-ad0a-c07d07092014
+      source: Feat
+      behavior: power
+      keywords: []
+      activationCondition: false
+      name: Hunter's Quarry
+      guid: 6b31e78d-3c51-4e15-bfd7-ab1d2c029fe4
+      description: You gain an edge on tests made to find or learn clues about your quarry.
+      modtype: edge
+      rollType: test_power_roll
+    source: Feat
+    canHavePrerequisites: true
+    guid: 6124a004-ee75-4d20-ad0a-c07d07092014
+    name: Hunter - Benefit
+    implementation: 3
+  - __typeName: CharacterFeature
+    description: ""
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 6124a004-ee75-4d20-ad0a-c07d07092014
+      source: Feat
+      modtype: bane
+      keywords: []
+      activationCondition: false
+      guid: 58fcb3c2-1fb8-4ecd-bddd-629a3b07495c
+      name: Not Hunter's Quarry
+      behavior: power
+      description: You are so obsessed with finding your quarry that you take a bane on any test made to track other creatures.
+      rollType: test_power_roll
+      skills:
+      - a27ca113-bc01-49d0-9864-3316e6f525f4
+    source: Feat
+    canHavePrerequisites: true
+    guid: ef19c7fb-1e11-4d23-99b4-b86a04bc5a77
+    name: Hunter - Drawback
+    implementation: 3
+name: Hunter
+ctime: 1755515418388
+description: You are hunting someone or something—perhaps a wanted criminal, a person who wronged you, or a dangerous monster or beast. You won’t rest until you face off against your quarry!
+id: b3d521f0-68cc-4264-8225-100af10bc271
+benefit: "Choose one skill from the following:\n\n- Interrogate (from the interpersonal skill group)\n\n- Alertness, Eavesdrop, Search, or Track (from the intrigue skill group)\n\n- Criminal Underworld, Rumors, or Society (from the lore skill group)\n\nYou have that skill, and you gain an edge on tests made to find or learn clues about your quarry. "

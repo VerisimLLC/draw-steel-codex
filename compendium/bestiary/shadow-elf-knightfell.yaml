@@ -1,0 +1,189 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: dcecdd29-e5a4-4082-8e48-0aef986ff07d
+    offtokenPortraitId: null
+    portraitFrameId: 72f0634e-8d6a-4afc-884b-b9c824746cc8
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7751199
+    portraitOffset:
+      x: 0.08844935
+      y: 0.2115586
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1c74ba87-17fe-496b-928c-755718c0e1fb
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Knightfell	Level 4 Platoon Defender
+        Fey, Humanoid, Shadow Elf	EV 12
+        <b>Stamina</b> 70
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 5
+        Might +0	Agility +2	Reason +0	Intuition +3	Presence +2
+        <b>Suffusing Strike</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 3<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	8 corruption damage
+        %E2%98%85	<b>12-16</b>	12 corruption damage; R<2 taunted (EoT)
+        %E2%9C%B8	<b>17</b>	15 corruption damage; R<3 taunted (EoT)
+
+        <b>Trick of the Eye</b> (Triggered Action)
+        <b>Keywords</b> Magic
+        <b>Distance</b> Melee 2<b>	Target</b> 1 ally
+        <b>Trigger</b> An enemy within distance makes a strike against the target.
+        <b>Effect</b> The damage is halved. The knightfell takes the other half of the damage.
+
+        <b>Of the Umbra</b>
+        The knightfell ignores concealment granted by darkness. While the knightfell is in direct sunlight, they have damage weakness 3. While the knightfell is concealed, they have damage immunity 3.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ba210708-2d9f-4721-a855-4a8395d72fc1: true
+      modifiers: []
+      name: Of the Umbra
+      description: The knightfell ignores concealment granted by darkness. While the knightfell is in direct sunlight, they have damage weakness 3. While the knightfell is concealed, they have damage immunity 3.
+      guid: ba210708-2d9f-4721-a855-4a8395d72fc1
+      source: Trait
+    role: Platoon Defender
+    inflictedConditions: []
+    keywords:
+      Fey: true
+      Humanoid: true
+      Shadow Elf: true
+    max_hitpoints_roll: "70"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 5
+    monster_type: Shadow Elf Knightfell
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 70
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 860d0a34-4018-4f33-8d64-755218ddb9aa
+      implementation: 4
+      numTargets: 1
+      name: Suffusing Strike
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 corruption damage
+        - 12 corruption damage; R<2 taunted (EoT)
+        - 15 corruption damage; R<3 taunted (EoT)
+        roll: 2d10 + Intuition
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: fa313d9a-ff51-4692-994f-63bc40ff1f0f
+      numTargets: 1
+      targetType: target
+      name: Trick of the Eye
+      iconid: ui-icons/skills/1.png
+      description: The damage is halved. The knightfell takes the other half of the damage.
+      abilityType: none
+      implementation: 0
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    movementSpeeds:
+      climb: 5
+    ev: 12
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: eb95b7ec-b4c2-4c74-8d03-943d4debdbb1
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222235594
+description: Shadow Elf Knightfell
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590324707
+mtime: 1775201137032
+hidden: false

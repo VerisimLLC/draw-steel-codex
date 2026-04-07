@@ -1,0 +1,373 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 84649b09-916d-4013-8167-8ed903359107
+    offtokenPortraitId: 6b88951d-dc8e-49a5-a8b4-deb7595e31b7
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4636676
+    portraitOffset:
+      x: 0.04142798
+      y: 0.157488
+    frameHueShift: 0.26
+    frameSaturation: 0.6
+    frameBrightness: 0.2
+    popoutScale: 0.5
+    characterName: null
+    characterNamePrivate: true
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: b360715a-4418-4457-bf6d-e84471b57c13
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 2
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "15"
+    innateAttacks: []
+    attributes:
+      agl:
+        id: agl
+        baseValue: 2
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+        baseValue: 0
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+        baseValue: 1
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+        baseValue: 1
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+        baseValue: 0
+    attackNames:
+    - Medium Melee
+    monster_category: Monster
+    levelChoices: []
+    pr: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Weapon: true
+        Melee: true
+        Strike: true
+      targetType: target
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 95
+      range: "5"
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: 2f3805aa-e41e-4952-94d9-37b0a978ca5b
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage
+        - 6 damage
+        - 8 damage
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityModifyPowerRollBehavior
+        modifier:
+          __typeName: CharacterModifier
+          sourceguid: 926a376a-c180-4e2b-abc8-db73f344bf46
+          guid: 30ec9c41-0ace-4aca-97a2-2cede97a246d
+          behavior: power
+          keywords: []
+          domains: []
+          description: This ability deals an extra 2 corruption damage if it gains an edge or has a double edge.
+          name: Bonus Edge Damage
+          rollType: ability_power_roll
+          modtype: none
+          damageModifier: "2"
+          rollRequirement: edge
+          activationCondition: true
+        guid: 926a376a-c180-4e2b-abc8-db73f344bf46
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      iconid: ad96f516-7694-4ed2-af7d-6c81f5fb2e03
+      name: Shadow Stab
+      persistence: []
+      description: This ability deals an extra 2 corruption damage if it gains an edge or has a double edge.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        bgcolor: "#ffffffff"
+        hueshift: 0
+        saturation: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        docid: cbddffb4-0c92-4245-bdfb-ad7621163a57
+        page: 95
+      range: 10
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: ecbd9eae-44d0-42e4-b0d3-8ef1c4c76a2a
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage; A<0 restrained (save ends)
+        - 5 corruption damage; A<1 restrained (save ends)
+        - 6 corruption damage; A<2 restrained (save ends)
+        roll: 2d10 + 2
+      abilityType: none
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Malice
+      iconid: ui-icons/skills/1.png
+      name: Shadow Chains
+      numTargets: 3
+      description: ""
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        c5421085-c5b9-4971-836f-6a76bca8c546:
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 15
+    minion: false
+    stability: 1
+    import:
+      override: true
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2c3b4e5d-f2c8-48f2-a890-9a9a97362cb5: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2c3b4e5d-f2c8-48f2-a890-9a9a97362cb5
+        modifyDescription: The assassin can take the Hide maneuver even while observed, though they still must have cover or concealment.
+        source: Trait
+        filterAbility: Ability.name = "Hide"
+        guid: ca849174-12f4-4874-8129-4740d484165b
+        domains:
+          CharacterFeature:2c3b4e5d-f2c8-48f2-a890-9a9a97362cb5: true
+        attributes: []
+        behavior: modifyability
+        description: The assassin can take the Hide maneuver even while observed, though they still must have cover or concealment.
+        name: Hide While Observed
+        ability:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 2bb95468-f929-432c-b879-1c4e606754b7
+          repeatTargets: false
+          behaviors: []
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          targetType: self
+          abilityType: none
+          name: New Ability
+          abilityModification: true
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+      source: Trait
+      description: The assassin can take the Hide maneuver even while observed, though they still must have cover or concealment.
+      guid: 2c3b4e5d-f2c8-48f2-a890-9a9a97362cb5
+      name: Hide While Observed
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+        CharacterFeature:02584930-cece-4048-bf64-85362e699fa0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 37e008e8-005a-433b-b273-eef5f201e287
+        source: Trait
+        guid: 5f6dc5e3-e640-4c30-9948-58d27d598bda
+        domains:
+          CharacterFeature:02584930-cece-4048-bf64-85362e699fa0: true
+        name: Cunning
+        behavior: attribute
+        description: The shadowknife doesn’t provoke opportunity attacks by moving. Whenever the shadowknife is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the shadowknife can use a triggered action to make an opportunity attack against the enemy.
+        value: 1
+        attribute: e2773895-411c-404e-a7f4-1aa50cd87710
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+          CharacterFeature:02584930-cece-4048-bf64-85362e699fa0: true
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            bgcolor: "#ffffffff"
+            hueshift: 0
+            saturation: 1
+          mandatory: false
+          range: 1
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 415e5fe2-a956-4f74-a0ac-619d0cba684c
+              repeatTargets: false
+              behaviors: []
+              targetType: self
+              range: 1
+              display:
+                brightness: 1
+                bgcolor: "#ffffffff"
+                hueshift: 0
+                saturation: 1
+              name: Invoked Ability
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 0f897bf3-ac6d-4f83-ab2c-bf7496e07737
+            abilityType: standard
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: bbaa0031-bfe4-4a85-a9a5-6de2f8bdf92f
+          name: Cunning
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          conditionFormula: 0 {Should this always be manual?}
+          numTargets: "1"
+          domains:
+            CharacterFeature:e89248a7-dfeb-4824-96c0-b3e10bb9baf9: true
+            CharacterFeature:02584930-cece-4048-bf64-85362e699fa0: true
+          trigger: finishmove
+          abilityType: none
+          description: The shadowknife doesn’t provoke opportunity attacks by moving. Whenever the shadowknife is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the shadowknife can use a triggered action to make an opportunity attack against the enemy.
+          subject: self
+          iconid: ui-icons/skills/1.png
+        behavior: trigger
+        source: Trait
+        name: Cunning
+        guid: 24eaa045-059a-4a39-8482-d2c22e47175e
+        sourceguid: e89248a7-dfeb-4824-96c0-b3e10bb9baf9
+        description: The shadowknife doesn’t provoke opportunity attacks by moving. Whenever the shadowknife is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the shadowknife can use a triggered action to make an opportunity attack against the enemy.
+      source: Trait
+      description: The shadowknife doesn’t provoke opportunity attacks by moving. Whenever the shadowknife is adjacent to an enemy and willingly moves to be no longer adjacent to that enemy, the shadowknife can use a triggered action to make an opportunity attack against the enemy.
+      guid: 02584930-cece-4048-bf64-85362e699fa0
+      name: Cunning
+      implementation: 2
+    role: Horde Ambusher
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - title: Monster Notes
+      text: ""
+    traitNames: []
+    innateLanguages:
+      9f8bf21e-a483-46e7-aa12-dbe63591d928: true
+      6c4dff23-863f-4a01-91d8-d7b569482bcd: true
+    opportunityAttack: 3
+    resistances:
+    - __typeName: ResistanceEntry
+      apply: Damage Reduction
+      damageType: corruption
+      dr: 2
+    initiativeGrouping: 8ec8cb38-d7b9-4948-a2e2-1e0b2456a33e
+    auras: []
+    damage_taken: 0
+    max_hitpoints: 20
+    resources: []
+    walkingSpeed: 7
+    groupid: 4ac19688-1ab4-40a0-a440-708c0fe6d9f5
+    creatureSize: 1M
+    keywords:
+      Mystic Goblin: true
+      Goblin: true
+      Humanoid: true
+    movementSpeeds:
+      climb: 6
+    fmr: 0
+    deathSavingThrowFailures: 0
+    monster_type: Goblin Shadowknife
+    availableTriggers: []
+  tokenType: null
+  bestiaryId: 2505b4b1-fbe1-4966-81a5-3b75b75dcec0
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1715748088616
+description: null
+parentFolder: 116486c1-2208-4bb6-a244-b13ffe9d7ead
+artist: null
+ord: 5
+ctime: 1763582317013
+mtime: 1763628974728
+hidden: false

@@ -1,0 +1,55 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:0fab6f7d-eaf4-4e26-be26-db824b57931f: true
+  sourceguid: 0fab6f7d-eaf4-4e26-be26-db824b57931f
+  description: ""
+  source: Ongoing Effect
+  name: Illusory Duplicates
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    trigger: losehitpoints
+    strain: []
+    guid: 8e627af2-bc6c-4d60-b445-8a71b37ffb9a
+    repeatTargets: false
+    abilityType: none
+    domains:
+      CharacterOngoingEffect:0fab6f7d-eaf4-4e26-be26-db824b57931f: true
+    targetType: self
+    persistence: []
+    name: Illusory Duplicates
+    behaviors:
+    - __typeName: ActivatedAbilityRemoveCreatureBehavior
+      leavesCorpse: true
+      waitForAbilitiesToFinish: false
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  guid: e9a61640-d726-4cd5-86b9-770f6220e8d0
+source: Ongoing Effect
+guid: 0fab6f7d-eaf4-4e26-be26-db824b57931f
+id: 0fab6f7d-eaf4-4e26-be26-db824b57931f
+ctime: 1773608729995
+domains:
+  CharacterOngoingEffect:0fab6f7d-eaf4-4e26-be26-db824b57931f: true
+display:
+  brightness: 1
+  saturation: 0
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Illusory Duplicates
+description: ""
+mtime: 1773610683644
+emoji: d3ad73f3-e63b-464c-99d9-f0bc7b2a2775
+iconid: b4a814fd-4ce8-4f4f-af42-e333465c9cad

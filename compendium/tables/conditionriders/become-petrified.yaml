@@ -1,0 +1,54 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    guid: f17f375e-ccf1-4627-aba2-8c41a9f62e83
+    repeatTargets: false
+    trigger: custom
+    conditionFormula: Trigger Name is madesaverestrained and (Trigger Value < Save Ends)
+    targetType: self
+    persistence: []
+    name: become Petrified
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: be5fe90d-6ecd-4cb1-89d6-c523f82a23b6
+      ongoingEffectCustom: false
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  description: On a failed save to end Restrained, you become petrified
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 0e5be7b3-ac52-4201-a7d2-de25907470ea
+  name: become Petrified
+  sourceguid: 05dd3b3b-5b12-4ee4-aaa8-9fd5347241b6
+source: Ongoing Effect
+guid: 05dd3b3b-5b12-4ee4-aaa8-9fd5347241b6
+id: 05dd3b3b-5b12-4ee4-aaa8-9fd5347241b6
+ctime: 1765900943828
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+condition: 2989a051-204f-442e-967d-edafc2dd5e43
+name: become Petrified
+mtime: 1765901217057
+description: On a failed save to end Restrained, you become petrified
+powerTableText: Restrained becomes Petrified
+iconid: 0cdb1938-4838-479a-834c-9f64e4c1d6db

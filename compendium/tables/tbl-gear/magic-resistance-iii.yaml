@@ -1,0 +1,63 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: 26caf1a7-9200-42fe-83e8-ed70b5bc3e95
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: 26caf1a7-9200-42fe-83e8-ed70b5bc3e95
+    source: Item
+    seq: 0bfd5b66-b1c1-4041-a211-6e1d6118440a
+    aura:
+      __typeName: Aura
+      applyto: selfandfriends
+      modifiers:
+      - __typeName: CharacterModifier
+        resistanceFormula: min(3, Resistance + 2)
+        sourceguid: 76250054-bfe7-45bb-97eb-be3fd6162d77
+        source: Aura
+        modtype: none
+        keywords:
+          Magic: true
+        activationCondition: true
+        name: Magic Resistance III
+        guid: 38bcd873-0cf3-4e49-a06e-1f070d067a77
+        description: ""
+        behavior: power
+        rollType: enemy_ability_power_roll
+      name: Magic Resistance III
+      guid: 76250054-bfe7-45bb-97eb-be3fd6162d77
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+    radius: "3"
+    guid: 978092bf-73d2-45a3-b33e-a0b4dd731583
+    description: ""
+    behavior: aura
+    name: Magic Resistance III
+  source: Item
+  name: Magic Resistance III
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+id: 02e89870-578e-4f16-a028-ece947df3d44
+imbuePrereq: 88cc3a8f-5a24-438f-a206-2b81801e3598
+projectSource: The First Language
+imbueLevel: 9
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: A scale from an ancient dragon
+mtime: 1772492872825
+name: Magic Resistance III
+imbueTargetType: armor
+description: The benefit of the armor's Magic Resistance II enhancement extends to each ally within 3 squares of you.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+implementation: 4

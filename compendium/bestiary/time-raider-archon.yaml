@@ -1,0 +1,166 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1a4b8113-8bc7-4fdf-96e0-977b9dc9a5e8
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 3
+    import:
+      override: true
+      data: |+
+        Time Raider Archon	Level 3 Minion Harrier
+        Humanoid, Time Raider	EV 5 for four minions
+        <b>Stamina</b> 7	<b>Immunity</b> Psychic 3
+        <b>Speed</b> 7	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Strike damage +1<b>Free Strike</b> 2
+        Might +2	Agility +2	Reason +2	Intuition +1	Presence -1
+        <b>Brutal Flail</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Psionic, Strike, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	2 damage
+        %E2%98%85	12%E2%80%9316	4 damage
+        %E2%9C%B8	17+	5 damage; an ally can make a free strike against the target
+
+        <b>Foresight </b>
+        The archon doesn't have a bane on strikes against concealed creatures.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6ebc9928-b60f-47f7-afc2-39d672c1e909: true
+      modifiers: []
+      name: 'Foresight '
+      description: The archon doesn't have a bane on strikes against concealed creatures.
+      guid: 6ebc9928-b60f-47f7-afc2-39d672c1e909
+      source: Trait
+    role: Minion Harrier
+    inflictedConditions: []
+    ev: 5
+    max_hitpoints_roll: "7"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 3
+      damageType: psychic
+      apply: Damage Reduction
+    opportunityAttack: 2
+    groupid: 0fd6ab3a-e0ae-4c61-86e3-82f06865d109
+    monster_type: Time Raider Archon
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: 2
+        id: mgt
+    withCaptain: +1 damage bonus to strikes
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 7
+    resources: []
+    max_hitpoints: 7
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Psionic: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 501d488a-9cfe-4259-858d-9ca0149a347b
+      implementation: 4
+      numTargets: 1
+      name: Brutal Flail
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage; one ally can make a free strike against the target
+        roll: 2d10 + Might
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Humanoid: true
+      Time Raider: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: 1M
+    levelChoices: []
+  tokenType: null
+  bestiaryId: e90ee0e1-d80b-4cdd-9496-64bf0b9e2d5e
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: Time Raider Archon
+parentFolder: 37d52d89-62a2-4615-ad94-8549d23e461a
+artist: null
+ord: 0
+ctime: 1741590322968
+mtime: 1775201137032
+hidden: false

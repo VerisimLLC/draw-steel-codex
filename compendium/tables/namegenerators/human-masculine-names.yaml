@@ -1,0 +1,89 @@
+__typeName: RollTable
+text: true
+rows:
+- __typeName: RollTableRow
+  id: 90226032-7e8a-4fce-8efa-d092b4192364
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Brys
+- __typeName: RollTableRow
+  id: ac0ab909-14c6-4593-a38f-650a2885d317
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Cadwyr
+- __typeName: RollTableRow
+  id: 00646e95-7958-4d14-9a33-59cbc90e2f8f
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Dyfan
+- __typeName: RollTableRow
+  id: 378dcb30-cd26-4450-b59b-0bfe9551ce5b
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Edmund
+- __typeName: RollTableRow
+  id: f35cfc34-a426-4fcb-8b6a-6ab2d57baa4d
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Geoffrey
+- __typeName: RollTableRow
+  id: 21ed1075-b6dc-49bf-a6af-5a1bc78cf686
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Gwiddon
+- __typeName: RollTableRow
+  id: c7ccacf3-6536-4849-9c56-5b99c24f0b59
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Heden
+- __typeName: RollTableRow
+  id: 0d09e018-f361-4e15-94ac-ef4c6061ce7c
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Richard
+- __typeName: RollTableRow
+  id: 265a66c9-d5c1-4bdd-9720-63781bf821af
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Taegan
+- __typeName: RollTableRow
+  id: f9f517f8-3eff-4571-9721-9d067b65e8ce
+  value:
+    __typeName: VariantCollection
+    items:
+    - __typeName: Variant
+      type: text
+      value: Taethan
+id: f18fea72-9406-4cf4-9f09-c45cda0dc83b
+name: Human Masculine Names
+subtable: true
+mtime: 1743455235522
+items: false
+ctime: 1743445243399

@@ -1,0 +1,577 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 6fbdfccf-bab2-46e3-9aa3-18908e096180
+    offtokenPortraitId: null
+    portraitFrameId: 928698a5-1bde-4274-8c84-e7c41c390652
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.7079651
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: d621ed4b-4845-4921-b704-4c46d4d3daf4
+  properties:
+    __typeName: monster
+    groupid: 171c1ebf-ae57-4e86-bfd1-de9fdc4968f1
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 5aff96af-6534-4d1a-9ffb-e1bf8bc82c01-1431
+    ev: 3
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -3
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    creatureSize: 1L
+    levelChoices: []
+    moveDistance: 7
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: ""
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: variations
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.378249764442444
+          s: 0.911132574081421
+          v: 0.867455124855042
+          a: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 37
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      persistence: []
+      modifiers: []
+      abilityType: none
+      strain: []
+      modeList:
+      - text: Normal
+      - variation:
+          __typeName: ActivatedAbility
+          resourceNumber: "2"
+          objectTarget: true
+          repeatTargets: false
+          keywords:
+            Strike: true
+            Charge: true
+            Melee: true
+            Weapon: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 3 damage
+            - 4 damage
+            - 5 damage
+            roll: 2d10 + 2
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: f2cb0c27-7f2a-4f06-9977-fbc2f5beada3
+            filterTarget: Target.Size < 5 and not Cast.PassesPotency(target, "A", 1)
+            duration: save_ends
+            ongoingEffectCustom: f2cb0c27-7f2a-4f06-9977-fbc2f5beada3
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.378109455108643
+              s: 0.909502267837524
+              v: 0.866666674613953
+              a: 1
+          categorization: Signature Ability
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 37539466-273d-4fc1-b784-21837167a5a0
+          domains: []
+          abilityType: none
+          persistence: []
+          name: Bowl
+          targetType: target
+          description: Instead of being force moved, a size 1L or smaller target who has A<1 is restrained (save ends). While restrained this way, the target moves with the gummy ball. A target who is no longer restrained moves to the nearest unoccupied space adjacent to the gummy ball.
+          resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          iconid: 9283e5a9-7236-4f06-a2a7-0a78236f6994
+        text: 2 Malice
+        hasAbility: true
+        rules: Instead of being force moved, a size 1L or smaller target who has A<1 is restrained (save ends). While restrained this way, the target moves with the gummy ball. A target who is no longer restrained moves to the nearest unoccupied space adjacent to the gummy ball.
+      guid: 217100ad-c444-4553-bb4e-7821454663c2
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; slide 1
+        - 4 damage; slide 2
+        - 5 damage; slide 3
+        roll: 2d10 + 2
+        modesSelected:
+        - 1
+      iconid: 9283e5a9-7236-4f06-a2a7-0a78236f6994
+      categorization: Signature Ability
+      name: Bowl
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: "2 Malice: Instead of being force moved, a size 1L or smaller target who has A<1 is restrained (save ends). While restrained this way, the target moves with the gummy ball. A target who is no longer restrained moves to the nearest unoccupied space adjacent to the gummy ball."
+      resourceCost: none
+      implementation: 3
+    damageEntries:
+      4514c58d-fd43-4a42-ba5d-d148dcfa7d19:
+        timestamp: 1764064075854
+        id: 4514c58d-fd43-4a42-ba5d-d148dcfa7d19
+        heal: 15
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        43dc99c4-20ff-445d-9eef-5d769f4190c4:
+          note: 6 damage from Vex Test Elementalist's Melee Free Strike
+          disposition: bad
+          timestamp: 1763984582666
+          attackerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 8
+        ae9c8170-844f-47c6-9d04-224728f6769a:
+          note: 1 damage from Vex Test Elementalist's Melee Free Strike
+          disposition: bad
+          timestamp: 1763985812667
+          attackerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 14
+        80b2deb4-66ee-40a7-80d5-646d46236882:
+          note: 1 damage from Vex Test Elementalist's Melee Free Strike
+          disposition: bad
+          timestamp: 1763981974685
+          attackerid: fe047a0a-ce59-48cc-9d7b-23c5d6617f40
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 14
+        a0f569c4-c1eb-475a-a9a4-9d7ef995f8c6:
+          note: 2 Damage
+          timestamp: 1764063119158
+          disposition: bad
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 13
+        5787a1a3-6561-43e4-bb97-191bd9cbdce5:
+          note: 8 Healing
+          timestamp: 1763984589651
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        861db03d-2c89-46ac-80f6-156ba32788a0:
+          note: 15 Healing
+          timestamp: 1763985817548
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+        aba90944-2484-4398-a7b1-f0a63096f537:
+          note: 15 Healing
+          timestamp: 1764064075854
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+    minion: false
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:64f636e5-3c5d-4ff6-b02c-b0cc41395fa0: true
+        CharacterFeature:cabb28dc-3ba8-4a92-aab7-3d81137aa189: true
+        CharacterFeature:ceb02e8e-ca66-495d-8f24-0c104b2ff6aa: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cabb28dc-3ba8-4a92-aab7-3d81137aa189
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:64f636e5-3c5d-4ff6-b02c-b0cc41395fa0: true
+          CharacterFeature:cabb28dc-3ba8-4a92-aab7-3d81137aa189: true
+          CharacterFeature:ceb02e8e-ca66-495d-8f24-0c104b2ff6aa: true
+        name: Gelatinous
+        guid: dc9d7e33-0eb9-4b9d-9b8e-1922997ccc6e
+        description: The gummy ball can move through spaces as if they were a size 1T creature.
+        behavior: attribute
+        attribute: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+      source: Character Feature
+      description: The gummy ball can move through spaces as if they were a size 1T creature.
+      guid: ceb02e8e-ca66-495d-8f24-0c104b2ff6aa
+      name: Gelatinous
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:4ca450fd-a65f-466a-b40b-ca83fdef2d19: true
+      modifiers:
+      - __typeName: CharacterModifier
+        text: When the gummy ball uses a move action, they must move in a straight line until they reach the limit of their speed or are blocked by a Size 2 or larger creature or object.
+        sourceguid: 4ca450fd-a65f-466a-b40b-ca83fdef2d19
+        source: Trait
+        guid: 7336dba9-19b1-46e1-92e1-641c2cbdd892
+        domains:
+          CharacterFeature:4ca450fd-a65f-466a-b40b-ca83fdef2d19: true
+        name: Rolling
+        description: Whenever the gummy ball uses a move action or is force moved horizontally, they must move in a straight line until they reach the limit of their speed or until a creature or object of size 2 or larger blocks their movement.
+        behavior: movementtext
+        color: green
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:4ca450fd-a65f-466a-b40b-ca83fdef2d19: true
+        sourceguid: 4ca450fd-a65f-466a-b40b-ca83fdef2d19
+        description: Whenever the gummy ball uses a move action or is force moved horizontally, they must move in a straight line until they reach the limit of their speed or until a creature or object of size 2 or larger blocks their movement.
+        source: Trait
+        name: Rolling
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: If forced movement was horizontal, gummy ball moves their speed in a straight line.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: d6408538-411c-4c81-9b52-31abb566d35c
+          conditionFormula: ""
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            runOnController: true
+            promptText: The gummy ball must move in a straight line until they reach the limit of their speed or until a Size 2 or larger creature or object blocks their movement.
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: c98c8c44-1a3e-4594-9732-ab1ee9dbea41
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityType: none
+              behaviors:
+              - __typeName: ActivatedAbilityRelocateCreatureBehavior
+                movementType: move
+              targetType: emptyspace
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              range: Movement Speed
+              iconid: ui-icons/skills/1.png
+            abilityType: custom
+            standardAbility: de95d093-f3d4-4d74-99fe-ab49aae8b167
+          trigger: forcemove
+          name: Rolling
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 73158b87-aa20-4f90-8980-7b57454c871d
+      source: Trait
+      description: Whenever the gummy ball uses a move action or is force moved horizontally, they must move in a straight line until they reach the limit of their speed or until a creature or object of size 2 or larger blocks their movement.
+      guid: 4ca450fd-a65f-466a-b40b-ca83fdef2d19
+      name: Rolling
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:718f9b73-affa-4859-9ce3-5fd7162abc2c: true
+        CharacterFeature:f56db136-6035-43c8-9577-ea29597a474c: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f56db136-6035-43c8-9577-ea29597a474c
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:718f9b73-affa-4859-9ce3-5fd7162abc2c: true
+          CharacterFeature:f56db136-6035-43c8-9577-ea29597a474c: true
+        name: Climb Speed
+        guid: 0cb106f7-3407-45a8-8142-118f5adebeb4
+        description: ""
+        behavior: attribute
+        attribute: climb
+      source: Character Feature
+      description: ""
+      guid: 718f9b73-affa-4859-9ce3-5fd7162abc2c
+      name: Climb Speed
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:236f8a31-a2d3-4b92-9352-8cbea67ca8d4: true
+        CharacterFeature:bb23d27c-2aff-4fe4-a9dd-0cf3f8a5e165: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:236f8a31-a2d3-4b92-9352-8cbea67ca8d4: true
+          CharacterFeature:bb23d27c-2aff-4fe4-a9dd-0cf3f8a5e165: true
+        sourceguid: 236f8a31-a2d3-4b92-9352-8cbea67ca8d4
+        description: The gummy ball splits to create another gummy ball, each with half their current Stamina before splitting. The new ball has none of the benefits, effects, or conditions affecting the original.
+        source: Character Feature
+        name: Split
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: The creeping sludge splits to create another creeping sludge, each with half their current stamina before splitting.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 94ef1c9e-32f0-4db2-8ceb-67fbb4552d48
+              repeatTargets: false
+              abilityType: none
+              categorization: Hidden
+              behaviors:
+              - __typeName: ActivatedAbilitySummonBehavior
+                casterChoosesCreatures: false
+                groupInitiativeWithCaster: false
+                bestiaryFilter: Beast.Name = Invoker.Name
+                casterControls: false
+                monsterType: custom
+              - __typeName: ActivatedAbilityDamageBehavior
+                cannotBeReduced: true
+                roll: Maximum Stamina - (Invoker.Stamina * 0.5)
+                doesNotTrigger: true
+              numTargets: "1"
+              name: Invoked Ability
+              targetType: emptyspace
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            promptText: Split
+          - __typeName: ActivatedAbilityDamageBehavior
+            cannotBeReduced: true
+            roll: Stamina * 0.5
+            doesNotTrigger: true
+          trigger: losehitpoints
+          persistence: []
+          modifiers: []
+          mandatoryDifferentPlayer: false
+          strain: []
+          whenActive: always
+          guid: de665ad2-f0cc-401e-b410-107c12ddb165
+          hasManualVersion: true
+          castImmediately: false
+          numTargets: "1"
+          domains:
+            CharacterFeature:236f8a31-a2d3-4b92-9352-8cbea67ca8d4: true
+            CharacterFeature:bb23d27c-2aff-4fe4-a9dd-0cf3f8a5e165: true
+          name: Split
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          description: The creeping sludge splits to create another creeping sludge, each with half their current Stamina before splitting. The new sludge has  none of the benefits, effects, or conditions affecting the original.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: d90825c8-0e91-4456-bcd5-7f48f1198ab6
+      source: Character Feature
+      description: The gummy ball splits to create another gummy ball, each with half their current Stamina before splitting. The new ball has none of the benefits, effects, or conditions affecting the original.
+      guid: bb23d27c-2aff-4fe4-a9dd-0cf3f8a5e165
+      name: Split
+      implementation: 3
+    role: Horde Harrier
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    inflictedConditions: []
+    moveDistanceRoundId: d364d10a-e159-408c-b146-158b23500367-2
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: acid
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: corruption
+      apply: Damage Reduction
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 15
+    ongoingEffects: []
+    initiativeGrouping: 440730fb-ba21-4089-b4dd-dc318dfdeff4
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        dab91666-2525-43f6-991d-8adff9628b96:
+          timestamp: 1764064037541
+          note: Bowl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        5fe1fda9-4d2a-4817-b17a-25f604b50dd6:
+          timestamp: 1764056294889
+          note: Bowl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        9cba0ea1-c8b8-4352-9b4c-9ba50350cef1:
+          timestamp: 1764064068576
+          note: Bowl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        369bdbaa-8eab-47ce-8224-ccb1683d3055:
+          note: Bowl
+          timestamp: 1764056360961
+          refreshid: 8b8d050b-76ee-4b11-8504-37428d3ba395-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        20cb135c-4116-4f75-9035-246ae5be5887:
+          timestamp: 1764056331968
+          note: Bowl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        f9d08c54-b7c0-41c6-80f8-1e6b3d05fa6b:
+          timestamp: 1764056051246
+          note: Bowl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        4e431ef7-eb0b-48ed-8bda-d59f5608baae:
+          timestamp: 1764055909587
+          note: Bowl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        83452b6a-ab83-4a26-b18f-b5addbddfaf3:
+          timestamp: 1764056214641
+          note: Bowl
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    availableTriggers: []
+    savingThrowRatings: []
+    auras: []
+    retainer: false
+    walkingSpeed: 20
+    keywords:
+      Ooze: true
+    deathSavingThrowFailures: 0
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+    damage_taken: 0
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket9: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      leveled4: []
+      trinket3: []
+      trinket6: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    skillRatings: []
+    monster_category: Monster
+    monster_type: Gummy Ball
+    inventory: []
+  tokenType: null
+  bestiaryId: 8036b572-ae90-4b20-9602-341728a9132a
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1763546384271
+description: null
+parentFolder: 18b8aee2-b927-4c4f-b978-2526f38bdf87
+artist: null
+ord: 3
+ctime: 1763546482801
+mtime: 1775167447989
+hidden: false

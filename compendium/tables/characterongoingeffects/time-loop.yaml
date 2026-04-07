@@ -1,0 +1,32 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 4afad4e2-6db3-4e8c-9e61-0e0a76ba299a
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:4afad4e2-6db3-4e8c-9e61-0e0a76ba299a: true
+  name: Time Loop
+  guid: 5595039d-e476-4477-8642-2f8b32654b3e
+  description: You take a bonus turn immediately after the triggering creature. This ability can be used only once per combat round.
+  behavior: attribute
+  attribute: extraturns
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+guid: 4afad4e2-6db3-4e8c-9e61-0e0a76ba299a
+id: 4afad4e2-6db3-4e8c-9e61-0e0a76ba299a
+ctime: 1772681121881
+domains:
+  CharacterOngoingEffect:4afad4e2-6db3-4e8c-9e61-0e0a76ba299a: true
+description: You take a bonus turn immediately after the triggering creature. This ability can be used only once per combat round.
+custom: true
+name: Time Loop
+statusEffect: false
+mtime: 1772681604530
+iconid: ui-icons/skills/1.png
+implementation: 4

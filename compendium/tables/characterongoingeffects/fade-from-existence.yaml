@@ -1,0 +1,113 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:79e55e08-5a25-4905-b1af-42d3db2190cf: true
+  sourceguid: 79e55e08-5a25-4905-b1af-42d3db2190cf
+  description: ""
+  source: Ongoing Effect
+  name: Fade from Existence
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 15614a65-e7c8-41f2-a6a5-6138fcb58fd4
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 79e55e08-5a25-4905-b1af-42d3db2190cf
+      duration: save_ends
+      ongoingEffectCustom: false
+    domains:
+      CharacterOngoingEffect:79e55e08-5a25-4905-b1af-42d3db2190cf: true
+    whenActive: combat
+    numTargets: "1"
+    trigger: endturn
+    name: Fade from Existence
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  guid: 18b1041f-dcb4-47d4-a464-b6e483d990df
+- __typeName: CharacterModifier
+  sourceguid: 79e55e08-5a25-4905-b1af-42d3db2190cf
+  source: Ongoing Effect
+  guid: 95f9b2ca-2357-4af7-bb6d-8acfad29778c
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:79e55e08-5a25-4905-b1af-42d3db2190cf: true
+  filterCondition: Stacks = 1
+  rollType: ability_power_roll
+  modtype: bane
+  description: ""
+  behavior: power
+  name: Fade from Existence
+- __typeName: CharacterModifier
+  sourceguid: 79e55e08-5a25-4905-b1af-42d3db2190cf
+  source: Ongoing Effect
+  guid: 61fd3346-6a3a-4822-80ed-2fcc9e27532c
+  keywords: []
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:79e55e08-5a25-4905-b1af-42d3db2190cf: true
+  filterCondition: Stacks = 2
+  rollType: ability_power_roll
+  modtype: bane
+  description: ""
+  behavior: power
+  name: Fade from Existence
+- __typeName: CharacterModifier
+  sourceguid: 79e55e08-5a25-4905-b1af-42d3db2190cf
+  source: Ongoing Effect
+  guid: 60e0980f-d17f-4482-b558-2ca3b815f3d0
+  domains:
+    CharacterOngoingEffect:79e55e08-5a25-4905-b1af-42d3db2190cf: true
+  abilityFilter: "0"
+  name: Fade from Existence
+  filterCondition: Stacks = 3
+  description: ""
+  explanation: You have faded from existence for the next hour.
+  behavior: suppressabilities
+- __typeName: CharacterModifier
+  sourceguid: 79e55e08-5a25-4905-b1af-42d3db2190cf
+  source: Ongoing Effect
+  behavior: bestowcondition
+  conditionid: 98e85a3b-95a1-41d8-b176-d2d64e7d18d0
+  name: Fade from Existence
+  guid: f2ca4817-378b-40b5-8e00-ce1681b157a0
+  description: ""
+  domains:
+    CharacterOngoingEffect:79e55e08-5a25-4905-b1af-42d3db2190cf: true
+  filterCondition: Stacks = 3
+source: Ongoing Effect
+guid: 79e55e08-5a25-4905-b1af-42d3db2190cf
+id: 79e55e08-5a25-4905-b1af-42d3db2190cf
+ctime: 1753436262407
+domains:
+  CharacterOngoingEffect:79e55e08-5a25-4905-b1af-42d3db2190cf: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.852000117301941
+    s: 0.949219346046448
+    v: 1.0030654668808
+    a: 1
+custom: true
+name: Fade from Existence
+description: ""
+mtime: 1762631534085
+stackable: true
+iconid: 6cda6156-84cb-4c95-9973-de54b30a6815

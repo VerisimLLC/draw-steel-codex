@@ -1,0 +1,79 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:4c593376-10ea-48a8-ac49-f41d7b2d1745: true
+  sourceguid: 4c593376-10ea-48a8-ac49-f41d7b2d1745
+  description: Each orc shifts up to their speed, moving through enemy spaces if they can. Each enemy passed through during this movement makes a Might test.
+  source: Ongoing Effect
+  name: Overwhelming March
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    targetFilter: ""
+    repeatTargets: false
+    targetAllegiance: enemy
+    behaviors:
+    - __typeName: ActivatedAbilityPowerRollBehavior
+      resistanceAttr: mgt
+      roll: 2d10 + Might or Agility
+      tiers:
+      - 6 damage; prone
+      - 4 damage; prone
+      - Push 2
+      applyto: targets
+      resistanceRoll: true
+      isTest: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    abilityType: none
+    strain: []
+    whenActive: combat
+    trigger: movethrough
+    guid: f56c5a6d-f85b-4547-8a9e-eb137d132988
+    domains:
+      CharacterOngoingEffect:4c593376-10ea-48a8-ac49-f41d7b2d1745: true
+    persistence: []
+    conditionFormula: ""
+    name: Overwhelming March
+    targetType: target
+    description: Each orc shifts up to their speed, moving through enemy spaces if they can. Each enemy passed through during this movement makes a Might test.
+    subject: self
+    iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+  guid: 896b4604-8fca-4b9c-bde7-beb1d349ad23
+- __typeName: CharacterModifier
+  sourceguid: 4c593376-10ea-48a8-ac49-f41d7b2d1745
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:4c593376-10ea-48a8-ac49-f41d7b2d1745: true
+  name: Overwhelming March
+  guid: 36d26e77-f44e-416b-824a-fc066ecb83a3
+  description: Each orc shifts up to their speed, moving through enemy spaces if they can. Each enemy passed through during this movement makes a Might test.
+  behavior: attribute
+  attribute: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+source: Ongoing Effect
+guid: 4c593376-10ea-48a8-ac49-f41d7b2d1745
+id: 4c593376-10ea-48a8-ac49-f41d7b2d1745
+ctime: 1765451559468
+domains:
+  CharacterOngoingEffect:4c593376-10ea-48a8-ac49-f41d7b2d1745: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+endTrigger: none
+name: Overwhelming March
+custom: true
+mtime: 1769857016712
+description: Each orc shifts up to their speed, moving through enemy spaces if they can. Each enemy passed through during this movement makes a Might test.
+iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e

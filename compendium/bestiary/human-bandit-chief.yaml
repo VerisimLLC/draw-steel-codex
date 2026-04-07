@@ -1,0 +1,853 @@
+info:
+  locInfo: null
+  appearanceVariations:
+  - portraitId: a757c206-e075-4003-ab65-66e847662ff5
+    offtokenPortraitId: 3ae7e003-65ce-4501-8877-31bd8ff02b90
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 066a8500-4e20-4ae4-a8e7-d39c5aa84fa0
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.01255214
+      y: 0.1576326
+    frameHueShift: 0.9854546
+    frameSaturation: 0.4357407
+    frameBrightness: 0.2358449
+    popoutScale: 0.49
+    characterName: Human Bandit Chief
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  - portraitId: 03e83786-7cc1-48ea-8741-47c1ebac8f31
+    offtokenPortraitId: 3ae7e003-65ce-4501-8877-31bd8ff02b90
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 066a8500-4e20-4ae4-a8e7-d39c5aa84fa0
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.01255214
+      y: 0.1576326
+    frameHueShift: 0.9854546
+    frameSaturation: 0.4357407
+    frameBrightness: 0.2358449
+    popoutScale: 0.49
+    characterName: Human Bandit Chief
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  appearanceVariationIndex: 1
+  appearance:
+    portraitId: 03e83786-7cc1-48ea-8741-47c1ebac8f31
+    offtokenPortraitId: 6a6d8cea-69b7-4552-b5d4-0c17b802de0a
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 066a8500-4e20-4ae4-a8e7-d39c5aa84fa0
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.4882353
+    portraitOffset:
+      x: -0.06136537
+      y: 0.208414
+    frameHueShift: 0.9854546
+    frameSaturation: 0.4357407
+    frameBrightness: 0.2358449
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 337f5d1e-06e3-437d-be97-fecf0cd07286
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 3
+    skillProficiencies: []
+    max_hitpoints: 120
+    inflictedConditions: []
+    ev: 20
+    max_hitpoints_roll: "120"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 2
+        id: rea
+      inu:
+        baseValue: 3
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_type: Human Bandit Chief
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      targetFilter: Enemy
+      targetTextOverride: " Two enemies or objects"
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Magic: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; pull 1
+        - 12 damage; pull 2
+        - 15 damage; pull 3
+        roll: 2d10 + 3
+      - __typeName: ActivatedAbilityDamageBehavior
+        applyto: targets
+        filterTarget: Target.Distance(caster) < 2
+        damageType: corruption
+        roll: "3"
+        titleText: Whip and Magic Longsword
+        chatMessage: |-
+          Any target who is adjacent to the bandit chief after the power
+          roll is resolved takes 3 corruption damage.
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Normal
+      - rules: This ability targets one additional target.
+        text: 2 Malice
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      numTargets: Mode +1
+      sourceReference:
+        __typeName: SourceReference
+        page: 191
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      implementation: 3
+      name: Whip & Magic Longsword
+      guid: 76f36080-0ff7-4502-bedd-9c99d065a950
+      description: |-
+        A target who is adjacent to the bandit chief after the ability resolves takes 3 corruption damage.
+
+        *2 Malice:* This ability targets one additional target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: ""
+      targetTextOverride: One enemy
+      repeatTargets: false
+      keywords:
+        Melee: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - Push 1; M<1 prone
+        - Push 2; M<2 prone
+        - Push 4; M<3 prone
+        roll: 2d10 + 3
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        invokeOnCaster: true
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: false
+          repeatTargets: false
+          keywords:
+            Area: true
+          targetAllegiance: enemy
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - Push 1; M<1 prone
+            - Push 2; M<2 prone
+            - Push 4; M<3 prone
+            guid: 44f61936-4aea-43ed-b7c8-ad5a8e953f5d
+            modesSelected:
+            - 1
+            roll: 2d10
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: ca0fab85-bcc1-464d-b8c2-e41aa48720b1
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: all
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        modesSelected:
+        - 2
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Normal
+      - rules: The ability takes the Area keyword, loses the Melee keyword, and is a 1 burst that targets each enemy in the area.
+        text: Malice 2
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      guid: 639f3109-7fec-4875-a459-0e4bfc820096
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 191
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      targetType: target
+      name: Kneel, Peasant!
+      implementation: 3
+      description: "*2 Malice:* The ability takes the Area keyword, loses the Melee keyword, and is a 1 burst that targets each enemy in the area."
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetFilter: role is artillery
+      targetTextOverride: Each artillery ally in the area
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 99c6c865-0b6c-47fc-a0d1-3591c84be7dc
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        runOnController: true
+        abilityType: standard
+        standardAbility: 0ca5fc04-6068-4f47-b5c6-936d3a595f24
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '99bc4a02-a028-4fbc-b65"
+      villainAction: Villain Action 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: af4af1f3-a393-430a-9cb6-90058c3e18f3
+      implementation: 3
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 191
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      targetType: all
+      name: Shoot!
+      effectImplemented: false
+      description: Each target makes a ranged free strike.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      targetTextOverride: Each ally in the area
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: babf9fa6-f66f-46b2-9c83-3101ab988c73
+        duration: eoe
+        ongoingEffectCustom: babf9fa6-f66f-46b2-9c83-3101ab988c73
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        runOnController: true
+        standardAbilityParams:
+          distance: walking speed
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 37e4c137-e434-4dcd-8b5e-4f7b9a703fea
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Villain Action
+      range: 10
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '63549116-6e8b-4af2-b7e"
+      villainAction: Villain Action 2
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 8b89197e-93ca-4049-8c74-edd5b1367546
+      implementation: 3
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        page: 184
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: all
+      name: Form Up!
+      effectImplemented: true
+      description: Each target shifts up to their speed. Until the end of the encounter, the bandit chief and all allies have damage immunity 2 while adjacent to a target.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 99580a34-fb87-4fa0-be8a-8842f22e66b9
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: You can shift up to 10 squares and use Whip and Magic Longsword on 4 targets during or after this movement.
+        abilityType: standard
+        standardAbilityParams:
+          distance: "10"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          objectTarget: true
+          repeatTargets: false
+          keywords:
+            Strike: true
+            Melee: true
+            Magic: true
+            Weapon: true
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 8 damage; pull 1
+            - 12 damage; pull 2
+            - 15 damage; pull 3
+            guid: 619d9153-7a97-441a-887e-d182766c379d
+            roll: 2d10 + 3
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              objectTarget: false
+              abilityType: none
+              strain: []
+              guid: 6f1e0d15-28cf-41d3-ae92-0d387086e07a
+              repeatTargets: false
+              persistence: []
+              modifiers: []
+              behaviors:
+              - __typeName: ActivatedAbilityInvokeAbilityBehavior
+                customAbility:
+                  __typeName: ActivatedAbility
+                  numTargets: "1"
+                  modifiers: []
+                  guid: d3961da3-5c73-4258-97fe-fd1ceeb62963
+                  repeatTargets: false
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  targetType: self
+                  range: 1
+                  name: Invoked Ability
+                  behaviors: []
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                abilityType: standard
+                standardAbility: 9eb2b74c-bf41-48db-a7a4-d0ebb62201f8
+              categorization: Hidden
+              name: Invoked Ability
+              targetType: target
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            promptText: Adjacent Ally attacks target
+            abilityType: standard
+            standardAbilityParams:
+              range: "1"
+            standardAbility: e19f1d97-6e44-4366-8f35-418bd5c5ab8e
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          categorization: Signature Ability
+          range: "2"
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 29d0d52e-4c31-4cf7-bdec-ef6547615b07
+          targetType: target
+          name: Whip and Magic Longsword
+          numTargets: "4"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Target 4 creatures you moved past
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 191
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 1
+      usageLimitOptions: "{'multicharge': False, 'resourceid': '4b4d593b-a0af-4e06-a13"
+      villainAction: Villain Action 3
+      persistence: []
+      modifiers: []
+      categorization: Villain Action
+      strain: []
+      guid: 34efd931-3b83-47f2-a10d-4123d00358d5
+      targetType: self
+      numTargets: 1
+      castImmediately: true
+      actionResourceId: 67f15a17-523c-4a30-8f1a-a27e4f122605
+      effectImplemented: false
+      name: Lead From the Front
+      iconid: ui-icons/skills/1.png
+      description: The bandit chief shifts up to 10 squares, regardless of their speed. During or after this movement, they can use their Whip and Magic Longsword against up to four targets. Additionally, one ally adjacent to each target can make a free strike against that target.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Trigger
+      range: 1
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 1bcedf3d-c27a-4465-917a-82363aa466d7
+      targetType: target
+      implementation: 0
+      numTargets: 1
+      name: Bloodstones
+      sourceReference:
+        __typeName: SourceReference
+        page: 184
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The bandit chief takes 5 corruption damage and increases the outcome of the power roll by one tier. This damage can't be reduced in any way.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    damageEntries:
+      bafb1cea-98c8-4a83-b9f1-e5347924751b:
+        damage: 3
+        attackerid: 8d41ccf5-a809-47ec-acf1-bc3bfa90349e
+        id: bafb1cea-98c8-4a83-b9f1-e5347924751b
+        damage_type: poison
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        d9b02c4d-3abf-46dd-b669-aeea011c7aff:
+          note: 3 damage from Devious Angulotl Hopper's Toxiferous
+          disposition: bad
+          attackerid: 8d41ccf5-a809-47ec-acf1-bc3bfa90349e
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 117
+        914a0bae-6ef0-475c-b921-bf542656efc4:
+          note: 3 damage from Devious Angulotl Hopper's Toxiferous
+          disposition: bad
+          attackerid: 8d41ccf5-a809-47ec-acf1-bc3bfa90349e
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 114
+    opportunityAttack: 5
+    stability: 2
+    import:
+      override: true
+      data: |+
+        Human Bandit Chief	Level 3 Leader
+        Human, Humanoid	EV 20
+        <b>Stamina</b> 120	<b>Immunity</b> Corruption 4, Psychic 4
+        <b>Speed</b> 5	<b>Size</b> 1M / <b>Stability</b> 2
+        	<b>Free Strike</b> 5
+        Might +2	Agility +3	Reason +2	Intuition +3	Presence +2
+        <b>Whip & Magic Longsword</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Melee, Strike, Weapon
+        <b>Distance</b> Melee 3	<b>Target</b> Two enemies or objects
+        %E2%9C%A6	%E2%89%A411	8 damage; pull 1
+        %E2%98%85	12%E2%80%9316	12 damage; pull 2
+        %E2%9C%B8	17+	15 damage; pull 3
+        <b>Effect </b>A target who is adjacent to the bandit chief after the ability resolves takes 5 corruption damage.
+        <b>2 Malice </b>The bandit chief targets an additional enemy or object.
+
+        <b>Kneel, Peasant!</b> (Maneuver) %E2%97%86 2d10 + 3
+        <b>Keywords</b> Melee, Weapon
+        <b>Distance</b> Melee 1	<b>Target</b> One enemy or object
+        %E2%9C%A6	%E2%89%A411	Push 1; M<1 prone
+        %E2%98%85	12%E2%80%9316	Push 2; M<2 prone
+        %E2%9C%B8	17+	Push 4; M<3 prone
+        <b>2 Malice</b> This ability targets each enemy adjacent to the bandit chief.
+
+        <b>Bloodstones</b> (Triggered Action)
+        <b>Keywords </b>Magic
+        <b>	Distance </b>Self	<b>Target </b>Self
+        <b>	Trigger </b>The bandit chief makes a power roll.
+        <b>Effect </b>The bandit chief takes 9 corruption damage and increases the result of the power roll by one tier.
+
+        <b>End Effect </b>
+        At the end of their turn, the bandit chief can take 5 damage to end one save ends effect affecting them. This damage can't be reduced in any way.
+
+        <b>Supernatural Insight</b>
+        The bandit chief ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+
+        <b>Shoot!</b> (Villain Action 1)
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst	<b>Target</b> All allies in the burst
+        <b>Effect </b>Each target makes a ranged free strike.
+
+        <b>Form Up!</b> (Villain Action 2)
+        <b>Keywords</b> Area
+        <b>Distance</b> 10 burst	<b>Target</b> All allies in the burst
+        <b>Effect </b>Each target shifts up to their speed. Until the end of the encounter, the bandit chief and all allies have damage immunity 2 while adjacent to a target.
+
+        <b>Lead From the Front</b> (Villain Action 3)
+        <b>Keywords</b> -
+        <b>Distance</b> Self	<b>Target</b> Self
+        <b>Effect </b>Shift 10. During or after this movement, the bandit chief can use their Whip & Magic Longsword against up to four targets. Each ally adjacent to a target can make a free strike against them.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1358be98-eae0-4ce7-8221-b853982624f7: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1358be98-eae0-4ce7-8221-b853982624f7: true
+        sourceguid: 1358be98-eae0-4ce7-8221-b853982624f7
+        behavior: trigger
+        source: Trait
+        name: End Effect
+        description: At the end of each of their turns, the bandit chief can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityPurgeEffectsBehavior
+            mode: conditions
+            damageToSelf: "5"
+            conditions: []
+            purgeType: one
+            targetDuration: save
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          whenActive: combat
+          guid: 9df36fcd-db8f-434b-885e-99cb7f3b11cf
+          numTargets: "1"
+          targetType: self
+          trigger: endturn
+          name: 'End Effect '
+          description: At the end of each of their turns, the bandit chief can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 661834fe-8c8b-40d2-9ae6-87ea3cb1cdb0
+      source: Trait
+      description: At the end of each of their turns, the bandit chief can take 5 damage to end one effect on them that can be ended by a saving throw. This damage can't be reduced in any way.
+      guid: 1358be98-eae0-4ce7-8221-b853982624f7
+      name: End Effect
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:caa71856-39f2-4438-b753-894fcf1f85c3: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: caa71856-39f2-4438-b753-894fcf1f85c3
+        source: Character Feature
+        modtype: tierup
+        activationCondition: false
+        keywords:
+          Magic: true
+        hasCustomTrigger: true
+        customTrigger:
+          __typeName: TriggeredAbility
+          persistence: []
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: bdbf26a7-ba71-4efc-b300-6d2dab04a957
+          repeatTargets: false
+          abilityType: none
+          trigger: d20roll
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+            quantity: "-1"
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: "5"
+            damageType: corruption
+            cannotBeReduced: true
+            titleText: Bloodstones
+            chatMessage: Bloodstones
+          targetType: self
+          name: New Ability
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        domains:
+          CharacterFeature:caa71856-39f2-4438-b753-894fcf1f85c3: true
+        name: Bloodstones
+        rollType: ability_power_roll
+        description: The bandit chief takes 5 corruption damage and increases the outcome of the power roll by one tier. This damage can't be reduced in any way.
+        behavior: power
+        guid: 4b4d39f4-deac-4b67-9a19-641ed9b43c2f
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:caa71856-39f2-4438-b753-894fcf1f85c3: true
+        sourceguid: caa71856-39f2-4438-b753-894fcf1f85c3
+        behavior: triggerdisplay
+        source: Character Feature
+        name: Bloodstones
+        description: The bandit chief takes 5 corruption damage and increases the outcome of the power roll by one tier. This damage can't be reduced in any way.
+        guid: 6ce57dad-b926-4b58-bd43-b1bcb3018131
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: The bandit chief takes 5 corruption damage and increases the outcome of the power roll by one tier. This damage can't be reduced in any way.
+          trigger: The bandit chief makes a power roll
+          name: Bloodstones
+          guid: 5b9ef121-9bff-4145-b953-93da8099139d
+          distance: Self
+          keywords:
+            Magic: true
+      source: Character Feature
+      description: The bandit chief takes 5 corruption damage and increases the outcome of the power roll by one tier. This damage can't be reduced in any way.
+      guid: caa71856-39f2-4438-b753-894fcf1f85c3
+      name: Bloodstones
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:73360980-b251-4614-b183-be86d0bb28f7: true
+        CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d44878cf-1dba-4b92-acb6-2deaa4ab825a
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: remove_bane
+        keywords: []
+        activationCondition: ""
+        domains:
+          CharacterFeature:73360980-b251-4614-b183-be86d0bb28f7: true
+          CharacterFeature:d44878cf-1dba-4b92-acb6-2deaa4ab825a: true
+        name: Supernatural Insight
+        rollType: ability_power_roll
+        description: The bandit chief ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+        behavior: power
+        guid: a49159e4-1cf9-4cc2-bffb-3c704dc60052
+      source: Trait
+      description: The bandit chief ignores concealment if it's granted by a supernatural effect, or the target is supernatural.
+      guid: 73360980-b251-4614-b183-be86d0bb28f7
+      name: Supernatural Insight
+      implementation: 3
+    role: Leader
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 4
+      damageType: psychic
+      apply: Damage Reduction
+    notes:
+    - text: ""
+      title: Monster Notes
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        950e6095-5e02-4540-9104-b20ef53a443c:
+          note: Melee Free Strike
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 1/1
+    keywords:
+      Humanoid: true
+      Human: true
+    initiativeGrouping: 7b30d11a-098a-4300-9efe-373590019845
+    63549116-6e8b-4af2-b7e1-7a1dec22d41b_history:
+      __typeName: StatHistory
+      entries:
+        a2cf61d9-b995-4218-9501-a17a0275e56e:
+          refreshid: 86213517-2d8d-44c5-af30-feeb672afbf1
+          note: Form Up!
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+    damage_taken: 0
+    groupid: f185d16e-35aa-42db-9fbd-529f55ab7935
+    walkingSpeed: 5
+    4b4d593b-a0af-4e06-a131-98b55cba8fc4_history:
+      __typeName: StatHistory
+      entries:
+        ace2c048-a477-4563-a52c-2fbb9398d4fa:
+          refreshid: 9f902965-26bb-4349-bcdc-9a2d6e7cea50
+          note: Lead From the Front
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+        ef9d58b7-f134-4f4b-b18f-62c66f30e37f:
+          refreshid: c84a8841-f6bb-4f7d-a1e9-195b205df58a
+          note: Lead From the Front
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: "-1/0"
+    minion: false
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      4b4d593b-a0af-4e06-a131-98b55cba8fc4:
+        __typeName: CharacterResource
+        refreshid: 9f902965-26bb-4349-bcdc-9a2d6e7cea50
+        used: 1
+      63549116-6e8b-4af2-b7e1-7a1dec22d41b:
+        __typeName: CharacterResource
+        refreshid: 86213517-2d8d-44c5-af30-feeb672afbf1
+        used: 1
+    traitNames: []
+    movementSpeeds: []
+    creatureSize: 1M
+    availableTriggers: []
+    monster_category: Monster
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: a46e3500-25be-44a9-a63d-0a77b64e8b48-125
+  tokenType: null
+  bestiaryId: 8a14761e-c7d6-412f-8c25-2758e8bbfc73
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Human Bandit Chief
+parentFolder: 7fcca4d0-0ce3-4e95-946b-bd6053158331
+artist: null
+ord: 0
+ctime: 1764236320664
+mtime: 1764236374226
+hidden: false

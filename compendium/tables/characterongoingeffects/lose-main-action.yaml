@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  description: You cannot use a main action this round
+  sourceguid: de2a4877-a0e6-432b-93ef-a80e018e702d
+  abilityFilter: not Ability.main action
+  source: Ongoing Effect
+  behavior: suppressabilities
+  guid: e60af5a9-b34c-4b85-a87c-77d321202613
+  explanation: You cannot use your main action this round
+  name: Acceleration Field
+source: Ongoing Effect
+guid: de2a4877-a0e6-432b-93ef-a80e018e702d
+id: de2a4877-a0e6-432b-93ef-a80e018e702d
+ctime: 1771989230237
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Lose Main Action
+description: You cannot use a main action this round
+custom: true
+mtime: 1771989230237
+iconid: ui-icons/skills/1.png

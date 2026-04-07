@@ -1,0 +1,626 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: df1417bc-7b16-49de-a11b-66211c726f38
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440925
+    portraitOffset:
+      x: -0.04977894
+      y: 0.09952153
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 073bd412-a70c-43ac-b804-a77daa0930e9
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 1
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 6
+    max_hitpoints_roll: "36"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 1
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 0
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Dwarf Trapper
+    levelChoices: []
+    moveDistance: 2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Charge: true
+        Weapon: true
+        Strike: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: ConditionCaster("Restrained").type = "Dwarf"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          modifiers:
+          - __typeName: CharacterModifier
+            operation: add
+            sourceguid: cb000c2e-0009-4f83-997e-76c1fe31bfc9
+            source: Ongoing Effect
+            value: -1
+            name: Can Be Force Moved While Restrained
+            guid: d07ba252-97aa-42bd-8137-8e9fe4e61a39
+            description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          guid: eaf1160a-06fe-4c4d-b375-c296a21d0d3e
+          id: eaf1160a-06fe-4c4d-b375-c296a21d0d3e
+          name: Can Be Force Moved While Restrained
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+          implementation: 4
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; push 2
+        - 7 damage; push 4
+        - 9 damage; push 6
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.151250004768372
+          s: 0.899804592132568
+          v: 0.911953687667847
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 110
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: e0b2c0f7-f8d7-4101-9e3b-a80d8f18a15b
+      meleeRange: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      implementation: 3
+      persistence: []
+      name: Concussive Bolts
+      categorization: Signature Ability
+      description: A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise.
+      abilityType: none
+      iconid: 5d4af519-5d82-4ada-8f2a-46f441d3470d
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          applyto: enemies
+          modifiers: []
+          name: Steam Powered Snare
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              targetType: self
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence:
+                enabled: false
+              modifiers: []
+              strain: []
+              guid: 96e47cd2-7bf5-40e8-9023-cd81cae266a8
+              trigger: onenter
+              castImmediately: false
+              behaviors:
+              - __typeName: ActivatedAbilityPowerRollBehavior
+                resistanceAttr: mgt
+                filterTarget: ""
+                roll: 2d10 + Might or Agility
+                isTest: false
+                tiers:
+                - 7 damage; restrained (EoT)
+                - 5 damage; slowed (Eot)
+                - No effect
+                guid: 29540c09-5338-49a3-8271-3998e20a3d20
+                resistanceRoll: true
+                applyto: none
+              numTargets: "1"
+              name: Steam Powered Snare Damage
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: b9eea967-4012-4bf5-947a-0bc15e3cb0c8
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          objectid: 0b9db1cb-266f-42c4-88d2-357a85c6f59d
+        duration: none
+        aliveafterdeath: true
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        resistanceAttr: mgt
+        roll: 2d10 + Might or Agility
+        tiers:
+        - 7 damage; restrained (EoT)
+        - 5 damage; slowed (Eot)
+        - No effect
+        attrid: mgt
+        resistanceRoll: true
+        isTest: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.151250123977661
+          s: 0.751366853713989
+          v: 0.807954847812653
+          a: 1
+      flavor: ""
+      categorization: Heroic Ability
+      preDescription: Each target makes a <B>Might test</B>.
+      effectImplemented: false
+      abilityType: none
+      persistence: []
+      modifiers: []
+      radius: "3"
+      strain: []
+      guid: a55d0e28-793b-4d3d-9f65-d09af944b658
+      numTargets: "1"
+      range: "5"
+      sourceReference:
+        __typeName: SourceReference
+        page: 110
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: cube
+      implementation: 4
+      name: Steam Powered Snare
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      description: The snare remains until the end of the encounter. Any enemy who moves into the area for the first time in a round or starts their turn there must make the test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+    - __typeName: ActivatedAbility
+      resourceNumber: 3
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Area: true
+        Weapon: true
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 109
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 3
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: dc4ebcd7-6982-404e-91aa-5775af4302a4
+      abilityType: none
+      categorization: Ability
+      numTargets: 1
+      iconid: ui-icons/skills/1.png
+      name: Steam-Powered Snare
+      targetType: target
+      description: |-
+        Each target makes a Might test.
+        7; restrained (EoT)
+
+        5; slowed (EoT)
+
+        No effect.
+
+        The snare remains until the end of the encounter. Any enemy who moves into the area for the first time in a round or starts their turn there must make the test.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 0
+    damageEntries:
+      7f3f27d4-cdfe-4edb-8674-b13302b2f0c2:
+        id: 7f3f27d4-cdfe-4edb-8674-b13302b2f0c2
+        heal: 36
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        992b8f2a-e0ce-49b2-84ae-4e8fbe445152:
+          disposition: good
+          note: 5 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 36
+        b457da39-be2a-43dc-bc72-4a513c51f9b8:
+          disposition: good
+          note: 36 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 36
+        5346ce88-9a6f-4709-aa79-b2da67ef1b5b:
+          note: 5 damage from Wise Ogre Goon's People Bowling
+          disposition: bad
+          attackerid: b071cff9-ecfa-4716-9471-e05689e21a13
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 31
+        dff43de7-05f4-4174-bee1-37dcf5109ec9:
+          note: 9 damage from Wise Ogre Goon's People Bowling
+          disposition: bad
+          attackerid: b071cff9-ecfa-4716-9471-e05689e21a13
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 27
+        7888f0b3-74cd-4900-8b06-ca03a167d7a5:
+          note: 9 damage from Wise Ogre Goon's People Bowling
+          disposition: bad
+          attackerid: b071cff9-ecfa-4716-9471-e05689e21a13
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 18
+        63264fb0-2e5c-48d8-8ad9-692832b7d783:
+          note: 5 damage from Wise Ogre Goon's People Bowling
+          disposition: bad
+          attackerid: b071cff9-ecfa-4716-9471-e05689e21a13
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 13
+    minion: false
+    stability: 2
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Trapper	Level 1 Platoon Harrier
+        Dwarf, Humanoid	EV 6
+        <b>Stamina</b> 36
+        <b>Speed </b>7	<b>Size</b> 1M / <b>Stability</b> 2
+        <b>	Free Strike</b> 3
+        Might 0	Agility +2	Reason 0	Intuition +1	Presence 0
+        <b>Concussive Bolts</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 10 <b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	5 damage; push 2
+        %E2%98%85	<b>12%E2%80%9316</b>	7 damage; push 4
+        %E2%9C%B8	<b>17</b>	9 damage; push 6
+        <b>Effect</b> A target restrained by a dwarf can be pushed by this ability.
+
+        <b>Steam Powered Snare</b> (Maneuver) %E2%97%86 3 Malice
+        <b>Keywords</b> Area, Ranged
+        <b>Distance</b> 3 cube within 5	<b>Target</b> All enemies in the cube
+        <b>Effect</b> Each target makes a <b>Might test</b>.
+        %E2%9C%B8	<b>%E2%89%A411</b>	7 damage; restrained (EoT)
+        %E2%98%85	<b>12%E2%80%9316</b>	5 damage; slowed (EoT)
+        %E2%9C%A6	<b>17</b>	No effect
+        <b>Effect</b> The snare remains until the end of the encounter. An enemy that moves into an affected square for the first time on their turn must make the test.
+
+
+
+    characterFeatures: []
+    role: Platoon Harrier
+    equipment: []
+    titles: []
+    opportunityAttack: 3
+    notes:
+    - text: ""
+      title: Monster Notes
+    moveDistanceRoundId: df138adc-5b07-40dc-9f3c-61446d786dd0-2
+    resistances: []
+    max_hitpoints: 36
+    keywords:
+      Dwarf: true
+      Humanoid: true
+    initiativeGrouping: 0858259c-1749-4cf9-9b6c-d049da798030
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: 84fbfa59-0949-49f6-b85b-5933758664f0-539
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: df138adc-5b07-40dc-9f3c-61446d786dd0-4
+        used: 1
+    availableTriggers: []
+    monster_category: Monster
+    damage_taken: 0
+    creatureSize: 1M
+    walkingSpeed: 7
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    deathSavingThrowFailures: 0
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        a4cd5a64-2e18-4016-8609-19cbede44b88:
+          note: Charge
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        d74a4b71-fa98-436b-83b4-093b8e66269a:
+          note: Charge
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        8346603f-16b4-4aa5-a10b-0509239ea682:
+          note: Charge
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        f5ab525a-8ece-430e-9c71-01bc44f74cfc:
+          note: Charge
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        621d615e-0322-4108-ad7f-055b97c8d8d0:
+          note: Concussive Bolts
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        fd9e6739-7022-4572-aaf7-9c1509740b34:
+          note: Charge
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        ab8822a4-37ee-4b64-a040-b789eddc90e3:
+          note: Charge
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        ae22e5f1-22e5-46e5-810a-9562ace6bdcf:
+          note: Charge
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+    traitNames: []
+    movementSpeeds: []
+    auras:
+    - __typeName: AuraInstance
+      casterid: 8bbfd18c-73e2-4c54-bf97-a28875bcdac7
+      duration: none
+      time:
+        __typeName: TimePoint
+        initiativeord: 0
+        time: 2.61544333065257
+        queueguid: df138adc-5b07-40dc-9f3c-61446d786dd0
+        initiativeid: 2975d22b-64ac-486c-a37c-d675a22a813a
+        round: 4
+      aura:
+        __typeName: Aura
+        applyto: enemies
+        modifiers: []
+        name: Steam Powered Snare
+        triggers:
+        - ability:
+            __typeName: TriggeredAbility
+            repeatTargets: false
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            silent: true
+            range: 5
+            persistence:
+              enabled: false
+            modifiers: []
+            strain: []
+            guid: 96e47cd2-7bf5-40e8-9023-cd81cae266a8
+            trigger: onenter
+            castImmediately: false
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              resistanceAttr: mgt
+              filterTarget: ""
+              roll: 2d10 + Might or Agility
+              isTest: false
+              tiers:
+              - 7 damage; restrained (EoT)
+              - 5 damage; slowed (Eot)
+              - No effect
+              guid: 29540c09-5338-49a3-8271-3998e20a3d20
+              resistanceRoll: true
+              applyto: none
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: fcc93283-dc7e-43b7-acd3-d87be728b1e5
+              tiersSelected:
+              - -1
+              duration: endround
+              ongoingEffectCustom: fcc93283-dc7e-43b7-acd3-d87be728b1e5
+            - __typeName: ActivatedAbilityDamageBehavior
+              roll: 1d6
+            numTargets: "1"
+            name: Steam Powered Snare Damage
+            radius: 0
+            description: ""
+            abilityType: none
+            iconid: ui-icons/skills/1.png
+          trigger: onenter
+        guid: b9eea967-4012-4bf5-947a-0bc15e3cb0c8
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        objectid: 0b9db1cb-266f-42c4-88d2-357a85c6f59d
+      object:
+        objid: 1f53c6dd-6f0d-4fd0-b564-d481dbf2cd4e
+        floorid: eaa0d33d-a5c8-4177-959c-f150d6bd7b93
+      area:
+        __usertype: LuaShape
+        data: "{\"shape\": 1,\"originCreature\": [[0, 4]],\"areaTemplateObject\": null,\"targetPoint\": {\"x\": -2.435609,\"y\": 3.942919,\"z\": 0},\"range\": 5,\"radius\": 3,\"checklos\": false,\"locations\": null}"
+      aliveafterdeath: true
+      name: Steam Powered Snare
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.151250123977661
+          s: 0.751366853713989
+          v: 0.807954847812653
+          a: 1
+      guid: 8e59023e-5065-4636-ab3c-a9514037fbd2
+      symbols:
+        mode: 1
+        castid: d77f8858-24a8-4e99-942b-ddf79701d268
+        spellname: Steam Powered Snare
+        numberoftargets: 0
+        range: 5
+        charges: 1
+      iconid: e6ebb105-a765-4530-80b3-677fd383f42e
+    skillRatings: []
+    equipmentMeta:
+      offhand0: []
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        5cde69a1-c7ce-4a83-8a61-8234f0836859:
+          refreshid: df138adc-5b07-40dc-9f3c-61446d786dd0-1
+          note: Steam Powered Snare
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        8b5abfef-48cf-46df-aa9a-4e42f9b389c1:
+          refreshid: 559dca16-7ded-49b5-8987-e3b2a279f2df-1
+          note: Steam Powered Snare
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        2b2ac917-cff9-48ed-9aa9-e69317f612da:
+          refreshid: df138adc-5b07-40dc-9f3c-61446d786dd0-3
+          note: Steam Powered Snare
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        5401fbf1-5176-40a7-87e0-1dc5b275dc2a:
+          refreshid: df138adc-5b07-40dc-9f3c-61446d786dd0-4
+          note: Steam Powered Snare
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        5f32bf87-33ad-4a51-afb8-972e8b5e6505:
+          note: Steam Powered Snare
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        daa621bb-5d55-47bf-b206-6b52a06ca002:
+          refreshid: 559dca16-7ded-49b5-8987-e3b2a279f2df-2
+          note: Steam Powered Snare
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+        3ee25380-02f1-4198-8a17-a1846958f18f:
+          note: Steam Powered Snare
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        50e63eb4-ce1d-4987-8a06-64da53d8d8a1:
+          refreshid: 36104fce-32e4-411a-8c66-477126ba9a2d-1
+          note: Steam Powered Snare
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 0/1
+  tokenType: null
+  bestiaryId: 674ef21c-6ea0-4989-b25d-ebd3fe711604
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Dwarf Trapper
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590260089
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 1fd53963-a39e-4e25-be29-aee5827f6097
+id: 1fd53963-a39e-4e25-be29-aee5827f6097
+ctime: 1770810295752
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+mtime: 1770810295752
+name: Pincer Movement
+custom: true
+description: Creature has been the target of Pincer Movement.
+endTrigger: attack
+iconid: ui-icons/skills/1.png

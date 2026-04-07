@@ -1,0 +1,43 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1031d9b5-41b0-4459-a544-206a2626fb4a
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: true
+  name: Never-Ending Hero
+  guid: a4595c86-6584-4162-897b-7b5ae20bd757
+  description: You gain an edge on power rolls and ignore the effects of bleeding until the end of your turn.
+  modtype: edge
+  rollType: all
+- __typeName: CharacterModifier
+  guid: 99166db6-2b96-4502-8eba-ea691f0d46d7
+  sourceguid: 1031d9b5-41b0-4459-a544-206a2626fb4a
+  value: 1
+  source: Ongoing Effect
+  name: Never-Ending Hero
+  behavior: attribute
+  description: You gain an edge on power rolls and ignore the effects of bleeding until the end of your turn.
+  attribute: 27e8b635-34a0-46ac-a8d2-2f105bf20703
+source: Ongoing Effect
+guid: 1031d9b5-41b0-4459-a544-206a2626fb4a
+id: 1031d9b5-41b0-4459-a544-206a2626fb4a
+ctime: 1755031306415
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.48199999332428
+    s: 1.00166606903076
+    v: 1.00191080570221
+    a: 1
+custom: true
+name: Never-Ending Hero
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+description: You gain an edge on power rolls and ignore the effects of bleeding until the end of your turn.
+mtime: 1756738678648
+implementation: 3

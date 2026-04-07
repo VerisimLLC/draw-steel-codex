@@ -1,0 +1,163 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: d4c534ff-d6e4-4cea-b9be-99e268ab67cd
+    offtokenPortraitId: null
+    portraitFrameId: e0946fe5-d98e-4543-bc4a-407534377572
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876106
+    portraitOffset:
+      x: -0.01105784
+      y: 0.09955637
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 15185bd0-f12c-47bd-b436-6d322c7f736c
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 1
+    import:
+      type: mcdm
+      data: |+
+        High Elf Scribe	Level 1 Controller Minion
+        Fey, High Elf, Humanoid	EV 1
+        <b>Stamina</b> 5
+        <b>Speed</b> 5	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>With Captain</b> Ranged distance +5<b>Free Strike</b> 2
+        Might 0	Agility 0	Reason +1	Intuition +1	Presence +1
+        <b>Inkshot</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Magic, Ranged, Strike
+        <b>Distance</b> Ranged 5<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 corruption damage
+        %E2%98%85	<b>12%E2%80%9316</b>	3 corruption damage
+        %E2%9C%B8	<b>17</b>	4 corruption damage
+        <b>Effect</b> The target can't hide until the start of the scribe's next turn.
+
+        <b>Otherworldly Grace</b>
+        At the start of their turn, the scribe can turn the duration of one save ends effect they suffer from into EoT.
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3ce916a4-10d3-47f4-bcb9-5fa19916cce1: true
+      modifiers: []
+      name: Otherworldly Grace
+      description: At the start of their turn, the scribe can turn the duration of one save ends effect they suffer from into EoT.
+      guid: 3ce916a4-10d3-47f4-bcb9-5fa19916cce1
+      source: Trait
+    role: Controller Minion
+    inflictedConditions: []
+    keywords:
+      Humanoid: true
+      High: true
+      High Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "5"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    monster_type: High Elf Scribe
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 5
+    resources: []
+    max_hitpoints: 5
+    traitNames:
+    - With Captain Ranged distance +5
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Strike: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 corruption damage
+        - 3 corruption damage
+        - 4 corruption damage
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6470e40c-d16c-4ceb-b894-ff450a9dc488
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Inkshot
+      numTargets: 1
+      description: The target can't hide until the start of the scribe's next turn.
+      abilityType: none
+      implementation: 3
+    groupid: 09e8c417-bda6-4d95-bd57-2d87b97c6d11
+    movementSpeeds: []
+    ev: 1
+    minion: true
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: ca7ba8d6-835d-480a-b120-786bd53023e6
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1726301040866
+description: High Elf Scribe
+parentFolder: 32508dc1-a157-427c-a73e-c5bf45b86a8d
+artist: null
+ord: 0
+ctime: 1741590307467
+mtime: 1775201137032
+hidden: false

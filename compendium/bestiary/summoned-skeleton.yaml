@@ -1,0 +1,305 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Summoned Skeleton
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    import: []
+    skillProficiencies: []
+    role: Minion Harrier
+    inflictedConditions: []
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    innateAttacks: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    monster_category: Monster
+    keywords:
+      Summoner: true
+      Signature: true
+      Undead: true
+    availableTriggers: []
+    damage_taken: 0
+    levelChoices: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+        CharacterFeature:81a092b9-1d76-4321-9e31-e025600628ba: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:75924d49-b4ef-40a9-b484-fc878d6eaf4c: true
+          CharacterFeature:81a092b9-1d76-4321-9e31-e025600628ba: true
+        sourceguid: 75924d49-b4ef-40a9-b484-fc878d6eaf4c
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: corruption
+          apply: Damage Reduction
+        - __typeName: ResistanceEntry
+          dr: Summoner.Reason
+          damageType: poison
+          apply: Damage Reduction
+        guid: cb78119f-6013-4e1a-9301-6d3a74d6c01e
+        name: Summoner Buffs
+        description: ""
+      name: Summoner Buffs
+      guid: 81a092b9-1d76-4321-9e31-e025600628ba
+      description: ""
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:f6155171-5f3e-4669-a5a7-efcbecbd4b2e: true
+        CharacterFeature:5200023f-a37f-43ff-9655-5972ff8ac6d0: true
+        CharacterFeature:2d9de553-c63d-4ffe-8714-02ebd572aa5b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:f6155171-5f3e-4669-a5a7-efcbecbd4b2e: true
+          CharacterFeature:5200023f-a37f-43ff-9655-5972ff8ac6d0: true
+          CharacterFeature:2d9de553-c63d-4ffe-8714-02ebd572aa5b: true
+        sourceguid: 2d9de553-c63d-4ffe-8714-02ebd572aa5b
+        description: When the  skeleton is reduced to 0 Stamina, their space is difficult terrain. The first time any enemy enters this space, they take 1 damage and the effect ends.
+        source: Character Feature
+        name: Bonetrops
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0
+              s: -0.00166583061218262
+              v: 1.00191044807434
+              a: 1
+          numTargets: "1"
+          modifiers: []
+          trigger: creaturedeath
+          strain: []
+          guid: 817e9fa9-19f4-4dda-a3c7-df9b5e7e9ee6
+          repeatTargets: false
+          abilityType: none
+          domains:
+            CharacterFeature:f6155171-5f3e-4669-a5a7-efcbecbd4b2e: true
+            CharacterFeature:5200023f-a37f-43ff-9655-5972ff8ac6d0: true
+            CharacterFeature:2d9de553-c63d-4ffe-8714-02ebd572aa5b: true
+          targetType: self
+          persistence: []
+          name: Bonetrops
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aliveafterdeath: true
+            aura:
+              __typeName: Aura
+              modifiers: []
+              source: Bonetrops
+              guid: 0978cf5d-1ad4-463e-afef-d96c0b8b2f26
+              objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+              applyto: enemies
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              creatureFilter: ""
+              name: Bonetrops
+              triggers:
+              - destroyaura: true
+                ability:
+                  __typeName: TriggeredAbility
+                  repeatTargets: false
+                  behaviors:
+                  - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+                    rule: 2 damage
+                  display:
+                    brightness: 1
+                    saturation: 1
+                    hueshift: 0
+                    bgcolor: "#ffffffff"
+                  silent: true
+                  range: 5
+                  persistence: []
+                  modifiers: []
+                  strain: []
+                  guid: 25fcb7b2-f467-47ab-ae96-ed8ce0725b7f
+                  trigger: onenter
+                  numTargets: "1"
+                  targetType: self
+                  name: Bonetrops
+                  radius: 0
+                  description: ""
+                  abilityType: none
+                  iconid: ui-icons/skills/1.png
+                trigger: onenter
+              description: ""
+              difficult_terrain: true
+              iconid: 74db885f-d96e-4b14-af40-69292a0d6a22
+          description: ""
+          range: 1
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: f79de82a-7d9a-48be-8dbb-a1f02a6b250a
+      name: Bonetrops
+      guid: 5200023f-a37f-43ff-9655-5972ff8ac6d0
+      description: When the  skeleton is reduced to 0 Stamina, their space is difficult terrain. The first time any enemy enters this space, they take 1 damage and the effect ends.
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:47bdf99d-ccb6-4e3d-aa77-8de2d747a48b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 47bdf99d-ccb6-4e3d-aa77-8de2d747a48b
+        source: Character Feature
+        value: Walking Speed
+        domains:
+          CharacterFeature:47bdf99d-ccb6-4e3d-aa77-8de2d747a48b: true
+        name: Climb
+        guid: 12653d93-61fc-4f66-99b2-d3f34b3f7241
+        description: ""
+        behavior: attribute
+        attribute: climb
+      name: Climb
+      guid: 47bdf99d-ccb6-4e3d-aa77-8de2d747a48b
+      description: ""
+      source: Character Feature
+    walkingSpeed: 6
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: mgt
+    minionSquad: Summoned Skeleton Squad 2
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 1 damage
+        - 1 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      multipleModes: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "5"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Sonic
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: 119dad21-52ef-486e-b3fd-689e394c3f72
+    max_hitpoints: 2
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    initiativeGrouping: 9b848108-5be7-4e5d-913e-fc6f99a41fbf
+    minion: true
+    resources: []
+    monster_type: Summoned Skeleton
+  tokenType: null
+  bestiaryId: 45bc13b2-8863-4120-8cb3-0202f828c525
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1759618053762
+description: null
+parentFolder: 4715f842-1482-418c-b5dc-80b01183b25f
+artist: null
+ord: 3
+ctime: 1759618053762
+mtime: 1775167533957
+hidden: false

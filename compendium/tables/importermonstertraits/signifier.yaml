@@ -1,0 +1,67 @@
+__typeName: CharacterFeature
+testCases:
+- text: Allies within 5 of the signifier have  and :shield:. If the signifier is killed, a minion from their squad can retrieve the signum and replace their stat block with the signifier stat block.
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: f5b26dc4-ca8d-46c3-9c0e-eba72e1d701e
+  source: Monster
+  seq: 9377fc79-b61f-4124-aad6-6760b2f50fb9
+  aura:
+    __typeName: Aura
+    applyto: friends
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.943999886512756
+        s: 0.931249856948853
+        v: 1.00238597393036
+        a: 1
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: f7ad2e35-31ec-4a59-9036-7d8d6345f34c
+      source: Aura
+      modtype: none
+      keywords:
+        Attack: true
+      surges: "1"
+      guid: 4f665ed7-5e56-47a2-a5c9-ef42f3ab4e8c
+      name: Signifier
+      rollType: ability_power_roll
+      description: "Kobolds in the Aura gain :shield: and :surge:"
+      behavior: power
+      activationCondition: true
+    - __typeName: CharacterModifier
+      sourceguid: f7ad2e35-31ec-4a59-9036-7d8d6345f34c
+      source: Aura
+      modtype: none
+      keywords:
+        Attack: true
+      activationCondition: true
+      guid: eec7367c-8530-4277-bf45-ab774cc8c57a
+      rollType: enemy_ability_power_roll
+      shields: "1"
+      description: "Kobolds in the Aura gain :shield: and :surge:"
+      behavior: power
+      name: Signifier
+    name: Signifier
+    guid: f7ad2e35-31ec-4a59-9036-7d8d6345f34c
+    description: "Kobolds in the Aura gain :shield: and :surge:"
+    implementation: 3
+    iconid: 2dbee8c9-19b0-40da-acda-bf20c2401f4e
+  radius: "5"
+  guid: 563dcc66-0ca6-4ce4-aa2e-8f8eeb173446
+  description: ""
+  behavior: aura
+  name: Signifier
+source: Monster
+guid: f5b26dc4-ca8d-46c3-9c0e-eba72e1d701e
+importMatch: "Allies within <<range>> of the signifier have :surge: and :shield:. If the signifier is killed, a minion from their squad can retrieve the signum and replace their stat block with the signifier stat block."
+ctime: 1731823479349
+name: Signifier
+id: 2e21b64e-ec05-43e6-8a7a-37e70630554e
+description: ""
+mtime: 1731823980339
+implementation: 2

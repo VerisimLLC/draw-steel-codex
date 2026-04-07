@@ -1,0 +1,69 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: f0d39f20-4cd5-44f6-859c-3ecbb676ac36
+  description: Whenever you are targeted by a magic or psionic ability that targets only one creature, you can use a free triggered action to cause this armor to absorb the ability after the ability's effects resolve. While the armor has an ability absorbed, you can't absorb another. You can use an absorbed ability as if you knew it, making power rolls for the ability using your choice of Reason, Intuition, or Presence. You don't need to spend any Heroic Resource to activate the ability. Once you use the ability, the armor loses it, and you can absorb another.
+  modifiers:
+  - __typeName: CharacterModifier
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: subject
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      range: "100"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 65f70a20-e0a3-44b1-a89e-4a002e3947c4
+      castImmediately: false
+      behaviors:
+      - __typeName: ActivatedAbilityStealAbilityBehavior
+        ongoingEffect: 00868f31-aa65-4b8b-90b2-a7cb12e9166c
+        stacks: 1
+        abilityFilter: Ability.Name = Used Ability.Name
+        ongoingEffectCustom: 00868f31-aa65-4b8b-90b2-a7cb12e9166c
+      conditionFormula: Target = Self and (Used Ability.Keywords has "magic" or Used Ability.Keywords has "psionic") and (not Self.Ongoing Effects has "Absorption")
+      subject: other
+      numTargets: "1"
+      trigger: targetwithability
+      name: Absorption
+      description: |-
+        Whenever you are targeted by a magic or psionic ability that targets only one creature, you can use a free triggered action to cause this armor to absorb the ability after the ability’s effects resolve. While the armor has an ability absorbed, you can’t absorb another. You can use an absorbed ability as if you knew it, making power rolls for the ability using your choice of Reason, Intuition, or Presence. You don’t need to spend any Heroic Resource to activate the ability. Once
+        you use the ability, the armor loses it, and you can absorb another.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    description: Whenever you are targeted by a magic or psionic ability that targets only one creature, you can use a free triggered action to cause this armor to absorb the ability after the ability's effects resolve. While the armor has an ability absorbed, you can't absorb another. You can use an absorbed ability as if you knew it, making power rolls for the ability using your choice of Reason, Intuition, or Presence. You don't need to spend any Heroic Resource to activate the ability. Once you use the ability, the armor loses it, and you can absorb another.
+    source: Item
+    behavior: trigger
+    guid: a1f0d51a-dde0-444f-bb8a-9336f3cb62c4
+    name: Absorption
+    sourceguid: f0d39f20-4cd5-44f6-859c-3ecbb676ac36
+  source: Item
+  name: Absorption
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 4
+itemPrerequisite: A mirror blessed by a priest of a god of magic
+imbuePrereq: none
+projectSource: The First Language
+imbueLevel: 5
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+type: Gear
+implementation: 4
+ctime: 1770698928353
+projectGoal: "150"
+id: 1414a1e9-a4c6-412e-a293-4027dfce3ee4
+mtime: 1774268930098
+name: Absorption
+imbueTargetType: armor
+description: Whenever you are targeted by a magic or psionic ability that targets only one creature, you can use a free triggered action to cause this armor to absorb the ability after the ability's effects resolve. While the armor has an ability absorbed, you can't absorb another. You can use an absorbed ability as if you knew it, making power rolls for the ability using your choice of Reason, Intuition, or Presence. You don't need to spend any Heroic Resource to activate the ability. Once you use the ability, the armor loses it, and you can absorb another.
+projectRollCharacteristic:
+  mgt: true
+  rea: true
+  inu: true
+iconid: 1c5d1fae-22c3-4d86-86ee-cd83ed9e6ede

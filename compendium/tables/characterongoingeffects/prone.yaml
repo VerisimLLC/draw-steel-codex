@@ -1,0 +1,20 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: c885a4ba-bb51-4676-977d-95df9aa19d85
+id: c885a4ba-bb51-4676-977d-95df9aa19d85
+ctime: 1755660035336
+domains:
+  CharacterOngoingEffect:c885a4ba-bb51-4676-977d-95df9aa19d85: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Prone
+condition: da6867b1-01e3-4570-8d1b-1b94ea1ea343
+description: ""
+mtime: 1755660035336
+iconid: 4ed2da23-daf5-416c-bbc2-4e826483a00a

@@ -1,0 +1,7 @@
+__typeName: CustomAttribute
+baseValue: "0"
+name: Extra Heroic Resource Available
+mtime: 1770946375592
+documentation: This number is adding to a creatures available heroic resource poll. Intended for use within an Ability Duration Effect.
+id: 77c7724e-a5ed-4b1e-a95b-586c758c90a2
+ctime: 1770946375592

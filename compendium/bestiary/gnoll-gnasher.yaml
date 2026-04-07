@@ -1,0 +1,207 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 6ec9db8e-88b8-4afc-8914-7ab4abebad64
+    offtokenPortraitId: c72b9dbc-df07-484e-ad76-dc33f8d27fe0
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 066a8500-4e20-4ae4-a8e7-d39c5aa84fa0
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.6876623
+    portraitOffset:
+      x: -0.02369818
+      y: 0.2364503
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 379f861d-6138-4ef6-b0cf-d98381ba55d6
+  properties:
+    __typeName: monster
+    followerType: retainer
+    stability: 1
+    cr: 2
+    skillProficiencies: []
+    role: Follower Harrier
+    inflictedConditions: []
+    keywords:
+      Abyssal: true
+      Gnoll: true
+    titles: []
+    innateAttacks: []
+    skillRatings: []
+    minion: false
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 1
+        id: mgt
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    monster_type: Gnoll Gnasher
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:a8496402-d471-4dc6-adc7-0cf7d3fe7a72: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:a8496402-d471-4dc6-adc7-0cf7d3fe7a72: true
+        sourceguid: a8496402-d471-4dc6-adc7-0cf7d3fe7a72
+        description: Whenever a non-minion ally within 7 squares of the gnasher is reduced to 0 Stamina, the gnasher moves up to their speed and can make a melee free strike
+        source: Character Feature
+        name: Death Frenzy
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 744530a2-7192-441f-bc7b-deb1812085db
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: dfb59889-b651-40a6-80be-56d38bd34198
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          subjectRange: "7"
+          strain: []
+          guid: 86f347fd-b514-49db-bfe1-03b0efe809f2
+          persistence: []
+          targetType: self
+          subject: allies
+          trigger: dying
+          name: Death Frenzy
+          description: Whenever a non-minion ally within 7 squares of the gnasher is reduced to 0 Stamina, the gnasher moves up to their speed and can make a melee free strike
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 06de9300-9a09-454b-8dba-98adf5025a83
+      source: Character Feature
+      description: Whenever a non-minion ally within 7 squares of the gnasher is reduced to 0 Stamina, the gnasher moves up to their speed and can make a melee free strike
+      guid: a8496402-d471-4dc6-adc7-0cf7d3fe7a72
+      name: Death Frenzy
+      implementation: 3
+    initiativeGrouping: dc027ac7-a61b-4d55-9dd4-d9da9d16ab74
+    max_hitpoints: 10
+    damage_taken: 0
+    monster_category: Monster
+    resources: []
+    groupid: 6e337f82-9186-4167-9142-0e4cd33a862b
+    ev: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 7 damage
+        - 10 damage; M < strong, bleeding (save ends)
+        roll: 2d10 + Highest Characteristic
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 364
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 513833fd-58e0-44a7-b6e3-faea7aef839e
+      categorization: Signature Ability
+      numTargets: "1"
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Gnash
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 3
+    creatureTemplates:
+    - 25263715-cef4-4e25-b4bd-ddedc3a87dea
+    levelChoices: []
+    retainer: true
+    opportunityAttack: 3
+    walkingSpeed: 7
+    savingThrowRatings: []
+  tokenType: null
+  bestiaryId: 4e4e1bec-ba65-4fc7-81db-56dd0aaf2a94
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1763786371393
+description: null
+parentFolder: b4b20e3a-cc6e-4252-b229-9f284c4fe52d
+artist: null
+ord: 6
+ctime: 1763786371393
+mtime: 1775167459055
+hidden: false

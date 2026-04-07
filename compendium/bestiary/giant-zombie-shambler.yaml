@@ -1,0 +1,164 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 1533da55-db8c-4cba-a129-76b5c84863cf
+    offtokenPortraitId: null
+    portraitFrameId: 5836106c-4ba0-4281-84cf-4ce797113f5e
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7563742
+    portraitOffset:
+      x: 0.02764106
+      y: 0.1410385
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 4a70dc99-f19c-47ff-bdd5-a82619939150
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 5
+    cr: 10
+    import:
+      type: mcdm
+      data: |+
+        Giant Zombie Shambler	Level 10 Minion Brute
+        Undead	EV 12 for four minions
+        <b>Stamina</b> 17	<b>Immunity</b> corruption 10, poison 10
+        <b>Speed</b> 4	<b>Size</b> 3 /<b> Stability</b> 5
+        <b>With Captain</b> Strike damage +4<b>Free Strike</b> 5
+        Might +5	Agility -3	Reason -3	Intuition +1	Presence -2
+        <b>Rotten Kick </b>(Action) %E2%97%86 2d10 + 5 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> One creature or object per minion
+        %E2%9C%A6	%E2%89%A411	5 damage; push 2
+        %E2%98%85	12%E2%80%9316	8 damage; push 4
+        %E2%9C%B8	17	10 damage; push 6
+
+        <b>Meatshield</b>
+        Each ally within 2 of the giant zombie has damage immunity 3.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cd8275be-7c1c-45f9-aa76-a7d08d1c76df: true
+      modifiers: []
+      name: Meatshield
+      description: Each ally within 2 of the giant zombie has damage immunity 3.
+      guid: cd8275be-7c1c-45f9-aa76-a7d08d1c76df
+      source: Trait
+    role: Minion Brute
+    inflictedConditions: []
+    ev: 12
+    max_hitpoints_roll: "17"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 10
+      damageType: corruption
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 10
+      damageType: poison
+      apply: Damage Reduction
+    opportunityAttack: 5
+    groupid: 4896bd82-a3b2-4f45-854d-81c22431335a
+    monster_type: Giant Zombie Shambler
+    attributes:
+      agl:
+        baseValue: -3
+        id: agl
+      prs:
+        baseValue: -2
+        id: prs
+      rea:
+        baseValue: -3
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 5
+        id: mgt
+    withCaptain: Strike damage +4
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 4
+    resources: []
+    max_hitpoints: 17
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: e566d48d-2a77-436f-80f1-4a897c8f5104
+      implementation: 4
+      numTargets: 1
+      name: 'Rotten Kick '
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 5 damage; push 2
+        - 8 damage; push 4
+        - 10 damage; push 6
+        roll: 2d10 + 5
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    keywords:
+      Undead: true
+    movementSpeeds: []
+    monster_category: Monster
+    minion: true
+    creatureSize: "3"
+    levelChoices: []
+  tokenType: null
+  bestiaryId: 5742915b-6720-40f6-b3d7-15d789c1751c
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971173
+description: Giant Zombie Shambler
+parentFolder: d808b7d0-f3af-4e88-8ad1-d3d26ca961e9
+artist: null
+ord: 1
+ctime: 1741590252399
+mtime: 1775201137032
+hidden: false

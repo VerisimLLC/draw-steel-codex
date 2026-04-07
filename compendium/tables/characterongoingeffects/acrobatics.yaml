@@ -1,0 +1,63 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 48d96177-e213-42c4-a7b3-b8a1d5c93ab8
+  source: Ongoing Effect
+  modtype: tier3
+  activationCondition: true
+  keywords: []
+  hasCustomTrigger: true
+  customTrigger:
+    __typeName: TriggeredAbility
+    persistence: []
+    modifiers: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    strain: []
+    guid: 4fce40c3-69c0-4766-9632-95a112559daf
+    repeatTargets: false
+    abilityType: none
+    trigger: d20roll
+    targetType: self
+    numTargets: "1"
+    name: New Ability
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 48d96177-e213-42c4-a7b3-b8a1d5c93ab8
+      mode: effect
+      conditions: []
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+  behavior: power
+  name: Acrobatics
+  rollType: test_power_roll
+  description: 'You can automatically obtain a tier 3 result on one test made to jump, tumble, or climb as part of your movement. '
+  guid: 47488a33-04ba-48fe-9019-a13bb426c995
+  skills:
+  - 7edbc5b3-92f7-4c39-bd05-165bb2990924
+  - 5052a2e5-938c-46f9-81fd-68a98fe363b5
+source: Ongoing Effect
+guid: 48d96177-e213-42c4-a7b3-b8a1d5c93ab8
+id: 48d96177-e213-42c4-a7b3-b8a1d5c93ab8
+ctime: 1746142068545
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.511999905109406
+    s: 1.00267481803894
+    v: 1.00306534767151
+    a: 1
+custom: true
+name: Acrobatics
+iconid: 43a98316-b9b3-4ce7-bec8-f25213ea28cd
+description: 'You can automatically obtain a tier 3 result on one test made to jump, tumble, or climb as part of your movement. '
+mtime: 1755818387556
+implementation: 3

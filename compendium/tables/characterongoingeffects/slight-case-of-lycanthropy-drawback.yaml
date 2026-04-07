@@ -1,0 +1,27 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 987a2092-cf6c-4bbf-8b57-b5df560b84d1
+  sourceguid: 085c357f-b4f9-4b61-bcd9-851251c825c4
+  value: 1
+  source: Ongoing Effect
+  name: Slight Case of Lycanthropy - Drawback
+  behavior: attribute
+  description: You lose all your surges and become a wolfish hybrid until the end of your turn. While in that form, you have your usual statistics, but you must make a melee free strike against the nearest creature if you can. You can shift up to your speed toward that creature if necessary. If allies and enemies are equally near, you target an ally.
+  attribute: disguised
+source: Ongoing Effect
+guid: 085c357f-b4f9-4b61-bcd9-851251c825c4
+id: 085c357f-b4f9-4b61-bcd9-851251c825c4
+ctime: 1768305041480
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+custom: true
+name: Slight Case of Lycanthropy - Drawback
+iconid: d205e63f-eb46-4af4-a168-d1fedeadb146
+description: You lose all your surges and become a wolfish hybrid until the end of your turn. While in that form, you have your usual statistics, but you must make a melee free strike against the nearest creature if you can. You can shift up to your speed toward that creature if necessary. If allies and enemies are equally near, you target an ally.
+mtime: 1770955993781
+implementation: 3

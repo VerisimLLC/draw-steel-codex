@@ -1,0 +1,835 @@
+3d9a620e-06ab-4dc0-94dc-7af862d7bd63:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Ignore Fire Immunity
+  mtime: 1753086720310
+  id: 3d9a620e-06ab-4dc0-94dc-7af862d7bd63
+  ctime: 1753086720310
+112b8524-f15d-4d3b-84d7-a8aaa5997bb8:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Movement
+  name: Freely Move Through Enemies
+  mtime: 1749325992158
+  id: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+  ctime: 1749325745229
+27e8b635-34a0-46ac-a8d2-2f105bf20703:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Ignores Bleeding
+  mtime: 1755031387815
+  id: 27e8b635-34a0-46ac-a8d2-2f105bf20703
+  ctime: 1755031387815
+17802d38-f848-47d8-af1c-fcfde60e16bb:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Custom
+  name: Count as Ally to Enemies for Flanking
+  documentation: Creatures with a value above zero will be considered allies to enemy creatures for the purpose of flanking.
+  mtime: 1768355359591
+  id: 17802d38-f848-47d8-af1c-fcfde60e16bb
+  ctime: 1768355359591
+85836d50-319f-4d25-97c4-3d883a741f43:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Pull Bonus
+  mtime: 1730513617257
+  id: 85836d50-319f-4d25-97c4-3d883a741f43
+  ctime: 1730513617257
+702ec072-f5eb-42d0-89e2-fd71ced69064:
+  __typeName: CustomAttribute
+  baseValue: "6"
+  name: Initiative Threshold
+  mtime: 1765963877987
+  id: 702ec072-f5eb-42d0-89e2-fd71ced69064
+  ctime: 1765963877987
+9148519f-9fb4-4b2b-9d3e-98f88c56bab8:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: NoDamageFromForcedMovementWithObjects
+  documentation: Turning this on will make a creature no longer take damage from forced movement into an object.
+  mtime: 1758843187181
+  id: 9148519f-9fb4-4b2b-9d3e-98f88c56bab8
+  ctime: 1758843187181
+03bcf2ae-075c-40f8-8dac-b2c73aa20402:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Heroic Abilities While Charging
+  mtime: 1743143509501
+  id: 03bcf2ae-075c-40f8-8dac-b2c73aa20402
+  ctime: 1743142862449
+036da4db-4406-4038-ae7d-cf0b37890f5f:
+  __typeName: CustomAttribute
+  baseValue: "1"
+  category: Advancement
+  name: Wealth
+  mtime: 1765962790169
+  id: 036da4db-4406-4038-ae7d-cf0b37890f5f
+  ctime: 1730449564028
+11650b6f-ee8f-4ab1-9a44-b56a3d43119a:
+  __typeName: CustomAttribute
+  baseValue: Max(1, Max(Might, Agility))
+  category: Movement
+  name: Jump Distance
+  documentation: Whenever an effect allows you to move including using the Advance move action you can automatically long jump a number of squares up to your Might or Agility score your choice minimum 1 square as part of that movement The height of your jump is automatically 1 square as part of that movement.
+  mtime: 1765903987441
+  id: 11650b6f-ee8f-4ab1-9a44-b56a3d43119a
+  ctime: 1765903752092
+0be0b448-fb91-4cf9-a418-9b630342b62d:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: During Ability
+  name: Charging
+  mtime: 1748129963324
+  id: 0be0b448-fb91-4cf9-a418-9b630342b62d
+  ctime: 1748129963324
+983f5281-f0c1-420b-abb9-6257717bf59c:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Compel Movement Toward
+  mtime: 1756802290332
+  documentation: The creature is compelled to move toward the creature with this id.
+  id: 983f5281-f0c1-420b-abb9-6257717bf59c
+  ctime: 1756802290332
+a265631b-a8e5-4518-9762-7f85a5ec96cc:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Ignore Prone Difficulty
+  mtime: 1771985916520
+  documentation: Creatures with this attribute will not use additional movement while prone.
+  id: a265631b-a8e5-4518-9762-7f85a5ec96cc
+  ctime: 1771985916520
+62e6c0c2-f940-46e3-bbe2-1559d0b4a4aa:
+  __typeName: CustomAttribute
+  baseValue: Resources.Heroic Resource < 0
+  category: Class Specific
+  name: Strained
+  mtime: 1748297883676
+  id: 62e6c0c2-f940-46e3-bbe2-1559d0b4a4aa
+  ctime: 1748297883676
+61a3ee0a-353f-4407-a317-d05647551fa5:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Heroic Resource Gain Modification
+  mtime: 1769109089888
+  documentation: This number effects all HR resource gain for the Hero.
+  id: 61a3ee0a-353f-4407-a317-d05647551fa5
+  ctime: 1769109089888
+90d8d88a-97ae-41a5-925f-e8e474f13c48:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  attributeType: number
+  name: Bonus Range
+  mtime: 1738390957683
+  id: 90d8d88a-97ae-41a5-925f-e8e474f13c48
+  ctime: 1699768366479
+0dede2a8-4f44-45aa-be20-342fdffd4916:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Flanking Immunity
+  mtime: 1727769400591
+  id: 0dede2a8-4f44-45aa-be20-342fdffd4916
+  ctime: 1727769400591
+b6b9e75c-4b94-435e-9a6c-9842cf44c6b5:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Negative Heroic Resource
+  mtime: 1741331292001
+  id: b6b9e75c-4b94-435e-9a6c-9842cf44c6b5
+  ctime: 1741331292001
+9248b479-12c2-4d1f-a1d2-7416fd63f244:
+  __typeName: CustomAttribute
+  baseValue: Maximum Stamina/2
+  name: Dying Value
+  mtime: 1770552049188
+  documentation: 'When a hero reaches this value, they die. '
+  id: 9248b479-12c2-4d1f-a1d2-7416fd63f244
+  ctime: 1768741663368
+fb37652f-d640-4a53-9392-0930dcb30eab:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Movement
+  name: Hover
+  documentation: Creature can hover when flying
+  mtime: 1763834594494
+  id: fb37652f-d640-4a53-9392-0930dcb30eab
+  ctime: 1763834594494
+82abd296-d79f-4d33-b1e6-47a28f30e161:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Cannot Be Force Moved
+  mtime: 1748154820622
+  id: 82abd296-d79f-4d33-b1e6-47a28f30e161
+  ctime: 1748144356649
+d721a407-25c6-4519-92e1-ac0e8ed68e8c:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  attributeType: number
+  name: Cannot Make Opportunity Attacks
+  mtime: 1771970814925
+  id: d721a407-25c6-4519-92e1-ac0e8ed68e8c
+  ctime: 1751442372970
+f438be18-6fc0-46d5-9a68-fed0fe61f418:
+  __typeName: CustomAttribute
+  baseValue: "1"
+  category: Forced Movement
+  name: Knockback Targets
+  documentation: The number of targets a creature knockback
+  mtime: 1764263261090
+  id: f438be18-6fc0-46d5-9a68-fed0fe61f418
+  ctime: 1764263261090
+5e8e32e0-b2be-4c1b-859d-ed98f4015d0a:
+  __typeName: CustomAttribute
+  baseValue: "1"
+  category: Class Specific
+  name: Num Routines
+  documentation: The number of routines the creature can have active
+  mtime: 1767931921796
+  id: 5e8e32e0-b2be-4c1b-859d-ed98f4015d0a
+  ctime: 1767931921796
+7565750e-2376-4809-abc2-47eed82153d1:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Cannot Be Removed
+  documentation: When this is non-zero, this creature should not be removed from the board even if they are dead.
+  mtime: 1758839955720
+  id: 7565750e-2376-4809-abc2-47eed82153d1
+  ctime: 1758839955720
+db9d189c-9cfb-438e-b5db-1505f4d3d41e:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Custom
+  name: Grant Flanking to Allies
+  mtime: 1751221579565
+  id: db9d189c-9cfb-438e-b5db-1505f4d3d41e
+  ctime: 1751218876641
+4888254a-c40b-4e13-ac30-b505622d5e91:
+  __typeName: CustomAttribute
+  baseValue: Size
+  category: Forced Movement
+  name: Knockback Caster Size
+  documentation: "This is the size of the creature specifically when considering the Knockback maneuver and if the creature can can knock back -- specifically you cannot knockback creatures larger than you.\v\vIt does NOT affect other forced movement."
+  mtime: 1757992763797
+  id: 4888254a-c40b-4e13-ac30-b505622d5e91
+  ctime: 1754868619610
+ec9c5327-a83e-44ca-a00c-fdb345fecb5d:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Push Bonus
+  mtime: 1730513602370
+  id: ec9c5327-a83e-44ca-a00c-fdb345fecb5d
+  ctime: 1730513602370
+3b730c1c-2818-4876-b6d1-949969e04572:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Compel Movement Adjacent
+  mtime: 1760750399663
+  documentation: The creature is compelled to end movement adjacent to the creature with this id.
+  id: 3b730c1c-2818-4876-b6d1-949969e04572
+  ctime: 1760750363524
+fe20b4b6-fa30-4b65-899e-1e2f82061aa4:
+  __typeName: CustomAttribute
+  possibleValues:
+  - cold
+  - fire
+  - corruption
+  - lightning
+  category: Class Specific
+  attributeType: stringset
+  name: Primordial Damage
+  mtime: 1765907763246
+  id: fe20b4b6-fa30-4b65-899e-1e2f82061aa4
+  ctime: 1765907763246
+60becfc4-1ba5-49e5-8ecb-e59a0d2bf1dc:
+  __typeName: CustomAttribute
+  baseValue: "3"
+  name: Maximum Shields
+  mtime: 1730012993060
+  id: 60becfc4-1ba5-49e5-8ecb-e59a0d2bf1dc
+  ctime: 1730012993060
+f70898b2-fb61-4384-a673-bdb2fbf51a35:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Dying Stamina
+  mtime: 1770551983316
+  documentation: 'The number of stamina when a hero enters the `Dying` state. '
+  id: f70898b2-fb61-4384-a673-bdb2fbf51a35
+  ctime: 1770551983316
+f383ffc8-817d-4965-ae92-2e839f27e063:
+  __typeName: CustomAttribute
+  baseValue: "19"
+  category: Custom
+  name: Critical Threshold
+  documentation: When a creature rolls this number or higher on their natural Power Roll, they will receive a critical hit.
+  mtime: 1771950862378
+  id: f383ffc8-817d-4965-ae92-2e839f27e063
+  ctime: 1771950795068
+b92d0101-f9a6-4c66-81e4-cdad46e6f1bb:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Forced Movement Bonus
+  documentation: The amount of additional spaces this creature can move another creature when it inflicts forced movement.
+  mtime: 1755646514511
+  id: b92d0101-f9a6-4c66-81e4-cdad46e6f1bb
+  ctime: 1755646514511
+e354ecc7-888f-48fc-a248-7a277252675e:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Ignore Concealment Within Range
+  mtime: 1754713721339
+  id: e354ecc7-888f-48fc-a248-7a277252675e
+  ctime: 1754713721339
+20009cb8-8c21-497f-9563-b2d8c99176dd:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Potency Bonus
+  mtime: 1764131724390
+  documentation: Number added to all potency
+  id: 20009cb8-8c21-497f-9563-b2d8c99176dd
+  ctime: 1764131724390
+f09c8c3c-a863-456f-868f-1bbbace18380:
+  __typeName: CustomAttribute
+  baseValue: Agility
+  category: Potency Resistance
+  name: Agility Potency Resistance
+  mtime: 1730512379015
+  id: f09c8c3c-a863-456f-868f-1bbbace18380
+  ctime: 1730508879511
+9e41a093-bf02-4b65-aa0d-42ed091d7927:
+  __typeName: CustomAttribute
+  baseValue: "2"
+  category: Movement
+  name: Speed While Slowed
+  mtime: 1744474097596
+  id: 9e41a093-bf02-4b65-aa0d-42ed091d7927
+  ctime: 1744472377947
+333fca17-b1be-4725-9e39-94618bd297fa:
+  __typeName: CustomAttribute
+  baseValue: "1"
+  category: Movement
+  name: Disengage Speed
+  mtime: 1741259010853
+  id: 333fca17-b1be-4725-9e39-94618bd297fa
+  ctime: 1741259010853
+1422a518-b444-4ac5-b200-2f0b33aca87b:
+  __typeName: CustomAttribute
+  baseValue: Intuition
+  category: Potency Resistance
+  name: Intuition Potency Resistance
+  mtime: 1730512386800
+  id: 1422a518-b444-4ac5-b200-2f0b33aca87b
+  ctime: 1730508901516
+6707d8ac-4323-47bc-9593-e36fd1ac146e:
+  __typeName: CustomAttribute
+  baseValue: Walking Speed
+  category: Movement
+  name: Charging Speed
+  documentation: This is what the Charge maneuver uses to determine a creature's speed when charging. Normally this will just be walking speed, but it can be adjusted by features.
+  mtime: 1758841307391
+  id: 6707d8ac-4323-47bc-9593-e36fd1ac146e
+  ctime: 1758841307391
+eb16736e-b50b-4dcd-8966-c28ce9c33d7e:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Has Cover
+  mtime: 1741383350652
+  id: eb16736e-b50b-4dcd-8966-c28ce9c33d7e
+  ctime: 1741383350652
+96b930c8-846a-4221-991a-5ded3c9e9b39:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Cannot Regain Stamina
+  mtime: 1755632019796
+  id: 96b930c8-846a-4221-991a-5ded3c9e9b39
+  ctime: 1755632019796
+e8a97ea6-d2e2-4d59-a1d3-11124a104147:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Untargetable
+  mtime: 1767203168121
+  id: e8a97ea6-d2e2-4d59-a1d3-11124a104147
+  ctime: 1767203168121
+33b6a265-6b89-4def-b86d-507d86061fe8:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Ignore Cover
+  mtime: 1762021902310
+  id: 33b6a265-6b89-4def-b86d-507d86061fe8
+  ctime: 1762021902310
+1ab05ee9-6600-4102-84f9-9eeda514f8d5:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Corrupted Mentor
+  attributeType: number
+  mtime: 1764597099112
+  id: 1ab05ee9-6600-4102-84f9-9eeda514f8d5
+  ctime: 1764597099112
+e6d8c298-116b-4c95-992f-89233f48a8c5:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Signature Abilities While Charging
+  mtime: 1743143514152
+  id: e6d8c298-116b-4c95-992f-89233f48a8c5
+  ctime: 1743142832169
+e3a362d8-7a61-4aee-89fe-e1ba927a9184:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Immune to Non Damage Effects
+  mtime: 1753151641428
+  id: e3a362d8-7a61-4aee-89fe-e1ba927a9184
+  ctime: 1753151641428
+e4c0b067-bfc8-4a41-8b6d-4f167da13591:
+  __typeName: CustomAttribute
+  baseValue: Presence
+  category: Potency Resistance
+  name: Presence Potency Resistance
+  mtime: 1730512397580
+  id: e4c0b067-bfc8-4a41-8b6d-4f167da13591
+  ctime: 1730508934323
+452b89e8-70cb-467e-a71a-33bd2d137388:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Stop Fall Damage
+  documentation: When number is positive, Fall Damage trigger will not happen
+  mtime: 1770325156869
+  id: 452b89e8-70cb-467e-a71a-33bd2d137388
+  ctime: 1770325156869
+e2773895-411c-404e-a7f4-1aa50cd87710:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Immunity from Opportunity Attack
+  mtime: 1751442388362
+  id: e2773895-411c-404e-a7f4-1aa50cd87710
+  ctime: 1742871174630
+dd304b49-6a84-40f2-b9c3-bf7256b3f778:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Delay Death
+  mtime: 1769068577028
+  documentation: Monsters will delay their death by this number of seconds. Useful if you want to just force a monster to stay alive a little while to make any on-death effects happen.
+  id: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+  ctime: 1769068577028
+d97c2794-cb70-420f-b078-e260b43e154b:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Advancement
+  name: Renown
+  mtime: 1730528692670
+  id: d97c2794-cb70-420f-b078-e260b43e154b
+  ctime: 1730449554192
+15b56e3c-c24c-4321-9274-410469e651c0:
+  __typeName: CustomAttribute
+  category: Combat
+  name: Spread Bonus
+  mtime: 1738391646736
+  id: 15b56e3c-c24c-4321-9274-410469e651c0
+  ctime: 1738391646736
+0c0a3ec1-fdf4-4231-a221-a4c4188527d3:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Force Remain on Map
+  mtime: 1753434907951
+  id: 0c0a3ec1-fdf4-4231-a221-a4c4188527d3
+  ctime: 1753434907951
+a08a9cf7-54f7-4a80-9e32-e59e1e13b0ff:
+  __typeName: CustomAttribute
+  baseValue: "2"
+  category: Class Specific
+  name: MaxMinionSquads
+  documentation: You can manage up to two squads of minions. Newly summoned minions can either be organized into a new squad or be distributed into other squads under your control. A squad can’t contain more than eight minions, and all minions in the squad must have the same name.
+  mtime: 1760385507669
+  id: a08a9cf7-54f7-4a80-9e32-e59e1e13b0ff
+  ctime: 1760385023307
+2ada332c-ff63-45c6-8a33-a8bfcfc74081:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Movement
+  name: Block Enemy Movement
+  mtime: 1750059690051
+  id: 2ada332c-ff63-45c6-8a33-a8bfcfc74081
+  ctime: 1750059690051
+16228928-9f29-4510-a703-65344f2356ef:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Ignore Concealment
+  mtime: 1745114194089
+  id: 16228928-9f29-4510-a703-65344f2356ef
+  ctime: 1745114194089
+151ac2f1-5bd3-4070-8b16-e14896d6933b:
+  __typeName: CustomAttribute
+  baseValue: Max(0, Agility)
+  category: Forced Movement
+  name: Fall Reduction
+  mtime: 1746398540957
+  id: 151ac2f1-5bd3-4070-8b16-e14896d6933b
+  ctime: 1743831748845
+77c7724e-a5ed-4b1e-a95b-586c758c90a2:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Extra Heroic Resource Available
+  mtime: 1770946375592
+  documentation: This number is adding to a creatures available heroic resource poll. Intended for use within an Ability Duration Effect.
+  id: 77c7724e-a5ed-4b1e-a95b-586c758c90a2
+  ctime: 1770946375592
+3a73d8ab-7e92-4e11-83e2-2e6d33056eb7:
+  __typeName: CustomAttribute
+  baseValue: "8"
+  category: Class Specific
+  name: MaximumMinions
+  documentation: The maximum number of minions a summoner can summon.
+  mtime: 1760385042978
+  id: 3a73d8ab-7e92-4e11-83e2-2e6d33056eb7
+  ctime: 1760343136885
+c511278a-2bcc-48ef-8fec-e6a51bf6c422:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Cannot Use Triggered Abilities
+  mtime: 1747029907089
+  id: c511278a-2bcc-48ef-8fec-e6a51bf6c422
+  ctime: 1747029865354
+8e55aa4a-aae4-4df7-85b7-07ce1b93a6c9:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Movement
+  name: CanMoveThroughWalls
+  documentation: If this is greater than 0, the creature can move freely through walls. Used for incorporeal creatures such as ghosts.
+  mtime: 1765079401530
+  id: 8e55aa4a-aae4-4df7-85b7-07ce1b93a6c9
+  ctime: 1765079401530
+0c15efd6-bf73-47bb-aa60-7da385613f9a:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Monster
+  name: Free Strike Bonus
+  mtime: 1750877006790
+  id: 0c15efd6-bf73-47bb-aa60-7da385613f9a
+  ctime: 1750876955559
+ce01b08c-82b7-4fa5-8fc5-8e110cf019d7:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Ignore Stability
+  documentation: If greater than zero, than this creature ignores stability of targets it force moves. Often you will want to use this in an ability duration effect so it happens for a single ability.
+  mtime: 1770948890570
+  id: ce01b08c-82b7-4fa5-8fc5-8e110cf019d7
+  ctime: 1770948890570
+41ded840-80aa-4c14-b29c-571eb2dd96c9:
+  __typeName: CustomAttribute
+  baseValue: Might
+  name: Grab Characteristic
+  mtime: 1749486455548
+  id: 41ded840-80aa-4c14-b29c-571eb2dd96c9
+  ctime: 1749486455548
+5a93585a-d77b-4c6b-a804-517f58ab500b:
+  __typeName: CustomAttribute
+  baseValue: Stamina <= Maximum Stamina/2
+  name: Winded
+  mtime: 1746917756160
+  id: 5a93585a-d77b-4c6b-a804-517f58ab500b
+  ctime: 1746917059684
+ba15f0e1-b50c-4324-af08-ce8f2b8f2cf0:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Forced Movement Increase
+  documentation: Increases the distance this creature is moved when it is subject to forced movement.
+  mtime: 1755646489049
+  id: ba15f0e1-b50c-4324-af08-ce8f2b8f2cf0
+  ctime: 1747273731655
+6c805124-f1c6-4aba-9251-1618e1d30fed:
+  __typeName: CustomAttribute
+  baseValue: "1"
+  category: Class Specific
+  name: Maximum Marks
+  documentation: Number of Marked targets a Tactician can have
+  mtime: 1771183893228
+  id: 6c805124-f1c6-4aba-9251-1618e1d30fed
+  ctime: 1771183893228
+5b818edb-5b86-4765-834e-5657a969f3ad:
+  __typeName: CustomAttribute
+  baseValue: "1"
+  category: Combat
+  name: Grab Range
+  mtime: 1755267118347
+  id: 5b818edb-5b86-4765-834e-5657a969f3ad
+  ctime: 1755267118347
+3da3f2c5-4937-4781-998c-b2cfabd11919:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Movement
+  name: Full Speed Grabbing
+  mtime: 1752460374623
+  id: 3da3f2c5-4937-4781-998c-b2cfabd11919
+  ctime: 1752460155354
+23e48f75-9484-47a6-a068-fbdb31a2e77c:
+  __typeName: CustomAttribute
+  baseValue: Reason
+  category: Potency Resistance
+  name: Reason Potency Resistance
+  mtime: 1730512401953
+  id: 23e48f75-9484-47a6-a068-fbdb31a2e77c
+  ctime: 1730508921591
+b1ca9d1f-ee63-4784-85a6-d7bceb4a078b:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Stamina Regain Halved
+  mtime: 1772900792332
+  documentation: A creature's stamina gain will be reduced by half
+  id: b1ca9d1f-ee63-4784-85a6-d7bceb4a078b
+  ctime: 1772900421260
+b3eda2a2-a0da-44c7-8a67-e34f4805ff96:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Cannot Grant Flanking
+  attributeType: number
+  mtime: 1749486086414
+  id: b3eda2a2-a0da-44c7-8a67-e34f4805ff96
+  ctime: 1748735788565
+bfce8c46-3dbe-40a9-9cd4-994ba6eb53f2:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Class Specific
+  name: Force Orbs
+  mtime: 1757727921681
+  id: bfce8c46-3dbe-40a9-9cd4-994ba6eb53f2
+  ctime: 1757727921681
+39e08262-baa3-4947-98cd-fb8045ff991e:
+  __typeName: CustomAttribute
+  baseValue: Might
+  category: Potency Resistance
+  name: Might Potency Resistance
+  mtime: 1730512390816
+  id: 39e08262-baa3-4947-98cd-fb8045ff991e
+  ctime: 1730508866495
+ef12c36f-cad4-40a5-8256-f8a4275f38df:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Mute
+  mtime: 1768207853508
+  documentation: This creature cannot verbally communicate. Eg. after being strangled and grabbed by an Orc Garotter.
+  id: ef12c36f-cad4-40a5-8256-f8a4275f38df
+  ctime: 1768207853508
+207ef4f5-948b-44b1-b3c8-feae6b14e5ce:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Cannot Stand
+  mtime: 1742704614480
+  id: 207ef4f5-948b-44b1-b3c8-feae6b14e5ce
+  ctime: 1742704614480
+114c4ff1-d773-4518-8c94-d3c00e690909:
+  __typeName: CustomAttribute
+  baseValue: 5 + Reason
+  category: Class Specific
+  name: SummonerRange
+  documentation: A Summoner’s Range defines the maximum distance they can summon minions and use specific conjuring abilities. A Summoner’s Range is equal to 5 + their Reason score.
+  mtime: 1760384942458
+  id: 114c4ff1-d773-4518-8c94-d3c00e690909
+  ctime: 1760384942458
+0b118ba5-e54d-4e17-8e8a-90e3b9cb047a:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Toss Bonus
+  mtime: 1730513631981
+  id: 0b118ba5-e54d-4e17-8e8a-90e3b9cb047a
+  ctime: 1730513631981
+734676b6-36c6-40a1-a4f6-9301377c6418:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Bonus Push Damage Into Objects
+  mtime: 1746926074626
+  id: 734676b6-36c6-40a1-a4f6-9301377c6418
+  ctime: 1746925355835
+7a91dad1-97f4-4411-b326-425d58bb2bb2:
+  __typeName: CustomAttribute
+  baseValue: "1"
+  category: Combat
+  name: Maximum Grabbed Creatures
+  mtime: 1750224414042
+  id: 7a91dad1-97f4-4411-b326-425d58bb2bb2
+  ctime: 1750224414042
+922f5030-fb6f-440f-99e3-71ce2cc1b568:
+  __typeName: CustomAttribute
+  baseValue: SizeWhenForceMoved
+  category: Forced Movement
+  name: Knockback Target Size
+  documentation: |-
+    This is the size of the creature specifically when considering the Knockback maneuver and if the creature can be knocked back -- specifically you cannot knockback creatures larger than you.
+
+    It does NOT affect other forced movement.
+  mtime: 1758038461200
+  id: 922f5030-fb6f-440f-99e3-71ce2cc1b568
+  ctime: 1754868671581
+9d85895a-9fe5-4df2-b2e3-b53e2772da4b:
+  __typeName: CustomAttribute
+  baseValue: "0	"
+  name: Victory Bonus
+  mtime: 1773518564293
+  documentation: This number is added to calculations like starting HR when considering Victories, but does not count towards victories at the end of a respite.
+  id: 9d85895a-9fe5-4df2-b2e3-b53e2772da4b
+  ctime: 1773518564293
+bd01a4c5-0758-4453-8d71-5d2257aa23fd:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Custom
+  name: Nullifying Aura Radius
+  classid: global
+  mtime: 1742006200425
+  id: bd01a4c5-0758-4453-8d71-5d2257aa23fd
+  ctime: 1742005704690
+34e099f4-afe1-4b99-abd0-8784cac7f857:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Save Bonus
+  mtime: 1746461194547
+  id: 34e099f4-afe1-4b99-abd0-8784cac7f857
+  ctime: 1746461194547
+8d5825a9-586c-4a6f-b62c-40e65c829cd4:
+  __typeName: CustomAttribute
+  baseValue: Size
+  category: Combat
+  name: SizeWhenGrabbing
+  documentation: This is the size of the creature used when grabbing another creature.
+  mtime: 1760293269608
+  id: 8d5825a9-586c-4a6f-b62c-40e65c829cd4
+  ctime: 1760293269608
+447ea0f8-a231-4f72-b28f-9f7827291976:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Forced Movement Damage Reduction
+  documentation: Whenever you take damage from being force moved, you reduce that damage by an amount.
+  mtime: 1757985304910
+  id: 447ea0f8-a231-4f72-b28f-9f7827291976
+  ctime: 1757985147982
+51849f06-bec3-4d5a-82ad-6b3ab8678603:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Gives Cover
+  mtime: 1741383363254
+  id: 51849f06-bec3-4d5a-82ad-6b3ab8678603
+  ctime: 1741383363254
+006e37a7-bd0d-4602-8a76-05e1ef6c56d3:
+  __typeName: CustomAttribute
+  baseValue: "6"
+  name: Save Ends
+  mtime: 1729985269803
+  id: 006e37a7-bd0d-4602-8a76-05e1ef6c56d3
+  ctime: 1729985269803
+60d3b79f-5e9b-40d4-af46-bf976aec9d96:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  name: Collision Immunity
+  mtime: 1755034992468
+  id: 60d3b79f-5e9b-40d4-af46-bf976aec9d96
+  ctime: 1755034992468
+abde1991-5ab9-41a4-a8d8-4ad25da309fe:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Custom
+  name: Unused
+  mtime: 1755059095592
+  id: abde1991-5ab9-41a4-a8d8-4ad25da309fe
+  ctime: 1755037028494
+93833611-6bb5-4a2d-8913-86c6bc9a3bbf:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Combat
+  name: Compel Attacks Between
+  documentation: Compel attacks with multiple targets to be between the caster and the first target
+  mtime: 1762306075728
+  id: 93833611-6bb5-4a2d-8913-86c6bc9a3bbf
+  ctime: 1762306041647
+60dd4acc-c0eb-48f8-9d5a-bab3128f9f6c:
+  __typeName: CustomAttribute
+  baseValue: "3"
+  name: Maximum Surges
+  mtime: 1730012986192
+  id: 60dd4acc-c0eb-48f8-9d5a-bab3128f9f6c
+  ctime: 1730012986192
+6a081cac-d26a-4e1e-a26b-2ace8c92fb58:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Movement
+  name: Can Shift In Difficult Terrain
+  mtime: 1750123231439
+  id: 6a081cac-d26a-4e1e-a26b-2ace8c92fb58
+  ctime: 1750123231439
+f97461b9-3424-4479-8c46-e48c835c5d68:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: No Damage from Forced Movement
+  mtime: 1749256929798
+  id: f97461b9-3424-4479-8c46-e48c835c5d68
+  ctime: 1749256929798
+84454469-e727-4dfe-8d76-c806f976171b:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Forced Movement
+  name: Slide Bonus
+  mtime: 1730513650522
+  id: 84454469-e727-4dfe-8d76-c806f976171b
+  ctime: 1730513650522
+b6c7c0b4-4584-4889-a2de-1f62aa9df2ce:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Movement
+  name: Ignore Difficult Terrain
+  mtime: 1743141752947
+  id: b6c7c0b4-4584-4889-a2de-1f62aa9df2ce
+  ctime: 1743141752947
+4d6eb7b5-85d1-41c0-a462-05cff692749a:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Class Specific
+  name: Heroic Resource Gain at Start
+  documentation: Number of Heroic Resource the Class will gain at the start of their turn.
+  mtime: 1768397507531
+  id: 4d6eb7b5-85d1-41c0-a462-05cff692749a
+  ctime: 1759195947373
+dc90f05a-21af-4486-972b-1219cf5ebc63:
+  __typeName: CustomAttribute
+  baseValue: "3"
+  category: Class Specific
+  name: StartTurnSummon
+  documentation: At the start of each of your turns during combat, you summon up to three of your signature minions at no cost into unoccupied spaces within your Summoner’s Range (no action required).
+  mtime: 1760455664472
+  id: dc90f05a-21af-4486-972b-1219cf5ebc63
+  ctime: 1760455664472
+42d3d3ec-da00-4338-a97a-fa5ea9d62472:
+  __typeName: CustomAttribute
+  baseValue: "0"
+  category: Movement
+  name: Shift Disabled
+  mtime: 1751696548290
+  id: 42d3d3ec-da00-4338-a97a-fa5ea9d62472
+  ctime: 1741408798022
+9ee45115-de41-4698-952f-ae7eb42ad17f:
+  __typeName: CustomAttribute
+  baseValue: "1"
+  category: Movement
+  name: Number of Movement Actions
+  mtime: 1748418700424
+  id: 9ee45115-de41-4698-952f-ae7eb42ad17f
+  ctime: 1748418700424

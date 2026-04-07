@@ -1,0 +1,153 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"9847441b-5155-4de5-9528-874c825d77a3\",\"offtokenPortraitId\": \"df1417bc-7b16-49de-a11b-66211c726f38\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": \"0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3440925,\"portraitOffset\": {\"x\": -0.04977894,\"y\": 0.09952153},\"frameHueShift\": 0.7027591,\"frameSaturation\": 0.3420395,\"frameBrightness\": 0.3357927,\"popoutScale\": 0.49,\"characterName\": \"Dwarf Stone Whisperer\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "2,7,1"
+        monsters:
+          8cb3b6cc-dcae-4fd6-862c-28a829960b91: 1
+      - appearances:
+        - "{\"portraitId\": \"9847441b-5155-4de5-9528-874c825d77a3\",\"offtokenPortraitId\": \"df1417bc-7b16-49de-a11b-66211c726f38\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": \"0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3440925,\"portraitOffset\": {\"x\": -0.04977894,\"y\": 0.09952153},\"frameHueShift\": 0.7027591,\"frameSaturation\": 0.3420395,\"frameBrightness\": 0.3357927,\"popoutScale\": 0.49,\"characterName\": \"Dwarf Warden\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-2,5,1"
+        monsters:
+          fb687c40-64ee-4926-9c2f-05f2ac072de2: 1
+      - appearances:
+        - "{\"portraitId\": \"9847441b-5155-4de5-9528-874c825d77a3\",\"offtokenPortraitId\": \"df1417bc-7b16-49de-a11b-66211c726f38\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": \"0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3440925,\"portraitOffset\": {\"x\": -0.04977894,\"y\": 0.09952153},\"frameHueShift\": 0.7027591,\"frameSaturation\": 0.3420395,\"frameBrightness\": 0.3357927,\"popoutScale\": 0.49,\"characterName\": \"Dwarf Trapper\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        minHeroes: 3
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-1,-2,1"
+        monsters:
+          674ef21c-6ea0-4989-b25d-ebd3fe711604: 1
+      - appearances:
+        - "{\"portraitId\": \"9847441b-5155-4de5-9528-874c825d77a3\",\"offtokenPortraitId\": \"df1417bc-7b16-49de-a11b-66211c726f38\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": \"0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3440925,\"portraitOffset\": {\"x\": -0.04977894,\"y\": 0.09952153},\"frameHueShift\": 0.7027591,\"frameSaturation\": 0.3420395,\"frameBrightness\": 0.3357927,\"popoutScale\": 0.49,\"characterName\": \"Dwarf Trapper\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        minHeroes: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-4,3,1"
+        monsters:
+          674ef21c-6ea0-4989-b25d-ebd3fe711604: 1
+      - appearances:
+        - "{\"portraitId\": \"9847441b-5155-4de5-9528-874c825d77a3\",\"offtokenPortraitId\": \"df1417bc-7b16-49de-a11b-66211c726f38\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": \"0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3440925,\"portraitOffset\": {\"x\": -0.04977894,\"y\": 0.09952153},\"frameHueShift\": 0.7027591,\"frameSaturation\": 0.3420395,\"frameBrightness\": 0.3357927,\"popoutScale\": 0.49,\"characterName\": \"Dwarf Trapper\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "2,4,1"
+        monsters:
+          674ef21c-6ea0-4989-b25d-ebd3fe711604: 1
+      - appearances:
+        - "{\"portraitId\": \"9847441b-5155-4de5-9528-874c825d77a3\",\"offtokenPortraitId\": \"df1417bc-7b16-49de-a11b-66211c726f38\",\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": \"0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da\",\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 0.3440925,\"portraitOffset\": {\"x\": -0.04977894,\"y\": 0.09952153},\"frameHueShift\": 0.7027591,\"frameSaturation\": 0.3420395,\"frameBrightness\": 0.3357927,\"popoutScale\": 0.49,\"characterName\": \"Dwarf Trapper\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        minHeroes: 6
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "2,5,1"
+        monsters:
+          674ef21c-6ea0-4989-b25d-ebd3fe711604: 1
+      name: Tavern Brawl
+id: 36a1bd15-6482-4764-8032-7b1a3994eefc
+ctime: 1762135086263
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: "[[/awardvp 1|Award Victories]]"
+    x: |2
+
+    t: |2+
+       If the heroes fail to win the day, [Murkik] leaves them bloodied on the ground. [Dunquat], either because she is there or hears news of the brawl, trades her [item:Quantum Satchel] along with the original fee for the stone to get the merchants to leave town and prevent further violence.
+
+    r: |2+
+       If Murkik survives the encounter and the heroes are victorious, he apologizes and comes clean about why he’s asking for [Dunquat]’s [item:Quantum Satchel]. He then asks the heroes to rescue his friends from Vurkor (see [Mage Tower]).
+
+    p: |+
+      The dwarves fight until [Murkik] falls, then surrenders. The heroes earn 1 Victory each.
+
+    n: |+
+      End Combat once the battle is over by right clicking the combat orb.
+
+    l: |+
+      ## Aftermath and Rewards
+
+    j: |+
+      Murkik uses Stone Wave and Tile Slide to keep the heroes away from him and separated while shouting orders to the other dwarves and reminding them not to kill anyone. The warden corners the toughest melee combatant they can reach and attempts to separate them from the others. The trappers split up, concentrating on restraining as many heroes as possible with their Steam-Powered Snare ability. If the heroes are positioned in a line, the dwarves use Snaring Line.
+
+    h: " The dwarves are out for blood, but they know better than to kill anyone. If a hero would die in this encounter, they fall unconscious instead.\n \n"
+    f: |+
+      ## Tactics
+
+    d: |+
+      * For three heroes, remove two dwarf trappers.
+
+
+    b: |
+      * For four heroes, remove one dwarf trapper.
+    Y: |+
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+
+    Z: |
+      * For six heroes, add one dwarf warden.
+    W: |
+      **Encounter Adjustments**
+    U: |+
+      |5|One [dwarf trapper]|
+
+    S: |
+      |3|One [dwarf trapper]|
+    T: |
+      |4|One [dwarf trapper]|
+    Q: |
+      |1|One [dwarf stone whisperer]|
+    R: |
+      |2|One [dwarf warden]|
+    O: |
+      **Tavern Brawl Groups**
+    P: |
+      |Group|Creatures|
+    M: |+
+      [[/activateobjects TB_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects TB_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    N: |+
+      When you are ready, [Draw Steel!]
+
+    K: |+
+      [[setting:Number of Heroes]]
+
+    L: |+
+      [[encounter]]
+
+
+    I: |+
+      # Combat
+
+    J: |2+
+       The heroes battle dwarf merchants at the tavern in the Feather Bed Inn.
+
+    G: |2
+       This encounter uses the [Tavern Brawl Map]. 
+    H: |+
+      [Murkik] is a dwarf stonewhisperer accompanied by one dwarf warden and three dwarf trappers.
+
+    E: |2
+       * The heroes get caught stealing the merchants’ stone from the stables (see [B14. Stables and Carriage House]).
+    F: |2+
+       * The heroes don’t solve the dispute with [Dunquat] and the merchants and finish five respites during the adventure (see [Respite Tracker]). The next time they are in the inn, [Dunquat] is confronting the merchants and the conflict turns violent as [Murkik] lashes out at her. [Dunquat] calls out to the heroes for help, causing [Murkik] to attack them whether the heroes plan to defend [Dunquat] or not. [Dunquat] flees as [Murkik] focuses on the more dangerous foes.
+
+    C: |
+      Dwarf merchants cause a scene in the tavern of the Feather Bed Inn (see [Dwarf Merchants] in [B1. Feather Bed Inn]). This event can occur for any of the following reasons:
+    D: |2
+       * The heroes negotiate with [Murkik] for his stone on [Dunquat]’s behalf and his interest reaches 0.
+    B: |+
+      # Tavern Brawl
+
+parentFolder: e4e7ac0a-e939-416a-bbd4-72865bd34d94
+updateid: 2da15da9-d5b2-4328-96e3-e7ff31e9f8f5
+description: Tavern Brawl
+content: "# Tavern Brawl\n\nDwarf merchants cause a scene in the tavern of the Feather Bed Inn (see [Dwarf Merchants] in [B1. Feather Bed Inn]). This event can occur for any of the following reasons:\n * The heroes negotiate with [Murkik] for his stone on [Dunquat]’s behalf and his interest reaches 0.\n * The heroes get caught stealing the merchants’ stone from the stables (see [B14. Stables and Carriage House]).\n * The heroes don’t solve the dispute with [Dunquat] and the merchants and finish five respites during the adventure (see [Respite Tracker]). The next time they are in the inn, [Dunquat] is confronting the merchants and the conflict turns violent as [Murkik] lashes out at her. [Dunquat] calls out to the heroes for help, causing [Murkik] to attack them whether the heroes plan to defend [Dunquat] or not. [Dunquat] flees as [Murkik] focuses on the more dangerous foes.\n\n This encounter uses the [Tavern Brawl Map]. \n[Murkik] is a dwarf stonewhisperer accompanied by one dwarf warden and three dwarf trappers.\n\n# Combat\n\n The heroes battle dwarf merchants at the tavern in the Feather Bed Inn.\n\n[[setting:Number of Heroes]]\n\n[[encounter]]\n\nWhen you are ready, [Draw Steel!]\n\n**Tavern Brawl Groups**\n|Group|Creatures|\n|1|One dwarf stone whisperer|\n|2|One dwarf warden|\n|3|One dwarf trapper|\n|4|One dwarf trapper|\n|5|One dwarf trapper|\n\n**Encounter Adjustments**\nIf this encounter has more or fewer than five heroes, make the following adjustments:\n\n* For six heroes, add one dwarf warden.\n* For four heroes, remove one dwarf trapper.\n* For three heroes, remove two dwarf trappers.\n\n\n## Tactics\n\n The dwarves are out for blood, but they know better than to kill anyone. If a hero would die in this encounter, they fall unconscious instead.\n \nMurkik uses Stone Wave and Tile Slide to keep the heroes away from him and separated while shouting orders to the other dwarves and reminding them not to kill anyone. The warden corners the toughest melee combatant they can reach and attempts to separate them from the others. The trappers split up, concentrating on restraining as many heroes as possible with their Steam-Powered Snare ability. If the heroes are positioned in a line, the dwarves use Snaring Line.\n\n## Aftermath and Rewards\n\nEnd Combat once the battle is over by right clicking the combat orb.\n\nThe dwarves fight until [Murkik] falls, then surrenders. The heroes earn 1 Victory each.\n\n If Murkik survives the encounter and the heroes are victorious, he apologizes and comes clean about why he’s asking for [Dunquat]’s [Quantum Satchel]. He then asks the heroes to rescue his friends from Vurkor (see [Mage Tower]).\n\n If the heroes fail to win the day, [Murkik] leaves them bloodied on the ground. [Dunquat], either because she is there or hears news of the brawl, trades her [Quantum Satchel] along with the original fee for the stone to get the merchants to leave town and prevent further violence.\n\n[[/awardvp 1|Award Victories]]"
+mtime: 1775160963922

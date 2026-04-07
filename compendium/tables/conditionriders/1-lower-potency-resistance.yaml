@@ -1,0 +1,63 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  operation: add
+  sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+  source: Ongoing Effect
+  value: -1
+  name: New Ongoing Effect
+  guid: 3e0e241b-e35b-4a91-a498-8b79f44bef48
+  description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+  behavior: attribute
+  attribute: f09c8c3c-a863-456f-868f-1bbbace18380
+- __typeName: CharacterModifier
+  guid: 330c469a-4949-4c37-b3cf-34add26ee1a6
+  sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+  value: -1
+  source: Ongoing Effect
+  name: 1 Lower Potency Resistance
+  behavior: attribute
+  description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+  attribute: 1422a518-b444-4ac5-b200-2f0b33aca87b
+- __typeName: CharacterModifier
+  guid: ace16a35-6651-43b0-9c6d-3cde856a6e2e
+  sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+  value: -1
+  source: Ongoing Effect
+  name: 1 Lower Potency Resistance
+  behavior: attribute
+  description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+  attribute: 39e08262-baa3-4947-98cd-fb8045ff991e
+- __typeName: CharacterModifier
+  guid: 7647b115-9651-4aa3-9b25-983ed98da063
+  sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+  value: -1
+  source: Ongoing Effect
+  name: 1 Lower Potency Resistance
+  behavior: attribute
+  description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+  attribute: e4c0b067-bfc8-4a41-8b6d-4f167da13591
+- __typeName: CharacterModifier
+  guid: ecdbfc76-bea0-498a-aba2-ff07119d96f3
+  sourceguid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+  value: -1
+  source: Ongoing Effect
+  name: 1 Lower Potency Resistance
+  behavior: attribute
+  description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+  attribute: 23e48f75-9484-47a6-a068-fbdb31a2e77c
+source: Ongoing Effect
+guid: 060701e9-f849-4882-b5c8-8ac75b29ee36
+id: 060701e9-f849-4882-b5c8-8ac75b29ee36
+ctime: 1772115599503
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+condition: c27e0b16-291a-45ad-8406-973e26576a44
+name: 1 Lower Potency Resistance
+description: A target dazed this way treats their characteristic scores as  lower for the purpose of resisting potencies.
+mtime: 1772115599503
+iconid: 8d0939bf-1a2f-4b30-849e-f804784e7335
+implementation: 4

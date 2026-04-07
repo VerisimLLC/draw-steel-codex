@@ -1,0 +1,38 @@
+__typeName: CharacterCondition
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 65ce185e-1a65-414b-bcb2-756fc9308763
+  displayCondition: (Caster.Ignore Concealment = 0) and target.distance(caster) > Caster.IgnoreConcealmentWithinRange
+  source: Condition
+  modtype: bane
+  keywords: []
+  activationCondition: "1"
+  domains:
+    CharacterCondition:13275b73-cd4e-4d33-ada3-647d7474facf: true
+  name: Concealment
+  rollType: enemy_ability_power_roll
+  description: Darkness, fog, invisibility magic, and other phenomena that fully obscures a creature but doesn’t protect their body give a creature concealment. You can target creatures who are in concealment with attacks, provided they aren’t hidden, however attacks against these creatures have a bane.
+  guid: f729bc35-305a-4689-88ee-b5fc8f5803e0
+  behavior: power
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: -0.00208079814910889
+    v: 0.316417396068573
+    a: 1
+guid: 65ce185e-1a65-414b-bcb2-756fc9308763
+id: 13275b73-cd4e-4d33-ada3-647d7474facf
+ctime: 1709487380406
+domains:
+  CharacterCondition:13275b73-cd4e-4d33-ada3-647d7474facf: true
+powertable: true
+iconid: 7b697bac-911c-45ea-8989-ac7cd5d2db80
+name: Concealment
+showInMenus: false
+description: Darkness, fog, invisibility magic, and other phenomena that fully obscures a creature but doesn’t protect their body give a creature concealment. You can target creatures who are in concealment with attacks, provided they aren’t hidden, however attacks against these creatures have a bane.
+mtime: 1768208513149
+implementation: 3

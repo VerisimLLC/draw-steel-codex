@@ -1,0 +1,51 @@
+__typeName: ActivatedAbility
+id: 981d3c91-b23b-42fd-a02d-66ca57b83a61
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 13784898-a0c4-480c-99c2-05d6dd215626
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  autoTarget: false
+  abilityType: standard
+  standardAbilityParams:
+    range: "<<distance>>"
+  standardAbility: 1de07d8e-11c3-4621-9055-bb8e26c9a40f
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+testCases:
+- text: Teleport the target 4
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+guid: fd9c0e53-c7a0-4da1-b77f-2f0cc9acf0e0
+importMatch: Teleport the target <<distance>>
+ctime: 1759094120971
+description: ""
+repeatTargets: false
+numTargets: "1"
+name: Teleport Target
+targetType: self
+mtime: 1773926401932
+abilityType: none
+iconid: ui-icons/skills/1.png

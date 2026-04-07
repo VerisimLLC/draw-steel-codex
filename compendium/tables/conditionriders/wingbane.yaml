@@ -1,0 +1,119 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: path.squares * 1
+      chatMessage: "Wingbane: Damaged from Flying Movement"
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 76958f31-d217-4be1-a5cd-8dad2fb6a8fb
+    persistence: []
+    conditionFormula: Movement Type = "Fly"
+    targetType: self
+    castImmediately: true
+    trigger: finishmove
+    name: Wingbane
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: While bleeding in this way, the creature takes 1 damage per square they fly. If the creature starts and ends their turn on the same solid surface, the bleeding condition ends.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: cacd45ef-82f8-4681-b270-2935ec0545d8
+  name: Wingbane
+  sourceguid: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      ongoingEffect: 7496ebbc-834b-43fb-8bf1-9c9d72829054
+      duration: endround
+      ongoingEffectCustom: 7496ebbc-834b-43fb-8bf1-9c9d72829054
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 3e3bf19a-c32a-403d-9179-3601a8e9858d
+    persistence: []
+    conditionFormula: Movement Type = "Walk"
+    targetType: self
+    castImmediately: true
+    trigger: beginturn
+    name: Wingbane
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: While bleeding in this way, the creature takes 1 damage per square they fly. If the creature starts and ends their turn on the same solid surface, the bleeding condition ends.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 7dea05f7-4c99-4c97-8887-61f1f74bfdde
+  name: Wingbane
+  sourceguid: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: b0b8b9a7-35da-40d7-802c-db33de0d4d36
+      mode: conditions
+      conditions:
+      - 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 17a47ff9-b21e-49e8-8265-dfce50cfae69
+    persistence: []
+    conditionFormula: Ongoing Effects has "Wingbane - Grounded" and Movement Type = "Walk"
+    targetType: self
+    castImmediately: true
+    trigger: endturn
+    name: Wingbane
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: While bleeding in this way, the creature takes 1 damage per square they fly. If the creature starts and ends their turn on the same solid surface, the bleeding condition ends.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 90a683dd-ddf0-472d-903a-9055b7fc33d5
+  name: Wingbane
+  sourceguid: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+source: Ongoing Effect
+guid: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+id: 10f0f43b-1185-4228-a5d4-9ed0f9905a7b
+ctime: 1774577486217
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+name: Wingbane
+description: While bleeding in this way, the creature takes 1 damage per square they fly. If the creature starts and ends their turn on the same solid surface, the bleeding condition ends.
+mtime: 1774578282280
+iconid: bd44e33a-fb70-490c-acac-882da0d34642
+implementation: 4

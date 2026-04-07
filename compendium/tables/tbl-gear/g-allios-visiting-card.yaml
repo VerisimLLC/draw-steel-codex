@@ -1,0 +1,21 @@
+__typeName: equipment
+itemPrerequisite: One vial of archdevil’s blood, an expired contract
+keywords:
+  Magic: true
+projectSource: Texts or lore in Anjali
+flavor: A card bearing the Eighth City Advocacy Services crest smells faintly of smoke and spices.
+weight: 1
+echelon: 3
+specialDescription: ""
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+ctime: 1775045322542
+type: Gear
+projectGoal: "180"
+mtime: 1775045322542
+name: G'Allios Visiting Card
+category: Gear
+description: Whenever you would take damage, you can use a triggered action to tear the card and summon a devil. You avoid the damage and any accompanying effects, and the devil redirects the triggering effect to a target of their choice anywhere on the same manifold. You are treated to a clear vision of whoever suffers the damage. The devil then disappears.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+id: 13100c21-9609-435b-a53b-5e3f3a44a9da

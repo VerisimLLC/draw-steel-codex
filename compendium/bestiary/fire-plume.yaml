@@ -1,0 +1,263 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: Fire Plume
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 06e41b44-7c28-481d-ac3c-4e56eb38a5c1
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 1
+    inflictedConditions: []
+    ev: 1
+    max_hitpoints_roll: 1
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        baseValue: -2
+        id: mgt
+    monster_category: Summoner Signature
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 2 damage
+        - 2 damage
+        roll: "12"
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 fire damage
+        - 2 fire damage
+        - 2 fire damage
+        roll: "12"
+        modesSelected:
+        - 2
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: a8f8bfe3-3415-409e-9cb7-dd8e4dd47126
+      numTargets: "1"
+      modeList:
+      - text: Untyped
+      - text: Fire
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      name: Free Strike
+      targetType: target
+      description: ""
+      abilityType: none
+      iconid: b9a8a3bd-94d2-4534-accb-6b0ae13c40c5
+    opportunityAttack: 2
+    stability: 0
+    import:
+      type: mcdm
+      data: |
+        FIRE PLUME Level 1 MINION ARTILLERY
+        Elemental EV 1 for four minions
+        1T 5 1 0 2
+        Size Speed Stamina Stability Free Strike
+        Immunity: Fire 2 Weakness: -
+        Movement: - With Captain:
+        M ight -2 A gility +1 R eason 0 I ntuition 0 P resence +2
+        t Spitfire Strike
+        The plume's ranged free strikes have a distance of 10.
+        t Pyre
+        When the plume is reduced to 0 Stamina, their space becomes
+        wreathed in flames until the end of the encounter. An enemy that
+        enters this space or starts their turn there takes 2 fire damage.
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:72bb969c-7f2e-417c-844b-45dfe7f31005: true
+      modifiers: []
+      name: Spitfire Strike
+      guid: 72bb969c-7f2e-417c-844b-45dfe7f31005
+      description: The plume's ranged free strikes have a distance of 10.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2a561479-bc1c-40be-b922-a54300a28f79: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2a561479-bc1c-40be-b922-a54300a28f79
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:2a561479-bc1c-40be-b922-a54300a28f79: true
+        name: Pyre
+        resourceRefreshType: encounter
+        description: When the plume is reduced to 0 Stamina, their space becomes wreathed in flames until the end of the encounter. An enemy that enters this space or starts their turn there takes 2 fire damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: bfd95883-e3f4-4fbc-8487-c7d0f8a6d4f9
+          repeatTargets: false
+          trigger: creaturedeath
+          numTargets: "1"
+          behaviors:
+          - __typeName: ActivatedAbilityAuraBehavior
+            aliveafterdeath: true
+            aura:
+              __typeName: Aura
+              modifiers: []
+              source: Pyre
+              movedamage: fire
+              guid: 106182a7-5ec2-4b2d-9321-25a1eee9dca9
+              objectid: bac8b987-b846-46fd-872e-5095c450646a
+              applyto: enemies
+              name: Pyre
+              triggers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              damage: 2
+              iconid: e8d361df-8869-4f2d-b08d-381ca271cf59
+          iconid: e8d361df-8869-4f2d-b08d-381ca271cf59
+          name: Pyre
+          targetType: self
+          description: ""
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 0ec25e60-706f-4c2b-91ee-10fad6b1a840
+        guid: 0ec25e60-706f-4c2b-91ee-10fad6b1a840
+      name: Pyre
+      guid: 2a561479-bc1c-40be-b922-a54300a28f79
+      description: When the plume is reduced to 0 Stamina, their space becomes wreathed in flames until the end of the encounter. An enemy that enters this space or starts their turn there takes 2 fire damage.
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:1495f57d-65b7-4bc5-86c8-636db7580bae: true
+        CharacterFeature:cd59aa94-37c8-47d6-9d71-a0c9160ff03a: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:1495f57d-65b7-4bc5-86c8-636db7580bae: true
+          CharacterFeature:cd59aa94-37c8-47d6-9d71-a0c9160ff03a: true
+        sourceguid: 1495f57d-65b7-4bc5-86c8-636db7580bae
+        behavior: resistance
+        source: Character Feature
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "2"
+          damageType: fire
+          apply: Damage Reduction
+        guid: 483bf585-8d61-4949-87b2-869bc0e40bf5
+        name: Fire Immunity
+        description: ""
+      name: Fire Immunity
+      guid: cd59aa94-37c8-47d6-9d71-a0c9160ff03a
+      description: ""
+      source: Character Feature
+    role: Artillery Artillery
+    equipment: []
+    skillRatings: []
+    availableTriggers: []
+    damage_taken: 0
+    groupid: b685b1bd-6c99-4dd1-86d8-6694c8e32ef2
+    resources: []
+    minion: true
+    minionSquad: Fire Plume Squad 2
+    walkingSpeed: 5
+    movementSpeeds:
+      "-": 5
+    name: Fire Plume
+    creatureSize: 1T
+    initiativeGrouping: 54a5a590-03c6-43f3-9d3f-e59c0070fc37
+    monster_type: Fire Plume
+    keywords:
+      Summoner: true
+      Signature: true
+      Elemental: true
+      Fire: true
+  tokenType: null
+  bestiaryId: bc8c69ce-a758-4065-b928-0e9c331519f6
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: 0
+  createdTimestamp: 1757331495444
+description: null
+parentFolder: ab335af6-6b6f-4e77-9295-060f8ee787ab
+artist: null
+ord: 4
+ctime: 1759502707855
+mtime: 1775167535978
+hidden: false

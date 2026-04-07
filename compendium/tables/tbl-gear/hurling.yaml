@@ -1,0 +1,63 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: be8fab25-bda1-4ccb-b236-7d5b88ab1ab3
+  description: Whenever you use a melee ability using this weapon, you can throw the weapon by treating the ability's distance as ranged 3 instead. When the ability is resolved, the weapon returns to your hand. Any ability used when you throw this weapon can't impose the grabbed or restrained conditions.
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: be8fab25-bda1-4ccb-b236-7d5b88ab1ab3
+    modifyDescription: Melee Range is 3 due to Hurling imbuement. Any ability used when you throw this weapon can't impose the grabbed or restrained conditions.
+    source: Hurling Imbuement
+    behavior: modifyability
+    keywords:
+      Melee: true
+    name: Hurling
+    attributes:
+    - operation: Set
+      value: "3"
+      id: range
+    description: Whenever you use a melee ability using this weapon, you can throw the weapon by treating the ability's distance as ranged 3 instead. When the ability is resolved, the weapon returns to your hand. Any ability used when you throw this weapon can't impose the grabbed or restrained conditions.
+    guid: 0fd09ae0-12cb-4700-af7e-71ba4e370602
+    ability:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: e85a696f-c2b0-4752-9dc7-c81ae6673db2
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      abilityModification: true
+      behaviors: []
+      abilityType: none
+      name: New Ability
+      targetType: self
+      description: ""
+      range: 1
+      iconid: ui-icons/skills/1.png
+  source: Hurling Imbuement
+  name: Hurling
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 2
+id: c0cd9a54-24ac-4a31-ae66-dea1f1b6852f
+imbuePrereq: none
+projectSource: Variac
+imbueLevel: 1
+category: Gear
+equipmentCategory: f8795dac-fda0-48a7-ba63-c2618c812d76
+projectGoal: "150"
+ctime: 1770699205313
+type: Gear
+itemPrerequisite: A magnet made from rare metals
+mtime: 1774501864656
+name: Hurling
+imbueTargetType: weapon
+description: Whenever you use a melee ability using this weapon, you can throw the weapon by treating the ability's distance as ranged 3 instead. When the ability is resolved, the weapon returns to your hand. Any ability used when you throw this weapon can't impose the grabbed or restrained conditions.
+projectRollCharacteristic:
+  agl: true
+  rea: true
+  inu: true
+implementation: 2

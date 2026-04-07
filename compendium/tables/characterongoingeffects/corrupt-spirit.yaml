@@ -1,0 +1,75 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: bdca6af3-ffe3-41e9-b9f5-8cfaf924b6f7
+  modifyDescription: The ability deals extra corruption damage equal to your highest characteristic score
+  source: Ongoing Effect
+  filterAbility: ability.Heroic and Ability.doesdamage
+  behavior: modifyability
+  keywords: []
+  domains:
+    CharacterOngoingEffect:bdca6af3-ffe3-41e9-b9f5-8cfaf924b6f7: true
+  name: Corrupt Spirit
+  attributes: []
+  description: Until the end of your turn, whenever you use a damage-dealing heroic ability against a single target, you can weaken that target’s life force. The ability deals extra corruption damage equal to your highest characteristic score
+  guid: a2661978-f8c9-4542-be91-07937ff37a5c
+  ability:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 6db84d4e-2401-4fb3-b741-1e52f36de77c
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    abilityModification: true
+    behaviors:
+    - __typeName: ActivatedAbilityModifyPowerRollBehavior
+      guid: caa69815-fac9-4f0d-bf56-a00acfceddf1
+      modifier:
+        __typeName: CharacterModifier
+        sourceguid: caa69815-fac9-4f0d-bf56-a00acfceddf1
+        modtype: none
+        domains: []
+        keywords: []
+        activationCondition: true
+        description: The ability deals extra corruption damage equal to your highest characteristic score.
+        rollType: ability_power_roll
+        name: Corrupt Spirit
+        behavior: power
+        damageModifier: Highest Characteristic
+        damageModifierType: corruption
+        guid: f5a46932-cb6a-46de-b454-c602eaa7c630
+    abilityType: none
+    name: New Ability
+    targetType: self
+    description: ""
+    range: 1
+    iconid: ui-icons/skills/1.png
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.234499931335449
+    s: 0.894531190395355
+    v: 0.925379514694214
+    a: 1
+stackable: false
+id: bdca6af3-ffe3-41e9-b9f5-8cfaf924b6f7
+ctime: 1764587918056
+domains:
+  CharacterOngoingEffect:bdca6af3-ffe3-41e9-b9f5-8cfaf924b6f7: true
+implementation: 3
+custom: true
+name: Corrupt Spirit
+guid: bdca6af3-ffe3-41e9-b9f5-8cfaf924b6f7
+description: Until the end of your turn, whenever you use a damage-dealing heroic ability against a single target, you can weaken that target’s life force. The ability deals extra corruption damage equal to your highest characteristic score
+mtime: 1764588433596
+iconid: 006e8403-6056-46d1-bd48-db8804433d39

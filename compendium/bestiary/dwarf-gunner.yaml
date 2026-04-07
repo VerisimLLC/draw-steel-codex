@@ -1,0 +1,512 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: df1417bc-7b16-49de-a11b-66211c726f38
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440925
+    portraitOffset:
+      x: -0.04977894
+      y: 0.09952153
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 25b0c811-c149-46b7-a7ad-ddb13d47befa
+  properties:
+    __typeName: monster
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 26
+    inflictedConditions: []
+    keywords:
+      Dwarf: true
+      Humanoid: true
+    max_hitpoints_roll: "26"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 1
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: false
+    stability: 1
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Gunner	Level 1 Platoon Artillery
+        Dwarf, Humanoid	EV 6
+        <b>Stamina</b> 26
+        <b>Speed </b>5	<b>Size</b> 1M / <b>Stability</b> 1
+        <b>	Free Strike</b> 4
+        Might 0	Agility +2	Reason 0	Intuition +1	Presence 0
+        <b>Portable Ballista</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Ranged, Strike, Weapon
+        <b>Distance</b> Ranged 10 <b>	Target</b> 1 creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage; push 1
+        %E2%98%85	<b>12%E2%80%9316</b>	9 damage; push 3
+        %E2%9C%B8	<b>17</b>	12 damage; push 5
+        <b>Effect</b> If the target is adjacent to a wall or object after the power roll is resolved, they are restrained (EoT). A target restrained by a dwarf can be pushed by this ability.
+        <b>5 Malice</b> If the target is pushed into another creature, both the target and the creature are restrained (EoT).
+
+        <b>Ensnaring Chains</b> (Maneuver) %E2%97%86 5 Malice
+        <b>Keywords</b> Ranged, Weapon
+        <b>Distance</b> Ranged 10	<b>Target</b> 1 restrained, slowed, or prone target
+        <b>Effect</b> The gunner makes a free strike against the target. The target loses any restrained, slowed or prone conditions and gains restrained (save ends).
+
+        <b>Split Shot</b>
+        Whenever the gunner deals damage to a creature or object, a creature or object within 1 of the recipient takes 3 damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:30559464-2a4b-44dc-8361-5e32c2c5058b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:30559464-2a4b-44dc-8361-5e32c2c5058b: true
+        sourceguid: 30559464-2a4b-44dc-8361-5e32c2c5058b
+        behavior: trigger
+        source: Trait
+        name: Split Shot
+        description: Whenever the gunner deals rolled damage to a target, one creature or object adjacent to the target takes 3 damage.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          numTargets: "1"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          guid: edb16676-2402-4969-9992-137ad87dfcde
+          whenActive: combat
+          repeatTargets: false
+          trigger: dealdamage
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: targets
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              objectTarget: true
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              guid: b375dea6-3a74-4383-84ea-7786f5d82582
+              repeatTargets: false
+              range: "1"
+              targetType: target
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: "3"
+                titleText: Split Shot
+                chatMessage: Split Shot
+              modifiers: []
+              name: Split Shot Damage
+              description: ""
+              categorization: Hidden
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Choose a creature or object adjacent to the target to take 3 damage.
+            autoTarget: false
+            abilityType: custom
+          targetType: target
+          triggerPrompt: Choose a creature or object adjacent to the target to take 3 damage.
+          name: Split Shot
+          mandatory: false
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: ec2eb00c-9653-4891-85ca-ccf6cc13dbd8
+      source: Trait
+      description: Whenever the gunner deals rolled damage to a target, one creature or object adjacent to the target takes 3 damage.
+      guid: 30559464-2a4b-44dc-8361-5e32c2c5058b
+      name: Split Shot
+      implementation: 3
+    role: Platoon Artillery
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 4
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        0aeeff43-7000-4d76-a953-90123dc53a89:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Ensnaring Chains
+          userid: steam-76561198767161997
+          set: "-3/1"
+        8d07da0c-915f-45b3-b738-20c2c5dd5f65:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Ensnaring Chains
+          userid: steam-76561198767161997
+          set: "-2/1"
+        d8cd5681-efc5-4242-9439-d276531ca169:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Ensnaring Chains
+          userid: steam-76561198767161997
+          set: "-4/1"
+        fd7fae79-6fd1-41f5-93f0-21cb19919da2:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Ensnaring Chains
+          userid: steam-76561198767161997
+          set: "-1/1"
+        21bf9208-16af-48f6-9d99-f640650da26c:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Ensnaring Chains
+          userid: steam-76561198767161997
+          set: 0/1
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        a07d303b-d717-415b-b912-8c5c75058d45:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Portable Ballista
+          userid: steam-76561198767161997
+          set: "-16/1"
+        1676d77f-6bf0-46eb-8136-2b555274ef36:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Portable Ballista
+          userid: steam-76561198767161997
+          set: "-15/1"
+        ac87fe1e-a85b-470f-b7fe-86ca8bf89f9f:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Portable Ballista
+          userid: steam-76561198767161997
+          set: "-22/1"
+        6c80157f-1e00-47c1-aac3-02d7dd46354f:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Portable Ballista
+          userid: steam-76561198767161997
+          set: "-21/1"
+        c33a45ca-4607-447a-a993-3389ef41cad4:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Portable Ballista
+          userid: steam-76561198767161997
+          set: "-20/1"
+        2b7a3423-2279-485d-8704-eb948bfa98b0:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Portable Ballista
+          userid: steam-76561198767161997
+          set: "-17/1"
+        d90f869a-c0a4-4e2f-a474-8c80b89fcaf5:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Portable Ballista
+          userid: steam-76561198767161997
+          set: "-18/1"
+        2ca5014c-49e7-4f6a-8bd5-91a90e616e56:
+          refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+          note: Portable Ballista
+          userid: steam-76561198767161997
+          set: "-19/1"
+    damage_taken: 0
+    ev: 6
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+        used: 23
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: dd9f0447-cf24-4888-b96e-e63d11d1f0d7-2-274df070-d36b-4e46-8e32-7f6443076b53
+        used: 5
+    savingThrowRatings: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Strike: true
+        Weapon: true
+      implementationDetails: Implementation does not recognize if a target is restrained by a dwarf for forced movement purposes.
+      behaviors:
+      - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+        filterTarget: ConditionCaster("Restrained").type = "Dwarf"
+        momentaryEffect:
+          __typeName: CharacterOngoingEffect
+          description: If the Restrained condition was applied by a Dwarf, then they can be force moved.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          modifiers:
+          - __typeName: CharacterModifier
+            operation: add
+            sourceguid: 31c91785-e581-4374-93f9-cf7d6f05b571
+            source: Ongoing Effect
+            value: -1
+            name: Can be Force Moved
+            guid: 868d18a3-3fb1-4f1c-84e8-8969385e899f
+            description: If the Restrained condition was applied by a Dwarf, then they can be force moved.
+            behavior: attribute
+            attribute: 82abd296-d79f-4d33-b1e6-47a28f30e161
+          source: Ongoing Effect
+          name: Can be Force Moved
+          guid: 31c91785-e581-4374-93f9-cf7d6f05b571
+          id: 31c91785-e581-4374-93f9-cf7d6f05b571
+          iconid: ui-icons/skills/1.png
+        name: Ability Duration Effect
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage; push 1
+        - 9 damage; push 3
+        - 12 damage; push 5
+        roll: 2d10 + 2
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        autoTarget: false
+        filterTarget: condition
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          strain: []
+          guid: 42063fdb-0960-40f9-b18d-d2b45b08fe26
+          repeatTargets: false
+          abilityType: none
+          persistence: []
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+            duration: end_of_next_turn
+            ongoingEffectCustom: false
+          targetType: self
+          name: Invoked Ability
+          sourceReference:
+            __typeName: SourceReference
+            page: 108
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        promptText: If the target is adjacent to an object or a wall, click confirm to apply the restrained condition.
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: target_proximity
+        customAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "5"
+          objectTarget: false
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+            duration: end_of_next_turn
+            ongoingEffectCustom: false
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              strain: []
+              guid: 2db7c90f-4d55-4048-a2c0-ff27651bd7b1
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              abilityType: none
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+                duration: end_of_next_turn
+                ongoingEffectCustom: false
+              targetType: self
+              name: Invoked Ability
+              persistence: []
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            invokeOnCaster: true
+            promptText: Now select the original target to apply Restrained to them.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: a6aad248-cafc-4e5f-803a-6a64b4b566a1
+          resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+          numTargets: "1"
+          name: Invoked Ability
+          targetType: target
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: |-
+          Spend 5 Malice: If the target was pushed into another creature, both the target and the creature are each restrained until the end of their turn.
+
+          To proceed, select the target that was pushed into. Not the target that was pushed.
+        autoTarget: false
+        filterTarget: ""
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 10
+      effectImplemented: false
+      numTargets: 1
+      modifiers: []
+      strain: []
+      guid: e645e83c-72a8-410a-8b81-aa86b3048ce8
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      sourceReference:
+        __typeName: SourceReference
+        page: 108
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      targetType: target
+      implementation: 3
+      name: Portable Ballista
+      persistence: []
+      description: "Effect: If the target is adjacent to an object or a wall after the powerroll is resolved, they are restrained until the end of their next turn. A target restrained by a dwarf can be force moved by this ability. This forced movement doesn't end the restrained condition unless the Director determines otherwise."
+      abilityType: none
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      objectTarget: false
+      targetFilter: target.conditions has "Prone" or target.conditions has "Restrained" or target.conditions has "Slowed"
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 29c4a3c5-efe7-47f9-84a2-f87883fcb9bc
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: 1
+      sourceReference:
+        __typeName: SourceReference
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      implementation: 3
+      name: Ensnaring Chains
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        targeting: inherit
+        promptText: The Gunner makes a free strike against the target, then the Prone, Restrained and Slowed conditions on the target end. The target is then restrained (save ends).
+        invokeOnCaster: true
+        abilityType: standard
+        standardAbility: f4a4f737-cc4d-4bc1-8aa8-a4ee344e2d42
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: b8eef68b-f1ba-49ad-86e6-fc0c6562c369
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityPurgeEffectsBehavior
+        conditions:
+        - da6867b1-01e3-4570-8d1b-1b94ea1ea343
+        - 2989a051-204f-442e-967d-edafc2dd5e43
+        - 68f455f5-135f-495c-822d-40d809d2b15f
+        chatMessage: "Conditions Ended: Prone, Restrained and Slowed."
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: edf8e3e7-a511-48af-a78a-9e38fb7fe385
+        duration: save_ends
+        ongoingEffectCustom: false
+      description: The gunner makes a free strike against the target. The target loses any restrained, slowed or prone conditions and gains restrained (save ends).
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    monster_type: Dwarf Gunner
+    walkingSpeed: 5
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: df8afc76-dc36-48aa-bd56-a59f57bf9af7
+    availableTriggers: []
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 512be515-aa16-4fba-9f4c-0244be6498c6-11229
+  tokenType: null
+  bestiaryId: 592f3035-d56f-4056-a3c1-36965347c9f2
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Dwarf Gunner
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590253902
+mtime: 1775201137032
+hidden: false

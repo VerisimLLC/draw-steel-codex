@@ -1,0 +1,32 @@
+__typeName: ActivatedAbility
+objectTarget: false
+id: ed5a22fe-9345-497d-92c7-c2ee457ba5bb
+targetType: self
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: 1
+guid: f8886f51-a409-4594-9e96-140ceb601213
+numTargets: "1"
+modifiers: []
+source: Monster
+strain: []
+documentation: This applies the foesense effect to the creature.
+importMatch: Foesense
+ctime: 1759182399666
+persistence: []
+description: ""
+behaviors:
+- __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+  ongoingEffect: 0aa5cbf1-3c4d-499c-a76a-918aa10e4c2b
+  durationUntilEndOfTurn: true
+  duration: 1
+  ongoingEffectCustom: false
+name: Foesense
+repeatTargets: false
+mtime: 1769069324052
+abilityType: none
+iconid: ui-icons/skills/1.png

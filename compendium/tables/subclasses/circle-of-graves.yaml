@@ -1,0 +1,770 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1759349048977
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: "2"
+      name: "Call Forth: Signature Minion"
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+        description: 'A stiff corpse that snaps and crackles with each sudden movement. Corrosive breath endlessly billows out from their slackjawed faces. '
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: 'A stiff corpse that snaps and crackles with each sudden movement. Corrosive breath endlessly billows out from their slackjawed faces. '
+          source: Circle of Graves Class Feature
+          name: Husk
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: aa8905ab-19c6-4524-8b9a-55a6f51bf6c6
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'A stiff corpse that snaps and crackles with each sudden movement. Corrosive breath endlessly billows out from their slackjawed faces. '
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+            persistence: []
+            channelDescription: You summon one Husk for each essence you spend on this ability.
+            name: "Call Forth: Husk"
+            description: You summon one Husk for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        name: Husk
+        classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+        guid: d0aff1b4-5694-4035-b862-6563d9d32e4e
+        source: Circle of Graves Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+        description: 'The shrieker expresses their unending pain in a way that can be heard and felt for miles. A white hot fire rests within each of their sunken eye sockets. '
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: 'The shrieker expresses their unending pain in a way that can be heard and felt for miles. A white hot fire rests within each of their sunken eye sockets. '
+          source: Circle of Graves Class Feature
+          name: Shrieker
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: 3050ad16-7a49-4fdb-931d-cb7589fb9634
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'The shrieker expresses their unending pain in a way that can be heard and felt for miles. A white hot fire rests within each of their sunken eye sockets. '
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+            persistence: []
+            channelDescription: You summon one Shrieker for each essence you spend on this ability.
+            name: "Call Forth: Shrieker"
+            description: You summon one Shrieker for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        name: Shrieker
+        classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+        guid: 22c919e6-993e-43ef-b01c-1e5cc5c0f56c
+        source: Circle of Graves Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+        description: 'A stiff corpse that snaps and crackles with each sudden movement. Corrosive breath endlessly billows out from their slackjawed faces. '
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: 'A stiff corpse that snaps and crackles with each sudden movement. Corrosive breath endlessly billows out from their slackjawed faces. '
+          source: Circle of Graves Class Feature
+          name: Skeleton
+          behavior: activated
+          guid: 2421d631-30f6-4cac-bfe5-75f461018b47
+          activatedAbility:
+            __typeName: ActivatedAbility
+            abilityType: none
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            iconid: ui-icons/skills/1.png
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              monsterType: 45bc13b2-8863-4120-8cb3-0202f828c525
+              bestiaryFilter: ""
+              numSummons: "1"
+              allCreaturesTheSame: true
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'Autonomous bone networks that fall short of replicating the structure they had in life. Skeleton bones are especially brittle and can splinter into huge shards when met with enough force. '
+            categorization: Ability
+            range: SummonerRange
+            numTargets: 1 + Charges
+            maxChannel: Self.MaximumMinions-1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            rangeTextOverride: Summoner's Range
+            strain: []
+            modeList: []
+            targetType: emptyspace
+            guid: 8c2609d3-5233-480b-a0c1-ec2f0fd94cbc
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+            persistence: []
+            channelDescription: You summon one Skeleton for each essence you spend on this ability.
+            name: "Call Forth: Skeleton"
+            description: You summon one Skeleton for each essence you spend on this ability.
+            channeledResource: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        name: Skeleton
+        classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+        guid: f5236a3f-715d-4734-9863-f38adc4265e5
+        source: Circle of Graves Class Feature
+        canHavePrerequisites: true
+      classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+      guid: c74988c9-7780-4ed6-b5f1-2b8fadb2e251
+      source: Circle of Graves Class Feature
+      description: |-
+        Select two of the following signature minions. Signature minions are summoned at the start of combat and at the start of your turn for free. You can also use Call Forth to summon any number of Signature minions for their essence cost.
+        (*Quick Build:* Skeleton, Husk)
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+      description: |-
+        Once per round, when a creature dies unwillingly within your Summoner’s Range, you can use a triggered action to summon a signature undead minion in their space at no cost even if you’re at your minion maximum, but only if they can be organized into one of your squads. The new minion can’t act until the start of your next turn..
+        This ability becomes a free triggered action if the target was a minion (either yours or an enemy).
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 360a52e0-4385-483f-abd6-34d9078764b3
+        source: Circle of Graves Class Feature
+        numCharges: "1"
+        guid: f4727256-17f8-4a4d-8bd7-901a2ccbcafa
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+        name: Start of Turn
+        resourceRefreshType: round
+        description: "At the start of each of your turns during combat, you summon up to your 'Start of Turn Minions' amount (default: three) of your signature minions at no cost into unoccupied spaces within your Summoner’s Range (no action required)."
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          trigger: creaturedeath
+          conditionFormula: not Minion
+          repeatTargets: false
+          rangeTextOverride: Summoner's Range
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            runOnController: true
+            promptText: Summon Signature Minions within your Summoner's Range
+            customAbility:
+              __typeName: ActivatedAbility
+              repeatTargets: false
+              rangeTextOverride: Summoner's Range
+              behaviors:
+              - __typeName: ActivatedAbilitySummonBehavior
+                modesSelected:
+                - 1
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Demon" '
+              - __typeName: ActivatedAbilitySummonBehavior
+                guid: 692bdf87-8a4b-4d25-8da6-83d1fc9ac840
+                modesSelected:
+                - 2
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Undead" '
+              - __typeName: ActivatedAbilitySummonBehavior
+                guid: c32aa3d6-e2b4-4b56-9c70-74d61b76ac35
+                modesSelected:
+                - 3
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Fey" '
+              - __typeName: ActivatedAbilitySummonBehavior
+                guid: c30a935a-95d5-4c01-8629-4c5344e058bf
+                modesSelected:
+                - 4
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Elemental" '
+              multipleModes: true
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: SummonerRange
+              numTargets: StartTurnSummon
+              modifiers: []
+              strain: []
+              modeList:
+              - text: Circle of Blight
+                condition: Subclasses has "Circle of Blight"
+              - text: Circle of Graves
+                condition: Subclasses has "Circle of Graves"
+              - text: Circle of Spring
+                condition: Subclasses has "Circle of Spring"
+              - text: Circle of Storms
+                condition: Subclasses has "Circle of Storms"
+              persistence: []
+              guid: 9a11c47a-23e9-4218-9592-0352d85a17a2
+              name: Summon Signature
+              targetType: emptyspace
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            namedAbility: ""
+            abilityType: custom
+            applyto: caster
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.325598478317261
+              s: 1.00134801864624
+              v: 0.773358821868896
+              a: 1
+          mandatory: false
+          numTargets: "1"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: f4727256-17f8-4a4d-8bd7-901a2ccbcafa
+          hasManualVersion: true
+          persistence: []
+          modifiers: []
+          subjectRange: SummonerRange
+          strain: []
+          guid: a870b648-3b17-4c2d-8973-00e3161680ae
+          targetType: self
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+          modeList: []
+          whenActive: combat
+          name: Rise!
+          castImmediately: true
+          description: ""
+          subject: other
+          iconid: 56729dfc-0cf4-4b75-99db-61ae8ac81d71
+      - __typeName: CharacterModifier
+        sourceguid: 360a52e0-4385-483f-abd6-34d9078764b3
+        source: Circle of Graves Class Feature
+        numCharges: "1"
+        guid: 12134510-2c2c-4205-a4ce-8d9cc510b3f8
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+        name: Start of Turn
+        resourceRefreshType: round
+        description: "At the start of each of your turns during combat, you summon up to your 'Start of Turn Minions' amount (default: three) of your signature minions at no cost into unoccupied spaces within your Summoner’s Range (no action required)."
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          trigger: creaturedeath
+          conditionFormula: " Minion"
+          repeatTargets: false
+          rangeTextOverride: Summoner's Range
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            runOnController: true
+            promptText: Summon Signature Minions within your Summoner's Range
+            customAbility:
+              __typeName: ActivatedAbility
+              repeatTargets: false
+              rangeTextOverride: Summoner's Range
+              behaviors:
+              - __typeName: ActivatedAbilitySummonBehavior
+                modesSelected:
+                - 1
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Demon" '
+              - __typeName: ActivatedAbilitySummonBehavior
+                guid: 5f1963ab-1958-4609-aaee-59ebf09a5f9c
+                modesSelected:
+                - 2
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Undead" '
+              - __typeName: ActivatedAbilitySummonBehavior
+                guid: d8a6b35a-ce07-40aa-9638-7ece050c2cb0
+                modesSelected:
+                - 3
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Fey" '
+              - __typeName: ActivatedAbilitySummonBehavior
+                guid: 02041148-c17b-44dc-8c29-af9f05eac43a
+                modesSelected:
+                - 4
+                bestiaryFilter: 'beast.Keywords has "Signature" and beast.Keywords has "Elemental" '
+              multipleModes: true
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              range: SummonerRange
+              numTargets: StartTurnSummon
+              modifiers: []
+              strain: []
+              modeList:
+              - text: Circle of Blight
+                condition: Subclasses has "Circle of Blight"
+              - text: Circle of Graves
+                condition: Subclasses has "Circle of Graves"
+              - text: Circle of Spring
+                condition: Subclasses has "Circle of Spring"
+              - text: Circle of Storms
+                condition: Subclasses has "Circle of Storms"
+              persistence: []
+              guid: 72565fb6-8e01-412c-ac37-3e15dec08d3b
+              name: Summon Signature
+              targetType: emptyspace
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            namedAbility: ""
+            abilityType: custom
+            applyto: caster
+          multipleModes: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.325598478317261
+              s: 1.00134801864624
+              v: 0.773358821868896
+              a: 1
+          mandatory: false
+          numTargets: "1"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: round
+            charges: "1"
+            resourceid: 12134510-2c2c-4205-a4ce-8d9cc510b3f8
+          hasManualVersion: true
+          persistence: []
+          modifiers: []
+          subjectRange: SummonerRange
+          strain: []
+          guid: 30f25188-7a55-41ac-8f7a-05538c0918c7
+          targetType: self
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+          modeList: []
+          whenActive: combat
+          name: Rise Minion!
+          castImmediately: true
+          description: ""
+          subject: other
+          iconid: 56729dfc-0cf4-4b75-99db-61ae8ac81d71
+      name: Rise!
+      classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+      guid: 5c6d2834-2286-406a-94d8-3b3e657ca40e
+      source: Circle of Graves Class Feature
+      canHavePrerequisites: true
+    - __typeName: CharacterFeature
+      domains:
+        class:b41b7bcb-6246-4906-8115-831e55f62758: true
+        class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+      description: |
+        You can touch a corpse of a creature that died within the past week and ask them a question. The corpse can choose to answer the question to the best of their ability. Each additional question you ask the corpse requires a Moderate Reason Test, where failure or consequence breaks your connection with the corpse permanently.
+        The corpse can also choose to refuse to answer or lie, especially if you were the one to kill them in the first place.
+      modifiers: []
+      name: Dead Men Tell All Tales
+      classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+      guid: ea9ed6c5-9359-4120-bc80-82d896dbdc9a
+      source: Circle of Graves Class Feature
+      canHavePrerequisites: true
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: "2"
+      name: "Call Forth: 3-Essence Minion"
+      options:
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+        description: 'Zombie warriors that continue to fight after death. Any blood spilled at a grave knight’s hand runs pitch black. '
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: 'Zombie warriors that continue to fight after death. Any blood spilled at a grave knight’s hand runs pitch black. '
+          source: Circle of Graves Class Feature
+          name: Grave Knight
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: eb385463-50f8-4c71-a477-cecb58287225
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'Zombie warriors that continue to fight after death. Any blood spilled at a grave knight’s hand runs pitch black. '
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Grave Knight"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Grave Knights for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Grave Knight
+        classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+        guid: b290eeba-8d1d-42e4-85f4-6ce64b9a6d2f
+        source: Circle of Graves Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+        description: 'An umbral stalker that floats free from any floor or surface. They can bend their appearance to completely vanish in the light. '
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: 'An umbral stalker that floats free from any floor or surface. They can bend their appearance to completely vanish in the light. '
+          source: Circle of Graves Class Feature
+          name: Stalker Shade
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: dc6a13fd-ec77-4a06-8514-95d127287c71
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'An umbral stalker that floats free from any floor or surface. They can bend their appearance to completely vanish in the light. '
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Stalker Shade"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Stalker Shades for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Stalker Shade
+        classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+        guid: fd9f332a-e3e3-4f82-8bbb-879f82922c14
+        source: Circle of Graves Class Feature
+        canHavePrerequisites: true
+      - __typeName: CharacterFeature
+        domains:
+          class:b41b7bcb-6246-4906-8115-831e55f62758: true
+          class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+        description: 'Massive, animated ogre corpses with incredible grip strength. When a lumberer falls, they’ll take anything within reach down with them. '
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:b41b7bcb-6246-4906-8115-831e55f62758: true
+            class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+          sourceguid: a5339c51-ac5b-4610-be40-ff53b62bdf25
+          description: 'Massive, animated ogre corpses with incredible grip strength. When a lumberer falls, they’ll take anything within reach down with them. '
+          source: Circle of Graves Class Feature
+          name: Zombie Lumberer
+          behavior: activated
+          guid: 9ccdeb52-73bc-481d-bcef-d81e52aa2d59
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "3"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilitySummonBehavior
+              modesSelected:
+              - 1
+              numSummons: "1"
+              monsterType: edf6be40-04f5-4b65-8120-d936df9370c2
+              guid: df892583-9cb1-4c0f-85eb-9381907d5a64
+              allCreaturesTheSame: true
+              bestiaryFilter: ""
+            multipleModes: false
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: 'Massive, animated ogre corpses with incredible grip strength. When a lumberer falls, they’ll take anything within reach down with them. '
+            categorization: Ability
+            range: Self.SummonerRange
+            abilityType: none
+            guid: cc498d02-bd36-4db4-a691-f2a2305b5d51
+            persistence: []
+            modifiers: []
+            castImmediately: true
+            strain: []
+            modeList: []
+            numTargets: "2"
+            rangeTextOverride: Summoner's Range
+            domains:
+              class:b41b7bcb-6246-4906-8115-831e55f62758: true
+              class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+            targetType: emptyspace
+            implementation: 2
+            name: "Call Forth: Zombie Lumberer"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: 'You can use Call Forth to summon two Zombie Lumberers for 3 Essence. '
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        name: Zombie Lumberer
+        classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+        guid: e47cad71-361b-464b-8030-6930a09381d0
+        source: Circle of Graves Class Feature
+        canHavePrerequisites: true
+      classid: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+      guid: 53278681-4568-4af6-a413-843bc95e3c60
+      source: Circle of Graves Class Feature
+      description: |-
+        Choose two of the following minions. You can use Call Forth to summon the listed number of 3-Essence minions for their essence cost.
+        (*Quick Build:* Stalker Shade, Grave Knight)
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:b41b7bcb-6246-4906-8115-831e55f62758: true
+      class:085c51f9-4646-41bb-91eb-0cb8e2bf359b: true
+details: The collective of necromancers that raise undead creatures from the Necropolitan Ruin. The corporeal and incorporeal creatures under your command are hardy and numerous. You can communicate with creatures that have the undead keyword even if you don’t share a language.
+name: Circle of Graves
+mtime: 1760650569279
+id: 085c51f9-4646-41bb-91eb-0cb8e2bf359b
+primaryClassId: b41b7bcb-6246-4906-8115-831e55f62758

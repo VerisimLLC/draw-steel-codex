@@ -1,0 +1,28 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 8c44db9c-0166-4752-ae57-883630579ed4
+  source: Ongoing Effect
+  behavior: power
+  keywords:
+    Strike: true
+  activationCondition: true
+  name: Gnoll Iron Jaws
+  guid: 94e7fa73-446a-4e24-b8a1-151b90c46869
+  description: While an enemy is bleeding this way, each gnoll in the encounter gains an edge on strikes made against them.
+  modtype: edge
+  rollType: enemy_ability_power_roll
+source: Ongoing Effect
+guid: 8c44db9c-0166-4752-ae57-883630579ed4
+id: 8c44db9c-0166-4752-ae57-883630579ed4
+ctime: 1755747916140
+condition: 18ff50ab-053b-49d2-a456-927f8e4f9cf9
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Gnoll Iron Jaws
+description: While an enemy is bleeding this way, each gnoll in the encounter gains an edge on strikes made against them.
+mtime: 1755747916140
+iconid: bd44e33a-fb70-490c-acac-882da0d34642

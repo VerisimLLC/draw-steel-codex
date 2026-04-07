@@ -1,0 +1,26 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  guid: 97298b38-777f-45d7-996b-239f0c6229bc
+  sourceguid: b0a98def-f854-4ee2-9a46-2cc3d7c07aea
+  value: 1
+  source: Ongoing Effect
+  name: One Vial Makes You Faster - flying
+  behavior: attribute
+  description: You can fly
+  attribute: fly
+source: Ongoing Effect
+guid: b0a98def-f854-4ee2-9a46-2cc3d7c07aea
+id: b0a98def-f854-4ee2-9a46-2cc3d7c07aea
+ctime: 1767505005422
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: One Vial Makes You Faster - flying
+description: You can fly
+custom: true
+mtime: 1767505005422
+iconid: ui-icons/skills/1.png

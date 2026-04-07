@@ -1,0 +1,674 @@
+__typeName: MarkdownDocument
+annotations:
+  encounter-4:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"8dee3c07-c56a-478d-aba6-52ac45ce5f4d\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.003122846,\"frameSaturation\": 0.7969808,\"frameBrightness\": 0.8250908,\"characterName\": \"Orange Glass Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-20,14,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      name: Orange Glass Spider
+    identifier: false
+  encounter:yellow:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"9546681d-e0c9-4bcb-9b8a-2353eafc1818\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.09682456,\"frameSaturation\": 0.8688181,\"frameBrightness\": 1,\"characterName\": \"Yellow Glass Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-18,19,1"
+      saveAppearances: true
+      name: Yellow Spider
+    identifier: yellow
+  encounter-5:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"0dcc2339-0c71-49ed-9a7d-99909d4919a3\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.6715248,\"frameSaturation\": 0.6814157,\"frameBrightness\": 0.8250908,\"characterName\": \"Violet Glass Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-5,13,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      name: Use if <5 PCs only
+    identifier: false
+  encounter-3:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"6de3c5fa-9c32-4d8d-904b-f79b928236e5\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.3123372,\"frameSaturation\": 0.7969808,\"frameBrightness\": 0.8250908,\"characterName\": \"Green Glass Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-12,21,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      name: Green Glass Spider
+    identifier: false
+  encounter-9:
+    __typeName: RichEncounter
+    spawns: []
+    encounter:
+      __typeName: Encounter
+      groups: []
+      name: Pink Glass Spider
+    identifier: false
+  encounter:start:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"2f6dda81-94cc-481f-8eb4-ad7c8dfb39f2\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.9370122,\"frameSaturation\": 0.7188962,\"frameBrightness\": 1,\"characterName\": \"Red Glass Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        balancing:
+        - stamina: 40
+        - []
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-17,10,1"
+      - appearances:
+        - "{\"portraitId\": \"8dee3c07-c56a-478d-aba6-52ac45ce5f4d\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.003122846,\"frameSaturation\": 0.7969808,\"frameBrightness\": 0.8250908,\"characterName\": \"Orange Glass Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        balancing:
+        - stamina: 40
+        - []
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-19,15,1"
+      - appearances: []
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        minHeroes: 5
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-18,19,1"
+        invisibleToPlayers: []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      saveAppearances: true
+      name: Starting Spiders
+    identifier: start
+  encounter-2:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"2f6dda81-94cc-481f-8eb4-ad7c8dfb39f2\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.9370122,\"frameSaturation\": 0.7188962,\"frameBrightness\": 1,\"characterName\": \"Enraged Glass Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-14,9,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      name: Duplicate Red Spider
+    identifier: false
+  encounter:indigo:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"0dcc2339-0c71-49ed-9a7d-99909d4919a3\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.6715248,\"frameSaturation\": 0.6814157,\"frameBrightness\": 0.8250908,\"characterName\": \"Indigo Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-6,14,1"
+      saveAppearances: true
+      name: Indigo Spider
+    identifier: indigo
+  encounter:violet:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"52a51719-fc0d-4d76-a1ea-c3901c6f489c\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.6965119,\"frameSaturation\": 0.6501821,\"frameBrightness\": 0.8250908,\"characterName\": \"Violet Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-8,11,1"
+      saveAppearances: true
+      name: Violet Spider
+    identifier: violet
+  encounter-6:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"9d737deb-6593-48ae-9137-da0815e72d4d\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.5747003,\"frameSaturation\": 0.6595522,\"frameBrightness\": 0.8250908,\"characterName\": \"Blue Glass Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-8,19,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      name: Blue Glass Spider
+    identifier: false
+  encounter:o:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: o
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+    identifier: ""
+  encounter-7:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"9546681d-e0c9-4bcb-9b8a-2353eafc1818\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.09682456,\"frameSaturation\": 0.8688181,\"frameBrightness\": 1,\"characterName\": \"Sinister Glass Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-11,9,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      name: Duplicate Yellow
+    identifier: false
+  encounter:blue:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"9d737deb-6593-48ae-9137-da0815e72d4d\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.5747003,\"frameSaturation\": 0.6595522,\"frameBrightness\": 0.8250908,\"characterName\": \"Blue Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-8,19,1"
+      saveAppearances: true
+      name: Blue Spider
+    identifier: blue
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"9546681d-e0c9-4bcb-9b8a-2353eafc1818\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.09682456,\"frameSaturation\": 0.8688181,\"frameBrightness\": 1,\"characterName\": \"Yellow Glass Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-18,19,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      - appearances:
+        - "{\"portraitId\": \"2f6dda81-94cc-481f-8eb4-ad7c8dfb39f2\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.9370122,\"frameSaturation\": 0.7188962,\"frameBrightness\": 1,\"characterName\": \"Red Glass Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-18,10,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      - appearances:
+        - "{\"portraitId\": \"0dcc2339-0c71-49ed-9a7d-99909d4919a3\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.6715248,\"frameSaturation\": 0.6814157,\"frameBrightness\": 0.8250908,\"characterName\": \"Violet Glass Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-7,14,1"
+        minHeroes: 5
+      name: Glass Spiders
+  encounter-8:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"8dee3c07-c56a-478d-aba6-52ac45ce5f4d\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.003122846,\"frameSaturation\": 0.7969808,\"frameBrightness\": 0.8250908,\"characterName\": \"Savage Glass Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-9,15,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      name: Duplicate Orange
+    identifier: false
+  encounter:green:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"6de3c5fa-9c32-4d8d-904b-f79b928236e5\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.3123372,\"frameSaturation\": 0.7969808,\"frameBrightness\": 0.8250908,\"characterName\": \"Green Spider\",\"characterNamePrivate\": false,\"flip\": false,\"saddlePositions\": []}"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+        invisibleToPlayers:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-12,21,1"
+      saveAppearances: true
+      name: Green Spider
+    identifier: green
+  encounter-1:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - "{\"portraitId\": \"52a51719-fc0d-4d76-a1ea-c3901c6f489c\",\"offtokenPortraitId\": null,\"portraitFrameId\": \"ac7e5d6a-bddf-43c3-83ee-f962e7094076\",\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0.6965119,\"frameSaturation\": 0.6501821,\"frameBrightness\": 0.8250908,\"characterName\": \"Pink Glass Spider\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "-8,10,1"
+        balancing:
+        - stamina: 40
+        - []
+        - []
+        - []
+        - []
+        monsters:
+          829ec58b-d9e2-42cb-ad90-7d9800bc5538: 1
+      name: Pink Glass Spider
+id: 096ee10d-65c2-49f8-ab61-01716d3c8fbc
+ctime: 1759768339205
+textStorage:
+  __typeName: TextStorage
+  sections:
+    WU: |2
+
+    dE: |+
+      > * Each mirror has 5 Stamina and is immune to poison and psychic damage.
+
+    Xz: |2
+
+    Yz: |+
+      When you are ready, [[/rollinitiative -22 5 0 26 |Draw Steel!]]
+
+    x: "[[//awardvp 1|Award Victories]]"
+    v: |+
+      [End Combat] When the heroes have defeated the glass spiders, either by defeating them or breaking the mirrors before they appear, they gain 1 Victory each.
+
+    t: |+
+      # Ending the Encounter
+
+    r: |+
+      The spiders move to target creatures attempting to escape up the stairs or harm the mirrors in the room first, using Web to restrain their foes. When they have plenty of Malice to spare, the spiders use Trample or Burst of Glass, attempting to harm as many heroes as possible.
+
+    p: |+
+      ## Tactics
+
+    Wn: |
+      [[encounter:indigo]] 
+    k: |+
+      |{The hero learns all the bullet points from Globes, Spiders, and Mirrors, and all their power rolls against the spiders and mirrors have an edge.}
+
+    eQ: |+
+      Once an object is targetable, your players will see them as target options for their abilities that can target objects. You may want to disable the mirrors from being targetable until the players have discovered that targeting them is an option.
+
+    i: |
+      |{#The hero learns nothing from this test.}
+    j: |
+      |{#The hero learns the first two bullet points from Globes, Spiders, and Mirrors.} 
+    g: |2+
+       Observing the interaction between the globes, spiders, and mirrors can provide information on how they work. If the players don't figure it out on their own, a hero can make a moderate Reason test to try and gain this knowledge:
+
+
+    h: |
+      |Learning the Connection: Reason Test
+    Wb: |
+      [[encounter:green]] 
+    f: |+
+      ## Learning the Connection
+
+    c: |+
+      > * The connections between the globes, spiders, and mirrors are detailed here:
+
+    a: |+
+      The goods stored in this area contain the marks and stamps of various merchants and craftspeople, including several crates of leather, which are meant to be delivered to [Harim] (See Broadhurst, [B12. Cobbler])
+
+
+    b: |+
+      ## Globes, Spiders, and Mirrors
+
+    eH: |+
+      ## Object Targeting
+
+    eo: |+
+      :<>[[/activateobjects globe.targetable activate|Make Globes Targetable]][[/activateobjects globe.targetable deactivate|Make Globes NOT Targetable]]
+
+    WX: |
+      [[/activateobjects yellowglobe deactivate|Hide Yellow Globe]] [[/activateobjects yellowglobe activate|Show Yellow Globe]]
+    WT: |
+      ???query numheroes < 5
+    dD: |+
+      > * If a mirror is smashed when its companion globe is still in globe form, that globe cannot turn into a spider.
+
+    Z: |+
+      ## Supplies
+
+    Ww: |
+      [[/activateobjects violetglobe deactivate|Hide Violet Globe]] [[/activateobjects violetglobe activate|Show Violet Globe]]
+    V: |+
+      > * For three heroes, only the red and orange glass spiders appear at the start of the encounter. Each glass spider in the encounter has 40 Stamina 
+
+    S: |+
+      ## Encounter Adjustments
+
+    T: |+
+      If this encounter has four or three heroes, make the following adjustments:
+
+    Q: |+
+      ## Glass Spider Attack
+
+    R: |2+
+       Intruders who disturb anything in the room or attempt to climb the stairs cause the red, orange, and yellow globes to turn into glass spiders who attack:
+
+    O: |+
+      **Content Warning: Spiders**
+
+    P: |+
+      *If descriptions of spiders make you or any of your players uncomfortable, you can make the glass spiders in this part of the adventure instead be glass warriors made of sharp shards. Feel free to change anything that would make the game more fun for your players and yourself.*
+
+    M: |+
+      **Secret:** The globes of light can become magic guards that battle intruders.
+
+    Wk: |+
+      [[/activateobjects blueglobe deactivate|Hide Blue Globe]] [[/activateobjects blueglobe activate|Show Blue Globe]]
+
+    K: |
+      > * “The room is littered with a variety of objects. Bricks of stone, mortar, trowels, food supplies, ale kegs, arcane components, and more. Some of the supplies are covered with tarps, while others are exposed.”
+    L: |+
+      > * “Seven sheets cover seven different objects hanging on the wall around the room.”
+
+    I: |
+      > * “The tower is definitely bigger on the inside, at least 90 feet in  diameter. Seven globes of light, one for each color of the rainbow, light the room in a dizzying display of colors. The door you entered seals closed, blending into the wall and leaving no means to exit.”
+    WH: |
+      ???query numheroes < 5
+    G: |+
+      ## Ground Floor
+
+    H: |+
+      When all the heroes enter the ground floor of the tower, the opening they passed through disappears, leaving a solid wall behind them and no way to leave.
+
+    E: |
+      > * **Illumination:** The walls magically emanate light that illuminates all areas of the tower.
+    F: |+
+      > * **Map:** This area uses the Mage Tower map from the Delian Tomb Adventure book. 
+
+    C: |2+
+       The tower has the following features:
+
+    D: |
+      > * **Ceilings:** The ceilings in the rooms are 8 squares high.
+    B: |+
+      ## Tower Features
+
+    dG: |+
+      > * When the spider is defeated, the associated mirror shatters on its own. A creature within 1 square of a mirror that shatters this way takes 3 damage.
+
+    dC: |+
+      > * When a spider is destroyed, the next orb in the sequence transforms into a spider that attacks the heroes.
+
+    Wt: |
+      [[encounter:violet]] 
+    FZ: |2
+
+    Wh: |
+      [[encounter:blue]] 
+    WV: |
+      [[encounter:yellow]] 
+    dF: |
+      > * The globes are immune to all damage while in globe form. Once a globe becomes a spider, its associated mirror cannot be damaged.
+    eu: |+
+      Note that your players can move up to the sheets over the mirrors and pull them back once they are close enough to reveal the mirrors underneath!
+
+
+    ei: |
+      :<>[[/activateobjects mirror.targetable activate|Make Mirrors Targetable]][[/activateobjects mirror.targetable deactivate|Make Mirrors NOT Targetable]]
+    WZ: |+
+      ???
+
+    Wq: |+
+      [[/activateobjects indigoglobe deactivate|Hide Indigo Globe]] [[/activateobjects indigoglobe activate|Show Indigo Globe]]
+
+    n: |+
+      There is no map to indicate starting positions in this encounter, since the heroes could be anywhere on the floor when they trigger the encounter. The spiders appear in any unoccupied space within 7 squares of the heroes when they're activated.
+
+    l: |+
+      ## Starting Positions
+
+    eZ: |+
+      You can also make the globes targetable as an interesting red herring! The globes have all been loaded with plenty of stamina, so don't worry, your players have no chance of destroying them.
+
+    J: |
+      > * “A set of curving stairs leads up along the outer wall, going through the ceiling 40 feet above the floor.”
+    WR: |
+      ???
+    WF: |
+      [[encounter:start]]
+    WL: |
+      ???
+    WP: |
+      [[/activateobjects startingglobe deactivate; activateobjects yellowglobe deactivate|Hide Globes]] [[/activateobjects startingglobe activate; activateobjects yellowglobe activate|Show Globes]]
+    WJ: |
+      [[/activateobjects startingglobe deactivate|Hide Globes]] [[/activateobjects startingglobe activate|Show Globes]]
+    VD: |+
+      [[setting:Number of Heroes]]
+
+    U: |
+      > * For four heroes, only the red and orange glass spiders appear at the start of the encounter.
+    WN: |
+      ???query numheroes > 4
+    We: |+
+      [[/activateobjects greenglobe deactivate|Hide Green Globe]] [[/activateobjects greenglobe activate|Show Green Globe]]
+
+    N: |+
+      **Secret:** The sheets on the wall cover seven different magic mirrors (red, orange, yellow, green, blue, pink, violet). Each mirror is tinted a different color of the rainbow.
+
+    dA: |2
+
+    dB: |+
+      > * Each colored mirror corresponds to a globe of the same color (and spider when they transform): red, orange, yellow, green, blue, indigo, violet. 
+
+parentFolder: 7cb5c634-6ed3-43bd-970d-7877c47b4772
+updateid: 27b8e4ec-2654-439f-a2f7-5b03a773597b
+mtime: 1773660987815
+content: |-
+  ## Tower Features
+
+   The tower has the following features:
+
+  > * **Ceilings:** The ceilings in the rooms are 8 squares high.
+  > * **Illumination:** The walls magically emanate light that illuminates all areas of the tower.
+  > * **Map:** This area uses the Mage Tower map from the Delian Tomb Adventure book. 
+
+  ## Ground Floor
+
+  When all the heroes enter the ground floor of the tower, the opening they passed through disappears, leaving a solid wall behind them and no way to leave.
+
+  > * “The tower is definitely bigger on the inside, at least 90 feet in  diameter. Seven globes of light, one for each color of the rainbow, light the room in a dizzying display of colors. The door you entered seals closed, blending into the wall and leaving no means to exit.”
+  > * “A set of curving stairs leads up along the outer wall, going through the ceiling 40 feet above the floor.”
+  > * “The room is littered with a variety of objects. Bricks of stone, mortar, trowels, food supplies, ale kegs, arcane components, and more. Some of the supplies are covered with tarps, while others are exposed.”
+  > * “Seven sheets cover seven different objects hanging on the wall around the room.”
+
+  **Secret:** The globes of light can become magic guards that battle intruders.
+
+  **Secret:** The sheets on the wall cover seven different magic mirrors (red, orange, yellow, green, blue, indigo, violet). Each mirror is tinted a different color of the rainbow.
+
+  **Content Warning: Spiders**
+
+  *If descriptions of spiders make you or any of your players uncomfortable, you can make the glass spiders in this part of the adventure instead be glass warriors made of sharp shards. Feel free to change anything that would make the game more fun for your players and yourself.*
+
+  ## Glass Spider Attack
+
+   Intruders who disturb anything in the room or attempt to climb the stairs cause the red, orange, and yellow globes to turn into glass spiders who attack:
+
+  ## Encounter Adjustments
+
+  If this encounter has four or three heroes, make the following adjustments:
+
+  > * For four heroes, only the red and orange glass spiders appear at the start of the encounter.
+  > * For three heroes, only the red and orange glass spiders appear at the start of the encounter. Each glass spider in the encounter has 40 Stamina 
+
+  [[setting:Number of Heroes]]]
+
+  [[encounter]]
+
+  When you are ready, [Draw Steel!]
+
+  ## Supplies
+
+  The goods stored in this area contain the marks and stamps of various merchants and craftspeople, including several crates of leather, which are meant to be delivered to [Harim] (See Broadhurst, [B12. Cobbler])
+
+
+  ## Globes, Spiders, and Mirrors
+
+  > * The connections between the globes, spiders, and mirrors are detailed here:
+
+  > * Each colored mirror corresponds to a globe of the same color (and spider when they transform): red, orange, yellow, green, blue, indigo, violet. When a spider is destroyed, the next orb in the sequence transforms into a spider that attacks the heroes. If a mirror is smashed when its companion globe is still in globe form, that globe cannot turn into a spider.
+
+  > * Each mirror has 5 Stamina and is immune to poison and psychic damage. The globes are immune to all damage while in globe form. Once a globe becomes a spider, its associated mirror cannot be damaged. When the spider is defeated, the associated mirror shatters on its own. A creature within 1 square of a mirror that shatters this way takes 3 damage.
+
+  ## Learning the Connection
+
+   Observing the interaction between the globes, spiders, and mirrors can provide information on how they work. If the players don't figure it out on their own, a hero can make a moderate Reason test to try and gain this knowledge:
+
+
+  |Stop the Panic: Presence Test
+  |The hero learns nothing from this test.
+  |The hero learns the first two bullet points from Globes, Spiders, and Mirrors. 
+  |The hero learns all the bullet points from Globes, Spiders, and Mirrors, and all their power rolls against the spiders and mirrors have an edge.
+
+  ## Starting Positions
+
+  There is no map to indicate starting positions in this encounter, since the heroes could be anywhere on the floor when they trigger the encounter. The spiders appear in any unoccupied space within 7 squares of the heroes when they're activated.
+
+  ## Tactics
+
+  The spiders move to target creatures attempting to escape up the stairs or harm the mirrors in the room first, using Web to restrain their foes. When they have plenty of Malice to spare, the spiders use Trample or Burst of Glass, attempting to harm as many heroes as possible.
+
+  # Ending the Encounter
+
+  [End Combat] When the heroes have defeated the glass spiders, either by defeating them or breaking the mirrors before they appear, they gain 1 Victory each.
+
+  [[/awardvp 1|Award Victories]]
+description: Ground Floor

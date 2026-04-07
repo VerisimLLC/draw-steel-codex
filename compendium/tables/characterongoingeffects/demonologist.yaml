@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 24d24f38-60b1-4e75-b865-fc512eb33065
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: Target.Keywords has "Demon" or Target.Keywords has "Devil"
+  name: Demonologist
+  guid: 3bcfcb69-3d82-4508-9c48-fdcf7a4334a0
+  description: 'You gain an edge on rolls against demons, devils, and other agents of chaos. '
+  modtype: edge
+  rollType: ability_power_roll
+source: Ongoing Effect
+guid: 24d24f38-60b1-4e75-b865-fc512eb33065
+id: 24d24f38-60b1-4e75-b865-fc512eb33065
+ctime: 1768519870418
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Demonologist
+description: 'You gain an edge on rolls against demons, devils, and other agents of chaos. '
+custom: true
+mtime: 1768519878049
+iconid: ui-icons/skills/1.png

@@ -1,0 +1,21 @@
+__typeName: CharacterFeature
+modifiers:
+- __typeName: CharacterModifier
+  subtype: skill
+  source: Character
+  behavior: proficiency
+  description: ""
+  equate: false
+  name: Skill
+  sourceguid: 13993c3a-8a6a-4075-8c49-d533d42a653a
+  proficiency: proficient
+  guid: 6853b717-c46a-46ed-aed2-02b85e8baa70
+  skills: []
+source: Character
+guid: 13993c3a-8a6a-4075-8c49-d533d42a653a
+id: a32f5296-ffe9-4731-a2b8-aa413c79f53f
+ctime: 1730349485278
+name: Skill
+description: ""
+mtime: 1730349485278
+implementation: 3

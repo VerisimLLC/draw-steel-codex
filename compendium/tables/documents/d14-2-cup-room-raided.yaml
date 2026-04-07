@@ -1,0 +1,51 @@
+__typeName: MarkdownDocument
+annotations: []
+id: e7850267-fed3-4269-bb1c-45314a954ff7
+ctime: 1761751539062
+textStorage:
+  __typeName: TextStorage
+  sections:
+    M: |
+      > * “A massive set of steps leads up to a landing where an empty plinth stands before a sarcophagus and between two massive, flaming braziers.”
+    l: |+
+      # Loot
+
+    Y: |+
+      [Mara], [Boddorff] Buckfeather, and [Gorek] have dispatched the foes who were here when they arrived, and are awaiting the heroes. They’re not here to chat. They’re here to make sure that no one knows [Targon] has the cup and is bringing it to [Queen Bargnot].
+
+    G: |+
+      # D14.2 Cup Room Raided
+
+    e: |+
+      See [Encounter D14.2].
+
+
+    s: |
+      [Mara] wears a [item:Revenger's Wrap].
+    S: |+
+      > * “Three figures emerge from the shadows on the landing. Boddorff Buckfeather, Gorek, and Mara are here. The mage says, ‘Late to the party, are we?’”
+
+
+    u: |2+
+
+
+    w: "[[/activateobject cup_of_iulius activate|Show Cup of Iulius]] [[/activateobject cup_of_iulius deactivate|Hide Cup of Iulius]]"
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 3a01c369-eaa7-4a9d-9c7b-0101f789ddc9
+mtime: 1764237748241
+content: |
+  # D14.2 Cup Room Raided
+
+  > * “A massive set of steps leads up to a landing where an empty plinth stands before a sarcophagus and between two massive, flaming braziers.”
+  > * “Three figures emerge from the shadows on the landing. Boddorff Buckfeather, Gorek, and Mara are here. The mage says, ‘Late to the party, are we?’”
+
+
+  [Mara], [Boddorff] Buckfeather, and [Gorek] have dispatched the foes who were here when they arrived, and are awaiting the heroes. They’re not here to chat. They’re here to make sure that no one knows [Targon] has the cup and is bringing it to [Queen Bargnot].
+
+  See [Encounter D14.2].
+
+
+  # Loot
+
+  [Mara] wears a [Revenger's Wrap] (see Treasure in Handouts).
+description: D14.2 Cup Room Raided

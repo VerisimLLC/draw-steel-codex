@@ -1,0 +1,34 @@
+__typeName: MarkdownDocument
+annotations:
+  image:region:
+    __typeName: RichImage
+    identifier: region
+    halign: center
+    image: bcf12ec0-80a7-47ce-807c-001109738b0c
+  scene:region:
+    __typeName: RichScene
+    identifier: region
+    image: bcf12ec0-80a7-47ce-807c-001109738b0c
+id: 85f68916-88a8-483c-b5d6-f25d357f9cb6
+ctime: 1770195694795
+textStorage:
+  __typeName: TextStorage
+  sections:
+    h: |
+      An image to 'Present to Players' as a floating journal window.
+      }
+    q: |
+      [[image:region]]
+    Q: |
+      A Scene to display the region map to players, if you want it to be full-screen in front of, or behind, the UI. 
+    Y: |
+      [[scene:region]]
+      }
+      {
+    I: |
+      {
+parentFolder: 423b20dc-f04b-44af-849e-7a7e01636bf4
+updateid: 80ac0137-0de9-4964-be71-d7adbb5a093b
+mtime: 1771781622355
+content: ""
+description: Broadhurst Region Player Map

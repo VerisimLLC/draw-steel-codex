@@ -1,0 +1,213 @@
+__typeName: MarkdownDocument
+annotations:
+  "encounter: D":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: ":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter: D12":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+      groups:
+      - appearances:
+        - false
+        - false
+        monsters:
+          8036b572-ae90-4b20-9602-341728a9132a: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "6,10,1"
+        - __usertype: LuaLoc
+          loc: "8,11,1"
+        minHeroes: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - "{\"portraitId\": null,\"offtokenPortraitId\": null,\"portraitFrameId\": null,\"portraitRibbon\": null,\"backgroundId\": null,\"anthem\": null,\"anthemVolume\": 1,\"tokenScaling\": 1,\"tokenZoom\": 1,\"portraitOffset\": {\"x\": 0,\"y\": 0},\"frameHueShift\": 0,\"frameSaturation\": 1,\"frameBrightness\": 1,\"characterName\": \"Tired Creeping Sludge\",\"characterNamePrivate\": true,\"flip\": false,\"saddlePositions\": []}"
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "7,12,1"
+        - __usertype: LuaLoc
+          loc: "5,12,1"
+        - __usertype: LuaLoc
+          loc: "6,13,1"
+        - __usertype: LuaLoc
+          loc: "5,14,1"
+        - __usertype: LuaLoc
+          loc: "7,14,1"
+        monsters:
+          e6d16a5e-4abb-40cf-8e9e-e1f730b919b3: 1
+          4570c1b4-d1fa-49de-8541-d783c3e0a9e0: 4
+      - appearances:
+        - false
+        - false
+        - false
+        - false
+        - false
+        monsters:
+          e6d16a5e-4abb-40cf-8e9e-e1f730b919b3: 1
+          4570c1b4-d1fa-49de-8541-d783c3e0a9e0: 4
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "10,11,1"
+        - __usertype: LuaLoc
+          loc: "13,13,1"
+        - __usertype: LuaLoc
+          loc: "11,10,1"
+        - __usertype: LuaLoc
+          loc: "12,11,1"
+        - __usertype: LuaLoc
+          loc: "11,12,1"
+        minHeroes: 5
+      - appearances:
+        - false
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "11,0,1"
+        monsters:
+          3257ec4a-a527-4711-b464-8123c13eb36c: 1
+      - appearances:
+        - false
+        - false
+        monsters:
+          e6d16a5e-4abb-40cf-8e9e-e1f730b919b3: 2
+        spawnlocs:
+        - __usertype: LuaLoc
+          loc: "13,15,1"
+        - __usertype: LuaLoc
+          loc: "4,10,1"
+        minHeroes: 6
+      name: Encounter D12
+    spawns:
+    - 030978d5-b397-41d9-8dea-8ed311d4e8b0
+    - 2df4f59e-0f5c-4c9c-bf1d-701b32b550b0
+    - 779b2e55-372d-4b67-aa38-4bc7045e30d4
+    - 3248510d-79e8-44c7-9c49-a9ae8fc93136
+    - 046989a3-ca07-4215-ad5d-4d04515be6ad
+    - f26aa65d-7a90-4554-9b6d-b2362dc2d52b
+    - 1068cd80-000d-4cac-b59a-d73a8692d62d
+    - 29ca8b55-8c37-46b7-994b-17c59309400c
+    - 1e0a9285-0aa0-4f0c-96a0-d21189dcc056
+    - 7cf693ba-3ea6-430c-8b6a-55b4356ff719
+    - 94f4534d-9bf2-4c58-ade3-e64255b63f6d
+    - b0fda189-6889-43d4-98bc-87543608b34f
+    - ef2d12a5-1a5b-4cd1-bb81-74fbb2ee8ebb
+    - e6e9d89a-9add-415a-96c4-22fe9f33eb62
+    - a2dd4e01-af31-4af8-8acb-b4f2c6bb8a95
+  encounter:
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+  "encounter:":
+    __typeName: RichEncounter
+    encounter:
+      __typeName: Encounter
+id: 4997846e-96a2-4aea-aba9-1691b6b574b6
+ctime: 1761751415312
+textStorage:
+  __typeName: TextStorage
+  sections:
+    w: |+
+      [[/awardvp 1|Award Heroes 1 Victory]]
+
+    u: |
+      Once the heroes secure the control room, the oozes flee and the heroes earn 1 Victory each.
+    s: |+
+      ## Ending the Encounter
+
+    q: |+
+      The oozes aim to force heroes back into the gauntlet to dispatch them more ably. However, they're otherwise not especially tactical. Thanks to their Amorphous trait, they pursue heroes down the narrow tunnel to the south with ease, and the creeping sludges can pull creatures out of that tunnel, reverting some of their progress toward the control panel.
+
+
+    o: |+
+      ## Tactics
+
+    DZ: |+
+      [[/activateobjects E12_start.AreaTemplate activate|Show Hero Start Area]] [[/activateobjects E12_start.AreaTemplate deactivate|Hide Hero Start Area]]
+
+    m: |+
+      If the crawling claw is removed from the controls, a hero adjacent to the controls can use an action to use them against the monsters. They can also turn off the gauntlet from here.
+
+
+    k: |
+      While a creature is squeezing down the corridor, strikes against them gain a double edge.
+    i: |+
+      |{#The creature can move at full speed down the tunnel this turn.}
+
+    g: |
+      |{#The creature can move at half speed down the tunnel this turn.}
+    e: |
+      |{#The creature takes 2 damage per space they move through the tunnel and can move at half speed down the tunnel this turn.}
+    c: |
+      |Tunnel Squeeze: Agility Test
+    b: |+
+      The tunnel to reach the control panel is a tight squeeze, and the position of the control panel makes ranged attacks against the hand nearly impossible. A creature of size 1S or larger trying to get through it must make an Agility test when they enter or start their turn in the tunnel:
+
+    Z: |+
+      |{#5 poison damage}
+
+    X: |
+      |{#7 poison damage, m<2] weakened (EoT) }
+    V: |
+      |{#9 poison damage, m<3] weakened (save ends) }
+    S: |+
+      The crawling claw was created for the sole purpose of working the control panel. On their turn, the claw triggers dart traps in the room, targeting two creatures in the main room of this area. Each target must make an Agility test:
+
+    T: |
+      |Dart Trap: Agility Test
+    Q: |+
+      It's possible to force move a creature into the gauntlet (see [D11. The Gauntlet] in the Adventure Book. When a creature starts their turn in the gauntlet, or enters it for the first time on their turn, they take 5 damage.
+
+
+    R: |+
+      ## Hand on the Reins
+
+    O: |+
+      * For three heroes, remove one creeping sludge, four black ichors, and both gummy balls.
+
+
+    P: |+
+      ## Pushed Into the Gauntlet
+
+    M: |
+      * For six heroes, add two creeping sludges as their own group.
+    N: |
+      * For four heroes, remove one creeping sludge and four black ichors.
+    K: |
+      **Encounter Adjustments**
+    L: |
+      If this encounter has more or fewer than five heroes, make the following adjustments:
+    I: |
+      |3|One [creeping sludge] (captain), Four [black ichor]s (minion squad)|
+    J: "|4|One [crawling claw]|\n\n \n"
+    G: |
+      |1|Two [gummy ball]s|
+    H: |
+      |2|One [creeping sludge] (captain), Four [black ichor]s (minion squad)|
+    E: |
+      **D12 Groups**
+    F: |
+      |Group	|Creatures|
+    C: |+
+      The heroes face oozes in a diabolic room of traps.
+
+    D: |+
+      [[encounter: D12]]
+
+    CZ: |+
+      [[setting:Number of Heroes]]
+
+    B: |+
+      # Encounter D12
+
+parentFolder: 844a7757-8254-4f47-ba39-202b78021ed5
+updateid: 9feb8f21-dda0-491d-83ea-a5dc23a223c7
+mtime: 1768580943143
+content: "# Encounter D12\n\nThe heroes face oozes in a diabolic room of traps.\n\n[[encounter: D12]]\n\n**D12 Groups**\n|Group	|Creatures|\n|1|Two gummy balls|\n|2|One creeping sludge (captain), Four black ichors (minion squad)|\n|3|One creeping sludge (captain), Four black ichors (minion squad)|\n|4|One crawling claw|\n\n \n**Encounter Adjustments**\nIf this encounter has more or fewer than five heroes, make the following adjustments:\n* For six heroes, add two creeping sludges as their own group.\n* For four heroes, remove one creeping sludge and four black ichors.\n* For three heroes, remove one creeping sludge, four black ichors, and both gummy balls.\n\n\n## Pushed Into the Gauntlet\n\nIt's possible to force move a creature into the gauntlet (see [D11. The Gauntlet] in the Adventure Book. When a creature starts their turn in the gauntlet, or enters it for the first time on their turn, they take 5 damage.\n\n\n## Hand on the Reins\n\nThe crawling claw was created for the sole purpose of working the control panel. On their turn, the claw triggers dart traps in the room, targeting two creatures in the main room of this area. Each target must make an Agility test:\n\n|Dart Trap: Agility Test\n|{#9 poison damage, m<3] weakened (save ends) }\n|{#7 poison damage, m<2] weakened (EoT) }\n|{#5 poison damage}\n\nThe tunnel to reach the control panel is a tight squeeze, and the position of the control panel makes ranged attacks against the hand nearly impossible. A creature of size 1S or larger trying to get through it must make an Agility test when they enter or start their turn in the tunnel:\n\n|Tunnel Squeeze: Agility Test\n|{#The creature takes 2 damage per space they move through the tunnel and can move at half speed down the tunnel this turn.}\n|{#The creature can move at half speed down the tunnel this turn.}\n|{#The creature can move at full speed down the tunnel this turn.}\n\nWhile a creature is squeezing down the corridor, strikes against them gain a double edge.\nIf the crawling claw is removed from the controls, a hero adjacent to the controls can use an action to use them against the monsters. They can also turn off the gauntlet from here.\n\n\n## Tactics\n\nThe oozes aim to force heroes back into the gauntlet to dispatch them more ably. However, they're otherwise not especially tactical. Thanks to their Amorphous trait, they pursue heroes down the narrow tunnel to the south with ease, and the creeping sludges can pull creatures out of that tunnel, reverting some of their progress toward the control panel.\n\n\n## Ending the Encounter\n\nOnce the heroes secure the control room, the oozes flee and the heroes earn 1 Victory each.\n[[/awardvp 1|Award Heroes 1 Victory]]\n\n"
+description: Encounter D12

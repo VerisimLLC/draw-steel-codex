@@ -1,0 +1,155 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 9847441b-5155-4de5-9528-874c825d77a3
+    offtokenPortraitId: df1417bc-7b16-49de-a11b-66211c726f38
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 0bbd339f-2a1e-4ea3-b61c-22b1caf7b1da
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.3440925
+    portraitOffset:
+      x: -0.04977894
+      y: 0.09952153
+    frameHueShift: 0.7027591
+    frameSaturation: 0.3420395
+    frameBrightness: 0.3357927
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2462451d-78e4-4a43-bfa7-6bb2fa66be23
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 7
+    inflictedConditions: []
+    ev: 4
+    max_hitpoints_roll: "7"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 0
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage
+        - 5 damage; grabbed or prone
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: ff51ef7a-6a81-41a0-b563-01bb9065afd1
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Maul
+      numTargets: 1
+      description: The securer deals an additional 2 damage to restrained targets.
+      abilityType: none
+      implementation: 3
+    minion: true
+    stability: 2
+    import:
+      type: mcdm
+      data: |+
+        Dwarf Securer	Level 1 Brute Minion
+        Dwarf, Humanoid	EV 4
+        <b>Stamina</b> 7
+        <b>Speed </b>5	<b>Size</b> 1M / <b>Stability</b> 2
+        <b>With Captain</b> 2 temporary Stamina<b>	Free Strike</b> 2
+        Might +2	Agility 0	Reason 0	Intuition 0	Presence 0
+        <b>Maul</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage
+        %E2%9C%B8	<b>17</b>	5 damage; grabbed or prone
+        <b>Effect</b> The securer deals an additional 2 damage to restrained targets.
+
+
+    characterFeatures: []
+    role: Brute Minion
+    equipment: []
+    skillRatings: []
+    resistances: []
+    availableTriggers: []
+    damage_taken: 0
+    opportunityAttack: 2
+    resources: []
+    groupid: c3b6ed9f-70ee-469d-9415-190e1a920421
+    minionSquad: Dwarf Securer Squad 2
+    walkingSpeed: 5
+    traitNames:
+    - With Captain 2 temporary Stamina
+    movementSpeeds: []
+    creatureSize: 1M
+    initiativeGrouping: d34fcd35-303a-4cc1-a2f3-f26a65337f88
+    monster_type: Dwarf Securer
+    keywords:
+      Dwarf: true
+      Humanoid: true
+  tokenType: null
+  bestiaryId: d099aa93-be41-4fb0-aaa4-61d3db763756
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Dwarf Securer
+parentFolder: 8e456dc2-a795-41ed-85c8-d1219c957c5e
+artist: null
+ord: 0
+ctime: 1741590310331
+mtime: 1775201137032
+hidden: false

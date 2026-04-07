@@ -1,0 +1,69 @@
+__typeName: Kit
+health: 3
+id: 4d1a7b10-5328-4fe5-8eb4-623ef33ec70a
+weapons:
+  Unarmed Strike: true
+implement: false
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Martial Artist
+mtime: 1770562393573
+kitManeuver: false
+equipmentDescription: You wear no armor and wield only your unarmed strikes.
+type: martial
+speed: 3
+imported: 30593309-d9fd-459b-b79c-923734f867bd
+damageBonuses:
+  melee:
+  - 2
+  - 2
+  - 2
+signatureAbility:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  keywords:
+    Kit: true
+    Strike: true
+    Melee: true
+    Weapon: true
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.498148173093796
+      s: 0.86956524848938
+      v: 0.811764717102051
+      a: 1
+  flavor: You feint to move your enemies into perfect position.
+  sourceReference:
+    __typeName: SourceReference
+    page: 220
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 1
+  effectImplemented: false
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 5f7146c9-8024-432a-a4d2-7d22a529c5fc
+  numTargets: 1
+  categorization: Signature Ability
+  implementation: 3
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 5 + M or A damage
+    - 8 + M or A damage; you swap places with the target
+    - 11 + M or A damage; you swap places with the target
+    roll: 2d10 + Might or Agility
+  name: Battle Grace
+  actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+  description: If you roll a 12 or better and can't swap places with the target because one or both of you is too big to fit into the swapped space, you both remain in your original spaces and the target takes 1 extra damage.
+  abilityType: none
+  iconid: b67b89e6-cc8a-40bd-848b-37aef0455137
+description: If you want to be fast in a fight, then Martial Artist is the kit for you. Unencumbered by weapons or armor, this fighting style rewards quick, focused unarmed strikes to opponents, and allows you to be the ultimate skirmisher.
+portraitid: 6b233d2f-a7ab-47f4-9fc5-ea4c2b0b62a5
+disengage: 1

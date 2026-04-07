@@ -1,0 +1,52 @@
+__typeName: MarkdownDocument
+description: Minions
+parentFolder: 950a66b0-f3d6-41b9-b5dd-7bef2f74d154
+updateid: 436e68fc-edf8-4bd4-8263-8371581f3410
+annotations: []
+id: 52d10cbc-7be3-4a5f-8098-716bc6929271
+mtime: 1763385077714
+content: |-
+  # Minions
+
+  Minions are creatures who die in droves and have strength in numbers! They’re the perfect enemy to give the players a heroic feel as their heroes can cut down multiple minions with a single ability.
+
+
+  ## Minion Squads
+
+  Minions with the same name (for instance, “goblin sniper”) can be organized into squads of up to eight creatures. All members of a minion squad act together on the same initiative, and can make squad attacks.
+
+  ## Shared Stamina
+  Explain the shared Stamina rules to your players.
+  Each squad of minions shares a Stamina pool, with initial Stamina equal to each individual minion’s Stamina multiplied by the number of minions in the squad. For example, goblin spinecleavers each have 5 Stamina, so a squad of eight spinecleavers has a Stamina pool of 40. Whenever a minion in a squad takes damage, the squad’s Stamina pool is reduced by a number equal to the damage taken.
+
+  Because minion Stamina is tracked as a pool, minions can’t be winded, can’t regain Stamina, and can’t gain temporary Stamina during a battle.
+
+  Whenever a minion squad’s Stamina pool is reduced by an amount equal to an individual minion’s Stamina, one minion dies or otherwise gets taken out of the fight. If a squad of eight goblin spinecleavers has its Stamina pool reduced to 35, then the minion who took the damage that reduced the pool dies. When the Stamina pool hits 30, 25, 20, 15, 10, 5, and finally 0, another minion in the squad dies. If multiple minions take the damage that results in the pool dropping low enough to kill one minion, the creature who dealt the damage to the minions decides which of those minions dies.
+
+  If minion takes damage from a source other than an ability or effect with the Area keyword, the damage  reduces a minion squad’s Stamina pool by an amount of damage equal to the Stamina of multiple minions, therefore multiple minions are taken out by the damage. If all those minions are eliminated and there is still more damage to account for, the minions nearest to the ones who were taken out suffer the same fate.
+
+  For instance, if one goblin spinecleaver takes 12 damage from a fury’s Brutal Slam ability, that spinecleaver dies and another nearby spinecleaver also gets taken out. Allow the player to narrate how their hero takes out additional minions killed by a single attack. Maybe each minion is within striking distance of the hero, who makes multiple brutal weapon attacks with a single main action. Maybe the body of the original target is hurled into an unfortunate ally. Maybe additional minions affected by a single attack pass out from fright! Taking out multiple minions is a chance to play up the cinematic part of the game. 
+
+  Area abilities can only kill minions caught in the affected area. The talent’s Incinerate ability normally deals 6 damage to each target in its area, but remember that a goblin spinecleaver only has 5 Stamina. If three spinecleavers got caught in the area, the minion pool loses 15 Stamina instead of 18, leaving the other minions in the squad unscathed.
+
+
+  ## Minion Action Economy
+
+  On their turn, each minion can take only a move action and a main action, a move action and a maneuver, or two move actions. 
+
+
+  ## Squad Signature Ability
+
+  Each minion has a signature ability that is typically a strike ability targeting one creature or object. When multiple minions in a squad use their signature ability on a turn, make one roll for the whole squad.
+
+  Each target of a signature ability is only affected by one instance of the ability—when two (or three at maximum) of the squad’s minions attack the same creature or object simultaneously, each additional minion increases the damage dealt to that target by their free strike value. It’s usually more effective to have each minion target a different hero.
+
+  If several minions in a squad make a free strike at the same target at the same time, such as from a hero provoking an opportunity attack by moving away from several minions in a squad, the damage from each minion’s strike is added together and made as one strike.
+
+
+  ## Attached Captain
+
+  Any non-mount creature who speaks a language a squad of minions can understand can be attached to that squad as a captain. While a minion squad has a captain, each minion in the squad gains the With Captain benefits listed on their stat block. Usually, this benefit is either a damage boost, a bonus to speed, or additional Stamina.
+
+  A squad of minions can have only one captain, and a creature can’t be captain to more than one squad of minions. A captain takes their turn at the same time as the members of their squad but isn’t limited in their action options as minions are. A captain’s Stamina isn’t added to a minion squad’s Stamina pool and is tracked as for any other creature in combat. If a squad of minions loses their captain, a new allied creature can become that squad’s captain at the start of the round (no action required).
+ctime: 1763335053157

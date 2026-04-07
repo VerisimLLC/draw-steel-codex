@@ -1,0 +1,233 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: e76b2d71-831d-400c-a76b-3b7b1f8fed73
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 4
+    import:
+      type: mcdm
+      data: |+
+        War Dog Hypokrite	Level 4 Horde Ambusher
+        Humanoid, War Dog	EV 6
+        <b>Stamina</b> 30
+        <b>Speed</b> 8	<b>Size</b> 1M /<b>Stability</b> 0
+        <b>Free Strike</b> 3
+        Might +1	Agility +3	Reason +0	Intuition +0	Presence +2
+        <b>Needle-Knife</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	6 damage
+        %E2%98%85	<b>12-16</b>	8 damage; A<2 bleeding (save ends)
+        %E2%9C%B8	<b>17</b>	10 damage; A<3 bleeding and weakened (save ends)
+        <b>Effect</b> This ability deals an additional 6 damage if the hypocrite is hidden or disguised.
+
+        <b>Feign Death </b>(Triggered Action)%E2%97%86 2 Malice
+        <b>Keywords</b> -
+        <b>Distance</b> Ranged 20<b>Target</b> Self
+        <b>Trigger</b> The hypokrite takes damage.
+        <b>Effect</b> The hypokrite activates their Loyalty Collar ability and teleports to an unoccupied square adjacent to an ally within distance alive.
+
+        <b>Face in the Crowd</b>
+        The hypokrite is invisible while adjacent to an unhidden ally. When using the Hide maneuver, the hypocrite can choose to disguise themself as another creature within line of effect.
+
+        <b>Loyalty Collar</b>
+        When the hypokrite dies, they explode, dealing 2d6 damage to each adjacent enemy.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:debb3cad-b168-422a-a60d-ac47eee5ada9: true
+      modifiers: []
+      name: Face in the Crowd
+      description: The hypokrite is invisible while adjacent to an unhidden ally. When using the Hide maneuver, the hypocrite can choose to disguise themself as another creature within line of effect.
+      guid: debb3cad-b168-422a-a60d-ac47eee5ada9
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:5f439a91-c5d6-4765-ae0f-cc8a00b86887: true
+      modifiers:
+      - __typeName: CharacterModifier
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          targetFilter: Enemy
+          strain: []
+          guid: e37ab7b8-87b2-475c-b7ce-c1308e3ea3e1
+          repeatTargets: false
+          abilityType: none
+          trigger: zerohitpoints
+          targetType: all
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: 2d6
+          name: Loyalty Collar
+          numTargets: "1"
+          description: ""
+          range: 1
+          iconid: ui-icons/skills/1.png
+        description: ""
+        source: Trait
+        behavior: trigger
+        guid: 5c60d6bf-6f67-4a2c-8bb8-21ffa0f5e486
+        name: Loyalty Collar
+        sourceguid: 7253f97d-6734-4d77-b3ff-37c1691830dd
+      source: Trait
+      description: When the hypokrite is reduced to 0 Stamina, their loyalty collar explodes, dealing 2d6 damage to each adjacent enemy and object.
+      guid: 5f439a91-c5d6-4765-ae0f-cc8a00b86887
+      name: Loyalty Collar
+      implementation: 3
+    role: Horde Ambusher
+    inflictedConditions: []
+    keywords:
+      War Dog: true
+      Humanoid: true
+      Soulless: true
+    max_hitpoints_roll: "30"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 3
+    monster_type: War Dog Hypokrite
+    monster_category: Monster
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 2
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 1
+        id: mgt
+    equipment: []
+    damage_taken: 0
+    walkingSpeed: 8
+    resources: []
+    max_hitpoints: 30
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 6 damage
+        - 8 damage; A<2 bleeding (save ends)
+        - 10 damage; A<3 bleeding and weakened (save ends)
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: d2044577-2056-4842-aefc-d58af7061456
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Needle-Knife
+      numTargets: 1
+      description: This ability deals an additional 6 damage if the hypocrite is hidden or disguised.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      repeatTargets: false
+      keywords: []
+      targetType: self
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+      modifiers: []
+      guid: 0df61ed1-2e1f-4afa-a93e-031ab457025f
+      abilityType: none
+      numTargets: 1
+      behaviors: []
+      name: 'Feign Death '
+      implementation: 0
+      description: The hypokrite activates their Loyalty Collar ability and teleports to an unoccupied square adjacent to an ally within distance alive.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    groupid: f3f01a76-0278-4aea-9ac0-fc527ec3d731
+    movementSpeeds: []
+    ev: 6
+    minion: false
+    levelChoices: []
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: 926a38df-ed59-41ca-9de4-8f4d39946ab1
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737961971789
+description: War Dog Hypokrite
+parentFolder: dae14576-8f19-4322-a12b-9051d730ed99
+artist: null
+ord: 7
+ctime: 1749972312539
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,299 @@
+__typeName: equipment
+features:
+- __typeName: CharacterFeature
+  guid: e1ca3cd3-5ab7-47f7-82a3-1f34f0beb348
+  description: 6/12/21
+  modifiers:
+  - __typeName: CharacterModifier
+    guid: 951d0828-36d9-4967-b442-d3e2125061ab
+    sourceguid: e1ca3cd3-5ab7-47f7-82a3-1f34f0beb348
+    value:
+      __typeName: GoblinScriptTable
+      entries:
+      - script: "6"
+        threshold: 1
+      - script: "12"
+        threshold: 5
+      - script: "21"
+        threshold: 9
+      editableField: true
+      id: table
+      field: Level
+    source: Item
+    name: Adaptive Second Skin of Toxins
+    behavior: attribute
+    description: 6/12/21
+    attribute: hitpoints
+  source: Item
+  name: Adaptive Second Skin of Toxins
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: 8b95f93e-7fa8-4527-b88f-6292212387bb
+  description: ""
+  modifiers:
+  - __typeName: CharacterModifier
+    sourceguid: e1ca3cd3-5ab7-47f7-82a3-1f34f0beb348
+    behavior: resistance
+    source: Item
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: Highest Characteristic
+      damageType: poison
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: Highest Characteristic
+      damageType: acid
+      apply: Damage Reduction
+    description: 6/12/18
+    name: Adaptive Second Skin of Toxins
+    guid: abc900ce-9112-4c5f-85a6-40432b948e71
+  source: Item
+  name: Adaptive Second Skin of Toxins
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: f8b5a508-28e7-4a37-8c18-9627cf8d2bed
+  description: Whenever an adjacent creature deals damage to you, they take 0/3/6 acid or poison damage (your choice).
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: Level >= 5
+    sourceguid: f8b5a508-28e7-4a37-8c18-9627cf8d2bed
+    description: Whenever an adjacent creature deals damage to you, they take 0/3/6 acid or poison damage (your choice).
+    source: Item
+    name: Adaptive Second Skin of Toxins
+    behavior: trigger
+    triggeredAbility:
+      __typeName: TriggeredAbility
+      repeatTargets: false
+      targetType: attacker
+      triggerPrompt: Acid
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      mandatory: false
+      range: 1
+      trigger: losehitpoints
+      numTargets: "1"
+      modifiers: []
+      hasManualVersion: true
+      strain: []
+      guid: 196d3db1-6646-47e3-b516-aaa34898c233
+      modeList:
+      - text: Acid
+      - text: Poison
+      multipleModes: true
+      castImmediately: true
+      conditionFormula: HasAttacker and Distance(Attacker) < 2
+      persistence: []
+      name: Adaptive Second Skin of Toxins
+      behaviors:
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll:
+          __typeName: GoblinScriptTable
+          valueLabel: Roll
+          id: level
+          field: Level
+          entries:
+          - script: "3"
+            threshold: 5
+          - script: "6"
+            threshold: 9
+        damageType: acid
+        modesSelected:
+        - 1
+        titleText: Adaptive Second Skin of Toxins
+        chatMessage: Adaptive Second Skin of Toxins
+      - __typeName: ActivatedAbilityDamageBehavior
+        roll:
+          __typeName: GoblinScriptTable
+          valueLabel: Roll
+          id: level
+          field: Level
+          entries:
+          - script: "3"
+            threshold: 5
+          - script: "6"
+            threshold: 9
+        modesSelected:
+        - 2
+        damageType: poison
+        guid: a9c0a7d4-630a-4754-84bc-1d15b5bcc4df
+        titleText: Adaptive Second Skin of Toxins
+        chatMessage: Adaptive Second Skin of Toxins
+      description: Whenever an adjacent creature deals damage to you, they take 3 acid or poison damage (your choice).
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    guid: fe0274ca-92a8-4954-9e49-d9b17b45314f
+  source: Item
+  name: Adaptive Second Skin of Toxins
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+- __typeName: CharacterFeature
+  guid: 0b8a1349-f0f9-4e62-98f4-54f8d1343718
+  description: You can use a maneuver to transmute a 2-cube area of liquid or gas adjacent to you into liquid acid or poison gas until the start of your next turn. Any creature who enters the area for the first time in a combat round or starts their turn there takes 6 acid or poison damage, as appropriate.
+  modifiers:
+  - __typeName: CharacterModifier
+    filterCondition: Level >= 9
+    sourceguid: 0b8a1349-f0f9-4e62-98f4-54f8d1343718
+    description: You can use a maneuver to transmute a 2-cube area of liquid or gas adjacent to you into liquid acid or poison gas until the start of your next turn. Any creature who enters the area for the first time in a combat round or starts their turn there takes 6 acid or poison damage, as appropriate.
+    source: Item
+    name: Adaptive Second Skin of Toxins
+    behavior: activated
+    guid: ac4e48eb-9bd4-45d5-b8b7-bdd9de0bc477
+    activatedAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors:
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          modifiers: []
+          name: Adaptive Second Skin of Toxins
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                titleText: Adaptive Second Skin of Toxins
+                roll: "6"
+                damageType: acid
+                chatMessage: Adaptive Second Skin of Toxins
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: ab1d0ca4-52eb-40e1-b57f-e39dfd249bde
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Adaptive Second Skin of Toxins
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: 4c7f7faa-e99d-43b9-ae05-73ab95e1e89d
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+        duration: nextturn
+        modesSelected:
+        - 1
+      - __typeName: ActivatedAbilityAuraBehavior
+        aura:
+          __typeName: Aura
+          modifiers: []
+          name: Adaptive Second Skin of Toxins
+          triggers:
+          - ability:
+              __typeName: TriggeredAbility
+              repeatTargets: false
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                titleText: Adaptive Second Skin of Toxins
+                roll: "6"
+                damageType: poison
+                chatMessage: Adaptive Second Skin of Toxins
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              silent: true
+              range: 5
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: ab1d0ca4-52eb-40e1-b57f-e39dfd249bde
+              trigger: onenter
+              numTargets: "1"
+              targetType: self
+              name: Adaptive Second Skin of Toxins
+              radius: 0
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            trigger: onenter
+          guid: 4c7f7faa-e99d-43b9-ae05-73ab95e1e89d
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+        guid: d5a782b8-0473-4c69-88ce-132c41125f11
+        duration: nextturn
+        modesSelected:
+        - 2
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Ability
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      modeList:
+      - text: Acid
+      - text: Poison
+      guid: eae59f67-9cdb-4126-aaff-4d92b6679cf6
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      domains: []
+      numTargets: "1"
+      targetType: cube
+      name: Adaptive Second Skin of Toxins
+      radius: "2"
+      description: You can use a maneuver to transmute a 2-cube area of liquid or gas adjacent to you into liquid acid or poison gas until the start of your next turn. Any creature who enters the area for the first time in a combat round or starts their turn there takes 6 acid or poison damage, as appropriate.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+  source: Item
+  name: Adaptive Second Skin of Toxins
+  addText: Add Magical Property
+  itemAttached: true
+  implementation: 3
+itemPrerequisite: Five rabid honey badger pelts, the quills of a hedgehog
+keywords:
+  Magic: true
+  Light Armor: true
+projectSource: Texts or lore in Yllyric
+level5: The armor’s bonus to Stamina increases to +12. Additionally, whenever an adjacent creature deals damage to you, they take 3 acid or poison damage (your choice).
+level9: The armor’s bonus to Stamina increases to +21, and an adjacent creature who deals damage to you takes 6 acid or poison damage. Additionally, you can use a maneuver to transmute a 2-cube area of liquid or gas adjacent to you into liquid acid or poison gas until the start of your next turn. Any creature who enters the area for the first time in a combat round or starts their turn there takes 6 acid or poison damage, as appropriate.
+weight: 1
+type: Gear
+category: Gear
+specialDescription: ""
+projectGoal: "450"
+equipmentCategory: e036b288-416c-4a2e-ac33-95c6a528ed87
+implementation: 3
+ctime: 1759084410182
+domains:
+  item:4da7fda2-fc00-43d5-84c8-1aaf18fafe77: true
+description: While you wear this armor, you gain a +6 bonus to Stamina, and you have immunity to acid and poison damage equal to your highest characteristic score.
+flavor: This suit is shaped of tough leather and set with thousands of tiny barbs on the inside, all thankfully pain-free to the touch
+name: Adaptive Second Skin of Toxins
+id: 4da7fda2-fc00-43d5-84c8-1aaf18fafe77
+mtime: 1774874960623
+projectRollCharacteristic:
+  agl: true
+  inu: true
+iconid: 67ebb288-6a5c-4512-a1ab-3f2e3359fa63

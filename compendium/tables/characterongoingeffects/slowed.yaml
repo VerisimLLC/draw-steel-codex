@@ -1,0 +1,22 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 12bc7f58-0ae8-4b9e-9018-74d28b083992
+id: 12bc7f58-0ae8-4b9e-9018-74d28b083992
+ctime: 1746266683306
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.6721311211586
+    v: 0.95686274766922
+    a: 1
+name: Slowed
+condition: 68f455f5-135f-495c-822d-40d809d2b15f
+mtime: 1746266683306
+description: ""
+iconid: c97f2b52-07a3-43ac-8e5b-f10944132412

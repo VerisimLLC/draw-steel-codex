@@ -1,0 +1,7 @@
+__typeName: CustomAttribute
+baseValue: "0"
+name: Stamina Regain Halved
+mtime: 1772900792332
+documentation: A creature's stamina gain will be reduced by half
+id: b1ca9d1f-ee63-4784-85a6-d7bceb4a078b
+ctime: 1772900421260

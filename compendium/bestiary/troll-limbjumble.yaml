@@ -1,0 +1,207 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: cd187ee4-169c-4c3f-85d7-63313fa3eace
+    offtokenPortraitId: null
+    portraitFrameId: 9f13cbbb-ffc7-4325-ba9b-daf5d0b1d9e3
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7876113
+    portraitOffset:
+      x: 0.06633657
+      y: 0.1991153
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 4eaafbed-80dc-4aa9-b1cd-4febc6825197
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 5
+    import:
+      type: mcdm
+      data: |+
+        Troll Limbjumble	Level 5 Minion Hexer
+        Troll	EV 7 for four minions
+        <b>Stamina</b> 8
+        <b>Speed</b> 5	<b>Size</b> 1S /<b> Stability</b> 0
+        <b>With Captain</b> Edge on strikes<b>Free Strike</b> 3
+        Might +3	Agility +1	Reason -2	Intuition -1	Presence -1
+        <b>Arm and a Leg</b> (Action) %E2%97%86 2d10 + 3 %E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	%E2%89%A411	3 damage; A<2 prone
+        %E2%98%85	12%E2%80%9316	5 damage; A<3 prone
+        %E2%9C%B8	17	6 damage; prone
+        <b>Effect</b> If the target is already prone, they are grabbed instead.
+
+        <b>Hyper Regeneration</b>
+        The limbjumble regains 2 Stamina at the start of each of their turns. The limbjumble instantly dies if they take acid or fire damage.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:80901323-d49c-47b9-926d-bb5b05c65fe0: true
+      modifiers: []
+      name: Hyper Regeneration
+      description: The limbjumble regains 2 Stamina at the start of each of their turns. The limbjumble instantly dies if they take acid or fire damage.
+      guid: 80901323-d49c-47b9-926d-bb5b05c65fe0
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:bf83e752-3c2b-46c8-87ea-0c9d49eac400: true
+      modifiers: []
+      name: Hyper-Regeneration
+      description: At the start of each of the limbjumble's squad's turns, the squad's Stamina pool increases as if each limbjumble were at full Stamina.
+      guid: bf83e752-3c2b-46c8-87ea-0c9d49eac400
+      source: Trait
+    role: Minion Hexer
+    keywords:
+      Troll: true
+    max_hitpoints_roll: "8"
+    innateAttacks: []
+    skillRatings: []
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: -8
+      damageType: acid
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: -8
+      damageType: fire
+      apply: Damage Reduction
+    opportunityAttack: 3
+    monster_type: Troll Limbjumble
+    max_hitpoints: 8
+    withCaptain: Gain an edge on strikes
+    attributes:
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      rea:
+        baseValue: -2
+        id: rea
+      inu:
+        baseValue: -1
+        id: inu
+      mgt:
+        baseValue: 3
+        id: mgt
+    levelChoices: []
+    equipment: []
+    walkingSpeed: 5
+    traitNames: []
+    groupid: 67902c1a-5307-415e-8495-52212b0c0def
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; A<2 prone
+        - 5 damage; A<3 prone
+        - 6 damage; prone
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: c24f2794-28a2-4ac9-b9d5-e4a471336848
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Arm and a Leg
+      numTargets: 1
+      description: If the target is already prone, they are grabbed instead.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 damage; A<2 prone
+        - 5 damage; A<3 prone
+        - 6 damage; prone
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: b3838d74-64c8-447a-9724-d396b99c7724
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Arm & a Leg
+      sourceReference:
+        __typeName: SourceReference
+        page: 255
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: If a target made prone this way is already prone, they are grabbed instead.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    monster_category: Monster
+    movementSpeeds: []
+    damage_taken: 0
+    minion: true
+    ev: 7
+    creatureSize: 1S
+  tokenType: null
+  bestiaryId: 17dc01c1-2300-46b9-bc3b-c0b666a112b5
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1738222946034
+description: Troll Limbjumble
+parentFolder: f10d63e4-32ef-4b09-8bed-6007e0c43454
+artist: null
+ord: 0
+ctime: 1741590223433
+mtime: 1775201137032
+hidden: false

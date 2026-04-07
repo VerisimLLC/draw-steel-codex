@@ -1,0 +1,28 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 2fbcadcf-e6fd-4034-912b-991952d2a560
+  source: Ongoing Effect
+  behavior: power
+  keywords: []
+  activationCondition: target.Ongoing Effects has "rivalry" and target.Ongoing EffectsCaster("Rivalry") = self
+  name: We Just Do It Better
+  guid: bb08c445-6545-4c31-b35b-4db3e795cc35
+  description: Until the end of the round, whenever any rival makes a power roll against the target of their Rivalry trait, they roll a d3 and add it to the power roll.
+  modtype: plusthree
+  rollType: all
+source: Ongoing Effect
+guid: 2fbcadcf-e6fd-4034-912b-991952d2a560
+id: 2fbcadcf-e6fd-4034-912b-991952d2a560
+ctime: 1764861750175
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: We Just Do It Better
+description: Until the end of the round, whenever any rival makes a power roll against the target of their Rivalry trait, they roll a d3 and add it to the power roll.
+custom: true
+mtime: 1765039437233
+iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e

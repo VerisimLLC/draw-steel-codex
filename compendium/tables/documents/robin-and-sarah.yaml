@@ -1,0 +1,26 @@
+__typeName: MarkdownDocument
+description: Robin and Sarah
+parentFolder: d96feece-6e20-491f-82e9-19dd734a7368
+updateid: 6a940a5d-175a-4e0d-90b5-46bf54112921
+annotations:
+  image:
+    __typeName: RichImage
+id: 8c5d67df-d172-4fc8-abd4-1296adf72d46
+mtime: 1761406185510
+content: |-
+  # Robin and Sarah
+
+  [[image]]
+
+  *Description, Known Information*
+  {
+  Secret: Quests or hidden information
+  }
+
+  {
+  Director Notes: 
+
+  *Use this area to make notes for yourself about the NPC. Suggested information would be:
+  Roleplaying notes, such as the voice/mannerisms you gave the character, if any.How they feel towards the Heroes, and any personal interactions they had that you can reference later on.* 
+  }
+ctime: 1761406179915

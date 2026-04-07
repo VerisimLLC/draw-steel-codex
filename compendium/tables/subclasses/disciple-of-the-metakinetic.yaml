@@ -1,0 +1,1098 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727851156771
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Disciple of the Metakinetic Class Feature
+      guid: 1e6baeb4-035d-4b81-931b-5461ccae1fcb
+      domains:
+        class:4203e447-4531-467b-b270-c952806ce67f: true
+        class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+      canHavePrerequisites: true
+      classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+      description: You and each creature or object of your choice in the area of your Null Field ability gain a bonus to stability equal to your Intuition score. A creature who attempts to force move a target with this bonus takes psychic damage equal to your Intuition score.
+      name: Inertial Dampener
+      implementation: 3
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:4203e447-4531-467b-b270-c952806ce67f: true
+        class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+      guid: 0340f72b-5884-4afb-a5df-822f8b2c5184
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        sourceguid: 6bf58942-36c8-43bc-b0cc-0d758b64fdf5
+        progression:
+        - level: 0
+          description: Knockback pushes +{Intuition} squares.
+          resources: 2
+          tooltip: Whenever you use the Knockback maneuver, the forced movement distance gains a bonus equal to your Intuition score.
+        - level: 0
+          description: When you take damage or are force moved you gain 1 surge (1/round).
+          resources: 4
+          tooltip: The first time in a combat round that you take damage or are force moved, you gain 1 surge, even if you resist the effect.
+        - level: 0
+          description: You gain an edge on Grab and Knockback.
+          resources: 6
+          tooltip: You gain an edge on the Grab and Knockback maneuvers.
+        - level: 4
+          description: When you take damage or are force moved you gain 2 surges (1/round).
+          resources: 8
+          tooltip: The first time in a combat round that you take damage or are force moved, you gain 2 surges, even if you resist the effect.
+        - level: 7
+          description: You have a double edge on Grab and Knockback.
+          resources: 10
+          tooltip: You have a double edge on the Grab and Knockback maneuvers.
+        - level: 10
+          description: Forced movement +{Intuition}. When you use a heroic ability, gain 10 temporary Stamina.
+          resources: 12
+          tooltip: Whenever you force move a target, the forced movement distance gains a bonus equal to your Intuition score. Additionally, whenever you use a heroic ability, you gain 10 temporary Stamina.
+        source: Disciple of the Metakinetic Class Feature
+        description: ""
+        behavior: growingresources
+        name: Metakinetic Mastery
+        guid: 4cc4bcb7-8029-4349-bb9d-23caf80b2ddb
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: ability.name = "Knockback" or ability.name = "Grab"
+        source: Disciple of the Metakinetic Class Feature
+        guid: dea11ee9-68d9-4a13-b411-2aec257a12a6
+        filterCondition: Heroic Resources This Turn >= 6 and (Heroic Resources This Turn < 10 or level < 7)
+        keywords: []
+        activationCondition: "1"
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        behavior: power
+        name: Metakinetic Mastery
+        rollType: ability_power_roll
+        description: When you have 6 or more Discipline, you gain an edge on the Grab maneuver and the Knockback maneuver.
+        modtype: edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 5ec007b9-898a-4b9d-ad9e-7df18f89e8fd
+        displayCondition: ability.name = "Knockback" or ability.name = "Grab"
+        source: Disciple of the Metakinetic Class Feature
+        guid: 90e79e8d-d079-46ab-8eef-a1333b1b9d3a
+        filterCondition: Heroic Resources This Turn >= 10 and level >= 7
+        keywords: []
+        activationCondition: "1"
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        behavior: power
+        name: Metakinetic Mastery
+        rollType: ability_power_roll
+        description: When you have 10 or more Discipline, you gain a double edge on the Grab maneuver and the Knockback maneuver.
+        modtype: double_edge
+        attribute: mgt
+      - __typeName: CharacterModifier
+        sourceguid: 0340f72b-5884-4afb-a5df-822f8b2c5184
+        displayCondition: ability.name = "Knockback"
+        source: Disciple of the Metakinetic Class Feature
+        guid: 52bb12a6-7df1-4bc9-beb9-268f81f8cf8d
+        adjustments:
+        - type: push
+          value: Intuition
+        - type: pull
+          value: Intuition
+        - type: slide
+          value: Intuition
+        keywords: []
+        activationCondition: "1"
+        filterCondition: Heroic Resources This Turn >= 2
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        name: Metakinetic Mastery
+        behavior: power
+        description: |-
+          Whenever you use the Knockback maneuver, the 
+          forced movement distance gains a bonus equal to 
+          your Intuition score.
+        rollType: ability_power_roll
+        modtype: none
+      - __typeName: CharacterModifier
+        sourceguid: 0340f72b-5884-4afb-a5df-822f8b2c5184
+        source: Disciple of the Metakinetic Class Feature
+        behavior: trigger
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        filterCondition: Heroic Resources This Turn >= 4
+        name: Metakinetic Mastery
+        resourceRefreshType: none
+        description: ""
+        guid: 1ab71ade-2804-4c7c-80b7-fdd033e69276
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: none
+            charges: "1"
+            resourceid: 1ab71ade-2804-4c7c-80b7-fdd033e69276
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: ba99a343-b3e8-4557-9940-83d4fd97243f
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          behaviors:
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: metakinetic_mastery
+            key: afd7e41d-5872-423c-959b-5b3732f8f230
+            applyto: caster
+            refresh: round
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: 2 when Heroic Resources This Turn >= 8 and Level >= 4 else 1
+            chatMessage: "Metakinetic: Take damage"
+          name: Metakinetic Mastery
+          trigger: losehitpoints
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        sourceguid: 0340f72b-5884-4afb-a5df-822f8b2c5184
+        source: Disciple of the Metakinetic Class Feature
+        behavior: trigger
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        filterCondition: Heroic Resources This Turn >= 4
+        name: Metakinetic Mastery
+        resourceRefreshType: none
+        description: ""
+        guid: 33571b0e-2cb5-4660-845c-939f0564c654
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: none
+            charges: "1"
+            resourceid: 33571b0e-2cb5-4660-845c-939f0564c654
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: ba99a343-b3e8-4557-9940-83d4fd97243f
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          behaviors:
+          - __typeName: ActivatedAbilityLimitBehavior
+            keyOverride: metakinetic_mastery
+            key: afd7e41d-5872-423c-959b-5b3732f8f230
+            applyto: caster
+            refresh: round
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+            quantity: 2 when Heroic Resources This Turn >= 8 and Level >= 4 else 1
+            chatMessage: "Metakinetic: Force Moved"
+          name: Metakinetic Mastery
+          trigger: forcemove
+          numTargets: "1"
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        sourceguid: 6bf58942-36c8-43bc-b0cc-0d758b64fdf5
+        description: ""
+        source: Disciple of the Metakinetic Class Feature
+        name: Chronokinetic Mastery
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: true
+            namedAbility: Knockback
+            standardAbilityParams:
+              distance: "<<disengage speed>>"
+            promptText: "Metakinetic Mastery: Knockback"
+            abilityType: named
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 5b8dd9c5-7320-4c11-895e-c24b9d99b541
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            runOnController: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          guid: 8f3a3cd8-109e-49ca-b6d9-2a0e5bc22e3c
+          persistence: []
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          conditionFormula: TriggerName = "Used Inertial Shield"
+          targetType: self
+          trigger: custom
+          name: Metakinetic Mastery
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 6be06f31-ca33-4d1f-9468-e591f12f3b39
+      name: Metakinetic Mastery
+      classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+      description: ""
+      source: Disciple of the Metakinetic Class Feature
+      implementation: 3
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 7932dca8-7dfe-4b35-a3ba-f886450eb1ba
+        source: Disciple of the Metakinetic Class Feature
+        guid: cc89d65c-d17d-49b0-8989-b190819ca592
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        name: Inertial Fulcrum
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              repeatTargets: false
+              targetAllegiance: enemy
+              targetType: target
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              categorization: Hidden
+              range: Nullifying Aura Radius
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: 8a577a4f-d358-4e58-9b81-d0cb996283ea
+              behaviors:
+              - __typeName: ActivatedAbilityDamageBehavior
+                roll: Intuition
+                titleText: ""
+                chatMessage: Inertial Fulcrum damage
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Deal damage to one enemy in Null Field
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          guid: bbee2abf-4684-4932-a7e0-ea8ca31563a9
+          conditionFormula: "0"
+          numTargets: "1"
+          castImmediately: true
+          targetType: self
+          name: Inertial Fulcrum
+          trigger: useability
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          description: Whenever you use an ability to reduce damage dealt to you or to reduce the distance of forced movement imposed upon you, you can deal damage to one enemy in the area of your Null Field ability equal to your Intuition score.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        description: Whenever you use an ability to reduce damage dealt to you or to reduce the distance of forced movement imposed upon you, you can deal damage to one enemy in the area of your Null Field ability equal to your Intuition score.
+        behavior: trigger
+        filterCondition: Ongoing Effects has "Null Field"
+      source: Disciple of the Metakinetic Class Feature
+      guid: 7932dca8-7dfe-4b35-a3ba-f886450eb1ba
+      domains:
+        class:4203e447-4531-467b-b270-c952806ce67f: true
+        class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+      canHavePrerequisites: true
+      classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+      description: Whenever you use an ability to reduce damage dealt to you or to reduce the distance of forced movement imposed upon you, you can deal damage to one enemy in the area of your Null Field ability equal to your Intuition score.
+      name: Inertial Fulcrum
+      implementation: 2
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          sourceguid: bb27ebd8-6945-4d3c-a59c-bfe4c0d16bc8
+          description: ""
+          source: Disciple of the Metakinetic Class Feature
+          name: Gravitic Charge
+          behavior: activated
+          guid: b023c0f2-ad61-4d7a-af87-0a250243c82e
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Psionic: true
+            implementationDetails: The codex does not allow Nul to keep moving through creatures. Director must manually continue forced movement.
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You channel your discipline into momentum that defies gravity.
+            categorization: Heroic Ability
+            range: 1
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: a27876a2-0959-420e-b2b1-87a2b40cd9f1
+            numTargets: "1"
+            iconid: ui-icons/skills/1.png
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - Vertical slide 5, ignoring stability
+              - Vertical slide 7, ignoring stability
+              - Vertical slide 9, ignoring stability
+              roll: 2d10 + Intuition
+            sourceReference:
+              __typeName: SourceReference
+              page: 155
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            name: Gravitic Charge
+            persistence: []
+            description: This movement ignores stability. If you slide into another creature, you resolve damage to both of you as if your force movement had ended, but you keep moving through that creature’s space.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 2
+        source: Disciple of the Metakinetic Class Feature
+        guid: bb27ebd8-6945-4d3c-a59c-bfe4c0d16bc8
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        canHavePrerequisites: true
+        classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+        description: ""
+        name: Gravitic Charge
+        implementation: 2
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          sourceguid: 9c3fc362-a58c-4c6f-9e3d-6e7ea748589f
+          description: ""
+          source: Disciple of the Metakinetic Class Feature
+          name: Iron Body
+          behavior: activated
+          guid: fea6e196-806d-4364-b133-6fe6d61d0042
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Psionic: true
+            targetType: self
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You focus until your body becomes as hard as iron.
+            sourceReference:
+              __typeName: SourceReference
+              page: 155
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            range: 1
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 22c7d3cb-b355-461f-82fa-264a0373303d
+            iconid: ui-icons/skills/1.png
+            numTargets: "1"
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+            persistence: []
+            behaviors:
+            - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+              stamina: "20"
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 9047943c-e969-4c26-baef-d22cd8779909
+              duration: eoe
+              ongoingEffectCustom: 9047943c-e969-4c26-baef-d22cd8779909
+            name: Iron Body
+            categorization: Heroic Ability
+            description: You gain 20 temporary Stamina. Additionally, until the end of the encounter, your stability gains a bonus equal to your Intuition score.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            implementation: 3
+        source: Disciple of the Metakinetic Class Feature
+        guid: 9c3fc362-a58c-4c6f-9e3d-6e7ea748589f
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        canHavePrerequisites: true
+        classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+        description: ""
+        name: Iron Body
+        implementation: 3
+      classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+      guid: a62d3dc7-3efc-4a94-a7c4-642ceb8ee6ec
+      description: Choose one of the following abilities.
+      name: 6th-Level Metakinetic Abilities
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  level-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterSkillChoice
+      categories:
+        exploration: true
+      source: Disciple of the Metakinetic Class Feature
+      classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+      guid: f4b0c82c-698d-4012-9063-70124be12d3a
+      description: Choose a Exploration Skill
+      name: Metakinetic Exploration Skill
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          sourceguid: c43039b9-fe25-47a5-b2f1-a83d32426cf5
+          description: ""
+          source: Disciple of the Metakinetic Class Feature
+          name: Gravitic Strike
+          behavior: activated
+          guid: ccb9fe50-7d1b-468a-8445-80c65564f97a
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Psionic: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 + A psychic damage; vertical pull 3
+              - 12 + A psychic damage; vertical pull 5
+              - 16 + A psychic damage; vertical pull 7
+              roll: 2d10 + Agility
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.0510204024612904
+                s: 0.604938268661499
+                v: 0.317647069692612
+                a: 1
+            flavor: Your fist emanates gravitic force that pulls a distant enemy closer
+            sourceReference:
+              __typeName: SourceReference
+              page: 167
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: "3"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 203f381f-b1e5-405c-b52c-a5de53fc99c4
+            numTargets: "1"
+            categorization: Heroic Ability
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+            implementation: 3
+            persistence: []
+            name: Gravitic Strike
+            targetType: target
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 5db1172b-326f-42d8-b028-b500d89b27b0
+        source: Disciple of the Metakinetic Class Feature
+        guid: c43039b9-fe25-47a5-b2f1-a83d32426cf5
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        canHavePrerequisites: true
+        classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+        description: ""
+        name: Gravitic Strike
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          sourceguid: c546fec4-581d-42e9-b07c-2adb28043ac4
+          description: You manifest a force barrier that absorbs incoming kinetic energy.
+          source: Disciple of the Metakinetic Class Feature
+          name: Kinetic Shield
+          behavior: activated
+          guid: d9bcafa0-ec43-45c4-93db-6f3849fceddd
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            targetTextOverride: Self
+            repeatTargets: false
+            keywords:
+              Psionic: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - You gain 10 temporary stamina
+              - You gain 15 temporary stamina
+              - You gain 20 temporary stamina
+              roll: 2d10 + Intuition
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              hasTemporaryHitpoints: true
+              ongoingEffectCustom: ab2cf7f0-bdc6-41c9-9539-0e8b9c935521
+              ongoingEffect: ab2cf7f0-bdc6-41c9-9539-0e8b9c935521
+              tiersSelected:
+              - 1
+              temporaryHitpoints: "10"
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 2
+              ongoingEffectCustom: ab2cf7f0-bdc6-41c9-9539-0e8b9c935521
+              ongoingEffect: ab2cf7f0-bdc6-41c9-9539-0e8b9c935521
+              guid: 370dacd3-1007-4ce8-9170-42abec977745
+              hasTemporaryHitpoints: true
+              temporaryHitpoints: "15"
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              tiersSelected:
+              - 3
+              ongoingEffectCustom: ab2cf7f0-bdc6-41c9-9539-0e8b9c935521
+              ongoingEffect: ab2cf7f0-bdc6-41c9-9539-0e8b9c935521
+              guid: 2a83f38b-771b-4402-bc56-9666cdc9c392
+              hasTemporaryHitpoints: true
+              temporaryHitpoints: "20"
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor:
+                __usertype: LuaColor
+                h: 0.665032684803009
+                s: 0.931506872177124
+                v: 0.858823537826538
+                a: 1
+            flavor: You manifest a force barrier that absorbs incoming kinetic energy.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+            strain: []
+            guid: ac3886b2-7549-48e1-90ec-8d3b6945e4f8
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            numTargets: "1"
+            castImmediately: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 167
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            implementation: 3
+            name: Kinetic Shield
+            targetType: self
+            description: While you have temporary Stamina from this ability, you can’t be made bleeding even while dying.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: 7fb8524f-6bf5-41a1-826f-9ae23b24b9ef
+        source: Disciple of the Metakinetic Class Feature
+        guid: c546fec4-581d-42e9-b07c-2adb28043ac4
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        canHavePrerequisites: true
+        classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+        description: You manifest a force barrier that absorbs incoming kinetic energy.
+        name: Kinetic Shield
+        implementation: 3
+      classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+      guid: c62da50f-9272-4988-90aa-1c17de961193
+      description: Choose one of the following two abilities.
+      name: 2nd-Level Metakinetic Abilities
+    - __typeName: CharacterFeature
+      domains:
+        class:4203e447-4531-467b-b270-c952806ce67f: true
+        class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+      guid: 5c054f12-b899-43d4-84a8-9fdbbcf19010
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 5c054f12-b899-43d4-84a8-9fdbbcf19010
+        source: Disciple of the Metakinetic Class Feature
+        value: Intuition
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        name: Inertial Sink
+        guid: 6de22064-ac20-40de-984c-739fa62375e7
+        description: |-
+          You add your Intuition score to your effective size for the purpose of interacting with creatures and objects, such as for determining whether you can lift an object, whether you are affected by forced movement, and so forth. This has no effect on whether you can be grabbed. 
+          Additionally, when you fall, you reduce the effective height of the fall by 5 squares in addition to any other reductions. Whenever you take damage from being force moved, you reduce that damage by an amount equal to your level.
+        behavior: attribute
+        attribute: 4888254a-c40b-4e13-ac30-b505622d5e91
+      - __typeName: CharacterModifier
+        sourceguid: 5c054f12-b899-43d4-84a8-9fdbbcf19010
+        source: Disciple of the Metakinetic Class Feature
+        value: Intuition
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        name: Inertial Sink
+        guid: 2dd639d4-d09c-4f83-ac59-b596761dee65
+        description: |-
+          You add your Intuition score to your effective size for the purpose of interacting with creatures and objects, such as for determining whether you can lift an object, whether you are affected by forced movement, and so forth. This has no effect on whether you can be grabbed. 
+          Additionally, when you fall, you reduce the effective height of the fall by 5 squares in addition to any other reductions. Whenever you take damage from being force moved, you reduce that damage by an amount equal to your level.
+        behavior: attribute
+        attribute: creaturesizewhenforcemoved
+      - __typeName: CharacterModifier
+        sourceguid: 5c054f12-b899-43d4-84a8-9fdbbcf19010
+        source: Disciple of the Metakinetic Class Feature
+        value: 5
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        name: Inertial Sink
+        guid: 65e8a607-0cf5-4752-9ef3-8df3de4ea123
+        description: |-
+          You add your Intuition score to your effective size for the purpose of interacting with creatures and objects, such as for determining whether you can lift an object, whether you are affected by forced movement, and so forth. This has no effect on whether you can be grabbed. 
+          Additionally, when you fall, you reduce the effective height of the fall by 5 squares in addition to any other reductions. Whenever you take damage from being force moved, you reduce that damage by an amount equal to your level.
+        behavior: attribute
+        attribute: 151ac2f1-5bd3-4070-8b16-e14896d6933b
+      - __typeName: CharacterModifier
+        sourceguid: 5c054f12-b899-43d4-84a8-9fdbbcf19010
+        source: Disciple of the Metakinetic Class Feature
+        value: level
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        guid: 1db7f766-48b2-4b5d-b497-bb5ff4f90ca7
+        name: Inertial Sink
+        description: |-
+          You add your Intuition score to your effective size for the purpose of interacting with creatures and objects, such as for determining whether you can lift an object, whether you are affected by forced movement, and so forth. This has no effect on whether you can be grabbed. 
+          Additionally, when you fall, you reduce the effective height of the fall by 5 squares in addition to any other reductions. Whenever you take damage from being force moved, you reduce that damage by an amount equal to your level.
+        displayIcon: false
+        behavior: attribute
+        attribute: 447ea0f8-a231-4f72-b28f-9f7827291976
+      - __typeName: CharacterModifier
+        sourceguid: 5c054f12-b899-43d4-84a8-9fdbbcf19010
+        source: Disciple of the Metakinetic Class Feature
+        value: Intuition
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        name: Inertial Sink
+        guid: 156a4f4c-4888-4274-9e5d-c089f52108e8
+        description: |-
+          You add your Intuition score to your effective size for the purpose of interacting with creatures and objects, such as for determining whether you can lift an object, whether you are affected by forced movement, and so forth. This has no effect on whether you can be grabbed. 
+          Additionally, when you fall, you reduce the effective height of the fall by 5 squares in addition to any other reductions. Whenever you take damage from being force moved, you reduce that damage by an amount equal to your level.
+        behavior: attribute
+        attribute: 8d5825a9-586c-4a6f-b62c-40e65c829cd4
+      name: Inertial Sink
+      classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+      description: |-
+        You add your Intuition score to your effective size for the purpose of interacting with creatures and objects, such as for determining whether you can lift an object, whether you are affected by forced movement, and so forth. This has no effect on whether you can be grabbed. 
+        Additionally, when you fall, you reduce the effective height of the fall by 5 squares in addition to any other reductions. Whenever you take damage from being force moved, you reduce that damage by an amount equal to your level.
+      source: Disciple of the Metakinetic Class Feature
+      implementation: 3
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: 9th-Level Metakinetic Abilities
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          sourceguid: 05398c8e-4c3e-4570-b9aa-d4288a41eacf
+          behavior: triggerdisplay
+          source: Disciple of the Metakinetic Class Feature
+          name: Inertial Absorption
+          description: You absorb an attack to empower your body.
+          guid: 775ed957-a736-4d04-821f-8a7e17b07da2
+          ability:
+            __typeName: TriggeredAbilityDisplay
+            effect: You take half the damage, negate any effects associated with the damage for you, and gain 3 surges.
+            guid: f6f836ae-91bd-4bb4-be0b-e881e570c42c
+            distance: Self
+            keywords:
+              Psionic: true
+            target: Self
+            trigger: 'Another creature damages you using an ability. '
+            cost: 11 Discipline
+            flavor: You absorb an attack to empower your body
+            type: free
+            name: Inertial Absorption
+        - __typeName: CharacterModifier
+          sourceguid: 05398c8e-4c3e-4570-b9aa-d4288a41eacf
+          source: Disciple of the Metakinetic Class Feature
+          powerRollModifier:
+            __typeName: CharacterModifier
+            displayCondition: Ability.doesdamage
+            resourceCostType: cost
+            surgesCanBeKept: true
+            adjustments: []
+            keywords: []
+            activationCondition: Ability.doesdamage
+            rollType: enemy_ability_power_roll
+            changeTarget: false
+            source: Trigger
+            behavior: power
+            guid: bdae4779-0d21-4bc6-b5d8-71ef823023fe
+            resourceCostAmount: "11"
+            hasCustomTrigger: true
+            customTrigger:
+              __typeName: TriggeredAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              persistence: []
+              modifiers: []
+              abilityType: none
+              strain: []
+              guid: b79c77a8-c117-4992-af47-3ff9427b6ab8
+              repeatTargets: false
+              trigger: d20roll
+              castImmediately: true
+              behaviors:
+              - __typeName: ActivatedAbilityReplenishBehavior
+                resourceid: 8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d
+                chatMessage: Inertial Absorption
+                quantity: "3"
+              numTargets: "1"
+              name: Gain 3 Surges
+              targetType: self
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            damageMultiplier: half
+            name: Inertial Absorption
+            rules: ""
+            description: You take half the damage, negate any effects associated with the damage for you, and gain 3 surges.
+            modtype: suppresseffects
+            surges: ""
+          guid: cd2e3595-27e5-401d-b548-4ab714a946e5
+          type: free
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          targetType: self
+          behavior: powertabletrigger
+          name: Inertial Absorption
+          rules: You take half the damage, negate any effects associated with the damage for you, and gain 3 surges.
+          description: You absorb an attack to empower your body.
+          range: 10
+          trigger: takedamage
+        source: Disciple of the Metakinetic Class Feature
+        guid: 05398c8e-4c3e-4570-b9aa-d4288a41eacf
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        canHavePrerequisites: true
+        classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+        description: You absorb an attack to empower your body.
+        name: Inertial Absorption
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:4203e447-4531-467b-b270-c952806ce67f: true
+            class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+          sourceguid: 0e1d4367-f632-4e09-a174-d29b44639308
+          description: Your essential hyperreality disrupts your enemy’s connection to existence.
+          source: Disciple of the Metakinetic Class Feature
+          name: Realitas
+          behavior: activated
+          guid: 454cdbc9-c840-4f59-b1c5-fe6c71872c51
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: One creature
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Psionic: true
+              Melee: true
+              Weapon: true
+            implementationDetails: The forgotten part of this ability is narrative and cannot be implemeneted.
+            behaviors:
+            - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+              filterTarget: (not Leader) and (not Solo)
+              momentaryEffect:
+                __typeName: CharacterOngoingEffect
+                guid: 6a62135b-62f6-49be-a6ad-d048e9a1c521
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                modifiers:
+                - __typeName: CharacterModifier
+                  triggeredAbility:
+                    __typeName: TriggeredAbility
+                    repeatTargets: false
+                    behaviors:
+                    - __typeName: ActivatedAbilityDamageBehavior
+                      roll: Stamina
+                      doesNotTrigger: true
+                      cannotBeReduced: true
+                      titleText: ""
+                      chatMessage: "Realitas: Became Winded, Reduced to 0"
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    range: 1
+                    numTargets: "1"
+                    modifiers: []
+                    strain: []
+                    guid: c361640b-4962-45c8-bd37-05bd4b4901f1
+                    persistence: []
+                    conditionFormula: ""
+                    targetType: self
+                    castImmediately: true
+                    trigger: winded
+                    name: Realitas
+                    description: ""
+                    abilityType: none
+                    iconid: ui-icons/skills/1.png
+                  description: If this ability causes a creature who is not a leader or solo creature to become winded, they are instead reduced to 0 Stamina.
+                  source: Ongoing Effect
+                  behavior: trigger
+                  guid: fbbeea4e-8e08-44b7-9171-f6fe4c60f749
+                  name: Realitas
+                  sourceguid: 6a62135b-62f6-49be-a6ad-d048e9a1c521
+                source: Ongoing Effect
+                name: Realitas
+                description: If this ability causes a creature who is not a leader or solo creature to become winded, they are instead reduced to 0 Stamina.
+                id: 6a62135b-62f6-49be-a6ad-d048e9a1c521
+                iconid: ui-icons/skills/1.png
+              name: Ability Duration Effect
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 7 + A psychic damage; I < weak, dazed (save ends)
+              - 10 + A psychic damage; I < average, dazed (save ends)
+              - 13 + A psychic damage; I < strong, dazed (save ends)
+              roll: 2d10 + Agility
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: c27e0b16-291a-45ad-8406-973e26576a44
+              riderid: 0cbf7ff1-8e66-469d-b051-f6021cfa36dd
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: Your essential hyperreality disrupts your enemy’s connection to existence.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            numTargets: "1"
+            strain: []
+            guid: 781a4d26-e8a0-4eed-b0cb-4702efd3de5d
+            targetType: target
+            rangeTextOverride: 'Melee 1 '
+            domains:
+              class:4203e447-4531-467b-b270-c952806ce67f: true
+              class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 158
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            implementation: 4
+            name: Realitas
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: While dazed this way, the target takes psychic damage equal to twice your Intuition score at the start of each of your turns. If this ability causes a creature who is not a leader or solo creature to become winded, they are instead reduced to 0 Stamina. Any creature reduced to 0 Stamina by this ability is forgotten by all creatures of your level or lower in the timescape who are not present in the encounter. Loved ones of the forgotten creature retain a faint sense of melancholy. This effect can be reversed only at the Director’s discretion.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ff9d3c0f-03ad-4c65-bdb5-20305b727d52
+        source: Disciple of the Metakinetic Class Feature
+        guid: 0e1d4367-f632-4e09-a174-d29b44639308
+        domains:
+          class:4203e447-4531-467b-b270-c952806ce67f: true
+          class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+        canHavePrerequisites: true
+        classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+        description: Your essential hyperreality disrupts your enemy’s connection to existence.
+        name: Realitas
+        implementation: 4
+      classid: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+      guid: adf53034-8e08-44db-8f10-6596e16d1fc5
+      source: Disciple of the Metakinetic Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:4203e447-4531-467b-b270-c952806ce67f: true
+      class:60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3: true
+details: Many attempt to perfect their bodies, but you have learned to see through the illusions of the universe to understand your true body and its true psionic potential. You gain an exploration skill.
+name: Disciple of the Metakinetic
+mtime: 1772680897166
+id: 60b0f1b0-bd6b-4ac3-9e2a-92f07fb187f3
+primaryClassId: 4203e447-4531-467b-b270-c952806ce67f

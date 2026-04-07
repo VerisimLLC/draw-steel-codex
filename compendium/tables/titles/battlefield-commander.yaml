@@ -1,0 +1,119 @@
+__typeName: Title
+effect: "Choose one of the following benefits:"
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: "Battlefield Commander Benefit:"
+    numChoices: 1
+    guid: 2df4f938-8530-492d-a109-801729213171
+    description: "Choose one of the following benefits:"
+    options:
+    - __typeName: CharacterFeature
+      description: You have the following ability, which can be paid for using the Heroic Resource of your class.
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: f532cb6a-cb6a-4048-ae18-a2eb4d0e7f37
+        guid: d0694cd0-d25b-4a56-8392-16c674ff5ad1
+        source: Feat
+        behavior: activated
+        description: You have the following ability, which can be paid for using the Heroic Resource of your class.
+        name: Charge!
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "9"
+          objectTarget: false
+          repeatTargets: false
+          keywords:
+            Area: true
+          targetAllegiance: ally
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            namedAbility: Charge
+            promptWhenResolvingText: Select target to Charge!
+            promptText: Charge!
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 03e6f780-8450-4e65-ab12-1943aa6f56d4
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            runOnController: true
+            abilityType: named
+            promptWhenResolving: true
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: Follow me!
+          categorization: Heroic Ability
+          range: "3"
+          abilityType: none
+          persistence: []
+          modifiers: []
+          numTargets: "1"
+          strain: []
+          guid: ea510b52-130a-41b5-b54e-0096a9838cad
+          actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+          sourceReference:
+            __typeName: SourceReference
+            page: 343
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          domains: []
+          targetType: all
+          implementation: 4
+          name: Charge!
+          selfTarget: true
+          description: Each target can use the Charge main action.
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+      source: Feat
+      canHavePrerequisites: true
+      guid: f532cb6a-cb6a-4048-ae18-a2eb4d0e7f37
+      name: Charge!
+      implementation: 4
+    - __typeName: CharacterFeature
+      description: You earn 1 Renown.
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 271c0fed-f5f0-443e-a472-5702e0106a0c
+        sourceguid: 2ff7168a-e1ad-46f0-bedc-01e1a083164c
+        value: 1
+        source: Feat
+        name: Renowned Warrior
+        behavior: attribute
+        description: You earn 1 Renown.
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      source: Feat
+      canHavePrerequisites: true
+      guid: 2ff7168a-e1ad-46f0-bedc-01e1a083164c
+      name: Renowned Warrior
+      implementation: 4
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Student of War
+      description: Choose a 1st-level doctrine feature from the tactician class. You gain that feature even if you don’t have the Tactical Doctrine feature.
+      guid: cf4791ba-da97-4ff0-ad23-42338bd14892
+      canHavePrerequisites: true
+      source: Feat
+id: 89aab80d-98e3-4eaa-8265-e866b39b60a1
+ctime: 1762351402096
+name: Battlefield Commander
+description: Spells and shadows have their place, but it takes soldiers to hold the field.
+mtime: 1775050616276
+echelon: "2"
+prerequisite: You lead an army in battle and win.

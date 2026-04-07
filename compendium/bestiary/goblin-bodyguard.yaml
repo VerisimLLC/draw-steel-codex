@@ -1,0 +1,98 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 46cb0b59-50e2-43b1-80b5-42624af584f9
+    offtokenPortraitId: null
+    portraitFrameId: 7eee10e2-744d-4831-9edf-734c35710f2d
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1.064705
+    portraitOffset:
+      x: 0.04303974
+      y: 0.01171875
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+    saddleSize: 2
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: null
+  properties:
+    __typeName: monster
+    groupid: 706bb3f2-091d-47f7-bdcb-476502bc66bd
+    cr: 1
+    role: Defender
+    ev: 4
+    max_hitpoints_roll: "18"
+    innateAttacks: []
+    skillRatings: []
+    attackNames:
+    - Light Melee
+    monster_type: Goblin Bodyguard
+    levelChoices: []
+    damage_taken: 0
+    monster_category: Monster
+    walkingSpeed: 25
+    pr: 0
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        id: inu
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      mgt:
+        __typeName: CharacterAttribute
+        id: mgt
+    traitNames:
+    - (<b>T</b>) Bodyguard
+    - Command
+    equipment: []
+    movementSpeeds:
+      climb: 25
+    fmr: 1
+    opportunityAttack: 3
+    savingThrowRatings: []
+    max_hitpoints: 18
+  tokenType: null
+  bestiaryId: d21c0b4a-cfd3-4c83-a249-02eeeb45979f
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1715748088616
+description: Goblin Bodyguard
+parentFolder: 79a93387-4cb0-465f-9085-31c8eec6e3f7
+artist: null
+ord: 13
+ctime: 1741590312269
+mtime: 1775201137032
+hidden: false

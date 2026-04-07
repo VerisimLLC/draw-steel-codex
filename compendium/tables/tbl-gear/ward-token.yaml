@@ -1,0 +1,57 @@
+__typeName: equipment
+id: 4fb5800d-a11d-4ac6-8e96-5a9aceb0c354
+keywords:
+  Psionic: true
+projectSource: Texts or lore in Zaliac
+flavor: This smoothly polished quartz stone feels strangely warm to the touch.
+weight: 1
+echelon: 3
+specialDescription: ""
+type: Gear
+name: Ward Token
+category: Gear
+equipmentCategory: 95125d91-fe41-4310-8f7b-44386651b0a7
+projectGoal: "180"
+ctime: 1775045935607
+mtime: 1775046327142
+consumable:
+  __typeName: ActivatedAbility
+  repeatTargets: false
+  targetType: self
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 320
+    docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+  range: 5
+  consumables:
+    4fb5800d-a11d-4ac6-8e96-5a9aceb0c354: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 632b4548-b075-4847-97d0-a381280dc45a
+  categorization: Ability
+  numTargets: "1"
+  castImmediately: true
+  description: As a maneuver, you toss this stone above you and it shatters, showering you in dust. Until the end of the encounter, any enemy ability that targets you has a double bane.
+  iconid: f5475490-42a4-4c1b-b3c2-40949501d5f3
+  name: Ward Token
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 557ffde8-a95a-4e8c-b25b-cef8d25dc274
+    ongoingEffectSource: specific
+    duration: eoe
+    ongoingEffectCustom: false
+  attributeOverride: no_attribute
+  abilityType: none
+  implementation: 4
+itemPrerequisite: A small quartz
+description: As a maneuver, you toss this stone above you and it shatters, showering you in dust. Until the end of the encounter, any enemy ability that targets you has a double bane.
+projectRollCharacteristic:
+  mgt: true
+  inu: true
+implementation: 4

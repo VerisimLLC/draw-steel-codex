@@ -1,0 +1,11 @@
+__typeName: CharacterComplication
+drawback: Whenever you take a respite while your Wealth is higher than 1, some improbable event occurs that causes most of your money to vanish—including money you’ve hidden, loaned to others, or given away. Your Wealth is reduced to 1. For each point of Wealth you lose this way, your number of Recoveries increases by 1. Your Recoveries reset to their usual value the first time you take a respite with fewer Recoveries than your maximum
+mtime: 1765882815014
+modifierInfo:
+  __typeName: ClassLevel
+  features: []
+name: Curse of Poverty
+ctime: 1755513660690
+description: A soothsayer once predicted you would have a long life, even as they told you you’d never be rich. But you’re determined to prove them wrong. You’ll get rich or die trying!
+id: f550c0ed-5286-48d6-8788-15ca3f94f591
+benefit: Whenever you take a respite while your Wealth is higher than 1, some improbable event occurs that causes most of your money to vanish—including money you’ve hidden, loaned to others, or given away. Your Wealth is reduced to 1. For each point of Wealth you lose this way, your number of Recoveries increases by 1. Your Recoveries reset to their usual value the first time you take a respite with fewer Recoveries than your maximum.

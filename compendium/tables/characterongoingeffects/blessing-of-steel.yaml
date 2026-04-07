@@ -1,0 +1,80 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: cbf8634e-10c2-4378-8b4a-9cf4917d8e11
+  source: Ongoing Effect
+  seq: d21b068c-617a-4a34-bc59-98312aef0b44
+  aura:
+    __typeName: Aura
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: ee485881-c613-4a51-8a96-56a58117334f
+      source: Aura
+      behavior: power
+      keywords: []
+      activationCondition: true
+      name: Blessing of Steel
+      guid: f2b82dd8-9b32-4da7-a18b-2a69a3e471f3
+      description: Until the end of the encounter, any ability roll made against a target takes a bane..
+      modtype: bane
+      rollType: enemy_ability_power_roll
+    - __typeName: CharacterModifier
+      sourceguid: ee485881-c613-4a51-8a96-56a58117334f
+      behavior: resistance
+      source: Aura
+      resistances:
+      - __typeName: ResistanceEntry
+        dr: "5"
+        damageType: all
+        apply: Damage Reduction
+      description: Until the end of the encounter, any ability roll made against a target takes a bane and each target has damage immunity 5.
+      name: Blessing of Steel
+      guid: ac8acf49-f7fd-4fa3-94ee-ff778072f3cc
+    guid: ee485881-c613-4a51-8a96-56a58117334f
+    objectid: b7cbb1bf-6ed4-40b8-b1c9-ce091f24f651
+    applyto: selfandfriends
+    name: Blessing of Steel
+    display:
+      brightness: 1.74
+      saturation: 1.59
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0
+        s: 0.0822784751653671
+        v: 0.619607865810394
+        a: 1
+    description: Until the end of the encounter, any ability roll made against a target takes a bane and each target has damage immunity 5.
+    iconid: 31d5930d-d7e5-4ec2-b60d-35d3f1da2294
+    implementation: 3
+  domains:
+    CharacterOngoingEffect:cbf8634e-10c2-4378-8b4a-9cf4917d8e11: true
+  radius: "5"
+  guid: 4588d078-1c60-4164-bba1-804b17b6b4eb
+  description: Until the end of the encounter, any ability roll made against a target takes a bane and each target has damage immunity 5.
+  behavior: aura
+  name: Blessing of Steel
+source: Ongoing Effect
+display:
+  brightness: 1.74
+  saturation: 1.59
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.0822784751653671
+    v: 0.619607865810394
+    a: 1
+guid: cbf8634e-10c2-4378-8b4a-9cf4917d8e11
+id: cbf8634e-10c2-4378-8b4a-9cf4917d8e11
+ctime: 1770034012037
+domains:
+  CharacterOngoingEffect:cbf8634e-10c2-4378-8b4a-9cf4917d8e11: true
+description: Until the end of the encounter, any ability roll made against a target takes a bane and each target has damage immunity 5.
+custom: true
+name: Blessing of Steel
+statusEffect: false
+mtime: 1771068384975
+iconid: 31d5930d-d7e5-4ec2-b60d-35d3f1da2294
+implementation: 3

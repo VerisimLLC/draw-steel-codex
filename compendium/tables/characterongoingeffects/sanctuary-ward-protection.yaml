@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: 617f5c50-cee7-412d-bfe7-24511dfa1407
+id: 617f5c50-cee7-412d-bfe7-24511dfa1407
+ctime: 1760300929578
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Sanctuary Ward Protection
+description: ""
+custom: true
+mtime: 1760300968676
+iconid: ui-icons/skills/1.png

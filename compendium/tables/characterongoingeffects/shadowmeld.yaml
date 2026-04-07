@@ -1,0 +1,33 @@
+__typeName: CharacterOngoingEffect
+modifiers:
+- __typeName: CharacterModifier
+  operation: min
+  sourceguid: eb48d72b-3425-446b-a58b-dd965c79ec70
+  source: Ongoing Effect
+  value: 0
+  name: Shadowmeld
+  guid: 4244fbf0-2f2d-4c20-b6fb-50c1041cc4d2
+  description: |
+    While in shadow form, you have full awareness of your surroundings, attacks against you and tests made to find you take a bane, and you can’t move or take actions or maneuvers except to exit this form. Any ability or effect that targets more than 1 square affects you in this form only if it explicitly affects the surface you are flattened against. You can exit this form as a maneuver.
+  behavior: attribute
+  attribute: speed
+source: Ongoing Effect
+guid: eb48d72b-3425-446b-a58b-dd965c79ec70
+id: eb48d72b-3425-446b-a58b-dd965c79ec70
+ctime: 1726558145584
+name: Shadowmeld
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.665032684803009
+    s: 0.931506872177124
+    v: 0.858823537826538
+    a: 1
+mtime: 1726826198948
+custom: true
+description: |
+  While in shadow form, you have full awareness of your surroundings, attacks against you and tests made to find you take a bane, and you can’t move or take actions or maneuvers except to exit this form. Any ability or effect that targets more than 1 square affects you in this form only if it explicitly affects the surface you are flattened against. You can exit this form as a maneuver.
+iconid: a1f8b8ab-a695-4b99-af22-02986221aec6

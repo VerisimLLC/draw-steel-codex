@@ -1,0 +1,65 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    targetType: self
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: 6f709e3e-9427-4944-a224-c9f7bdc93ed8
+    castImmediately: true
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Lingering I
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 0.991210877895355
+        v: 0.987345457077026
+        a: 1
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "8"
+      chatMessage: Lingering I
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: afc47b1e-192e-4330-81d8-490555bd2a61
+      mode: effect
+      conditions: []
+    conditionFormula: subject = ConditionCaster("Lingering I")
+    subject: other
+    numTargets: "1"
+    trigger: beginturn
+    name: Lingering I
+    description: Take 8 damage at the start of the caster of Lingering I's turn.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 8 damage at the start of your next turn.
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 12639543-798e-425d-ac3b-3a5cdea3dd94
+  name: Lingering I
+  sourceguid: afc47b1e-192e-4330-81d8-490555bd2a61
+source: Ongoing Effect
+guid: afc47b1e-192e-4330-81d8-490555bd2a61
+id: afc47b1e-192e-4330-81d8-490555bd2a61
+ctime: 1774702854923
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+custom: true
+name: Lingering I
+statusEffect: true
+description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 8 damage at the start of your next turn.
+mtime: 1774703004009
+iconid: ui-icons/skills/1.png

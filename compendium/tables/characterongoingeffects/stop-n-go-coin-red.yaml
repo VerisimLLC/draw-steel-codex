@@ -1,0 +1,53 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 8de4489c-5e7c-4547-87c0-adde1716f862
+  source: Ongoing Effect
+  seq: 6ab625c1-9524-4614-aa90-8303b2ae0b99
+  aura:
+    __typeName: Aura
+    difficult_terrain: true
+    guid: 815d178d-54f4-4749-af81-fb15fdad29ba
+    objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+    applyto: enemies
+    name: Stop-’n-Go Coin - Red
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    description: The area within 2 squares of you is difficult terrain for enemies
+    modifiers: []
+    implementation: 4
+  radius: "2"
+  guid: 6e673de3-8bce-4b12-8921-ea1e594238b1
+  description: |-
+    **1—Red:** The area within 2 squares of you is difficult terrain for enemies
+    until the end of your next turn.
+    **2—Green:** You and each ally who starts their turn within 2 squares of
+    you gains a +1 bonus to speed until the end of your next turn.
+    **3—Spinning Coin:** Both the red and green effects occur while the coin
+    continuously spins.
+  behavior: aura
+  name: Stop-’n-Go Coin
+source: Ongoing Effect
+custom: true
+guid: 8de4489c-5e7c-4547-87c0-adde1716f862
+id: 8de4489c-5e7c-4547-87c0-adde1716f862
+ctime: 1774872910199
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+buffType: buff
+name: Stop-’n-Go Coin - Red
+description: |-
+  **1—Red:** The area within 2 squares of you is difficult terrain for enemies until the end of your next turn.
+  **2—Green:** You and each ally who starts their turn within 2 squares of you gains a +1 bonus to speed until the end of your next turn.
+  **3—Spinning Coin:** Both the red and green effects occur while the coin continuously spins.
+mtime: 1774874174694
+iconid: ui-icons/skills/1.png
+implementation: 4

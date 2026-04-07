@@ -1,0 +1,23 @@
+__typeName: CharacterFeature
+testCases:
+- text: The artifex takes 2 turns each round.
+modifiers:
+- __typeName: CharacterModifier
+  guid: 41b5a94f-3523-4087-b3e7-856d9e53a357
+  sourceguid: 02b3f255-8bc0-4d26-aa65-57d78d9e8cd9
+  value: "<<number>> - 1"
+  source: Monster
+  name: Leader Turns
+  behavior: attribute
+  description: ""
+  attribute: extraturns
+source: Monster
+importMatchType: rules
+importMatch: "<<monster>> takes <<number>> turns each round."
+ctime: 1709455464730
+id: be5239c8-a5dd-4c54-866e-6ce4e99717e9
+name: Leader Turns
+guid: 02b3f255-8bc0-4d26-aa65-57d78d9e8cd9
+mtime: 1709455464730
+description: ""
+implementation: 3

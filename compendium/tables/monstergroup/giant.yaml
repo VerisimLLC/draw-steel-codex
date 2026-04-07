@@ -1,0 +1,87 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  range: "10"
+  strain: []
+  guid: f83c3fb6-da3b-44a6-9ac8-c21ad673a75e
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  targetType: cube
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: agl
+    roll: 2d10 +  Agility
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - 18 damage; prone and can’t stand (save ends)
+    - 14 damage; prone
+    - 9 damage
+  radius: "4"
+  name: Hurl Landscape
+  description: A giant unearths a structure, hazard, or chunk of the encounter map and launches it to fill the area. Each target makes an Agility test.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: ui-icons/skills/1.png
+- __typeName: MaliceAbility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  numTargets: "1"
+  modifiers: []
+  resourceNumber: "5"
+  strain: []
+  guid: 5a1ebffa-763e-492a-84dc-1f4b888642da
+  repeatTargets: false
+  abilityType: none
+  persistence: []
+  behaviors: []
+  targetType: self
+  name: Bellow
+  range: 1
+  description: Each giant in the encounter takes a deep breath and yells, pushing each creature within 3 squares of them up to 10 squares. A creature who can be pushed by more than one giant is pushed by one giant of your choice.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+- __typeName: MaliceAbility
+  resourceNumber: "7"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    tiers:
+    - 10 damage; the target falls into the fissure, and is prone and can’t stand (EoT)
+    - 10 damage; the target is prone and hanging onto the edge of the fissure
+    - The target can shift into the nearest unoccupied space outside the fissure.
+    roll: 2d10 + Might or Agility
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  range: "15"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: ac391194-8efb-4578-b3b1-7bb08ab35176
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  targetType: line
+  numTargets: "1"
+  radius: "2"
+  name: Titanic Tear
+  description: A giant creates a fissure along the ground, either in a 15 × 2 line within 1 or a 10 × 3 line within 2, and that opens up to a depth of 6 squares. Each giant in the area can shift into the nearest unoccupied space outside the fissure. Each non-giant in the area makes an Agility test.
+  abilityType: none
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+mtime: 1762950199159
+name: Giant
+traits: []
+attacks: []
+id: c65d0a89-5546-48aa-a79e-9838030eef8d
+ctime: 1762950199159

@@ -1,0 +1,52 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    targetFilter: target.Ongoing Effects has "Death Cultist Minion"
+    repeatTargets: false
+    targetAllegiance: ally
+    behaviors:
+    - __typeName: ActivatedAbilityRemoveCreatureBehavior
+      leavesCorpse: true
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: "100"
+    persistence: []
+    modifiers: []
+    strain: []
+    guid: a1a93012-c6cd-4b4a-96ec-0e8d02a65a94
+    numTargets: "1"
+    name: Death Cultist Has Minions
+    trigger: creaturedeath
+    targetType: all
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  description: ""
+  source: Ongoing Effect
+  behavior: trigger
+  guid: 16adbb98-eaa2-408a-81d1-4728ed4b23c4
+  name: Death Cultist Has Minions
+  sourceguid: 760be874-e320-44e5-8a13-e528a34ebb71
+source: Ongoing Effect
+guid: 760be874-e320-44e5-8a13-e528a34ebb71
+id: 760be874-e320-44e5-8a13-e528a34ebb71
+ctime: 1769785015905
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+hiddenOnToken: true
+custom: true
+name: Death Cultist Has Minions
+statusEffect: true
+description: ""
+mtime: 1769785015905
+iconid: 699cf8b4-6b8e-41cf-ba1f-c41f5b799cce

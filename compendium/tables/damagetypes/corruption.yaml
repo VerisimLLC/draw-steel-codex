@@ -1,0 +1,11 @@
+__typeName: DamageType
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Corruption
+ctime: 1699861588037
+mtime: 1699861603262
+id: 71a0742f-0a08-44f1-b66a-2280faf6b7b7
+iconid: a12e7c07-575b-4184-b90d-fa750551b55d

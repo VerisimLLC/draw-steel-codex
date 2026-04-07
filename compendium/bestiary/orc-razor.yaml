@@ -1,0 +1,426 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 646cb39f-aeef-4ae1-b52f-f5125ca1fdcb
+    offtokenPortraitId: null
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 0029bb72-e82d-4b15-889c-6c0b1542d0df
+  properties:
+    __typeName: monster
+    groupid: 0ae58107-0b97-4f12-9234-b35fa95de40b
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 5
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "5"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: 0
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        '\Melee': true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage; push 3
+        - 5 damage; push 3 or prone
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 7264ef82-9c6b-4d45-9739-5c9160fb9793
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: 1
+      targetType: target
+      sourceReference:
+        __typeName: SourceReference
+        page: 223
+        docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+      name: Boot and Blade
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+      description: The razor has an edge on strikes against targets already affected by a condition.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 2 damage
+        - 4 damage; push 3
+        - 5 damage; push 3
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 5ebae462-dd50-4422-a820-1450cf442f90
+      targetType: target
+      implementation: 3
+      numTargets: 1
+      name: Boot & Blade
+      sourceReference:
+        __typeName: SourceReference
+        page: 216
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: The razor gains an edge against any target affected by a condi tion.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minion: true
+    stability: 0
+    import:
+      override: true
+      data: |+
+        Orc Razor	Level 1 Minion Brute
+        Humanoid, Orc	EV 3 for four minions
+        <b>Stamina</b> 5
+        <b>Speed</b> 6	<b>Size</b> 1L /<b> Stability</b> 0
+        <b>With Captain</b> Strike damage +1	<b>Free Strike</b> 2
+        Might +2	Agility +1	Reason 0	Intuition 0	Presence 0
+        <b>Boot and Blade</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> \Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	2 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	4 damage; push 3
+        %E2%9C%B8	<b>17</b>	5 damage; push 3 or prone
+        <b>Effect</b> The razor has an edge on strikes against targets already affected by a condition.
+
+        <b>Bloodfire Burn</b>
+        If the razor's Stamina drops to 0, they can make a free strike before dying.
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:6d8975dc-a401-43c4-aa63-5c5f05087b41: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 6d8975dc-a401-43c4-aa63-5c5f05087b41
+        displayCondition: ability.name is "Boot and Blade"
+        source: Character Feature
+        modtype: edge
+        keywords: []
+        activationCondition: |-
+          (target.conditions has "bleeding") or
+          (target.conditions has "dazed") or
+          (target.conditions has "grabbed") or
+          (target.conditions has "frightened") or
+          (target.conditions has "prone") or
+          (target.conditions has "restrained") or
+          (target.conditions has "slowed") or
+          (target.conditions has "taunted")
+        domains:
+          CharacterFeature:6d8975dc-a401-43c4-aa63-5c5f05087b41: true
+        name: Boot and Blade
+        rollType: ability_power_roll
+        description: The razor gains an edge against any target affected by a condition.
+        behavior: power
+        guid: 6c836774-1d02-4387-aa48-5d714b7f5083
+      name: Boot and Blade
+      description: The razor gains an edge against any target affected by a condition.
+      guid: 6d8975dc-a401-43c4-aa63-5c5f05087b41
+      source: Character Feature
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+        CharacterFeature:4b8f5e2b-ae3e-4a6f-9746-99df64b6f332: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+          CharacterFeature:4b8f5e2b-ae3e-4a6f-9746-99df64b6f332: true
+        sourceguid: 4b8f5e2b-ae3e-4a6f-9746-99df64b6f332
+        behavior: trigger
+        source: Trait
+        name: Bloodfire Burn
+        description: If the razor is reduced to 0 Stamina, they can make a free strike before dying.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          modifiers: []
+          trigger: creaturedeath
+          strain: []
+          guid: 1edc335f-5788-4281-b57a-4bb58f335dee
+          repeatTargets: false
+          abilityType: none
+          domains:
+            CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+            CharacterFeature:4b8f5e2b-ae3e-4a6f-9746-99df64b6f332: true
+          targetType: self
+          behaviors:
+          - __typeName: ActivatedAbilityApplyAbilityDurationEffect
+            momentaryEffect:
+              __typeName: CharacterOngoingEffect
+              description: ""
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              modifiers:
+              - __typeName: CharacterModifier
+                guid: 0950895e-bf96-4325-8104-1dd68942fb07
+                sourceguid: a45252a0-dcd1-4d31-82a2-b19ce2243014
+                behavior: attribute
+                source: Ongoing Effect
+                name: Cannot Be Removed
+                value: 1
+                description: ""
+                attribute: 7565750e-2376-4809-abc2-47eed82153d1
+              source: Ongoing Effect
+              name: Cannot Be Removed
+              guid: a45252a0-dcd1-4d31-82a2-b19ce2243014
+              id: a45252a0-dcd1-4d31-82a2-b19ce2243014
+              iconid: ui-icons/skills/1.png
+            name: Ability Duration Effect
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            customAbility:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              objectTarget: false
+              abilityType: none
+              strain: []
+              guid: 823b1327-0951-4010-91ea-b8639365e70f
+              repeatTargets: false
+              targetTextOverride: ""
+              modifiers: []
+              behaviors:
+              - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+                modifier:
+                  __typeName: CharacterModifier
+                  cannotModifyAction: true
+                  filterAbility: Ability.Free Strike
+                  behavior: modifyability
+                  guid: 2a950f99-1602-4904-b4c0-66d4787fee46
+                  attributes: []
+                  source: ""
+                  description: ""
+                  name: Modify Attack
+                  ability:
+                    __typeName: ActivatedAbility
+                    numTargets: "1"
+                    modifiers: []
+                    guid: 1a15bd18-e281-45f0-a559-d0ddd5cf3e33
+                    repeatTargets: false
+                    display:
+                      brightness: 1
+                      saturation: 1
+                      hueshift: 0
+                      bgcolor: "#ffffffff"
+                    abilityModification: true
+                    targetType: self
+                    abilityType: none
+                    name: New Ability
+                    behaviors: []
+                    description: ""
+                    range: 1
+                    iconid: ui-icons/skills/1.png
+              persistence: []
+              name: Invoked Ability
+              targetType: target
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            invokeOnCaster: true
+            promptText: select creature to free strike
+          name: Bloodfire Burn
+          numTargets: "1"
+          description: If the glorifier is reduced to 0 Stamina, they can make a free strike before dying.
+          range: 1
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: ffbf6705-72a8-4961-af9b-43861592d1c3
+      - __typeName: CharacterModifier
+        sourceguid: 4b8f5e2b-ae3e-4a6f-9746-99df64b6f332
+        source: Trait
+        value: 2
+        domains:
+          CharacterFeature:28bea37b-c3f2-4153-b5c2-ceb5779d112e: true
+          CharacterFeature:4b8f5e2b-ae3e-4a6f-9746-99df64b6f332: true
+        name: Bloodfire Burn
+        guid: af3e4419-d88d-4d96-b06e-6c4e8ec0f28d
+        description: If the razor is reduced to 0 Stamina, they can make a free strike before dying.
+        behavior: attribute
+        attribute: dd304b49-6a84-40f2-b9c3-bf7256b3f778
+      source: Trait
+      description: If the razor is reduced to 0 Stamina, they can make a free strike before dying.
+      guid: 4b8f5e2b-ae3e-4a6f-9746-99df64b6f332
+      name: Bloodfire Burn
+      implementation: 3
+    role: Minion Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 2
+    keywords:
+      Humanoid: true
+      Orc: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    savingThrowRatings: []
+    initiativeGrouping: 9c8d5cfc-62d8-495c-8f26-dcc2daafb7ee
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-2
+        used: 1
+    damage_taken: 0
+    availableTriggers: []
+    walkingSpeed: 6
+    withCaptain: +1 damage bonus to strikes
+    minionSquad: Orc Razor Squad 3
+    traitNames: []
+    monster_type: Orc Razor
+    movementSpeeds: []
+    creatureSize: 1L
+    equipmentMeta:
+      offhand0: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        1e87e6ac-afc6-4a35-8fee-ad171c293924:
+          refreshid: 7d2c6404-d412-4022-8b92-662ca53c987b-2
+          note: Boot and Blade
+          userid: steam-76561198767161997
+          set: 0/1
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 18369771-9ae1-4b95-9de2-599b8cf1b9c7-69
+  tokenType: null
+  bestiaryId: 14d9ec44-f4f6-41f4-8b37-049366f3a172
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1738222946034
+description: Orc Razor
+parentFolder: f43667d5-4db9-4db9-8378-2563caa1fbc0
+artist: null
+ord: 0
+ctime: 1741590221169
+mtime: 1775201137032
+hidden: false

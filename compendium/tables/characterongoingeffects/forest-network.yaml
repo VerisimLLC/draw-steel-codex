@@ -1,0 +1,111 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:032738de-fb1d-44e3-90dd-9cd11578508a: true
+  sourceguid: 032738de-fb1d-44e3-90dd-9cd11578508a
+  behavior: triggerdisplay
+  source: Ongoing Effect
+  name: Forest Network
+  description: Each wode elf who ends this turn hidden can shift up to their speed while remaining hidden.
+  guid: d83aa8ca-71e8-4a48-a760-8b39d4aa9a84
+  ability:
+    __typeName: TriggeredAbilityDisplay
+    type: free
+    effect: The Wode Elf can shift up to their speed while remaining hidden
+    trigger: Wode Elf ending this turn while hidden
+    target: Self
+    guid: 72036344-fc73-4b00-88fe-28668f5fa6a5
+    name: Forest Network
+    keywords: []
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:032738de-fb1d-44e3-90dd-9cd11578508a: true
+  sourceguid: 032738de-fb1d-44e3-90dd-9cd11578508a
+  description: Each wode elf who ends this turn hidden can shift up to their speed while remaining hidden.
+  source: Ongoing Effect
+  name: Forest Network
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    objectTarget: false
+    targetFilter: Ongoing Effects has "Hidden" and Ongoing Effects has "Forest Network"
+    repeatTargets: false
+    rangeTextOverride: "100"
+    targetAllegiance: ally
+    targetType: all
+    triggerPrompt: |-
+      Each wode elf who ends this turn hidden can shift up to their
+      speed while remaining hidden.
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    mandatory: true
+    range: 1
+    persistence: []
+    modifiers: []
+    subjectRange: "100"
+    strain: []
+    whenActive: combat
+    abilityType: none
+    trigger: endturn
+    domains:
+      CharacterOngoingEffect:032738de-fb1d-44e3-90dd-9cd11578508a: true
+    numTargets: "1"
+    behaviors:
+    - __typeName: ActivatedAbilityInvokeAbilityBehavior
+      customAbility:
+        __typeName: ActivatedAbility
+        numTargets: "1"
+        modifiers: []
+        guid: 1226fd68-0998-4d3e-87b7-0e8047f95a75
+        repeatTargets: false
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        behaviors: []
+        range: 1
+        name: Invoked Ability
+        targetType: self
+        description: ""
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      promptText: Each Wode Elf who is hidden can shift up to their speed while remaining hidden.
+      standardAbilityParams:
+        distance: "<<walking speed>>"
+      standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+      abilityType: standard
+      promptWhenResolving: true
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: 032738de-fb1d-44e3-90dd-9cd11578508a
+      mode: effect
+      purgeType: one
+      conditions: []
+    name: Forest Network
+    guid: 5c4b7398-dd8c-4d66-9273-690d7a8d65e5
+    description: Each wode elf who ends this turn hidden can shift up to their speed while remaining hidden.
+    subject: selfandallies
+    iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+  guid: 1a16629c-28b1-4f1e-bbe2-86efbe627a84
+source: Ongoing Effect
+guid: 032738de-fb1d-44e3-90dd-9cd11578508a
+id: 032738de-fb1d-44e3-90dd-9cd11578508a
+ctime: 1768742726952
+hiddenFromEnemies: true
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+domains:
+  CharacterOngoingEffect:032738de-fb1d-44e3-90dd-9cd11578508a: true
+name: Forest Network
+custom: true
+mtime: 1770215263837
+description: Each wode elf who ends this turn hidden can shift up to their speed while remaining hidden.
+iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e

@@ -1,0 +1,71 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers:
+- __typeName: CharacterModifier
+  domains:
+    CharacterOngoingEffect:afc47b1e-192e-4330-81d8-490555bd2a61: true
+  sourceguid: afc47b1e-192e-4330-81d8-490555bd2a61
+  description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 8 damage at the start of your next turn.
+  source: Ongoing Effect
+  name: Lingering I
+  behavior: trigger
+  triggeredAbility:
+    __typeName: TriggeredAbility
+    repeatTargets: false
+    behaviors:
+    - __typeName: ActivatedAbilityFloatTextBehavior
+      text: Lingering II
+      color:
+        __usertype: LuaColor
+        h: 0
+        s: 0.991210877895355
+        v: 0.987345457077026
+        a: 1
+    - __typeName: ActivatedAbilityDamageBehavior
+      roll: "15"
+      chatMessage: Lingering II
+    - __typeName: ActivatedAbilityPurgeEffectsBehavior
+      ongoingEffect: d6625347-fa57-49cb-ac80-def67791b05f
+      mode: effect
+      conditions: []
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    range: 1
+    persistence: []
+    modifiers: []
+    targetType: self
+    strain: []
+    guid: 6f709e3e-9427-4944-a224-c9f7bdc93ed8
+    abilityType: none
+    castImmediately: true
+    conditionFormula: subject = ConditionCaster("Lingering II")
+    numTargets: "1"
+    domains:
+      CharacterOngoingEffect:afc47b1e-192e-4330-81d8-490555bd2a61: true
+    trigger: beginturn
+    name: Lingering II
+    description: Take 15 damage at the start of the caster of Lingering I's turn.
+    subject: other
+    iconid: ui-icons/skills/1.png
+  guid: 12639543-798e-425d-ac3b-3a5cdea3dd94
+source: Ongoing Effect
+id: d6625347-fa57-49cb-ac80-def67791b05f
+guid: afc47b1e-192e-4330-81d8-490555bd2a61
+hiddenOnToken: true
+ctime: 1774703403797
+domains:
+  CharacterOngoingEffect:afc47b1e-192e-4330-81d8-490555bd2a61: true
+description: Whenever you damage a creature using a magic or psionic ability and obtain a tier 3 outcome, that creature takes 15 damage at the start of your next turn.
+custom: true
+name: Lingering II
+statusEffect: true
+mtime: 1774703458206
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+iconid: ui-icons/skills/1.png

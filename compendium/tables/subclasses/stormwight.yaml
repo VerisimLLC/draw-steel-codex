@@ -1,0 +1,1200 @@
+__typeName: Class
+heroicResourceChecklist: []
+isSubclass: true
+ctime: 1727142627969
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: a50fcbca-4f7e-44d1-b80b-d661302e6ee3
+        source: Stormwight Class Feature
+        guid: 505f0518-fd2f-43ea-8021-00cd7e2efe72
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        keywords: []
+        replaceText: 3d10k2 + Intuition
+        rollType: test_power_roll
+        modtype: replaceroll
+        name: Menagerie
+        activationCondition: false
+        description: Whenever you make a test to track another creature, you can roll three dice and choose which two to use.
+        behavior: power
+        attribute: all
+      source: Stormwight Class Feature
+      guid: a50fcbca-4f7e-44d1-b80b-d661302e6ee3
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: You can use all stormwight kits. During a respite, you can choose to swap your stormwight kit and still take another respite activity. Your Nature’s Knight feature now lets you automatically sense the presence of animals within 1 mile of you. Additionally, whenever you make a test to track another creature, you can roll three dice and choose which two to use.
+      name: Menagerie
+      implementation: 2
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      guid: 25ebb62c-85ac-45fe-8c88-fd282f08a059
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 00b3e714-5166-4f64-a9d8-ae167a1168aa
+        source: Stormwight Class Feature
+        behavior: proficiency
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        guid: 13f4c70e-a942-4a95-9077-614d58bce40f
+        equate: false
+        name: Primordial Aspect
+        proficiency: proficient
+        description: You channel your ferocity into primordial storms and can take on the form of an animal or an animal hybrid form. You have the Track skill.
+        subtype: skill
+        skills:
+          a27ca113-bc01-49d0-9864-3316e6f525f4: true
+      name: Primordial Aspect
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: You channel your ferocity into primordial storms and can take on the form of an animal or an animal hybrid form. You have the Track skill.
+      source: Stormwight Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      guid: a81b58ff-c070-4068-9020-13c5decdd1b6
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: 111441e8-b0e7-46fa-812a-174181423e21
+        behavior: kitaccess
+        source: Stormwight Class Feature
+        name: Beast Shape
+        description: 'You can use and gain the benefits of a stormwight kit (see Stormwight Kits). Your stormwight kit grants you a number of benefits, including effects tied to your Growing Rage feature. '
+        kitType: stormwight
+        guid: 696d3432-bb50-43f1-950d-36ef8fd29b68
+      name: Beast Shape
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: 'You can use and gain the benefits of a stormwight kit (see Stormwight Kits). Your stormwight kit grants you a number of benefits, including effects tied to your Growing Rage feature. '
+      source: Stormwight Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      guid: 413de30a-115b-447b-bbc2-6d65201425ad
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d30ef521-a86a-4f6a-834f-0a609deb85f0
+        displayCondition: ""
+        source: Stormwight Class Feature
+        guid: 1ac434b1-c8f1-42b4-86e3-510099698a1b
+        keywords: []
+        activationCondition: true
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        behavior: power
+        rollType: test_power_roll
+        name: Relentless Hunter
+        description: You gain an edge on tests that use the Track skill.
+        modtype: edge
+        skills:
+        - a27ca113-bc01-49d0-9864-3316e6f525f4
+      name: Relentless Hunter
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: You gain an edge on tests that use the Track skill.
+      source: Stormwight Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: 20267d8a-cad7-438f-a78e-64cfdc6d3261
+        description: You have the following ability.
+        source: Stormwight Class Feature
+        name: Aspect of the Wild
+        behavior: activated
+        guid: 7d6cf411-70d1-4588-b100-d8f0574625ca
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: ""
+          targetTextOverride: Self
+          repeatTargets: false
+          keywords:
+            Magic: true
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              modifyDescription: ""
+              source: ""
+              filterAbility: Ability.name has "Animal Form:" or Ability.name has "Hybrid Form:" or Ability.name = "True Form"
+              behavior: modifyability
+              guid: 17bf0676-72fa-4ea0-be2d-088393246953
+              cannotModifyAction: true
+              attributes: []
+              mustPayResourceCost: true
+              description: ""
+              name: Modify Attack
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                strain: []
+                guid: 9bc23b70-7a78-4194-93ad-ebebe754260b
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                behaviors: []
+                abilityType: none
+                name: New Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You assume the form of the animal who channels your ferocity.
+          categorization: Heroic Ability
+          preDescription: ""
+          range: 1
+          castImmediately: false
+          persistence: []
+          modifiers: []
+          numTargets: "1"
+          strain: []
+          modeList:
+          - text: Animal Form
+            hasAbility: false
+            condition: ""
+            rules: Shapeshift into your animal form
+            variation:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              targetType: self
+              strain: []
+              guid: b2c834aa-767a-4348-aa4d-c2c38560870f
+              repeatTargets: false
+              abilityType: none
+              domains:
+                class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+                class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              behaviors: []
+              persistence: []
+              name: Aspect of the Wild
+              categorization: Heroic Ability
+              description: "	"
+              range: 1
+              iconid: ui-icons/skills/1.png
+          - text: Hybrid Form
+            hasAbility: false
+            rules: Shapeshift into your hybrid form
+          - text: True Form
+            hasAbility: false
+          actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          targetType: self
+          implementation: 3
+          name: Aspect of the Wild
+          guid: 5b5e0779-47d5-4cfb-a993-0d08017ecc1c
+          description: |-
+            You can shapeshift into the animal defined by your stormwight kit, into a hybrid form, or back into your true form. While in animal form or hybrid form, you can speak as you usually do, and you can also speak to animals who share your form. If you are in a negotiation with an animal while in animal form, you treat your Renown as 2 higher than usual.
+
+            **Spend 1 Ferocity:** As a free maneuver, you can shapeshift a second time, either into another animal form, into your hybrid form, or back into your true form.
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+      - __typeName: CharacterModifier
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: 20267d8a-cad7-438f-a78e-64cfdc6d3261
+        description: You have the following ability.
+        source: Stormwight Class Feature
+        name: Aspect of the Wild
+        behavior: activated
+        guid: dd6abd1f-52c6-4805-9b37-3c1eaa73bbb9
+        activatedAbility:
+          __typeName: ActivatedAbility
+          resourceNumber: "1"
+          targetTextOverride: Self
+          repeatTargets: false
+          keywords:
+            Magic: true
+          abilityType: none
+          behaviors:
+          - __typeName: ActivatedAbilityAugmentedAbilityBehavior
+            modifier:
+              __typeName: CharacterModifier
+              modifyDescription: ""
+              source: ""
+              filterAbility: Ability.name has "Animal Form:" or Ability.name has "Hybrid Form:" or Ability.name = "True Form"
+              behavior: modifyability
+              guid: 17bf0676-72fa-4ea0-be2d-088393246953
+              cannotModifyAction: true
+              attributes: []
+              mustPayResourceCost: true
+              description: ""
+              name: Modify Attack
+              ability:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                strain: []
+                guid: 9bc23b70-7a78-4194-93ad-ebebe754260b
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                abilityModification: true
+                behaviors: []
+                abilityType: none
+                name: New Ability
+                targetType: self
+                description: ""
+                range: 1
+                iconid: ui-icons/skills/1.png
+          multipleModes: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          flavor: You assume the form of the animal who channels your ferocity.
+          categorization: Heroic Ability
+          preDescription: ""
+          range: 1
+          castImmediately: false
+          persistence: []
+          modifiers: []
+          numTargets: "1"
+          strain: []
+          modeList:
+          - text: Animal Form
+            hasAbility: false
+            condition: ""
+            rules: Shapeshift into your animal form
+            variation:
+              __typeName: ActivatedAbility
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              numTargets: "1"
+              modifiers: []
+              targetType: self
+              strain: []
+              guid: b2c834aa-767a-4348-aa4d-c2c38560870f
+              repeatTargets: false
+              abilityType: none
+              domains:
+                class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+                class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+              behaviors: []
+              persistence: []
+              name: Aspect of the Wild
+              categorization: Heroic Ability
+              description: "	"
+              range: 1
+              iconid: ui-icons/skills/1.png
+          - text: Hybrid Form
+            hasAbility: false
+            rules: Shapeshift into your hybrid form
+          - text: True Form
+            hasAbility: false
+          actionResourceId: none
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          targetType: self
+          implementation: 3
+          name: Aspect of the Wild
+          guid: 5b5e0779-47d5-4cfb-a993-0d08017ecc1c
+          description: |-
+            You can shapeshift into the animal defined by your stormwight kit, into a hybrid form, or back into your true form. While in animal form or hybrid form, you can speak as you usually do, and you can also speak to animals who share your form. If you are in a negotiation with an animal while in animal form, you treat your Renown as 2 higher than usual.
+
+            **Spend 1 Ferocity:** As a free maneuver, you can shapeshift a second time, either into another animal form, into your hybrid form, or back into your true form.
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+      source: Stormwight Class Feature
+      guid: 20267d8a-cad7-438f-a78e-64cfdc6d3261
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: You have the following ability.
+      name: Aspect of the Wild
+      implementation: 3
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-5:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      modifiers: []
+      source: Stormwight Class Feature
+      guid: 19c7d35a-ed47-4731-a672-134d1c05785c
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      canHavePrerequisites: true
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: You and each ally within 5 squares of you ignore negative effects from inclement weather, such as banes or environmental damage. Additionally, you can use the Blessing of Fortunate Weather feature as if you were a 1st-level conduit (see 1st-Level Domain Feature in the Conduit section).
+      name: Stormborn
+      implementation: 0
+    - __typeName: CharacterFeature
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      guid: db4f8f04-ed46-4180-b75d-c4abc7785f96
+      modifiers: []
+      name: Blessing of Fortunate Weather
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: "When you finish a respite, you can decide the weather conditions within 100 squares of you. Until you finish another respite, the weather conditions you establish follow you through any mundane outdoor locations. \n\nChoose one of the following types of weather, each of which grants a benefit to you and your allies: \n\nClear: You and each ally gain an edge on tests that use the Search or Navigate skills. \n\nFoggy: You and each ally gain an edge on tests that use the Hide skill. \n\nOvercast: You and each ally gain an edge on tests that use the Endurance skill. \n\nPrecipitation: When the ground is muddy or snowy, you and each ally gain an edge on tests that use the Track skill. "
+      source: Stormwight Class Feature
+      implementation: 0
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-6:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: '6th-Level Stormwight Ability '
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: 70296585-6b16-41a2-9c10-d78ab3226021
+          description: ""
+          source: Stormwight Class Feature
+          name: Pounce
+          behavior: activated
+          guid: 6e1de205-efe0-47db-bb37-20db0178fe9d
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            objectTarget: false
+            targetFilter: ""
+            targetTextOverride: ""
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Magic: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 8 damage; M < Weak, grabbed
+              - 13 damage; M < Average, grabbed
+              - 17 damage; M < Strong, grabbed
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityApplyRidersBehavior
+              conditionid: 70504ebe-3899-41d3-9f60-74b52ce35e39
+              riderid: fdfe282b-1d1a-478d-a8ae-9a2bfeb0ec48
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                numTargets: "1"
+                modifiers: []
+                guid: cfe42a39-a150-4ee4-a405-073f4915a0e4
+                repeatTargets: false
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                behaviors: []
+                range: 1
+                name: Invoked Ability
+                targetType: self
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              promptText: Shift up to 4 squares
+              standardAbilityParams:
+                distance: "4"
+              abilityType: standard
+              standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You strike at the target like the ultimate predator you are.
+            categorization: Heroic Ability
+            range: 1
+            persistence: []
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 181c84b8-177d-483a-bfaa-02420364f473
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            rangeTextOverride: ""
+            domains:
+              class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            sourceReference:
+              __typeName: SourceReference
+              page: 139
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            targetType: target
+            name: Pounce
+            numTargets: "1"
+            description: You can shift up to 4 squares, bringing the target with you.While grabbed this way, the target takes damage equal to twice your Might score at the start of each of your turns.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Stormwight Class Feature
+        guid: 70296585-6b16-41a2-9c10-d78ab3226021
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        canHavePrerequisites: true
+        classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+        description: ""
+        name: Pounce
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: f2aee0db-eb36-42f7-8066-f5a94c16c362
+          description: ""
+          source: Stormwight Class Feature
+          name: Riders on the Storm
+          behavior: activated
+          guid: 7bf74175-60ad-4298-b083-2830782c25e8
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "9"
+            targetTextOverride: Each creature in the area
+            repeatTargets: false
+            rangeTextOverride: 3 aura
+            implementationDetails: ""
+            behaviors:
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: df20f40c-5575-42d0-860c-1a9a1e2d79bc
+              duration: eoe
+              ongoingEffectCustom: df20f40c-5575-42d0-860c-1a9a1e2d79bc
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You focus your connection to the Primordial Chaos into a seething storm.
+            categorization: Heroic Ability
+            range: 1
+            abilityType: none
+            persistence: []
+            modifiers: []
+            actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+            strain: []
+            guid: 45af5708-5541-42e2-a33a-b45319716d07
+            sourceReference:
+              __typeName: SourceReference
+              page: 139
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            numTargets: "1"
+            domains:
+              class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            implementation: 3
+            keywords:
+              Magic: true
+              Area: true
+            name: Riders on the Storm
+            targetType: self
+            description: |-
+              Until the end of the encounter or until you are dying each enemy target takes damage of your primordial damage type equal to twice your Might score at the end of each of your turns. 
+              Additionally you can fly while the aura is active Each ally target who starts or ends their turn in the area can also fly until the start of their next turn or until the effect ends.
+              **Special:** When you use this ability outside of combat without spending ferocity you must spend 1 uninterrupted minute summoning a primordial storm that fills the area and you take 1d6 damage before the ability takes effect The storm lasts for 1 hour or until a combat encounter begins
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Stormwight Class Feature
+        guid: f2aee0db-eb36-42f7-8066-f5a94c16c362
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        canHavePrerequisites: true
+        classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+        description: ""
+        name: Riders on the Storm
+        implementation: 3
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      guid: bbc87272-6ff4-414c-8f30-14a5c945df9a
+      source: Stormwight Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      guid: b9fe1786-3561-4f1f-9253-28369b48de8d
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: b9fe1786-3561-4f1f-9253-28369b48de8d
+        description: At the end of each of your turns, each enemy adjacent to you takes damage equal to your Might score.
+        source: Stormwight Class Feature
+        name: Tooth and Claw
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          objectTarget: false
+          targetFilter: ""
+          repeatTargets: false
+          targetAllegiance: enemy
+          targetType: all
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          whenActive: combat
+          behaviors:
+          - __typeName: ActivatedAbilityDamageBehavior
+            roll: Might
+            titleText: Tooth and Claw
+            chatMessage: Tooth and Claw Damage
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          trigger: endturn
+          guid: bd9ec003-aa2e-497f-9733-f6976bd67f67
+          name: Tooth and Claw
+          persistence: []
+          description: At the end of each of your turns, each enemy adjacent to you takes damage equal to your Might score.
+          abilityType: none
+          iconid: b71b3369-0793-48f8-9eed-7c4b795c9dbd
+        guid: ffad56f8-815f-49a5-b469-e4caafc2d3df
+      name: Tooth and Claw
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: At the end of each of your turns, each enemy adjacent to you takes damage equal to your Might score.
+      source: Stormwight Class Feature
+      implementation: 3
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: 2c61764e-4afb-4e59-abc9-d9e2d80f281f
+          description: ""
+          source: Stormwight Class Feature
+          name: Apex Predator
+          behavior: activated
+          guid: 576776ab-eff4-418c-a895-be13f2afbb0a
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: 5
+            repeatTargets: false
+            keywords:
+              Strike: true
+              Melee: true
+              Weapon: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 4 + M damage; I < weak, slowed (save ends)
+              - 6 + M damage; I < average, slowed (save ends)
+              - 10 + M damage; I < strong, slowed (save ends)
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: db12fe24-0663-4602-a7ca-53793c85973c
+              ongoingEffectCustom: db12fe24-0663-4602-a7ca-53793c85973c
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: e2f4e598-da9d-4d82-9aec-0577548e91fc
+              duration: eoe
+              ongoingEffectCustom: e2f4e598-da9d-4d82-9aec-0577548e91fc
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: I will hunt you down.
+            sourceReference:
+              __typeName: SourceReference
+              page: 150
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            range: 1
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            modifiers: []
+            abilityType: none
+            strain: []
+            guid: 9fa9f168-705f-47b4-9bf7-ce7e72c0d5ca
+            numTargets: "1"
+            categorization: Heroic Ability
+            domains:
+              class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            implementation: 3
+            persistence: []
+            name: Apex Predator
+            targetType: target
+            description: The target can’t be hidden from you for 24 hours. Until the end of the encounter, whenever the target willingly moves, you can use a free triggered action to move.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Stormwight Class Feature
+        guid: 2c61764e-4afb-4e59-abc9-d9e2d80f281f
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        canHavePrerequisites: true
+        classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+        description: ""
+        name: Apex Predator
+        implementation: 3
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: 5387214f-c3f8-40b9-8537-6cfb4023851f
+          description: ""
+          source: Stormwight Class Feature
+          name: Visceral Roar
+          behavior: activated
+          guid: e509be1e-c9a4-4052-a292-9fb4147dae62
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "5"
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 2 damage; push 1; M < weak, dazed (save ends)
+              - 5 damage; push 2; M < average, dazed (save ends)
+              - 7 damage; push 3; M < strong, dazed (save ends)
+              roll: 2d10 + Might
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: The sound of the storm within you staggers your opponents.
+            categorization: Heroic Ability
+            range: "2"
+            persistence: []
+            modifiers: []
+            strain: []
+            guid: d3c41e5e-bdcf-4d56-ab72-5a9e8893e330
+            abilityType: none
+            numTargets: "1"
+            domains:
+              class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            sourceReference:
+              __typeName: SourceReference
+              page: 150
+              docid: a623e586-b67d-4563-a5b8-62744d648c31
+            name: Visceral Roar
+            targetType: all
+            description: This ability deals your primordial damage type (see Stomrwight Kits).
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Stormwight Class Feature
+        guid: 5387214f-c3f8-40b9-8537-6cfb4023851f
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        canHavePrerequisites: true
+        classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+        description: ""
+        name: Visceral Roar
+        implementation: 3
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      guid: fa980fda-0b50-40fb-8ae0-5d05648d2c36
+      description: Choose one of the following abilities.
+      name: '2nd-Level Stormwight Ability '
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      guid: 478d1333-b94f-4f8c-831d-8f13fafb0189
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: 2c27cd7f-aea2-4ac3-a892-edb4e63aa0fd
+        description: ""
+        source: Stormwight Class Feature
+        name: Furious Change
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityGrantTemporaryStaminaBehavior
+            stamina: Might
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 8385d293-3372-4410-a285-cca8dda11379
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            promptText: Choose whether to switch form
+            autoTarget: false
+            abilityType: named
+            namedAbility: Aspect of the Wild
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            applyto: caster
+            targeting: self
+            modesSelected:
+            - 2
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: c919c0e6-a2c2-47e7-9865-c5598d889790
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbilityParams:
+              numrecoveries: "1"
+            standardAbility: f57cb6f7-13b9-4ebb-8e88-88ead0a9c203
+            abilityType: standard
+          - __typeName: ActivatedAbilityReplenishBehavior
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            mode: expend
+            modesSelected:
+            - 2
+          triggerPrompt: Gain temporary Stamina equal to Might and can enter animal form or hybrid form.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          guid: 6f0590cc-c2ec-4b66-a4f0-1fd46eb638bc
+          range: 1
+          castImmediately: true
+          multipleModes: true
+          persistence: []
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          modeList:
+          - text: Activate
+          - text: 1 Rage
+            rules: Spend a Recovery.
+            condition: Resources.Recovery > 0 and Resources.Heroic Resource > 0
+          trigger: losehitpoints
+          numTargets: "1"
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          conditionFormula: not Dying
+          actionResourceId: b9bc06dd-80f1-4f33-bc55-25c114e3300c
+          name: Furious Change
+          targetType: self
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: 6b5df5a7-e36a-440d-a174-81762397fa3a
+      - __typeName: CharacterModifier
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        sourceguid: 2c27cd7f-aea2-4ac3-a892-edb4e63aa0fd
+        behavior: triggerdisplay
+        source: Stormwight Class Feature
+        name: Furious Change
+        description: ""
+        guid: 8c3cb5b9-102a-4a16-be2d-4a419e314574
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          target: Self
+          effect: |
+            You gain temporary Stamina equal to your Might score and can enter your animal form or hybrid form.
+            **Spend 1 Rage:** If you are not dying, you can spend a Recovery.
+          name: Furious Change
+          trigger: You lose Stamina and are not dying.
+          flavor: In your anger, you revert to a more bestial form.
+          guid: d17a7116-7d5b-4440-9b50-058baa7bcd00
+          distance: Self
+          keywords: []
+      name: Furious Change
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: ""
+      source: Stormwight Class Feature
+      implementation: 3
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-9:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeatureChoice
+      allowDuplicateChoices: false
+      numChoices: 1
+      name: '9th-Level Stormwight Ability '
+      options:
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: ba45fe96-9a08-436f-81c1-9647a7b8db1e
+          description: ""
+          source: Stormwight Class Feature
+          name: Death Rattle
+          behavior: activated
+          guid: 4dc7762c-e629-4a43-a5e8-d210c4d26cde
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            objectTarget: false
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Magic: true
+              Area: true
+            targetAllegiance: enemy
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - "4 psychic damage; #any target who is a minion is reduced to 0 Stamina"
+              - "6 psychic damage; #any target who is a minion is reduced to 0 Stamina, as does one winded target who is not a leader or solo creature"
+              - "10 psychic damage; #each target who is not a leader or solo creature is winded; any target who is a minion is reduced to 0 Stamina, as does one winded target"
+              roll: 2d10 + Might
+            - __typeName: ActivatedAbilityDestroyBehavior
+              filterTarget: Minion
+            - __typeName: ActivatedAbilityDamageBehavior
+              tiersSelected:
+              - 3
+              filterTarget: not leader or solo
+              roll: Target.Stamina - (Target.Maximum Stamina*0.5)
+              separateRolls: true
+            - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+              ongoingEffect: 333bd717-500a-4a65-8620-0a9a1b7f7321
+              duration: 0
+              ongoingEffectCustom: 333bd717-500a-4a65-8620-0a9a1b7f7321
+            - __typeName: ActivatedAbilityInvokeAbilityBehavior
+              promptText: Select winded target to reduce to 0 Stamina
+              inheritKeywords: false
+              targetingFormula: ""
+              applyto: caster
+              customAbility:
+                __typeName: ActivatedAbility
+                objectTarget: false
+                targetFilter: target.ongoing effects has "Death Rattle target" and Target.Winded and not (target.solo or target.Leader)
+                repeatTargets: false
+                targetType: target
+                display:
+                  brightness: 1
+                  saturation: 1
+                  hueshift: 0
+                  bgcolor: "#ffffffff"
+                categorization: Hidden
+                range: 1
+                persistence: []
+                modifiers: []
+                strain: []
+                guid: 3ffd96b6-62ea-4572-b5ed-931dd61fb85a
+                numTargets: "1"
+                preDescription: Select a winded target to reduce to 0 stamina.
+                name: Invoked Ability
+                behaviors:
+                - __typeName: ActivatedAbilityDestroyBehavior
+                description: ""
+                abilityType: none
+                iconid: ui-icons/skills/1.png
+              autoTarget: false
+              targeting: prompt
+              inheritRange: true
+              tiersSelected:
+              - 2
+              - 3
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: |-
+              You unleash an otherworldly cry that rips through your enemies, killing the
+              weakest of them
+            categorization: Heroic Ability
+            range: "3"
+            abilityType: none
+            persistence: []
+            modifiers: []
+            sourceReference:
+              __typeName: SourceReference
+              page: 141
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            strain: []
+            guid: 52b84449-6394-4cba-9f3b-06da2f2f189e
+            rangeTextOverride: ""
+            numTargets: "1"
+            domains:
+              class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            targetType: all
+            implementation: 4
+            name: Death Rattle
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            description: ""
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Stormwight Class Feature
+        guid: ba45fe96-9a08-436f-81c1-9647a7b8db1e
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        canHavePrerequisites: true
+        classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+        description: ""
+        name: Death Rattle
+        implementation: 4
+      - __typeName: CharacterFeature
+        modifiers:
+        - __typeName: CharacterModifier
+          domains:
+            class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+            class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+          sourceguid: 34f2b55a-d400-4437-960e-aac8014a1411
+          description: ""
+          source: Stormwight Class Feature
+          name: Deluge
+          behavior: activated
+          guid: aa0a03b8-32da-47ac-b57e-179e3a75793a
+          activatedAbility:
+            __typeName: ActivatedAbility
+            resourceNumber: "11"
+            targetTextOverride: Each enemy in the area
+            repeatTargets: false
+            keywords:
+              Ranged: true
+              Area: true
+              Magic: true
+            behaviors:
+            - __typeName: ActivatedAbilityPowerRollBehavior
+              tiers:
+              - 7 damage
+              - 10 damage
+              - 15 damage
+              filterTarget: ""
+              roll: '2d10 + Might '
+            display:
+              brightness: 1
+              saturation: 1
+              hueshift: 0
+              bgcolor: "#ffffffff"
+            flavor: You summon your primordial storm
+            categorization: Heroic Ability
+            range: "10"
+            abilityType: none
+            implementation: 4
+            persistence: []
+            modifiers: []
+            rangeTextOverride: ""
+            strain: []
+            guid: 42035702-d537-478a-873a-613f554dc5cc
+            numTargets: "1"
+            sourceReference:
+              __typeName: SourceReference
+              page: 141
+              docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+            domains:
+              class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+              class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+            radius: "5"
+            actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+            name: Deluge
+            targetType: cube
+            description: This ability deals your primordial damage type and ignores damage immunity.
+            resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            iconid: ui-icons/skills/1.png
+        source: Stormwight Class Feature
+        guid: 34f2b55a-d400-4437-960e-aac8014a1411
+        domains:
+          class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+          class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+        canHavePrerequisites: true
+        classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+        description: ""
+        name: Deluge
+        implementation: 4
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      guid: 65d1614d-9317-44ae-88a6-a03f7e32abdb
+      source: Stormwight Class Feature
+      description: Choose one of the following abilities.
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+  level-3:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+        class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+      guid: 2614da9f-8499-4039-9e5e-3cc2c16d6e46
+      modifiers: []
+      name: Nature’s Knight
+      classid: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+      description: You can speak with all animals and elementals regardless of what form you are in. You automatically sense the presence of any animal or elemental within 10 squares of you, even if they are hidden. You are considered to have 1 higher Renown if negotiation with an animal or elemental comes into play. This stacks with the Renown bonus for animals of your type that your animal form gives you.
+      source: Stormwight Class Feature
+      implementation: 1
+    domains:
+      class:f6f4fcd3-c93e-49dd-832a-f898bc5fca78: true
+      class:ce18b1ba-363b-4403-945b-34a3ce08a465: true
+details: You channel your ferocity into primordial storms and can take on the form of an animal or an animal hybrid form. You have the Track skill.
+name: Stormwight
+mtime: 1771688026961
+id: f6f4fcd3-c93e-49dd-832a-f898bc5fca78
+primaryClassId: ce18b1ba-363b-4403-945b-34a3ce08a465

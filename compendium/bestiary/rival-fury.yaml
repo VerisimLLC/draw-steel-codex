@@ -1,0 +1,646 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 5e9a22d7-9ca2-4abb-adc6-6cbf38cb067f
+    offtokenPortraitId: d32fbadc-f5f8-4da7-a525-eaf38e92a3bd
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 9de68147-d085-4572-99d9-07e19a7779a2
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0.3826446
+    frameSaturation: 0.2826954
+    frameBrightness: 0.4357409
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 5e2b1b68-bd67-4401-ae79-8261e4cfccb0
+  properties:
+    __typeName: monster
+    groupid: 5163b6cd-991f-4277-b81c-8e42a53d328e
+    cr: 10
+    skillProficiencies: []
+    max_hitpoints: 260
+    inflictedConditions: []
+    ev: 48
+    max_hitpoints_roll: "260"
+    innateAttacks: []
+    attributes:
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: 4
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: 3
+        id: prs
+      rea:
+        __typeName: CharacterAttribute
+        id: rea
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: inu
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 5
+        id: mgt
+    creatureSize: 1M
+    levelChoices: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      resourceNumber: 5
+      targetFilter: not Enemy
+      repeatTargets: false
+      keywords:
+        Magic: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 10
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 6818b709-6bf9-4022-b358-4c240428efa6
+      abilityType: none
+      numTargets: 5
+      implementation: 0
+      name: Empyrean Boon
+      behaviors: []
+      description: Each target has a double edge, deals an additional 10 holy damage, and inflicts vertical slide 2 on their next strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      objectTarget: false
+      targetTextOverride: Select allied targets to gains an edge on their next strike. This ability auto applies on the caster.
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Magic: true
+      targetAllegiance: ally
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: 21827a29-9af8-46ac-86a0-fc74841584a8
+        ongoingEffectCustom: 21827a29-9af8-46ac-86a0-fc74841584a8
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 21827a29-9af8-46ac-86a0-fc74841584a8
+        ongoingEffectCustom: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 240
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: "10"
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: f1271ad5-5335-4c84-8ded-c62381e0a155
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      numTargets: "5"
+      targetType: target
+      implementation: 3
+      name: Imbue with Might
+      categorization: Malice
+      description: Each target gains an edge on their next strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: df0b2b8d-8987-476f-b7d0-c312e0bf32af
+    - __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: ff3a8de2-2c9d-4bb9-88e1-1ea8c3482e45
+      repeatTargets: false
+      abilityType: none
+      persistence: []
+      targetType: self
+      iconid: ui-icons/skills/1.png
+      name: Thunder of Heavens
+      behaviors: []
+      description: ""
+      range: 1
+      implementation: 0
+    - __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 59d626e2-f37d-4641-a231-8b077ac12e40
+      repeatTargets: false
+      abilityType: none
+      persistence: []
+      targetType: self
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      name: Brutal Impact
+      behaviors: []
+      description: ""
+      range: 1
+      implementation: 0
+    - __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      strain: []
+      guid: 1b99a7b3-7819-4a12-9262-5db71472cb44
+      repeatTargets: false
+      abilityType: none
+      persistence: []
+      targetType: self
+      iconid: ui-icons/skills/1.png
+      name: Brutal Impact
+      behaviors: []
+      description: ""
+      range: 1
+      implementation: 0
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetAllegiance: enemy
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage; push 1
+        - 11 damage; push 2
+        - 14 damage; push 3
+        filterTarget: ""
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        filterTarget: Target.Might Modifier M<1
+        duration: save_ends
+        ongoingEffectCustom: false
+        ongoingEffect: 12bc7f58-0ae8-4b9e-9018-74d28b083992
+        modesSelected:
+        - 2
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Signature Ability
+      range: 1
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      persistence:
+        enabled: false
+      modifiers: []
+      targetType: target
+      strain: []
+      maxChannel: "1"
+      description: ""
+      numTargets: "2"
+      guid: 33b014b0-4e3e-4f12-bfd3-fc5d8006edbc
+      sourceReference:
+        __typeName: SourceReference
+        page: 241
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+      name: Brutal Impact
+      modeList:
+      - text: No Malice
+      - rules: Each target who has m<1 is slowed (save ends).
+        text: 2 Malice
+      channeledResource: none
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      objectTarget: false
+      targetFilter: Target.Size <= Caster.Size
+      targetTextOverride: 'One creature of your size or smaller. '
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetAllegiance: enemy
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      categorization: Malice
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 1a62c4a8-e476-43eb-9d5b-33965a346e22
+      abilityType: none
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      numTargets: "1"
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 8 damage; m<0 grabbed
+        - 13 damage; m<2 grabbed
+        - 16 damage; m<3 grabbed
+        roll: 2d10 + Might or Agility
+      sourceReference:
+        __typeName: SourceReference
+        page: 242
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      name: Let's Tussle
+      implementation: 3
+      description: The target must be the fury's size or smaller. While the target is grabbed this way, the fury gains an edge on strikes against them.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      iconid: d20a12c1-a699-44bd-bf88-622413ddbd48
+    - __typeName: ActivatedAbility
+      resourceNumber: 2 when Mode = 2 else 0
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 244
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: 2
+      modifiers: []
+      modeList:
+      - text: Normal
+        condition: ""
+      - rules: Each target who has M < 4 is bleeding and slowed (save ends).
+        text: Malice
+        condition: ""
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 15 damage; push 4
+        - 21 damage; push 5
+        - 25 damage; push 6
+        roll: 2d10 + Might
+      iconid: ui-icons/skills/1.png
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      categorization: Signature Ability
+      name: Seismic Crush
+      guid: 306bdbfb-b470-4afd-a8ab-378dca5fd88c
+      description: |2-
+
+        **2 Malice**: Each target who has M < 4 is bleeding and slowed (save ends).
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 4
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: 509022a5-57cb-44a2-b28a-99cf557d4800
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 17 damage; M<3 grabbed
+        - 24 damage; M<4 grabbed
+        - 30 damage; M<5 grabbed
+        roll: 2d10 + Might
+      name: Death Grip
+      sourceReference:
+        __typeName: SourceReference
+        page: 244
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: The target must be the fury's size or smaller. While the target is grabbed this way, the fury and their allies have a double edge on strikes against them.
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 3
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      casterInfo:
+        abilityName: Rivalry
+        tokenid: 5db17c47-0b74-4825-a666-aa7f75df8180
+      ongoingEffectid: e349e64f-4422-4fa9-995b-130c492a473a
+      seq: 1
+      time:
+        __typeName: TimePoint
+        time: 2.61544333065257
+      sourceDescription: Applied by Awkward Rival Fury's <b>Rivalry</b> ability
+      stacks: 1
+      id: a0f10042-059f-4f41-b8e2-f78a98040640
+      removeOnEoE: true
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        dcc0b5ee-3dc6-4187-970c-4e0274f1991e:
+          userid: KFXv2v9vvoReDVHlX2qLncupvbN2
+          set: 240
+    minion: false
+    stability: 3
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:d6c21802-73fe-4682-8251-6746b2ae4c27: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: d6c21802-73fe-4682-8251-6746b2ae4c27
+        source: Trait
+        behavior: trigger
+        domains:
+          CharacterFeature:d6c21802-73fe-4682-8251-6746b2ae4c27: true
+        name: Overwhelm
+        resourceRefreshType: turn
+        description: Once per turn, when the fury force moves a creature or object, or shifts adjacent to a creature or object, they can make a free strike against that creature or object.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          targetFilter: Distance(targ)
+          repeatTargets: false
+          targetType: self
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: turn
+            charges: "1"
+            resourceid: 547e0925-a127-4343-be55-3bc728336992
+          numTargets: "1"
+          modifiers: []
+          strain: []
+          whenActive: combat
+          abilityType: none
+          persistence: []
+          behaviors: []
+          guid: d0c99c35-816e-4f09-a56e-0c9e1ae4f1b9
+          trigger: finishmove
+          name: Overwhelm
+          description: ""
+          subject: self
+          iconid: ui-icons/skills/1.png
+        guid: 547e0925-a127-4343-be55-3bc728336992
+      name: Overwhelm
+      description: Once per turn, when the fury force moves a creature or object, or shifts adjacent to a creature or object, they can make a free strike against that creature or object.
+      guid: d6c21802-73fe-4682-8251-6746b2ae4c27
+      source: Trait
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+        CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+          CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+        sourceguid: 3146422c-eb42-4160-ae0e-642168383dc6
+        behavior: trigger
+        source: Trait
+        name: Rivalry
+        description: The Fury selects one creature within line of effect at the start of an encounter. Both the Fury and the creature can add a 1d3 to all power rolls made against each other.
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            invokeOnCaster: false
+            customAbility:
+              __typeName: ActivatedAbility
+              objectTarget: false
+              targetTextOverride: Choose another magic-wielder as the target for your Rivalry
+              repeatTargets: false
+              targetAllegiance: enemy
+              behaviors:
+              - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+                ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+                duration: eoe
+                ongoingEffectCustom: e349e64f-4422-4fa9-995b-130c492a473a
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              sourceReference:
+                __typeName: SourceReference
+                page: 240
+                docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+              range: "50"
+              persistence: []
+              modifiers: []
+              strain: []
+              guid: c4193d77-d471-4d84-8d0b-925f72f62cac
+              targetType: target
+              iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+              name: Invoked Ability
+              numTargets: "1"
+              description: ""
+              abilityType: none
+              implementation: 3
+            promptText: Choose a player Hero as the target for your Rivalry.
+            autoTarget: false
+            abilityType: custom
+            applyto: caster
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            applyto: caster
+            ongoingEffect: e349e64f-4422-4fa9-995b-130c492a473a
+            duration: eoe
+            ongoingEffectCustom: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          range: 1
+          persistence: []
+          modifiers: []
+          hasManualVersion: false
+          strain: []
+          guid: c171ef5c-50db-42ed-93a9-9c72ad7ea4bc
+          numTargets: "1"
+          domains:
+            CharacterFeature:3146422c-eb42-4160-ae0e-642168383dc6: true
+            CharacterFeature:03d6d373-36c8-4559-b50f-0166af9ad568: true
+          description: ""
+          targetType: self
+          trigger: rollinitiative
+          name: Rivalry
+          abilityFilters: []
+          abilityType: none
+          iconid: 3cfaa0fb-fa04-4b54-b082-6c5fdb72f21e
+        guid: 6fc99f50-afce-47f7-b90f-464a3b25089f
+      source: Trait
+      description: The Fury selects one creature within line of effect at the start of an encounter. Both the Fury and the creature can add a 1d3 to all power rolls made against each other.
+      guid: 03d6d373-36c8-4559-b50f-0166af9ad568
+      name: Rivalry
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:09216344-a766-4b52-a516-5d684b7076cf: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 09216344-a766-4b52-a516-5d684b7076cf
+        source: Character Feature
+        seq: 2750da31-8f0d-4ba3-b080-65c284a22c0c
+        guid: 905f9894-455b-4c41-ac63-eab47f45e7b4
+        domains:
+          CharacterFeature:09216344-a766-4b52-a516-5d684b7076cf: true
+        radius: "1"
+        behavior: aura
+        description: Strikes made against allies adjacent to the conduit take a bane.
+        aura:
+          __typeName: Aura
+          applyto: friends
+          modifiers:
+          - __typeName: CharacterModifier
+            sourceguid: 9a146a57-c340-44a8-9b58-d77c4963a551
+            source: Aura
+            modtype: bane
+            keywords: []
+            activationCondition: true
+            name: Stalwart Guardian Aura
+            guid: ee4520b7-927d-4ad3-9d82-a9d07f0c796f
+            description: Strikes made against allies adjacent to the conduit take a bane.
+            rollType: enemy_ability_power_roll
+            behavior: power
+          name: Stalwart Guardian Aura
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          description: Strikes made against allies adjacent to the conduit take a bane.
+          guid: 9a146a57-c340-44a8-9b58-d77c4963a551
+          implementation: 3
+        name: Stalwart Guardian
+      source: Character Feature
+      description: Strikes made against allies adjacent to the conduit take a bane.
+      guid: 09216344-a766-4b52-a516-5d684b7076cf
+      name: Stalwart Guardian
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:2cb3950c-d21f-4503-8dbe-b441e8359785: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 2cb3950c-d21f-4503-8dbe-b441e8359785
+        source: Character Feature
+        modtype: edge
+        keywords: []
+        activationCondition: target.Ongoing Effects has "grabbed"
+        guid: 9214d3aa-7ab2-4ed3-aae5-e8e3b2c520ba
+        name: Let's Tussle
+        domains:
+          CharacterFeature:2cb3950c-d21f-4503-8dbe-b441e8359785: true
+        description: While the target is grabbed by the Fury's <B>Let's Tussle</B> ability, the Fury gains an edge on strikes against the target.
+        rollType: ability_power_roll
+        behavior: power
+      source: Character Feature
+      description: While the target is grabbed by the Fury's <B>Let's Tussle</B> ability, the Fury gains an edge on strikes against the target.
+      guid: 2cb3950c-d21f-4503-8dbe-b441e8359785
+      name: Let's Tussle
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:78b97379-5c5b-49f0-8216-39b40af125e2: true
+      modifiers: []
+      name: Devastate
+      description: Once per turn, when the fury force moves a creature or object, or shifts adjacent to a creature or object, they can use a signature ability against that creature or object that has a double edge.
+      guid: 78b97379-5c5b-49f0-8216-39b40af125e2
+      source: Trait
+    role: Elite Brute
+    equipment: []
+    titles: []
+    skillRatings: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: d3de4f0d-8796-47ae-b897-ec8d40bd2099
+    opportunityAttack: 10
+    damage_taken: 0
+    keywords:
+      Humanoid: true
+      Rival: true
+    walkingSpeed: 5
+    deathSavingThrowFailures: 0
+    deathSavingThrowSuccesses: 0
+    traitNames: []
+    resources: []
+    movementSpeeds: []
+    savingThrowRatings: []
+    monster_type: Rival Fury
+    monster_category: Monster
+    resistances: []
+  tokenType: null
+  bestiaryId: 6aa52a3f-6d86-4699-ad90-3d844da8b937
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1737961969981
+description: Rival Fury
+parentFolder: 62dde676-136f-4d24-9390-903417c9a726
+artist: null
+ord: 0
+ctime: 1765818108421
+mtime: 1765818108421
+hidden: false

@@ -1,0 +1,361 @@
+__typeName: CharacterOngoingEffect
+association: []
+sustainFormula: not self.stamina <= self.Dying Stamina
+canEndWithAction: true
+source: Ongoing Effect
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.556999921798706
+    s: 0.484375
+    v: 1.00195717811584
+    a: 1
+guid: ba09d04a-c454-46d6-9d85-f0c6503535c1
+id: ba09d04a-c454-46d6-9d85-f0c6503535c1
+ctime: 1728101052030
+domains:
+  CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: ba09d04a-c454-46d6-9d85-f0c6503535c1
+  source: Ongoing Effect
+  seq: 3ce86312-9b1d-4dc8-b41a-ed041ea1c1e9
+  aura:
+    __typeName: Aura
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: 4f62a9f9-eb05-442f-b1a6-e7da524d84f4
+      source: "Null"
+      modtype: none
+      keywords: []
+      activationCondition: true
+      description: Each target reduces their potencies by 1
+      name: Null Field
+      behavior: power
+      potencymod: "-1"
+      rollType: all
+      guid: 1c7314d1-7e9e-4711-b4a4-2522727331ad
+    source: "Null"
+    guid: 4f62a9f9-eb05-442f-b1a6-e7da524d84f4
+    objectid: b5b247f1-f046-42f9-99e3-6c83779e2e27
+    applyto: enemies
+    name: Null Field
+    triggers: []
+    description: Each target reduces their potencies by 1
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor:
+        __usertype: LuaColor
+        h: 0.548999905586243
+        s: 0.653906106948853
+        v: 1.00195717811584
+        a: 1
+    iconid: d0df0633-763e-4c9c-8a5c-38ca5aa82ca6
+  domains:
+    CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+  radius: Nullifying Aura Radius
+  guid: 4f357817-ab1a-42d5-8efe-639adbee89b5
+  description: |-
+    You project a psionic field of order around your body,
+    dampening the effects of supernatural abilities harmful to
+    you and your allies
+  behavior: aura
+  name: Null Field
+- __typeName: CharacterModifier
+  sourceguid: ba09d04a-c454-46d6-9d85-f0c6503535c1
+  source: Ongoing Effect
+  value: 1
+  domains:
+    CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+  name: Null Field
+  guid: 5c72cf2b-e3e7-418d-afde-5633217553d6
+  description: |-
+    You project a psionic field of order around your body,
+    dampening the effects of supernatural abilities harmful to
+    you and your allies
+  behavior: attribute
+  attribute: bd01a4c5-0758-4453-8d71-5d2257aa23fd
+- __typeName: CharacterModifier
+  sourceguid: ba09d04a-c454-46d6-9d85-f0c6503535c1
+  source: Ongoing Effect
+  behavior: activated
+  domains:
+    CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+  name: Null Field
+  resourceRefreshType: round
+  description: |-
+    You project a psionic field of order around your body,
+    dampening the effects of supernatural abilities harmful to
+    you and your allies
+  guid: 2830ca60-4bd4-41e3-8bd7-646544eb7516
+  activatedAbility:
+    __typeName: ActivatedAbility
+    repeatTargets: false
+    targetType: self
+    multipleModes: true
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    flavor: ""
+    categorization: Ability
+    range: 1
+    usageLimitOptions:
+      resourceRefreshType: round
+      charges: "1"
+      resourceid: 2830ca60-4bd4-41e3-8bd7-646544eb7516
+      multicharge: false
+    numTargets: "1"
+    modifiers: []
+    strain: []
+    guid: 7df330e4-9b20-4bd1-853a-6ed372b66826
+    resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+    modeList:
+    - rules: The first time on a turn that a target takes damage, you can slide them 2.
+      text: Gravitic Disruption
+    - text: Inertial Anchor
+      rules: Each target who starts their turn in the area cannot shift.
+      condition: ""
+    - rules: When a target is subjected to a potency, the potency is increased by 1.
+      text: Synaptic Break
+    domains:
+      CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+    actionResourceId: none
+    persistence: []
+    name: Null Field - Effects
+    behaviors:
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      durationUntilEndOfTurn: false
+      duration: 1
+      ongoingEffectCustom: 9f815361-29a4-4d13-83f1-37990ceb3ce1
+      ongoingEffect: 9f815361-29a4-4d13-83f1-37990ceb3ce1
+      modesSelected:
+      - 1
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      durationUntilEndOfTurn: false
+      duration: 1
+      ongoingEffectCustom: d429a47c-76ea-4658-9185-7eca1be7f2b8
+      ongoingEffect: d429a47c-76ea-4658-9185-7eca1be7f2b8
+      modesSelected:
+      - 2
+    - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+      durationUntilEndOfTurn: false
+      duration: 1
+      ongoingEffectCustom: d967d214-6617-43ee-93bc-c619a684ab9d
+      ongoingEffect: d967d214-6617-43ee-93bc-c619a684ab9d
+      modesSelected:
+      - 3
+    - __typeName: ActivatedAbilityReplenishBehavior
+      resourceid: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      applyto: targets
+    description: |-
+      Once as a free maneuver on your turn, you can spend 1 discipline and give your Null Field has one of the following additional effects until the start of your next turn:
+
+      Gravitic Disruption: The first time on a turn that a target takes damage, you can slide them 2.
+      • Inertial Anchor: Each target who starts their turn in the area cannot shift.
+      • Synaptic Break: When a target is subjected to a potency, the potency is increased by 1.
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+- __typeName: CharacterModifier
+  sourceguid: ba09d04a-c454-46d6-9d85-f0c6503535c1
+  source: Ongoing Effect
+  seq: 0beee037-0551-4870-9a31-978cabf28522
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers:
+    - __typeName: CharacterModifier
+      domains:
+        CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+      sourceguid: ba09d04a-c454-46d6-9d85-f0c6503535c1
+      description: |-
+        You project a psionic field of order around your body,
+        dampening the effects of supernatural abilities harmful to
+        you and your allies
+      source: Ongoing Effect
+      name: Nullifying Field
+      behavior: activated
+      guid: 0faf6738-7665-4de4-9250-fa26fcc04f4d
+      activatedAbility:
+        __typeName: ActivatedAbility
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityPurgeEffectsBehavior
+          conditions: []
+          filterTarget: ""
+          purgeType: one
+          mode: conditions
+        - __typeName: ActivatedAbilityDamageBehavior
+          roll: Cast.Purged Conditions d6
+          chatMessage: Synaptic Triage
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        sourceReference:
+          __typeName: SourceReference
+          page: 156
+          docid: e6cab5b7-a1c9-4b12-ad06-ed573f6ba904
+        range: 1
+        persistence: []
+        modifiers: []
+        actionResourceId: d81ce1e9-96a3-4705-9180-1c80f72a86cf
+        strain: []
+        guid: 3c6c76bf-7219-4a1b-9151-cc755bcb9797
+        numTargets: "1"
+        categorization: Ability
+        domains:
+          CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+        iconid: 12cdef25-2e5b-47e0-bccf-758198de8442
+        preDescription: |-
+          As a free maneuver, you can spend 1d6 Stamina to remove one effect
+          on you
+        name: Synaptic Triage
+        targetType: self
+        description: ""
+        abilityType: none
+        implementation: 3
+    name: Nullifying Field
+    guid: 04ad76c0-68f0-45cb-a56d-fb24edb854da
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+  conditionFormula: Level >= 8 and Subclasses has "Disciple of the Cryokinetic"
+  guid: be444e57-963a-4dc2-9cdc-3e56d874c2a7
+  radius: Nullifying Aura Radius
+  domains:
+    CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+  description: |-
+    You project a psionic field of order around your body,
+    dampening the effects of supernatural abilities harmful to
+    you and your allies
+  behavior: aura
+  name: Null Field
+- __typeName: CharacterModifier
+  sourceguid: ba09d04a-c454-46d6-9d85-f0c6503535c1
+  source: Ongoing Effect
+  seq: 0beee037-0551-4870-9a31-978cabf28522
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers:
+    - __typeName: CharacterModifier
+      guid: 1cec11d8-e0a6-4240-92e5-b998681e5af0
+      sourceguid: 2710e041-36d4-43b1-8569-6c1bef91214a
+      value: Aura.Caster.Intuition
+      source: Aura
+      name: Nullifying Field
+      behavior: attribute
+      description: ""
+      attribute: forcedmoveresistance
+    - __typeName: CharacterModifier
+      triggeredAbility:
+        __typeName: TriggeredAbility
+        targetFilter: Target = Attacker
+        repeatTargets: false
+        behaviors:
+        - __typeName: ActivatedAbilityDamageBehavior
+          roll: AurasCaster("Nullifying Field").Intuition
+          damageType: psychic
+          chatMessage: Inertial Dampener Damage
+        display:
+          brightness: 1
+          saturation: 1
+          hueshift: 0
+          bgcolor: "#ffffffff"
+        range: "20"
+        persistence: []
+        modifiers: []
+        hasManualVersion: true
+        strain: []
+        guid: e259e2d9-70dc-46fc-9730-8b2c37a963de
+        conditionFormula: Has Attacker
+        numTargets: "1"
+        name: Inertial Dampener
+        trigger: forcemove
+        targetType: all
+        description: A creature who attempts to force move a target with this bonus takes psychic damage equal to your Intuition score.
+        abilityType: none
+        iconid: ui-icons/skills/1.png
+      description: ""
+      source: Aura
+      behavior: trigger
+      guid: 4fa019c2-b379-46b3-9413-01aaa3e9330d
+      name: Nullifying Field
+      sourceguid: 2710e041-36d4-43b1-8569-6c1bef91214a
+    name: Nullifying Field
+    guid: 2710e041-36d4-43b1-8569-6c1bef91214a
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+  conditionFormula: Level >= 8 and Subclasses has "Disciple of the Metakinetic"
+  guid: 17b3ab8a-d7e3-4dbd-8fd1-29963c6035ff
+  radius: Nullifying Aura Radius
+  domains:
+    CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+  description: |-
+    You project a psionic field of order around your body,
+    dampening the effects of supernatural abilities harmful to
+    you and your allies
+  behavior: aura
+  name: Null Field
+- __typeName: CharacterModifier
+  sourceguid: ba09d04a-c454-46d6-9d85-f0c6503535c1
+  source: Ongoing Effect
+  seq: 02cc0c0f-c983-41c3-a53f-38bc8e9f66bf
+  aura:
+    __typeName: Aura
+    applyto: selfandfriends
+    modifiers:
+    - __typeName: CharacterModifier
+      sourceguid: e87e542a-3f52-4216-b18b-bdd5233b6aff
+      source: Aura
+      behavior: power
+      keywords: []
+      activationCondition: true
+      name: Nullifying Field
+      guid: 0e2e37c7-29ab-4f97-b2ed-6e0770e61b9e
+      description: You and allies in the area of your Null Field ability ignore banes and double banes on your power rolls.
+      modtype: ignore_banes
+      rollType: all
+    name: Nullifying Field
+    guid: e87e542a-3f52-4216-b18b-bdd5233b6aff
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    objectid: c994501f-85ec-475e-b9f6-8113a814f8d1
+  conditionFormula: Level = 10
+  guid: c48cd6da-b898-49d5-aef7-04985d0110c4
+  radius: Nullifying Aura Radius
+  domains:
+    CharacterOngoingEffect:ba09d04a-c454-46d6-9d85-f0c6503535c1: true
+  description: |-
+    You project a psionic field of order around your body,
+    dampening the effects of supernatural abilities harmful to
+    you and your allies
+  behavior: aura
+  name: Null Field
+description: |-
+  You project a psionic field of order around your body,
+  dampening the effects of supernatural abilities harmful to
+  you and your allies
+name: Null Field
+iconid: 462bede3-f1fc-42e4-8cc0-a72602b4ca95
+custom: true
+mtime: 1773608232571
+implementation: 3

@@ -1,0 +1,224 @@
+__typeName: MarkdownDocument
+annotations:
+  follower:
+    __typeName: RichFollower
+    identifier: false
+    follower:
+      __typeName: Follower
+      type: retainer
+      portrait: 1a4e4749-0381-4822-a775-e3381904e887
+      name: Illwyth
+      guid: ceed9a5b-2387-40a7-9341-5165cf2e2686
+      retainerToken: b1e61b0c-d699-4ffe-ae0e-a034b6baff94
+      languages: []
+      skills: []
+  image:
+    __typeName: RichImage
+    uiscale: 0.5
+    halign: left
+    image: 4af99d02-961b-48f5-a4c2-e0d839f35877
+id: 77b28c10-c90c-43d6-b204-0d3b3576be3c
+ctime: 1761428183016
+textStorage:
+  __typeName: TextStorage
+  sections:
+    x: |
+      |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+    v: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls.
+    t: |
+      |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+    q: |+
+      If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+    r: |
+      |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+    o: |
+      |Patience decreases by 1
+    p: |
+      |Interest increases by 1, Patience decreases by 1
+    m: |
+      |No Motivation or Pitfall: Reason, Intuition, or Presence
+    n: |
+      |Interest decreases by 1, Patience decreases by 1
+    k: |
+      |Interest increases by 1, Patience decreases by 1
+    l: |+
+      |Interest increases by 1, Patience does not change.
+
+    i: |
+      |Appeal to Motivation: Reason, Intuition, or Presence
+    j: |
+      |Patience decreases by 1
+    g: |
+      **Pitfall Used: Automatic failure:
+    h: |2+
+       Both Interest and Patience decrease by 1.**
+
+    e: |+
+      If [Illwyth] travels with the heroes, the Gilded Hand confronts them in the streets (see [Gilded Showdown] in [Events]).
+
+    f: |+
+      [[follower]]
+      }
+
+
+    c: |+
+      If the heroes end the negotiation with Illwyth’s interest at 3 or higher and make a deal with her, they each gain 1 Victory. If she doesn’t join the heroes after giving them the ring, she leaves Broadhurst and the [Gilded Hand] leaves to pursue her.
+
+    d: |+
+      [[/awardvp 1|Award Heroes 1 Victory]]
+
+    a: |
+      |Interest 1 | No. |Illwyth won’t give the heroes the ring or help them.|
+    b: |+
+      |Interest 0 | No, and… |Illwyth won’t give the heroes the ring, and secretly decides they know too much and need to be put down. She ends the negotiation and plots with the [Gilded Hand] to take the heroes out (see [Gilded Showdown] in [Events]).|
+
+    Y: |
+      |Interest 3 | Yes, but… |Illwyth offers the heroes the [item:Delian Knight Commander's Ring] and the location of the Jagged Edge if they promise to trade her for it. The heroes must either lose a combined number of Wealth equal to 3 to pay her properly or give her a nonconsumable treasure, such as a Bloodbound Band they might have recovered from the Delian Tomb.|
+    Z: |
+      |Interest 2 | No, but… |Illwyth won’t give the heroes the ring for fear of angering the others, but she does tell them that the [Gilded Hand] have no way of entering the tomb’s second level and are closely watching the heroes, hoping they can take care of that ward.|
+    W: |
+      |Interest 5 |Yes, and... |Illwyth offers the heroes the [item:Delian Knight Commander's Ring], tells them that the Jagged Edge are staying in the ruins of Castle Andreas (see [Castle Andreas] in [Part 3 The Jagged Edge]), and feels so invested in their cause that she offers to join them as a retainer (see the [Illwyth Follower Card]). She tells them this is the most she can offer.|
+    X: |
+      |Interest 4 | Yes.|Illwyth offers the heroes the [item:Delian Knight Commander's Ring] and tells them that Jagged Edge is staying in the ruins of [Castle Andreas] without expecting anything in return.|
+    U: |
+      **Negotiation outcomes**
+    V: |+
+      As the heroes make arguments to [Illwyth], she responds based on her interest:
+
+    S: |
+      {**Justice**}
+    T: |
+      {Illwyth has no interest in seeing the wicked punished for crimes, though she doesn’t wish to see innocent folk hurt either. If a hero argues that Queen Bargnot or the other members of the Gilded Hand should be brought to justice as a way to appeal to Illwyth’s conscience, they invoke this pitfall.}
+
+
+      {
+    Q: |+
+      {Illwyth cares about her reputation and what folks might say of her long after she’s dead. If the heroes make an argument that working with Queen Bargnot will negatively impact her reputation, they appeal to this motivation.}
+
+    R: |
+      & Pitfalls 
+    O: |+
+      {Money isn’t everything to Illwyth, but it’s close. If the heroes point out that working with Queen Bargnot could cost her future coin or make some other argument that affects her income, they appeal to this motivation.}
+
+    P: |
+      {**Legacy**}
+    M: |
+      Illwyth's Motivations
+    N: |
+      {**Greed**}
+    K: |
+      All Motivations & Pitfalls:
+    L: |+
+      *Benevolence, Discovery, Freedom, Greed, Higher Authority, Justice, Legacy, Peace, Power, Protection, Revelry, Vengeance*
+
+
+
+    I: |+
+      PATIENCE:  [[###--]]
+
+    J: |+
+      [[image]]
+
+    G: |+
+      Native Language: Yllric
+      }
+
+
+
+    H: |
+      INTEREST:  [[#----]] 
+    E: |
+      ## Illwyth Negotiation Stats 
+
+      {
+    F: |
+      Impression: 1 
+    C: |
+      {If the heroes privately ask [Illwyth] for the ring and mention that they know the [Gilded Hand]’s plan to give the [Cup of Iulius] to [Queen Bargnot], the wode elf is willing to negotiate.}
+    D: |+
+      *(see Negotiation on page 298 in [Draw Steel Heroes])*
+
+    B: |+
+      # Negotiating for the Ring
+
+parentFolder: eaf490ac-5c37-4c4b-9843-f2c26f95ec52
+updateid: 4d62a7a5-40b7-4322-a8a1-e62b3779bcd2
+description: Negotiating for the Ring
+content: |
+  # Negotiating for the Ring
+
+  {If the heroes privately ask [Illwyth] for the ring and mention that they know the [Gilded Hand]’s plan to give the [Cup of Iulius] to [Queen Bargnot], the wode elf is willing to negotiate.}
+  *(see Negotiation on page 298 in [Draw Steel Heroes])*
+
+  ## Illwyth Negotiation Stats 
+
+  {
+  Impression: 1 
+  Native Language: Yllric
+  }
+
+
+
+  INTEREST:  [[#----]] 
+  PATIENCE:  [[###--]]
+
+  [[image]]
+
+  All Motivations & Pitfalls:
+  *Benevolence, Discovery, Freedom, Greed, Higher Authority, Justice, Legacy, Peace, Power, Protection, Revelry, Vengeance*
+
+
+
+  Illwyth's Motivations
+  {**Greed**}
+  {Money isn’t everything to Illwyth, but it’s close. If the heroes point out that working with Queen Bargnot could cost her future coin or make some other argument that affects her income, they appeal to this motivation.}
+
+  {**Legacy**}
+  {Illwyth cares about her reputation and what folks might say of her long after she’s dead. If the heroes make an argument that working with Queen Bargnot will negatively impact her reputation, they appeal to this motivation.}
+
+  & Pitfalls 
+  {**Justice**}
+  {Illwyth has no interest in seeing the wicked punished for crimes, though she doesn’t wish to see innocent folk hurt either. If a hero argues that Queen Bargnot or the other members of the Gilded Hand should be brought to justice as a way to appeal to Illwyth’s conscience, they invoke this pitfall.}
+
+
+  {
+  **Negotiation outcomes**
+  As the heroes make arguments to [Illwyth], she responds based on her interest:
+
+  |Interest 5 |Yes, and... |Illwyth offers the heroes the [Delian Knight Commander’s Ring], tells them that the Jagged Edge are staying in the ruins of Castle Andreas (see [Castle Andreas] in [Part 3: The Jagged Edge]), and feels so invested in their cause that she offers to join them as a retainer (see the [Illwyth Retainer Follower Card]). She tells them this is the most she can offer.|
+  |Interest 4 | Yes.|Illwyth offers the heroes the [Delian Knight Commander’s Ring] and tells them that Jagged Edge is staying in the ruins of [Castle Andreas] without expecting anything in return.|
+  |Interest 3 | Yes, but… |Illwyth offers the heroes the [Delian Knight Commander’s Ring] and the location of the Jagged Edge if they promise to trade her for it. The heroes must either lose a combined number of Wealth equal to 3 to pay her properly or give her a nonconsumable treasure, such as a Bloodbound Band they might have recovered from the Delian Tomb.|
+  |Interest 2 | No, but… |Illwyth won’t give the heroes the ring for fear of angering the others, but she does tell them that the [Gilded Hand] have no way of entering the tomb’s second level and are closely watching the heroes, hoping they can take care of that ward.|
+  |Interest 1 | No. |Illwyth won’t give the heroes the ring or help them.|
+  |Interest 0 | No, and… |Illwyth won’t give the heroes the ring, and secretly decides they know too much and need to be put down. She ends the negotiation and plots with the [Gilded Hand] to take the heroes out (see [Gilded Showdown] in [Events]).|
+
+  If the heroes end the negotiation with Illwyth’s interest at 3 or higher and make a deal with her, they each gain 1 Victory. If she doesn’t join the heroes after giving them the ring, she leaves Broadhurst and the [Gilded Hand] leaves to pursue her.
+
+  [[/awardvp 1|Award Heroes 1 Victory]]
+
+  If [Illwyth] travels with the heroes, the Gilded Hand confronts them in the streets (see [Gilded Showdown] in [Events]).
+
+  }
+
+
+  **Pitfall Used: Automatic failure:
+   Both Interest and Patience decrease by 1.**
+
+  |Appeal to Motivation: Reason, Intuition, or Presence
+  |Patience decreases by 1
+  |Interest increases by 1, Patience decreases by 1
+  |Interest increases by 1, Patience does not change.
+
+  |No Motivation or Pitfall: Reason, Intuition, or Presence
+  |Interest decreases by 1, Patience decreases by 1
+  |Patience decreases by 1
+  |Interest increases by 1, Patience decreases by 1
+  If the heroes try to use the same argument without a pitfall or motivation twice, the test automatically obtains a tier 1 outcome.
+
+  |Uncover Motivation or Pitfall: Reason, Intuition, or Presence
+  |The hero learns no information regarding the NPC’s motivations or pitfalls, and the NPC realizes the hero is trying to read them and becomes annoyed. As a consequence, the NPC’s patience is reduced by 1.
+  |The hero learns no information regarding the NPC’s motivations or pitfalls.
+  |The hero learns one of the NPC’s motivations or pitfalls (their choice).
+mtime: 1764326447924

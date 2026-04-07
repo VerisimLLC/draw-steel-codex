@@ -1,0 +1,190 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 8a709248-4857-46d1-8357-0951c1229b2d
+    offtokenPortraitId: null
+    portraitFrameId: 98008f3c-3532-4bd1-b28e-7804c6c93310
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 0.7313907
+    portraitOffset:
+      x: -0.09950459
+      y: 0.1534847
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise: null
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 7ea4af94-a1e9-476b-91d9-05f302fb9d78
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    stability: 0
+    cr: 6
+    import:
+      type: mcdm
+      data: |+
+        Shadow Elf Killhouette	Level 6 Ambusher
+        Fey, Humanoid, Shadow Elf	EV 29
+        <b>Stamina</b> 80
+        <b>Speed</b> 5 (climb)	<b>Size</b> 1M /<b> Stability</b> 0
+        <b>Free Strike</b> 7
+        Might +2	Agility +3	Reason +1	Intuition +2	Presence +0
+        <b>Knife in the Dark</b> (Action) %E2%97%86 2d10 + 3%E2%97%86 Signature
+        <b>Keywords</b> Melee, Strike, Weapon
+        <b>Distance</b> Melee 1<b>	Target</b> One creature or object
+        %E2%9C%A6	<b>%E2%89%A411</b>	10 damage
+        %E2%98%85	<b>12-16</b>	15 damage
+        %E2%9C%B8	<b>17</b>	18 damage
+        <b>Effect</b> The killhouette is invisible to the target until the start of their next turn.
+
+        <b>Shadow Step</b> (Maneuver)
+        <b>Keywords</b> -
+        <b>Distance</b> Self<b>	Target</b> Special
+        <b>Effect</b> If the killhouette is concealed, they can teleport to another square in concealment granted by darkness within 10.
+
+        <b>Of the Umbra</b>
+        The killhouette ignores concealment granted by darkness. While the killhouette is in direct sunlight, they have damage weakness 3. While the killhouette is concealed, they have damage immunity 3.
+
+
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:87d69fcd-3b79-4628-af61-453b2f41cdf8: true
+      modifiers: []
+      name: Of the Umbra
+      description: The killhouette ignores concealment granted by darkness. While the killhouette is in direct sunlight, they have damage weakness 3. While the killhouette is concealed, they have damage immunity 3.
+      guid: 87d69fcd-3b79-4628-af61-453b2f41cdf8
+      source: Trait
+    role: Ambusher
+    keywords:
+      Humanoid: true
+      Shadow: true
+      Shadow Elf: true
+      Elf: true
+      Fey: true
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    skillRatings: []
+    resistances: []
+    monster_type: Shadow Elf Killhouette
+    opportunityAttack: 7
+    attributes:
+      agl:
+        baseValue: 3
+        id: agl
+      prs:
+        baseValue: 0
+        id: prs
+      rea:
+        baseValue: 1
+        id: rea
+      inu:
+        baseValue: 2
+        id: inu
+      mgt:
+        baseValue: 2
+        id: mgt
+    equipment: []
+    levelChoices: []
+    groupid: 902aceda-da84-457b-957f-074bb7169e1c
+    walkingSpeed: 5
+    max_hitpoints: 80
+    traitNames: []
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 10 damage
+        - 15 damage
+        - 18 damage
+        roll: 2d10 + 3
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 6c69cda8-31c4-4279-b82b-1f2608bc567b
+      iconid: ui-icons/skills/1.png
+      targetType: target
+      name: Knife in the Dark
+      numTargets: 1
+      description: The killhouette is invisible to the target until the start of their next turn.
+      abilityType: none
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords: []
+      behaviors: []
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 1
+      effectImplemented: false
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      guid: 4693685d-3e83-4ef5-b160-0bab7f58cd79
+      iconid: ui-icons/skills/1.png
+      targetType: self
+      name: Shadow Step
+      numTargets: "1"
+      description: If the killhouette is concealed, they can teleport to another square in concealment granted by darkness within 10.
+      abilityType: none
+      implementation: 0
+    monster_category: Monster
+    movementSpeeds:
+      climb: 5
+    damage_taken: 0
+    minion: false
+    ev: 29
+    creatureSize: 1M
+  tokenType: null
+  bestiaryId: ac2a07a4-72c6-4976-8d96-02c9175061d3
+  summonerid: null
+  ownerId: null
+  partyid: null
+  size: -1
+  createdTimestamp: 1737962491988
+description: Shadow Elf Killhouette
+parentFolder: e69fe1fa-2c1b-4f55-b551-8cc2e91e06c6
+artist: null
+ord: 0
+ctime: 1741590294622
+mtime: 1775201137032
+hidden: false

@@ -1,0 +1,48 @@
+__typeName: ActivatedAbility
+targetFilter: not enemy
+id: ce0faa6b-3dc2-40f3-8b95-657ad1aab873
+behaviors:
+- __typeName: ActivatedAbilityInvokeAbilityBehavior
+  runOnController: true
+  promptText: ""
+  autoTarget: true
+  customAbility:
+    __typeName: ActivatedAbility
+    numTargets: "1"
+    modifiers: []
+    guid: 0dc8789a-59fa-4dc5-ae8c-1aec7b38048b
+    repeatTargets: false
+    display:
+      brightness: 1
+      saturation: 1
+      hueshift: 0
+      bgcolor: "#ffffffff"
+    behaviors: []
+    range: 1
+    name: Invoked Ability
+    targetType: self
+    description: ""
+    abilityType: none
+    iconid: ui-icons/skills/1.png
+  abilityType: standard
+  standardAbility: 64552cb4-9124-4932-805a-847f0a49b0a8
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<range>>"
+numTargets: "<<targetcount>>"
+modifiers: []
+source: Monster
+documentation: This will allow the caster to choose an ally to purge a save ends effect, and also allows them to spend a recovery.
+ctime: 1746256821297
+repeatTargets: false
+guid: aec09417-fab6-4955-b348-c52d29da505c
+mtime: 1746258042443
+name: Purge Save Ends Effect and Recovery on Ally
+targetType: target
+description: ""
+abilityType: none
+iconid: ui-icons/skills/1.png

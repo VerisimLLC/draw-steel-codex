@@ -1,0 +1,760 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 224a13b7-001c-4ecb-a818-038f88b27285
+    offtokenPortraitId: 7c104da9-563a-4b50-95af-b76e8e04eb01
+    portraitFrameId: db9489e4-8b35-41e9-afd2-69c5eddf6510
+    portraitRibbon: null
+    backgroundId: 85adae29-5cdc-410b-bde5-6dfce50f5102
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 65677fa1-01f6-43af-b6da-6dfd4ba33d9a
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 2
+    101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8_history:
+      __typeName: StatHistory
+      entries:
+        f742b69e-96e1-4fa2-b7fb-845ad1bbc6d6:
+          refreshid: ""
+          note: Horrible Bellow
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 11
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 16
+    max_hitpoints_roll: "80"
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        baseValue: 1
+        id: agl
+      prs:
+        baseValue: -1
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        baseValue: 2
+        id: mgt
+      rea:
+        baseValue: -1
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_category: Monster
+    levelChoices: []
+    moveDistance: 12
+    traitNames: []
+    damageEntries:
+      5261bdbb-9020-49b6-8d33-e4a5e25fca75:
+        id: 5261bdbb-9020-49b6-8d33-e4a5e25fca75
+        heal: 80
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        0a117935-7310-4941-b0e9-38f432cab699:
+          note: 8 damage from Censor's Behold, a Shield of Faith!; Damage Immunity reduced by 5 to 3
+          disposition: bad
+          attackerid: a9490474-f132-4564-ba77-6498c8169f1e
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 25
+        b75ede02-2d86-4ac0-b5f9-ff0eeabd1086:
+          note: 5 damage from Testician's Inspiring Strike; Damage Immunity reduced by 5 to 0
+          disposition: bad
+          attackerid: 96049eaf-506c-452f-889b-900dea0a251f
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 39
+        4be42dec-b2b5-42ec-b4e7-e38d4c9231fb:
+          note: 9 damage from Censor's Purifying Fire; Damage Immunity reduced by 5 to 4
+          disposition: bad
+          attackerid: a9490474-f132-4564-ba77-6498c8169f1e
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 46
+        4e074ff8-7e49-48d2-a74e-bca4ab5ac9c7:
+          note: 14 damage from Testician's Inspiring Strike; Damage Immunity reduced by 5 to 9
+          disposition: bad
+          attackerid: 96049eaf-506c-452f-889b-900dea0a251f
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 28
+        a2a4f0ac-febd-44b1-957d-e8487b8d89b9:
+          note: 12 damage from Testician's Inspiring Strike; Damage Immunity reduced by 5 to 7
+          disposition: bad
+          attackerid: 96049eaf-506c-452f-889b-900dea0a251f
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 39
+        8611bf47-57cd-471d-89d7-8d13f0b9053b:
+          note: 7 damage from Testician's Inspiring Strike; Damage Immunity reduced by 5 to 2
+          disposition: bad
+          attackerid: 96049eaf-506c-452f-889b-900dea0a251f
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 37
+        45d8cea7-6851-4920-a037-e960c9b1d25d:
+          disposition: good
+          note: 80 Healing
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 80
+        27402249-bf87-4a1f-b13e-fc0280720c03:
+          note: 5 damage from Censor's Behold, a Shield of Faith!; Damage Immunity reduced by 5 to 0
+          disposition: bad
+          attackerid: a9490474-f132-4564-ba77-6498c8169f1e
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 39
+    minion: false
+    stability: 2
+    import:
+      override: true
+      data: |+
+        Ogre Juggernaut	Level 2 Elite Harrier
+        Giant, Ogre	EV 16
+        <b>Stamina</b> 80
+        <b>Speed</b> 6	<b>Size</b> 2 /<b> Stability</b> 2
+        <b>Free Strike</b> 5
+        Might +2	Agility +1	Reason -1	Intuition 0	Presence -1
+        <b>Pitchfork Catapult</b> (Action)%E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Strike, Weapon
+        <b>Distance</b> Melee 2<b>	Target</b> 2 creatures or objects
+        %E2%9C%A6	<b>%E2%89%A411</b>	7 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	10 damage; A<1 vertical push 3
+        %E2%9C%B8	<b>17</b>	13 damage; A<2 vertical slide 5
+        <b>1 Malice</b> Each target is <b>M<1</b> bleeding (save ends).
+
+        <b>Earth Breaking Jump</b> (Action)%E2%97%86 2d10 + 2
+        <b>Keywords</b> Area, Melee, Weapon
+        <b>Distance</b> 3 burst<b>	Target</b> All creatures in the burst
+        <b>Effect</b> The juggernaut jumps up to 6 squares before using this ability.
+        %E2%9C%A6	<b>%E2%89%A411</b>	4 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	6 damage; push 2; M<1 prone
+        %E2%9C%B8	<b>17</b>	9 damage; push 4; M<2 prone
+
+        <b>Horrible Bellow</b> (Maneuver) %E2%97%86 2d10 + 2 %E2%97%86 2 Malice
+        <b>Keywords</b> Area
+        <b>Distance</b> 3 burst<b>	Target</b> All enemies in the burst
+        %E2%9C%A6	<b>%E2%89%A411</b>	I<0 frightened (save ends)
+        %E2%98%85	<b>12%E2%80%9316</b>	I<1 frightened (save ends)
+        %E2%9C%B8	<b>17</b>	I<2 frightened (save ends)
+        <b>Effect</b> All ogres have an edge on strikes against creatures frightened by this ability.
+
+        <b>Hrraaaaaagh!</b> (Free Triggered Action) %E2%97%86 1 Malice
+        <b>Keywords</b> -
+        <b>Trigger</b> The juggernaut takes damage.
+        <b>Distance</b> Self<b>	Target</b> Self
+        <b>Effect</b> The juggernaut moves up to their speed and makes a free strike.
+
+        <b>Destructive Path</b>
+        The juggernaut automatically destroys unattended, mundane size 1 objects in their path during their movement. They can break through any mundane wall made of wood, stone, or a similarly sturdy material in this way, so long as the wall is no more than 1 square thick.
+
+        <b>Defiant Anger</b>
+        The juggernaut has damage immunity 2 while they are winded.
+
+
+
+      type: mcdm
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:021e4240-6bf9-4a8e-b984-1fa3b0d15415: true
+      modifiers: []
+      source: Trait
+      description: The juggernaut automatically destroys unattended, mundane size 1 objects in their path during their movement. They can break through any mundane wall made of wood, stone, or a similarly sturdy material in this way, so long as the wall is no more than 1 square thick.
+      guid: 021e4240-6bf9-4a8e-b984-1fa3b0d15415
+      name: Destructive Path
+      implementation: 1
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:28a90f57-a1cd-4dec-adfd-466b6f273cb0: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 28a90f57-a1cd-4dec-adfd-466b6f273cb0
+        source: Trait
+        behavior: resistance
+        filterCondition: 'Winded =1 '
+        name: Defiant Anger
+        resistances:
+        - __typeName: ResistanceEntry
+          dr: "2"
+          damageType: all
+          apply: Damage Reduction
+        description: The juggernaut has damage immunity 2 while they are winded.
+        guid: 32557605-f78e-4e7b-a214-13467574855c
+        domains:
+          CharacterFeature:28a90f57-a1cd-4dec-adfd-466b6f273cb0: true
+      source: Trait
+      description: The juggernaut has damage immunity 2 while they are winded.
+      guid: 28a90f57-a1cd-4dec-adfd-466b6f273cb0
+      name: Defiant Anger
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:8d3554ab-c10d-4958-8c73-b3f3cd4de8c2: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:8d3554ab-c10d-4958-8c73-b3f3cd4de8c2: true
+        sourceguid: 8d3554ab-c10d-4958-8c73-b3f3cd4de8c2
+        behavior: triggerdisplay
+        source: Monster Trait
+        name: Hrraaaaaagh!
+        description: ""
+        guid: 42381dc6-00b9-4f24-a6c8-a2a54b20c85d
+        ability:
+          __typeName: TriggeredAbilityDisplay
+          effect: The juggernaut moves up to their speed and can make a free strike.
+          guid: 725b3642-a452-48d3-bf42-4b3276d91780
+          distance: Self
+          keywords: []
+          target: Self
+          name: Hrraaaaaagh!
+          cost: 1 Malice
+          trigger: The juggernaut takes damage.
+          type: free
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:8d3554ab-c10d-4958-8c73-b3f3cd4de8c2: true
+        sourceguid: 8d3554ab-c10d-4958-8c73-b3f3cd4de8c2
+        behavior: trigger
+        source: Monster Trait
+        name: Hrraaaaaagh!
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          resourceNumber: 1
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: Move speed and make a free strike
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          persistence: []
+          modifiers: []
+          strain: []
+          guid: 010761a8-0370-4d0d-8376-36958c483494
+          abilityType: none
+          trigger: losehitpoints
+          castImmediately: true
+          numTargets: "1"
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          name: Hrraaaaaagh!
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 7dc904d7-3f15-4d80-9cc3-e237fa62f547
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              targetType: self
+              range: 1
+              name: Invoked Ability
+              behaviors: []
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            abilityType: standard
+            standardAbility: 1c423f02-73e6-4c44-8341-17d854f15fc5
+          description: ""
+          resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+          iconid: ui-icons/skills/1.png
+        guid: d07d0809-03bc-4d14-adc9-43c3ee38e00c
+      source: Monster Trait
+      description: ""
+      guid: 8d3554ab-c10d-4958-8c73-b3f3cd4de8c2
+      name: Hrraaaaaagh!
+      implementation: 3
+    role: Elite Harrier
+    opportunityAttack: 5
+    equipment: []
+    titles: []
+    ongoingEffects: []
+    equipmentMeta:
+      offhand0: []
+    moveDistanceRoundId: 7574ec93-025f-49de-91bc-dad17e81ab61-2
+    resistances: []
+    notes:
+    - text: ""
+      title: Monster Notes
+    max_hitpoints: 80
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: 7428a892-aa3d-4516-8705-3ac2923ae15a-245
+    initiativeGrouping: 85644512-e908-44a5-baa8-8bce015ad462
+    keywords:
+      Ogre: true
+      Giant: true
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        bff83f3b-6f70-47b3-a3a5-49f2ea4bccfe:
+          refreshid: ee2917c2-bf8a-48a7-a89e-3589e23eb2d5-3
+          note: Knockback
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        badae152-c25a-43e1-87d0-48f9facc51eb:
+          refreshid: ee2917c2-bf8a-48a7-a89e-3589e23eb2d5-2
+          note: Knockback
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        ab785927-b83e-468f-ac0c-949eb0335ffc:
+          refreshid: a13f063a-ce72-48a2-84de-788c9841f1ed-3
+          note: Horrible Bellow
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 0/1
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        9026ca39-699d-4ce2-925d-cc5234fb1cd3:
+          refreshid: ee2917c2-bf8a-48a7-a89e-3589e23eb2d5-3
+          note: Pitchfork Catapult
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        df2b653a-89c8-48aa-96db-ed9c32f0282c:
+          refreshid: 7574ec93-025f-49de-91bc-dad17e81ab61-2-52eae930-6af9-41c4-a70a-141ff4521b71
+          note: Earth Breaking Jump
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+        7ab895d2-f5a9-44be-904e-d2d50f4952c3:
+          refreshid: a13f063a-ce72-48a2-84de-788c9841f1ed-3
+          note: Pitchfork Catapult
+          userid: D6sdmF0OHEONGesX4Pcv3FOx6Wi1
+          set: 0/1
+        4d1cd6d6-d0ab-405b-a05d-42457b56ac91:
+          refreshid: 7574ec93-025f-49de-91bc-dad17e81ab61-1-52eae930-6af9-41c4-a70a-141ff4521b71
+          note: Earth Breaking Jump
+          userid: qEfsVECZ5sUF7XdznhpYiuErYD12
+          set: 0/1
+    damage_taken: 0
+    creatureSize: "2"
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 7574ec93-025f-49de-91bc-dad17e81ab61-2-52eae930-6af9-41c4-a70a-141ff4521b71
+        used: 1
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        refreshid: ee2917c2-bf8a-48a7-a89e-3589e23eb2d5-3
+        used: 1
+    availableTriggers:
+      f178d508-bd07-4a73-96d2-fabf727dbea8:
+        __typeName: ActiveTrigger
+        text: Hrraaaaaagh!
+        rules: Move speed and make a free strike
+        clearOnDismiss: true
+        id: f178d508-bd07-4a73-96d2-fabf727dbea8
+        targets: []
+      e0180285-377b-4a5d-8f45-50f9589e5500:
+        __typeName: ActiveTrigger
+        text: Hrraaaaaagh!
+        rules: Move speed and make a free strike
+        clearOnDismiss: true
+        id: e0180285-377b-4a5d-8f45-50f9589e5500
+        targets: []
+    deathSavingThrowFailures: 0
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Charge: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 7 damage
+        - 10 damage; A<1 vertical push 2
+        - 13 damage; A<2 vertical slide 3
+        roll: 2d10 + Might
+      - __typeName: ActivatedAbilityDrawSteelCommandBehavior
+        rule: M<1 bleeding (save ends)
+        filterTarget: Charges = 1
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0
+          s: 0.933007597923279
+          v: 0.919514060020447
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 210
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: 2
+      targetType: target
+      persistence: []
+      modifiers: []
+      channeledResource: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      strain: []
+      maxChannel: "1"
+      iconid: c4893538-9809-4de1-8ef9-2fa83a84fe2b
+      guid: 9196c365-e073-43ef-bbdb-4cf13cf1aed7
+      numTargets: 2
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      channelDescription: "Spend 1 Malice: Each target with M<1 is bleeding (save ends)"
+      name: Pitchfork Catapult
+      categorization: Signature Ability
+      description: |2-
+
+        **1 Malice**: Each target who has m<1 is bleeding (save ends).
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      targetTextOverride: Each creature in the area
+      repeatTargets: false
+      keywords:
+        Area: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: targets
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: a2bbdf7e-c633-4580-beb8-b87069312dc2
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: Jump up to 6 squares before using Earth-Breaking Jump
+        standardAbilityParams:
+          distance: "6"
+        abilityType: standard
+        standardAbility: 8010820f-6bf3-422f-985b-2af02f620113
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          numTargets: "1"
+          modifiers: []
+          abilityType: none
+          strain: []
+          guid: 2e9cca56-4c92-4081-9a7a-1dcdc5641edc
+          repeatTargets: false
+          keywords:
+            Area: true
+            Weapon: true
+          persistence: []
+          targetType: all
+          categorization: Hidden
+          name: Earth-Breaking Jump
+          behaviors:
+          - __typeName: ActivatedAbilityPowerRollBehavior
+            tiers:
+            - 4 damage
+            - 6 damage; push 2; M<1 prone
+            - 9 damage; push 4; M<2 prone
+            guid: 4274164b-58c9-47f9-b79d-862822010720
+            roll: 2d10 + 2
+          description: ""
+          range: "3"
+          iconid: ui-icons/skills/1.png
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        applyto: none
+        roll: 2d10 + Might or Agility
+        tiers:
+        - 4 damage
+        - 6 damage; push 2; M<1 prone
+        - 9 damage; push 4; M<2 prone
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.106250166893005
+          s: 0.933008015155792
+          v: 0.725218534469604
+          a: 1
+      flavor: ""
+      sourceReference:
+        __typeName: SourceReference
+        page: 210
+        docid: 40e59097-9de3-4f9d-920a-aae355de9f5c
+      range: "3"
+      effectImplemented: true
+      persistence: []
+      modifiers: []
+      targetType: self
+      strain: []
+      guid: 7d3e1744-5ae0-4f95-ac0b-7f93c2276350
+      numTargets: "1"
+      rangeTextOverride: 3 burst
+      castImmediately: true
+      implementation: 4
+      categorization: Signature Ability
+      name: Earth Breaking Jump
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      description: The juggernaut jumps up to 6 squares before using this ability.
+      abilityType: none
+      iconid: a337f5b1-3990-4565-8be2-c7861fb28d10
+    - __typeName: ActivatedAbility
+      resourceNumber: 2
+      targetFilter: Enemy
+      repeatTargets: false
+      keywords:
+        Area: true
+      targetType: all
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.166249871253967
+          s: 0.950585663318634
+          v: 0.6360804438591
+          a: 1
+      flavor: ""
+      categorization: Heroic Ability
+      range: 3
+      effectImplemented: false
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 22b45b76-168a-4ee8-a784-0d92c688e497
+      abilityType: none
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      iconid: 92a6d94b-65ab-49b6-b33e-0dae78f3a332
+      numTargets: 1
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - I<0 frightened (save ends)
+        - I<1 frightened (save ends)
+        - I<2 frightened (save ends)
+        roll: 2d10
+      - __typeName: ActivatedAbilityApplyRidersBehavior
+        conditionid: 1211270f-bfce-45a6-b937-d72f0e8a06a8
+        riderid: c9fc06e7-d728-484b-8536-cfbac5363a7e
+      name: Horrible Bellow
+      displayOrder: 210
+      description: While a target is frightened this way, any ogre gains an edge on strikes against them.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Magic: true
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 4 damage
+        - 6 damage; M<1 prone; push 2
+        - 9 damage; M<2 prone; push 4
+        roll: 2d10 + Might
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 3
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 88a90e21-9a48-49ee-8982-ac1c957048ae
+      targetType: all
+      implementation: 3
+      numTargets: 1
+      name: Earth-Breaking Jump
+      sourceReference:
+        __typeName: SourceReference
+        page: 210
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        The juggernaut jumps up to 6 squares before using this ability.
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    - __typeName: ActivatedAbility
+      resourceNumber: 1
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Ability
+      range: 1
+      actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+      modifiers: []
+      guid: 8e01d504-1417-4a40-9ff4-4659d2da0e0c
+      abilityType: none
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 7dc904d7-3f15-4d80-9cc3-e237fa62f547
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        abilityType: standard
+        standardAbility: 1c423f02-73e6-4c44-8341-17d854f15fc5
+      iconid: ui-icons/skills/1.png
+      sourceReference:
+        __typeName: SourceReference
+        page: 210
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Hrraaaaaagh!
+      numTargets: 1
+      description: |
+        The juggernaut moves up to their speed and can make a Free Strike.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    - __typeName: ActivatedAbility
+      resourceNumber: 7
+      repeatTargets: false
+      keywords: []
+      targetType: target
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Heroic Ability
+      range: 1
+      numTargets: 1
+      modifiers: []
+      guid: d89ce9af-0ed1-410d-b3ba-c3d0eaff12c3
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+      behaviors: []
+      name: Rampage
+      sourceReference:
+        __typeName: SourceReference
+        page: 209
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: |
+        Until the end of the round, each ogre has damage immunity 5 and deals an extra 5 damage with abilities, and heroic abilities that target any ogre have their Heroic Resource cost reduced by 1 (to a minimum of 1).
+      resourceCost: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+      implementation: 0
+    skillProficiencies: []
+    movementSpeeds: []
+    walkingSpeed: 6
+    monster_type: Ogre Juggernaut
+    groupid: 83a948ff-8852-4626-adfc-f05ec9e2af22
+    skillRatings: []
+  tokenType: null
+  bestiaryId: 86fa5590-b74b-43c5-ac55-ebc906241611
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 4
+  createdTimestamp: 1726301040866
+description: Ogre Juggernaut
+parentFolder: f3ad56da-f6fa-4d7d-a056-0d090e6a130f
+artist: null
+ord: 0
+ctime: 1741590277568
+mtime: 1775201137032
+hidden: false

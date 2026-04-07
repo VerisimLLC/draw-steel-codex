@@ -1,0 +1,318 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: f30a779f-6fb7-4f03-bf77-b10c3e633a8d
+    offtokenPortraitId: null
+    portraitFrameId: 3e14cacd-4ce1-4db5-aec7-8b33aa99f944
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.04422558
+      y: 0.1327421
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 1162cce9-069e-4365-bbaf-7da1b0ad7d9c
+  properties:
+    __typeName: monster
+    groupid: 03509ce6-9c98-422b-8426-8bf45773c256
+    cr: 1
+    skillProficiencies: []
+    max_hitpoints: 4
+    inflictedConditions: []
+    ev: 3
+    max_hitpoints_roll: "4"
+    innateAttacks: []
+    attributes:
+      agl:
+        baseValue: 2
+        id: agl
+      prs:
+        baseValue: 1
+        id: prs
+      rea:
+        baseValue: 0
+        id: rea
+      inu:
+        baseValue: 0
+        id: inu
+      mgt:
+        baseValue: 0
+        id: mgt
+    monster_category: Monster
+    levelChoices: []
+    traitNames: []
+    minion: true
+    stability: 0
+    import:
+      type: mcdm
+      data: |+
+        Wode Elf Runner	Level 1 Minion Harrier
+        Fey, Humanoid, Wode Elf	EV 3 for four minions
+        <b>Stamina</b> 4
+        <b>Speed </b>7	<b>Size</b> 1M / <b>Stability</b> 0
+        <b>With Captain</b> Edge on strikes	<b>Free Strike</b> 1
+        Might 0	Agility +2	Reason 0	Intuition 0	Presence +1
+        <b>Spear</b> (Action) %E2%97%86 2d10 + 2 %E2%97%86 Signature
+        <b>Keywords</b> Charge, Melee, Ranged, Strike, Weapon
+        <b>Distance</b> Melee 1 or Ranged 5<b>Target</b> 1 creature or object per minion
+        %E2%9C%A6	<b>%E2%89%A411</b>	1 damage
+        %E2%98%85	<b>12%E2%80%9316</b>	2 damage
+        %E2%9C%B8	<b>17</b>	3 damage
+        <b>Effect</b> The runner can shift 2 before charging while using this ability.
+
+        <b>Masking Glamor</b>
+        The runner immediately hides at the end of their turn while in cover or concealment, even if they are observed.
+
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+        CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4ca15083-5ef2-414a-a86b-e27839e46c1b
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: '(Target.HasCover or (Line of Sight(self, Target) < 1)) and Self.Ignore Cover <= 0 '
+        guid: ef89f6e5-e4da-47bd-9842-c2df6440b670
+        name: Masking Glamor
+        domains:
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        description: Abilities targeting the runner that would take a bane from cover have a double bane instead.
+        rollType: enemy_ability_power_roll
+        behavior: power
+      - __typeName: CharacterModifier
+        sourceguid: 4ca15083-5ef2-414a-a86b-e27839e46c1b
+        displayCondition: Target.Conditions has "concealment"
+        source: Trait
+        modtype: bane
+        keywords: []
+        activationCondition: Target.Conditions has "concealment"
+        domains:
+          CharacterFeature:ab759e91-96e7-4d17-b8ce-668e2d1a2cec: true
+          CharacterFeature:4ca15083-5ef2-414a-a86b-e27839e46c1b: true
+        name: Masking Glamor
+        rollType: enemy_ability_power_roll
+        description: Abilities targeting the runner that would take a bane from concealment have a double bane instead.
+        behavior: power
+        guid: 651f5089-213a-4140-ba98-838bbaa199bf
+      source: Trait
+      description: Abilities targeting the runner that would take a bane from cover or concealment have a double bane instead.
+      guid: 4ca15083-5ef2-414a-a86b-e27839e46c1b
+      name: Masking Glamor
+      implementation: 3
+    role: Minion Harrier
+    equipment: []
+    titles: []
+    skillRatings: []
+    resistances: []
+    opportunityAttack: 1
+    keywords:
+      Fey: true
+      Humanoid: true
+      Wode Elf: true
+    notes:
+    - text: ""
+      title: Monster Notes
+    initiativeGrouping: 4d4eab01-af89-4a54-bf11-0a5b282818f8
+    animations:
+      anim:
+      - resources:
+          d19658a2-4d7b-4504-af9e-1a5410fb17fd: 1
+        animType: consumeResource
+      guid: edd55ea4-3fc9-4642-b9f7-df1589a24b54-82
+    damage_taken: 0
+    savingThrowRatings: []
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-4
+        used: 1
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: false
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Charge: true
+        Weapon: true
+        Strike: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster_including_squad
+        customAbility:
+          __typeName: ActivatedAbility
+          numTargets: "1"
+          modifiers: []
+          guid: 3a0de94c-4e52-48d8-af22-2460cbe7d313
+          repeatTargets: false
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          targetType: self
+          range: 1
+          name: Invoked Ability
+          behaviors: []
+          description: ""
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        promptText: When used as part of the Charge main action, the runner shifts up to 2 squares first, then attacks
+        invokeOnCaster: true
+        standardAbilityParams:
+          distance: "2"
+        standardAbility: 14c386b6-693c-4abf-aebe-3b5f5a017886
+        abilityType: standard
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + 2
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 136
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: "5	"
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      strain: []
+      guid: 11d97b05-4faa-43b9-948b-df69e73550a6
+      targetType: target
+      numTargets: "1"
+      iconid: d15fe212-5892-433b-869f-4778a5a9604d
+      categorization: Signature Ability
+      name: Spear (Shift First)
+      persistence: []
+      description: ""
+      abilityType: none
+      implementation: 4
+    - __typeName: ActivatedAbility
+      repeatTargets: false
+      keywords:
+        Ranged: true
+        Charge: true
+        Weapon: true
+        Strike: true
+        Melee: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 1 damage
+        - 2 damage
+        - 3 damage
+        roll: 2d10 + Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      flavor: ""
+      categorization: Signature Ability
+      range: 5
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      modifiers: []
+      guid: 1781c252-7216-4e64-964d-a0b1baf7a48c
+      meleeRange: 1
+      numTargets: 1
+      implementation: 3
+      sourceReference:
+        __typeName: SourceReference
+        page: 136
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      name: Spear
+      targetType: target
+      description: If this ability is used as part of the Charge main action, the runner shifts up to 2 squares first
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    minionSquad: Wode Elf Runner Squad 3
+    availableTriggers:
+      3996f4b1-673b-4f44-936b-192dabf47124:
+        __typeName: ActiveTrigger
+        text: Spear
+        clearOnDismiss: true
+        id: 3996f4b1-673b-4f44-936b-192dabf47124
+        targets: []
+    walkingSpeed: 7
+    movementSpeeds: []
+    creatureSize: 1M
+    monster_type: Wode Elf Runner
+    withCaptain: Gain an edge on strikes
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        4e45a36b-d929-4c9c-926b-5bc8f606c2e3:
+          refreshid: 4fb4bb0f-582f-4688-98a0-30182c65e3df-4
+          note: Charge
+          userid: steam-76561198767161997
+          set: 0/1
+        2a0d351e-035c-4ba1-a312-95e9f06af833:
+          refreshid: f964c75a-5251-4a3e-974f-beccf9e4877d-11
+          note: Charge
+          userid: steam-76561198767161997
+          set: 0/1
+  tokenType: null
+  bestiaryId: 690eec77-36c3-44c7-94dc-eaf08bf0dde6
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 2
+  createdTimestamp: 1726301040866
+description: Wode Elf Runner
+parentFolder: 611678b8-01dd-4ce2-bf54-e462ca7f4d29
+artist: null
+ord: 0
+ctime: 1741590261180
+mtime: 1775201137032
+hidden: false

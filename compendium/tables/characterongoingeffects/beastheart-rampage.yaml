@@ -1,0 +1,22 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: fcda2d66-2214-4a27-8dfd-6917bcb03fa2
+id: fcda2d66-2214-4a27-8dfd-6917bcb03fa2
+ctime: 1770386699619
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 1.00208151340485
+    v: 1.00238597393036
+    a: 1
+name: Beastheart Rampage
+description: ""
+custom: true
+mtime: 1770386699619
+iconid: 699cf8b4-6b8e-41cf-ba1f-c41f5b799cce

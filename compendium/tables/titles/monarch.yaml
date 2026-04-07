@@ -1,0 +1,113 @@
+__typeName: Title
+effect: "You gain the following benefits:\v\vSpecial: If you take this title, you might be called upon to perform duties for your nation."
+modifierInfo:
+  __typeName: ClassLevel
+  features:
+  - __typeName: CharacterFeature
+    description: Inhabitants of your nation must obey your lawful orders or suffer the consequences.
+    modifiers: []
+    source: Feat
+    canHavePrerequisites: true
+    guid: 424f5bf2-d886-44e4-bb5c-fcff3b931890
+    name: Royal Authority
+    implementation: 0
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Royal Majesty
+    numChoices: 1
+    description: Your choice of your Might or Presence increases by 1 (to a maximum of 6).
+    guid: 0a92989b-f5d1-47f3-a6a6-ca97fcd4768b
+    options:
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 8bd4722c-2d6d-492b-8c31-ee0418475851
+        sourceguid: 7f8dc8f0-76d4-4ae7-9b42-11d5471fdf9d
+        behavior: attribute
+        source: Feat
+        name: Might Increase
+        description: ""
+        value: 1
+        attribute: mgt
+      source: Feat
+      canHavePrerequisites: true
+      guid: 7f8dc8f0-76d4-4ae7-9b42-11d5471fdf9d
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: fe14b7dc-a279-49b5-b482-a31933019718
+        filter: Might < 6
+      name: Might Increase
+    - __typeName: CharacterFeature
+      description: ""
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: 3d8e7a36-4687-415a-a2f2-624e4237812f
+        sourceguid: 5b42bb22-aa08-4fd5-ac74-9cae58fef094
+        behavior: attribute
+        source: Feat
+        name: Presence Increase
+        description: ""
+        value: 1
+        attribute: prs
+      source: Feat
+      canHavePrerequisites: true
+      guid: 5b42bb22-aa08-4fd5-ac74-9cae58fef094
+      prerequisites:
+      - __typeName: CharacterPrerequisite
+        type: goblinscript
+        guid: 49f88654-1fac-4c5c-bf6b-edad10b3e84c
+        filter: Presence < 6
+      name: Presence Increase
+  - __typeName: CharacterFeatureChoice
+    allowDuplicateChoices: false
+    name: Monarch Benefit
+    numChoices: 1
+    description: "Choose one of the following benefits:"
+    guid: a3097f51-1ed9-416e-a6db-012bd553d976
+    options:
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Crown Jewels
+      description: You gain one of your nation’s treasures—a trinket of the Director’s choice.
+      guid: 50bc779e-4ae6-407a-9a18-a1f32a2e9d9e
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers:
+      - __typeName: CharacterModifier
+        guid: cc5c465b-2d6d-46ac-a3a5-697cceecb80a
+        sourceguid: 2607e0f3-e45c-4a8e-89f6-d62c71d46626
+        behavior: attribute
+        source: Feat
+        name: Royal Fame
+        description: You earn 2 Renown.
+        value: 2
+        attribute: d97c2794-cb70-420f-b078-e260b43e154b
+      name: Royal Fame
+      description: You earn 2 Renown.
+      guid: 2607e0f3-e45c-4a8e-89f6-d62c71d46626
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Royal Retinue
+      description: The number of followers you can recruit increases by 2.
+      guid: 23378e3f-4c7e-4eba-8d9f-fdec97af415f
+      canHavePrerequisites: true
+      source: Feat
+    - __typeName: CharacterFeature
+      modifiers: []
+      name: Royal Wealth
+      description: You earn 2 Wealth.
+      guid: b99feae3-ae83-42e4-9c79-abab2f176f8b
+      canHavePrerequisites: true
+      source: Feat
+id: 9e012500-cbe3-4863-baeb-bf8c39d0638f
+ctime: 1762352299449
+name: Monarch
+description: The tyrant is dead! Long live the new king!
+mtime: 1775218276553
+echelon: "4"
+prerequisite: You or a member of your party becomes the monarch of a nation.

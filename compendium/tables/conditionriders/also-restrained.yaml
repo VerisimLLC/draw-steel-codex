@@ -1,0 +1,31 @@
+__typeName: ConditionRider
+modifiers:
+- __typeName: CharacterModifier
+  conditionid: 2989a051-204f-442e-967d-edafc2dd5e43
+  sourceguid: c12ff7bd-4dd7-49c3-b07e-f40f7cd28407
+  source: Ongoing Effect
+  guid: d42d6ff4-8027-4961-af28-0830b13a97ea
+  description: While this creature is weakened it is also restrained.
+  behavior: bestowcondition
+  name: Also Restrained
+source: Ongoing Effect
+guid: c12ff7bd-4dd7-49c3-b07e-f40f7cd28407
+id: c12ff7bd-4dd7-49c3-b07e-f40f7cd28407
+ctime: 1751707592734
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0
+    s: 0.672959685325623
+    v: 0.958149790763855
+    a: 1
+condition: 567a3454-ead6-4416-b338-ed73d64b7805
+description: While this creature is weakened it is also restrained.
+name: Also Restrained
+iconid: 8440688f-05d0-49d4-8a55-bb16044f5725
+mtime: 1751707838317
+powerTableText: Weakened with Restrained
+implementation: 3

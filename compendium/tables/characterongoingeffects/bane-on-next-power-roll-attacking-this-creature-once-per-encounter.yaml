@@ -1,0 +1,42 @@
+__typeName: CharacterOngoingEffect
+association: []
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor:
+    __usertype: LuaColor
+    h: 0.349500179290771
+    s: 0.564452886581421
+    v: 1.00193929672241
+    a: 1
+modifiers:
+- __typeName: CharacterModifier
+  sourceguid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+  source: Ongoing Effect
+  behavior: power
+  keywords:
+    Attack: true
+  activationCondition: true
+  domains:
+    CharacterOngoingEffect:700104ad-3f78-4c36-9437-54a888acb3e9: true
+  modtype: bane
+  rollType: enemy_ability_power_roll
+  resourceRefreshType: encounter
+  description: Strikes against this creature have a bane once per encounter
+  guid: 204e80fe-9793-4260-8915-05a27dcb579d
+  name: Bane on Next Power Roll Attacking This Creature (once per encounter)
+source: Ongoing Effect
+endTrigger: none
+guid: 1e585796-8497-405b-b5c0-a1e65ffb0701
+id: 700104ad-3f78-4c36-9437-54a888acb3e9
+ctime: 1746023636565
+domains:
+  CharacterOngoingEffect:700104ad-3f78-4c36-9437-54a888acb3e9: true
+iconid: 1befb77a-d096-4f34-af16-48f1645b97ce
+categorization: common
+name: Bane on Next Power Roll Attacking This Creature (once per encounter)
+statusEffect: false
+description: Strikes against this creature have a bane once per encounter
+mtime: 1758981950998
+implementation: 3

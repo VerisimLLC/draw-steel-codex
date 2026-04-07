@@ -1,0 +1,376 @@
+__typeName: MonsterGroup
+maliceAbilities:
+- __typeName: MaliceAbility
+  resourceNumber: "3"
+  objectTarget: false
+  repeatTargets: false
+  targetType: target
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 143
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "5"
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 6cb8a68a-991a-4ba2-a06a-e0370adc6ca1
+  behaviors:
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: c0ec2fac-e6dd-4ade-a088-9e0519eea2f5
+    filterTarget: Target.Conditions has "prone"
+    duration: 0
+    ongoingEffectCustom: c0ec2fac-e6dd-4ade-a088-9e0519eea2f5
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    customAbility:
+      __typeName: ActivatedAbility
+      numTargets: "1"
+      modifiers: []
+      guid: 8b0feb03-0d7a-42ae-aa9e-fcb4410a26e2
+      repeatTargets: false
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      behaviors: []
+      range: 1
+      name: Invoked Ability
+      targetType: self
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    promptText: Slide the target  up to 5 squares. If the creature is prone, this forced movement ignores stability.
+    abilityType: standard
+    standardAbilityParams:
+      range: "5"
+    standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+  - __typeName: ActivatedAbilityPurgeEffectsBehavior
+    ongoingEffect: c0ec2fac-e6dd-4ade-a088-9e0519eea2f5
+    mode: effect
+    purgeType: chosen
+    conditions: []
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  name: Floor Mosaic
+  numTargets: "1"
+  description: The fossil cryptic slides one creature on the ground up to 5 squares. If the creature is prone, this forced movement ignores stability.
+  abilityType: none
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityReplenishBehavior
+    applyto: caster
+    guid: 4b283b84-a3ed-4af1-9bee-2434f9f2fdf8
+    resourceid: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+    chatMessage: Solo Action - Additional Main Action
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 143
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: a822a200-b0b6-4584-b88e-08450314ac46
+  abilityType: none
+  castImmediately: true
+  iconid: ebc8b529-f450-4bee-9466-86374c26dc13
+  targetType: self
+  name: Solo Action
+  numTargets: "1"
+  description: |-
+    The fossil cryptic takes an additional main action on their turn.
+    They can use this feature even if they are dazed.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+- __typeName: MaliceAbility
+  resourceNumber: "5"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    customAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityChangeTerrainBehavior
+        tileid: "-MBVQqKrE73ix3K9-MjS"
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        height: "1"
+        modesSelected:
+        - 1
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        modesSelected:
+        - 2
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        height: "3"
+        modesSelected:
+        - 3
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        height: "4"
+        modesSelected:
+        - 4
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        modesSelected:
+        - 5
+        height: "5"
+        recalculateElevation: true
+        shape: square
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 143
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      modeList:
+      - text: "Pillar Height: 1"
+      - text: "Pillar Height: 2"
+      - text: "Pillar Height: 3"
+      - text: "Pillar Height: 4"
+      - text: "Pillar Height: 5"
+      persistence: []
+      targetType: anyspace
+      name: Invoked Ability
+      guid: cf617ec8-1235-407b-b7e3-887a9734008c
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    modesSelected:
+    - 1
+    promptText: Select the space for the first pillar
+    invokeOnCaster: true
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    customAbility:
+      __typeName: ActivatedAbility
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityChangeTerrainBehavior
+        tileid: "-MBVQqKrE73ix3K9-MjS"
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        height: "1"
+        modesSelected:
+        - 1
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        modesSelected:
+        - 2
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        height: "3"
+        modesSelected:
+        - 3
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        height: "4"
+        modesSelected:
+        - 4
+        shape: square
+      - __typeName: ActivatedAbilityChangeElevationBehavior
+        modesSelected:
+        - 5
+        height: "5"
+        recalculateElevation: true
+        shape: square
+      multipleModes: true
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      sourceReference:
+        __typeName: SourceReference
+        page: 143
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      range: 1
+      numTargets: "1"
+      modifiers: []
+      strain: []
+      modeList:
+      - text: "Pillar Height: 1"
+      - text: "Pillar Height: 2"
+      - text: "Pillar Height: 3"
+      - text: "Pillar Height: 4"
+      - text: "Pillar Height: 5"
+      persistence: []
+      targetType: anyspace
+      name: Invoked Ability
+      guid: cf617ec8-1235-407b-b7e3-887a9734008c
+      description: ""
+      abilityType: none
+      iconid: ui-icons/skills/1.png
+    modesSelected:
+    - 1
+    promptText: Select the space for the second pillar
+    guid: dd00809d-b5ae-4b84-9005-3b4bc07fa61b
+    invokeOnCaster: true
+  - __typeName: ActivatedAbilityInvokeAbilityBehavior
+    applyto: targets
+    customAbility:
+      __typeName: ActivatedAbility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor: "#ffffffff"
+      persistence: []
+      objectTarget: false
+      abilityType: none
+      strain: []
+      guid: a8dea4d0-509b-45ca-a3b7-bffe701cd5c9
+      repeatTargets: false
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: c885a4ba-bb51-4676-977d-95df9aa19d85
+        ongoingEffectCustom: false
+      - __typeName: ActivatedAbilityInvokeAbilityBehavior
+        applyto: caster
+        customAbility:
+          __typeName: ActivatedAbility
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          persistence: []
+          objectTarget: false
+          abilityType: none
+          strain: []
+          guid: 5109b75c-45a6-4ae1-ac9b-768a485f0463
+          repeatTargets: false
+          behaviors:
+          - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+            duration: save_ends
+            filterTarget: Target.Might < 2
+          modifiers: []
+          targetType: target
+          numTargets: "1"
+          name: Invoked Ability
+          sourceReference:
+            __typeName: SourceReference
+            page: 143
+            docid: cc66844a-04d0-49a0-8687-65ef83b15363
+          description: ""
+          range: "30"
+          iconid: ui-icons/skills/1.png
+        promptText: Select the target creature if they came into contact with the ceiling above or the floor beneath the pillar. If they have M<2 click to apply restrained (save ends), otherwise they won't be selectable in the Codex (skip).
+        invokeOnCaster: true
+        inheritRange: true
+      modifiers: []
+      targetType: target
+      numTargets: "1"
+      name: Invoked Ability
+      sourceReference:
+        __typeName: SourceReference
+        page: 143
+        docid: cc66844a-04d0-49a0-8687-65ef83b15363
+      description: ""
+      range: "50"
+      iconid: ui-icons/skills/1.png
+    promptText: Select any creature in the area of a pillar before it appeared to be knocked prone on its surface.
+    invokeOnCaster: true
+    inheritRange: true
+  multipleModes: true
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 143
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: "50"
+  persistence: []
+  modifiers: []
+  strain:
+    enabled: true
+  modeList:
+  - text: "Pillar: Up out of the ground"
+  - text: "Pillar: Down from the ceiling"
+  abilityType: none
+  numTargets: "1"
+  guid: 8ab7bb5d-fe65-48df-9c9e-74bc1510f845
+  name: Stone Pillars
+  targetType: anyspace
+  description: |-
+    Two pillars of stone 1 square wide either thrust up out of the ground or jut down from the ceiling anywhere on the encounter map, to a height of up to 5 squares. A creature in the area of a pillar before it appears is knocked prone on its surface. If the creature
+    comes into contact with the ceiling above or the floor beneath the pillar and has M<2 they are restrained (save ends).
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  iconid: 85d0e26c-d0a3-4c9a-b117-2e9bfc1a221b
+- __typeName: MaliceAbility
+  resourceNumber: "10"
+  targetFilter: Target.Keywords has not "Fossil"
+  repeatTargets: false
+  behaviors:
+  - __typeName: ActivatedAbilityPowerRollBehavior
+    attrid: mgt
+    roll: 2d10 + Might
+    isTest: true
+    resistanceRoll: false
+    tiers:
+    - Until the end of the enemy’s next turn, their stability is reduced to 0, and any forced movement effects targeting them gain a +2 bonus to the distance moved.
+    - The enemy’s stability is halved (EoT).
+    - No effect.
+  - __typeName: ActivatedAbilityAuraBehavior
+    duration: eoe
+  - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+    ongoingEffect: 88db1ff1-5482-4bda-92f2-02acd2b26939
+    duration: eoe
+    ongoingEffectCustom: 88db1ff1-5482-4bda-92f2-02acd2b26939
+  display:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor: "#ffffffff"
+  sourceReference:
+    __typeName: SourceReference
+    page: 143
+    docid: cc66844a-04d0-49a0-8687-65ef83b15363
+  range: 1
+  persistence: []
+  modifiers: []
+  strain: []
+  guid: 5cdd544d-0dcc-4496-b9a3-805bdd4a417d
+  abilityType: none
+  iconid: e1fd5b75-e4a2-49c4-905b-e15ea6528d70
+  numTargets: "1"
+  name: Choking Dust
+  targetType: map
+  description: |-
+    The air across the encounter map is thick with dust until the end of the encounter. Each enemy in the dust is suffocating. 
+
+    Additionally, at the end of each round, each enemy in the dust makes a Might test.
+  resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+  implementation: 4
+mtime: 1771498608239
+name: Fossil Cryptic
+traits: []
+attacks: []
+id: 8bc67c04-316d-480d-9d17-44e8ce06d547
+ctime: 1758524696682

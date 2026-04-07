@@ -1,0 +1,40 @@
+__typeName: CharacterResource
+textColor: light
+id: 5bd90f9b-46be-4cf2-8ca6-a96430d62949
+ctime: 1699766706563
+display:
+  expended:
+    brightness: 0.5
+    saturation: 0.5
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.524499714374542
+      s: 1.00169110298157
+      v: 1.0019394159317
+      a: 1
+  highlight:
+    brightness: 1.5
+    saturation: 1
+    hueshift: 1
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.524499714374542
+      s: 1.00169110298157
+      v: 1.0019394159317
+      a: 1
+  normal:
+    brightness: 1
+    saturation: 1
+    hueshift: 0
+    bgcolor:
+      __usertype: LuaColor
+      h: 0.524499714374542
+      s: 1.00169110298157
+      v: 1.0019394159317
+      a: 1
+name: Recovery
+grouping: ""
+mtime: 1711321630828
+largeQuantity: true
+iconid: 12cdef25-2e5b-47e0-bccf-758198de8442

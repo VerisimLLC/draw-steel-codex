@@ -1,0 +1,9 @@
+__typeName: MarkdownDocument
+description: Malice
+parentFolder: 950a66b0-f3d6-41b9-b5dd-7bef2f74d154
+updateid: 657e4986-3663-49ac-87db-79d064bed315
+annotations: []
+id: 74b5f0b9-5a83-42b8-9e82-e57dd2abf443
+mtime: 1763334787012
+content: "# Malice\n\nMalice is a resource you gain that allows your creatures to activate their most powerful abilities.\n\nAt the start of combat, you gain Malice equal to the average number of Victories per hero. Then at the start of each round of combat, you gain Malice equal to the number of heroes in the battle, plus the number of the round of combat that has just begun. If a hero dies, they stop generating Malice for you in this way. At the end of an encounter, all your Malice disappears.\n\nNon-minion monsters can spend Malice the way heroes spend their heroic resources, activating and enhancing their abilities.\n\nAbilities that make use of Malice have the cost noted in a creature’s stat block.\n\nSpecific types of monsters sometimes have other ways they can spend Malice, typically on features that affect an entire group of enemies, actions or maneuvers they can take during their turn, or events that affect the encounter environment. "
+ctime: 1763334161795

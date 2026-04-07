@@ -1,0 +1,22 @@
+__typeName: equipment
+itemPrerequisite: The severed hand of a giant
+keywords:
+  Magic: true
+  Arms: true
+projectSource: Texts or lore in Yllyric
+flavor: Each of these metallic blue bracers is oversized.
+weight: 1
+echelon: 3
+specialDescription: ""
+equipmentCategory: 659f34f2-14d6-4e71-99c1-89d703d5ba48
+ctime: 1775047133856
+type: Gear
+projectGoal: "450"
+mtime: 1775047133856
+name: Bracers of Strife
+category: Gear
+description: While you wear them in combat, these bracers magically double the size of your hands and any melee weapons you wield, automatically compensating for the extra weight. You gain a +2 damage bonus for any weapon ability that deals rolled damage, and a +1 bonus to the distance you push any target with any weapon ability. This damage bonus adds to the damage bonus granted by other treasures.
+projectRollCharacteristic:
+  rea: true
+  inu: true
+id: 27176640-b590-4f97-8275-7df2001865dd

@@ -1,0 +1,246 @@
+__typeName: Class
+heroicResourceChecklist:
+- quantity: 2 + 1 when level >= 4
+  guid: 9c7924a9-7612-4a75-bd8c-cfef2cd55c8c
+  details: "You gain 2 piety the first time in an encounter that \nyou or a creature within 10 squares of you takes acid, cold, fire, lightning, poison, or sonic damage.\n\nAt 4th level or higher, you gain 1 additional piety from this feature. "
+  name: Creature Takes Elemental Damage
+isSubclass: true
+ctime: 1728003809158
+levels:
+  level-8:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  tutoriallevel-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  level-5:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  tutoriallevel-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  level-7:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  primary:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  level-10:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  level-6:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  level-1:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  level-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  level-2:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  multiclass:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  tutoriallevel-2:
+    __typeName: ClassLevel
+    features:
+    - __typeName: CharacterFeature
+      domains:
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+      guid: 15985fcb-00a2-40a5-be40-a6fbbd251b1d
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 4121af24-36c8-4eff-91cd-f7fede83d58f
+        source: Nature Domain Class Feature
+        behavior: trigger
+        domains:
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+        name: Nature Domain Piety
+        resourceRefreshType: encounter
+        description: ""
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: "Creature Takes Elemental Damage: Gain Piety"
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: game:heroicresourcetriggers
+          range: 1
+          usageLimitOptions:
+            resourceRefreshType: encounter
+            charges: "1"
+            resourceid: 9e4e2ea5-3a7e-4e81-9cc2-eaf11fd3cdae
+          guid: 0d4227b5-69a7-426e-856b-16c0d2f71cd5
+          persistence: []
+          modifiers: []
+          subjectRange: "10"
+          strain: []
+          whenActive: combat
+          abilityType: none
+          trigger: losehitpoints
+          domains:
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+            class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+          conditionFormula: Damage Type is acid or damage type is cold or damage type is fire or damage type is lightning or damage type is poison or damage type is sonic
+          numTargets: "1"
+          name: Nature Domain Piety
+          behaviors:
+          - __typeName: ActivatedAbilityReplenishBehavior
+            applyto: caster
+            resourceid: 2d3d5511-4b80-46d1-a8c6-4705b9aa45ca
+            checklistid: 9c7924a9-7612-4a75-bd8c-cfef2cd55c8c
+            quantity: 2 + 1 when level >=4
+          description: |-
+            You gain 2 piety the first time in an encounter that you or a creature within 10 squares of you takes acid, cold, fire, lightning, poison, or sonic damage.
+
+            At 4th level or higher, you gain 1 additional piety from this feature.
+          subject: any
+          iconid: ui-icons/skills/1.png
+        guid: 9e4e2ea5-3a7e-4e81-9cc2-eaf11fd3cdae
+      name: Nature Domain Piety
+      classid: f1821c22-5977-4553-9eda-49f4b75c0967
+      description: ""
+      source: Nature Domain Class Feature
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+        class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+      guid: 175b6bbf-3d72-465b-b4d1-b1ff8bc25ed9
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+          class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+        sourceguid: c6bb54be-2748-4c9c-98a6-25066821a932
+        description: 'Vines whip up from the floor or ground within 10 squares of you, wrapping around a number of creatures of your choice equal to your Intuition score. You can slide each creature up to a number of squares equal to your Intuition score. The vines then fade away. '
+        source: Nature Domain Class Feature
+        name: Nature Domain Effect
+        behavior: activated
+        guid: 3f2e9891-0cc3-4441-b49e-a68333163643
+        activatedAbility:
+          __typeName: ActivatedAbility
+          numTargets: Intuition
+          modifiers: []
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor:
+              __usertype: LuaColor
+              h: 0.272499799728394
+              s: 0.977439641952515
+              v: 1.00238561630249
+              a: 1
+          guid: 5ceb3597-fa5c-4875-ac9b-81e4bcd54cf5
+          repeatTargets: false
+          abilityType: none
+          domains:
+            class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+            class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            standardAbilityParams:
+              distance: "<<3*Intuition>>"
+              range: "<<intuition>>"
+            customAbility:
+              __typeName: ActivatedAbility
+              numTargets: "1"
+              modifiers: []
+              guid: 91069639-2a31-48ac-a2ed-788de62e6be4
+              repeatTargets: false
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              behaviors: []
+              range: 1
+              name: Invoked Ability
+              targetType: self
+              description: ""
+              abilityType: none
+              iconid: ui-icons/skills/1.png
+            standardAbility: 21f855e5-cef6-46a9-96aa-976d1ac35a6c
+            abilityType: standard
+          targetType: target
+          name: Nature Domain Effect
+          description: 'Vines whip up from the floor or ground within 10 squares of you, wrapping around a number of creatures of your choice equal to your Intuition score. You can slide each creature up to a number of squares equal to your Intuition score. The vines then fade away. '
+          categorization: Trigger
+          range: "10"
+          iconid: e5bc0777-621c-4679-ad6f-0cf97fb23471
+      name: Nature Domain Effect
+      classid: f1821c22-5977-4553-9eda-49f4b75c0967
+      description: 'Vines whip up from the floor or ground within 10 squares of you, wrapping around a number of creatures of your choice equal to your Intuition score. You can slide each creature up to a number of squares equal to your Intuition score. The vines then fade away. '
+      source: Nature Domain Class Feature
+      implementation: 3
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  tutoriallevel-4:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  level-9:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+  level-3:
+    __typeName: ClassLevel
+    features: []
+    domains:
+      class:e0263246-c362-433a-9c1e-ee29c3b63b2c: true
+      class:f1821c22-5977-4553-9eda-49f4b75c0967: true
+name: Nature Domain
+prerequisite: Deity.Domains has "Nature"
+mtime: 1768291472169
+id: f1821c22-5977-4553-9eda-49f4b75c0967
+primaryClassId: e0263246-c362-433a-9c1e-ee29c3b63b2c

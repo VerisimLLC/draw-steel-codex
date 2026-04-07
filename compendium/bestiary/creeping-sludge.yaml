@@ -1,0 +1,576 @@
+info:
+  locInfo: null
+  appearance:
+    portraitId: 7bec2c34-3d9b-4b95-96c4-685e29613a89
+    offtokenPortraitId: af27004f-eef7-4bac-92c6-26a8351650ad
+    portraitFrameId: ac7e5d6a-bddf-43c3-83ee-f962e7094076
+    portraitRibbon: null
+    backgroundId: 2b02a5ab-38ce-4406-b4a5-3889b80ab574
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0.1120024
+      y: 0
+    frameHueShift: 0.3591881
+    frameSaturation: 0.9854543
+    frameBrightness: 0.3763961
+    popoutScale: 0.49
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  disguise:
+    portraitId: null
+    offtokenPortraitId: null
+    portraitFrameId: null
+    portraitRibbon: null
+    backgroundId: null
+    anthem: null
+    anthemVolume: 1
+    tokenScaling: 1
+    tokenZoom: 1
+    portraitOffset:
+      x: 0
+      y: 0
+    frameHueShift: 0
+    frameSaturation: 1
+    frameBrightness: 1
+    characterName: null
+    characterNamePrivate: false
+    flip: false
+    saddlePositions: []
+  settings:
+    canRotate: false
+    useLight: false
+    lightColor:
+      r: 1
+      g: 1
+      b: 1
+      a: 1
+    lightIntensity: 0.1
+    lightRadius: 10
+    lightFalloff: 0.1
+    lightAngle: 360
+  mountedBy: {}
+  updateid: 2aa0c21c-66b1-440e-b57a-b8aa27732a44
+  properties:
+    __typeName: monster
+    savingThrowRatings: []
+    moveDiag: 0
+    cr: 2
+    skillProficiencies: []
+    deathSavingThrowSuccesses: 0
+    inflictedConditions: []
+    ev: 4
+    innateAttacks: []
+    attributes:
+      wis:
+        __typeName: CharacterAttribute
+        id: wis
+      inu:
+        __typeName: CharacterAttribute
+        baseValue: 0
+        id: inu
+      str:
+        __typeName: CharacterAttribute
+        id: str
+      agl:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: agl
+      prs:
+        __typeName: CharacterAttribute
+        baseValue: -2
+        id: prs
+      int:
+        __typeName: CharacterAttribute
+        id: int
+      mgt:
+        __typeName: CharacterAttribute
+        baseValue: 2
+        id: mgt
+      rea:
+        __typeName: CharacterAttribute
+        baseValue: -3
+        id: rea
+      con:
+        __typeName: CharacterAttribute
+        id: con
+      dex:
+        __typeName: CharacterAttribute
+        id: dex
+      cha:
+        __typeName: CharacterAttribute
+        id: cha
+    monster_type: Creeping Sludge
+    levelChoices: []
+    moveDistance: 7
+    deathSavingThrowFailures: 0
+    ongoingEffects:
+    - __typeName: CharacterOngoingEffectInstance
+      timestamp: 1764149530424
+      ongoingEffectid: 7d7e64a3-0b2b-41c3-a00d-15b48ee1d8d5
+      seq: 3
+      time:
+        __typeName: TimePoint
+        time: 2.61544333065257
+        initiativeord: 0
+        queueguid: 43bcea95-3704-4541-8ca6-9c516a300f7a
+        initiativeid: 0a570dd4-d68b-4ec9-a326-6762c516042c
+        round: 1
+      sourceDescription: Applied by Obsessed Creeping Sludge's <b>Oozen Grasp</b> ability
+      stacks: 1
+      id: ea2d5b9a-4eb1-4c82-8625-efbf51367694
+      casterInfo:
+        abilityName: Oozen Grasp
+        tokenid: 06b1aeb3-ed4c-4760-b122-bc8fba3ccab1
+    stamina_history:
+      __typeName: StatHistory
+      entries:
+        e175bea2-a7b4-4b2e-b42b-6ccff1acf9be:
+          note: 3 Damage
+          timestamp: 1763975141616
+          disposition: bad
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 22
+        e55ccdf0-2cf1-4d66-8cbf-d6578817a5bc:
+          note: 2 damage from Obsessed Creeping Sludge's Split
+          disposition: bad
+          timestamp: 1763674388791
+          attackerid: 06b1aeb3-ed4c-4760-b122-bc8fba3ccab1
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 2
+        ca3bf556-c7db-4d05-a7b4-634a29b6207b:
+          note: 15 Healing
+          timestamp: 1763674399253
+          disposition: good
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 17
+        23fa95c8-ec6e-46fa-b434-42b78b85c549:
+          note: 25 Healing
+          timestamp: 1763975135315
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 25
+        8d3e88a3-e103-4d44-8263-e74a43f45a33:
+          note: 11 damage from Obsessed Creeping Sludge's Split
+          disposition: bad
+          timestamp: 1763975148293
+          attackerid: 06b1aeb3-ed4c-4760-b122-bc8fba3ccab1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 11
+        2e993247-13c8-4f4a-895a-7b7e0762391c:
+          note: 25 Healing
+          timestamp: 1763975179864
+          disposition: good
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 25
+        1020a168-7f83-4938-bc1a-a5f94ac1c496:
+          note: 3 damage from Obsessed Creeping Sludge's Split
+          disposition: bad
+          timestamp: 1763674253493
+          attackerid: 06b1aeb3-ed4c-4760-b122-bc8fba3ccab1
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 4
+        cf7805ca-b744-4984-a40e-784c09d98cfd:
+          note: 8 damage from Obsessed Creeping Sludge's Split
+          disposition: bad
+          timestamp: 1763674409885
+          attackerid: 06b1aeb3-ed4c-4760-b122-bc8fba3ccab1
+          userid: o0Z9FIHOGMTGSDawp2pf82DJHmx2
+          set: 9
+    minion: false
+    tempHitpointsEndEffect: true
+    stability: 2
+    opportunityAttack: 3
+    import: []
+    characterFeatures:
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:22f8cc77-e445-4a27-a639-f10c31457437: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: 22f8cc77-e445-4a27-a639-f10c31457437
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:22f8cc77-e445-4a27-a639-f10c31457437: true
+        name: Climb Speed
+        guid: 5a9423c0-7d4c-441e-866b-cd5492df74f2
+        description: ""
+        behavior: attribute
+        attribute: climb
+      source: Character Feature
+      description: ""
+      guid: 22f8cc77-e445-4a27-a639-f10c31457437
+      name: Climb Speed
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:cabb28dc-3ba8-4a92-aab7-3d81137aa189: true
+      modifiers:
+      - __typeName: CharacterModifier
+        sourceguid: cabb28dc-3ba8-4a92-aab7-3d81137aa189
+        source: Character Feature
+        value: 1
+        domains:
+          CharacterFeature:cabb28dc-3ba8-4a92-aab7-3d81137aa189: true
+        name: Gelatinous
+        guid: dc9d7e33-0eb9-4b9d-9b8e-1922997ccc6e
+        description: The creeping sludge can move through spaces as if they were a size 1T creature.
+        behavior: attribute
+        attribute: 112b8524-f15d-4d3b-84d7-a8aaa5997bb8
+      source: Character Feature
+      description: The creeping sludge can move through spaces as if they were a size 1T creature.
+      guid: cabb28dc-3ba8-4a92-aab7-3d81137aa189
+      name: Gelatinous
+      implementation: 3
+    - __typeName: CharacterFeature
+      domains:
+        CharacterFeature:236f8a31-a2d3-4b92-9352-8cbea67ca8d4: true
+      modifiers:
+      - __typeName: CharacterModifier
+        domains:
+          CharacterFeature:236f8a31-a2d3-4b92-9352-8cbea67ca8d4: true
+        sourceguid: 236f8a31-a2d3-4b92-9352-8cbea67ca8d4
+        description: ""
+        source: Character Feature
+        name: Split
+        behavior: trigger
+        triggeredAbility:
+          __typeName: TriggeredAbility
+          repeatTargets: false
+          targetType: self
+          triggerPrompt: The creeping sludge splits to create another creeping sludge, each with half their current stamina before splitting.
+          display:
+            brightness: 1
+            saturation: 1
+            hueshift: 0
+            bgcolor: "#ffffffff"
+          mandatory: false
+          range: 1
+          guid: de665ad2-f0cc-401e-b410-107c12ddb165
+          numTargets: "1"
+          modifiers: []
+          hasManualVersion: true
+          strain: []
+          whenActive: always
+          trigger: losehitpoints
+          mandatoryDifferentPlayer: false
+          castImmediately: false
+          persistence: []
+          actionResourceId: 5e551b7d-17fb-4099-a303-bafb3c146f98
+          name: Split
+          behaviors:
+          - __typeName: ActivatedAbilityInvokeAbilityBehavior
+            customAbility:
+              __typeName: ActivatedAbility
+              persistence: []
+              modifiers: []
+              display:
+                brightness: 1
+                saturation: 1
+                hueshift: 0
+                bgcolor: "#ffffffff"
+              strain: []
+              guid: 94ef1c9e-32f0-4db2-8ceb-67fbb4552d48
+              repeatTargets: false
+              abilityType: none
+              categorization: Hidden
+              behaviors:
+              - __typeName: ActivatedAbilitySummonBehavior
+                casterChoosesCreatures: false
+                groupInitiativeWithCaster: false
+                bestiaryFilter: Beast.Name = Invoker.Name
+                casterControls: false
+                monsterType: custom
+              - __typeName: ActivatedAbilityDamageBehavior
+                cannotBeReduced: true
+                roll: Maximum Stamina - (Invoker.Stamina * 0.5)
+                doesNotTrigger: true
+              numTargets: "1"
+              name: Invoked Ability
+              targetType: emptyspace
+              description: ""
+              range: 1
+              iconid: ui-icons/skills/1.png
+            promptText: Split
+          - __typeName: ActivatedAbilityDamageBehavior
+            cannotBeReduced: true
+            roll: Stamina * 0.5
+            doesNotTrigger: true
+          description: The creeping sludge splits to create another creeping sludge, each with half their current Stamina before splitting. The new sludge has  none of the benefits, effects, or conditions affecting the original.
+          abilityType: none
+          iconid: ui-icons/skills/1.png
+        guid: d90825c8-0e91-4456-bcd5-7f48f1198ab6
+      source: Character Feature
+      description: ""
+      guid: 236f8a31-a2d3-4b92-9352-8cbea67ca8d4
+      name: Split
+      implementation: 3
+    role: Horde Brute
+    notes:
+    - text: ""
+      title: Monster Notes
+    equipment:
+      mainhand1: 22ab52f5-955b-40c8-80c3-826f823e0a5b
+    titles: []
+    equipmentMeta:
+      leveled1: []
+      leveled2: []
+      leveled5: []
+      leveled3: []
+      trinket10: []
+      trinket9: []
+      offhand0: []
+      trinket2: []
+      trinket4: []
+      trinket5: []
+      leveled4: []
+      trinket3: []
+      trinket6: []
+      trinket7: []
+      trinket1: []
+      trinket8: []
+    keywords:
+      Ooze: true
+    temporary_stamina_history:
+      __typeName: StatHistory
+      entries:
+        8c2006de-c96c-4402-a5d1-30eca2c081eb:
+          timestamp: 1764149517427
+          note: Applied Congeal
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 15
+    resistances:
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: acid
+      apply: Damage Reduction
+    - __typeName: ResistanceEntry
+      dr: 2
+      damageType: corruption
+      apply: Damage Reduction
+    animations:
+      anim:
+      - resources:
+          a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b: 1
+        animType: consumeResource
+      guid: cb8ebaa8-0f06-48e0-83d4-c6fb5548f461-107
+    max_hitpoints: 25
+    monster_category: Monster
+    initiativeGrouping: 684eab74-97e6-4400-856f-0350812e2bb6
+    groupid: 171c1ebf-ae57-4e86-bfd1-de9fdc4968f1
+    a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b_history:
+      __typeName: StatHistory
+      entries:
+        f98dbe18-c363-42a3-b1e6-2fd2b941abc1:
+          timestamp: 1764149541359
+          note: Oozen Grasp
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 1/1
+        8ef4bd22-5f80-4628-b198-e80c2c9aecb1:
+          note: Grab
+          timestamp: 1763462862928
+          refreshid: 43bcea95-3704-4541-8ca6-9c516a300f7a-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+    temporary_hitpoints: 15
+    damage_taken: 0
+    creatureSize: 1L
+    walkingSpeed: 5
+    availableTriggers: []
+    inventory: []
+    moveDistanceRoundId: bc89db2b-0475-4925-84b9-4663ed00344a-4
+    innateActivatedAbilities:
+    - __typeName: ActivatedAbility
+      objectTarget: true
+      repeatTargets: false
+      keywords:
+        Strike: true
+        Melee: true
+        Weapon: true
+      behaviors:
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - 3 corruption damage
+        - 4 corruption damage; vertical pull 1
+        - 5 corruption damage; vertical pull 2
+        roll: 2d10 + Might or Agility
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        ongoingEffect: a561704f-5985-4871-9067-55b3bc4f0dec
+        filterTarget: not Ongoing Effects has "Corroded"
+        duration: save_ends
+        ongoingEffectCustom: a561704f-5985-4871-9067-55b3bc4f0dec
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.35756242275238
+          s: 0.974248945713043
+          v: 0.91372549533844
+          a: 1
+      flavor: The target gains damage weakness 2 and reduces the potency of their potency effects by 1 (save ends). Each time the target fails this saving throw, the damage weakness increases by 2 and the potency of their potency effects is reduced by 1.
+      sourceReference:
+        __typeName: SourceReference
+        page: 34
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      range: 1
+      persistence: []
+      modifiers: []
+      strain: []
+      guid: 4243951e-8ff3-47ef-8c53-cfc4b7069464
+      categorization: Signature Ability
+      actionResourceId: d19658a2-4d7b-4504-af9e-1a5410fb17fd
+      targetType: target
+      implementation: 3
+      name: Corrode
+      numTargets: "1"
+      description: ""
+      abilityType: none
+      iconid: 006e8403-6056-46d1-bd48-db8804433d39
+    - __typeName: ActivatedAbility
+      resourceNumber: "2"
+      objectTarget: true
+      targetFilter: Enemy or Object
+      repeatTargets: false
+      keywords:
+        Area: true
+      behaviors:
+      - __typeName: ActivatedAbilityApplyOngoingEffectBehavior
+        applyto: caster
+        ongoingEffect: 7d7e64a3-0b2b-41c3-a00d-15b48ee1d8d5
+        duration: eoe
+        ongoingEffectCustom: 7d7e64a3-0b2b-41c3-a00d-15b48ee1d8d5
+      - __typeName: ActivatedAbilityPowerRollBehavior
+        tiers:
+        - A<0 grabbed
+        - A<1 grabbed, vertical pull 1
+        - A<2 grabbed, vertical pull 2
+        roll: 2d10 + Might or Agility
+      display:
+        brightness: 1
+        saturation: 1
+        hueshift: 0
+        bgcolor:
+          __usertype: LuaColor
+          h: 0.35756242275238
+          s: 0.974248945713043
+          v: 0.91372549533844
+          a: 1
+      categorization: Ability
+      range: "2"
+      actionResourceId: a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b
+      modifiers: []
+      strain: []
+      guid: 401ff646-4915-48d1-a02a-0440a3a2055f
+      abilityType: none
+      sourceReference:
+        __typeName: SourceReference
+        page: 34
+        docid: d71f26fc-7c02-49d3-ad30-6eadd34796cb
+      numTargets: "1"
+      iconid: 6ed7bff0-8d17-4f1d-9494-531883f754ab
+      targetType: all
+      name: Oozen Grasp
+      persistence: []
+      description: The creeping sludge can have an unlimited number of size 1 creatures grabbed at a time.
+      resourceCost: 101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8
+      implementation: 3
+    resources:
+      d19658a2-4d7b-4504-af9e-1a5410fb17fd:
+        __typeName: CharacterResource
+        used: 1
+        refreshid: bc89db2b-0475-4925-84b9-4663ed00344a-3
+      a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b:
+        __typeName: CharacterResource
+        used: 1
+    damageEntries:
+      73319fc6-90c3-4201-98a4-37f696bfce61:
+        damage: 11
+        timestamp: 1763975148293
+        id: 73319fc6-90c3-4201-98a4-37f696bfce61
+        damage_type: push
+      060a6624-74a3-4120-9fe9-82157697f8ab:
+        damage: 3
+        id: 060a6624-74a3-4120-9fe9-82157697f8ab
+        timestamp: 1763975141616
+      bd6ef7c8-9721-4934-a845-1306bdcad29f:
+        timestamp: 1763975179864
+        id: bd6ef7c8-9721-4934-a845-1306bdcad29f
+        heal: 25
+      f8592764-17a5-430e-b7fb-4d7b0fc85ff8:
+        timestamp: 1763975135315
+        id: f8592764-17a5-430e-b7fb-4d7b0fc85ff8
+        heal: 25
+    temporary_hitpoints_effect: 89229841-7787-43a7-b336-85f93170c863
+    skillRatings: []
+    d19658a2-4d7b-4504-af9e-1a5410fb17fd_history:
+      __typeName: StatHistory
+      entries:
+        fa82dbb5-dd30-4727-9b94-b5fa17e5d529:
+          note: Melee Free Strike
+          timestamp: 1763976544390
+          refreshid: e8d4d8b7-1445-4c4d-9516-e5f80dce98d3-6
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        70d139b0-289f-4056-895e-194cae787e2e:
+          note: Melee Free Strike
+          timestamp: 1763975987504
+          refreshid: e8d4d8b7-1445-4c4d-9516-e5f80dce98d3-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        28e9a947-1880-4545-96fc-f53da27166f7:
+          note: Corrode
+          timestamp: 1763976960497
+          refreshid: bc89db2b-0475-4925-84b9-4663ed00344a-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        a1b2ea46-22f8-41f6-9b8a-52c120843e44:
+          note: Corrode
+          timestamp: 1763975957165
+          refreshid: e8d4d8b7-1445-4c4d-9516-e5f80dce98d3-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        5caeebf8-985a-4d33-857e-6c4e9e1a05dc:
+          note: Corrode
+          timestamp: 1763975715390
+          refreshid: 605ee120-d97d-4898-8150-950e03410611-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        d2ffe4a4-a681-484f-9301-35141b45a266:
+          note: Melee Free Strike
+          timestamp: 1763977032460
+          refreshid: bc89db2b-0475-4925-84b9-4663ed00344a-3
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        dce90798-8e03-48ca-b588-3353bf97cd32:
+          note: Corrode
+          timestamp: 1763977015631
+          refreshid: bc89db2b-0475-4925-84b9-4663ed00344a-2
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+        8e0fd416-81fe-49f5-9432-9e445366749b:
+          note: Corrode
+          timestamp: 1763461891397
+          refreshid: 43bcea95-3704-4541-8ca6-9c516a300f7a-1
+          userid: fWgsyXoFyNZCSaNPiJrHyGZz4583
+          set: 0/1
+  tokenType: null
+  bestiaryId: e6d16a5e-4abb-40cf-8e9e-e1f730b919b3
+  summonerid: null
+  ownerId: ""
+  partyid: null
+  size: 3
+  createdTimestamp: 1763460567516
+description: null
+parentFolder: 18b8aee2-b927-4c4f-b978-2526f38bdf87
+artist: null
+ord: 1
+ctime: 1763460567516
+mtime: 1775167448592
+hidden: false

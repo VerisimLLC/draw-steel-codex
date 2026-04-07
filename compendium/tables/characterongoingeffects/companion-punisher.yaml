@@ -1,0 +1,17 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+guid: f21fce6b-f2c4-456c-95c9-ccab3e117ea0
+id: f21fce6b-f2c4-456c-95c9-ccab3e117ea0
+ctime: 1770382839257
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: Companion Punisher
+description: ""
+custom: true
+mtime: 1770382839257
+iconid: ui-icons/skills/1.png

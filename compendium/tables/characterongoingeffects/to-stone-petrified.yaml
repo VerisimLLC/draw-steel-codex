@@ -1,0 +1,18 @@
+__typeName: CharacterOngoingEffect
+association: []
+modifiers: []
+source: Ongoing Effect
+casterTracking: one
+guid: be5fe90d-6ecd-4cb1-89d6-c523f82a23b6
+id: be5fe90d-6ecd-4cb1-89d6-c523f82a23b6
+ctime: 1765900377723
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+name: To Stone! Petrified
+description: You are petrified until given a supernatural cure or the caster chooses to reverse the effect.
+custom: true
+mtime: 1765900377723
+iconid: ui-icons/skills/1.png

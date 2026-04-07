@@ -1,0 +1,28 @@
+__typeName: ActivatedAbility
+id: 8010820f-6bf3-422f-985b-2af02f620113
+behaviors:
+- __typeName: ActivatedAbilityRelocateCreatureBehavior
+  movementType: jump
+display:
+  brightness: 1
+  saturation: 1
+  hueshift: 0
+  bgcolor: "#ffffffff"
+categorization: Hidden
+range: "<<distance>>"
+targetType: emptyspace
+persistence: []
+modifiers: []
+source: Monster
+strain: []
+documentation: Allows a creature to jump a certain number of squares
+description: ""
+ctime: 1746929754557
+numTargets: "1"
+targeting: direct
+guid: c7c40bf4-e8f8-4258-b2b0-185b7760e579
+name: Jump
+repeatTargets: false
+mtime: 1764120510796
+abilityType: none
+iconid: ui-icons/skills/1.png
